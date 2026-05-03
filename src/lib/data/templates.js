@@ -61,3 +61,4 @@ export const purgeForUser = async (email) => {
     base44.entities.WorkoutTemplate.delete(r.id).catch(() => {})
   ));
 };
+

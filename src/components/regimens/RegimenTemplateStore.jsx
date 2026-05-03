@@ -382,3 +382,4 @@ export default function RegimenTemplateStore({ open, onClose }) {
     </Dialog>
   );
 }
+
