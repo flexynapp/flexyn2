@@ -1,5 +1,5 @@
 // src/lib/AuthContext.jsx — Supabase auth
-import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 
@@ -18,7 +18,6 @@ export function AuthProvider({ children }) {
   const [user,            setUser]            = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth,   setIsLoadingAuth]   = useState(true);
-  const initialised = useRef(false);
 
   const loadProfile = useCallback(async (authUser) => {
     try {
@@ -35,33 +34,36 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Safety net: never block the UI longer than 8 seconds
-    const timeout = setTimeout(() => setIsLoadingAuth(false), 8000);
+    // Safety net: never block UI longer than 10 seconds
+    const timeout = setTimeout(() => setIsLoadingAuth(false), 10000);
 
-    // onAuthStateChange fires immediately with INITIAL_SESSION — use it as the
-    // single source of truth. No separate getSession() needed.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        clearTimeout(timeout); // cancel safety net once we get a real response
+    // 1. Bootstrap immediately from stored session (localStorage, no network)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        loadProfile(session.user).finally(() => clearTimeout(timeout));
+      } else {
+        clearTimeout(timeout);
+        setIsLoadingAuth(false);
+      }
+    });
 
+    // 2. Keep in sync with auth events (OAuth redirect, sign-out, token refresh).
+    //    IMPORTANT: callback must be synchronous — defer async work with setTimeout.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         if (session?.user) {
-          // Only call loadProfile on the first init or on explicit sign-in/out events.
-          // TOKEN_REFRESHED fires silently and should not re-fetch the profile.
-          if (!initialised.current || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
-            initialised.current = true;
-            await loadProfile(session.user);
-          } else {
-            initialised.current = true;
-            setIsLoadingAuth(false);
-          }
-        } else {
-          initialised.current = true;
+          // Defer so Supabase's internal auth state settles first
+          setTimeout(() => loadProfile(session.user), 0);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setTimeout(() => {
           setUser(null);
           setIsAuthenticated(false);
           setIsLoadingAuth(false);
-        }
+        }, 0);
       }
-    );
+      // INITIAL_SESSION is handled by getSession() above — skip it here
+    });
 
     return () => {
       clearTimeout(timeout);
@@ -94,7 +96,6 @@ export function AuthProvider({ children }) {
       user,
       isAuthenticated,
       isLoadingAuth,
-      // Kept for API compatibility with existing components
       isLoadingPublicSettings: false,
       authError: (!isLoadingAuth && !isAuthenticated) ? { type: 'auth_required' } : null,
       appPublicSettings: null,
