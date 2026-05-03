@@ -36,7 +36,14 @@
       "created_by": "{{user.email}}"
     },
     "read": {
-      "created_by": "{{user.email}}"
+      "$or": [
+        {
+          "data.is_public": true
+        },
+        {
+          "created_by": "{{user.email}}"
+        }
+      ]
     },
     "update": {
       "created_by": "{{user.email}}"
