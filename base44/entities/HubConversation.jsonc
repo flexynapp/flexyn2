@@ -30,8 +30,12 @@
     "create": {
       "created_by": "{{user.email}}"
     },
-    "read": {},
-    "update": {},
+    "read": {
+      "data.participant_emails": "{{user.email}}"
+    },
+    "update": {
+      "data.participant_emails": "{{user.email}}"
+    },
     "delete": {
       "created_by": "{{user.email}}"
     }
