@@ -838,6 +838,516 @@ function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange
   );
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   DRAG HOOK — used by Age, Height, Weight steps
+═══════════════════════════════════════════════════════════════ */
+function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, step: stepSize = 1 }) {
+  const ref = useRef(null);
+  const dragState = useRef({ down: false, start: 0, startVal: value });
+  const [isDragging, setIsDragging] = useState(false);
+
+  const onPointerDown = useCallback((e) => {
+    e.preventDefault();
+    const pos = axis === 'x' ? (e.clientX ?? 0) : (e.clientY ?? 0);
+    dragState.current = { down: true, start: pos, startVal: value };
+    setIsDragging(true);
+  }, [value, axis]);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragState.current.down) return;
+      const pos = axis === 'x'
+        ? (e.clientX ?? e.touches?.[0]?.clientX ?? 0)
+        : (e.clientY ?? e.touches?.[0]?.clientY ?? 0);
+      const d = pos - dragState.current.start;
+      const delta = Math.round((-d) / pxPerUnit) * stepSize;
+      const next = Math.min(max, Math.max(min, dragState.current.startVal + delta));
+      if (next !== value) { onChange(next); if (navigator.vibrate) navigator.vibrate(2); }
+    };
+    const onUp = () => { dragState.current.down = false; setIsDragging(false); };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onUp);
+    };
+  }, [axis, pxPerUnit, stepSize, min, max, onChange, value]);
+
+  return { ref, onPointerDown, isDragging };
+}
+
+/* ── Pill unit toggle (ft·in / cm, lb / kg) ── */
+function PillUnitToggle({ options, value, onChange }) {
+  return (
+    <div style={{
+      display: 'inline-flex', background: 'hsl(var(--secondary))',
+      borderRadius: 999, padding: 3, gap: 2, border: '1px solid hsl(var(--border))',
+    }}>
+      {options.map(o => {
+        const active = value === o.id;
+        return (
+          <button key={o.id} onClick={() => onChange(o.id)} style={{
+            border: 'none', padding: '6px 18px',
+            fontFamily: 'ui-monospace, monospace', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em',
+            borderRadius: 999,
+            background: active ? 'hsl(var(--primary))' : 'transparent',
+            color: active ? 'white' : 'hsl(var(--muted-foreground))',
+            cursor: 'pointer', transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)',
+            boxShadow: active ? '0 4px 12px hsl(var(--primary) / 0.35)' : 'none',
+            textTransform: 'uppercase', minWidth: 60,
+          }}>{o.label}</button>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Digit reel counter (Framer-animated) ── */
+function NumberReel({ value, digits = 2, size = 80 }) {
+  const str = String(value).padStart(digits, '0');
+  return (
+    <span style={{ display: 'inline-flex' }}>
+      {str.split('').map((ch, i) => (
+        <span key={i} style={{ display: 'inline-block', overflow: 'hidden', height: '0.95em', lineHeight: 1 }}>
+          <motion.span
+            key={`${i}-${ch}`}
+            initial={{ y: '80%', opacity: 0 }}
+            animate={{ y: '0%', opacity: 1 }}
+            transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+            style={{ display: 'block' }}
+          >{ch}</motion.span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP: AGE — horizontal drag wheel with life-stage chip
+═══════════════════════════════════════════════════════════════ */
+function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
+  const age = stats.age;
+  const setAge = (v) => onChange({ ...stats, age: v });
+  const { ref, onPointerDown, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
+
+  const [trackW, setTrackW] = useState(300);
+  useEffect(() => {
+    const update = () => { if (ref.current) setTrackW(ref.current.offsetWidth); };
+    update();
+    window.addEventListener('resize', update); return () => window.removeEventListener('resize', update);
+  }, [ref]);
+
+  const PX = 20;
+  const offset = -age * PX + trackW / 2;
+
+  const stage = useMemo(() => {
+    if (age < 18) return { tag: 'TEEN', tone: "Building habits early. We'll start with form.", accent: 'hsl(217 91% 60%)' };
+    if (age < 25) return { tag: 'PEAK INTAKE', tone: 'Hormonally primed for muscle gain. Great window.', accent: 'hsl(160 64% 45%)' };
+    if (age < 35) return { tag: 'PRIME', tone: 'Strength peaks here for most lifters. Push hard.', accent: 'hsl(26 95% 56%)' };
+    if (age < 45) return { tag: 'SUSTAIN', tone: 'Smart programming wins. Volume per session.', accent: 'hsl(38 92% 60%)' };
+    if (age < 55) return { tag: 'INTENT', tone: 'Recovery becomes the variable. We'll protect it.', accent: 'hsl(280 60% 60%)' };
+    return { tag: 'LONGEVITY', tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)' };
+  }, [age]);
+
+  const canNext = username.trim().length >= 2 && !usernameError;
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto pb-4">
+        <KineticHeading kicker={`About You · 0${step}`} text="Tell us about yourself." accentWord="yourself." />
+        <p className="text-sm text-muted-foreground mt-2 mb-5">We use this to calibrate your plan. Encrypted, never sold.</p>
+
+        {/* Username */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+          className="rounded-2xl border bg-card/80 p-4 mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Icon name="user" size={14} color="hsl(var(--muted-foreground))" />
+            <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">What should we call you?</span>
+          </div>
+          <input
+            type="text"
+            value={username}
+            onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            placeholder="e.g. jordan_lifts"
+            className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[14px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+          />
+          {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
+        </motion.div>
+
+        {/* Age drag section */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.18 }}
+          className="rounded-2xl border bg-card/80 p-5 relative overflow-hidden">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-4">How old are you?</div>
+
+          {/* Glow halo */}
+          <div style={{
+            position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)',
+            width: 200, height: 200, borderRadius: '50%',
+            background: stage.accent, opacity: 0.1, filter: 'blur(50px)',
+            transition: 'background 0.5s', pointerEvents: 'none', animation: 'stat-glow-pulse 3s ease-in-out infinite',
+          }} />
+
+          {/* Hero number */}
+          <div className="flex flex-col items-center mb-4">
+            <div style={{
+              fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800,
+              fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.06em',
+              color: 'hsl(var(--foreground))',
+              transform: isDragging ? 'scale(0.97)' : 'scale(1)',
+              transition: 'transform 0.15s ease-out',
+            }}>
+              <NumberReel value={age} digits={2} size={120} />
+            </div>
+            <div className="font-mono text-[11px] font-600 tracking-[0.3em] uppercase text-muted-foreground mt-2">YEARS OLD</div>
+
+            {/* Life-stage chip */}
+            <motion.div
+              key={stage.tag}
+              initial={{ opacity: 0, scale: 0.85 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+              className="flex items-center gap-2 mt-3 px-4 py-2 rounded-full text-sm font-semibold"
+              style={{
+                background: `${stage.accent.replace(')', ' / 0.12)')}`,
+                border: `1.5px solid ${stage.accent.replace(')', ' / 0.4)')}`,
+                color: stage.accent,
+              }}>
+              <span className="font-mono text-[10px] tracking-[0.14em] uppercase font-bold">{stage.tag}</span>
+              <span style={{ width: 1, height: 12, background: stage.accent, opacity: 0.4 }} />
+              <span className="text-xs font-normal" style={{ color: 'hsl(var(--foreground) / 0.8)' }}>{stage.tone}</span>
+            </motion.div>
+          </div>
+
+          {/* Horizontal ruler scrubber */}
+          <div
+            ref={ref}
+            onPointerDown={onPointerDown}
+            onTouchStart={onPointerDown}
+            style={{
+              position: 'relative', height: 48, overflow: 'hidden',
+              cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none',
+              maskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
+              WebkitMaskImage: 'linear-gradient(90deg, transparent, black 12%, black 88%, transparent)',
+              background: 'hsl(var(--secondary) / 0.5)', borderRadius: 12,
+            }}
+          >
+            <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offset}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
+              {Array.from({ length: 81 - 14 }, (_, i) => i + 14).map(v => {
+                const isMajor = v % 10 === 0, isMid = v % 5 === 0 && !isMajor;
+                const isActive = v === age;
+                return (
+                  <span key={v}>
+                    <span style={{
+                      position: 'absolute', left: v * PX, top: '50%', transform: 'translate(-50%, -50%)',
+                      width: 2, height: isMajor ? 22 : isMid ? 14 : 8,
+                      background: isActive ? `hsl(var(--primary))` : isMajor ? 'hsl(var(--foreground) / 0.5)' : 'hsl(var(--muted-foreground) / 0.3)',
+                      borderRadius: 1,
+                    }} />
+                    {isMajor && (
+                      <span style={{
+                        position: 'absolute', left: v * PX, top: '72%', transform: 'translateX(-50%)',
+                        fontFamily: 'ui-monospace,monospace', fontSize: 10, fontWeight: 600,
+                        color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                      }}>{v}</span>
+                    )}
+                  </span>
+                );
+              })}
+            </div>
+            {/* Center hairline */}
+            <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', pointerEvents: 'none', boxShadow: '0 0 10px hsl(var(--primary))' }} />
+          </div>
+          <div className="flex justify-between mt-1 px-1">
+            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">14</span>
+            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">DRAG TO SET</span>
+            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">80</span>
+          </div>
+        </motion.div>
+      </div>
+      <div className="pt-4 shrink-0">
+        <PrimaryBtn onClick={onNext} disabled={!canNext}>
+          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP: HEIGHT — silhouette + vertical ruler (ft·in default)
+═══════════════════════════════════════════════════════════════ */
+function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
+  const unit = stats.heightUnit ?? 'in';
+  const inFromCm = (cm) => Math.round(cm / 2.54);
+  const cmFromIn = (inches) => Math.round(inches * 2.54);
+
+  const setUnit = (u) => {
+    if (u === 'cm') onChange({ ...stats, heightUnit: 'cm', heightCm: cmFromIn(stats.heightIn) });
+    else onChange({ ...stats, heightUnit: 'in', heightIn: inFromCm(stats.heightCm) });
+  };
+
+  const value = unit === 'cm' ? stats.heightCm : stats.heightIn;
+  const range = unit === 'cm' ? [120, 220] : [48, 84];
+  const PX = unit === 'cm' ? 6 : 12;
+  const setValue = (v) => unit === 'cm'
+    ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
+    : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
+
+  const { ref, onPointerDown, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
+
+  const [trackH, setTrackH] = useState(240);
+  useEffect(() => {
+    const update = () => { if (ref.current) setTrackH(ref.current.offsetHeight); };
+    update();
+    window.addEventListener('resize', update); return () => window.removeEventListener('resize', update);
+  }, [ref]);
+  const offsetY = -value * PX + trackH / 2;
+
+  const displayPrimary = unit === 'cm' ? `${value} cm` : `${Math.floor(value / 12)}'${value % 12}"`;
+  const displaySecondary = unit === 'cm' ? `${Math.floor(inFromCm(value) / 12)}'${inFromCm(value) % 12}"` : `${cmFromIn(value)} cm`;
+  const minPct = (value - range[0]) / (range[1] - range[0]);
+  const silhouetteH = 70 + minPct * 25;
+
+  const ticks = useMemo(() => {
+    const arr = []; for (let v = range[0]; v <= range[1]; v++) arr.push(v); return arr;
+  }, [range[0], range[1]]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-hidden pb-2">
+        <div className="flex justify-between items-start mb-3">
+          <KineticHeading kicker={`Height · 0${step}`} text="How tall are you?" accentWord="tall" />
+        </div>
+        <div className="mb-4">
+          <PillUnitToggle options={[{id:'in',label:'ft·in'},{id:'cm',label:'cm'}]} value={unit} onChange={setUnit} />
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, height: 320 }}>
+          {/* Silhouette panel */}
+          <div style={{
+            flex: 1, position: 'relative', display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+            background: 'linear-gradient(180deg, transparent, hsl(var(--card) / 0.6))',
+            borderRadius: 18, overflow: 'hidden', border: '1px solid hsl(var(--border))',
+          }}>
+            {/* Reference lines */}
+            {[{label:"6'0\"",cm:183,in:72},{label:"5'6\"",cm:168,in:66},{label:"5'0\"",cm:152,in:60}].map(m => {
+              const rv = unit === 'cm' ? m.cm : m.in;
+              const pct = (rv - range[0]) / (range[1] - range[0]);
+              return (
+                <div key={m.label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${pct * 88}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
+                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{m.label}</span>
+                </div>
+              );
+            })}
+            {/* Silhouette */}
+            <svg viewBox="0 0 100 240" preserveAspectRatio="xMidYMax meet"
+              style={{ width: '65%', height: `${silhouetteH}%`, transition: isDragging ? 'none' : 'height 0.3s cubic-bezier(0.34,1.56,0.64,1)', position: 'relative', zIndex: 2 }}>
+              <defs>
+                <linearGradient id="sil-grad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="hsl(var(--primary))" />
+                  <stop offset="100%" stopColor="hsl(var(--primary) / 0.3)" />
+                </linearGradient>
+              </defs>
+              <circle cx="50" cy="20" r="12" fill="url(#sil-grad)" />
+              <rect x="46" y="30" width="8" height="6" fill="url(#sil-grad)" />
+              <path d="M30 36 Q30 45,32 60 L32 130 Q32 138,35 140 L65 140 Q68 138,68 130 L68 60 Q70 45,70 36 Z" fill="url(#sil-grad)" />
+              <rect x="20" y="38" width="10" height="78" rx="5" fill="url(#sil-grad)" />
+              <rect x="70" y="38" width="10" height="78" rx="5" fill="url(#sil-grad)" />
+              <rect x="34" y="138" width="13" height="92" rx="5" fill="url(#sil-grad)" />
+              <rect x="53" y="138" width="13" height="92" rx="5" fill="url(#sil-grad)" />
+            </svg>
+            <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, background: 'linear-gradient(0deg, hsl(var(--primary) / 0.2), transparent)', pointerEvents: 'none' }} />
+          </div>
+
+          {/* Readout + ruler */}
+          <div style={{ width: 120, display: 'flex', flexDirection: 'column' }}>
+            <div className="mb-3">
+              <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
+                {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
+              </div>
+              <div className="font-mono text-[9px] font-semibold tracking-widest uppercase text-muted-foreground mt-1">{unit === 'cm' ? 'CM' : 'FT · IN'}</div>
+              <div className="font-mono text-[10px] text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
+            </div>
+            {/* Ruler */}
+            <div ref={ref} onPointerDown={onPointerDown} onTouchStart={onPointerDown}
+              style={{ flex: 1, position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', background: 'hsl(var(--card) / 0.6)', border: '1px solid hsl(var(--border))', borderRadius: 14, overflow: 'hidden', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)' }}>
+              <div style={{ position: 'absolute', inset: 0, transform: `translateY(${offsetY}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
+                {ticks.map(v => {
+                  const isMajor = unit === 'cm' ? v % 10 === 0 : v % 12 === 0;
+                  const isMid = unit === 'cm' ? v % 5 === 0 : v % 6 === 0;
+                  const isActive = v === value;
+                  return (
+                    <span key={v}>
+                      <span style={{ position: 'absolute', top: v * PX, left: '50%', transform: 'translate(-50%,-50%)', width: isMajor ? 28 : isMid ? 18 : 10, height: 1.5, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.3)', borderRadius: 1 }} />
+                      {isMajor && <span style={{ position: 'absolute', top: v * PX, left: '50%', marginLeft: 16, transform: 'translateY(-50%)', fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{unit === 'cm' ? v : `${Math.floor(v/12)}'`}</span>}
+                    </span>
+                  );
+                })}
+              </div>
+              {/* Center line */}
+              <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 2, marginTop: -1, background: 'linear-gradient(90deg, transparent, hsl(var(--primary)), transparent)', boxShadow: '0 0 10px hsl(var(--primary))', pointerEvents: 'none' }} />
+              <div style={{ position: 'absolute', left: 0, top: '50%', marginTop: -5, borderLeft: '7px solid hsl(var(--primary))', borderTop: '5px solid transparent', borderBottom: '5px solid transparent' }} />
+              <div style={{ position: 'absolute', right: 0, top: '50%', marginTop: -5, borderRight: '7px solid hsl(var(--primary))', borderTop: '5px solid transparent', borderBottom: '5px solid transparent' }} />
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="pt-4 shrink-0">
+        <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP: WEIGHT — circular gauge + animated barbell (lbs default)
+═══════════════════════════════════════════════════════════════ */
+function WeightPlate({ kg, color, delay }) {
+  const h = 24 + Math.min(kg, 25) * 1.4;
+  const w = 7 + Math.min(kg, 25) * 0.18;
+  return (
+    <div style={{ width: w, height: h, marginRight: 1, background: color, borderRadius: 3, boxShadow: 'inset 0 -2px 0 rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.12)', animation: `spring-in 0.35s ${delay}s cubic-bezier(0.34,1.56,0.64,1) both`, flexShrink: 0, position: 'relative' }}>
+      <span style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%) rotate(-90deg)', fontFamily: 'ui-monospace,monospace', fontSize: 7, fontWeight: 700, color: kg === 5 ? 'hsl(0 0% 30%)' : 'white' }}>{kg}</span>
+    </div>
+  );
+}
+
+function BarbellVisualizer({ kg }) {
+  const PLATES = [25, 20, 15, 10, 5, 2.5, 1.25];
+  const PLATE_COLORS = { 25: 'hsl(0 75% 50%)', 20: 'hsl(217 80% 50%)', 15: 'hsl(50 90% 55%)', 10: 'hsl(160 60% 42%)', 5: 'hsl(0 0% 90%)', 2.5: 'hsl(0 0% 30%)', 1.25: 'hsl(0 0% 55%)' };
+  const plates = useMemo(() => {
+    const result = []; let rem = Math.max(0, (kg - 20) / 2);
+    for (const p of PLATES) { while (rem >= p - 0.001) { result.push(p); rem -= p; } }
+    return result.slice(0, 6);
+  }, [kg]);
+
+  return (
+    <div className="flex items-center justify-center" style={{ height: 56, marginTop: 8 }}>
+      <div className="flex items-center" style={{ flexDirection: 'row-reverse' }}>
+        {plates.map((p, i) => <WeightPlate key={`l${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
+      </div>
+      <div style={{ width: 100, height: 6, background: 'linear-gradient(180deg, hsl(0 0% 78%), hsl(0 0% 52%))', borderRadius: 3, boxShadow: 'inset 0 -1px 0 hsl(0 0% 30%)' }} />
+      <div className="flex items-center">
+        {plates.map((p, i) => <WeightPlate key={`r${i}-${p}`} kg={p} color={PLATE_COLORS[p]} delay={i * 0.04} />)}
+      </div>
+    </div>
+  );
+}
+
+function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
+  const unit = stats.weightUnit ?? 'lb';
+  const kgFromLb = (lb) => Math.round(lb / 2.20462);
+  const lbFromKg = (kg) => Math.round(kg * 2.20462);
+
+  const setUnit = (u) => {
+    if (u === 'kg') onChange({ ...stats, weightUnit: 'kg', weightKg: kgFromLb(stats.weightLb) });
+    else onChange({ ...stats, weightUnit: 'lb', weightLb: lbFromKg(stats.weightKg) });
+  };
+
+  const value = unit === 'kg' ? stats.weightKg : stats.weightLb;
+  const range = unit === 'kg' ? [35, 180] : [80, 400];
+  const PX = unit === 'kg' ? 8 : 4;
+  const setValue = (v) => unit === 'kg'
+    ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v) })
+    : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v) });
+
+  const { ref, onPointerDown, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
+
+  const [trackW, setTrackW] = useState(300);
+  useEffect(() => {
+    const update = () => { if (ref.current) setTrackW(ref.current.offsetWidth); };
+    update();
+    window.addEventListener('resize', update); return () => window.removeEventListener('resize', update);
+  }, [ref]);
+  const offsetX = -value * PX + trackW / 2;
+
+  const pct = (value - range[0]) / (range[1] - range[0]);
+  const circumference = 2 * Math.PI * 82;
+  const dash = pct * circumference;
+  const valueKg = unit === 'kg' ? value : kgFromLb(value);
+
+  const ticks = useMemo(() => {
+    const arr = []; const s = unit === 'kg' ? 1 : 2;
+    for (let v = range[0]; v <= range[1]; v += s) arr.push(v);
+    return arr;
+  }, [range[0], range[1], unit]);
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-hidden pb-2">
+        <div className="flex justify-between items-start mb-3">
+          <KineticHeading kicker={`Weight · 0${step}`} text="How much do you weigh?" accentWord="weigh?" />
+        </div>
+        <div className="mb-4">
+          <PillUnitToggle options={[{id:'lb',label:'lb'},{id:'kg',label:'kg'}]} value={unit} onChange={setUnit} />
+        </div>
+
+        {/* Circular gauge */}
+        <div className="flex flex-col items-center" style={{ position: 'relative' }}>
+          <div style={{ position: 'absolute', width: 240, height: 240, borderRadius: '50%', background: 'hsl(var(--primary))', opacity: 0.1, filter: 'blur(50px)', animation: 'stat-glow-pulse 3s ease-in-out infinite' }} />
+          <svg width="220" height="220" viewBox="0 0 200 200" style={{ position: 'relative' }}>
+            <defs>
+              <linearGradient id="wt-grad" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stopColor="hsl(38 92% 60%)" />
+                <stop offset="50%" stopColor="hsl(var(--primary))" />
+                <stop offset="100%" stopColor="hsl(14 92% 56%)" />
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="82" fill="none" stroke="hsl(var(--muted-foreground) / 0.12)" strokeWidth="3" />
+            {Array.from({ length: 60 }).map((_, i) => {
+              const angle = -90 + i * 6; const isMajor = i % 5 === 0;
+              const r1 = isMajor ? 68 : 74; const r2 = 79;
+              return <line key={i} x1={100 + Math.cos(angle * Math.PI/180) * r1} y1={100 + Math.sin(angle * Math.PI/180) * r1} x2={100 + Math.cos(angle * Math.PI/180) * r2} y2={100 + Math.sin(angle * Math.PI/180) * r2} stroke="hsl(var(--muted-foreground) / 0.35)" strokeWidth={isMajor ? 1.5 : 0.8} strokeLinecap="round" />;
+            })}
+            <circle cx="100" cy="100" r="82" fill="none" stroke="url(#wt-grad)" strokeWidth="5" strokeLinecap="round" strokeDasharray={`${dash} ${circumference}`} transform="rotate(-90 100 100)" style={{ transition: isDragging ? 'none' : 'stroke-dasharray 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
+            <circle cx={100 + Math.cos((-90 + pct * 360) * Math.PI/180) * 82} cy={100 + Math.sin((-90 + pct * 360) * Math.PI/180) * 82} r="5" fill="hsl(var(--primary))" style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary)))', transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
+          </svg>
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
+              <NumberReel value={value} digits={String(range[1]).length} size={64} />
+            </div>
+            <div className="font-mono text-[11px] font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
+            <div className="font-mono text-[9px] text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
+          </div>
+        </div>
+
+        {/* Barbell */}
+        <BarbellVisualizer kg={valueKg} />
+
+        {/* Horizontal scrubber */}
+        <div ref={ref} onPointerDown={onPointerDown} onTouchStart={onPointerDown}
+          style={{ position: 'relative', height: 44, marginTop: 10, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
+          <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offsetX}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
+            {ticks.map(v => {
+              const isMajor = unit === 'kg' ? v % 10 === 0 : v % 25 === 0;
+              const isMid = unit === 'kg' ? v % 5 === 0 && !isMajor : v % 10 === 0 && !isMajor;
+              const isActive = v === value;
+              return (
+                <span key={v}>
+                  <span style={{ position: 'absolute', left: v * PX, top: '50%', transform: 'translate(-50%,-50%)', width: 1.5, height: isMajor ? 20 : isMid ? 12 : 6, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.25)' }} />
+                  {isMajor && <span style={{ position: 'absolute', left: v * PX, top: '75%', transform: 'translateX(-50%)', fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{v}</span>}
+                </span>
+              );
+            })}
+          </div>
+          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', boxShadow: '0 0 10px hsl(var(--primary))', pointerEvents: 'none' }} />
+        </div>
+      </div>
+      <div className="pt-4 shrink-0">
+        <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Legacy combined stats step (kept but not used in main flow) ─── */
 function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack, step, total, usernameError }) {
   const ageOk = stats.age >= 14 && stats.age <= 80;
   const userOk = username.trim().length >= 2 && !usernameError;
@@ -1138,8 +1648,8 @@ function RevealStep({ data, onNext }) {
    MAIN ONBOARDING ORCHESTRATOR
 ═══════════════════════════════════════════════════════════════ */
 
-const STEPS = ['welcome', 'goal', 'experience', 'stats', 'days', 'loading', 'reveal'];
-const FORM_STEP_NAMES = ['goal', 'experience', 'stats', 'days'];
+const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'days', 'loading', 'reveal'];
+const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'days'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
 // Per-step theatrical transition flavors — variety = wow factor
@@ -1147,8 +1657,10 @@ const STEP_TRANSITIONS = {
   welcome:    null,                                // first step, no entry needed
   goal:       'curtain',
   experience: 'tilt',
-  stats:      'fwd',
-  days:       'flip',
+  age:        'fwd',
+  height:     'flip',
+  weight:     'tilt',
+  days:       'curtain',
   loading:    'flash',
   reveal:     'iris',
 };
@@ -1215,9 +1727,9 @@ export default function Onboarding() {
     level: null,
     stats: {
       age: 26,
-      heightCm: 175, heightIn: 69,
+      heightCm: 178, heightIn: 70,
       weightKg: 75, weightLb: 165,
-      heightUnit: 'cm', weightUnit: 'kg',
+      heightUnit: 'in', weightUnit: 'lb',
     },
     days: [],
     preferredTime: '',
@@ -1355,10 +1867,22 @@ export default function Onboarding() {
                   onNext={next} onBack={back} />
               )}
 
-              {stepName === 'stats' && (
-                <StatsStep step={formStep} total={TOTAL_FORM}
+              {stepName === 'age' && (
+                <AgeStep step={formStep} total={TOTAL_FORM}
                   username={data.username} onUsernameChange={handleUsernameChange}
                   usernameError={usernameError}
+                  stats={data.stats} onChange={s => setData(d => ({ ...d, stats: s }))}
+                  onNext={next} onBack={back} />
+              )}
+
+              {stepName === 'height' && (
+                <HeightStep step={formStep} total={TOTAL_FORM}
+                  stats={data.stats} onChange={s => setData(d => ({ ...d, stats: s }))}
+                  onNext={next} onBack={back} />
+              )}
+
+              {stepName === 'weight' && (
+                <WeightStep step={formStep} total={TOTAL_FORM}
                   stats={data.stats} onChange={s => setData(d => ({ ...d, stats: s }))}
                   onNext={next} onBack={back} />
               )}
