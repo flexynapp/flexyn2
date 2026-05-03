@@ -56,7 +56,15 @@ export function LanguageProvider({ children }) {
     document.documentElement.dir = language === 'ar' ? 'rtl' : 'ltr';
   }, [language]);
 
-  const t = useCallback((key) => getTranslation(language, key), [language]);
+  const t = useCallback((key, vars) => {
+    let str = getTranslation(language, key);
+    if (vars && typeof str === 'string') {
+      Object.entries(vars).forEach(([k, v]) => {
+        str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+      });
+    }
+    return str;
+  }, [language]);
   const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   return (

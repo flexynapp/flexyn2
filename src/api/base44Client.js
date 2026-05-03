@@ -77,9 +77,18 @@ function makeEntity(entityName) {
       return data;
     },
 
-    /** create(data) — insert and return the new row */
+    /** create(data) — insert and return the new row.
+     *  Auto-injects created_by (email) and user_id (uuid) so RLS passes
+     *  without every caller needing to set them manually. */
     async create(data) {
-      const { data: row, error } = await supabase.from(table).insert(data).select().single();
+      const { data: { session } } = await supabase.auth.getSession();
+      const authUser = session?.user;
+      const enriched = {
+        ...(authUser?.email ? { created_by: authUser.email } : {}),
+        ...(authUser?.id    ? { user_id:    authUser.id    } : {}),
+        ...data, // caller values win if explicitly provided
+      };
+      const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
       if (error) throw error;
       return row;
     },
