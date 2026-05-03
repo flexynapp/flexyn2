@@ -86,7 +86,8 @@ export default function Nutrition() {
   useEffect(() => {
     if (!user?.email) return;
     if (userProfile && Object.keys(userProfile).length === 0) return; // still loading
-    if (userProfile?.nutrition_onboarding_complete) return;
+    const localDone = (() => { try { return localStorage.getItem('fn-nutrition-onboarded') === 'true'; } catch { return false; } })();
+    if (userProfile?.nutrition_onboarding_complete || localDone) return;
     if (goalsModalManuallyOpened) return;
     setShowGoalsOnboarding(true);
   }, [user?.email, userProfile?.nutrition_onboarding_complete, goalsModalManuallyOpened]);

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight, ArrowLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight, ArrowLeft, AlertTriangle, ShieldCheck, X } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
@@ -166,23 +166,30 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         persistRestrictions(dietaryRestrictions);
       }
       await base44.auth.updateMe(payload);
+      try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
       toast.success(t('nutritionOnboarding.toast.saved'));
-      onComplete?.();
     } catch (err) {
       console.error('Nutrition onboarding save failed:', err);
-      toast.error(t('nutritionOnboarding.toast.saveError'));
+      // Still close — don't trap the user if the DB column is missing or the
+      // network is flaky. They can revisit settings later.
+      toast.error('Could not save your plan — you can set it up later in Settings.');
     } finally {
       setSaving(false);
+      onComplete?.();
     }
   };
 
+  const handleSkip = async () => {
+    // localStorage fallback so the modal won't re-open even if the DB column
+    // is missing (e.g. migration 004 not yet applied to this Supabase project).
+    try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
+    try { await base44.auth.updateMe({ nutrition_onboarding_complete: true }); } catch { /* ignore */ }
+    onComplete?.();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={() => { /* not dismissable until complete */ }}>
-      <DialogContent
-        className="max-w-md p-0 overflow-hidden"
-        onInteractOutside={(e) => e.preventDefault()}
-        onEscapeKeyDown={(e) => e.preventDefault()}
-      >
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleSkip(); }}>
+      <DialogContent className="max-w-md p-0 overflow-hidden">
         {/* Progress bar */}
         <div className="w-full h-1 bg-secondary">
           <motion.div
@@ -191,6 +198,15 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
             transition={{ duration: 0.3 }}
           />
         </div>
+
+        {/* Skip button */}
+        <button
+          onClick={handleSkip}
+          className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          aria-label="Skip nutrition setup"
+        >
+          <X className="w-4 h-4" />
+        </button>
 
         <div className="p-6">
           <AnimatePresence mode="wait">
