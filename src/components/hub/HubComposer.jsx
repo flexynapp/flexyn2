@@ -412,28 +412,19 @@ export default function HubComposer({ onClose }) {
         : buildSnapshot(selected.kind, selected.item);
 
       await hubPosts.create({
-        author_email: user.email,
-        author_name: user.username
-          ? `@${user.username}`
-          : (user.email?.split('@')[0] || 'Athlete'),
-        // Dual-write: original schema column names + migration-004 names so the
-        // insert works regardless of which migrations have been applied.
-        author_avatar:     user.avatar_url || null,   // original schema
-        author_avatar_url: user.avatar_url || null,   // migration 004
-        content:    finalBody,                         // original schema
-        body:       finalBody,                         // migration 004
-        likes_count:    0,                             // original schema
-        like_count:     0,                             // migration 004
-        comments_count: 0,                             // original schema
-        comment_count:  0,                             // migration 004
-        // New fields (auto-stripped by base44Client if migration 004 not applied)
-        post_type:            postTypeMap[selected.kind] || 'status',
+        author_email:           user.email,
+        author_name:            user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+        author_avatar_url:      user.avatar_url || null,
+        post_type:              postTypeMap[selected.kind] || 'status',
+        body:                   finalBody,
+        image_url:              imageUrl,
         privacy,
-        dislike_count:        0,
-        linked_entity_type:   selected.kind === 'status' ? null : selected.kind,
-        linked_entity_id:     selected.kind === 'status' ? null : (selected.item?.id || null),
+        like_count:             0,
+        dislike_count:          0,
+        comment_count:          0,
+        linked_entity_type:     selected.kind === 'status' ? null : selected.kind,
+        linked_entity_id:       selected.kind === 'status' ? null : (selected.item?.id || null),
         linked_entity_snapshot: snapshot,
-        image_url: imageUrl,
       });
 
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });

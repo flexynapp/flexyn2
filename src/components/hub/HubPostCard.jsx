@@ -57,8 +57,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
     author_name: post.author_name,
-    // Fall back to original schema field name if migration 004 not yet applied
-    author_avatar_url: post.author_avatar_url || post.author_avatar,
+    author_avatar_url: post.author_avatar_url,
   });
 
   const serverReaction = myReaction?.reaction_type ?? null;
@@ -66,10 +65,10 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
   const adjust = (target) =>
     (displayedReaction === target ? 1 : 0) - (serverReaction === target ? 1 : 0);
-  // Resolve field names that differ between original schema and migration 004
-  const postBody     = post.body    || post.content || '';
-  const likeCount    = Math.max(0, (post.like_count    ?? post.likes_count    ?? 0) + adjust('like'));
-  const dislikeCount = Math.max(0, (post.dislike_count ?? 0) + adjust('dislike'));
+  // Fall back to `content` for posts created before migration 004
+  const postBody     = post.body || post.content || '';
+  const likeCount    = Math.max(0, (post.like_count    || 0) + adjust('like'));
+  const dislikeCount = Math.max(0, (post.dislike_count || 0) + adjust('dislike'));
 
   const runWorker = async () => {
     inFlightRef.current = true;
@@ -206,7 +205,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         />
         <ActionButton
           icon={MessageCircle}
-          count={post.comment_count ?? post.comments_count ?? 0}
+          count={post.comment_count || 0}
           active={commentsOpen}
           activeColor="text-primary"
           onClick={() => setCommentsOpen(o => !o)}
