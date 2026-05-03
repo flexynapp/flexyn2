@@ -96,7 +96,7 @@ export function AuthProvider({ children }) {
       isLoadingAuth,
       // Kept for API compatibility with existing components
       isLoadingPublicSettings: false,
-      authError: null,
+      authError: (!isLoadingAuth && !isAuthenticated) ? { type: 'auth_required' } : null,
       appPublicSettings: null,
       authChecked: !isLoadingAuth,
       logout,
