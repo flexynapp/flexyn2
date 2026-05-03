@@ -949,7 +949,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
     if (age < 25) return { tag: 'PEAK INTAKE', tone: 'Hormonally primed for muscle gain. Great window.', accent: 'hsl(160 64% 45%)' };
     if (age < 35) return { tag: 'PRIME', tone: 'Strength peaks here for most lifters. Push hard.', accent: 'hsl(26 95% 56%)' };
     if (age < 45) return { tag: 'SUSTAIN', tone: 'Smart programming wins. Volume per session.', accent: 'hsl(38 92% 60%)' };
-    if (age < 55) return { tag: 'INTENT', tone: 'Recovery becomes the variable. We'll protect it.', accent: 'hsl(280 60% 60%)' };
+    if (age < 55) return { tag: 'INTENT', tone: "Recovery becomes the variable. We'll protect it.", accent: 'hsl(280 60% 60%)' };
     return { tag: 'LONGEVITY', tone: 'Joint-first programming. Strength is never stunted.', accent: 'hsl(0 70% 55%)' };
   }, [age]);
 
