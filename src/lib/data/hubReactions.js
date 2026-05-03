@@ -1,4 +1,10 @@
 // src/lib/data/hubReactions.js
+//
+// Reactions are "like" or "dislike" stored in hub_reactions.
+// Schema fields: created_by (email), post_id, emoji (= reaction_type), reaction_type, user_email
+// The migration keeps emoji ↔ reaction_type and created_by ↔ user_email in sync via trigger,
+// but we write the canonical schema fields here (created_by via auto-inject, emoji for the value).
+
 import { base44 } from '@/api/base44Client';
 import * as hubPosts from './hubPosts';
 
@@ -7,30 +13,39 @@ const e = () => base44.entities.HubReaction;
 /** Get the current user's reaction (or null) for a given post. */
 export const getMyReaction = async (postId, email) => {
   if (!postId || !email) return null;
-  const rows = await e().filter({ post_id: postId, user_email: email }, '-created_date', 1).catch(() => []);
+  // Filter by created_by (auto-injected on insert) — migration also populates user_email
+  const rows = await e().filter({ post_id: postId, created_by: email }, '-created_date', 1).catch(() => []);
   return rows[0] || null;
 };
 
 /**
  * Set the user's reaction on a post. Pass `null` to clear.
  * Handles all transitions: none→like, like→dislike, like→none, etc.
- * Updates the denormalized counters on the post atomically (best-effort).
+ * Updates the denormalised counters on the post (best-effort).
  */
 export const setReaction = async (postId, email, newReaction /* 'like' | 'dislike' | null */) => {
   const existing = await getMyReaction(postId, email);
 
-  if (existing && existing.reaction_type === newReaction) return existing; // no-op
+  // No-op if the reaction hasn't changed
+  if (existing && existing.reaction_type === newReaction) return existing;
 
-  // Decrement old counter if any
+  // Decrement old counter if switching away from a previous reaction
   if (existing) {
     await e().delete(existing.id).catch(() => {});
     const field = existing.reaction_type === 'like' ? 'like_count' : 'dislike_count';
     await hubPosts.incrementCounter(postId, field, -1);
   }
 
-  // Add new reaction (if any)
+  // Insert new reaction (if not clearing)
   if (newReaction) {
-    const created = await e().create({ post_id: postId, user_email: email, reaction_type: newReaction });
+    // `created_by` and `user_id` are auto-injected by base44Client.create().
+    // Write `reaction_type` AND `emoji` so both columns stay populated.
+    const created = await e().create({
+      post_id: postId,
+      reaction_type: newReaction,
+      emoji: newReaction,         // schema unique constraint uses (created_by, post_id, emoji)
+      user_email: email,          // redundant but kept for legacy queries
+    });
     const field = newReaction === 'like' ? 'like_count' : 'dislike_count';
     await hubPosts.incrementCounter(postId, field, +1);
     return created;
@@ -42,7 +57,7 @@ export const setReaction = async (postId, email, newReaction /* 'like' | 'dislik
 /** Cascade-delete all reactions by a user and decrement post counters. */
 export const purgeForUser = async (email) => {
   if (!email) return;
-  const rows = await e().filter({ user_email: email }, '-created_date', 1000).catch(() => []);
+  const rows = await e().filter({ created_by: email }, '-created_date', 1000).catch(() => []);
   const dec = {};
   for (const r of rows) {
     if (!r.post_id || !r.reaction_type) continue;

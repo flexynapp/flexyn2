@@ -274,5 +274,22 @@ async function _invokeBarcodeLookup({ barcode } = {}) {
   }
 }
 
+/* ── Integrations stub — prevents TypeError crashes on legacy Base44 calls ── */
+// Components that used base44.integrations.Core.InvokeLLM / GenerateImage /
+// UploadFile will catch the thrown error and show a graceful UI error state
+// instead of crashing the whole page.
+const _notConfigured = (name) => async () => {
+  throw new Error(`[Flexyn] ${name} is not configured. Implement via Supabase Edge Functions.`);
+};
+
+const integrations = {
+  Core: {
+    InvokeLLM:     _notConfigured('InvokeLLM'),
+    GenerateImage: _notConfigured('GenerateImage'),
+    UploadFile:    _notConfigured('UploadFile'),
+    SendEmail:     _notConfigured('SendEmail'),
+  },
+};
+
 /* ── Public export — same shape as the old base44 object ─────────────────── */
-export const base44 = { entities, auth, functions, storage: {} };
+export const base44 = { entities, auth, functions, storage: {}, integrations };

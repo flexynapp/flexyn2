@@ -84,7 +84,8 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
 
     try {
       // Always check cache first — only use if it has valid images
-      const cached = await base44.entities.ExerciseForm.filter({ exercise_name: exerciseName });
+      // Filter by `exercise` (canonical column) OR `exercise_name` (legacy alias added in migration 004)
+      const cached = await base44.entities.ExerciseForm.filter({ exercise: exerciseName });
       const validCache = cached?.find(c => c.image_urls?.length > 0);
       if (validCache) {
         setImageUrls(validCache.image_urls);
@@ -124,7 +125,8 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
         setCachedId(cached[0].id);
       } else {
         const created = await base44.entities.ExerciseForm.create({
-          exercise_name: exerciseName,
+          exercise: exerciseName,       // canonical column
+          exercise_name: exerciseName,  // alias column (migration 004)
           image_urls: urls,
           tips: newTips,
           is_movement: isMovement(exerciseName),
