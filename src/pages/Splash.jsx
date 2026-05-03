@@ -10,36 +10,24 @@ export default function Splash() {
 
   useEffect(() => {
     const check = async () => {
+      // With Supabase, a valid session means we already have a JWT token.
+      // The old Base44 localStorage key check has been removed — it was
+      // causing an infinite OAuth redirect loop on every page load.
       const isAuthed = await base44.auth.isAuthenticated();
 
-      // A JWT access token is required for write operations (updateMe, entities).
-      // Cookie-based sessions allow reads but not writes, which causes onboarding
-      // to silently fail on external deployments (e.g. Netlify). If the user is
-      // "authenticated" via cookie only, trigger the proper OAuth flow so they
-      // receive a write-capable JWT token. Base44 auto-approves returning users
-      // instantly, so this is seamless for anyone already logged in.
-      const hasToken = !!(
-        localStorage.getItem('base44_access_token') ||
-        localStorage.getItem('token')
-      );
-
       if (!isAuthed) {
-        // Brand-new visitor — show welcome / sign-up flow.
+        // Brand-new visitor or signed-out user — go to the welcome screen.
         navigate('/onboarding', { replace: true });
         return;
       }
 
-      if (!hasToken) {
-        // Cookie session present but no JWT — force OAuth to get a write token.
-        // Base44 redirects back to '/' with ?access_token=... in the URL.
-        base44.auth.redirectToLogin('/');
-        return;
-      }
-
+      // Authenticated — check if onboarding is done.
       const user = await base44.auth.me().catch(() => null);
-      if (!user || (!user.onboarding_complete && !user.username)) {
-        // Authenticated with a token but onboarding not done yet.
-        navigate('/onboarding?step=demographics', { replace: true });
+      const onboardingDone =
+        user?.onboarding_complete || user?.onboarding_completed || user?.username;
+
+      if (!user || !onboardingDone) {
+        navigate('/onboarding', { replace: true });
       } else {
         markReturningUser();
         navigate('/dashboard', { replace: true, state: { fromSplash: true } });
@@ -57,7 +45,7 @@ export default function Splash() {
         className="flex flex-col items-center gap-3"
       >
         <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-2xl">
-          <img src="{LOGO_URL}" alt="Flexyn" className="w-full h-full object-contain" />
+          <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 8 }}
