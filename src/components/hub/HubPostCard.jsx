@@ -32,7 +32,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
       const snap = post.linked_entity_snapshot || {};
       saveMeal({
         id: post.id,
-        food_name: snap.food_name || post.body || 'Community Meal',
+        food_name: snap.food_name || postBody || 'Community Meal',
         calories: snap.calories || 0,
         protein_g: snap.protein_g || 0,
         carbs_g: snap.carbs_g || 0,
@@ -57,7 +57,8 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
     author_name: post.author_name,
-    author_avatar_url: post.author_avatar_url,
+    // Fall back to original schema field name if migration 004 not yet applied
+    author_avatar_url: post.author_avatar_url || post.author_avatar,
   });
 
   const serverReaction = myReaction?.reaction_type ?? null;
@@ -65,8 +66,10 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
   const adjust = (target) =>
     (displayedReaction === target ? 1 : 0) - (serverReaction === target ? 1 : 0);
-  const likeCount = Math.max(0, (post.like_count || 0) + adjust('like'));
-  const dislikeCount = Math.max(0, (post.dislike_count || 0) + adjust('dislike'));
+  // Resolve field names that differ between original schema and migration 004
+  const postBody     = post.body    || post.content || '';
+  const likeCount    = Math.max(0, (post.like_count    ?? post.likes_count    ?? 0) + adjust('like'));
+  const dislikeCount = Math.max(0, (post.dislike_count ?? 0) + adjust('dislike'));
 
   const runWorker = async () => {
     inFlightRef.current = true;
@@ -161,9 +164,9 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
       </div>
 
       {/* Body */}
-      {post.body && (
+      {postBody && (
         <div className="px-3 pb-3 text-sm whitespace-pre-wrap break-words">
-          {post.body}
+          {postBody}
         </div>
       )}
 
@@ -203,7 +206,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         />
         <ActionButton
           icon={MessageCircle}
-          count={post.comment_count || 0}
+          count={post.comment_count ?? post.comments_count ?? 0}
           active={commentsOpen}
           activeColor="text-primary"
           onClick={() => setCommentsOpen(o => !o)}

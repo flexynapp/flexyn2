@@ -79,7 +79,13 @@ function makeEntity(entityName) {
 
     /** create(data) — insert and return the new row.
      *  Auto-injects created_by (email) and user_id (uuid) so RLS passes
-     *  without every caller needing to set them manually. */
+     *  without every caller needing to set them manually.
+     *
+     *  Resilient retry: if Postgres returns error 42703 (undefined_column)
+     *  the unknown column is stripped from the payload and the insert is
+     *  retried automatically. This lets the app work even when migration 004
+     *  hasn't been applied yet — the extra fields are silently dropped rather
+     *  than crashing the entire feature. */
     async create(data) {
       const { data: { session } } = await supabase.auth.getSession();
       const authUser = session?.user;
@@ -88,9 +94,25 @@ function makeEntity(entityName) {
         ...(authUser?.id    ? { user_id:    authUser.id    } : {}),
         ...data, // caller values win if explicitly provided
       };
-      const { data: row, error } = await supabase.from(table).insert(enriched).select().single();
-      if (error) throw error;
-      return row;
+
+      let payload = { ...enriched };
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const { data: row, error } = await supabase.from(table).insert(payload).select().single();
+        if (!error) return row;
+
+        // PostgreSQL undefined_column — strip the bad column and retry
+        if (error.code === '42703') {
+          const match = error.message?.match(/column "([^"]+)"/);
+          if (match?.[1] && match[1] in payload) {
+            console.warn(`[Supabase] column "${match[1]}" not in ${table} yet — skipping (run migration 004)`);
+            delete payload[match[1]];
+            continue;
+          }
+        }
+
+        throw error; // any other error is real — propagate immediately
+      }
+      throw new Error(`[Supabase] insert into ${table} failed after stripping unknown columns`);
     },
 
     /** update(id, data) — patch and return the updated row */
