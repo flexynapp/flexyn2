@@ -43,12 +43,176 @@ const LEVELS = [
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const TIMES    = ['Morning', 'Midday', 'Evening', 'Late night'];
 
+/* ── Feature visual components (animated SVG illustrations for the carousel) ── */
+
+function FeatVisualCoach({ accent }) {
+  return (
+    <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
+      {[0, 1, 2].map(i => (
+        <div key={i} style={{
+          position: 'absolute', inset: 0, borderRadius: '50%',
+          border: `1.5px solid ${accent}`,
+          animation: `ob-ring-grow 2.4s ${i * 0.6}s cubic-bezier(0,0,0.2,1) infinite`,
+          opacity: 0,
+        }} />
+      ))}
+      <div style={{
+        position: 'absolute', inset: 16, borderRadius: '50%',
+        background: `radial-gradient(circle at 32% 32%, ${accent}, ${accent.replace(')', ' / 0.55)')})`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: `0 10px 28px -6px ${accent.replace(')', ' / 0.6)')}`,
+        animation: 'ob-coach-pulse 2.2s ease-in-out infinite',
+      }}>
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2v8"/><path d="M5 12a7 7 0 0 0 14 0"/><circle cx="12" cy="14" r="2" fill="white"/>
+        </svg>
+      </div>
+      {/* orbiting dot */}
+      <div style={{ position: 'absolute', top: '50%', left: '50%', width: 8, height: 8, marginLeft: -4, marginTop: -4 }}>
+        <div style={{
+          width: 8, height: 8, borderRadius: '50%',
+          background: accent, boxShadow: `0 0 10px ${accent}`,
+          animation: 'ob-orbit-dot 3.5s linear infinite',
+        }} />
+      </div>
+    </div>
+  );
+}
+
+function FeatVisualLog({ accent }) {
+  const rows = [{ label: 'Bench', val: '185 × 5' }, { label: 'Bench', val: '195 × 5' }, { label: 'Bench', val: '205 × 5' }];
+  return (
+    <div style={{ width: 145, display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+      {rows.map((row, i) => (
+        <div key={i} style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '7px 10px', borderRadius: 8,
+          background: 'hsl(var(--card) / 0.8)',
+          border: `1px solid ${accent.replace(')', ' / 0.22)')}`,
+          fontFamily: 'monospace', fontSize: 11,
+          opacity: 0,
+          animation: `ob-spring-in 0.4s ${0.15 + i * 0.18}s cubic-bezier(0.16,1,0.3,1) both`,
+        }}>
+          <span style={{ color: 'hsl(var(--muted-foreground))' }}>{row.label}</span>
+          <span style={{ color: 'hsl(var(--foreground))', fontWeight: 700 }}>
+            {row.val}
+            <span style={{
+              display: 'inline-block', width: 1.5, height: 10,
+              background: accent, marginLeft: 2, verticalAlign: 'middle',
+              animation: 'ob-type-cursor 0.9s step-end infinite',
+            }} />
+          </span>
+        </div>
+      ))}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 1 }}>
+        <span style={{
+          fontFamily: 'monospace', fontSize: 9, fontWeight: 700, color: accent,
+          letterSpacing: '0.1em', opacity: 0,
+          animation: 'ob-spring-in 0.4s 0.7s cubic-bezier(0.16,1,0.3,1) both',
+        }}>+ PR</span>
+      </div>
+    </div>
+  );
+}
+
+function FeatVisualProgress({ accent }) {
+  const heights = [22, 30, 28, 44, 38, 56, 62];
+  return (
+    <div style={{ width: 150, height: 88, position: 'relative', flexShrink: 0 }}>
+      <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 1, background: 'hsl(var(--border))' }} />
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 76, padding: '0 2px' }}>
+        {heights.map((h, i) => (
+          <div key={i} style={{
+            flex: 1, height: h,
+            background: i === heights.length - 1
+              ? `linear-gradient(180deg, ${accent}, ${accent.replace(')', ' / 0.55)')})`
+              : 'hsl(var(--muted-foreground) / 0.35)',
+            borderRadius: '3px 3px 0 0',
+            transformOrigin: 'bottom',
+            animation: `ob-count-bar 0.5s ${i * 0.07}s cubic-bezier(0.34,1.56,0.64,1) both`,
+            boxShadow: i === heights.length - 1 ? `0 -6px 14px ${accent.replace(')', ' / 0.38)')}` : 'none',
+          }} />
+        ))}
+      </div>
+      <div style={{
+        position: 'absolute', right: 2, top: 0,
+        padding: '2px 6px', borderRadius: 4,
+        background: accent, color: 'white',
+        fontFamily: 'monospace', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+        opacity: 0, animation: 'ob-spring-in 0.4s 0.65s cubic-bezier(0.16,1,0.3,1) both',
+      }}>+12%</div>
+    </div>
+  );
+}
+
+function FeatVisualRecovery({ accent }) {
+  return (
+    <div style={{ position: 'relative', width: 100, height: 100, flexShrink: 0 }}>
+      <svg width="100" height="100" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
+        <circle cx="50" cy="50" r="40" fill="none" stroke={accent} strokeWidth="6" strokeLinecap="round"
+          strokeDasharray="251"
+          style={{ animation: 'ob-recovery-fill 1.5s 0.2s cubic-bezier(0.16,1,0.3,1) both' }} />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          fontFamily: 'var(--font-heading, "Space Grotesk", sans-serif)', fontSize: 28, fontWeight: 800,
+          color: 'hsl(var(--foreground))', letterSpacing: '-0.04em', lineHeight: 1,
+          overflow: 'hidden', height: '1em',
+        }}>
+          <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.6s cubic-bezier(0.16,1,0.3,1) both' }}>82</span>
+        </div>
+        <div style={{ fontFamily: 'monospace', fontSize: 8, fontWeight: 600, color: 'hsl(var(--muted-foreground))', letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>Ready</div>
+      </div>
+    </div>
+  );
+}
+
+function FeatVisualStreak({ accent }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+      <div style={{ position: 'relative' }}>
+        <svg width="62" height="72" viewBox="0 0 68 80" style={{ animation: 'ob-streak-flame 1.8s ease-in-out infinite' }}>
+          <defs>
+            <linearGradient id="ob-flame-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="hsl(50 100% 65%)" />
+              <stop offset="60%" stopColor={accent} />
+              <stop offset="100%" stopColor="hsl(0 80% 50%)" />
+            </linearGradient>
+          </defs>
+          <path d="M34 6 C 50 22, 60 36, 60 52 C 60 68, 48 76, 34 76 C 20 76, 8 68, 8 52 C 8 40, 16 32, 22 28 C 22 38, 28 42, 32 38 C 32 28, 30 18, 34 6 Z" fill="url(#ob-flame-grad)" />
+        </svg>
+        <div style={{
+          position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: 'var(--font-heading, "Space Grotesk", sans-serif)', fontSize: 26, fontWeight: 800, color: 'white',
+          textShadow: '0 2px 6px rgba(0,0,0,0.35)', paddingTop: 10, overflow: 'hidden',
+        }}>
+          <span style={{ display: 'block', animation: 'ob-streak-roll 0.7s 0.5s cubic-bezier(0.16,1,0.3,1) both' }}>47</span>
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 3 }}>
+        {Array.from({ length: 7 }).map((_, i) => (
+          <div key={i} style={{
+            width: 7, height: 7, borderRadius: 2,
+            background: i < 6 ? accent : 'hsl(var(--muted-foreground) / 0.3)',
+            animation: i < 6 ? `ob-spring-in 0.3s ${0.55 + i * 0.05}s cubic-bezier(0.16,1,0.3,1) both` : 'none',
+            opacity: i < 6 ? 0 : 1,
+          }} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const FEATURES = [
-  { id: 'coach',    eyebrow: 'AI Coach',   title: 'A coach that adapts in real time',       sub: 'Reads your sets. Adjusts tomorrow. No guesswork.',                              accent: 'hsl(26 95% 56%)'  },
-  { id: 'log',      eyebrow: 'Smart Log',  title: 'Logging that finishes your sentence',    sub: 'Auto-detects sets, plates, RPE. Hands stay on the bar.',                        accent: 'hsl(217 91% 60%)' },
-  { id: 'progress', eyebrow: 'Progress',   title: 'Watch your numbers climb',               sub: 'PR tracking, volume curves, e1RM that actually mean something.',                 accent: 'hsl(160 64% 45%)' },
-  { id: 'recovery', eyebrow: 'Recovery',   title: 'Train hard. Recover smarter.',           sub: 'Readiness score syncs with sleep, soreness, last session.',                      accent: 'hsl(280 60% 60%)' },
-  { id: 'streaks',  eyebrow: 'Streaks',    title: 'Show up. Stack the days.',               sub: 'Streak shields, weekly missions, and the only leaderboard that matters: yours.', accent: 'hsl(14 92% 56%)'  },
+  { id: 'coach',    eyebrow: 'AI Coach',   title: 'A coach that adapts in real time',       sub: 'Reads your sets. Adjusts tomorrow. No guesswork.',                              accent: 'hsl(26 95% 56%)',  Visual: FeatVisualCoach    },
+  { id: 'log',      eyebrow: 'Smart Log',  title: 'Logging that finishes your sentence',    sub: 'Auto-detects sets, plates, RPE. Hands stay on the bar.',                        accent: 'hsl(217 91% 60%)', Visual: FeatVisualLog      },
+  { id: 'progress', eyebrow: 'Progress',   title: 'Watch your numbers climb',               sub: 'PR tracking, volume curves, e1RM that actually mean something.',                 accent: 'hsl(160 64% 45%)', Visual: FeatVisualProgress },
+  { id: 'recovery', eyebrow: 'Recovery',   title: 'Train hard. Recover smarter.',           sub: 'Readiness score syncs with sleep, soreness, last session.',                      accent: 'hsl(280 60% 60%)', Visual: FeatVisualRecovery },
+  { id: 'streaks',  eyebrow: 'Streaks',    title: 'Show up. Stack the days.',               sub: 'Streak shields, weekly missions, and the only leaderboard that matters: yours.', accent: 'hsl(14 92% 56%)',  Visual: FeatVisualStreak   },
 ];
 
 const LOADING_TASKS = [
@@ -222,38 +386,45 @@ function FeatureCarousel() {
   }, [idx, paused]);
 
   const F = FEATURES[idx];
+  const Visual = F.Visual;
 
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.5 }}
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-      className="relative rounded-[20px] border border-border bg-card/85 backdrop-blur-xl overflow-hidden p-4">
+      className="relative rounded-[20px] border border-border overflow-hidden p-4"
+      style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))', backdropFilter: 'blur(18px)' }}>
       {/* accent glow */}
       <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
         style={{ background: F.accent, opacity: 0.18 }} />
-      {/* card body */}
-      <AnimatePresence mode="wait">
-        <motion.div key={F.id} initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -12 }}
-          transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-          className="flex items-center gap-3">
-          {/* eyebrow accent dot */}
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0"
-            style={{ background: F.accent.replace(')', ' / 0.15)') }}>
-            <div className="w-5 h-5 rounded-full" style={{ background: F.accent }} />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-mono text-[10px] font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
-            <div className="font-heading font-bold text-[16px] leading-tight tracking-tight text-foreground mb-1">{F.title}</div>
-            <div className="text-[12px] leading-relaxed text-muted-foreground">{F.sub}</div>
-          </div>
-        </motion.div>
-      </AnimatePresence>
-      {/* pip indicators */}
+      {/* card body — keyed so it remounts + plays entry animation on each slide */}
+      <div key={F.id} className="flex items-center gap-3"
+        style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
+        {/* Animated visual */}
+        <div className="flex items-center justify-center" style={{ width: 110, height: 110, flexShrink: 0 }}>
+          <Visual accent={F.accent} />
+        </div>
+        {/* Copy */}
+        <div className="flex-1 min-w-0">
+          <div className="font-mono text-[10px] font-bold tracking-[0.16em] uppercase mb-1" style={{ color: F.accent }}>{F.eyebrow}</div>
+          <div className="font-heading font-bold text-[15px] leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
+          <div className="text-[11.5px] leading-[1.45] text-muted-foreground">{F.sub}</div>
+        </div>
+      </div>
+      {/* pip indicators with progress fill */}
       <div className="flex gap-1.5 mt-3.5 items-center">
-        {FEATURES.map((f, i) => (
-          <button key={f.id} onClick={() => setIdx(i)} aria-label={`Show ${f.eyebrow}`}
-            className="h-1 rounded-full transition-all duration-500 cursor-pointer border-none p-0"
-            style={{ width: i === idx ? 28 : 6, background: i === idx ? F.accent : 'hsl(var(--muted-foreground) / 0.3)' }} />
-        ))}
+        {FEATURES.map((f, i) => {
+          const active = i === idx;
+          return (
+            <button key={f.id} onClick={() => setIdx(i)} aria-label={`Show ${f.eyebrow}`}
+              className="relative h-1 rounded-full cursor-pointer border-none p-0 overflow-hidden transition-all duration-500"
+              style={{ width: active ? 28 : 6, background: active ? 'hsl(var(--muted) / 0.7)' : 'hsl(var(--muted-foreground) / 0.3)' }}>
+              {active && (
+                <span key={idx} className="absolute inset-0 rounded-full"
+                  style={{ background: F.accent, transformOrigin: 'left center', animation: paused ? 'none' : `ob-pip-progress ${DURATION}ms linear forwards` }} />
+              )}
+            </button>
+          );
+        })}
       </div>
     </motion.div>
   );
@@ -307,7 +478,7 @@ function WelcomeStep({ onNext, onSignIn }) {
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.95, duration: 0.4 }}
         className="flex flex-col gap-2">
         <PrimaryBtn onClick={onNext}>
-          Get started <Icon name="arrow-right" size={20} strokeWidth={2.5} />
+          Get started <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
         </PrimaryBtn>
         <button onClick={onSignIn}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 text-center">
@@ -971,11 +1142,61 @@ const STEPS = ['welcome', 'goal', 'experience', 'stats', 'days', 'loading', 'rev
 const FORM_STEP_NAMES = ['goal', 'experience', 'stats', 'days'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
-const SLIDE_VARIANTS = {
-  enter:  (dir) => ({ opacity: 0, x: dir > 0 ? 40 : -40 }),
-  center: { opacity: 1, x: 0 },
-  exit:   (dir) => ({ opacity: 0, x: dir > 0 ? -40 : 40 }),
+// Per-step theatrical transition flavors — variety = wow factor
+const STEP_TRANSITIONS = {
+  welcome:    null,                                // first step, no entry needed
+  goal:       'curtain',
+  experience: 'tilt',
+  stats:      'fwd',
+  days:       'flip',
+  loading:    'flash',
+  reveal:     'iris',
 };
+
+function buildVariants(flavor, direction) {
+  // exit is always a quick slide-out opposite to entry direction
+  const exitX = direction > 0 ? -30 : 30;
+  const exit = { opacity: 0, x: exitX, transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } };
+
+  switch (flavor) {
+    case 'curtain':
+      return {
+        enter:  { clipPath: 'inset(0 0 0 100%)', opacity: 1 },
+        center: { clipPath: 'inset(0 0 0 0%)', opacity: 1, transition: { duration: 0.65, ease: [0.76, 0, 0.24, 1] } },
+        exit,
+      };
+    case 'tilt':
+      return {
+        enter:  { opacity: 0, rotateY: direction > 0 ? -20 : 20, x: direction > 0 ? 60 : -60, scale: 0.95, filter: 'blur(6px)' },
+        center: { opacity: 1, rotateY: 0, x: 0, scale: 1, filter: 'blur(0px)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        exit,
+      };
+    case 'flip':
+      return {
+        enter:  { opacity: 0, rotateX: direction > 0 ? 40 : -40, y: direction > 0 ? 30 : -30, filter: 'blur(6px)' },
+        center: { opacity: 1, rotateX: 0, y: 0, filter: 'blur(0px)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        exit,
+      };
+    case 'flash':
+      return {
+        enter:  { opacity: 0, scale: 1.06, filter: 'blur(16px) brightness(1.4)' },
+        center: { opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        exit,
+      };
+    case 'iris':
+      return {
+        enter:  { clipPath: 'circle(0% at 50% 55%)', scale: 1.04 },
+        center: { clipPath: 'circle(140% at 50% 55%)', scale: 1, transition: { duration: 0.8, ease: [0.65, 0, 0.35, 1] } },
+        exit,
+      };
+    default: // 'fwd' / 'back'
+      return {
+        enter:  { opacity: 0, x: direction > 0 ? 40 : -40, filter: 'blur(6px)' },
+        center: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] } },
+        exit,
+      };
+  }
+}
 
 export default function Onboarding() {
   const navigate = useNavigate();
@@ -1086,10 +1307,11 @@ export default function Onboarding() {
 
       <div className="relative z-10 h-full flex items-start justify-center overflow-hidden">
         <div className="w-full max-w-[420px] h-full px-6 py-10 flex flex-col">
-          <AnimatePresence mode="wait" custom={direction}>
-            <motion.div key={stepName} custom={direction}
-              variants={SLIDE_VARIANTS} initial="enter" animate="center" exit="exit"
-              transition={{ duration: 0.38, ease: [0.16, 1, 0.3, 1] }}
+          <AnimatePresence mode="wait">
+            <motion.div key={stepName}
+              variants={buildVariants(direction > 0 ? STEP_TRANSITIONS[stepName] : 'back', direction)}
+              initial="enter" animate="center" exit="exit"
+              style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
               className="flex-1 flex flex-col min-h-0">
 
               {stepName === 'welcome' && (

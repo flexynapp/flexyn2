@@ -107,3 +107,56 @@
     display: none;
   }
 }
+
+/* ── Onboarding feature carousel animations ── */
+@keyframes ob-ring-grow {
+  0%   { transform: scale(0); opacity: 0.6; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+@keyframes ob-orbit-dot {
+  0%   { transform: rotate(0deg) translateX(36px) rotate(0deg); }
+  100% { transform: rotate(360deg) translateX(36px) rotate(-360deg); }
+}
+@keyframes ob-coach-pulse {
+  0%,100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.45); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); transform: scale(1.05); }
+}
+@keyframes ob-type-cursor {
+  0%,49%   { opacity: 1; }
+  50%,100% { opacity: 0; }
+}
+@keyframes ob-count-bar {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+@keyframes ob-streak-flame {
+  0%,100% { transform: scale(1) rotate(-2deg); }
+  50%     { transform: scale(1.08) rotate(2deg); }
+}
+@keyframes ob-streak-roll {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes ob-recovery-fill {
+  from { stroke-dashoffset: 283; }
+  to   { stroke-dashoffset: 70; }
+}
+@keyframes ob-spring-in {
+  0%   { transform: translateY(18px) scale(0.96); opacity: 0; }
+  60%  { transform: translateY(-2px) scale(1.004); opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes ob-feat-enter {
+  0%   { opacity: 0; transform: translateY(50px) scale(0.88) rotateX(-22deg); filter: blur(8px); }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotateX(0deg); filter: blur(0); }
+}
+@keyframes ob-pip-progress {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes ob-icon-bob {
+  0%,100% { transform: translateX(0); }
+  50%     { transform: translateX(3px); }
+}
+
+.ob-icon-bob { animation: ob-icon-bob 1.6s ease-in-out infinite; }
