@@ -37,12 +37,14 @@ const AuthenticatedApp = () => {
   // before) but onboarding_complete is false (e.g. after an account reset),
   // silently set the flag and re-fetch so they land on the dashboard.
   useEffect(() => {
-    if (user?.username && !user?.onboarding_complete && !isLoadingAuth) {
+    if (user?.username && !user?.onboarding_complete && !user?.onboarding_completed && !isLoadingAuth) {
       import('@/api/base44Client').then(({ base44 }) => {
-        base44.auth.updateMe({ onboarding_complete: true }).then(() => checkUserAuth());
+        base44.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
+          .then(() => checkUserAuth())
+          .catch(() => {}); // fail silently if columns not yet migrated
       });
     }
-  }, [user?.username, user?.onboarding_complete, isLoadingAuth]);
+  }, [user?.username, user?.onboarding_complete, user?.onboarding_completed, isLoadingAuth]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {
@@ -67,9 +69,10 @@ const AuthenticatedApp = () => {
   }
 
   // If user is authenticated but onboarding isn't complete, show onboarding.
-  // Skip if: auth is still loading, OR the user already has a username (meaning
-  // they completed onboarding before — the flag will be healed by the useEffect above).
-  if (user && !user.onboarding_complete && !user.username && !isLoadingAuth) {
+  // Check both column variants: onboarding_complete (migration 002) and
+  // onboarding_completed (migration 001). Having a username also counts as done.
+  const onboardingDone = user?.onboarding_complete || user?.onboarding_completed || user?.username;
+  if (user && !onboardingDone && !isLoadingAuth) {
     return <Onboarding />;
   }
 

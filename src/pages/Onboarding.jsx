@@ -1263,32 +1263,49 @@ export default function Onboarding() {
 
   const handleRevealNext = async () => {
     setSaving(true);
+    const s = data.stats;
+    const weightUnit = s.weightUnit === 'kg' ? 'kg' : 'lbs';
+
+    // Full profile payload
+    const fullProfile = {
+      username:               data.username.trim(),
+      fitness_goals:          data.goal,
+      fitness_level:          data.level,
+      training_days:          data.days,
+      preferred_workout_time: data.preferredTime,
+      age:                    s.age,
+      height_cm:    s.heightUnit === 'cm' ? String(s.heightCm) : String(Math.round(s.heightIn * 2.54)),
+      height_inches: s.heightUnit === 'in' ? String(s.heightIn) : String(Math.round(s.heightCm / 2.54)),
+      height_unit:  s.heightUnit === 'cm' ? 'metric' : 'imperial',
+      weight_kg:    s.weightUnit === 'kg' ? String(s.weightKg) : String(Math.round(s.weightLb * 0.453592)),
+      weight_lbs:   s.weightUnit === 'lb' ? String(s.weightLb) : String(Math.round(s.weightKg / 0.453592)),
+      weight_unit:  weightUnit,
+      onboarding_complete:   true,
+      onboarding_completed:  true,
+    };
+
     try {
-      const s = data.stats;
-      await base44.auth.updateMe({
-        username: data.username.trim(),
-        fitness_goals: data.goal,
-        fitness_level: data.level,
-        training_days: data.days,
-        preferred_workout_time: data.preferredTime,
-        age: s.age,
-        height_cm: s.heightUnit === 'cm' ? String(s.heightCm) : String(Math.round(s.heightIn * 2.54)),
-        height_inches: s.heightUnit === 'in' ? String(s.heightIn) : String(Math.round(s.heightCm / 2.54)),
-        height_unit: s.heightUnit === 'cm' ? 'metric' : 'imperial',
-        weight_kg: s.weightUnit === 'kg' ? String(s.weightKg) : String(Math.round(s.weightLb * 0.453592)),
-        weight_lbs: s.weightUnit === 'lb' ? String(s.weightLb) : String(Math.round(s.weightKg / 0.453592)),
-        weight_unit: s.weightUnit === 'kg' ? 'kg' : 'lbs',
-        onboarding_complete: true,
-      });
-      setWeightUnit(s.weightUnit === 'kg' ? 'kg' : 'lbs');
+      await base44.auth.updateMe(fullProfile);
+      setWeightUnit(weightUnit);
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
     } catch (err) {
-      console.error('Onboarding save failed:', err);
-      if (import.meta.env.PROD) {
+      console.error('Full profile save failed, trying minimal save:', err);
+      // Fallback: save only the columns guaranteed to exist (username is in migration 001).
+      // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
+      try {
+        await base44.auth.updateMe({
+          username:            data.username.trim(),
+          onboarding_completed: true,
+        });
+        setWeightUnit(weightUnit);
+        markReturningUser();
+        if (checkUserAuth) await checkUserAuth();
+      } catch (minErr) {
+        console.error('Minimal save also failed:', minErr);
+        markReturningUser();
         toast.error('Profile save failed — you can update it later in Settings.');
       }
-      markReturningUser();
     } finally {
       setSaving(false);
       navigate('/dashboard', { replace: true });
