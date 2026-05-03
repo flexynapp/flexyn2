@@ -1,5 +1,5 @@
 // src/lib/AuthContext.jsx — Supabase auth
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 
@@ -18,6 +18,7 @@ export function AuthProvider({ children }) {
   const [user,            setUser]            = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoadingAuth,   setIsLoadingAuth]   = useState(true);
+  const initialised = useRef(false);
 
   const loadProfile = useCallback(async (authUser) => {
     try {
@@ -34,21 +35,27 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    // Bootstrap from any existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        loadProfile(session.user);
-      } else {
-        setIsLoadingAuth(false);
-      }
-    });
+    // Safety net: never block the UI longer than 8 seconds
+    const timeout = setTimeout(() => setIsLoadingAuth(false), 8000);
 
-    // Keep state in sync with Supabase auth events (OAuth redirect, sign-out, etc.)
+    // onAuthStateChange fires immediately with INITIAL_SESSION — use it as the
+    // single source of truth. No separate getSession() needed.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        clearTimeout(timeout); // cancel safety net once we get a real response
+
         if (session?.user) {
-          await loadProfile(session.user);
+          // Only call loadProfile on the first init or on explicit sign-in/out events.
+          // TOKEN_REFRESHED fires silently and should not re-fetch the profile.
+          if (!initialised.current || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+            initialised.current = true;
+            await loadProfile(session.user);
+          } else {
+            initialised.current = true;
+            setIsLoadingAuth(false);
+          }
         } else {
+          initialised.current = true;
           setUser(null);
           setIsAuthenticated(false);
           setIsLoadingAuth(false);
@@ -56,7 +63,10 @@ export function AuthProvider({ children }) {
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, [loadProfile]);
 
   const checkUserAuth = useCallback(async () => {
