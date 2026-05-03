@@ -3,8 +3,8 @@
   publish = "dist"
 
 [build.environment]
-  VITE_BASE44_APP_ID = "69dfb5d1674e81512478f6f7"
-  VITE_BASE44_APP_BASE_URL = "https://flexyn.base44.app"
+  VITE_SUPABASE_URL = "https://ebvqxuwfiptcmlkhflfj.supabase.co"
+  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVidnF4dXdmaXB0Y21sa2hmbGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzYwNDQsImV4cCI6MjA5MzQxMjA0NH0.c6VsWcN85j-3eF1EXx-nsTqcu6-ef0JgGH4OlH0HZKY"
 
 [[redirects]]
   from = "/*"
