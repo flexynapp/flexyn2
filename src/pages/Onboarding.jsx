@@ -82,7 +82,7 @@ function FeatVisualCoach({ accent }) {
 function FeatVisualLog({ accent }) {
   const rows = [{ label: 'Bench', val: '185 × 5' }, { label: 'Bench', val: '195 × 5' }, { label: 'Bench', val: '205 × 5' }];
   return (
-    <div style={{ width: 145, display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
+    <div style={{ width: 108, display: 'flex', flexDirection: 'column', gap: 5, flexShrink: 0 }}>
       {rows.map((row, i) => (
         <div key={i} style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -118,7 +118,7 @@ function FeatVisualLog({ accent }) {
 function FeatVisualProgress({ accent }) {
   const heights = [22, 30, 28, 44, 38, 56, 62];
   return (
-    <div style={{ width: 150, height: 88, position: 'relative', flexShrink: 0 }}>
+    <div style={{ width: 108, height: 88, position: 'relative', flexShrink: 0 }}>
       <div style={{ position: 'absolute', left: 0, right: 0, bottom: 10, height: 1, background: 'hsl(var(--border))' }} />
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 5, height: 76, padding: '0 2px' }}>
         {heights.map((h, i) => (
@@ -257,14 +257,14 @@ function Aurora() {
       <div className="absolute inset-0 opacity-[0.035]"
         style={{ backgroundImage: 'linear-gradient(hsl(var(--foreground)) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground)) 1px, transparent 1px)', backgroundSize: '48px 48px' }} />
       {/* Blobs */}
-      <motion.div className="absolute rounded-full blur-[80px] opacity-60"
-        style={{ width: '70%', height: '55%', left: '-10%', top: '-10%', background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)' }}
+      <motion.div className="absolute rounded-full blur-[50px] opacity-55"
+        style={{ width: '70%', height: '55%', left: '-10%', top: '-10%', background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 70%)', willChange: 'transform' }}
         animate={{ x: [0, 20, 0], y: [0, 15, 0] }} transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }} />
-      <motion.div className="absolute rounded-full blur-[80px] opacity-45"
-        style={{ width: '55%', height: '50%', right: '-5%', top: '25%', background: 'radial-gradient(circle, hsl(38 92% 60% / 0.5), transparent 70%)' }}
+      <motion.div className="absolute rounded-full blur-[50px] opacity-40"
+        style={{ width: '55%', height: '50%', right: '-5%', top: '25%', background: 'radial-gradient(circle, hsl(38 92% 60% / 0.5), transparent 70%)', willChange: 'transform' }}
         animate={{ x: [0, -20, 0], y: [0, 20, 0] }} transition={{ duration: 14, repeat: Infinity, ease: 'easeInOut', delay: 2 }} />
-      <motion.div className="absolute rounded-full blur-[80px] opacity-40"
-        style={{ width: '75%', height: '45%', left: '5%', bottom: '-10%', background: 'radial-gradient(circle, hsl(14 92% 56% / 0.38), transparent 70%)' }}
+      <motion.div className="absolute rounded-full blur-[50px] opacity-35"
+        style={{ width: '75%', height: '45%', left: '5%', bottom: '-10%', background: 'radial-gradient(circle, hsl(14 92% 56% / 0.38), transparent 70%)', willChange: 'transform' }}
         animate={{ x: [0, 15, 0], y: [0, -10, 0] }} transition={{ duration: 20, repeat: Infinity, ease: 'easeInOut', delay: 4 }} />
       {/* Vignette */}
       <div className="absolute inset-0" style={{ background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, hsl(var(--background) / 0.35) 100%)' }} />
@@ -400,7 +400,7 @@ function FeatureCarousel() {
       <div key={F.id} className="flex items-center gap-3"
         style={{ animation: 'ob-feat-enter 0.65s cubic-bezier(0.16,1,0.3,1) both', perspective: 800 }}>
         {/* Animated visual */}
-        <div className="flex items-center justify-center" style={{ width: 110, height: 110, flexShrink: 0 }}>
+        <div className="flex items-center justify-center" style={{ width: 110, height: 110, flexShrink: 0, overflow: 'hidden' }}>
           <Visual accent={F.accent} />
         </div>
         {/* Copy */}
@@ -1154,45 +1154,47 @@ const STEP_TRANSITIONS = {
 };
 
 function buildVariants(flavor, direction) {
-  // exit is always a quick slide-out opposite to entry direction
-  const exitX = direction > 0 ? -30 : 30;
-  const exit = { opacity: 0, x: exitX, transition: { duration: 0.28, ease: [0.4, 0, 1, 1] } };
+  // exit is a quick fade+slide — GPU-only (opacity + transform) for 60fps on mobile
+  const exitX = direction > 0 ? -24 : 24;
+  const exit = { opacity: 0, x: exitX, transition: { duration: 0.24, ease: [0.4, 0, 1, 1] } };
 
   switch (flavor) {
     case 'curtain':
       return {
         enter:  { clipPath: 'inset(0 0 0 100%)', opacity: 1 },
-        center: { clipPath: 'inset(0 0 0 0%)', opacity: 1, transition: { duration: 0.65, ease: [0.76, 0, 0.24, 1] } },
+        center: { clipPath: 'inset(0 0 0 0%)', opacity: 1, transition: { duration: 0.6, ease: [0.76, 0, 0.24, 1] } },
         exit,
       };
     case 'tilt':
       return {
-        enter:  { opacity: 0, rotateY: direction > 0 ? -20 : 20, x: direction > 0 ? 60 : -60, scale: 0.95, filter: 'blur(6px)' },
-        center: { opacity: 1, rotateY: 0, x: 0, scale: 1, filter: 'blur(0px)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        // No blur — rotateY + opacity only (GPU-composited)
+        enter:  { opacity: 0, rotateY: direction > 0 ? -18 : 18, x: direction > 0 ? 50 : -50, scale: 0.96 },
+        center: { opacity: 1, rotateY: 0, x: 0, scale: 1, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
         exit,
       };
     case 'flip':
       return {
-        enter:  { opacity: 0, rotateX: direction > 0 ? 40 : -40, y: direction > 0 ? 30 : -30, filter: 'blur(6px)' },
-        center: { opacity: 1, rotateX: 0, y: 0, filter: 'blur(0px)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        enter:  { opacity: 0, rotateX: direction > 0 ? 35 : -35, y: direction > 0 ? 24 : -24 },
+        center: { opacity: 1, rotateX: 0, y: 0, transition: { duration: 0.6, ease: [0.16, 1, 0.3, 1] } },
         exit,
       };
     case 'flash':
       return {
-        enter:  { opacity: 0, scale: 1.06, filter: 'blur(16px) brightness(1.4)' },
-        center: { opacity: 1, scale: 1, filter: 'blur(0px) brightness(1)', transition: { duration: 0.65, ease: [0.16, 1, 0.3, 1] } },
+        // Scale + opacity only — brightness is expensive on mobile, skip it
+        enter:  { opacity: 0, scale: 1.05 },
+        center: { opacity: 1, scale: 1, transition: { duration: 0.55, ease: [0.16, 1, 0.3, 1] } },
         exit,
       };
     case 'iris':
       return {
-        enter:  { clipPath: 'circle(0% at 50% 55%)', scale: 1.04 },
-        center: { clipPath: 'circle(140% at 50% 55%)', scale: 1, transition: { duration: 0.8, ease: [0.65, 0, 0.35, 1] } },
+        enter:  { clipPath: 'circle(0% at 50% 55%)', scale: 1.03 },
+        center: { clipPath: 'circle(140% at 50% 55%)', scale: 1, transition: { duration: 0.75, ease: [0.65, 0, 0.35, 1] } },
         exit,
       };
     default: // 'fwd' / 'back'
       return {
-        enter:  { opacity: 0, x: direction > 0 ? 40 : -40, filter: 'blur(6px)' },
-        center: { opacity: 1, x: 0, filter: 'blur(0px)', transition: { duration: 0.42, ease: [0.16, 1, 0.3, 1] } },
+        enter:  { opacity: 0, x: direction > 0 ? 36 : -36 },
+        center: { opacity: 1, x: 0, transition: { duration: 0.38, ease: [0.16, 1, 0.3, 1] } },
         exit,
       };
   }
@@ -1311,7 +1313,7 @@ export default function Onboarding() {
             <motion.div key={stepName}
               variants={buildVariants(direction > 0 ? STEP_TRANSITIONS[stepName] : 'back', direction)}
               initial="enter" animate="center" exit="exit"
-              style={{ perspective: 1000, transformStyle: 'preserve-3d' }}
+              style={{ perspective: 1000, transformStyle: 'preserve-3d', willChange: 'transform, opacity' }}
               className="flex-1 flex flex-col min-h-0">
 
               {stepName === 'welcome' && (
