@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette } from 'lucide-react';
+import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
@@ -25,6 +26,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const email = isSelf ? user?.email : targetUser?.email;
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
+  const [themeOpen, setThemeOpen] = useState(false);
 
   // Always start a profile view at the top, regardless of where the user
   // scrolled before navigating in. Using 'auto' (not 'smooth') because the
@@ -234,8 +236,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // Only when the email itself is missing do we render the generic
   // "Athlete" placeholder.
   const emailPrefix = email ? email.split('@')[0] : null;
+  // For own profile: treat a deleted_ placeholder the same as no username.
+  const rawSelfUsername = isSelf ? user?.username : null;
+  const selfUsername = (rawSelfUsername && !rawSelfUsername.startsWith('deleted_'))
+    ? rawSelfUsername
+    : null;
+
   const displayUsername = isSelf
-    ? user?.username
+    ? (selfUsername || emailPrefix)
     : (targetUser?.username || targetProfile?.username || emailPrefix);
 
   const displayHandle = displayUsername
@@ -254,6 +262,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const levelData = calculateLevelFromXp(ownerXp);
   const { level, xpInLevel, xpNeeded, progressPercent } = levelData;
   const tier = getTier(level, t);
+
+  // Deleted / reset accounts have username starting with "deleted_".
+  // For other people's profiles: show "User not found".
+  // For own profile: guard below shows an email-prefix fallback so the layout
+  // never renders the deleted_ placeholder (re-onboarding will fix it properly).
+  const isDeletedAccount = !isSelf && displayUsername?.startsWith('deleted_');
+  const isSelfDeleted = isSelf && user?.username?.startsWith('deleted_');
+  if (isDeletedAccount) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 text-center px-4">
+        <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4">
+          <UserIcon className="w-8 h-8 text-muted-foreground" />
+        </div>
+        <h2 className="font-heading font-bold text-lg mb-1">{t('hub.profile.notFound')}</h2>
+        <p className="text-sm text-muted-foreground">{t('hub.profile.notFoundDesc')}</p>
+      </div>
+    );
+  }
 
   return (
     <ThemedScope themeId={ownerThemeId}>
@@ -311,6 +337,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </div>
           </div>
         </motion.div>
+
+        {/* Themes button — own profile only */}
+        {isSelf && (
+          <motion.button
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            onClick={() => setThemeOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-2 mb-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          >
+            <Palette className="w-4 h-4 text-primary" />
+            {t('hub.profile.themes')}
+          </motion.button>
+        )}
 
         {/* Showcase slot — reserved for equipped loot items, capsule rewards,
             and custom themes earned through the loot/inventory system.
@@ -415,6 +455,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           />
         )}
       </AnimatePresence>
+
+      {/* Theme Selector */}
+      {isSelf && (
+        <ThemeSelector open={themeOpen} onClose={() => setThemeOpen(false)} />
+      )}
 
       {/* Unfollow Confirmation Dialog */}
       <AnimatePresence>

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -10,6 +10,7 @@ import * as hubReactions from '@/lib/data/hubReactions';
 import * as hubPosts from '@/lib/data/hubPosts';
 import HubCommentsInline from './HubCommentsInline';
 import PostActivityBlock from './PostActivityBlock';
+import ReportDialog from './ReportDialog';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 
@@ -20,6 +21,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const [commentsOpen, setCommentsOpen] = useState(false);
   const [pendingReaction, setPendingReaction] = useState(undefined);
   const [mealSaved, setMealSaved] = useState(() => isMealSaved(post.id));
+  const [reportOpen, setReportOpen] = useState(false);
 
   const isMealPost = post.post_type === 'meal';
 
@@ -151,13 +153,22 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             className={`absolute inset-0 ${isMine ? 'right-12' : 'right-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
         )}
-        {isMine && (
+        {isMine ? (
           <button
             onClick={handleDelete}
             className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
             aria-label={t('hub.delete')}
           >
             <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        ) : (
+          <button
+            onClick={() => setReportOpen(true)}
+            className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+            aria-label={t('report.buttonLabel')}
+            title={t('report.buttonLabel')}
+          >
+            <Flag className="w-3.5 h-3.5" />
           </button>
         )}
       </div>
@@ -240,6 +251,17 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Report dialog — only rendered for other people's posts */}
+      {!isMine && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          reportedType="post"
+          reportedId={post.id}
+          reportedAuthorEmail={post.author_email}
+        />
+      )}
     </article>
   );
 }

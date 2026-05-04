@@ -75,6 +75,8 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
           .filter(u => {
             if (!u.email) return false;
             if (u.email === currentUser?.email) return false; // never return self
+            // Hide deleted / reset accounts — their username starts with "deleted_"
+            if (u.username?.startsWith('deleted_')) return false;
             // Match against username OR full_name. Display stays username-only —
             // see UserResultRow below — so full_name is used as a search key only,
             // not surfaced in the UI.
@@ -233,7 +235,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
                   </div>
                   <h2 className="font-heading font-bold text-lg mb-1">{t('hub.search.noResultsTitle')}</h2>
                   <p className="text-sm text-muted-foreground max-w-sm">
-                    {t('hub.search.noResultsSubtitle').replace('{query}', `"${searchQuery}"`)}
+                    {t('hub.search.noResultsSubtitle').replace('{query}', searchQuery)}
                   </p>
                 </div>
               )}

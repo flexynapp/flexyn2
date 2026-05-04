@@ -27,6 +27,9 @@ export function SettingsProvider({ children }) {
   const [levelAnimationsEnabled, setLevelAnimationsEnabledState] = useState(
     () => localStorage.getItem('fn-level-animations-enabled') !== 'false'
   );
+  const [nutrientRingView, setNutrientRingViewState] = useState(
+    () => localStorage.getItem('fn-nutrient-ring-view') === 'true'
+  );
 
   const toggleSetting = (key, value) => {
     localStorage.setItem(key, value);
@@ -73,6 +76,11 @@ export function SettingsProvider({ children }) {
       setLevelAnimationsEnabled: (val) => {
         setLevelAnimationsEnabledState(val);
         toggleSetting('fn-level-animations-enabled', val);
+      },
+      nutrientRingView,
+      setNutrientRingView: (val) => {
+        setNutrientRingViewState(val);
+        toggleSetting('fn-nutrient-ring-view', val);
       },
     }}>
       {children}

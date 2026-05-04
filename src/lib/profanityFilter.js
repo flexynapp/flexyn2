@@ -166,13 +166,14 @@ const HOMOGLYPHS = {
 // re-normalized at module load with this same map, blocked words that legit-
 // imately contain 'l' (niglet, mongoloid, bullshit, salope, ...) still match.
 const LEET_MAP = {
-  '@':'a','4':'a','λ':'a','ª':'a',
+  '@':'a','4':'a','λ':'a','ª':'a','^':'a',
   '8':'b','ß':'b','β':'b',
   '(':'c','{':'c','¢':'c','©':'c','<':'c',
   '3':'e','€':'e',
   '6':'g','9':'g',
   '#':'h',
-  '1':'i','!':'i','|':'i','¡':'i','ı':'i','l':'i', // ← I/l/1/|/!/¡/ı all → i
+  // I/l/1/|/!/¡/ı/)/} all collapse to 'i' — covers N)gger, N}gger, etc.
+  '1':'i','!':'i','|':'i','¡':'i','ı':'i','l':'i',')':'i','}':'i',
   '0':'o','°':'o','ω':'o',
   '5':'s','$':'s','§':'s',
   '7':'t','+':'t',
@@ -236,21 +237,62 @@ function checkBlocklist(haystack, needle) {
   return needle.length >= 4 ? fuzzyContains(haystack, needle) : repeatContains(haystack, needle);
 }
 
+// ── Star/symbol masking bypass detector ───────────────────────────────────
+// Catches "ni**er", "f**k", "b*tch" and similar patterns where asterisks or
+// hash signs mask one or more letters in the middle of a slur. Strategy:
+//   1. Find runs of [*#] that are sandwiched between alphanumeric characters.
+//   2. For each such run, check if any blocked word (a) shares the same
+//      non-masked prefix/suffix and (b) has a plausible masked mid-section.
+//   3. Allow list check: only flag if the matched blocked word isn't explained
+//      by a legitimate allowlist word that also appears in the original text.
+//
+// This check is skipped entirely when the input contains no * or #, so it
+// has zero cost for the normal (non-bypass) path.
+function checkStarMasked(text) {
+  if (!/[*#]/.test(text)) return false;
+  const base = normalizeBase(text);
+  const aggressiveOrig = normalizeAggressive(text); // original (for allowlist context)
+  // Match: alpha+ then star/hash run then alpha+
+  const maskPattern = /([a-z0-9]+)[*#]+([a-z0-9]+)/g;
+  let m;
+  while ((m = maskPattern.exec(base)) !== null) {
+    const prefix = m[1];
+    const suffix = m[2];
+    const minLen = prefix.length + suffix.length;
+    for (const blocked of NORMALIZED_BLOCKED) {
+      // At least 1 letter must be masked; gap can't be implausibly long (>8).
+      const maskedLen = blocked.length - minLen;
+      if (maskedLen < 1 || maskedLen > 8) continue;
+      if (!blocked.startsWith(prefix)) continue;
+      if (!blocked.endsWith(suffix)) continue;
+      // Allowlist check — require the allowlist word to also appear in the
+      // original text (not just the blocked word) to prevent blanket excuses.
+      const explained = NORMALIZED_ALLOWLIST.some(
+        allowed => checkBlocklist(allowed, blocked) && aggressiveOrig.includes(allowed)
+      );
+      if (!explained) return true;
+    }
+  }
+  return false;
+}
+
 export function containsProfanity(text) {
   if (!text || typeof text !== 'string') return false;
   const aggressive = normalizeAggressive(text);
   const reversed = aggressive.split('').reverse().join('');
   const soft = normalizeSoft(text);
   const hits = NORMALIZED_BLOCKED.filter(w => checkBlocklist(aggressive, w) || checkBlocklist(reversed, w));
-  if (hits.length === 0) return false;
-  for (const hit of hits) {
-    // Allowlist check uses the same fuzzy matcher as the blocklist, so an
-    // allowlist entry like "shiitake" can explain a blocklist hit on "shit"
-    // (literal .includes would fail because "shiitake" doesn't contain "shit").
-    // `soft.includes(allowed)` ensures the allowlist word actually appears in
-    // the input — preventing a generic allowlist entry from neutralizing a slur.
-    const explained = NORMALIZED_ALLOWLIST.some(allowed => checkBlocklist(allowed, hit) && soft.includes(allowed));
-    if (!explained) return true;
+  if (hits.length > 0) {
+    for (const hit of hits) {
+      // Allowlist check uses the same fuzzy matcher as the blocklist, so an
+      // allowlist entry like "shiitake" can explain a blocklist hit on "shit"
+      // (literal .includes would fail because "shiitake" doesn't contain "shit").
+      // `soft.includes(allowed)` ensures the allowlist word actually appears in
+      // the input — preventing a generic allowlist entry from neutralizing a slur.
+      const explained = NORMALIZED_ALLOWLIST.some(allowed => checkBlocklist(allowed, hit) && soft.includes(allowed));
+      if (!explained) return true;
+    }
   }
-  return false;
+  // Secondary pass: star/hash masking bypass (e.g. "ni**er", "f**k")
+  return checkStarMasked(text);
 }

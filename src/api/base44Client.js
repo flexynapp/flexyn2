@@ -173,21 +173,35 @@ const auth = {
     return _loadProfile();
   },
 
-  /** Patch the user profile and refresh the cache. */
+  /** Patch the user profile and refresh the cache.
+   *  Resilient retry: strips unknown columns (42703) and retries, same as create().
+   *  This ensures username and onboarding flags always land even when some
+   *  migration-002+ columns haven't been applied yet. */
   async updateMe(data) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    const { data: row, error } = await supabase
-      .from('user_profiles')
-      .upsert(
-        { id: user.id, email: user.email, ...data, updated_at: new Date().toISOString() },
-        { onConflict: 'id' }
-      )
-      .select()
-      .single();
-    if (error) throw error;
-    _profile = { id: user.id, email: user.email, ...row };
-    return _profile;
+    let payload = { id: user.id, email: user.email, ...data, updated_at: new Date().toISOString() };
+    for (let attempt = 0; attempt < 15; attempt++) {
+      const { data: row, error } = await supabase
+        .from('user_profiles')
+        .upsert(payload, { onConflict: 'id' })
+        .select()
+        .single();
+      if (!error) {
+        _profile = { id: user.id, email: user.email, ...row };
+        return _profile;
+      }
+      if (error.code === '42703') {
+        const match = error.message?.match(/column "([^"]+)"/);
+        if (match?.[1] && match[1] in payload) {
+          console.warn(`[Supabase] column "${match[1]}" not in user_profiles yet — skipping (run migration 002)`);
+          delete payload[match[1]];
+          continue;
+        }
+      }
+      throw error;
+    }
+    throw new Error('[Supabase] updateMe failed after stripping unknown columns');
   },
 
   /** Kick off Google OAuth. */
@@ -232,15 +246,76 @@ const functions = {
   },
 };
 
-async function _invokeXp({ xp_gained = 0 } = {}) {
+// XP milestone achievements — inserted client-side since Base44's server
+// function no longer runs. Each entry: { id, name, description, xp_awarded, threshold }
+const XP_ACHIEVEMENTS = [
+  { id: 'xp_250',    name: 'First Steps',      description: 'Earned your first 250 XP',   xp_awarded: 10,  threshold: 250   },
+  { id: 'xp_1000',   name: 'Getting Serious',  description: 'Earned 1,000 XP total',      xp_awarded: 25,  threshold: 1000  },
+  { id: 'xp_5000',   name: 'Dedicated',        description: 'Earned 5,000 XP total',      xp_awarded: 50,  threshold: 5000  },
+  { id: 'xp_10000',  name: 'Elite Athlete',    description: 'Earned 10,000 XP total',     xp_awarded: 100, threshold: 10000 },
+  { id: 'xp_25000',  name: 'Legend',           description: 'Earned 25,000 XP total',     xp_awarded: 200, threshold: 25000 },
+];
+
+async function _invokeXp({ xp_gained = 0, action_type } = {}) {
   try {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !xp_gained) return null;
+
+    // 1. Increment XP (RPC also updates current_level after migration 006)
     const { error } = await supabase.rpc('increment_user_xp', {
       p_user_id: user.id,
       p_xp: Math.round(xp_gained),
     });
     if (error) console.warn('[XP] rpc failed:', error.message);
+
+    // 2. Read back new total_xp to check achievement milestones
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('total_xp, achievements_unlocked_count')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile) {
+      const newTotal = profile.total_xp || 0;
+      const prevTotal = newTotal - Math.round(xp_gained);
+
+      // 3. Check each milestone — insert if crossed in this grant
+      for (const ach of XP_ACHIEVEMENTS) {
+        if (prevTotal < ach.threshold && newTotal >= ach.threshold) {
+          const { data: existing } = await supabase
+            .from('achievements')
+            .select('id')
+            .eq('created_by', user.email)
+            .eq('achievement_id', ach.id)
+            .maybeSingle();
+          if (!existing) {
+            await supabase.from('achievements').insert({
+              created_by: user.email,
+              user_id: user.id,
+              achievement_id: ach.id,
+              name: ach.name,
+              description: ach.description,
+              xp_awarded: ach.xp_awarded,
+              unlocked_at: new Date().toISOString(),
+            }).catch(() => {});
+            // Bonus XP for achievement itself (capped to avoid recursion)
+            if (ach.xp_awarded > 0) {
+              await supabase.rpc('increment_user_xp', {
+                p_user_id: user.id,
+                p_xp: ach.xp_awarded,
+              }).catch(() => {});
+            }
+            // Increment the counter on the profile
+            await supabase
+              .from('user_profiles')
+              .update({ achievements_unlocked_count: (profile.achievements_unlocked_count || 0) + 1 })
+              .eq('id', user.id)
+              .catch(() => {});
+          }
+        }
+      }
+    }
+
     _clearProfile();
     return { ok: true };
   } catch (err) {
@@ -267,10 +342,18 @@ async function _invokeDeleteAccount() {
     supabase.from('hub_conversations').delete().contains('participant_emails', [email]),
   ]);
   await supabase.from('user_profiles').update({
-    username: `deleted_${user.id.slice(0, 8)}`,
-    bio: '', avatar_url: null, total_xp: 0,
-    achievements_unlocked_count: 0, total_volume_lbs: 0, total_distance_meters: 0,
-    account_reset_at: new Date().toISOString(),
+    // Clear username and onboarding flags so the user re-onboards and picks a new username.
+    // Hub posts already created keep the author_name snapshot so attribution isn't lost.
+    username:               null,
+    bio:                    '',
+    avatar_url:             null,
+    total_xp:               0,
+    achievements_unlocked_count: 0,
+    total_volume_lbs:       0,
+    total_distance_meters:  0,
+    onboarding_complete:    false,
+    onboarding_completed:   false,
+    account_reset_at:       new Date().toISOString(),
   }).eq('id', user.id);
   _clearProfile();
 }

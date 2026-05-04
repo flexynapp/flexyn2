@@ -1,8 +1,8 @@
 // src/components/hub/HubFeed.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Loader2, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, Users, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -29,7 +29,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     hubFollows.listFollowing(user.email).then(setFollowing);
   }, [user?.email]);
 
-  const { data: allPosts = [], isLoading } = useQuery({
+  const { data: allPosts = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hubFeed', feedTab, user?.email, following.length],
     queryFn: async () => {
       if (feedTab === 'pump') {
@@ -39,8 +39,32 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       }
     },
     enabled: !!user?.email,
-    staleTime: 30_000, // 30s — feed isn't live, lightly cached so navigation back doesn't always refetch
+    staleTime: 0, // always treat data as stale so scroll-to-top always refetches
   });
+
+  // ── Scroll-to-top refresh ────────────────────────────────────────────────
+  // When the user scrolls back to the very top of the page (after having
+  // scrolled down at least 60px) we trigger a fresh fetch. This gives the
+  // "pull to refresh" feel on mobile without requiring a native gesture.
+  const [showRefreshBadge, setShowRefreshBadge] = useState(false);
+
+  const refetchRef = useRef(refetch);
+  useEffect(() => { refetchRef.current = refetch; }, [refetch]);
+
+  useEffect(() => {
+    let prevY = window.scrollY;
+    const handleScroll = () => {
+      const y = window.scrollY;
+      if (prevY > 60 && y === 0) {
+        refetchRef.current();
+        setShowRefreshBadge(true);
+        setTimeout(() => setShowRefreshBadge(false), 1800);
+      }
+      prevY = y;
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []); // intentionally empty — refetch is always up-to-date via refetchRef
 
   // Slice the fetched window to the visible page.
   const visiblePosts = useMemo(
@@ -104,6 +128,23 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
+      {/* Scroll-to-top refresh indicator */}
+      <AnimatePresence>
+        {(isFetching && !isLoading) || showRefreshBadge ? (
+          <motion.div
+            key="refresh-badge"
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            className="flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-full bg-primary/10 text-primary text-xs font-medium mx-auto w-fit"
+          >
+            <RefreshCw className="w-3 h-3 animate-spin" />
+            {t('hub.feed.refreshing')}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
       {visiblePosts.map((post, idx) => (
         <motion.div
           key={post.id}

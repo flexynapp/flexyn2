@@ -33,11 +33,12 @@ import Hub from './pages/Hub';
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkUserAuth } = useAuth();
 
-  // Auto-heal: if the user has a username (meaning they completed onboarding
-  // before) but onboarding_complete is false (e.g. after an account reset),
-  // silently set the flag and re-fetch so they land on the dashboard.
+  // Auto-heal: if the user has a REAL username (not a deleted_ placeholder) but
+  // onboarding flags are false, silently set the flags so they land on dashboard.
+  // Accounts with deleted_ usernames must re-onboard — don't heal them.
   useEffect(() => {
-    if (user?.username && !user?.onboarding_complete && !user?.onboarding_completed && !isLoadingAuth) {
+    const hasRealUsername = user?.username && !user.username.startsWith('deleted_');
+    if (hasRealUsername && !user?.onboarding_complete && !user?.onboarding_completed && !isLoadingAuth) {
       import('@/api/base44Client').then(({ base44 }) => {
         base44.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
           .then(() => checkUserAuth())
@@ -70,8 +71,16 @@ const AuthenticatedApp = () => {
 
   // If user is authenticated but onboarding isn't complete, show onboarding.
   // Check both column variants: onboarding_complete (migration 002) and
-  // onboarding_completed (migration 001). Having a username also counts as done.
-  const onboardingDone = user?.onboarding_complete || user?.onboarding_completed || user?.username;
+  // onboarding_completed (migration 001). Having a real username also counts as done.
+  //
+  // CRITICAL: a username starting with "deleted_" means the account was reset.
+  // These users MUST re-onboard regardless of what the boolean flags say — old
+  // account-reset code did not always clear onboarding_complete/onboarding_completed,
+  // so we cannot trust those flags when a deleted_ placeholder is present.
+  const hasRealUsername = !!(user?.username && !user.username.startsWith('deleted_'));
+  const isDeletedPlaceholder = !!(user?.username?.startsWith('deleted_'));
+  const onboardingDone = !isDeletedPlaceholder &&
+    (user?.onboarding_complete || user?.onboarding_completed || hasRealUsername);
   if (user && !onboardingDone && !isLoadingAuth) {
     return <Onboarding />;
   }

@@ -104,6 +104,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
+        status: 'active',
         goal_type: 'strength',
         exercise_name: exercise.trim(),
         exercise_canonical: exerciseCanonical.trim() || exercise.trim(),
@@ -119,6 +120,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
+        status: 'active',
         goal_type: 'cardio_distance',
         cardio_activity: cardioActivity,
         target_distance_meters: toMeters(distanceUnit, cardioDistanceInput),
@@ -133,6 +135,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
+        status: 'active',
         goal_type: 'cardio_duration',
         cardio_activity: cardioActivity,
         target_duration_seconds: totalSec,
@@ -146,6 +149,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         return;
       }
       onSubmit({
+        status: 'active',
         goal_type: 'cardio_sessions',
         cardio_activity: cardioActivity,
         target_sessions: Number(cardioSessions),

@@ -126,9 +126,10 @@ export const hubI18n = {
     'avatar.error.tooLarge': 'Photo must be under 5 MB',
     'avatar.error.uploadFailed': "Couldn't upload photo. Try again.",
 
-    // Feed pagination
+    // Feed pagination + refresh
     'hub.feed.loadingMore': 'Loading more posts…',
     'hub.feed.allCaughtUp': "You're all caught up.",
+    'hub.feed.refreshing': 'Updating feed…',
 
     // Hub profile fallbacks
     'hub.profile.anonymousSelf': 'You',
@@ -162,6 +163,15 @@ export const hubI18n = {
     'hub.profile.followError': 'Could not follow. Try again.',
     'hub.profile.unfollowError': 'Could not unfollow. Try again.',
     'hub.profile.messageNotReady': 'Hold on — still loading your account.',
+    'hub.profile.notFound': 'User not found',
+    'hub.profile.notFoundDesc': 'This account no longer exists.',
+    'hub.profile.themes': 'Themes',
+
+    // Theme selector
+    'hub.themes.title': 'Themes',
+    'hub.themes.subtitle': 'Your level: {level}',
+    'hub.themes.lockedAt': 'Level {n}',
+    'hub.themes.capsuleHint': 'More themes coming — unlock them through Loot Capsules',
 
     // Regimen copy
     'hub.activity.copyRegimen': 'Copy',

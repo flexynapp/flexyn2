@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useSettings } from '@/lib/SettingsContext';
+import NutrientRing from './NutrientRing';
 
 const VITAMINS_MINERALS = [
   { key: 'iron_mg',         labelKey: 'nutrition.minerals.iron',      unit: 'mg',  color: 'from-red-300 to-red-500',         textColor: 'text-red-600',     bgColor: 'bg-red-50 dark:bg-red-950/20' },
@@ -17,6 +19,7 @@ const VITAMINS_MINERALS = [
 
 export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) {
   const { t } = useLanguage();
+  const { nutrientRingView } = useSettings();
   const dailyValues = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
 
   const totals = useMemo(() => {
@@ -75,21 +78,41 @@ export default function MineralsVitaminsBox({ entries = [], userProfile = {} }) 
 
           return (
             <motion.div key={item.key} variants={itemVariants}>
-              <div className={`${item.bgColor} rounded-lg p-3 h-full`}>
-                <p className="text-xs text-muted-foreground mb-1 truncate">{t(item.labelKey)}</p>
-                <p className={`font-heading font-bold text-lg ${item.textColor}`}>
-                  {actual.toFixed(0)}{item.unit}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}% {t('nutrition.macros.dv')}</p>
-                <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full ${item.textColor.replace('text-', 'bg-')}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percentOfDaily}%` }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                  />
+              {nutrientRingView ? (
+                /* ── Ring view ── */
+                <div className={`${item.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
+                  <p className="text-xs text-muted-foreground mb-2 truncate w-full">{t(item.labelKey)}</p>
+                  <div className={`relative ${item.textColor}`}>
+                    <NutrientRing percent={percentOfDaily} size={52} />
+                    <span
+                      className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${item.textColor}`}
+                    >
+                      {Math.round(percentOfDaily)}%
+                    </span>
+                  </div>
+                  <p className={`font-heading font-bold text-sm ${item.textColor} mt-2`}>
+                    {actual.toFixed(0)}{item.unit}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{t('nutrition.macros.dv')}</p>
                 </div>
-              </div>
+              ) : (
+                /* ── Bar view (default) ── */
+                <div className={`${item.bgColor} rounded-lg p-3 h-full`}>
+                  <p className="text-xs text-muted-foreground mb-1 truncate">{t(item.labelKey)}</p>
+                  <p className={`font-heading font-bold text-lg ${item.textColor}`}>
+                    {actual.toFixed(0)}{item.unit}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}% {t('nutrition.macros.dv')}</p>
+                  <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full ${item.textColor.replace('text-', 'bg-')}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentOfDaily}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
           );
         })}

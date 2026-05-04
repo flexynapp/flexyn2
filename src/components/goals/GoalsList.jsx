@@ -2,8 +2,9 @@ import React, { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pencil, Trash2, Target, Trophy, Activity, Footprints, PersonStanding, Bike } from 'lucide-react';
+import { Pencil, Trash2, Target, Trophy, Activity, Footprints, PersonStanding, Bike, MoreVertical } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -24,13 +25,8 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
   
-  // Filter goals based on tab
-  const filteredGoals = useMemo(() => {
-    return goals.filter(g => isViewingCompleted ? g.status === 'completed' : g.status === 'active');
-  }, [goals, isViewingCompleted]);
-
   const goalsWithProgress = useMemo(() => {
-    return filteredGoals.map(goal => {
+    return goals.map(goal => {
       let progress = 0;
       let progressLabel = '';
       let currentValue = 0;
@@ -77,6 +73,8 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         }
 
         progress = Math.min(Math.max(progress, 0), 100);
+        // Expose for the progress subtitle display below the card title
+        currentValue = maxWeight || repsAtGoalWeight;
       } else if (goal.goal_type === 'cardio_distance') {
         // Distance goal
         let totalDistance = 0;
@@ -150,19 +148,9 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
         icon: icon || Target,
       };
     });
-  }, [filteredGoals, logs, cardioLogs, t, distanceUnit]);
+  }, [goals, logs, cardioLogs, t, distanceUnit]);
 
-  if (filteredGoals.length === 0) {
-    return (
-      <Card className="p-8 text-center border-dashed">
-        <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">{t('goals.noActive')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('goals.noActiveDesc')}</p>
-      </Card>
-    );
-  }
-
-  if (goalsWithProgress.length === 0) {
+  if (goals.length === 0) {
     return (
       <Card className="p-8 text-center border-dashed">
         <Target className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
@@ -192,58 +180,51 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                 <div>
                   <h4 className="font-heading font-bold">{title}</h4>
                   <p className="text-sm text-muted-foreground mt-0.5">
-                    {goal.progressLabel || (goal.target_weight != null && goal.target_weight > 0
-                      ? `${formatWeight(Math.min(goal.maxWeight || 0, goal.target_weight), weightUnit)} / ${formatWeight(goal.target_weight, weightUnit)}`
-                      : `${Math.min(goal.totalReps || 0, goal.target_reps || 0)} / ${goal.target_reps || 0} ${t('goals.reps')}`
-                    )}
+                    {goal.progressLabel
+                      || (goal.target_weight != null && goal.target_weight > 0
+                          ? `${formatWeight(Math.min(goal.currentValue || 0, goal.target_weight), weightUnit)} / ${formatWeight(goal.target_weight, weightUnit)}`
+                          : goal.target_reps != null && goal.target_reps > 0
+                            ? `${Math.min(goal.currentValue || 0, goal.target_reps)} / ${goal.target_reps} ${t('goals.reps')}`
+                            : null)
+                    }
                   </p>
                 </div>
               </div>
-              <div className="flex gap-1">
-                {!isViewingCompleted && (
-                  <>
-                    <Button variant="ghost" size="icon" onClick={() => onEdit(goal)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>{t('goals.deleteConfirm')}</AlertDialogTitle>
-                          <AlertDialogDescription>{t('goals.deleteConfirmDesc')}</AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => onDelete(goal.id)}>{t('common.delete')}</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </>
-                )}
-                {isViewingCompleted && allowDeleteCompletedGoals && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
+              {/* Single ⋮ menu replaces separate Edit / Delete buttons */}
+              {(!isViewingCompleted || (isViewingCompleted && allowDeleteCompletedGoals)) && (
+                <AlertDialog>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
                       <Button variant="ghost" size="icon">
-                        <Trash2 className="w-4 h-4 text-destructive" />
+                        <MoreVertical className="w-4 h-4" />
                       </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('goals.deleteConfirm')}</AlertDialogTitle>
-                        <AlertDialogDescription>{t('goals.deleteConfirmDesc')}</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onDelete(goal.id)}>{t('common.delete')}</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )}
-              </div>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      {!isViewingCompleted && onEdit && (
+                        <DropdownMenuItem onClick={() => onEdit(goal)}>
+                          <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                        </DropdownMenuItem>
+                      )}
+                      {!isViewingCompleted && onEdit && <DropdownMenuSeparator />}
+                      <AlertDialogTrigger asChild>
+                        <DropdownMenuItem className="text-destructive focus:text-destructive">
+                          <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
+                        </DropdownMenuItem>
+                      </AlertDialogTrigger>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('goals.deleteConfirm')}</AlertDialogTitle>
+                      <AlertDialogDescription>{t('goals.deleteConfirmDesc')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => onDelete(goal.id)}>{t('common.delete')}</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
             </div>
 
             <GoalProgressBar progress={goal.progress} animated={true} complete={goal.progress >= 100} />

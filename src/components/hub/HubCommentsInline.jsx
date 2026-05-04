@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, MessageCircle, X } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, MessageCircle, X, Flag } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -11,6 +11,7 @@ import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubComments from '@/lib/data/hubComments';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
+import ReportDialog from './ReportDialog';
 import { toast } from 'sonner';
 
 export default function HubCommentsInline({ post, open, onClose }) {
@@ -174,6 +175,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   onDelete={() => handleDelete(c)}
                   showReply
                   t={t}
+                  postAuthorEmail={post.author_email}
                 />
 
                 {/* Replies toggle + list */}
@@ -218,6 +220,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               onDelete={() => handleDelete(r)}
                               showReply={false}
                               t={t}
+                              postAuthorEmail={post.author_email}
                             />
                           ))}
                         </motion.div>
@@ -279,7 +282,8 @@ export default function HubCommentsInline({ post, open, onClose }) {
 
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
-function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t }) {
+function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail }) {
+  const [reportOpen, setReportOpen] = useState(false);
   const author = resolveAuthor(authorsByEmail, c.author_email, {
     author_name: c.author_name,
     author_avatar_url: c.author_avatar_url,
@@ -288,60 +292,85 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
   const timeLabel = c.created_date ? format(parseISO(c.created_date), 'MMM d, h:mma') : '';
 
   return (
-    <div className="flex items-start gap-2">
-      {/* Avatar */}
-      <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-bold overflow-hidden">
-        {author.avatarUrl ? (
-          <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
-        ) : (
-          author.initials
+    <>
+      <div className="flex items-start gap-2">
+        {/* Avatar */}
+        <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-bold overflow-hidden">
+          {author.avatarUrl ? (
+            <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            author.initials
+          )}
+        </div>
+
+        {/* Bubble + actions */}
+        <div className="flex-1 min-w-0">
+          <div className="bg-secondary/50 rounded-2xl px-3 py-2">
+            <p className="text-xs font-bold leading-tight">{author.handle}</p>
+            <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{c.body}</p>
+          </div>
+
+          {/* Action row */}
+          <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground">
+            <span>{timeLabel}</span>
+
+            {/* Like */}
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={onLike}
+              className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
+              aria-label={isLiked ? t('hub.comments.liked') : t('hub.comments.like')}
+            >
+              <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
+              {likeCount > 0 && <span>{likeCount}</span>}
+            </motion.button>
+
+            {/* Reply */}
+            {showReply && (
+              <button
+                onClick={onReply}
+                className="hover:text-foreground transition-colors font-medium"
+              >
+                {t('hub.comments.reply')}
+              </button>
+            )}
+
+            {/* Report — only for other people's comments */}
+            {!isMine && (
+              <button
+                onClick={() => setReportOpen(true)}
+                className="hover:text-destructive transition-colors"
+                aria-label={t('report.buttonLabel')}
+                title={t('report.buttonLabel')}
+              >
+                <Flag className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Delete — own comments only */}
+        {isMine && (
+          <button
+            onClick={onDelete}
+            className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
+            aria-label="Delete comment"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
         )}
       </div>
 
-      {/* Bubble + actions */}
-      <div className="flex-1 min-w-0">
-        <div className="bg-secondary/50 rounded-2xl px-3 py-2">
-          <p className="text-xs font-bold leading-tight">{author.handle}</p>
-          <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{c.body}</p>
-        </div>
-
-        {/* Action row */}
-        <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground">
-          <span>{timeLabel}</span>
-
-          {/* Like */}
-          <motion.button
-            whileTap={{ scale: 0.9 }}
-            onClick={onLike}
-            className={`flex items-center gap-1 transition-colors ${isLiked ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-            aria-label={isLiked ? t('hub.comments.liked') : t('hub.comments.like')}
-          >
-            <ThumbsUp className={`w-3.5 h-3.5 ${isLiked ? 'fill-current' : ''}`} />
-            {likeCount > 0 && <span>{likeCount}</span>}
-          </motion.button>
-
-          {/* Reply */}
-          {showReply && (
-            <button
-              onClick={onReply}
-              className="hover:text-foreground transition-colors font-medium"
-            >
-              {t('hub.comments.reply')}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Delete */}
-      {isMine && (
-        <button
-          onClick={onDelete}
-          className="p-1 rounded text-muted-foreground hover:text-destructive transition-colors shrink-0"
-          aria-label="Delete comment"
-        >
-          <Trash2 className="w-3 h-3" />
-        </button>
+      {/* Report dialog */}
+      {!isMine && (
+        <ReportDialog
+          open={reportOpen}
+          onClose={() => setReportOpen(false)}
+          reportedType="comment"
+          reportedId={c.id}
+          reportedAuthorEmail={c.author_email}
+        />
       )}
-    </div>
+    </>
   );
 }

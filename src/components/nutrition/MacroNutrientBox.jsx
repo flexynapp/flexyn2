@@ -3,6 +3,8 @@ import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useSettings } from '@/lib/SettingsContext';
+import NutrientRing from './NutrientRing';
 
 const MACROS = [
   { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'kcal', color: 'from-orange-400 to-orange-600', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
@@ -17,17 +19,20 @@ const MACROS = [
 
 export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
   const { t } = useLanguage();
+  const { nutrientRingView } = useSettings();
   const totals = useMemo(() => {
     return entries.reduce(
       (acc, entry) => ({
-        calories: acc.calories + (entry.calories || 0),
-        protein_g: acc.protein_g + (entry.protein_g || 0),
-        carbs_g: acc.carbs_g + (entry.carbs_g || 0),
-        fat_g: acc.fat_g + (entry.fat_g || 0),
-        sodium_mg: acc.sodium_mg + (entry.sodium_mg || 0),
-        fiber_g: acc.fiber_g + (entry.fiber_g || 0),
-        sugar_g: acc.sugar_g + (entry.sugar_g || 0),
-        cholesterol_mg: acc.cholesterol_mg + (entry.cholesterol_mg || 0),
+        // Fall back to old column names (protein/carbs/fat/fiber/sodium) for rows
+        // saved before migration 006 added the _g/_mg suffixed columns.
+        calories:       acc.calories       + (entry.calories                           || 0),
+        protein_g:      acc.protein_g      + (entry.protein_g      ?? entry.protein    ?? 0),
+        carbs_g:        acc.carbs_g        + (entry.carbs_g        ?? entry.carbs      ?? 0),
+        fat_g:          acc.fat_g          + (entry.fat_g          ?? entry.fat        ?? 0),
+        sodium_mg:      acc.sodium_mg      + (entry.sodium_mg      ?? entry.sodium     ?? 0),
+        fiber_g:        acc.fiber_g        + (entry.fiber_g        ?? entry.fiber      ?? 0),
+        sugar_g:        acc.sugar_g        + (entry.sugar_g                            || 0),
+        cholesterol_mg: acc.cholesterol_mg + (entry.cholesterol_mg                    || 0),
       }),
       {
         calories: 0,
@@ -75,21 +80,41 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
 
           return (
             <motion.div key={macro.key} variants={itemVariants}>
-              <div className={`${macro.bgColor} rounded-lg p-3 h-full`}>
-                <p className="text-xs text-muted-foreground mb-1 truncate">{t(macro.labelKey)}</p>
-                <p className={`font-heading font-bold text-lg ${macro.textColor}`}>
-                  {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}% {t('nutrition.macros.dv')}</p>
-                <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
-                  <motion.div
-                    className={`h-full ${macro.textColor.replace('text-', 'bg-')}`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${percentOfDaily}%` }}
-                    transition={{ duration: 0.5, ease: 'easeOut' }}
-                  />
+              {nutrientRingView ? (
+                /* ── Ring view ── */
+                <div className={`${macro.bgColor} rounded-lg p-3 h-full flex flex-col items-center text-center`}>
+                  <p className="text-xs text-muted-foreground mb-2 truncate w-full">{t(macro.labelKey)}</p>
+                  <div className={`relative ${macro.textColor}`}>
+                    <NutrientRing percent={percentOfDaily} size={52} />
+                    <span
+                      className={`absolute inset-0 flex items-center justify-center text-[10px] font-bold ${macro.textColor}`}
+                    >
+                      {Math.round(percentOfDaily)}%
+                    </span>
+                  </div>
+                  <p className={`font-heading font-bold text-sm ${macro.textColor} mt-2`}>
+                    {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">{t('nutrition.macros.dv')}</p>
                 </div>
-              </div>
+              ) : (
+                /* ── Bar view (default) ── */
+                <div className={`${macro.bgColor} rounded-lg p-3 h-full`}>
+                  <p className="text-xs text-muted-foreground mb-1 truncate">{t(macro.labelKey)}</p>
+                  <p className={`font-heading font-bold text-lg ${macro.textColor}`}>
+                    {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}% {t('nutrition.macros.dv')}</p>
+                  <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
+                    <motion.div
+                      className={`h-full ${macro.textColor.replace('text-', 'bg-')}`}
+                      initial={{ width: 0 }}
+                      animate={{ width: `${percentOfDaily}%` }}
+                      transition={{ duration: 0.5, ease: 'easeOut' }}
+                    />
+                  </div>
+                </div>
+              )}
             </motion.div>
           );
         })}

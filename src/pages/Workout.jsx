@@ -215,7 +215,7 @@ export default function Workout() {
       resetWorkout();
       toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      queryClient.invalidateQueries({ queryKey: ['cardioLogs'] });
+      queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       // Refetch achievements so the modal reflects newly unlocked ones immediately
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
     },

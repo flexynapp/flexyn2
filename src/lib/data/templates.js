@@ -1,5 +1,6 @@
 // src/lib/data/templates.js
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 export const list = (email) =>
@@ -49,8 +50,8 @@ export const copyTemplate = async (original, user) => {
     original_author_username:
       original.author_username || (original.created_by || '').split('@')[0] || 'Unknown',
   });
-  const newCount = (Number(original.copy_count) || 0) + 1;
-  await base44.entities.WorkoutTemplate.update(original.id, { copy_count: newCount }).catch(() => {});
+  // Use security-definer RPC to bypass RLS on cross-user copy_count update
+  await supabase.rpc('increment_copy_count', { p_table: 'workout_templates', p_id: original.id }).catch(() => {});
   return copy;
 };
 

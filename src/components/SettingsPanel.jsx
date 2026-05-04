@@ -1,18 +1,22 @@
+import { useState } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles } from 'lucide-react';
+import { Bell, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug } from 'lucide-react';
 import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
+import BugReportDialog from './BugReportDialog';
 
 export default function SettingsPanel() {
   const { t } = useLanguage();
   const { distanceUnit, setDistanceUnit } = useDistanceUnit();
-  const { 
+  const [bugReportOpen, setBugReportOpen] = useState(false);
+  const {
     enableNotifications, setEnableNotifications,
     enableWorkoutReminders, setEnableWorkoutReminders,
     cardioAutoPause, setCardioAutoPause,
     restTimerEnabled, setRestTimerEnabled,
     levelAnimationsEnabled, setLevelAnimationsEnabled,
+    nutrientRingView, setNutrientRingView,
   } = useSettings();
 
   const ToggleSwitch = ({ checked, onChange }) => (
@@ -38,6 +42,7 @@ export default function SettingsPanel() {
     { icon: Pause, label: t('cardio.settings.autoPause'), value: cardioAutoPause, onChange: setCardioAutoPause },
     { icon: Timer, label: t('settings.restTimer'), value: restTimerEnabled, onChange: setRestTimerEnabled },
     { icon: Sparkles, label: t('settings.levelAnimations'), value: levelAnimationsEnabled, onChange: setLevelAnimationsEnabled },
+    { icon: Circle, label: t('settings.nutrientRingView'), value: nutrientRingView, onChange: setNutrientRingView },
   ];
 
   return (
@@ -86,6 +91,17 @@ export default function SettingsPanel() {
           </div>
         );
       })}
+
+      {/* Bug report */}
+      <button
+        onClick={() => setBugReportOpen(true)}
+        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors border-t border-border pt-3 mt-1"
+      >
+        <Bug className="w-3.5 h-3.5 shrink-0" />
+        {t('bugReport.button')}
+      </button>
+
+      <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
     </div>
   );
 }

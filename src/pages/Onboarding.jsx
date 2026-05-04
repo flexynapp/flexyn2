@@ -1737,9 +1737,12 @@ export default function Onboarding() {
 
   const [usernameError, setUsernameError] = useState('');
 
-  // If already authenticated with a profile, redirect straight to dashboard
+  // If already authenticated with a complete profile, redirect to dashboard.
+  // Accounts with a deleted_ username placeholder (from account reset) must NOT
+  // be skipped — they need to re-onboard and pick a real username.
   useEffect(() => {
-    if (user?.onboarding_complete || user?.username) {
+    const hasRealUsername = user?.username && !user.username.startsWith('deleted_');
+    if (user?.onboarding_complete || hasRealUsername) {
       navigate('/dashboard', { replace: true });
     }
   }, [user?.onboarding_complete, user?.username]);
@@ -1781,7 +1784,10 @@ export default function Onboarding() {
     // Full profile payload
     const fullProfile = {
       username:               data.username.trim(),
-      fitness_goals:          data.goal,
+      // fitness_goals is a text column — join the array to a comma-separated string.
+      // The new fitness_goals_arr (text[]) column added in migration 006 gets the raw array.
+      fitness_goals:          Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
+      fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
       fitness_level:          data.level,
       training_days:          data.days,
       preferred_workout_time: data.preferredTime,

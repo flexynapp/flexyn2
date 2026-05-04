@@ -8,10 +8,24 @@ import PullToRefresh from './PullToRefresh';
 import ProfileMenu from './ProfileMenu';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useQuery } from '@tanstack/react-query';
+import { useAuth } from '@/lib/AuthContext';
+import { unreadCountFor } from '@/lib/data/hubMessages';
 
 export default function Layout() {
   const location = useLocation();
   const { t } = useLanguage();
+  const { user } = useAuth();
+
+  // Global unread DM count — drives the Hub nav badge from any page.
+  // 30-second poll to match the in-Hub badge cadence without hammering the DB.
+  const { data: hubUnreadCount = 0 } = useQuery({
+    queryKey: ['hubUnreadCount', user?.email],
+    queryFn: () => unreadCountFor(user.email),
+    enabled: !!user?.email,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
@@ -64,6 +78,17 @@ export default function Layout() {
                     <item.icon className="w-5 h-5" />
                   </motion.div>
                   {item.label}
+                  {/* Unread DM badge — desktop sidebar */}
+                  {isHubItem && hubUnreadCount > 0 && (
+                    <motion.span
+                      key={hubUnreadCount}
+                      initial={{ scale: 0.6, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                    >
+                      {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
+                    </motion.span>
+                  )}
                 </Link>
               </motion.div>
             );
@@ -110,19 +135,31 @@ export default function Layout() {
                   <motion.div
                     animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                    className={
+                    className={[
+                      'relative',
                       isHubItem
                         ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
                             isActive
                               ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
                               : 'border-2 border-primary text-primary bg-primary/5'
                           }`
-                        : ''
-                    }
+                        : '',
+                    ].join(' ')}
                   >
                     <item.icon
                       className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`}
                     />
+                    {/* Unread DM badge — mobile bottom nav */}
+                    {isHubItem && hubUnreadCount > 0 && (
+                      <motion.span
+                        key={hubUnreadCount}
+                        initial={{ scale: 0.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                      >
+                        {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
+                      </motion.span>
+                    )}
                   </motion.div>
                   <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
                     {item.label}

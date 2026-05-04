@@ -33,6 +33,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       setShowForm(false);
       toast.success(t('goals.toast.created'));
     },
+    onError: (err) => {
+      console.error('[Goals] create failed:', err);
+      toast.error(t('goals.toast.saveError'));
+    },
   });
 
   const updateMutation = useMutation({
@@ -43,6 +47,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       setEditing(null);
       toast.success(t('goals.toast.updated'));
     },
+    onError: (err) => {
+      console.error('[Goals] update failed:', err);
+      toast.error(t('goals.toast.saveError'));
+    },
   });
 
   const deleteMutation = useMutation({
@@ -50,6 +58,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       toast.success(t('goals.toast.deleted'));
+    },
+    onError: (err) => {
+      console.error('[Goals] delete failed:', err);
+      toast.error(t('goals.toast.deleteError'));
     },
   });
 
@@ -87,6 +99,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
       toast.success(t('goals.toast.completed').replace('{xp}', xpReward));
     },
+    onError: (err) => {
+      console.error('[Goals] complete failed:', err);
+      toast.error(t('goals.toast.saveError'));
+    },
   });
 
   const handleSubmit = (data) => {
@@ -105,8 +121,21 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const activeGoals = goals.filter(g => g.status === 'active');
   const completedGoals = goals.filter(g => g.status === 'completed');
 
+  // When the form is open, the Dialog X-button should go back to the list
+  // (not close the entire modal). This prevents "multiple exit paths" confusion —
+  // X and Cancel both return to the list; only ESC / backdrop closes the modal.
+  const handleOpenChange = (isOpen) => {
+    if (!isOpen) {
+      if (showForm) {
+        closeForm(); // X pressed while editing → back to list
+      } else {
+        onClose();   // X pressed while browsing list → close modal
+      }
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl">{t('goals.title')}</DialogTitle>

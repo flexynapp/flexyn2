@@ -15,7 +15,19 @@ function assertNoTextProfanity(fields) {
 
 export const create = (data) => {
   assertNoTextProfanity({ food_name: data.food_name, notes: data.notes });
-  return base44.entities.NutritionLog.create(data);
+  // Dual-write: write both old column names (migration 001) and new _g/_mg names
+  // (migration 006). The resilient retry loop strips whichever set doesn't exist yet,
+  // ensuring macros always land somewhere regardless of migration state.
+  const enriched = {
+    ...data,
+    // Old names (always exist — migration 001)
+    protein: data.protein_g  ?? data.protein  ?? null,
+    carbs:   data.carbs_g    ?? data.carbs    ?? null,
+    fat:     data.fat_g      ?? data.fat      ?? null,
+    fiber:   data.fiber_g    ?? data.fiber    ?? null,
+    sodium:  data.sodium_mg  ?? data.sodium   ?? null,
+  };
+  return base44.entities.NutritionLog.create(enriched);
 };
 export const update = (id, data) => {
   const textFields = {};

@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import * as nutritionData from '@/lib/data/nutrition';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -121,7 +122,7 @@ export default function Nutrition() {
   }, [logs]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => base44.entities.NutritionLog.create(data),
+    mutationFn: (data) => nutritionData.create(data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       if (variables.water_oz > 0) {
@@ -137,15 +138,23 @@ export default function Nutrition() {
         setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
         toast.success(t('nutrition.toast.mealLogged'));
       }
-    }
+    },
+    onError: (err) => {
+      console.error('[Nutrition] save failed:', err);
+      toast.error(t('nutrition.toast.saveError'));
+    },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.NutritionLog.delete(id),
+    mutationFn: (id) => nutritionData.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       toast.success(t('nutrition.toast.entryRemoved'));
-    }
+    },
+    onError: (err) => {
+      console.error('[Nutrition] delete failed:', err);
+      toast.error(t('nutrition.toast.deleteError'));
+    },
   });
 
   /* =========================================================

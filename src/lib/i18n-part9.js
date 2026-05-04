@@ -129,6 +129,8 @@ const missingKeys = {
     'goals.toast.updated': 'Goal updated!',
     'goals.toast.deleted': 'Goal deleted',
     'goals.toast.completed': 'Goal completed! +{xp} XP',
+    'goals.toast.saveError': 'Could not save goal. Please try again.',
+    'goals.toast.deleteError': 'Could not delete goal. Please try again.',
 
     // ── BodyMetricsTab ─────────────────────────────────────────────────────
     'bodyMetrics.invalidWeight': 'Please enter your actual body weight between 50 – 700 lbs.',
@@ -158,6 +160,8 @@ const missingKeys = {
     'nutrition.toast.entryRemoved': 'Entry removed',
     'nutrition.toast.enterFoodName': 'Enter a food name',
     'nutrition.toast.positiveNumber': 'Please enter a positive number',
+    'nutrition.toast.saveError': 'Could not save entry. Please try again.',
+    'nutrition.toast.deleteError': 'Could not remove entry. Please try again.',
 
     // ── AccountDeletedScreen ───────────────────────────────────────────────
     'accountDeleted.title': 'Your account has been deleted',

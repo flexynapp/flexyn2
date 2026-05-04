@@ -1,5 +1,6 @@
 // src/lib/data/regimens.js
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 export const list = (email) =>
@@ -47,9 +48,9 @@ export const copyTemplate = async (original, user) => {
     original_template_id: original.id,
     original_author_username: original.author_username || original.created_by?.split('@')[0] || 'Unknown',
   });
-  // Bump the source template's copy count (cross-user write — Base44 allows this)
-  const newCount = (Number(original.copy_count) || 0) + 1;
-  await base44.entities.Regimen.update(original.id, { copy_count: newCount }).catch(() => {});
+  // Bump the source template's copy count via a security-definer RPC that
+  // bypasses RLS (direct cross-user update is rejected by Postgres policies).
+  await supabase.rpc('increment_copy_count', { p_table: 'regimens', p_id: original.id }).catch(() => {});
   return copy;
 };
 
