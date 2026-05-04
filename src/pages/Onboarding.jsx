@@ -721,44 +721,31 @@ function Scrubber({ min, max, value, onChange, majorEvery = 5 }) {
     return () => ro.disconnect();
   }, []);
 
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+
   const onDown = useCallback((e) => {
     e.preventDefault();
-    const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    dragRef.current = { down: true, startX: x, startVal: value };
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = { down: true, startX: e.clientX, startVal: value };
   }, [value]);
 
   const onMove = useCallback((e) => {
     if (!dragRef.current.down) return;
-    const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-    const delta = Math.round(-(x - dragRef.current.startX) / PX_PER_UNIT);
+    const delta = Math.round(-(e.clientX - dragRef.current.startX) / PX_PER_UNIT);
     const next = Math.min(max, Math.max(min, dragRef.current.startVal + delta));
-    if (next !== value) {
-      onChange(next);
-      if (navigator.vibrate) navigator.vibrate(1);
-    }
-  }, [min, max, value, onChange]);
+    onChangeRef.current(next);
+    if (navigator.vibrate) navigator.vibrate(1);
+  }, [min, max]);
 
   const onUp = useCallback(() => { dragRef.current.down = false; }, []);
-
-  useEffect(() => {
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-    };
-  }, [onMove, onUp]);
 
   const ticks = useMemo(() => { const a = []; for (let v = min; v <= max; v++) a.push(v); return a; }, [min, max]);
   const offset = -value * PX_PER_UNIT + width / 2;
 
   return (
     <div ref={trackRef} className="relative h-16 overflow-hidden cursor-grab select-none touch-none"
-      onPointerDown={onDown} onTouchStart={onDown}>
+      onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
       {/* fade edges */}
       <div className="absolute inset-y-0 left-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(90deg, hsl(var(--card)), transparent)' }} />
       <div className="absolute inset-y-0 right-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(270deg, hsl(var(--card)), transparent)' }} />
@@ -844,41 +831,37 @@ function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange
 ═══════════════════════════════════════════════════════════════ */
 function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, step: stepSize = 1 }) {
   const ref = useRef(null);
-  const dragState = useRef({ down: false, start: 0, startVal: value });
+  const drag = useRef({ active: false, start: 0, startVal: 0 });
   const [isDragging, setIsDragging] = useState(false);
+  // Callback ref prevents stale-closure issues without re-registering listeners
+  const onChangeRef = useRef(onChange);
+  useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
 
   const onPointerDown = useCallback((e) => {
     e.preventDefault();
-    const pos = axis === 'x' ? (e.clientX ?? 0) : (e.clientY ?? 0);
-    dragState.current = { down: true, start: pos, startVal: value };
+    // setPointerCapture routes all pointer events to this element even when the
+    // pointer moves outside — the correct cross-platform drag primitive on mobile.
+    if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
+    const pos = axis === 'x' ? e.clientX : e.clientY;
+    drag.current = { active: true, start: pos, startVal: value };
     setIsDragging(true);
   }, [value, axis]);
 
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragState.current.down) return;
-      const pos = axis === 'x'
-        ? (e.clientX ?? e.touches?.[0]?.clientX ?? 0)
-        : (e.clientY ?? e.touches?.[0]?.clientY ?? 0);
-      const d = pos - dragState.current.start;
-      const delta = Math.round((-d) / pxPerUnit) * stepSize;
-      const next = Math.min(max, Math.max(min, dragState.current.startVal + delta));
-      if (next !== value) { onChange(next); if (navigator.vibrate) navigator.vibrate(2); }
-    };
-    const onUp = () => { dragState.current.down = false; setIsDragging(false); };
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('pointerup', onUp);
-    window.addEventListener('touchmove', onMove, { passive: false });
-    window.addEventListener('touchend', onUp);
-    return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('pointerup', onUp);
-      window.removeEventListener('touchmove', onMove);
-      window.removeEventListener('touchend', onUp);
-    };
-  }, [axis, pxPerUnit, stepSize, min, max, onChange, value]);
+  const onPointerMove = useCallback((e) => {
+    if (!drag.current.active) return;
+    const pos = axis === 'x' ? e.clientX : e.clientY;
+    const delta = Math.round(-(pos - drag.current.start) / pxPerUnit) * stepSize;
+    const next = Math.min(max, Math.max(min, drag.current.startVal + delta));
+    onChangeRef.current(next);
+    if (navigator.vibrate) navigator.vibrate(1);
+  }, [axis, pxPerUnit, stepSize, min, max]);
 
-  return { ref, onPointerDown, isDragging };
+  const onPointerUp = useCallback(() => {
+    drag.current.active = false;
+    setIsDragging(false);
+  }, []);
+
+  return { ref, onPointerDown, onPointerMove, onPointerUp, isDragging };
 }
 
 /* ── Pill unit toggle (ft·in / cm, lb / kg) ── */
@@ -933,7 +916,7 @@ function NumberReel({ value, digits = 2, size = 80 }) {
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const age = stats.age;
   const setAge = (v) => onChange({ ...stats, age: v });
-  const { ref, onPointerDown, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
 
   const [trackW, setTrackW] = useState(300);
   useEffect(() => {
@@ -1028,7 +1011,9 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           <div
             ref={ref}
             onPointerDown={onPointerDown}
-            onTouchStart={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
             style={{
               position: 'relative', height: 48, overflow: 'hidden',
               cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none',
@@ -1099,7 +1084,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
     : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
 
-  const { ref, onPointerDown, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
   const [trackH, setTrackH] = useState(240);
   useEffect(() => {
@@ -1176,7 +1161,7 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
               <div className="font-mono text-[10px] text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
             </div>
             {/* Ruler */}
-            <div ref={ref} onPointerDown={onPointerDown} onTouchStart={onPointerDown}
+            <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
               style={{ flex: 1, position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', background: 'hsl(var(--card) / 0.6)', border: '1px solid hsl(var(--border))', borderRadius: 14, overflow: 'hidden', maskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)', WebkitMaskImage: 'linear-gradient(180deg, transparent, black 15%, black 85%, transparent)' }}>
               <div style={{ position: 'absolute', inset: 0, transform: `translateY(${offsetY}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
                 {ticks.map(v => {
@@ -1258,7 +1243,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
     ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v) })
     : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v) });
 
-  const { ref, onPointerDown, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
 
   const [trackW, setTrackW] = useState(300);
   useEffect(() => {
@@ -1323,7 +1308,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         <BarbellVisualizer kg={valueKg} />
 
         {/* Horizontal scrubber */}
-        <div ref={ref} onPointerDown={onPointerDown} onTouchStart={onPointerDown}
+        <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
           style={{ position: 'relative', height: 44, marginTop: 10, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
           <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offsetX}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
             {ticks.map(v => {

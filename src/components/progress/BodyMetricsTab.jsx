@@ -224,6 +224,21 @@ export default function BodyMetricsTab() {
   };
 
   const handleProfileUpdate = async (field, value) => {
+    // Birthday is stored as a date string, not a number
+    if (field === 'birthday') {
+      if (!value) return;
+      try {
+        await base44.auth.updateMe({ birthday: value });
+        queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        setEditingProfile(null);
+        setEditValue('');
+      } catch (err) {
+        console.error('Profile update failed:', err);
+        toast.error(t('bodyMetrics.saveError'));
+      }
+      return;
+    }
+
     let parsed = parseFloat(value);
     if (isNaN(parsed)) return;
 
@@ -246,7 +261,8 @@ export default function BodyMetricsTab() {
     }
 
     try {
-      await base44.auth.updateMe({ [field]: parsed });
+      const updatePayload = field === 'birthday' ? { birthday: value } : { [field]: parsed };
+      await base44.auth.updateMe(updatePayload);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       setEditingProfile(null);
       setEditValue('');
@@ -294,6 +310,9 @@ export default function BodyMetricsTab() {
                <p className="text-xs text-muted-foreground mb-1">{t('progress.bodyMetrics.age')}</p>
                <p className="font-heading font-bold text-2xl">{calculateAge(profile.birthday)} years</p>
                <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(profile.birthday), 'MMM d', { locale: dateLocale })}</p>
+               <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('birthday'); setEditValue(profile.birthday?.slice(0, 10) || ''); }}>
+                 <Pencil className="w-3 h-3 mr-1" /> Edit
+               </Button>
              </Card>
            )}
            </div>
@@ -302,19 +321,21 @@ export default function BodyMetricsTab() {
           <label className="text-xs font-medium text-muted-foreground mb-1 block">
             {editingProfile === 'height_inches'
               ? t('bodyMetrics.editHeightLabel')
+              : editingProfile === 'birthday'
+              ? 'Date of birth'
               : t('bodyMetrics.editWeightLabel').replace('{unit}', weightUnit)}
           </label>
           <div className="flex gap-2">
             <Input
-              type="number"
-              step="0.1"
-              placeholder={editingProfile === 'height_inches' ? 'e.g. 70' : 'e.g. 175'}
+              type={editingProfile === 'birthday' ? 'date' : 'number'}
+              step={editingProfile === 'birthday' ? undefined : '0.1'}
+              placeholder={editingProfile === 'height_inches' ? 'e.g. 70' : editingProfile === 'birthday' ? '' : 'e.g. 175'}
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
               className="h-10"
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleProfileUpdate(editingProfile, editValue);
-                if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+                if (editingProfile !== 'birthday' && ['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
               }}
               autoFocus
             />
