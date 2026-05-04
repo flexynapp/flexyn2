@@ -19,6 +19,25 @@ import { base44 } from '@/api/base44Client';
 const conv = () => base44.entities.HubConversation;
 const msg  = () => base44.entities.HubMessage;
 
+// ── Per-conversation last-read tracking ───────────────────────────────────────
+// Stored in localStorage so the badge clears instantly when a conversation is
+// opened, even if the DB update is blocked by RLS (migration 011 fixes RLS).
+const _key = (convId) => `fn-conv-read-${convId}`;
+const _getLastRead  = (convId) => { try { return parseInt(localStorage.getItem(_key(convId)) || '0', 10); } catch { return 0; } };
+const _setLastRead  = (convId) => { try { localStorage.setItem(_key(convId), Date.now().toString()); } catch {} };
+
+/** Returns true if a message is unread by myEmailLc. */
+function _isUnread(m, myEmailLc) {
+  if (m.sender_email?.toLowerCase() === myEmailLc) return false;
+  const lastRead = _getLastRead(m.conversation_id);
+  if (lastRead > 0) {
+    // localStorage entry beats DB — gives instant badge clearing
+    const msgMs = new Date(m.created_date || m.created_at || 0).getTime();
+    return msgMs > lastRead;
+  }
+  return !m.read_at; // fall back to DB column
+}
+
 /** Build a stable participant_key from two emails. */
 const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
 
@@ -93,9 +112,7 @@ export const listMyConversations = async (myEmail, limit = 50) => {
         }
       }
       // Count unread: incoming messages I haven't read yet
-      unreadCount += msgs.filter(m =>
-        m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
-      ).length;
+      unreadCount += msgs.filter(m => _isUnread(m, myEmailLc)).length;
     }
 
     // Fallback: no messages — pick the most recently created conversation
@@ -154,25 +171,28 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
 
 /**
  * Mark all unread incoming messages in a conversation as read.
- * Filters by conversation only (not recipient_email) so old messages without
- * that column set are still picked up. Sets read_at timestamp.
+ * localStorage is updated immediately so the badge clears instantly.
+ * DB read_at is also updated — works once migration 011 is applied (which
+ * broadens the hub_messages UPDATE policy to allow participants, not just sender).
  */
 export const markRead = async (conversationId, myEmail) => {
   if (!conversationId || !myEmail) return;
-  const myEmailLc = myEmail.toLowerCase();
 
-  // Fetch all messages in the conversation (RLS limits to participants)
+  // ① Instant local clear — badge drops to 0 even before the DB round-trip
+  _setLastRead(conversationId);
+
+  const myEmailLc = myEmail.toLowerCase();
   const all = await msg().filter(
     { conversation_id: conversationId },
     '-created_date', 300
   ).catch(() => []);
 
-  // Only mark incoming messages that haven't been read yet
   const unread = all.filter(m =>
     m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
   );
 
   const now = new Date().toISOString();
+  // These updates succeed after migration 011; silently ignored if RLS still blocks.
   await Promise.all(
     unread.map(m =>
       msg().update(m.id, { read_at: now }).catch(() => {})
@@ -190,9 +210,7 @@ export const unreadCountFor = async (myEmail) => {
   const myEmailLc = myEmail.toLowerCase();
   // RLS scopes this to only conversations the user participates in
   const recent = await msg().filter({}, '-created_date', 500).catch(() => []);
-  return recent.filter(m =>
-    m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
-  ).length;
+  return recent.filter(m => _isUnread(m, myEmailLc)).length;
 };
 
 /** Cascade-delete all messages and conversations involving a user. */
