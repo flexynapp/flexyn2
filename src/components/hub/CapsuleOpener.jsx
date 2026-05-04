@@ -3,14 +3,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Package } from 'lucide-react';
+import { X, Sparkles } from 'lucide-react';
 import { ITEMS, RARITY, rollCapsule } from '@/lib/lootCatalog';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const CARD_W  = 130; // px
-const CARD_GAP = 12;  // px
+const CARD_W     = 130; // px
+const CARD_GAP   = 12;  // px
 const CARD_STRIDE = CARD_W + CARD_GAP;
-const WIN_INDEX = 18; // 0-based; the winning item sits at position 18 in a 22-card reel
+const WIN_INDEX  = 18;  // 0-based; winning item sits at position 18 in a 22-card reel
 
 // ─── Rarity visual config ─────────────────────────────────────────────────────
 const RARITY_CARD = {
@@ -39,31 +39,24 @@ function weightedRandomItem() {
 }
 
 // ─── Build a 22-card reel array ───────────────────────────────────────────────
-// Layout: [15 fillers] [mystery "???"] [winItem] [2 fillers after]
-// WIN_INDEX = 18 → slot 0..17 = fillers, slot 17 = mystery "???", slot 18 = win, 19-21 = tail
+// Layout: [17 fillers] [mystery "???"] [winItem] [3 fillers after]
 function buildReel(winItem) {
   const cards = [];
-  // 0-16: 17 random fillers
   for (let i = 0; i < 17; i++) cards.push(weightedRandomItem());
-  // 17: mystery card sentinel
   cards.push({ id: '__mystery__', emoji: '❓', name: '???', rarity: 'common', type: 'sticker' });
-  // 18: the winning item
   cards.push(winItem);
-  // 19-21: 3 random fillers after
   for (let i = 0; i < 3; i++) cards.push(weightedRandomItem());
-  return cards; // total 21 cards
+  return cards; // 22 cards total
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
 function ItemCard({ item, highlight = false }) {
   const rc = RARITY_CARD[item.rarity] ?? RARITY_CARD.common;
   const isMystery = item.id === '__mystery__';
-
   return (
     <div
       className={[
         'flex-none flex flex-col items-center justify-center rounded-xl border-2 select-none',
-        'transition-all duration-150',
         rc.border,
         highlight ? `shadow-lg ${rc.glow}` : '',
         isMystery ? 'bg-gray-900 opacity-60' : 'bg-[#0f0f2a]',
@@ -77,7 +70,10 @@ function ItemCard({ item, highlight = false }) {
       {!isMystery && (
         <span
           className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style={{ color: RARITY[item.rarity]?.color ?? '#fff', border: `1px solid ${RARITY[item.rarity]?.color ?? '#fff'}` }}
+          style={{
+            color: RARITY[item.rarity]?.color ?? '#fff',
+            border: `1px solid ${RARITY[item.rarity]?.color ?? '#fff'}`,
+          }}
         >
           {RARITY[item.rarity]?.label ?? item.rarity}
         </span>
@@ -113,51 +109,79 @@ function StarField() {
   );
 }
 
-// ─── Phase types ──────────────────────────────────────────────────────────────
-// 'idle' → 'spinning' → 'revealing' → 'claimed'
-
+// ─── Component ────────────────────────────────────────────────────────────────
+// Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
 export default function CapsuleOpener({ capsule, onClaim, onClose }) {
-  const [phase, setPhase]     = useState('idle');
+  const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
-  const [reel, setReel]       = useState([]);
-  const [translateX, setTranslateX] = useState(0);
-  const reelRef = useRef(null);
+  const [reel,    setReel]    = useState([]);
+
+  const reelRef      = useRef(null);
   const containerRef = useRef(null);
 
-  // Determine which capsule emoji to show in idle
   const capsuleEmoji = capsule?.capsule_type === 'elite'
-    ? '💠'
-    : capsule?.capsule_type === 'premium'
-    ? '🎁'
-    : '📦';
+    ? '💠' : capsule?.capsule_type === 'premium'
+    ? '🎁' : '📦';
 
-  // ── Start the spin ──────────────────────────────────────────────────────────
+  // ── Trigger spin ────────────────────────────────────────────────────────────
   const handleOpen = useCallback(() => {
     const capsuleType = capsule?.capsule_type ?? 'standard';
-    const won = rollCapsule(capsuleType);
-    setWonItem(won);
-
+    const won  = rollCapsule(capsuleType);
     const cards = buildReel(won);
+    setWonItem(won);
     setReel(cards);
     setPhase('spinning');
-
-    // Calculate win offset: center the container, then offset so WIN_INDEX card is centered
-    requestAnimationFrame(() => {
-      const containerWidth = containerRef.current?.offsetWidth ?? 400;
-      const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
-      const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
-      setTranslateX(-winOffset);
-    });
+    // Actual CSS animation is kicked off in the useEffect below once the
+    // reel DOM element is mounted.
   }, [capsule]);
 
-  // ── After spin CSS transition ends → revealing phase ───────────────────────
-  const handleSpinEnd = useCallback(() => {
-    if (phase === 'spinning') {
-      setTimeout(() => setPhase('revealing'), 200);
-    }
-  }, [phase]);
+  // ── Drive the reel animation via direct DOM + double-RAF ────────────────────
+  // We can't rely on React state for the translateX transition because React 18
+  // batches all state updates — the browser would never see the "from: 0" frame
+  // so the CSS transition has no starting point and the reel freezes.
+  // Instead we commit the reel to DOM first, then imperatively animate it.
+  useEffect(() => {
+    if (phase !== 'spinning' || reel.length === 0) return;
 
-  // ── Claim ───────────────────────────────────────────────────────────────────
+    let raf1, raf2;
+
+    // First RAF: React has committed the DOM but the browser may not have painted yet.
+    raf1 = requestAnimationFrame(() => {
+      // Second RAF: browser has now painted at least one frame with the reel at x=0.
+      raf2 = requestAnimationFrame(() => {
+        const el = reelRef.current;
+        const ct = containerRef.current;
+        if (!el || !ct) return;
+
+        const containerWidth = ct.offsetWidth || 400;
+        const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
+        const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
+
+        // 1. Snap to start (no transition) and force a reflow so the browser
+        //    records this as the "from" position.
+        el.style.transition = 'none';
+        el.style.transform  = 'translateX(0px)';
+        void el.offsetWidth; // trigger synchronous reflow
+
+        // 2. Re-enable transition and set target — browser will now animate.
+        el.style.transition = 'transform 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        el.style.transform  = `translateX(${-winOffset}px)`;
+
+        // 3. Listen for the transition to finish.
+        const onEnd = () => {
+          setTimeout(() => setPhase('revealing'), 200);
+        };
+        el.addEventListener('transitionend', onEnd, { once: true });
+      });
+    });
+
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [phase, reel.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Claim ────────────────────────────────────────────────────────────────────
   const handleClaim = useCallback(() => {
     setPhase('claimed');
     onClaim?.(wonItem);
@@ -203,8 +227,9 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
           )}
         </div>
 
-        {/* ── IDLE ─────────────────────────────────────────────────────────── */}
         <AnimatePresence mode="wait">
+
+          {/* ── IDLE ─────────────────────────────────────────────────────────── */}
           {phase === 'idle' && (
             <motion.div
               key="idle"
@@ -256,23 +281,24 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 className="w-full relative overflow-hidden"
                 style={{ height: 148 }}
               >
-                {/* Center indicator line */}
+                {/* Center indicator */}
                 <div className="absolute inset-y-0 left-1/2 -translate-x-px z-10 w-0.5 bg-purple-400/70 pointer-events-none" />
-                <div className="absolute inset-y-0 left-1/2 -translate-x-8 right-auto z-10 w-16 pointer-events-none"
-                  style={{ background: 'linear-gradient(to right, #0a0a1a, transparent)' }} />
-                <div className="absolute inset-y-0 right-0 left-auto z-10 w-16 pointer-events-none"
-                  style={{ background: 'linear-gradient(to left, #0a0a1a, transparent)' }} />
+                {/* Left fade */}
+                <div
+                  className="absolute inset-y-0 left-0 z-10 w-20 pointer-events-none"
+                  style={{ background: 'linear-gradient(to right, #0a0a1a, transparent)' }}
+                />
+                {/* Right fade */}
+                <div
+                  className="absolute inset-y-0 right-0 z-10 w-20 pointer-events-none"
+                  style={{ background: 'linear-gradient(to left, #0a0a1a, transparent)' }}
+                />
 
-                {/* The reel track */}
+                {/* Reel track — animated imperatively via reelRef */}
                 <div
                   ref={reelRef}
-                  className="absolute top-2 flex gap-[12px] pl-[12px]"
-                  style={{
-                    transform: `translateX(${translateX}px)`,
-                    transition: `transform 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)`,
-                    willChange: 'transform',
-                  }}
-                  onTransitionEnd={handleSpinEnd}
+                  className="absolute top-2 flex"
+                  style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
                 >
                   {reel.map((item, idx) => (
                     <ItemCard key={`${item.id}-${idx}`} item={item} highlight={idx === WIN_INDEX} />
@@ -290,7 +316,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              {/* Radial glow behind card */}
+              {/* Rarity radial glow */}
               <div
                 className="absolute inset-0 pointer-events-none"
                 style={{
@@ -299,7 +325,10 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               />
 
               <motion.div
-                className={`relative flex flex-col items-center justify-center rounded-2xl border-2 ${cardStyle.border} bg-[#0f0f2a] shadow-2xl ${cardStyle.glow}`}
+                className={[
+                  'relative flex flex-col items-center justify-center rounded-2xl border-2',
+                  cardStyle.border, cardStyle.glow, 'bg-[#0f0f2a] shadow-2xl',
+                ].join(' ')}
                 style={{ width: 180, height: 200 }}
                 initial={{ scale: 0.4, opacity: 0, rotate: -6 }}
                 animate={{ scale: 1, opacity: 1, rotate: 0 }}
@@ -337,7 +366,10 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 whileTap={{ scale: 0.97 }}
                 onClick={handleClaim}
                 className="px-8 py-3 rounded-xl font-bold text-base text-white shadow-lg transition-shadow"
-                style={{ background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`, boxShadow: `0 4px 24px ${rarityConfig.color}44` }}
+                style={{
+                  background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
+                  boxShadow: `0 4px 24px ${rarityConfig.color}44`,
+                }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.5 }}
@@ -372,6 +404,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               </button>
             </motion.div>
           )}
+
         </AnimatePresence>
       </motion.div>
     </div>
