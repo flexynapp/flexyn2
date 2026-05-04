@@ -2,9 +2,11 @@
   command = "npm run build"
   publish = "dist"
 
-[build.environment]
-  VITE_SUPABASE_URL = "https://ebvqxuwfiptcmlkhflfj.supabase.co"
-  VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVidnF4dXdmaXB0Y21sa2hmbGZqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4MzYwNDQsImV4cCI6MjA5MzQxMjA0NH0.c6VsWcN85j-3eF1EXx-nsTqcu6-ef0JgGH4OlH0HZKY"
+# Environment variables are set in the Netlify dashboard:
+# Site configuration → Environment variables → Add variables:
+#   VITE_SUPABASE_URL
+#   VITE_SUPABASE_ANON_KEY
+# Never hardcode secrets here — this file is committed to version control.
 
 [[redirects]]
   from = "/*"

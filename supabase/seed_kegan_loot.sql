@@ -47,7 +47,7 @@ END $rls$;
 DO $$
 DECLARE
   v_user_id   UUID;
-  v_email     TEXT := 'keganbergeron@gmail.com';
+  v_email     TEXT := 'YOUR_EMAIL_HERE'; -- replace before running
 BEGIN
   SELECT id INTO v_user_id FROM user_profiles WHERE email = v_email LIMIT 1;
 
