@@ -1,9 +1,15 @@
 // src/lib/data/hubMessages.js
 //
-// SECURITY: Messages are protected by Base44 RLS — the entity's read rule
-// requires the requester to be either sender or recipient. This is
-// access-controlled, not end-to-end encrypted. See BACKEND_CONTRACT.md
-// section on Hub for the migration path to true E2E.
+// SECURITY: Messages are protected by Supabase RLS — read access requires
+// the requester to be a participant in the conversation. This is
+// access-controlled, not end-to-end encrypted.
+//
+// Column reference for hub_messages table:
+//   content          TEXT   (message body)
+//   created_at       TIMESTAMPTZ
+//   read_by          TEXT[] (array of emails that have read the message)
+//   sender_email     TEXT
+//   conversation_id  UUID
 
 import { base44 } from '@/api/base44Client';
 
@@ -19,9 +25,9 @@ const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
  */
 export const findOrCreateConversation = async (myEmail, otherEmail) => {
   if (!myEmail || !otherEmail) return null;
-  if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null; // can't DM yourself
+  if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null;
   const key = buildKey(myEmail, otherEmail);
-  const existing = await conv().filter({ participant_key: key }, '-created_date', 1).catch(() => []);
+  const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
   return conv().create({
     participant_key: key,
@@ -33,13 +39,13 @@ export const findOrCreateConversation = async (myEmail, otherEmail) => {
 
 /**
  * List conversations the user is in, sorted by most recent activity.
- * The RLS read rule guarantees only their own conversations are returned.
+ * RLS guarantees only their own conversations are returned.
  */
 export const listMyConversations = async (myEmail, limit = 50) => {
   if (!myEmail) return [];
   const myEmailLc = myEmail.toLowerCase();
 
-  // 1. Fetch all conversations the user is in (case-insensitive)
+  // 1. Fetch all conversations the user is in
   const all = await conv().filter({}, '-last_message_at', 200).catch(() => []);
   const mine = all.filter(c =>
     (c.participant_emails || []).some(e => e?.toLowerCase() === myEmailLc)
@@ -54,8 +60,8 @@ export const listMyConversations = async (myEmail, limit = 50) => {
     groups.get(key).push(c);
   }
 
-  // 3. Fetch ALL my recent messages in one batch — single query, then group locally
-  const allMyMessages = await msg().filter({}, '-created_date', 500).catch(() => []);
+  // 3. Fetch all recent messages in one batch — group locally
+  const allMyMessages = await msg().filter({}, '-created_at', 500).catch(() => []);
   const messagesByConvId = new Map();
   for (const m of allMyMessages) {
     const cid = m.conversation_id;
@@ -64,8 +70,7 @@ export const listMyConversations = async (myEmail, limit = 50) => {
     messagesByConvId.get(cid).push(m);
   }
 
-  // 4. For each duplicate group, pick the conversation with the most recent
-  //    message, and aggregate unread counts across all duplicates in the group
+  // 4. For each duplicate group, pick the conversation with the most recent message
   const deduped = [];
   for (const group of groups.values()) {
     let best = null;
@@ -75,37 +80,36 @@ export const listMyConversations = async (myEmail, limit = 50) => {
 
     for (const c of group) {
       const msgs = messagesByConvId.get(c.id) || [];
-      // Track latest message across the group
       if (msgs.length > 0) {
-        const latest = msgs[0]; // already sorted -created_date
-        const t = new Date(latest.created_date).getTime();
+        const latest = msgs[0]; // already sorted -created_at
+        const t = new Date(latest.created_at).getTime();
         if (t > bestTime) {
           best = c;
           bestMsg = latest;
           bestTime = t;
         }
       }
-      // Sum unread (incoming, not yet read) across the group
+      // Count unread: messages where I'm not the sender AND my email isn't in read_by
       unreadCount += msgs.filter(m =>
-        !m.read_at &&
-        m.recipient_email?.toLowerCase() === myEmailLc
+        m.sender_email?.toLowerCase() !== myEmailLc &&
+        !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
       ).length;
     }
 
-    // Fallback: no messages in any duplicate — pick the most recently created
+    // Fallback: no messages — pick the most recently created conversation
     if (!best) {
-      group.sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+      group.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
       best = group[0];
     }
 
     deduped.push({ ...best, latestMessage: bestMsg, unreadCount });
   }
 
-  // 5. Sort the inbox by actual latest message time
+  // 5. Sort inbox by actual latest message time
   deduped.sort((a, b) => {
-    const aT = a.latestMessage ? new Date(a.latestMessage.created_date).getTime()
+    const aT = a.latestMessage ? new Date(a.latestMessage.created_at).getTime()
                                : new Date(a.last_message_at || 0).getTime();
-    const bT = b.latestMessage ? new Date(b.latestMessage.created_date).getTime()
+    const bT = b.latestMessage ? new Date(b.latestMessage.created_at).getTime()
                                : new Date(b.last_message_at || 0).getTime();
     return bT - aT;
   });
@@ -116,19 +120,19 @@ export const listMyConversations = async (myEmail, limit = 50) => {
 /** List messages in a conversation, oldest first (chat reading order). */
 export const listMessages = async (conversationId, limit = 200) => {
   if (!conversationId) return [];
-  return msg().filter({ conversation_id: conversationId }, 'created_date', limit).catch(() => []);
+  return msg().filter({ conversation_id: conversationId }, 'created_at', limit).catch(() => []);
 };
 
 /**
  * Send a message. Updates the conversation's last_message_at and preview.
  */
-export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body }) => {
-  if (!conversationId || !senderEmail || !recipientEmail || !body) return null;
+export const sendMessage = async ({ conversationId, senderEmail, body }) => {
+  if (!conversationId || !senderEmail || !body) return null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
-    recipient_email: recipientEmail,
-    body,
+    content: body,
+    read_by: [],
   });
   // Bump conversation activity timestamp + preview
   try {
@@ -140,17 +144,31 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
   return created;
 };
 
-/** Mark all messages in a conversation as read by the current user. */
+/**
+ * Mark all unread incoming messages in a conversation as read.
+ * Appends myEmail to the read_by array for each unread message.
+ */
 export const markRead = async (conversationId, myEmail) => {
   if (!conversationId || !myEmail) return;
-  const unread = await msg().filter(
-    { conversation_id: conversationId, recipient_email: myEmail },
-    '-created_date', 100
+  const myEmailLc = myEmail.toLowerCase();
+
+  // Fetch all messages in the conversation (RLS limits to participants)
+  const all = await msg().filter(
+    { conversation_id: conversationId },
+    '-created_at', 200
   ).catch(() => []);
-  const now = new Date().toISOString();
+
+  // Only mark messages sent by others that I haven't read yet
+  const unread = all.filter(m =>
+    m.sender_email?.toLowerCase() !== myEmailLc &&
+    !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
+  );
+
   await Promise.all(
-    unread.filter(m => !m.read_at).map(m =>
-      msg().update(m.id, { read_at: now }).catch(() => {})
+    unread.map(m =>
+      msg().update(m.id, {
+        read_by: [...(m.read_by || []), myEmail],
+      }).catch(() => {})
     )
   );
 };
@@ -158,21 +176,20 @@ export const markRead = async (conversationId, myEmail) => {
 /** Total unread message count for inbox badge. */
 export const unreadCountFor = async (myEmail) => {
   if (!myEmail) return 0;
-  // Best-effort — fetch up to 200 most recent unread-eligible messages
-  const recent = await msg().filter(
-    { recipient_email: myEmail }, '-created_date', 200
-  ).catch(() => []);
-  return recent.filter(m => !m.read_at).length;
+  const myEmailLc = myEmail.toLowerCase();
+  // RLS ensures we only see messages in our conversations
+  const recent = await msg().filter({}, '-created_at', 500).catch(() => []);
+  return recent.filter(m =>
+    m.sender_email?.toLowerCase() !== myEmailLc &&
+    !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
+  ).length;
 };
 
 /** Cascade-delete all messages and conversations involving a user. */
 export const purgeForUser = async (email) => {
   if (!email) return;
-  // Delete messages where they're sender OR recipient (RLS allows sender-delete only;
-  // recipient messages will be orphaned but unreachable since the conversation is gone)
-  const sentMessages = await msg().filter({ sender_email: email }, '-created_date', 1000).catch(() => []);
+  const sentMessages = await msg().filter({ sender_email: email }, '-created_at', 1000).catch(() => []);
   await Promise.all(sentMessages.map(m => msg().delete(m.id).catch(() => {})));
-  // Delete conversations the user participated in (RLS scopes this naturally)
-  const myConvs = await conv().filter({}, '-created_date', 500).catch(() => []);
+  const myConvs = await conv().filter({}, '-created_at', 500).catch(() => []);
   await Promise.all(myConvs.map(c => conv().delete(c.id).catch(() => {})));
 };

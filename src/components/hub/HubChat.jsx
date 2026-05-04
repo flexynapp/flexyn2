@@ -11,8 +11,8 @@ import { toast } from 'sonner';
 
 function shouldShowDivider(messages, index) {
   if (index === 0) return true;
-  const curr = messages[index]?.created_date;
-  const prev = messages[index - 1]?.created_date;
+  const curr = messages[index]?.created_at;
+  const prev = messages[index - 1]?.created_at;
   if (!curr || !prev) return false;
   return differenceInHours(parseISO(curr), parseISO(prev)) >= 1;
 }
@@ -26,16 +26,15 @@ function formatDivider(dateStr) {
   return format(date, "MMM d 'at' h:mm a");
 }
 
-// Dedupe optimistic messages once the server echoes them back. The server
-// assigns its own id, so we match by sender + body. The temp loses to a real
-// duplicate so we don't render the same message twice.
+// Dedupe optimistic messages once the server echoes them back.
+// The temp loses to a real duplicate so we don't render the same message twice.
 function dedupeMessages(list) {
   if (!list || list.length === 0) return [];
   const seen = new Set();
   const out = [];
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
-    const key = `${(m.sender_email || '').toLowerCase()}|${(m.body || '').trim()}`;
+    const key = `${(m.sender_email || '').toLowerCase()}|${(m.content || '').trim()}`;
     const isTemp = String(m.id || '').startsWith('temp-');
     if (seen.has(key) && isTemp) continue;
     seen.add(key);
@@ -138,9 +137,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed || sending) return;
-    if (!otherEmail || !conversation?.id) {
+    if (!conversation?.id) {
       toast.error(t('hub.messages.sendError'));
-      console.error('[HubChat] cannot send — missing recipient or conversation', { otherEmail, conversationId: conversation?.id });
       return;
     }
 
@@ -149,10 +147,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       id: tempId,
       conversation_id: conversation.id,
       sender_email: user?.email || '',
-      recipient_email: otherEmail,
-      body: trimmed,
-      created_date: new Date().toISOString(),
-      read_at: null,
+      content: trimmed,
+      created_at: new Date().toISOString(),
+      read_by: [],
       _optimistic: true,
     };
 
@@ -168,7 +165,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail: user.email || '',
-        recipientEmail: otherEmail,
         body: trimmed,
       });
       queryClient.invalidateQueries({ queryKey });
@@ -224,12 +220,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             const isLastSent = isMine && i === lastSentIndex;
             const showDivider = shouldShowDivider(messages, i);
             const isOptimistic = !!m._optimistic;
+            const isRead = (m.read_by || []).some(e => e?.toLowerCase() !== myEmailLc);
             return (
               <div key={m.id}>
-                {showDivider && m.created_date && (
+                {showDivider && m.created_at && (
                   <div className="flex justify-center my-4">
                     <span className="text-[11px] text-muted-foreground">
-                      {formatDivider(m.created_date)}
+                      {formatDivider(m.created_at)}
                     </span>
                   </div>
                 )}
@@ -246,13 +243,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         : 'bg-secondary text-foreground rounded-bl-sm'
                     } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
                   >
-                    {m.body}
+                    {m.content}
                   </div>
                 </motion.div>
                 {isLastSent && !isOptimistic && (
                   <div className="flex justify-end mb-2 pr-1">
                     <span className="text-[10px] text-muted-foreground">
-                      {m.read_at ? 'Read' : 'Sent'}
+                      {isRead ? 'Read' : 'Sent'}
                     </span>
                   </div>
                 )}
@@ -272,7 +269,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <textarea
           ref={textareaRef}
           value={draft}
-          onChange={(e) => draftGuard.handleChange(e.target.value, setDraft)}
+          onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -294,7 +291,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <Send className="w-4 h-4" />
         </button>
       </div>
-      <ProfanityWarningDialog open={draftGuard.open} onContinue={draftGuard.onContinue} />
     </div>
   );
 }

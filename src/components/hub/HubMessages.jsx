@@ -121,13 +121,13 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             // Compute Instagram-style preview from the actual latest message
             const lastMsg = c.latestMessage;
             let preview = t('hub.messages.noMessagesYet');
-            if (lastMsg?.body) {
+            if (lastMsg?.content) {
               const isMine = lastMsg.sender_email?.toLowerCase() === user?.email?.toLowerCase();
-              preview = isMine ? `You: ${lastMsg.body}` : lastMsg.body;
+              preview = isMine ? `You: ${lastMsg.content}` : lastMsg.content;
             }
 
             const unread = (c.unreadCount || 0) > 0;
-            const timeStr = formatInboxTime(lastMsg?.created_date || c.last_message_at);
+            const timeStr = formatInboxTime(lastMsg?.created_at || c.last_message_at);
 
             return (
               <motion.button
