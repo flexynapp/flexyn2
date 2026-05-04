@@ -381,19 +381,44 @@ async function _invokeBarcodeLookup({ barcode } = {}) {
   }
 }
 
-/* ── Integrations stub — prevents TypeError crashes on legacy Base44 calls ── */
-// Components that used base44.integrations.Core.InvokeLLM / GenerateImage /
-// UploadFile will catch the thrown error and show a graceful UI error state
-// instead of crashing the whole page.
+/* ── Integrations — file upload via Supabase Storage ────────────────────── */
+// Requires a public Supabase Storage bucket named "uploads".
+// To create it, run migration 008_storage_bucket.sql in the SQL Editor.
+
 const _notConfigured = (name) => async () => {
-  throw new Error(`[Flexyn] ${name} is not configured. Implement via Supabase Edge Functions.`);
+  throw new Error(`[Flexyn] ${name} is not configured.`);
 };
+
+/**
+ * Upload a File object to Supabase Storage and return its public URL.
+ * Bucket: "uploads" (must exist and be public — see migration 008).
+ * Path:   {user_id}/{timestamp}.{ext}
+ */
+async function _uploadFile({ file, bucket = 'uploads' }) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const ext  = (file.name || 'file').split('.').pop() || 'jpg';
+  const path = `${user.id}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from(bucket)
+    .upload(path, file, { upsert: true, contentType: file.type });
+
+  if (uploadError) throw uploadError;
+
+  const { data: { publicUrl } } = supabase.storage
+    .from(bucket)
+    .getPublicUrl(path);
+
+  return { file_url: publicUrl };
+}
 
 const integrations = {
   Core: {
     InvokeLLM:     _notConfigured('InvokeLLM'),
     GenerateImage: _notConfigured('GenerateImage'),
-    UploadFile:    _notConfigured('UploadFile'),
+    UploadFile:    _uploadFile,
     SendEmail:     _notConfigured('SendEmail'),
   },
 };

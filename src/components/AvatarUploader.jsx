@@ -2,9 +2,11 @@
 import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Camera, Loader2, User as UserIcon } from 'lucide-react';
+import { Camera, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
+import { supabase } from '@/api/supabaseClient';
 import { update as updateMe } from '@/lib/data/me';
+import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { toast } from 'sonner';
 
@@ -20,6 +22,7 @@ import { toast } from 'sonner';
  */
 export default function AvatarUploader({ src, initials = '?', editable = false, size = 64, onChange }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
   const [uploading, setUploading] = useState(false);
@@ -38,14 +41,28 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
     }
     setUploading(true);
     try {
+      // 1. Upload to Supabase Storage
       const { file_url } = await base44.integrations.Core.UploadFile({ file });
       if (!file_url) throw new Error('No URL returned');
+
+      // 2. Save to profile
       await updateMe({ avatar_url: file_url });
-      // Invalidate any cached user-profile queries so every place that
-      // reads me() gets the new avatar URL.
+
+      // 3. Backfill hub posts so the avatar updates on all previous posts
+      if (user?.email) {
+        await supabase
+          .from('hub_posts')
+          .update({ author_avatar_url: file_url })
+          .eq('author_email', user.email)
+          .catch(() => {}); // non-critical — posts will still resolve via live lookup
+      }
+
+      // 4. Invalidate all caches that carry avatar data
       queryClient.invalidateQueries({ queryKey: ['userProfile'] });
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup'] });
       queryClient.invalidateQueries({ queryKey: ['hubAuthorsList'] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+
       if (onChange) onChange(file_url);
       toast.success(t('avatar.uploaded'));
     } catch (err) {
@@ -68,7 +85,7 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
         {src ? (
           <img src={src} alt="" className="w-full h-full object-cover" />
         ) : (
-          initials || <UserIcon className="w-1/2 h-1/2" />
+          initials || '?'
         )}
       </div>
 

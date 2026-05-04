@@ -1,29 +1,33 @@
 // src/components/ThemeSelector.jsx
-// Full-screen modal for choosing an app theme. Themes have an `unlockLevel`
-// requirement; locked themes are shown grayed-out with a centered lock icon so
-// users can see what they're working toward.
+// S-tier theme picker. Each card has its own layout rows so nothing ever
+// overlaps or truncates. Locked themes dim and show the required level;
+// tapping them shows a toast instead of silently ignoring the tap.
 
 import { useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock, Check } from 'lucide-react';
+import { X, Lock, Check, Sparkles } from 'lucide-react';
 import { useTheme, THEMES } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
+import { toast } from 'sonner';
 
 export default function ThemeSelector({ open, onClose }) {
   const { t } = useLanguage();
   const { themeId, setThemeId } = useTheme();
   const { user } = useAuth();
 
-  // Determine the user's current level. Prefer the DB-persisted column (updated
-  // by migration 006 / increment_user_xp RPC); fall back to a client-side calc
-  // from total_xp so the selector works even before the migration has been run.
   const level = user?.current_level
     ?? calculateLevelFromXp(Number(user?.total_xp) || 0).level;
 
   const handleSelect = useCallback((theme) => {
-    if (level < theme.unlockLevel) return; // locked — ignore tap
+    if (level < theme.unlockLevel) {
+      toast(`🔒 ${theme.name} unlocks at Level ${theme.unlockLevel}`, {
+        description: `You're Level ${level}. Keep training to unlock this theme!`,
+        duration: 3000,
+      });
+      return;
+    }
     setThemeId(theme.id);
   }, [level, setThemeId]);
 
@@ -36,85 +40,103 @@ export default function ThemeSelector({ open, onClose }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.18 }}
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-black/60 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
-            initial={{ opacity: 0, y: 48, scale: 0.97 }}
+            initial={{ opacity: 0, y: 56, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 48, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 56, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 32 }}
             onClick={(e) => e.stopPropagation()}
-            className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden"
+            className="bg-card border border-border rounded-t-3xl sm:rounded-3xl w-full sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden shadow-2xl"
           >
             {/* Header */}
-            <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
+            <div className="flex items-start justify-between px-6 pt-6 pb-4 border-b border-border shrink-0">
               <div>
-                <h2 className="font-heading font-bold text-lg">{t('hub.themes.title')}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t('hub.themes.subtitle').replace('{level}', level)}
-                </p>
+                <h2 className="font-heading font-bold text-xl tracking-tight">Themes</h2>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-sm text-muted-foreground">
+                    Your level: <span className="font-semibold text-foreground">{level}</span>
+                  </p>
+                </div>
               </div>
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl hover:bg-secondary transition-colors"
-                aria-label={t('common.close')}
+                className="p-2 rounded-xl hover:bg-secondary transition-colors -mt-0.5"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Theme grid */}
-            <div className="overflow-y-auto flex-1 p-4">
+            <div className="overflow-y-auto flex-1 px-4 py-4">
               <div className="grid grid-cols-2 gap-3">
                 {THEMES.map((theme) => {
-                  const isLocked   = level < theme.unlockLevel;
-                  const isCurrent  = themeId === theme.id;
+                  const isLocked  = level < theme.unlockLevel;
+                  const isCurrent = themeId === theme.id;
 
                   return (
                     <motion.button
                       key={theme.id}
-                      whileTap={!isLocked ? { scale: 0.97 } : {}}
+                      whileTap={{ scale: 0.97 }}
                       onClick={() => handleSelect(theme)}
-                      disabled={isLocked}
                       className={[
-                        'relative rounded-xl border-2 p-3 text-left transition-all overflow-hidden',
+                        'relative flex flex-col p-4 rounded-2xl border-2 text-left transition-all duration-200 group',
                         isCurrent
-                          ? 'border-primary shadow-md'
+                          ? 'border-primary bg-primary/5 shadow-lg shadow-primary/15'
                           : isLocked
-                          ? 'border-border opacity-50 cursor-not-allowed'
-                          : 'border-border hover:border-primary/50 hover:shadow-sm cursor-pointer',
+                          ? 'border-border/60 bg-muted/20'
+                          : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30',
                       ].join(' ')}
                     >
-                      {/* Color preview swatches */}
-                      <div className="flex gap-1.5 mb-2.5">
+                      {/* Active check badge */}
+                      {isCurrent && (
+                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                          <Check className="w-3.5 h-3.5 text-primary-foreground" />
+                        </div>
+                      )}
+
+                      {/* Color swatches */}
+                      <div className={`flex gap-2 mb-3 ${isLocked ? 'opacity-50' : ''}`}>
                         {theme.preview.map((hex, i) => (
                           <div
                             key={i}
-                            className="w-7 h-7 rounded-full border border-white/20 shadow-sm"
+                            className="w-9 h-9 rounded-full shadow-md ring-2 ring-white/30"
                             style={{ backgroundColor: hex }}
                           />
                         ))}
                       </div>
 
-                      {/* Name + description */}
-                      <p className="font-heading font-bold text-sm leading-tight">{theme.name}</p>
-                      <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{theme.description}</p>
+                      {/* Name */}
+                      <p className={`font-heading font-bold text-sm leading-tight ${isLocked ? 'text-muted-foreground' : 'text-foreground'}`}>
+                        {theme.name}
+                      </p>
 
-                      {/* Lock badge */}
+                      {/* Description */}
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-1">
+                        {theme.description}
+                      </p>
+
+                      {/* Lock row */}
                       {isLocked && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-card/60 rounded-xl gap-1">
-                          <Lock className="w-5 h-5 text-muted-foreground" />
-                          <span className="text-[10px] font-bold text-muted-foreground">
-                            {t('hub.themes.lockedAt').replace('{n}', theme.unlockLevel)}
+                        <div className="flex items-center gap-1.5 mt-2.5">
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full bg-muted">
+                            <Lock className="w-2.5 h-2.5 text-muted-foreground" />
+                          </div>
+                          <span className="text-[11px] font-semibold text-muted-foreground">
+                            Level {theme.unlockLevel}
                           </span>
                         </div>
                       )}
 
-                      {/* Active checkmark */}
+                      {/* "Active" label for current unlocked theme */}
                       {isCurrent && !isLocked && (
-                        <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="w-3 h-3 text-primary-foreground" />
+                        <div className="flex items-center gap-1 mt-2.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <span className="text-[11px] font-semibold text-primary">Active</span>
                         </div>
                       )}
                     </motion.button>
@@ -122,10 +144,13 @@ export default function ThemeSelector({ open, onClose }) {
                 })}
               </div>
 
-              {/* Hint about capsule themes */}
-              <p className="text-center text-xs text-muted-foreground mt-4 px-2">
-                {t('hub.themes.capsuleHint')}
-              </p>
+              {/* Footer hint */}
+              <div className="flex items-center justify-center gap-2 mt-5 mb-2 py-3 px-4 rounded-2xl bg-secondary/40 border border-border/50">
+                <Sparkles className="w-3.5 h-3.5 text-primary shrink-0" />
+                <p className="text-xs text-muted-foreground text-center leading-tight">
+                  More themes coming — unlock them through <span className="font-semibold text-foreground">Loot Capsules</span>
+                </p>
+              </div>
             </div>
           </motion.div>
         </motion.div>
