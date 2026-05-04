@@ -3,7 +3,7 @@
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap, Star, Package,
   Sparkles, ChevronLeft, RefreshCw, Lock,
@@ -163,8 +163,8 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
         trade_for_rarity: listingType === 'trade' ? tradeRarity : null,
       });
       await inventory.setListed(selectedItem.id, true);
-      await qc.invalidateQueries(['marketplaceListings']);
-      await qc.invalidateQueries(['userInventory', user.email]);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       toast.success('Item listed!');
       handleClose();
       onSuccess?.();
@@ -460,19 +460,20 @@ export default function MarketplaceFeed() {
   const [buyBusy,          setBuyBusy]         = useState(false);
 
   // ── Data fetching ──────────────────────────────────────────────────────────
-  const { data: listings = [], isLoading: loadingListings, refetch } = useQuery({
+  const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
     queryKey: ['marketplaceListings'],
     queryFn:  () => marketplace.listActive(60),
     staleTime: 15_000,
-    onError:  (err) => toast.error('Could not load marketplace: ' + err.message),
   });
+  const listings = Array.isArray(rawListings) ? rawListings : [];
 
-  const { data: myItems = [] } = useQuery({
+  const { data: rawMyItems } = useQuery({
     queryKey: ['userInventory', user?.email],
     queryFn:  () => inventory.listItems(user.email),
     enabled:  !!user?.email,
     staleTime: 30_000,
   });
+  const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
 
   const flexCoins = user?.flex_coins ?? 0;
 
@@ -481,8 +482,8 @@ export default function MarketplaceFeed() {
     try {
       await marketplace.cancelListing(listing.id);
       await inventory.setListed(listing.inventory_id, false);
-      await qc.invalidateQueries(['marketplaceListings']);
-      await qc.invalidateQueries(['userInventory', user?.email]);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
       toast.success('Listing cancelled.');
     } catch (err) {
       toast.error('Could not cancel: ' + err.message);
@@ -536,8 +537,8 @@ export default function MarketplaceFeed() {
       // 5. Mark listing completed
       await marketplace.completeListing(buyTarget.id);
 
-      await qc.invalidateQueries(['marketplaceListings']);
-      await qc.invalidateQueries(['userInventory', user.email]);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
       setBuyTarget(null);
     } catch (err) {
@@ -583,6 +584,12 @@ export default function MarketplaceFeed() {
       {loadingListings ? (
         <div className="flex items-center justify-center py-20">
           <div className="w-8 h-8 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+        </div>
+      ) : listingsError ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <ShoppingBag className="w-12 h-12 text-gray-700" />
+          <p className="text-gray-500 font-medium">Could not load listings</p>
+          <button onClick={() => refetch()} className="text-purple-400 text-sm hover:underline">Try again</button>
         </div>
       ) : listings.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">

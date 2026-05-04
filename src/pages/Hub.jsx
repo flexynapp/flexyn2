@@ -40,8 +40,10 @@ export default function Hub() {
   });
 
   // Count unopened capsules for the bag badge
+  // NOTE: Uses a distinct key 'userCapsulesCount' so it doesn't conflict with
+  // UserBag's 'userCapsules' key (which must return the full array, not a number).
   const { data: capsuleCount = 0 } = useQuery({
-    queryKey: ['userCapsules', user?.email],
+    queryKey: ['userCapsulesCount', user?.email],
     queryFn: async () => {
       const list = await capsules.listUnopenedCapsules(user.email);
       return list.length;
@@ -92,6 +94,7 @@ export default function Hub() {
       await inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule');
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
     } catch (err) {
       console.error('[Hub] capsule claim failed:', err);

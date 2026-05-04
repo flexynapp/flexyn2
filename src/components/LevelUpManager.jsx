@@ -76,6 +76,7 @@ export default function LevelUpManager() {
       .then(() => {
         // Invalidate so UserBag + capsule count badges refresh
         queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+        queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
         queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user.email] });
       })
