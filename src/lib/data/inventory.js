@@ -35,6 +35,7 @@ export async function addItem(userId, userEmail, item, acquiredVia = 'capsule') 
       item_rarity: item.rarity,
       item_type:   item.type,
       acquired_via: acquiredVia,
+      variant:     item.variant ?? null,
     })
     .select()
     .maybeSingle();

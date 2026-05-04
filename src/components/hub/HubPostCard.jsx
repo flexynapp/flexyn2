@@ -1,16 +1,19 @@
 import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
 import * as hubPosts from '@/lib/data/hubPosts';
+import * as stickerReactions from '@/lib/data/stickerReactions';
 import HubCommentsInline from './HubCommentsInline';
 import PostActivityBlock from './PostActivityBlock';
 import ReportDialog from './ReportDialog';
+import StickerDisplay from './StickerDisplay';
+import StickerPanel from './StickerPanel';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 
@@ -22,6 +25,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const [pendingReaction, setPendingReaction] = useState(undefined);
   const [mealSaved, setMealSaved] = useState(() => isMealSaved(post.id));
   const [reportOpen, setReportOpen] = useState(false);
+  const [stickerPanelOpen, setStickerPanelOpen] = useState(false);
 
   const isMealPost = post.post_type === 'meal';
 
@@ -53,6 +57,13 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     queryKey: ['hubReaction', post.id, user?.email],
     queryFn: () => hubReactions.getMyReaction(post.id, user.email),
     enabled: !!user?.email,
+  });
+
+  const { data: stickerRxns = [] } = useQuery({
+    queryKey: ['stickerReactions', post.id],
+    queryFn: () => stickerReactions.getPostReactions(post.id),
+    staleTime: 15_000,
+    enabled: true,
   });
 
   const isMine = post.author_email === user?.email;
@@ -221,6 +232,18 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           activeColor="text-primary"
           onClick={() => setCommentsOpen(o => !o)}
         />
+        <motion.button
+          whileTap={{ scale: 0.92 }}
+          onClick={() => setStickerPanelOpen(o => !o)}
+          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
+            stickerPanelOpen || stickerRxns.length > 0
+              ? 'text-primary bg-secondary'
+              : 'text-muted-foreground hover:bg-secondary'
+          }`}
+        >
+          <Sticker className="w-4 h-4" />
+          {stickerRxns.length > 0 && <span>{stickerRxns.length}</span>}
+        </motion.button>
         {isMealPost && (
           <motion.button
             whileTap={{ scale: 0.88 }}
@@ -232,6 +255,45 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           </motion.button>
         )}
       </div>
+
+      {/* ── Sticker reaction waterfall ─────────────────────────────────────── */}
+      {stickerRxns.length > 0 && (
+        <button
+          onClick={() => setStickerPanelOpen(o => !o)}
+          className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary transition-colors w-full text-left"
+        >
+          {/* Overlapping sticker circles — waterfall effect */}
+          <div className="flex items-center" style={{ marginRight: 6 }}>
+            {stickerRxns.slice(0, 6).map((r, i) => (
+              <div
+                key={r.id}
+                className="w-7 h-7 rounded-full bg-card border-2 border-background flex items-center justify-center overflow-visible"
+                style={{ marginLeft: i === 0 ? 0 : -10, zIndex: i, position: 'relative' }}
+              >
+                <StickerDisplay emoji={r.item_emoji} variant={r.variant} size={22} />
+              </div>
+            ))}
+          </div>
+          {stickerRxns.length > 6 && (
+            <span className="text-xs text-muted-foreground">+{stickerRxns.length - 6}</span>
+          )}
+          <span className="text-xs text-muted-foreground ml-1">
+            {stickerRxns.length === 1 ? '1 sticker reaction' : `${stickerRxns.length} sticker reactions`}
+          </span>
+        </button>
+      )}
+
+      {/* Sticker panel (picker + viewer) */}
+      <AnimatePresence>
+        {stickerPanelOpen && (
+          <div className="px-3 pb-3 pt-1">
+            <StickerPanel
+              postId={post.id}
+              onClose={() => setStickerPanelOpen(false)}
+            />
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnimatePresence initial={false}>
         {commentsOpen && (

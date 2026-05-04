@@ -164,3 +164,47 @@ export function rollCapsule(capsuleType = 'standard') {
   }
   return pool[Math.floor(Math.random() * pool.length)];
 }
+
+// ─── Sticker Variants ─────────────────────────────────────────────────────────
+export const VARIANTS = {
+  foil: {
+    label: 'Foil',
+    badge: '✦ Foil',
+    sellMultiplier: 2,
+    color: '#e2e8f0',
+    borderColor: 'rgba(200,220,255,0.6)',
+  },
+  gold: {
+    label: 'Gold',
+    badge: '★ Gold',
+    sellMultiplier: 5,
+    color: '#f59e0b',
+    borderColor: '#f59e0b',
+  },
+  diamond: {
+    label: 'Diamond',
+    badge: '◆ Diamond',
+    sellMultiplier: 10,
+    color: '#67e8f9',
+    borderColor: '#67e8f9',
+  },
+};
+
+// Variant drop odds per capsule type (these are independent of item odds)
+export const VARIANT_ODDS = {
+  standard: { foil: 0.03, gold: 0.00,  diamond: 0.000 },
+  premium:  { foil: 0.08, gold: 0.02,  diamond: 0.000 },
+  elite:    { foil: 0.14, gold: 0.05,  diamond: 0.010 },
+};
+
+/** Roll for a variant after an item has been chosen. Returns null for no variant. */
+export function rollVariant(capsuleType = 'standard') {
+  const odds = VARIANT_ODDS[capsuleType] ?? VARIANT_ODDS.standard;
+  const roll = Math.random();
+  let cum = 0;
+  for (const [variant, prob] of Object.entries(odds)) {
+    cum += prob;
+    if (roll < cum) return variant;
+  }
+  return null;
+}

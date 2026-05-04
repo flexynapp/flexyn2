@@ -12,11 +12,12 @@ import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
-import { RARITY, ITEMS } from '@/lib/lootCatalog';
+import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
+import StickerDisplay from './StickerDisplay';
 
-// Coin value per rarity (what a sold item earns)
+// Sell price is half the hidden base value, rounded down.
 const SELL_PRICE = Object.fromEntries(
-  Object.entries(RARITY).map(([k, v]) => [k, v.baseCoins ?? 5])
+  Object.entries(RARITY).map(([k, v]) => [k, Math.floor((v.baseCoins ?? 10) / 2)])
 );
 
 // Map capsule_type string → display metadata
@@ -70,7 +71,8 @@ function StickerGroupCard({ group, onSell, selling }) {
   const item   = group[0];
   const count  = group.length;
   const rc     = RARITY[item.item_rarity] ?? RARITY.common;
-  const price  = SELL_PRICE[item.item_rarity] ?? 5;
+  const variantMult = item.variant ? (VARIANTS[item.variant]?.sellMultiplier ?? 1) : 1;
+  const price  = Math.floor((SELL_PRICE[item.item_rarity] ?? 2) * variantMult);
 
   // Unlisted items are the ones available to sell.
   const unlisted = group.filter(i => !i.is_listed);
@@ -106,7 +108,12 @@ function StickerGroupCard({ group, onSell, selling }) {
         </span>
       )}
 
-      <span className="text-5xl leading-none">{item.item_emoji}</span>
+      <StickerDisplay emoji={item.item_emoji} variant={item.variant} size={52} />
+      {item.variant && (
+        <span className="text-[10px] font-bold" style={{ color: VARIANTS[item.variant]?.color ?? '#fff' }}>
+          {VARIANTS[item.variant]?.badge}
+        </span>
+      )}
       <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
 

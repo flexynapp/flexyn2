@@ -4,7 +4,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
-import { ITEMS, RARITY, rollCapsule } from '@/lib/lootCatalog';
+import { ITEMS, RARITY, rollCapsule, rollVariant, VARIANTS } from '@/lib/lootCatalog';
+import StickerDisplay from './StickerDisplay';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_W     = 130; // px
@@ -168,8 +169,10 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const handleOpen = useCallback(() => {
     const capsuleType = capsule?.capsule_type ?? 'standard';
     const won  = rollCapsule(capsuleType);
+    const variant = rollVariant(capsuleType);
+    const wonWithVariant = { ...won, variant };
     const cards = buildReel(won);
-    setWonItem(won);
+    setWonItem(wonWithVariant);
     setReel(cards);
     setPhase('spinning');
     // Actual CSS animation is kicked off in the useEffect below once the
@@ -337,7 +340,9 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                     style={{ background: `linear-gradient(135deg, ${rarityConfig.color}33, transparent, ${rarityConfig.color}33)` }}
                   />
                 )}
-                <span className="text-6xl mb-3 relative z-10">{wonItem.emoji}</span>
+                <div className="mb-3 relative z-10">
+                  <StickerDisplay emoji={wonItem.emoji} variant={wonItem.variant} size={80} />
+                </div>
                 <span className="text-white font-bold text-base relative z-10">{wonItem.name}</span>
               </motion.div>
 
@@ -353,6 +358,18 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 >
                   {rarityConfig.label}
                 </span>
+                {wonItem.variant && (
+                  <span
+                    className="px-2 py-0.5 rounded-full text-xs font-bold border"
+                    style={{
+                      color: VARIANTS[wonItem.variant]?.color ?? '#fff',
+                      borderColor: VARIANTS[wonItem.variant]?.color ?? '#fff',
+                      background: `${VARIANTS[wonItem.variant]?.color ?? '#fff'}18`,
+                    }}
+                  >
+                    {VARIANTS[wonItem.variant]?.badge ?? wonItem.variant}
+                  </span>
+                )}
                 <p className="text-gray-400 text-sm text-center max-w-xs">{wonItem.description}</p>
               </motion.div>
 
