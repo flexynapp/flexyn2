@@ -28,3 +28,6 @@ export * as hubFollows from './hubFollows';
 export * as hubReactions from './hubReactions';
 export * as hubComments from './hubComments';
 export * as hubMessages from './hubMessages';
+export * as capsules from './capsules';
+export * as inventory from './inventory';
+export * as marketplace from './marketplace';
