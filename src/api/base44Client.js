@@ -261,8 +261,10 @@ async function _invokeDeleteAccount() {
   ];
   await Promise.allSettled([
     ...tables.map(t => supabase.from(t).delete().eq('created_by', email)),
+    ...tables.map(t => supabase.from(t).delete().eq('user_id', user.id)),
     supabase.from('hub_posts').delete().eq('author_email', email),
     supabase.from('hub_follows').delete().or(`follower_email.eq.${email},followee_email.eq.${email}`),
+    supabase.from('hub_conversations').delete().contains('participant_emails', [email]),
   ]);
   await supabase.from('user_profiles').update({
     username: `deleted_${user.id.slice(0, 8)}`,

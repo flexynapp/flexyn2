@@ -8,7 +8,7 @@ export const list = (email, limit = 50) =>
 
 /** Fetch a workout log by id. */
 export const get = (id) =>
-  base44.entities.WorkoutLog.filter({ id }).then(rows => rows?.[0] || null);
+  base44.entities.WorkoutLog.get(id);
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {

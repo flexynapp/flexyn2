@@ -10,7 +10,8 @@ export function filterAfterReset(records, userProfile) {
   const resetTime = new Date(resetAt).getTime();
   if (isNaN(resetTime)) return records;
   return records.filter(r => {
-    if (!r?.created_date) return true; // no timestamp = keep it (shouldn't happen)
-    return new Date(r.created_date).getTime() >= resetTime;
+    const ts = r?.created_date || r?.created_at;
+    if (!ts) return false; // no timestamp → treat as pre-reset, hide it
+    return new Date(ts).getTime() >= resetTime;
   });
 }

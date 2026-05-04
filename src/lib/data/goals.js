@@ -14,13 +14,18 @@ function assertNoTextProfanity(fields) {
 }
 
 export const create = (data) => {
-  assertNoTextProfanity({ exercise: data.exercise, notes: data.notes });
+  assertNoTextProfanity({
+    exercise_name: data.exercise_name,
+    exercise: data.exercise,
+    notes: data.notes,
+  });
   return base44.entities.Goal.create(data);
 };
 export const update = (id, data) => {
   const textFields = {};
-  if (data.exercise !== undefined) textFields.exercise = data.exercise;
-  if (data.notes !== undefined) textFields.notes = data.notes;
+  if (data.exercise_name !== undefined) textFields.exercise_name = data.exercise_name;
+  if (data.exercise      !== undefined) textFields.exercise      = data.exercise;
+  if (data.notes         !== undefined) textFields.notes         = data.notes;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
   return base44.entities.Goal.update(id, data);
 };

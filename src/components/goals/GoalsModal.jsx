@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
+import * as goalsData from '@/lib/data/goals';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -26,7 +27,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const { user } = useAuth();
 
   const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Goal.create(data),
+    mutationFn: (data) => goalsData.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       setShowForm(false);
@@ -35,7 +36,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Goal.update(id, data),
+    mutationFn: ({ id, data }) => goalsData.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       setShowForm(false);
@@ -45,7 +46,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Goal.delete(id),
+    mutationFn: (id) => goalsData.remove(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       toast.success(t('goals.toast.deleted'));
@@ -77,7 +78,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       const achievedUpdate = { status: 'completed' };
       if (goal?.target_weight > 0) achievedUpdate.achieved_weight = goal.target_weight;
       if (goal?.target_reps > 0) achievedUpdate.achieved_reps = goal.target_reps;
-      await base44.entities.Goal.update(goalId, achievedUpdate);
+      await goalsData.update(goalId, achievedUpdate);
       return xpReward;
     },
     onSuccess: (xpReward) => {
