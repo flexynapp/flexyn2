@@ -119,6 +119,47 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const reelRef      = useRef(null);
   const containerRef = useRef(null);
 
+  // ── Callback ref: fires the instant the reel div enters the DOM ─────────────
+  // useEffect fires too early — with AnimatePresence mode="wait", the spinning
+  // div isn't mounted when the effect runs (idle is still exiting). A callback
+  // ref fires at the exact mount moment, guaranteeing the element is in DOM.
+  const setReelRef = useCallback((el) => {
+    reelRef.current = el;
+    if (!el) return; // unmounting — nothing to do
+
+    // Double-RAF so the browser paints the element at translateX=0 first.
+    // If we skip this, the CSS transition has no "from" position and the reel
+    // jumps straight to the final offset without animating.
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        if (!el.isConnected) return; // unmounted between frames
+        const ct = containerRef.current;
+        const containerWidth = ct ? ct.offsetWidth : 400;
+        const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
+        const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
+
+        // 1. Pin to start with no transition, then force a reflow so the
+        //    browser has a concrete "from" state for the transition.
+        el.style.transition = 'none';
+        el.style.transform  = 'translateX(0px)';
+        void el.offsetWidth; // synchronous reflow
+
+        // 2. Kick off the slide animation.
+        el.style.transition = 'transform 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        el.style.transform  = `translateX(${-winOffset}px)`;
+
+        // 3. Advance to revealing after the transition finishes.
+        el.addEventListener('transitionend', () => {
+          setTimeout(() => setPhase('revealing'), 200);
+        }, { once: true });
+      });
+      // Store raf2 ID on the element so we can cancel it if the element
+      // unmounts during the first RAF (rare but possible).
+      el._raf2 = raf2;
+    });
+    el._raf1 = raf1;
+  }, []); // no deps — callback identity stays stable for the lifetime of the open
+
   const capsuleEmoji = capsule?.capsule_type === 'elite'
     ? '💠' : capsule?.capsule_type === 'premium'
     ? '🎁' : '📦';
@@ -134,52 +175,6 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
     // Actual CSS animation is kicked off in the useEffect below once the
     // reel DOM element is mounted.
   }, [capsule]);
-
-  // ── Drive the reel animation via direct DOM + double-RAF ────────────────────
-  // We can't rely on React state for the translateX transition because React 18
-  // batches all state updates — the browser would never see the "from: 0" frame
-  // so the CSS transition has no starting point and the reel freezes.
-  // Instead we commit the reel to DOM first, then imperatively animate it.
-  useEffect(() => {
-    if (phase !== 'spinning' || reel.length === 0) return;
-
-    let raf1, raf2;
-
-    // First RAF: React has committed the DOM but the browser may not have painted yet.
-    raf1 = requestAnimationFrame(() => {
-      // Second RAF: browser has now painted at least one frame with the reel at x=0.
-      raf2 = requestAnimationFrame(() => {
-        const el = reelRef.current;
-        const ct = containerRef.current;
-        if (!el || !ct) return;
-
-        const containerWidth = ct.offsetWidth || 400;
-        const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
-        const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
-
-        // 1. Snap to start (no transition) and force a reflow so the browser
-        //    records this as the "from" position.
-        el.style.transition = 'none';
-        el.style.transform  = 'translateX(0px)';
-        void el.offsetWidth; // trigger synchronous reflow
-
-        // 2. Re-enable transition and set target — browser will now animate.
-        el.style.transition = 'transform 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
-        el.style.transform  = `translateX(${-winOffset}px)`;
-
-        // 3. Listen for the transition to finish.
-        const onEnd = () => {
-          setTimeout(() => setPhase('revealing'), 200);
-        };
-        el.addEventListener('transitionend', onEnd, { once: true });
-      });
-    });
-
-    return () => {
-      cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
-    };
-  }, [phase, reel.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Claim ────────────────────────────────────────────────────────────────────
   const handleClaim = useCallback(() => {
@@ -294,9 +289,9 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                   style={{ background: 'linear-gradient(to left, #0a0a1a, transparent)' }}
                 />
 
-                {/* Reel track — animated imperatively via reelRef */}
+                {/* Reel track — animated imperatively via callback ref */}
                 <div
-                  ref={reelRef}
+                  ref={setReelRef}
                   className="absolute top-2 flex"
                   style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
                 >
