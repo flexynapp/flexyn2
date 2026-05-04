@@ -516,7 +516,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-2">
         <KineticHeading kicker="Goal · 01" text="What are you here for?" accentWord="for?" />
         <p className="text-sm text-muted-foreground mt-1.5 mb-4 min-h-[40px] transition-all">{helper}</p>
 
@@ -628,7 +628,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4">
+      <div className="flex-1 overflow-y-auto pb-4 pr-2">
         <KineticHeading kicker="Experience · 02" text="How long have you been training?" accentWord="training?" />
         <p className="text-sm text-muted-foreground mt-2 mb-6">Honest answers get you a better program.</p>
 
@@ -958,7 +958,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4">
+      <div className="flex-1 overflow-y-auto pb-4 pr-2">
         <KineticHeading kicker={`About You · 0${step}`} text="Tell us about yourself." accentWord="yourself." />
         <p className="text-sm text-muted-foreground mt-2 mb-5">We use this to calibrate your plan. Encrypted, never sold.</p>
 
@@ -1356,7 +1356,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-2">
         <KineticHeading kicker="Stats · 03" text="A few numbers, then we're done." accentWord="numbers," />
         <p className="text-sm text-muted-foreground mt-2 mb-4">Drag to set. Encrypted, never sold.</p>
 
@@ -1431,7 +1431,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 space-y-5">
+      <div className="flex-1 overflow-y-auto pb-4 pr-2 space-y-5">
         <KineticHeading kicker="Schedule · 04" text="Which days can you train?" accentWord="train?" />
         <p className="text-sm text-muted-foreground mt-2">Plan around real life — we'll keep recovery in check.</p>
 
@@ -1576,7 +1576,7 @@ function RevealStep({ data, onNext }) {
   return (
     <div className="flex flex-col h-full">
       <Confetti pieces={28} />
-      <div className="flex-1 overflow-y-auto pb-4 pt-2">
+      <div className="flex-1 overflow-y-auto pb-4 pt-2 pr-2">
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="font-mono text-[11px] font-bold tracking-[0.18em] text-primary uppercase mb-4">
           Plan ready · 100%
@@ -1737,12 +1737,39 @@ export default function Onboarding() {
 
   const [usernameError, setUsernameError] = useState('');
 
+  // Force Iron Orange theme during onboarding so new/reset users always see
+  // the default look regardless of any previously-saved theme.
+  useEffect(() => {
+    const ironOrange = {
+      '--primary': '26 90% 50%',
+      '--primary-foreground': '0 0% 100%',
+      '--accent': '210 18% 30%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '26 90% 50%',
+      '--sidebar-primary': '26 90% 50%',
+      '--sidebar-ring': '26 90% 50%',
+    };
+    const root = document.documentElement;
+    const prev = {};
+    Object.keys(ironOrange).forEach(k => {
+      prev[k] = root.style.getPropertyValue(k);
+      root.style.setProperty(k, ironOrange[k]);
+    });
+    return () => {
+      // Restore saved theme vars when leaving onboarding
+      Object.entries(prev).forEach(([k, v]) => root.style.setProperty(k, v));
+    };
+  }, []);
+
   // If already authenticated with a complete profile, redirect to dashboard.
   // Accounts with a deleted_ username placeholder (from account reset) must NOT
   // be skipped — they need to re-onboard and pick a real username.
   useEffect(() => {
-    const hasRealUsername = user?.username && !user.username.startsWith('deleted_');
-    if (user?.onboarding_complete || hasRealUsername) {
+    const isDeletedPlaceholder = !!(user?.username?.startsWith('deleted_'));
+    const hasRealUsername = !!(user?.username && !isDeletedPlaceholder);
+    // Never skip onboarding for deleted_ placeholder accounts — stale
+    // onboarding_complete flags must not override the re-onboarding gate.
+    if (!isDeletedPlaceholder && (user?.onboarding_complete || hasRealUsername)) {
       navigate('/dashboard', { replace: true });
     }
   }, [user?.onboarding_complete, user?.username]);

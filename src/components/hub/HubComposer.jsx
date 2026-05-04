@@ -556,7 +556,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: custom meal compose step ──
   const renderMealCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pb-4">
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <Apple className="w-3.5 h-3.5 text-green-500" />
         Share a meal with your community
@@ -627,7 +627,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: status compose step ──
   const renderStatusCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pb-4">
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
         <MessageSquare className="w-3.5 h-3.5" />
         {t('hub.share.statusDesc')}
@@ -650,7 +650,7 @@ export default function HubComposer({ onClose }) {
 
   // ── Rendering: activity-tied compose step ──
   const renderCompose = () => (
-    <div className="flex-1 flex flex-col px-4 pb-4">
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
       <div className="mb-3 p-3 rounded-xl bg-secondary/50 border border-border">
         <div className="flex items-start gap-3">
           {selected.kind === 'progressPhoto' && selected.item?.dataUrl ? (
