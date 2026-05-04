@@ -54,6 +54,37 @@ const ALLOWLIST = [
   'scunthorpe','penistone','lightwater','clitheroe','arsenal',
   'cockburn','cockermouth','dickens','dickinson','hancock','babcock','cocker','cocky','peacocky',
   'cassette','massacre','embassy',
+
+  // ── False-positive fixes ────────────────────────────────────────────────────
+  // "shit" fuzzy pattern (s+.?h+.?i+.?t+) incorrectly matches these:
+  'shift','shifts','shifting','shifted','shiftwork',
+  'shirt','shirts',
+
+  // "cunt" fuzzy pattern (c+.?u+.?n+.?t+) incorrectly matches these:
+  'count','counts','counting','counted','recount','recounts','recounting',
+  'account','accounts','accounting','accountant','accountants','accountability','accountable',
+  'discount','discounts','discounting',
+  'encounter','encounters','encountered','encountering',
+  'bounty', // b-o-u-n-t-y: no c, safe — kept for clarity
+
+  // "cock" fuzzy pattern (c+.?o+.?c+.?k+) — after l→i leet, "clock"→"ciock"
+  // which matches the cock pattern. Same for crockery.
+  'clock','clocks','clockwork','oclock',
+  'crockery','crocker','crockett',
+  'stock','stocks','stocking','stockings','stockpile','livestock',
+  'knock','knocks','knocking','knockback',
+  'frock','frocks',
+  'block','blocks','blocking','blocker','blockers','blockchain',
+  'flock','flocks',
+  'dock','docks','docking',
+  'mock','mocks','mocking',
+  'rock','rocks','rocking','rocket','rockets',
+  'shock','shocks','shocking',
+  'socket','sockets',
+  'pocket','pockets',
+  'sprocket','sprockets',
+  'lock','locks','locking','locker','lockers',
+  'unlock','unlocks','unlocking',
 ];
 
 // ── Unicode lookalike / homoglyph map ─────────────────────────────

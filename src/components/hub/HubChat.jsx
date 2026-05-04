@@ -5,9 +5,6 @@ import { ArrowLeft, Send, Lock } from 'lucide-react';
 import { format, parseISO, differenceInHours } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useMultiProfanityGuard } from '@/lib/useProfanityGuard';
-import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import { toast } from 'sonner';
@@ -52,7 +49,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
-  const draftGuard = useMultiProfanityGuard();
   const [sending, setSending] = useState(false);
 
   const scrollerRef = useRef(null);
@@ -91,7 +87,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   useEffect(() => {
     if (conversation?.id && user?.email) {
-      hubMessages.markRead(conversation.id, user.email);
+      hubMessages.markRead(conversation.id, user.email).then(() => {
+        // Immediately clear the nav badge so the unread count reflects reality.
+        queryClient.invalidateQueries({ queryKey: ['hubUnreadCount', user.email] });
+      }).catch(() => {});
     }
   }, [conversation?.id, user?.email, messages.length]);
 
@@ -139,10 +138,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed || sending) return;
-    if (containsProfanity(trimmed)) {
-      toast.error(t('hub.composer.profanityError'));
-      return;
-    }
     if (!otherEmail || !conversation?.id) {
       toast.error(t('hub.messages.sendError'));
       console.error('[HubChat] cannot send — missing recipient or conversation', { otherEmail, conversationId: conversation?.id });

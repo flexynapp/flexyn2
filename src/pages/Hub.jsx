@@ -35,8 +35,8 @@ export default function Hub() {
     queryKey: ['hubUnreadCount', user?.email],
     queryFn: () => hubMessages.unreadCountFor(user.email),
     enabled: !!user?.email,
-    refetchInterval: 30_000,
-    staleTime: 15_000,
+    refetchInterval: 15_000,
+    staleTime: 0, // always re-fetch when invalidated — ensures badge clears instantly
   });
 
   // Count unopened capsules for the bag badge

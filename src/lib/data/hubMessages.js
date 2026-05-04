@@ -6,18 +6,9 @@
 // section on Hub for the migration path to true E2E.
 
 import { base44 } from '@/api/base44Client';
-import { containsProfanity } from '@/lib/profanityFilter';
 
 const conv = () => base44.entities.HubConversation;
 const msg  = () => base44.entities.HubMessage;
-
-function assertNoTextProfanity(fields) {
-  for (const [key, val] of Object.entries(fields)) {
-    if (typeof val === 'string' && containsProfanity(val)) {
-      throw Object.assign(new Error(`Profanity detected in field "${key}"`), { code: 'PROFANITY', field: key });
-    }
-  }
-}
 
 /** Build a stable participant_key from two emails. */
 const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
@@ -133,7 +124,6 @@ export const listMessages = async (conversationId, limit = 200) => {
  */
 export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body }) => {
   if (!conversationId || !senderEmail || !recipientEmail || !body) return null;
-  assertNoTextProfanity({ body });
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
