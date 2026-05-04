@@ -69,6 +69,35 @@ export async function countByType(userEmail, type) {
 }
 
 /**
+ * Sell one inventory item for Flex Coins.
+ * Deletes the inventory row and credits the coins to the user's profile.
+ * Returns the user's new flex_coins total.
+ */
+export async function sellItem(inventoryId, userId, coinsToEarn) {
+  if (!inventoryId || !userId) throw new Error('Missing inventoryId or userId');
+
+  // 1. Remove the item from inventory.
+  await removeItem(inventoryId);
+
+  // 2. Add the coins to the user's profile.
+  const { data: profile, error: pe } = await supabase
+    .from('user_profiles')
+    .select('flex_coins')
+    .eq('id', userId)
+    .maybeSingle();
+  if (pe) throw pe;
+
+  const newTotal = (profile?.flex_coins ?? 0) + coinsToEarn;
+  const { error: ue } = await supabase
+    .from('user_profiles')
+    .update({ flex_coins: newTotal })
+    .eq('id', userId);
+  if (ue) throw ue;
+
+  return newTotal;
+}
+
+/**
  * Mark an inventory item as listed (or unmark it).
  */
 export async function setListed(inventoryId, isListed) {
