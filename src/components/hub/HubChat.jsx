@@ -9,10 +9,13 @@ import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import { toast } from 'sonner';
 
+// Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
+const msgTime = (m) => m?.created_date || m?.created_at || null;
+
 function shouldShowDivider(messages, index) {
   if (index === 0) return true;
-  const curr = messages[index]?.created_at;
-  const prev = messages[index - 1]?.created_at;
+  const curr = msgTime(messages[index]);
+  const prev = msgTime(messages[index - 1]);
   if (!curr || !prev) return false;
   return differenceInHours(parseISO(curr), parseISO(prev)) >= 1;
 }
@@ -34,7 +37,9 @@ function dedupeMessages(list) {
   const out = [];
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
-    const key = `${(m.sender_email || '').toLowerCase()}|${(m.content || '').trim()}`;
+    // body is the primary column; content is the mirror — check both
+    const text = (m.body || m.content || '').trim();
+    const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
     const isTemp = String(m.id || '').startsWith('temp-');
     if (seen.has(key) && isTemp) continue;
     seen.add(key);
@@ -147,9 +152,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       id: tempId,
       conversation_id: conversation.id,
       sender_email: user?.email || '',
+      body: trimmed,
       content: trimmed,
-      created_at: new Date().toISOString(),
-      read_by: [],
+      created_date: new Date().toISOString(),
+      read_at: null,
       _optimistic: true,
     };
 
@@ -165,6 +171,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail: user.email || '',
+        recipientEmail: otherEmail,
         body: trimmed,
       });
       queryClient.invalidateQueries({ queryKey });
@@ -220,13 +227,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             const isLastSent = isMine && i === lastSentIndex;
             const showDivider = shouldShowDivider(messages, i);
             const isOptimistic = !!m._optimistic;
-            const isRead = (m.read_by || []).some(e => e?.toLowerCase() !== myEmailLc);
+            const ts = msgTime(m);
+            // read_at is the timestamptz set when the recipient reads the message
+            const isRead = !!m.read_at;
             return (
               <div key={m.id}>
-                {showDivider && m.created_at && (
+                {showDivider && ts && (
                   <div className="flex justify-center my-4">
                     <span className="text-[11px] text-muted-foreground">
-                      {formatDivider(m.created_at)}
+                      {formatDivider(ts)}
                     </span>
                   </div>
                 )}
@@ -243,7 +252,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         : 'bg-secondary text-foreground rounded-bl-sm'
                     } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
                   >
-                    {m.content}
+                    {m.body || m.content}
                   </div>
                 </motion.div>
                 {isLastSent && !isOptimistic && (

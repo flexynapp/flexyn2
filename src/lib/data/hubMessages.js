@@ -1,13 +1,16 @@
 // src/lib/data/hubMessages.js
 //
 // SECURITY: Messages are protected by Supabase RLS — read access requires
-// the requester to be a participant in the conversation. This is
-// access-controlled, not end-to-end encrypted.
+// the requester to be a participant in the conversation.
 //
-// Column reference for hub_messages table:
-//   content          TEXT   (message body)
-//   created_at       TIMESTAMPTZ
-//   read_by          TEXT[] (array of emails that have read the message)
+// hub_messages column reference (see migrations 001 + 004):
+//   body             TEXT  — message content (primary write field)
+//   content          TEXT  — kept in sync with body by migration 004 backfill
+//   created_date     TIMESTAMPTZ (default now())
+//   created_at       TIMESTAMPTZ (original, same value)
+//   recipient_email  TEXT
+//   read_at          TIMESTAMPTZ — set when recipient reads the message
+//   read_by          TEXT[]      — array version (base schema)
 //   sender_email     TEXT
 //   conversation_id  UUID
 
@@ -60,8 +63,8 @@ export const listMyConversations = async (myEmail, limit = 50) => {
     groups.get(key).push(c);
   }
 
-  // 3. Fetch all recent messages in one batch — group locally
-  const allMyMessages = await msg().filter({}, '-created_at', 500).catch(() => []);
+  // 3. Fetch recent messages in one batch — group locally
+  const allMyMessages = await msg().filter({}, '-created_date', 500).catch(() => []);
   const messagesByConvId = new Map();
   for (const m of allMyMessages) {
     const cid = m.conversation_id;
@@ -81,24 +84,26 @@ export const listMyConversations = async (myEmail, limit = 50) => {
     for (const c of group) {
       const msgs = messagesByConvId.get(c.id) || [];
       if (msgs.length > 0) {
-        const latest = msgs[0]; // already sorted -created_at
-        const t = new Date(latest.created_at).getTime();
+        const latest = msgs[0]; // already sorted -created_date
+        const t = new Date(latest.created_date || latest.created_at || 0).getTime();
         if (t > bestTime) {
           best = c;
           bestMsg = latest;
           bestTime = t;
         }
       }
-      // Count unread: messages where I'm not the sender AND my email isn't in read_by
+      // Count unread: incoming messages I haven't read yet
       unreadCount += msgs.filter(m =>
-        m.sender_email?.toLowerCase() !== myEmailLc &&
-        !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
+        m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
       ).length;
     }
 
     // Fallback: no messages — pick the most recently created conversation
     if (!best) {
-      group.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      group.sort((a, b) =>
+        new Date(b.created_date || b.created_at || 0) -
+        new Date(a.created_date || a.created_at || 0)
+      );
       best = group[0];
     }
 
@@ -107,10 +112,12 @@ export const listMyConversations = async (myEmail, limit = 50) => {
 
   // 5. Sort inbox by actual latest message time
   deduped.sort((a, b) => {
-    const aT = a.latestMessage ? new Date(a.latestMessage.created_at).getTime()
-                               : new Date(a.last_message_at || 0).getTime();
-    const bT = b.latestMessage ? new Date(b.latestMessage.created_at).getTime()
-                               : new Date(b.last_message_at || 0).getTime();
+    const aT = a.latestMessage
+      ? new Date(a.latestMessage.created_date || a.latestMessage.created_at || 0).getTime()
+      : new Date(a.last_message_at || 0).getTime();
+    const bT = b.latestMessage
+      ? new Date(b.latestMessage.created_date || b.latestMessage.created_at || 0).getTime()
+      : new Date(b.last_message_at || 0).getTime();
     return bT - aT;
   });
 
@@ -120,21 +127,22 @@ export const listMyConversations = async (myEmail, limit = 50) => {
 /** List messages in a conversation, oldest first (chat reading order). */
 export const listMessages = async (conversationId, limit = 200) => {
   if (!conversationId) return [];
-  return msg().filter({ conversation_id: conversationId }, 'created_at', limit).catch(() => []);
+  return msg().filter({ conversation_id: conversationId }, 'created_date', limit).catch(() => []);
 };
 
 /**
- * Send a message. Updates the conversation's last_message_at and preview.
+ * Send a message. Writes `body` (primary) + `content` (mirror) so both old
+ * and new queries work. Updates conversation's last_message_at and preview.
  */
-export const sendMessage = async ({ conversationId, senderEmail, body }) => {
+export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body }) => {
   if (!conversationId || !senderEmail || !body) return null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
-    content: body,
-    read_by: [],
+    ...(recipientEmail ? { recipient_email: recipientEmail } : {}),
+    body,
+    content: body, // keep content in sync for queries that use either column
   });
-  // Bump conversation activity timestamp + preview
   try {
     await conv().update(conversationId, {
       last_message_at: new Date().toISOString(),
@@ -146,7 +154,8 @@ export const sendMessage = async ({ conversationId, senderEmail, body }) => {
 
 /**
  * Mark all unread incoming messages in a conversation as read.
- * Appends myEmail to the read_by array for each unread message.
+ * Filters by conversation only (not recipient_email) so old messages without
+ * that column set are still picked up. Sets read_at timestamp.
  */
 export const markRead = async (conversationId, myEmail) => {
   if (!conversationId || !myEmail) return;
@@ -155,41 +164,42 @@ export const markRead = async (conversationId, myEmail) => {
   // Fetch all messages in the conversation (RLS limits to participants)
   const all = await msg().filter(
     { conversation_id: conversationId },
-    '-created_at', 200
+    '-created_date', 300
   ).catch(() => []);
 
-  // Only mark messages sent by others that I haven't read yet
+  // Only mark incoming messages that haven't been read yet
   const unread = all.filter(m =>
-    m.sender_email?.toLowerCase() !== myEmailLc &&
-    !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
+    m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
   );
 
+  const now = new Date().toISOString();
   await Promise.all(
     unread.map(m =>
-      msg().update(m.id, {
-        read_by: [...(m.read_by || []), myEmail],
-      }).catch(() => {})
+      msg().update(m.id, { read_at: now }).catch(() => {})
     )
   );
 };
 
-/** Total unread message count for inbox badge. */
+/**
+ * Total unread message count for inbox badge.
+ * Uses read_at (null = unread) and sender_email to exclude own messages.
+ * RLS ensures only messages in the user's conversations are returned.
+ */
 export const unreadCountFor = async (myEmail) => {
   if (!myEmail) return 0;
   const myEmailLc = myEmail.toLowerCase();
-  // RLS ensures we only see messages in our conversations
-  const recent = await msg().filter({}, '-created_at', 500).catch(() => []);
+  // RLS scopes this to only conversations the user participates in
+  const recent = await msg().filter({}, '-created_date', 500).catch(() => []);
   return recent.filter(m =>
-    m.sender_email?.toLowerCase() !== myEmailLc &&
-    !(m.read_by || []).some(e => e?.toLowerCase() === myEmailLc)
+    m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
   ).length;
 };
 
 /** Cascade-delete all messages and conversations involving a user. */
 export const purgeForUser = async (email) => {
   if (!email) return;
-  const sentMessages = await msg().filter({ sender_email: email }, '-created_at', 1000).catch(() => []);
+  const sentMessages = await msg().filter({ sender_email: email }, '-created_date', 1000).catch(() => []);
   await Promise.all(sentMessages.map(m => msg().delete(m.id).catch(() => {})));
-  const myConvs = await conv().filter({}, '-created_at', 500).catch(() => []);
+  const myConvs = await conv().filter({}, '-created_date', 500).catch(() => []);
   await Promise.all(myConvs.map(c => conv().delete(c.id).catch(() => {})));
 };
