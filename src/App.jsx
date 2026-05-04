@@ -18,6 +18,7 @@ import { DistanceUnitProvider } from '@/lib/DistanceUnitContext';
 import { RestTimerProvider } from '@/lib/RestTimerContext';
 import RestTimerOverlay from '@/components/RestTimerOverlay';
 import LevelUpManager from '@/components/LevelUpManager';
+import ThemeAnimationLayer from '@/components/ThemeAnimationLayer';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
 import Splash from './pages/Splash';
@@ -100,6 +101,7 @@ const AuthenticatedApp = () => {
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
+      <ThemeAnimationLayer />
       <RestTimerOverlay />
       <LevelUpManager />
     </>

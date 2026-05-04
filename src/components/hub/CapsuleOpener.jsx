@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { ITEMS, RARITY, rollCapsule, rollVariant, VARIANTS } from '@/lib/lootCatalog';
+import { rollLootTheme, getLootThemeById } from '@/lib/lootThemes';
 import StickerDisplay from './StickerDisplay';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -168,6 +169,26 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   // ── Trigger spin ────────────────────────────────────────────────────────────
   const handleOpen = useCallback(() => {
     const capsuleType = capsule?.capsule_type ?? 'standard';
+
+    // Check for a theme drop first (rare; returns null most of the time).
+    const themeItem = rollLootTheme(capsuleType);
+    if (themeItem) {
+      // Theme wins override the normal sticker roll.
+      // Build a reel with a generic "theme" placeholder at the win position.
+      const themePlaceholder = {
+        id: themeItem.id,
+        emoji: themeItem.emoji,
+        name: themeItem.name,
+        rarity: themeItem.rarity,
+        type: 'theme',
+      };
+      const cards = buildReel(themePlaceholder);
+      setWonItem(themeItem);
+      setReel(cards);
+      setPhase('spinning');
+      return;
+    }
+
     const won  = rollCapsule(capsuleType);
     const variant = rollVariant(capsuleType);
     const wonWithVariant = { ...won, variant };
@@ -307,89 +328,139 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
           )}
 
           {/* ── REVEALING ──────────────────────────────────────────────────── */}
-          {phase === 'revealing' && wonItem && (
-            <motion.div
-              key="revealing"
-              className="flex flex-col items-center py-10 px-6 gap-6 relative"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              {/* Rarity radial glow */}
-              <div
-                className="absolute inset-0 pointer-events-none"
-                style={{
-                  background: `radial-gradient(ellipse 60% 55% at 50% 45%, ${rarityConfig.color}22, transparent 70%)`,
-                }}
-              />
-
+          {phase === 'revealing' && wonItem && (() => {
+            const isThemeDrop = wonItem.type === 'theme';
+            const lootTheme   = isThemeDrop ? getLootThemeById(wonItem.id) : null;
+            return (
               <motion.div
-                className={[
-                  'relative flex flex-col items-center justify-center rounded-2xl border-2',
-                  cardStyle.border, cardStyle.glow, 'bg-[#0f0f2a] shadow-2xl',
-                ].join(' ')}
-                style={{ width: 180, height: 200 }}
-                initial={{ scale: 0.4, opacity: 0, rotate: -6 }}
-                animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-              >
-                {wonItem.rarity === 'animated' && (
-                  <motion.div
-                    className="absolute inset-0 rounded-2xl"
-                    animate={{ opacity: [0.3, 0.7, 0.3] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                    style={{ background: `linear-gradient(135deg, ${rarityConfig.color}33, transparent, ${rarityConfig.color}33)` }}
-                  />
-                )}
-                <div className="mb-3 relative z-10">
-                  <StickerDisplay emoji={wonItem.emoji} variant={wonItem.variant} size={80} />
-                </div>
-                <span className="text-white font-bold text-base relative z-10">{wonItem.name}</span>
-              </motion.div>
-
-              <motion.div
-                className="flex flex-col items-center gap-2"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.35 }}
-              >
-                <span
-                  className="px-3 py-1 rounded-full text-sm font-bold border"
-                  style={{ color: rarityConfig.color, borderColor: rarityConfig.color, background: `${rarityConfig.color}18` }}
-                >
-                  {rarityConfig.label}
-                </span>
-                {wonItem.variant && (
-                  <span
-                    className="px-2 py-0.5 rounded-full text-xs font-bold border"
-                    style={{
-                      color: VARIANTS[wonItem.variant]?.color ?? '#fff',
-                      borderColor: VARIANTS[wonItem.variant]?.color ?? '#fff',
-                      background: `${VARIANTS[wonItem.variant]?.color ?? '#fff'}18`,
-                    }}
-                  >
-                    {VARIANTS[wonItem.variant]?.badge ?? wonItem.variant}
-                  </span>
-                )}
-                <p className="text-gray-400 text-sm text-center max-w-xs">{wonItem.description}</p>
-              </motion.div>
-
-              <motion.button
-                whileHover={{ scale: 1.04 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={handleClaim}
-                className="px-8 py-3 rounded-xl font-bold text-base text-white shadow-lg transition-shadow"
-                style={{
-                  background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
-                  boxShadow: `0 4px 24px ${rarityConfig.color}44`,
-                }}
+                key="revealing"
+                className="flex flex-col items-center py-10 px-6 gap-6 relative"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.5 }}
               >
-                Claim!
-              </motion.button>
-            </motion.div>
-          )}
+                {/* Rarity radial glow */}
+                <div
+                  className="absolute inset-0 pointer-events-none"
+                  style={{
+                    background: `radial-gradient(ellipse 60% 55% at 50% 45%, ${rarityConfig.color}22, transparent 70%)`,
+                  }}
+                />
+
+                {isThemeDrop && lootTheme ? (
+                  /* ── Theme reveal card ── */
+                  <motion.div
+                    className="relative flex flex-col items-center justify-center rounded-2xl border-2 bg-[#0f0f2a] shadow-2xl overflow-hidden"
+                    style={{
+                      width: 200, height: 220,
+                      borderColor: rarityConfig.color,
+                      boxShadow: `0 0 40px ${rarityConfig.color}55`,
+                    }}
+                    initial={{ scale: 0.4, opacity: 0, rotate: -6 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  >
+                    {/* Animated shimmer for epic/legendary */}
+                    {(wonItem.rarity === 'epic' || wonItem.rarity === 'legendary') && (
+                      <motion.div
+                        className="absolute inset-0 z-0"
+                        animate={{ opacity: [0.4, 0.8, 0.4] }}
+                        transition={{ duration: 2, repeat: Infinity }}
+                        style={{ background: `linear-gradient(135deg, ${rarityConfig.color}25, transparent 50%, ${rarityConfig.color}25)` }}
+                      />
+                    )}
+                    <span className="relative z-10 text-5xl mb-2">{lootTheme.emoji}</span>
+                    {/* Color preview swatches */}
+                    <div className="relative z-10 flex gap-2 mb-3">
+                      {lootTheme.preview.map((hex, i) => (
+                        <div key={i} className="w-8 h-8 rounded-full ring-2 ring-white/20 shadow-lg"
+                          style={{ backgroundColor: hex }} />
+                      ))}
+                    </div>
+                    <span className="relative z-10 text-white font-bold text-base text-center px-3">{lootTheme.name}</span>
+                    {lootTheme.animated && (
+                      <span className="relative z-10 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
+                        style={{ background: `${rarityConfig.color}30`, color: rarityConfig.color, border: `1px solid ${rarityConfig.color}60` }}>
+                        Animated
+                      </span>
+                    )}
+                    <div className="relative z-10 mt-2 flex items-center justify-center">
+                      <span className="text-[9px] font-semibold uppercase tracking-widest" style={{ color: rarityConfig.color }}>
+                        Theme Drop
+                      </span>
+                    </div>
+                  </motion.div>
+                ) : (
+                  /* ── Sticker reveal card ── */
+                  <motion.div
+                    className={[
+                      'relative flex flex-col items-center justify-center rounded-2xl border-2',
+                      cardStyle.border, cardStyle.glow, 'bg-[#0f0f2a] shadow-2xl',
+                    ].join(' ')}
+                    style={{ width: 180, height: 200 }}
+                    initial={{ scale: 0.4, opacity: 0, rotate: -6 }}
+                    animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+                  >
+                    {wonItem.rarity === 'animated' && (
+                      <motion.div
+                        className="absolute inset-0 rounded-2xl"
+                        animate={{ opacity: [0.3, 0.7, 0.3] }}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                        style={{ background: `linear-gradient(135deg, ${rarityConfig.color}33, transparent, ${rarityConfig.color}33)` }}
+                      />
+                    )}
+                    <div className="mb-3 relative z-10">
+                      <StickerDisplay emoji={wonItem.emoji} variant={wonItem.variant} size={80} />
+                    </div>
+                    <span className="text-white font-bold text-base relative z-10">{wonItem.name}</span>
+                  </motion.div>
+                )}
+
+                <motion.div
+                  className="flex flex-col items-center gap-2"
+                  initial={{ opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                >
+                  <span
+                    className="px-3 py-1 rounded-full text-sm font-bold border"
+                    style={{ color: rarityConfig.color, borderColor: rarityConfig.color, background: `${rarityConfig.color}18` }}
+                  >
+                    {rarityConfig.label}
+                  </span>
+                  {wonItem.variant && !isThemeDrop && (
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-bold border"
+                      style={{
+                        color: VARIANTS[wonItem.variant]?.color ?? '#fff',
+                        borderColor: VARIANTS[wonItem.variant]?.color ?? '#fff',
+                        background: `${VARIANTS[wonItem.variant]?.color ?? '#fff'}18`,
+                      }}
+                    >
+                      {VARIANTS[wonItem.variant]?.badge ?? wonItem.variant}
+                    </span>
+                  )}
+                  <p className="text-gray-400 text-sm text-center max-w-xs">{wonItem.description}</p>
+                </motion.div>
+
+                <motion.button
+                  whileHover={{ scale: 1.04 }}
+                  whileTap={{ scale: 0.97 }}
+                  onClick={handleClaim}
+                  className="px-8 py-3 rounded-xl font-bold text-base text-white shadow-lg transition-shadow"
+                  style={{
+                    background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
+                    boxShadow: `0 4px 24px ${rarityConfig.color}44`,
+                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.5 }}
+                >
+                  {isThemeDrop ? 'Claim Theme!' : 'Claim!'}
+                </motion.button>
+              </motion.div>
+            );
+          })()}
 
           {/* ── CLAIMED ────────────────────────────────────────────────────── */}
           {phase === 'claimed' && wonItem && (
@@ -407,7 +478,11 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 🎉
               </motion.span>
               <p className="text-white font-bold text-lg">{wonItem.name} added to your bag!</p>
-              <p className="text-gray-400 text-sm">Check your inventory to see it.</p>
+              <p className="text-gray-400 text-sm">
+                {wonItem.type === 'theme'
+                  ? 'Apply it from the Themes tab in your bag.'
+                  : 'Check your inventory to see it.'}
+              </p>
               <button
                 onClick={onClose}
                 className="mt-2 px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"

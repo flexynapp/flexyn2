@@ -86,12 +86,19 @@ export default function Hub() {
     setOpeningCapsule(capsuleRow);
   };
 
-  // After capsule animation: save item to inventory, invalidate caches
+  // After capsule animation: mark capsule opened, save item to inventory, invalidate caches
   const handleCapsuleClaim = async (wonItem) => {
+    const capsuleId = openingCapsule?.id;
     setOpeningCapsule(null);
     if (!wonItem || !user?.email) return;
     try {
-      await inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule');
+      // Mark the capsule row as opened (in parallel with adding the item)
+      const saveOps = [
+        inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule'),
+      ];
+      if (capsuleId) saveOps.push(capsules.openCapsule(capsuleId));
+      await Promise.all(saveOps);
+
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });

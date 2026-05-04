@@ -9,10 +9,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Package, Sparkles, Palette, ShoppingBag, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/api/supabaseClient';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
 import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
+import { getLootThemeById } from '@/lib/lootThemes';
 import StickerDisplay from './StickerDisplay';
 
 // Sell price is half the hidden base value, rounded down.
@@ -144,20 +146,50 @@ function StickerGroupCard({ group, onSell, selling }) {
   );
 }
 
-// ─── Theme card (no sell for themes) ─────────────────────────────────────────
-function ThemeCard({ item }) {
+// ─── Theme card ───────────────────────────────────────────────────────────────
+function ThemeCard({ item, activeLootThemeId, onApply }) {
   const rc = RARITY[item.item_rarity] ?? RARITY.common;
+  const lootTheme = getLootThemeById(item.item_id);
+  const isActive  = activeLootThemeId === item.item_id;
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={['relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center', rc.borderClass].join(' ')}
+      className={[
+        'relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center transition-all',
+        isActive ? 'border-purple-400 shadow-lg shadow-purple-500/20' : rc.borderClass,
+      ].join(' ')}
     >
-      <span className="text-5xl leading-none">{item.item_emoji}</span>
+      {/* Preview swatches */}
+      {lootTheme?.preview && (
+        <div className="flex gap-1.5 justify-center mb-0.5">
+          {lootTheme.preview.map((hex, i) => (
+            <div key={i} className="w-5 h-5 rounded-full ring-1 ring-white/20"
+              style={{ backgroundColor: hex }} />
+          ))}
+        </div>
+      )}
+      <span className="text-4xl leading-none">{item.item_emoji}</span>
       <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
-      <span className="text-gray-500 text-[10px] font-medium">In Bag</span>
+      {lootTheme?.animated && (
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 uppercase tracking-wider">
+          Animated
+        </span>
+      )}
+      <button
+        onClick={() => onApply(item.item_id)}
+        className={[
+          'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
+          isActive
+            ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
+            : 'bg-purple-600/70 text-white hover:bg-purple-500/80',
+        ].join(' ')}
+      >
+        {isActive ? '✓ Active' : 'Apply'}
+      </button>
     </motion.div>
   );
 }
@@ -175,9 +207,21 @@ function EmptyState({ icon: Icon, label }) {
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function UserBag({ open, onClose, onOpenCapsule }) {
   const { user } = useAuth();
+  const { lootThemeId, setLootThemeId } = useTheme();
   const qc = useQueryClient();
   const [activeTab, setActiveTab] = useState('capsules');
   const [selling, setSelling] = useState(false);
+
+  const handleApplyTheme = useCallback((itemId) => {
+    if (lootThemeId === itemId) {
+      // Tap again to deactivate
+      setLootThemeId(null);
+      toast('Theme removed — base theme restored.');
+    } else {
+      setLootThemeId(itemId);
+      toast('🎨 Theme applied!');
+    }
+  }, [lootThemeId, setLootThemeId]);
 
   // Capsules live in user_capsules (separate from inventory)
   const { data: capsuleRows = [], isLoading: capsLoading } = useQuery({
@@ -356,7 +400,14 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 <EmptyState icon={Palette} label="No themes yet — open Elite capsules!" />
               ) : (
                 <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {themes.map(item => <ThemeCard key={item.id} item={item} />)}
+                  {themes.map(item => (
+                    <ThemeCard
+                      key={item.id}
+                      item={item}
+                      activeLootThemeId={lootThemeId}
+                      onApply={handleApplyTheme}
+                    />
+                  ))}
                 </motion.div>
               )
             )}

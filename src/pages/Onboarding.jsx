@@ -12,6 +12,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { base44 } from '@/api/base44Client';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
+import { grantWelcomeCapsule } from '@/lib/data/capsules';
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -1834,6 +1835,10 @@ export default function Onboarding() {
       setWeightUnit(weightUnit);
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
+      // Grant starter capsule for brand-new users (idempotent — skips if they already have one).
+      if (user?.id && user?.email) {
+        grantWelcomeCapsule(user.id, user.email).catch(() => {});
+      }
     } catch (err) {
       console.error('Full profile save failed, trying minimal save:', err);
       // Fallback: save only the columns guaranteed to exist (username is in migration 001).

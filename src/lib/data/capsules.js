@@ -108,3 +108,14 @@ export async function countCapsules(userEmail) {
   if (error) throw error;
   return count ?? 0;
 }
+
+/**
+ * Grant a welcome (standard) capsule to new users who have none.
+ * Idempotent — skips the insert if the user already has at least one capsule.
+ */
+export async function grantWelcomeCapsule(userId, userEmail) {
+  if (!userId || !userEmail) return;
+  const existing = await countCapsules(userEmail);
+  if (existing > 0) return; // already has capsules — nothing to do
+  await _grantCapsule(userId, userEmail, 'standard');
+}

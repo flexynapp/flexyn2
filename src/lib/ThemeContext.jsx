@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { base44 } from '@/api/base44Client';
+import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 
 export const THEMES = [
   {
@@ -166,10 +167,23 @@ export const THEMES = [
 
 const ThemeContext = createContext(null);
 
+/** Apply CSS custom-property vars from a theme object to :root */
+function applyVars(vars) {
+  if (!vars) return;
+  const root = document.documentElement;
+  Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+}
+
 export function ThemeProvider({ children }) {
   const [themeId, setThemeIdState] = useState(() => {
     try { return localStorage.getItem('fn-theme') || 'orange-slate'; } catch { return 'orange-slate'; }
   });
+
+  // Loot theme id (null = no loot theme active, a base level-up theme is active instead)
+  const [lootThemeId, setLootThemeIdState] = useState(() => {
+    try { return localStorage.getItem('fn-loot-theme') || null; } catch { return null; }
+  });
+
   const [darkMode, setDarkModeState] = useState(() => {
     try {
       const saved = localStorage.getItem('fn-dark-mode');
@@ -177,6 +191,10 @@ export function ThemeProvider({ children }) {
     } catch {}
     return false;
   });
+
+  // Derive the active animation id from the current loot theme (null if none)
+  const lootTheme = lootThemeId ? getLootThemeById(lootThemeId) : null;
+  const activeAnimation = lootTheme?.animation ?? null;
 
   // Hydrate from server user on mount
   useEffect(() => {
@@ -193,18 +211,26 @@ export function ThemeProvider({ children }) {
           setDarkModeState(me.dark_mode);
           try { localStorage.setItem('fn-dark-mode', String(me.dark_mode)); } catch {}
         }
+        // Restore loot theme from server if stored there
+        if (me?.loot_theme_id) {
+          setLootThemeIdState(me.loot_theme_id);
+          try { localStorage.setItem('fn-loot-theme', me.loot_theme_id); } catch {}
+        }
       } catch {}
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // Apply theme vars to CSS + persist localStorage
+  // Apply theme vars — loot theme overrides base theme when active
   useEffect(() => {
-    const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
-    const root = document.documentElement;
-    Object.entries(theme.vars).forEach(([k, v]) => root.style.setProperty(k, v));
+    if (lootTheme) {
+      applyVars(lootTheme.vars);
+    } else {
+      const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
+      applyVars(theme.vars);
+    }
     try { localStorage.setItem('fn-theme', themeId); } catch {}
-  }, [themeId]);
+  }, [themeId, lootThemeId]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -212,8 +238,24 @@ export function ThemeProvider({ children }) {
   }, [darkMode]);
 
   const setThemeId = useCallback((id) => {
+    // Switching a level-up theme clears the loot theme
     setThemeIdState(id);
-    try { base44.auth.updateMe({ preferred_theme: id }).catch(() => {}); } catch {}
+    setLootThemeIdState(null);
+    try { localStorage.removeItem('fn-loot-theme'); } catch {}
+    try { base44.auth.updateMe({ preferred_theme: id, loot_theme_id: null }).catch(() => {}); } catch {}
+  }, []);
+
+  const setLootThemeId = useCallback((id) => {
+    setLootThemeIdState(id);
+    try {
+      if (id) {
+        localStorage.setItem('fn-loot-theme', id);
+        base44.auth.updateMe({ loot_theme_id: id }).catch(() => {});
+      } else {
+        localStorage.removeItem('fn-loot-theme');
+        base44.auth.updateMe({ loot_theme_id: null }).catch(() => {});
+      }
+    } catch {}
   }, []);
 
   const setDarkMode = useCallback((val) => {
@@ -222,7 +264,15 @@ export function ThemeProvider({ children }) {
   }, []);
 
   return (
-    <ThemeContext.Provider value={{ themeId, setThemeId, darkMode, setDarkMode }}>
+    <ThemeContext.Provider value={{
+      themeId,
+      setThemeId,
+      lootThemeId,
+      setLootThemeId,
+      activeAnimation,
+      darkMode,
+      setDarkMode,
+    }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -42,10 +42,18 @@ export default function LevelUpManager() {
       if (raw !== null) lastSeenLevel = Number(raw);
     } catch {}
 
-    // First time on this device — baseline silently.
+    // First time on this device — baseline silently, then ensure welcome capsule.
     if (lastSeenLevel === null || Number.isNaN(lastSeenLevel)) {
       try { localStorage.setItem(storageKey, String(currentLevel)); } catch {}
       lastFiredForRef.current = currentLevel;
+      // Grant a starter capsule if the user has never received one.
+      capsules
+        .grantWelcomeCapsule(userProfile.id, user.email)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+          queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+        })
+        .catch((err) => console.warn('[LevelUpManager] welcome capsule grant failed:', err));
       return;
     }
 
