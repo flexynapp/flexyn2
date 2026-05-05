@@ -42,5 +42,6 @@ export const resetForDeletion = () => base44.auth.updateMe({
   state_code: null,
   avatar_url: null,
   onboarding_complete: false,
+  onboarding_completed_at: null,
   account_reset_at: new Date().toISOString(),
 });

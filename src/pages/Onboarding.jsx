@@ -1927,8 +1927,9 @@ export default function Onboarding() {
       weight_kg:    s.weightUnit === 'kg' ? String(s.weightKg) : String(Math.round(s.weightLb * 0.453592)),
       weight_lbs:   s.weightUnit === 'lb' ? String(s.weightLb) : String(Math.round(s.weightKg / 0.453592)),
       weight_unit:  weightUnit,
-      onboarding_complete:   true,
-      onboarding_completed:  true,
+      onboarding_complete:      true,
+      onboarding_completed:     true,
+      onboarding_completed_at:  new Date().toISOString(),
     };
 
     let saved = false;
@@ -1948,8 +1949,9 @@ export default function Onboarding() {
       // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
       try {
         await base44.auth.updateMe({
-          username:            data.username.trim(),
-          onboarding_completed: true,
+          username:                data.username.trim(),
+          onboarding_completed:    true,
+          onboarding_completed_at: new Date().toISOString(),
         });
         setWeightUnit(weightUnit);
         markReturningUser();

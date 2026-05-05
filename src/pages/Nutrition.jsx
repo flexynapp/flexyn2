@@ -8,6 +8,7 @@ import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { Plus, Barcode, Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -104,11 +105,13 @@ export default function Nutrition() {
     setShowGoalsOnboarding(true);
   };
 
-  const { data: rawLogs = [] } = useQuery({
+  const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
     queryFn: () => base44.entities.NutritionLog.filter({ created_by: user.email, date }),
     enabled: !!user?.email
   });
+  // Also wait for the profile so macro goals render correctly on first paint
+  const isLoading = logsLoading || (!!user?.email && Object.keys(userProfile).length === 0);
 
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
 
@@ -353,6 +356,19 @@ export default function Nutrition() {
           {format(new Date(), 'EEEE, MMMM d')}
         </p>
       </div>
+
+      {/* Loading skeleton — shown while logs + profile are fetching on first render */}
+      {isLoading && (
+        <div className="space-y-4 mb-6">
+          <div className="flex gap-3">
+            <Skeleton className="h-28 flex-1 rounded-xl" />
+            <Skeleton className="h-28 flex-1 rounded-xl" />
+            <Skeleton className="h-28 flex-1 rounded-xl" />
+          </div>
+          <Skeleton className="h-40 rounded-xl" />
+          <Skeleton className="h-24 rounded-xl" />
+        </div>
+      )}
 
       {/* Barcode scanner modal */}
       {showScanner && (

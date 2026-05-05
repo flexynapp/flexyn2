@@ -15,6 +15,7 @@
  */
 
 import React from 'react';
+import * as Sentry from '@sentry/react';
 
 export default class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -34,6 +35,13 @@ export default class ErrorBoundary extends React.Component {
       '\nComponent stack:',
       info.componentStack
     );
+    // Forward to Sentry (no-ops gracefully when Sentry is not configured)
+    Sentry.captureException(error, {
+      contexts: {
+        react: { componentStack: info.componentStack },
+        boundary: { label: this.props.label || 'unknown' },
+      },
+    });
   }
 
   render() {
