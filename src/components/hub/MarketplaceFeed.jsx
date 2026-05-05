@@ -554,7 +554,7 @@ export default function MarketplaceFeed() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2">
           <ShoppingBag className="w-5 h-5 text-purple-400" />
-          <h2 className="text-white font-bold text-lg">Marketplace</h2>
+          <h2 className="text-foreground font-bold text-lg">Marketplace</h2>
           <button
             onClick={() => refetch()}
             className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
