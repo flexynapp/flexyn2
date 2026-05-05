@@ -31,3 +31,6 @@ export * as hubMessages from './hubMessages';
 export * as capsules from './capsules';
 export * as inventory from './inventory';
 export * as marketplace from './marketplace';
+export * as quests from './quests';
+export * as loginStreak from './loginStreak';
+export * as coinShop from './coinShop';

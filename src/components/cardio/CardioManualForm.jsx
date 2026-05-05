@@ -13,6 +13,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { base44 } from '@/api/base44Client';
 import { toMeters, metersTo, formatPace, speedKmhFrom, paceSecPerKmFrom } from '@/lib/distanceUnit';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { checkCardioSpeed, getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
@@ -148,6 +150,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         gps_track: null,
       };
 
+      let prCount = 0;
       if (initial?.id) {
         await base44.entities.CardioLog.update(initial.id, payload);
       } else {
@@ -176,6 +179,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         );
         const priorOnly = prior.filter(l => l.id !== createdLog.id);
         const prs = detectNewPRs(createdLog, priorOnly);
+        prCount = prs.length;
         for (const pr of prs) {
           const label = PR_LABELS[pr.distance];
           toast.success(t('cardio.pr.title').replace('{label}', label), {
@@ -188,6 +192,17 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
+
+      // Quest progress — non-blocking
+      const durSec = Number(payload.duration_seconds) || 0;
+      Promise.all([
+        quests.recordAction(user, ACTION_TYPES.CARDIO_COMPLETED, 1),
+        durSec > 0 ? quests.recordAction(user, ACTION_TYPES.CARDIO_SECONDS, durSec) : null,
+        prCount > 0 ? quests.recordAction(user, ACTION_TYPES.PR_ACHIEVED, prCount) : null,
+      ].filter(Boolean))
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
       onSaved();
     } catch (err) {
       console.error(err);

@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import * as goalsData from '@/lib/data/goals';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -104,6 +106,10 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
       toast.success(t('goals.toast.completed').replace('{xp}', xpReward));
+      // Quest progress — non-blocking
+      quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
     },
     onError: (err) => {
       console.error('[Goals] complete failed:', err);

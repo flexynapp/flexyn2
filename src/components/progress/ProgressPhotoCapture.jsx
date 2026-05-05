@@ -5,6 +5,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { useQueryClient } from '@tanstack/react-query';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 
 const STORAGE_KEY = 'flexyn_progress_photos';
 
@@ -41,6 +45,8 @@ export function deleteProgressPhoto(id) {
 // Main component
 export default function ProgressPhotoCapture({ workoutName }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [promptOpen, setPromptOpen] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState(null);
@@ -109,6 +115,10 @@ export default function ProgressPhotoCapture({ workoutName }) {
     toast.success(t('photos.savedToast'), {
       description: t('photos.savedToastDesc'),
     });
+    // Quest progress — non-blocking
+    quests.recordAction(user, ACTION_TYPES.PROGRESS_PHOTO, 1)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+      .catch(() => {});
     closeCamera();
   };
 

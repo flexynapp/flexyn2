@@ -23,6 +23,8 @@ import { useProfanityGuard } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from '@/lib/data/hubPosts';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as workouts from '@/lib/data/workouts';
 import * as cardio from '@/lib/data/cardio';
 import * as nutrition from '@/lib/data/nutrition';
@@ -441,6 +443,12 @@ export default function HubComposer({ onClose }) {
 
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
       toast.success(t('hub.composer.posted'));
+
+      // Quest progress — non-blocking
+      quests.recordAction(user, ACTION_TYPES.HUB_POST, 1)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
       onClose();
     } catch (err) {
       console.error(err);

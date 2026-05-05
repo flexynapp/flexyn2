@@ -30,6 +30,8 @@ import RegimensSection from '@/components/workout/RegimensSection';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 
@@ -218,6 +220,15 @@ export default function Workout() {
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       // Refetch achievements so the modal reflects newly unlocked ones immediately
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
+
+      // Quest progress — non-blocking, fire-and-forget
+      const durationMin = Number(data.duration_minutes) || 0;
+      Promise.all([
+        quests.recordAction(user, ACTION_TYPES.WORKOUT_COMPLETED, 1),
+        durationMin > 0 ? quests.recordAction(user, ACTION_TYPES.WORKOUT_MINUTES, durationMin) : null,
+      ].filter(Boolean))
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] }),
   });

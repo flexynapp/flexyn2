@@ -22,6 +22,8 @@ import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { base44 } from '@/api/base44Client';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import {
   speak, stopSpeaking, buildMilestoneText, buildStartText,
   buildPauseText, buildResumeText, buildFinishText, spokenDuration,
@@ -440,6 +442,18 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
+
+      // Quest progress — non-blocking
+      const durSec = Number(payload.duration_seconds) || 0;
+      const _user = user;
+      Promise.all([
+        quests.recordAction(_user, ACTION_TYPES.CARDIO_COMPLETED, 1),
+        durSec > 0 ? quests.recordAction(_user, ACTION_TYPES.CARDIO_SECONDS, durSec) : null,
+        prs.length > 0 ? quests.recordAction(_user, ACTION_TYPES.PR_ACHIEVED, prs.length) : null,
+      ].filter(Boolean))
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
       onSaved();
     } catch {
       toast.error(t('cardio.saveFailed'));

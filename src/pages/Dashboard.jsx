@@ -11,6 +11,8 @@ import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import DailyQuote from '@/components/dashboard/DailyQuote';
+import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
+import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -470,6 +472,21 @@ export default function Dashboard() {
       <div className="mb-5 md:mb-6">
         <DailyQuote />
       </div>
+
+      {/* ── Login streak banner ─────────────────────────────────── */}
+      <div className="mb-3">
+        <LoginStreakBanner />
+      </div>
+
+      {/* ── Daily quests card ───────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        className="mb-5 md:mb-6"
+      >
+        <DailyQuestsCard />
+      </motion.div>
 
       {/* ── Goals row ─────────────────────────────────────────── */}
       <div className="mb-5 md:mb-6">

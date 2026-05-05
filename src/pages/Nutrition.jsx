@@ -9,6 +9,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 import { toast } from 'sonner';
 import { Plus, Barcode, Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -137,9 +139,16 @@ export default function Nutrition() {
         }).catch(() => {});
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         toast.success(t('nutrition.toast.waterLogged'));
+        // Quest progress — count one quest "tick" per logged glass entry
+        quests.recordAction(user, ACTION_TYPES.WATER_LOGGED, 1)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+          .catch(() => {});
       } else {
         setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
         toast.success(t('nutrition.toast.mealLogged'));
+        quests.recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1)
+          .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+          .catch(() => {});
       }
     },
     onError: (err) => {

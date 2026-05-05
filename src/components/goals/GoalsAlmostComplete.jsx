@@ -11,6 +11,8 @@ import GoalProgressBar from './GoalProgressBar';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
+import * as quests from '@/lib/data/quests';
+import { ACTION_TYPES } from '@/lib/questCatalog';
 
 export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, compact = false, onClick }) {
   const { t } = useLanguage();
@@ -103,6 +105,10 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
     onSuccess: (_, id) => {
       setDismissedIds(prev => [...prev, id]);
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
+      // Quest progress — non-blocking
+      quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
     },
     onError: (err, id) => {
       if (err?.message === 'not_complete') {
