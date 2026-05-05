@@ -24,7 +24,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterDropdown from '@/components/progress/FilterDropdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
-import AchievementsModal from '@/components/progress/AchievementsModal';
+import AchievementsTab from '@/components/progress/AchievementsTab';
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import LevelBar from '@/components/LevelBar';
 import PageHeader from '@/components/PageHeader';
@@ -343,11 +343,11 @@ export default function Progress() {
     { id: 'analytics', label: t('progress.tabs.analytics') },
     { id: 'body', label: t('progress.tabs.body') },
     { id: 'photos', label: t('progress.tabs.photos') },
+    { id: 'achievements', label: t('progress.achievements') },
   ];
   const [activeTab, setActiveTab] = useState('trends');
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen] = useState(false);
-  const [achievementsModalOpen, setAchievementsModalOpen] = useState(false);
   const [selectedRegimen, setSelectedRegimen] = useState('all');
   const [timeRange, setTimeRange] = useState('90');
   const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
@@ -457,18 +457,6 @@ export default function Progress() {
         title={t('progress.title')}
         hidePeriod
         subtitle={t('progress.subtitle')}
-        action={
-          <motion.div whileHover={{ y: -1 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              onClick={() => setAchievementsModalOpen(true)}
-              variant="outline"
-              className="gap-2 border-primary/30 text-foreground hover:border-primary hover:bg-primary/5 hover:text-foreground"
-            >
-              <Award className="w-4 h-4 text-primary" />
-              <span className="font-semibold">{t('progress.achievements')}</span>
-            </Button>
-          </motion.div>
-        }
       />
 
       {/* Weekly Cardio Summary */}
@@ -596,6 +584,12 @@ export default function Progress() {
                   <ProgressPhotosTab />
                 </ErrorBoundary>
               </div>
+            ) : activeTab === 'achievements' ? (
+              <div>
+                <ErrorBoundary label="Achievements">
+                  <AchievementsTab achievements={achievements} />
+                </ErrorBoundary>
+              </div>
             ) : (
               /* Exercise Trends Tab */
               <ErrorBoundary label="ExerciseTrends">
@@ -691,7 +685,6 @@ export default function Progress() {
       <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} />
 
       {/* Achievements Modal */}
-      <AchievementsModal open={achievementsModalOpen} onClose={() => setAchievementsModalOpen(false)} achievements={achievements} user={user} />
 
       {/* Sticky Tab Navigation */}
       {showStickyNav && (

@@ -1,7 +1,7 @@
 // src/pages/Hub.jsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store } from 'lucide-react';
+import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store, Trophy } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +16,7 @@ import MarketplaceFeed from '@/components/hub/MarketplaceFeed';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
+import LeaderboardsContent from '@/components/LeaderboardsContent';
 import { toast } from 'sonner';
 
 export default function Hub() {
@@ -280,6 +281,18 @@ export default function Hub() {
                 <Store className="w-4 h-4" />
                 Market
               </button>
+              <button
+                type="button"
+                onClick={() => setFeedTab('leaderboards')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-colors ${
+                  feedTab === 'leaderboards'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Trophy className="w-4 h-4" />
+                Ranks
+              </button>
             </div>
           )}
         </div>
@@ -294,7 +307,7 @@ export default function Hub() {
           exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          {section === 'feed' && feedTab !== 'marketplace' && (
+          {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
             <HubFeed
               feedTab={feedTab}
               onAuthorClick={(authorObj) => {
@@ -308,6 +321,12 @@ export default function Hub() {
             <MarketplaceFeed
               onStartConversation={handleStartConversation}
             />
+          )}
+
+          {section === 'feed' && feedTab === 'leaderboards' && (
+            <div className="rounded-2xl overflow-hidden border border-border bg-card">
+              <LeaderboardsContent active={true} />
+            </div>
           )}
 
           {section === 'messages' && (
@@ -327,8 +346,8 @@ export default function Hub() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Mobile FAB */}
-      {section === 'feed' && feedTab !== 'marketplace' && (
+      {/* Mobile FAB — only on the post feeds (pump/squad), not marketplace or leaderboards */}
+      {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
           style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
