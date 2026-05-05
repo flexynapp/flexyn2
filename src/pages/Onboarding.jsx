@@ -833,19 +833,23 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
   const ref = useRef(null);
   const drag = useRef({ active: false, start: 0, startVal: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  // Callback ref prevents stale-closure issues without re-registering listeners
+
+  // Keep latest onChange and value accessible to native listeners without re-registering
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
 
+  // ── Pointer events (desktop + modern mobile) ──────────────────────────────
   const onPointerDown = useCallback((e) => {
+    // Only handle primary button / touch; ignore right-click
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     e.preventDefault();
-    // setPointerCapture routes all pointer events to this element even when the
-    // pointer moves outside — the correct cross-platform drag primitive on mobile.
     if (e.currentTarget.setPointerCapture) e.currentTarget.setPointerCapture(e.pointerId);
     const pos = axis === 'x' ? e.clientX : e.clientY;
-    drag.current = { active: true, start: pos, startVal: value };
+    drag.current = { active: true, start: pos, startVal: valueRef.current };
     setIsDragging(true);
-  }, [value, axis]);
+  }, [axis]);
 
   const onPointerMove = useCallback((e) => {
     if (!drag.current.active) return;
@@ -861,8 +865,63 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
     setIsDragging(false);
   }, []);
 
+  // ── Native touch listeners { passive: false } ─────────────────────────────
+  // React 17+ marks synthetic touch events as passive, so e.preventDefault()
+  // inside onTouchMove is silently ignored and the browser scrolls instead of
+  // dragging. Attaching native listeners bypasses this restriction.
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+
+    const handleTouchStart = (e) => {
+      e.preventDefault();
+      const t = e.touches[0];
+      const pos = axis === 'x' ? t.clientX : t.clientY;
+      drag.current = { active: true, start: pos, startVal: valueRef.current };
+      setIsDragging(true);
+    };
+
+    const handleTouchMove = (e) => {
+      e.preventDefault(); // stops page scroll while dragging the ruler
+      if (!drag.current.active) return;
+      const t = e.touches[0];
+      const pos = axis === 'x' ? t.clientX : t.clientY;
+      const delta = Math.round(-(pos - drag.current.start) / pxPerUnit) * stepSize;
+      const next = Math.min(max, Math.max(min, drag.current.startVal + delta));
+      onChangeRef.current(next);
+      if (navigator.vibrate) navigator.vibrate(1);
+    };
+
+    const handleTouchEnd = () => { drag.current.active = false; setIsDragging(false); };
+
+    el.addEventListener('touchstart',  handleTouchStart, { passive: false });
+    el.addEventListener('touchmove',   handleTouchMove,  { passive: false });
+    el.addEventListener('touchend',    handleTouchEnd);
+    el.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart',  handleTouchStart);
+      el.removeEventListener('touchmove',   handleTouchMove);
+      el.removeEventListener('touchend',    handleTouchEnd);
+      el.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  // Re-register when these change; value/onChange handled via refs above
+  }, [axis, pxPerUnit, stepSize, min, max]);
+
   return { ref, onPointerDown, onPointerMove, onPointerUp, isDragging };
 }
+
+// Shared style for the ±1 / ±5 nudge buttons on weight / height / age steps
+const nudgeBtnStyle = {
+  display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+  width: 40, height: 40, borderRadius: '50%',
+  border: '1.5px solid hsl(var(--border))',
+  background: 'hsl(var(--secondary))',
+  color: 'hsl(var(--foreground))',
+  fontFamily: 'ui-monospace, monospace', fontSize: 13, fontWeight: 700,
+  cursor: 'pointer', userSelect: 'none',
+  transition: 'background 0.15s, transform 0.1s',
+};
 
 /* ── Pill unit toggle (ft·in / cm, lb / kg) ── */
 function PillUnitToggle({ options, value, onChange }) {
@@ -916,6 +975,7 @@ function NumberReel({ value, digits = 2, size = 80 }) {
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const age = stats.age;
   const setAge = (v) => onChange({ ...stats, age: v });
+  const bumpAge = (dir) => setAge(Math.min(80, Math.max(14, age + dir)));
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
 
   const [trackW, setTrackW] = useState(300);
@@ -1050,8 +1110,16 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           </div>
           <div className="flex justify-between mt-1 px-1">
             <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">14</span>
-            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">DRAG TO SET</span>
+            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">DRAG OR USE BUTTONS</span>
             <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">80</span>
+          </div>
+          {/* ± Age nudge buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 12 }}>
+            <button onClick={() => bumpAge(-5)} style={nudgeBtnStyle}>−5</button>
+            <button onClick={() => bumpAge(-1)} style={nudgeBtnStyle}>−1</button>
+            <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 13, fontWeight: 700, color: 'hsl(var(--foreground))', minWidth: 48, textAlign: 'center' }}>{age} yrs</span>
+            <button onClick={() => bumpAge(+1)} style={nudgeBtnStyle}>+1</button>
+            <button onClick={() => bumpAge(+5)} style={nudgeBtnStyle}>+5</button>
           </div>
         </motion.div>
       </div>
@@ -1083,6 +1151,8 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const setValue = (v) => unit === 'cm'
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
     : onChange({ ...stats, heightIn: v, heightCm: cmFromIn(v) });
+
+  const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
@@ -1184,7 +1254,17 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
           </div>
         </div>
       </div>
-      <div className="pt-4 shrink-0">
+      {/* ± Fine-tune row for height */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, paddingTop: 8 }}>
+        <button onClick={() => bump(-5)} style={nudgeBtnStyle}>−5</button>
+        <button onClick={() => bump(-1)} style={nudgeBtnStyle}>−1</button>
+        <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', minWidth: 72, textAlign: 'center' }}>
+          {unit === 'cm' ? `${value} cm` : `${Math.floor(value/12)}'${value%12}"`}
+        </span>
+        <button onClick={() => bump(+1)} style={nudgeBtnStyle}>+1</button>
+        <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
+      </div>
+      <div className="pt-3 shrink-0">
         <PrimaryBtn onClick={onNext}>Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} /></PrimaryBtn>
       </div>
     </div>
@@ -1238,10 +1318,22 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
   const value = unit === 'kg' ? stats.weightKg : stats.weightLb;
   const range = unit === 'kg' ? [35, 180] : [80, 400];
-  const PX = unit === 'kg' ? 8 : 4;
+  const PX = unit === 'kg' ? 8 : 6; // increased from 4 → 6 for lb: easier to drag
   const setValue = (v) => unit === 'kg'
     ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v) })
     : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v) });
+
+  const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
+
+  // Tap-to-type: tapping the big number shows a native input
+  const [editingWeight, setEditingWeight] = useState(false);
+  const weightInputRef = useRef(null);
+  const handleWeightTap = () => { setEditingWeight(true); setTimeout(() => weightInputRef.current?.focus(), 30); };
+  const handleWeightInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!isNaN(v)) setValue(Math.min(range[1], Math.max(range[0], v)));
+  };
+  const handleWeightBlur = () => setEditingWeight(false);
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
 
@@ -1296,9 +1388,24 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
             <circle cx={100 + Math.cos((-90 + pct * 360) * Math.PI/180) * 82} cy={100 + Math.sin((-90 + pct * 360) * Math.PI/180) * 82} r="5" fill="hsl(var(--primary))" style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary)))', transition: isDragging ? 'none' : 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }} />
           </svg>
           <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
-            <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
-              <NumberReel value={value} digits={String(range[1]).length} size={64} />
-            </div>
+            {editingWeight ? (
+              <input
+                ref={weightInputRef}
+                type="number"
+                defaultValue={value}
+                min={range[0]}
+                max={range[1]}
+                onBlur={handleWeightBlur}
+                onChange={handleWeightInput}
+                style={{ width: 90, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
+              />
+            ) : (
+              <button onClick={handleWeightTap} style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}>
+                <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
+                  <NumberReel value={value} digits={String(range[1]).length} size={64} />
+                </div>
+              </button>
+            )}
             <div className="font-mono text-[11px] font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
             <div className="font-mono text-[9px] text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
           </div>
@@ -1324,6 +1431,15 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
             })}
           </div>
           <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', boxShadow: '0 0 10px hsl(var(--primary))', pointerEvents: 'none' }} />
+        </div>
+
+        {/* ± Fine-tune buttons — always reachable even if drag doesn't work */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginTop: 10 }}>
+          <button onClick={() => bump(-5)} style={nudgeBtnStyle}>−5</button>
+          <button onClick={() => bump(-1)} style={nudgeBtnStyle}>−1</button>
+          <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 11, color: 'hsl(var(--muted-foreground))', minWidth: 56, textAlign: 'center' }}>tap number to type</span>
+          <button onClick={() => bump(+1)} style={nudgeBtnStyle}>+1</button>
+          <button onClick={() => bump(+5)} style={nudgeBtnStyle}>+5</button>
         </div>
       </div>
       <div className="pt-4 shrink-0">
