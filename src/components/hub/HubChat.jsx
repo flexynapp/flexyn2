@@ -1,12 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Send, Lock } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X } from 'lucide-react';
 import { format, parseISO, differenceInHours } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
+import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
@@ -54,9 +55,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
+  const [attachmentFile, setAttachmentFile] = useState(null);   // File object
+  const [attachmentPreview, setAttachmentPreview] = useState(null); // object URL
+  const [uploading, setUploading] = useState(false);
 
   const scrollerRef = useRef(null);
   const textareaRef = useRef(null);
+  const fileInputRef = useRef(null);
   const stickToBottomRef = useRef(true);
 
   const myEmailLc = (user?.email || '').toLowerCase();
@@ -136,12 +141,34 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   useEffect(() => { resizeTextarea(); }, [draft, resizeTextarea]);
 
+  // Revoke object URL when attachment is cleared to avoid memory leaks
+  const clearAttachment = useCallback(() => {
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    setAttachmentFile(null);
+    setAttachmentPreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }, [attachmentPreview]);
+
+  const handleFilePick = useCallback((e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be 5 MB or smaller');
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    setAttachmentFile(file);
+    setAttachmentPreview(URL.createObjectURL(file));
+  }, [attachmentPreview]);
+
   const lastSentIndex = messages.reduce((acc, m, i) =>
     m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
 
   const handleSend = async () => {
     const trimmed = draft.trim();
-    if (!trimmed || sending) return;
+    if (!trimmed && !attachmentFile) return;
+    if (sending || uploading) return;
     if (!conversation?.id) {
       toast.error(t('hub.messages.sendError'));
       return;
@@ -157,6 +184,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       created_date: new Date().toISOString(),
       read_at: null,
       _optimistic: true,
+      // Show blob preview URL immediately so image is visible while uploading
+      ...(attachmentPreview ? { attachment_url: attachmentPreview } : {}),
     };
 
     const queryKey = ['hubChat', conversation.id];
@@ -167,12 +196,31 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     stickToBottomRef.current = true;
     setSending(true);
 
+    // Capture & clear attachment state before async work
+    const fileToUpload = attachmentFile;
+    clearAttachment();
+
     try {
+      let attachmentUrl = null;
+      if (fileToUpload) {
+        setUploading(true);
+        try {
+          const result = await base44.integrations.Core.UploadFile({ file: fileToUpload });
+          attachmentUrl = result?.file_url || null;
+        } catch (uploadErr) {
+          console.error('[HubChat] upload threw:', uploadErr);
+          toast.error('Image upload failed — message sent without attachment');
+        } finally {
+          setUploading(false);
+        }
+      }
+
       await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail: user.email || '',
         recipientEmail: otherEmail,
         body: trimmed,
+        ...(attachmentUrl ? { attachmentUrl } : {}),
       });
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['hubConversations'] });
@@ -252,7 +300,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         : 'bg-secondary text-foreground rounded-bl-sm'
                     } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
                   >
-                    {m.body || m.content}
+                    {(m.body || m.content) ? <span>{m.body || m.content}</span> : null}
+                    {m.attachment_url && (
+                      <img
+                        src={m.attachment_url}
+                        alt="attachment"
+                        className={`rounded-lg max-h-64 object-cover cursor-pointer ${(m.body || m.content) ? 'mt-1.5' : ''} max-w-full`}
+                        onClick={() => window.open(m.attachment_url, '_blank', 'noopener,noreferrer')}
+                      />
+                    )}
                   </div>
                 </motion.div>
                 {isLastSent && !isOptimistic && (
@@ -273,8 +329,47 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         )}
       </div>
 
+      {/* Attachment preview strip */}
+      {attachmentPreview && (
+        <div className="flex items-center gap-2 px-1 py-1.5 border-t border-border shrink-0">
+          <div className="relative w-14 h-14 shrink-0">
+            <img
+              src={attachmentPreview}
+              alt="Attachment preview"
+              className="w-full h-full object-cover rounded-lg"
+            />
+            <button
+              onClick={clearAttachment}
+              aria-label="Remove attachment"
+              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground truncate flex-1">
+            {attachmentFile?.name}
+          </p>
+        </div>
+      )}
+
       {/* Composer */}
       <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleFilePick}
+        />
+        {/* Paperclip button */}
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Attach image"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+        >
+          <Paperclip className="w-4 h-4" />
+        </button>
         <textarea
           ref={textareaRef}
           value={draft}
@@ -293,7 +388,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         />
         <button
           onClick={handleSend}
-          disabled={sending || !draft.trim()}
+          disabled={sending || uploading || (!draft.trim() && !attachmentFile)}
           aria-label="Send"
           className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
         >

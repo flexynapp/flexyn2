@@ -1815,6 +1815,7 @@ export default function Onboarding() {
       onboarding_completed:  true,
     };
 
+    let saved = false;
     try {
       await base44.auth.updateMe(fullProfile);
       setWeightUnit(weightUnit);
@@ -1824,6 +1825,7 @@ export default function Onboarding() {
       if (user?.id && user?.email) {
         grantWelcomeCapsule(user.id, user.email).catch(() => {});
       }
+      saved = true;
     } catch (err) {
       console.error('Full profile save failed, trying minimal save:', err);
       // Fallback: save only the columns guaranteed to exist (username is in migration 001).
@@ -1836,14 +1838,17 @@ export default function Onboarding() {
         setWeightUnit(weightUnit);
         markReturningUser();
         if (checkUserAuth) await checkUserAuth();
+        saved = true;
       } catch (minErr) {
         console.error('Minimal save also failed:', minErr);
-        markReturningUser();
-        toast.error('Profile save failed — you can update it later in Settings.');
+        // Do NOT mark as returning user — onboarding_completed never wrote to DB.
+        // User will be able to retry by tapping Save again.
+        toast.error('Could not save your profile — check your connection and try again.');
       }
     } finally {
       setSaving(false);
-      navigate('/dashboard', { replace: true });
+      // Only navigate away if at least the minimal save succeeded.
+      if (saved) navigate('/dashboard', { replace: true });
     }
   };
 

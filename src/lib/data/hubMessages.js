@@ -150,20 +150,23 @@ export const listMessages = async (conversationId, limit = 200) => {
 /**
  * Send a message. Writes `body` (primary) + `content` (mirror) so both old
  * and new queries work. Updates conversation's last_message_at and preview.
+ * Pass `attachmentUrl` to include an image attachment (migration 012).
  */
-export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body }) => {
-  if (!conversationId || !senderEmail || !body) return null;
+export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl }) => {
+  if (!conversationId || !senderEmail || (!body && !attachmentUrl)) return null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
     ...(recipientEmail ? { recipient_email: recipientEmail } : {}),
-    body,
-    content: body, // keep content in sync for queries that use either column
+    body: body || '',
+    content: body || '', // keep content in sync for queries that use either column
+    ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
   });
   try {
+    const preview = body ? body.slice(0, 80) : '📎 Image';
     await conv().update(conversationId, {
       last_message_at: new Date().toISOString(),
-      last_message_preview: body.slice(0, 80),
+      last_message_preview: preview,
     });
   } catch { /* non-blocking */ }
   return created;

@@ -428,29 +428,40 @@ export default function Workout() {
       duration_minutes: ex.duration_minutes != null ? (Number(ex.duration_minutes) || null) : null,
     }));
 
+    // ── Anti-cheat: flag weight AND rep violations visibly ───────────────────
+    // Previously, reps were silently clamped. Now both are flagged so the user
+    // is aware their input was outside realistic bounds and must correct it.
     const flaggedSets = [];
     normalizedExercises.forEach((ex, exIndex) => {
       const maxWeight = getMaxRealisticWeight(ex.name, userProfile);
       ex.sets.forEach((s, setIndex) => {
-        if (s.weight > maxWeight) {
-          flaggedSets.push({ exIndex, setIndex, exName: ex.name });
+        const maxReps = getMaxRealisticReps(ex.name, s.weight, userProfile);
+        const weightFlagged = s.weight > 0 && s.weight > maxWeight;
+        const repsFlagged   = s.reps   > 0 && s.reps   > maxReps;
+        if (weightFlagged || repsFlagged) {
+          flaggedSets.push({
+            exIndex,
+            setIndex,
+            exName: ex.name,
+            weightFlagged,
+            repsFlagged,
+            maxWeight: weightFlagged ? maxWeight : null,
+            maxReps:   repsFlagged   ? maxReps   : null,
+          });
         }
       });
     });
 
-    const pendingExercises = normalizedExercises.map(ex => {
-      return {
-        ...ex,
-        sets: ex.sets.map(s => {
-          const clampedWeight = s.weight;
-          const clampedReps = Math.min(s.reps, getMaxRealisticReps(ex.name, clampedWeight, userProfile));
-          return { weight: clampedWeight, reps: clampedReps };
-        }),
-        duration_minutes: ex.duration_minutes != null
-          ? Math.min(ex.duration_minutes, getMaxRealisticDuration())
-          : null,
-      };
-    });
+    const pendingExercises = normalizedExercises.map(ex => ({
+      ...ex,
+      sets: ex.sets.map(s => ({
+        weight: s.weight,
+        reps: s.reps,
+      })),
+      duration_minutes: ex.duration_minutes != null
+        ? Math.min(ex.duration_minutes, getMaxRealisticDuration())
+        : null,
+    }));
 
     const pendingPayload = {
       regimen_id: selectedRegimen?.id || '',
@@ -918,18 +929,28 @@ export default function Workout() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-heading">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0" />
-              Cheating is only cheating yourself
+              Unrealistic values detected
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            One or more sets have unrealistic weight values. Those weights have been cleared — please enter valid values before saving.
+            One or more sets have weights or reps outside realistic limits for your profile.
+            The flagged fields have been cleared — please enter valid values before saving.
           </p>
           {cheatWarningData?.flaggedSets?.length > 0 && (
             <ul className="text-xs text-muted-foreground space-y-1 mt-1">
               {cheatWarningData.flaggedSets.map((f, i) => (
-                <li key={i} className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-destructive/60 shrink-0" />
-                  {f.exName} — Set {f.setIndex + 1}
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-destructive/60 shrink-0 mt-1" />
+                  <span>
+                    <span className="font-medium text-foreground">{f.exName}</span>
+                    {' — '}Set {f.setIndex + 1}
+                    {f.weightFlagged && f.maxWeight != null && (
+                      <span className="block text-[10px]">Weight exceeds {f.maxWeight} lbs max for your profile</span>
+                    )}
+                    {f.repsFlagged && f.maxReps != null && (
+                      <span className="block text-[10px]">Reps exceed {f.maxReps} reps max at that weight</span>
+                    )}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -939,11 +960,15 @@ export default function Workout() {
               const { flaggedSets } = cheatWarningData;
               setExercises(exercises.map((ex, exIndex) => ({
                 ...ex,
-                sets: (ex.sets || []).map((s, setIndex) =>
-                  flaggedSets.some(f => f.exIndex === exIndex && f.setIndex === setIndex)
-                    ? { ...s, weight: null }
-                    : s
-                ),
+                sets: (ex.sets || []).map((s, setIndex) => {
+                  const flag = flaggedSets.find(f => f.exIndex === exIndex && f.setIndex === setIndex);
+                  if (!flag) return s;
+                  return {
+                    ...s,
+                    weight: flag.weightFlagged ? null : s.weight,
+                    reps:   flag.repsFlagged   ? null : s.reps,
+                  };
+                }),
               })));
               setCheatWarningData(null);
             }}>

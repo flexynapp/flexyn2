@@ -533,7 +533,7 @@ export default function Nutrition() {
                   }
                   saveMutation.mutate({ date, food_name: 'Water', water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
                 }}
-                disabled={saveMutation.isPending || waterOz >= WATER_DAILY_CAP_OZ}
+                disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
                 <Droplet className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{getGlassLabel()}</span><span className="sm:hidden">Glass (8 oz)</span>
               </Button>
@@ -556,7 +556,7 @@ export default function Nutrition() {
                       }
                       saveMutation.mutate({ date, food_name: 'Water', water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
                     }}
-                    disabled={saveMutation.isPending || waterOz >= WATER_DAILY_CAP_OZ}
+                    disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pr-8 text-xs"
                   >
                     🍶 {bottle.label}

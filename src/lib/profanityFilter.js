@@ -307,23 +307,99 @@ function checkStarMasked(text) {
   return false;
 }
 
-export function containsProfanity(text) {
+/**
+ * Returns true if `text` contains blocked profanity.
+ *
+ * @param {string} text
+ * @param {object} [options]
+ * @param {'public'|'dm'} [options.context='public']
+ *   Pass context:'dm' to skip filtering — direct messages between consenting
+ *   adults are private and not moderated. All public surfaces (posts, comments,
+ *   workout notes, meal names, usernames) use the default 'public' context.
+ */
+// ── Reverse-check skip list ───────────────────────────────────────────────────
+// These words are still checked FORWARD but NOT in the reversed string.
+// Reason: they're non-English words (Portuguese/Russian/Polish/German/Italian)
+// that nobody bypasses by typing backwards, and their reversed patterns
+// produce false positives in common English phrases.
+const SKIP_REVERSE = new Set([
+  'porra','foda','caralho',              // Portuguese — "narrow passage" FP
+  'kurwa','chuj','pierdolic','jebac',    // Polish
+  'blyat','blyad','suka','pizdec','pizda', // Russian
+  'scheisse','arschloch','fotze','wichser', // German
+  'cazzo','stronzo','stronza','puttana','troia','vaffanculo', // Italian
+]);
+const SKIP_REVERSE_NORMALIZED = new Set(
+  [...SKIP_REVERSE].map(w => normalizeAggressive(w))
+);
+
+// ── Context-explained map ─────────────────────────────────────────────────────
+// Some blocked words (usually short leet-variants) fuzzy-match across word
+// boundaries in innocent compound strings. If ANY context word appears in the
+// normalized soft text, the hit is suppressed.
+//
+// Format: { normalizedBlockedWord: [contextWord, ...] }
+// Context words are raw (pre-normalization); normalization is applied at call time.
+const CONTEXT_EXPLAINED_RAW = {
+  // "kunt" (variant of cunt) fuzzy-matches "cockburnstreet", "scunthorpe" etc.
+  kunt: ['cockburn', 'scunthorpe', 'cunthorpe'],
+  // "kock" (variant of cock) fuzzy-matches "ciockwork" (clockwork after l→i)
+  kock: ['clock', 'clockwork', 'block', 'flock', 'dock', 'lock', 'knock', 'rock', 'stock', 'mock', 'frock'],
+  // "kawk" (variant of cock) fuzzy-matches reversed "walk" or "chalk" phrases
+  kawk: ['walk', 'chalk', 'stalk', 'talk', 'hawk', 'block'],
+};
+// Pre-normalize the context words once at module load
+const CONTEXT_EXPLAINED = Object.fromEntries(
+  Object.entries(CONTEXT_EXPLAINED_RAW).map(([k, words]) => [k, words.map(normalizeAggressive)])
+);
+
+/**
+ * Returns true if `text` contains blocked profanity.
+ *
+ * @param {string} text
+ * @param {object} [options]
+ * @param {'public'|'dm'} [options.context='public']
+ *   Pass context:'dm' to skip filtering — direct messages between consenting
+ *   adults are private and not moderated. All public surfaces (posts, comments,
+ *   workout notes, meal names, usernames) use the default 'public' context.
+ */
+export function containsProfanity(text, { context = 'public' } = {}) {
+  // Direct messages are private — no filter applied.
+  if (context === 'dm') return false;
+
   if (!text || typeof text !== 'string') return false;
   const aggressive = normalizeAggressive(text);
-  const reversed = aggressive.split('').reverse().join('');
-  const soft = normalizeSoft(text);
-  const hits = NORMALIZED_BLOCKED.filter(w => checkBlocklist(aggressive, w) || checkBlocklist(reversed, w));
+  const reversed   = aggressive.split('').reverse().join('');
+  const soft       = normalizeSoft(text);
+
+  // Build hit list: forward check for all words; reverse check only for
+  // English-origin slurs (SKIP_REVERSE excludes foreign-language words).
+  const hits = NORMALIZED_BLOCKED.filter(w =>
+    checkBlocklist(aggressive, w) ||
+    (!SKIP_REVERSE_NORMALIZED.has(w) && checkBlocklist(reversed, w))
+  );
+
   if (hits.length > 0) {
     for (const hit of hits) {
-      // Allowlist check uses the same fuzzy matcher as the blocklist, so an
-      // allowlist entry like "shiitake" can explain a blocklist hit on "shit"
-      // (literal .includes would fail because "shiitake" doesn't contain "shit").
-      // `soft.includes(allowed)` ensures the allowlist word actually appears in
-      // the input — preventing a generic allowlist entry from neutralizing a slur.
-      const explained = NORMALIZED_ALLOWLIST.some(allowed => checkBlocklist(allowed, hit) && soft.includes(allowed));
+      // Primary allowlist check: an allowlist entry must (a) fuzzy-contain the
+      // blocked word AND (b) actually appear in the input text.
+      let explained = NORMALIZED_ALLOWLIST.some(
+        allowed => checkBlocklist(allowed, hit) && soft.includes(allowed)
+      );
+
+      // Secondary: context-word explanation for short leet-variants that fuzzy-
+      // match across word boundaries ("kunt" in "cockburnstreet", etc.).
+      if (!explained) {
+        const ctxWords = CONTEXT_EXPLAINED[hit];
+        if (ctxWords) {
+          explained = ctxWords.some(cw => soft.includes(cw));
+        }
+      }
+
       if (!explained) return true;
     }
   }
-  // Secondary pass: star/hash masking bypass (e.g. "ni**er", "f**k")
+
+  // Final pass: star/hash masking bypass (e.g. "ni**er", "f**k")
   return checkStarMasked(text);
 }

@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
-import { format, differenceInYears } from 'date-fns';
+import { format, differenceInYears, parseISO, isValid } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -220,7 +220,18 @@ export default function BodyMetricsTab() {
 
   const calculateAge = (birthday) => {
     if (!birthday) return null;
-    return differenceInYears(new Date(), new Date(birthday));
+    // parseISO handles 'YYYY-MM-DD'; fall back to Date() for other formats
+    const d = parseISO(String(birthday));
+    if (!isValid(d)) return null;
+    return differenceInYears(new Date(), d);
+  };
+
+  // Safe wrapper: returns a formatted string or null — never throws
+  const safeDateFormat = (birthday, fmt) => {
+    if (!birthday) return null;
+    const d = parseISO(String(birthday));
+    if (!isValid(d)) return null;
+    try { return format(d, fmt, { locale: dateLocale }); } catch { return null; }
   };
 
   const handleProfileUpdate = async (field, value) => {
@@ -302,19 +313,21 @@ export default function BodyMetricsTab() {
               </Button>
             </Card>
           )}
-          {profile?.birthday && (
-             <Card className="p-4 border-none shadow-sm flex flex-col items-center justify-center text-center">
-               <div className="w-12 h-12 rounded-lg bg-chart-3/10 flex items-center justify-center mb-2">
-                 <span className="text-lg font-bold text-chart-3">🎂</span>
-               </div>
-               <p className="text-xs text-muted-foreground mb-1">{t('progress.bodyMetrics.age')}</p>
-               <p className="font-heading font-bold text-2xl">{calculateAge(profile.birthday)} years</p>
-               <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(profile.birthday), 'MMM d', { locale: dateLocale })}</p>
-               <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('birthday'); setEditValue(profile.birthday?.slice(0, 10) || ''); }}>
-                 <Pencil className="w-3 h-3 mr-1" /> Edit
-               </Button>
-             </Card>
-           )}
+          {profile?.birthday && calculateAge(profile.birthday) !== null && (
+            <Card className="p-4 border-none shadow-sm flex flex-col items-center justify-center text-center">
+              <div className="w-12 h-12 rounded-lg bg-chart-3/10 flex items-center justify-center mb-2">
+                <span className="text-lg font-bold text-chart-3">🎂</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-1">{t('progress.bodyMetrics.age')}</p>
+              <p className="font-heading font-bold text-2xl">{calculateAge(profile.birthday)} years</p>
+              {safeDateFormat(profile.birthday, 'MMM d') && (
+                <p className="text-xs text-muted-foreground mt-0.5">{safeDateFormat(profile.birthday, 'MMM d')}</p>
+              )}
+              <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('birthday'); setEditValue(profile.birthday?.slice(0, 10) || ''); }}>
+                <Pencil className="w-3 h-3 mr-1" /> Edit
+              </Button>
+            </Card>
+          )}
            </div>
            ) : (
         <Card className="p-4 border-primary/30 border-2">

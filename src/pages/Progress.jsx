@@ -20,6 +20,7 @@ import { TrendingUp, ChevronDown, ChevronUp, BarChart2, Trophy, ArrowRight, Spar
 import ExerciseProgressCard from '@/components/progress/ExerciseProgressCard';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterDropdown from '@/components/progress/FilterDropdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
@@ -578,19 +579,26 @@ export default function Progress() {
                   </motion.div>
                 </div>
                 <div ref={analyticsRef}>
-                  <AnalyticsTab logs={logs} />
+                  <ErrorBoundary label="Analytics">
+                    <AnalyticsTab logs={logs} />
+                  </ErrorBoundary>
                 </div>
               </div>
             ) : activeTab === 'body' ? (
               <div ref={bodyMetricsRef}>
-                <BodyMetricsTab />
+                <ErrorBoundary label="BodyMetrics">
+                  <BodyMetricsTab />
+                </ErrorBoundary>
               </div>
             ) : activeTab === 'photos' ? (
               <div>
-                <ProgressPhotosTab />
+                <ErrorBoundary label="ProgressPhotos">
+                  <ProgressPhotosTab />
+                </ErrorBoundary>
               </div>
             ) : (
               /* Exercise Trends Tab */
+              <ErrorBoundary label="ExerciseTrends">
               <div>
                 <div className="flex justify-start mb-6">
                   <FilterDropdown
@@ -663,6 +671,7 @@ export default function Progress() {
                   </div>
                 </div>
               </div>
+              </ErrorBoundary>
             )}
           </motion.div>
         </AnimatePresence>

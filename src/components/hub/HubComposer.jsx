@@ -772,7 +772,16 @@ export default function HubComposer({ onClose }) {
         >
           <div className="flex items-center gap-2 px-4 pt-4 pb-3 shrink-0 border-b border-border">
             {!onPickStep && (
-              <button onClick={() => setStep('pick')} className="p-1.5 rounded-md hover:bg-secondary">
+              <button
+                onClick={() => {
+                  setStep('pick');
+                  setSelected(null);
+                  setBody('');
+                  setCustomMeal({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+                  clearMealImage();
+                }}
+                className="p-1.5 rounded-md hover:bg-secondary"
+              >
                 <ArrowLeft className="w-4 h-4" />
               </button>
             )}

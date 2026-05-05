@@ -9,6 +9,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import { SettingsProvider } from '@/lib/SettingsContext';
@@ -93,11 +94,11 @@ const AuthenticatedApp = () => {
         <Route path="/" element={<Splash />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/nutrition" element={<Nutrition />} />
-          <Route path="/workout" element={<Workout />} />
-          <Route path="/hub" element={<Hub />} />
-          <Route path="/progress" element={<Progress />} />
+          <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Dashboard /></ErrorBoundary>} />
+          <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Nutrition /></ErrorBoundary>} />
+          <Route path="/workout" element={<ErrorBoundary label="Workout"><Workout /></ErrorBoundary>} />
+          <Route path="/hub" element={<ErrorBoundary label="Hub"><Hub /></ErrorBoundary>} />
+          <Route path="/progress" element={<ErrorBoundary label="Progress"><Progress /></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
