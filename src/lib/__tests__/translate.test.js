@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isLikelyAlreadyInLanguage } from '../translation';
+import { isLikelyAlreadyInLanguage, clearTranslationCache, translateText } from '../translate';
 
 describe('isLikelyAlreadyInLanguage', () => {
   it('returns false for empty input', () => {
@@ -42,5 +42,29 @@ describe('isLikelyAlreadyInLanguage', () => {
     // Can't reliably distinguish English from Spanish/French/etc on character class alone
     expect(isLikelyAlreadyInLanguage('Hello world', 'en')).toBe(false);
     expect(isLikelyAlreadyInLanguage('Hola mundo', 'es')).toBe(false);
+  });
+});
+
+describe('translateText — input validation', () => {
+  it('returns null for missing inputs', async () => {
+    expect(await translateText('', 'es')).toBeNull();
+    expect(await translateText(null, 'es')).toBeNull();
+    expect(await translateText('hi', '')).toBeNull();
+  });
+
+  it('returns the original text when source equals target (no engine call)', async () => {
+    const result = await translateText('Hello', 'en', 'en');
+    expect(result).toEqual({ translatedText: 'Hello', sourceLang: 'en', engine: 'noop' });
+  });
+
+  it('returns null for whitespace-only text', async () => {
+    expect(await translateText('   \n\t  ', 'es')).toBeNull();
+  });
+});
+
+describe('clearTranslationCache', () => {
+  it('is exposed and callable without throwing', () => {
+    // Pure cache clear — never throws
+    expect(() => clearTranslationCache()).not.toThrow();
   });
 });

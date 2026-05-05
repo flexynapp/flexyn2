@@ -1,0 +1,212 @@
+// src/lib/translate.js
+//
+// On-demand translation for user-generated content (Hub posts, comments).
+//
+// Engines (tried in order until one succeeds):
+//   1. Lingva — free Google Translate proxy. Highest quality, no key, works
+//      until the public endpoint goes down (which happens occasionally).
+//   2. MyMemory — free TM-based translator. Lower quality but very stable.
+//      Daily quota is ~5,000 chars per IP without an email.
+//
+// Both engines are tried automatically. If both fail, returns null and the
+// caller surfaces "Translation unavailable" to the user. No images or data
+// other than the post text leaves the device.
+
+const LINGVA_ENDPOINTS = [
+  'https://lingva.ml',                       // Primary public instance
+  'https://translate.plausibility.cloud',    // Mirror
+];
+const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
+const REQUEST_TIMEOUT_MS = 6000;
+
+// LRU-ish cache keyed by `${target}|${text.slice(0, 200)}`. Survives the page
+// session — translations are deterministic enough to cache aggressively.
+const _cache = new Map();
+const CACHE_MAX = 500;
+
+function _cacheGet(key) {
+  if (!_cache.has(key)) return null;
+  const v = _cache.get(key);
+  _cache.delete(key);
+  _cache.set(key, v);  // move to most-recently-used
+  return v;
+}
+
+function _cacheSet(key, value) {
+  if (_cache.has(key)) _cache.delete(key);
+  _cache.set(key, value);
+  while (_cache.size > CACHE_MAX) {
+    _cache.delete(_cache.keys().next().value); // evict oldest
+  }
+}
+
+/** Clear the entire translation cache. Useful on language change. */
+export function clearTranslationCache() {
+  _cache.clear();
+}
+
+/**
+ * Translate `text` from `sourceLang` (or 'auto') to `targetLang`.
+ *
+ * @param {string} text — the source text (plain UTF-8, single language)
+ * @param {string} targetLang — ISO 639-1 like 'es', 'fr', 'ja'
+ * @param {string} [sourceLang='auto'] — explicit source, or 'auto' to detect
+ * @returns {Promise<{ translatedText: string, sourceLang: string, engine: string } | null>}
+ *          null on total failure (all engines failed)
+ */
+export async function translateText(text, targetLang, sourceLang = 'auto') {
+  if (!text || !targetLang) return null;
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  if (sourceLang === targetLang) {
+    return { translatedText: trimmed, sourceLang, engine: 'noop' };
+  }
+
+  const cacheKey = `${targetLang}|${trimmed.slice(0, 200)}`;
+  const cached = _cacheGet(cacheKey);
+  if (cached) return cached;
+
+  // Chunk if needed
+  if (trimmed.length > 480) {
+    const chunks = chunkText(trimmed, 460);
+    const translated = await Promise.all(
+      chunks.map(c => _translateOne(c, targetLang, sourceLang))
+    );
+    if (translated.some(t => t === null)) return null;
+    const combined = {
+      translatedText: translated.map(t => t.translatedText).join(' '),
+      sourceLang: translated[0].sourceLang,
+      engine: translated[0].engine,
+    };
+    _cacheSet(cacheKey, combined);
+    return combined;
+  }
+
+  const result = await _translateOne(trimmed, targetLang, sourceLang);
+  if (result) _cacheSet(cacheKey, result);
+  return result;
+}
+
+/** Try each engine in order until one returns a usable result. */
+async function _translateOne(text, targetLang, sourceLang) {
+  // Engine 1: Lingva (try each public mirror)
+  for (const base of LINGVA_ENDPOINTS) {
+    const r = await _viaLingva(text, targetLang, sourceLang, base);
+    if (r) return r;
+  }
+  // Engine 2: MyMemory fallback
+  const r = await _viaMyMemory(text, targetLang, sourceLang);
+  if (r) return r;
+  return null;
+}
+
+async function _fetchWithTimeout(url, ms = REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function _viaLingva(text, targetLang, sourceLang, base) {
+  const src = sourceLang === 'auto' ? 'auto' : sourceLang;
+  const url = `${base}/api/v1/${encodeURIComponent(src)}/${encodeURIComponent(targetLang)}/${encodeURIComponent(text)}`;
+  try {
+    const response = await _fetchWithTimeout(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const translatedText = data?.translation;
+    if (!translatedText || typeof translatedText !== 'string') return null;
+    if (translatedText.trim() === text.trim()) return null; // no-op response
+    return {
+      translatedText,
+      sourceLang: data?.info?.detectedSource || src,
+      engine: 'lingva',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function _viaMyMemory(text, targetLang, sourceLang) {
+  const langpair = sourceLang === 'auto'
+    ? `autodetect|${targetLang}`
+    : `${sourceLang}|${targetLang}`;
+  const url = `${MYMEMORY_ENDPOINT}?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}`;
+  try {
+    const response = await _fetchWithTimeout(url);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const translatedText = data?.responseData?.translatedText;
+    if (!translatedText) return null;
+    // MyMemory returns warnings inside the translatedText field itself
+    if (/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(translatedText)) return null;
+    return {
+      translatedText,
+      sourceLang: data?.responseData?.detectedSourceLanguage
+        || data?.matches?.[0]?.source
+        || sourceLang,
+      engine: 'mymemory',
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Split a long string into chunks of ≤maxChars, preferring sentence/word
+ * boundaries so translation remains coherent.
+ */
+function chunkText(text, maxChars) {
+  if (text.length <= maxChars) return [text];
+  const chunks = [];
+  let i = 0;
+  while (i < text.length) {
+    let end = Math.min(i + maxChars, text.length);
+    if (end < text.length) {
+      const slice = text.slice(i, end);
+      const lastSentence = Math.max(
+        slice.lastIndexOf('. '), slice.lastIndexOf('! '), slice.lastIndexOf('? '),
+        slice.lastIndexOf('.\n'), slice.lastIndexOf('!\n'), slice.lastIndexOf('?\n'),
+      );
+      if (lastSentence > maxChars / 2) {
+        end = i + lastSentence + 1;
+      } else {
+        const lastSpace = slice.lastIndexOf(' ');
+        if (lastSpace > maxChars / 2) end = i + lastSpace;
+      }
+    }
+    chunks.push(text.slice(i, end).trim());
+    i = end;
+  }
+  return chunks.filter(Boolean);
+}
+
+/**
+ * Heuristic: does this text look like it could already be in the target
+ * language? Skips redundant Translate buttons when the post is in the
+ * user's language. Cheap pure-JS check based on script class.
+ */
+export function isLikelyAlreadyInLanguage(text, lang) {
+  if (!text || !lang) return false;
+  const SCRIPT_HINTS = {
+    ja: /[぀-ゟ゠-ヿ一-龯]/,
+    zh: /[一-龯]/,
+    ko: /[가-힯]/,
+    ar: /[؀-ۿ]/,
+    hi: /[ऀ-ॿ]/,
+    ru: /[Ѐ-ӿ]/,
+  };
+  const hint = SCRIPT_HINTS[lang];
+  if (hint) return hint.test(text);
+  // Latin-script targets — can't tell English from Spanish from French
+  // without a real LID model. Conservative: don't claim already-translated.
+  return false;
+}

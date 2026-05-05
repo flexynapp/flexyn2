@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2 } from 'lucide-react';
@@ -16,7 +16,7 @@ import StickerDisplay from './StickerDisplay';
 import StickerPanel from './StickerPanel';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
-import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translation';
+import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
 
 export default function HubPostCard({ post, onAuthorClick = null }) {
   const { t, language } = useLanguage();
@@ -26,6 +26,26 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const [translating, setTranslating]   = useState(false);
   const [translateError, setTranslateError] = useState(null);
   const [showOriginal, setShowOriginal] = useState(false); // toggle when translation exists
+
+  // Reset translation state when:
+  //   • The user's selected language changes (so the next render shows the
+  //     original — they can re-tap Translate to get the new target language)
+  //   • The 'flexyn:language-changed' event fires (immediate cross-component
+  //     reset triggered by LanguagePicker → setLanguage)
+  useEffect(() => {
+    setTranslation(null);
+    setShowOriginal(false);
+    setTranslateError(null);
+  }, [language]);
+  useEffect(() => {
+    const handler = () => {
+      setTranslation(null);
+      setShowOriginal(false);
+      setTranslateError(null);
+    };
+    window.addEventListener('flexyn:language-changed', handler);
+    return () => window.removeEventListener('flexyn:language-changed', handler);
+  }, []);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [commentsOpen, setCommentsOpen] = useState(false);

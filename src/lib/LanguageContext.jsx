@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getTranslation, SUPPORTED_LANGUAGES } from './i18n';
 import { base44 } from '@/api/base44Client';
+import { clearTranslationCache } from './translate';
 
 const LANG_STORAGE_KEY = 'fn-language';
 const DEFAULT_LANG = 'en';
@@ -44,6 +45,14 @@ export function LanguageProvider({ children }) {
     if (!SUPPORTED_LANGUAGES.some(l => l.code === code)) return;
     setLanguageState(code);
     try { localStorage.setItem(LANG_STORAGE_KEY, code); } catch {}
+    // Clear any cached on-demand translations so future Hub posts re-translate
+    // into the newly-selected language. (The cache key already includes target
+    // lang so old entries wouldn't be wrong — clearing is mostly to keep the
+    // cache lean and avoid stale entries from previous language choices.)
+    clearTranslationCache();
+    // Notify listeners (HubPostCard, etc.) to reset any "currently translated"
+    // UI state so users see the new language on the next view.
+    try { window.dispatchEvent(new CustomEvent('flexyn:language-changed', { detail: { code } })); } catch {}
     // Best-effort server write. Fails silently if not signed in.
     try {
       base44.auth.updateMe({ preferred_language: code }).catch(() => {});
