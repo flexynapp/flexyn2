@@ -55,6 +55,9 @@ import { hubI18n } from './i18n-hub';
 import { hubCommentsI18n } from './i18n-hub-comments';
 import { onboardingStepsI18n } from './i18n-onboarding-steps';
 import { onboardingSlideshowI18n } from './i18n-onboarding-slideshow';
+import { gamificationI18n } from './i18n-gamification';
+import { formCoachI18n } from './i18n-formcoach';
+import { translationI18n } from './i18n-translation';
 
 // Deep-merge all translation parts per language
 const mergeTranslations = (...parts) => {
@@ -67,7 +70,7 @@ const mergeTranslations = (...parts) => {
   return result;
 };
 
-export const translations = mergeTranslations(translations_p1, translations_p2, translations_p3, translations_p4, translations_p5, translations_p6, translations_p7, translations_p8, goalsI18n, translations_p9, translations_p10, dashboardRedesignI18n, pageHeaderI18n, restTimerI18n, warnI18n, nutritionOnboardingI18n, savedWorkoutsI18n, leaderboardsI18n, hubI18n, hubCommentsI18n, onboardingStepsI18n, onboardingSlideshowI18n);
+export const translations = mergeTranslations(translations_p1, translations_p2, translations_p3, translations_p4, translations_p5, translations_p6, translations_p7, translations_p8, goalsI18n, translations_p9, translations_p10, dashboardRedesignI18n, pageHeaderI18n, restTimerI18n, warnI18n, nutritionOnboardingI18n, savedWorkoutsI18n, leaderboardsI18n, hubI18n, hubCommentsI18n, onboardingStepsI18n, onboardingSlideshowI18n, gamificationI18n, formCoachI18n, translationI18n);
 
 export function getTranslation(lang, key) {
   const langVal = translations[lang]?.[key];

@@ -9,12 +9,14 @@ import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as loginStreak from '@/lib/data/loginStreak';
 import { supabase } from '@/api/supabaseClient';
 
 export default function LoginStreakBanner() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const recordedRef = useRef(false);
 
@@ -42,14 +44,15 @@ export default function LoginStreakBanner() {
 
     loginStreak.recordLogin(user).then((result) => {
       if (result.isNewDay && result.coinsAwarded > 0) {
-        const msg = result.freezeUsed
-          ? `Streak saved with a freeze! Day ${result.streak} · +${result.coinsAwarded} coins`
-          : `Day ${result.streak} streak! +${result.coinsAwarded} coins`;
+        const tplKey = result.freezeUsed ? 'dashboard.streakSavedToast' : 'dashboard.streakDayToast';
+        const msg = t(tplKey)
+          .replace('{day}', result.streak)
+          .replace('{coins}', result.coinsAwarded);
         toast.success(msg, { icon: '🔥', duration: 4500 });
 
         if (result.eliteCapsuleAwarded) {
           setTimeout(() => {
-            toast.success(`Day ${result.streak} milestone — Elite Capsule unlocked!`, {
+            toast.success(t('dashboard.eliteCapsuleToast').replace('{day}', result.streak), {
               icon: '💎',
               duration: 5000,
             });
@@ -84,10 +87,10 @@ export default function LoginStreakBanner() {
         <Flame className="w-4 h-4 text-orange-500 shrink-0" />
         <span className="text-sm">
           <span className="font-heading font-bold tabular-nums">{streak}</span>
-          <span className="text-muted-foreground"> day streak</span>
+          <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
             <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
-              Best
+              {t('dashboard.best')}
             </span>
           )}
         </span>
@@ -95,7 +98,7 @@ export default function LoginStreakBanner() {
       {freezes > 0 && (
         <div
           className="flex items-center gap-1 text-[11px] text-cyan-500"
-          title={`${freezes} streak freeze${freezes === 1 ? '' : 's'} — auto-spent if you miss a day`}
+          title={(freezes === 1 ? t('dashboard.streakFreezeTooltip') : t('dashboard.streakFreezesTooltip')).replace('{n}', freezes)}
         >
           <Snowflake className="w-3 h-3" />
           <span className="tabular-nums">×{freezes}</span>

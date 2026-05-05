@@ -11,11 +11,13 @@ import { Card } from '@/components/ui/card';
 import { Coins, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
 import { getQuestDefinition, QUEST_DIFFICULTY } from '@/lib/questCatalog';
 
 export default function DailyQuestsCard() {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
 
   // Ensure today's quests exist on mount, then read them.
@@ -41,11 +43,11 @@ export default function DailyQuestsCard() {
     if (!questRow.completed_at) return;
     const result = await quests.claimQuest(user, questRow.id);
     if (result.success) {
-      toast.success(`+${result.coinsAwarded} coins claimed!`, { icon: '🪙' });
+      toast.success(t('dashboard.coinsClaimedToast').replace('{coins}', result.coinsAwarded), { icon: '🪙' });
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
     } else {
-      toast.error('Could not claim — try again');
+      toast.error(t('dashboard.claimError'));
     }
   };
 
@@ -67,7 +69,7 @@ export default function DailyQuestsCard() {
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />
-          <h3 className="font-heading font-bold text-sm tracking-tight">Daily Quests</h3>
+          <h3 className="font-heading font-bold text-sm tracking-tight">{t('dashboard.dailyQuests')}</h3>
           <span className="text-[10px] text-muted-foreground tabular-nums">
             {completedCount}/{annotated.length}
           </span>
@@ -79,32 +81,36 @@ export default function DailyQuestsCard() {
             className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/15 text-primary text-[11px] font-bold"
           >
             <Coins className="w-3 h-3" />
-            +{claimableCoins} ready
+            +{claimableCoins} {t('dashboard.ready')}
           </motion.div>
         )}
       </div>
 
       <div className="space-y-2">
         {annotated.map((q) => (
-          <QuestRow key={q.id} quest={q} onClaim={() => handleClaim(q)} />
+          <QuestRow key={q.id} quest={q} onClaim={() => handleClaim(q)} t={t} />
         ))}
       </div>
 
       {claimedCount === annotated.length && (
         <div className="mt-3 text-[11px] text-center text-muted-foreground">
-          ✨ All quests claimed for today — back at midnight!
+          {t('dashboard.allQuestsClaimed')}
         </div>
       )}
     </Card>
   );
 }
 
-function QuestRow({ quest, onClaim }) {
+function QuestRow({ quest, onClaim, t }) {
   const def = quest.definition;
   const completed = !!quest.completed_at;
   const claimed = !!quest.claimed_at;
   const progressPct = Math.min(100, Math.round((quest.progress / quest.target) * 100));
   const diffMeta = QUEST_DIFFICULTY[quest.difficulty];
+  // Look up translated quest copy via the catalog convention `quest.<id>.label/desc`.
+  // Falls back to the English label/desc baked into the catalog if the key is
+  // missing in the current language.
+  const label = (() => { const k = `quest.${def.id}.label`; const v = t(k); return v === k ? def.label : v; })();
 
   return (
     <motion.div
@@ -126,16 +132,16 @@ function QuestRow({ quest, onClaim }) {
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <p className="font-medium text-sm truncate">{def.label}</p>
+            <p className="font-medium text-sm truncate">{label}</p>
             <span
               className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
               style={{ background: `${diffMeta.color}22`, color: diffMeta.color }}
             >
-              {quest.difficulty}
+              {t(`quest.difficulty.${quest.difficulty}`)}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground tabular-nums">
-            {quest.progress}/{quest.target} · {quest.coin_reward} coins
+            {quest.progress}/{quest.target} · {quest.coin_reward} {t('hub.coins') !== 'hub.coins' ? t('hub.coins') : 'coins'}
           </p>
         </div>
 
@@ -157,7 +163,7 @@ function QuestRow({ quest, onClaim }) {
               onClick={onClaim}
               className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
-              Claim
+              {t('dashboard.claim')}
             </motion.button>
           ) : null}
         </AnimatePresence>

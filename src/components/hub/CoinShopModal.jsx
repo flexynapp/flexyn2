@@ -12,11 +12,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Coins, X, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem } from '@/lib/data/coinShop';
 
 export default function CoinShopModal({ open, onClose }) {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [busySku, setBusySku] = useState(null);
 
@@ -45,16 +47,20 @@ export default function CoinShopModal({ open, onClose }) {
       const result = await purchaseItem(user, sku);
       if (result.success) {
         const item = SHOP_CATALOG[sku];
-        toast.success(`Purchased ${item.name}!`, { icon: item.icon });
+        // Use translated item name in the success toast
+        const itemNameKey = `shop.${item.sku.replace('capsule_standard', 'standardCapsule').replace('capsule_premium', 'premiumCapsule').replace('capsule_elite', 'eliteCapsule').replace('streak_freeze', 'streakFreeze')}.name`;
+        const translatedName = t(itemNameKey);
+        const displayName = translatedName === itemNameKey ? item.name : translatedName;
+        toast.success(t('shop.purchasedToast').replace('{item}', displayName), { icon: item.icon });
         queryClient.invalidateQueries({ queryKey: ['coinShopProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['userCapsules', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['loginStreakProfile'] });
       } else if (result.error === 'insufficient_coins') {
-        toast.error('Not enough coins');
+        toast.error(t('shop.notEnoughCoins'));
       } else {
-        toast.error('Purchase failed — try again');
+        toast.error(t('shop.purchaseFailed'));
       }
     } finally {
       setBusySku(null);
@@ -83,11 +89,11 @@ export default function CoinShopModal({ open, onClose }) {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
             <div>
-              <h2 className="font-heading font-bold text-base">Coin Shop</h2>
+              <h2 className="font-heading font-bold text-base">{t('shop.title')}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Coins className="w-3.5 h-3.5 text-primary" />
                 <span className="font-bold tabular-nums text-sm">{balance.toLocaleString()}</span>
-                <span className="text-[11px] text-muted-foreground">balance</span>
+                <span className="text-[11px] text-muted-foreground">{t('shop.balance')}</span>
               </div>
             </div>
             <button
@@ -108,13 +114,14 @@ export default function CoinShopModal({ open, onClose }) {
                 balance={balance}
                 busy={busySku === item.sku}
                 onBuy={() => handlePurchase(item.sku)}
+                t={t}
               />
             ))}
           </div>
 
           {/* Footer hint */}
           <div className="p-3 border-t border-border text-[11px] text-center text-muted-foreground">
-            Earn coins from daily quests, login streaks, and level-ups.
+            {t('shop.hint')}
           </div>
         </motion.div>
       </motion.div>
@@ -122,14 +129,27 @@ export default function CoinShopModal({ open, onClose }) {
   );
 }
 
-function ShopRow({ item, balance, busy, onBuy }) {
+function ShopRow({ item, balance, busy, onBuy, t }) {
   const affordable = balance >= item.price;
+  // Translation key derived from sku — see SHOP_CATALOG: 'shop.<camelKey>.name'
+  const camelKey = item.sku === 'capsule_standard' ? 'standardCapsule'
+                 : item.sku === 'capsule_premium'  ? 'premiumCapsule'
+                 : item.sku === 'capsule_elite'    ? 'eliteCapsule'
+                 : item.sku === 'streak_freeze'    ? 'streakFreeze'
+                 : null;
+  const nameKey = camelKey ? `shop.${camelKey}.name` : null;
+  const descKey = camelKey ? `shop.${camelKey}.desc` : null;
+  const translatedName = nameKey ? t(nameKey) : null;
+  const translatedDesc = descKey ? t(descKey) : null;
+  const displayName = translatedName && translatedName !== nameKey ? translatedName : item.name;
+  const displayDesc = translatedDesc && translatedDesc !== descKey ? translatedDesc : item.description;
+
   return (
     <div className="flex items-center gap-3 rounded-xl bg-background/60 border border-border/50 p-3">
       <div className="text-3xl shrink-0" aria-hidden="true">{item.icon}</div>
       <div className="flex-1 min-w-0">
-        <p className="font-heading font-bold text-sm truncate">{item.name}</p>
-        <p className="text-[11px] text-muted-foreground">{item.description}</p>
+        <p className="font-heading font-bold text-sm truncate">{displayName}</p>
+        <p className="text-[11px] text-muted-foreground">{displayDesc}</p>
       </div>
       <button
         onClick={onBuy}

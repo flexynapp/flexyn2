@@ -22,7 +22,7 @@ export default function FormCoachModal({ open, onClose }) {
   const [exerciseDisplay, setExerciseDisplay] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState(null);
-  const [loadingMessage, setLoadingMessage] = useState('Analyzing your form…');
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   // Pre-warm the model in the background as soon as the modal opens, so the
   // user's first capture isn't blocked on the 3 MB model download.
@@ -34,26 +34,32 @@ export default function FormCoachModal({ open, onClose }) {
     if (!exercise) return;
     setAnalyzing(true);
     setFeedback(null);
-    setLoadingMessage('Analyzing your form…');
+    setLoadingMessage(t('formcoach.analyzingMessage'));
 
     // After 2.5s, switch the loading message — first-call model load can take
     // 3-6s on slow devices, and silence makes it feel broken.
     const slowMessageTimer = setTimeout(() => {
-      setLoadingMessage('Loading the AI model (one-time, ~3 MB)…');
+      setLoadingMessage(t('formcoach.modelLoadingMessage'));
     }, 2500);
 
     try {
       const result = await analyzeForm(imageDataUrl, exerciseDisplay || exercise);
+      // Localize the no-body fallback messages from analyzeForm.js
+      if (result?._poseQuality === 'no_body') {
+        result.form_rating  = t('formcoach.noBodyDetected');
+        result.corrections  = [t('formcoach.noBodyCorrection1'), t('formcoach.noBodyCorrection2')];
+        result.tip          = t('formcoach.noBodyTip');
+      }
       setFeedback(result);
     } catch (err) {
       console.error('[FormCoach] analysis failed:', err);
       setFeedback({
         overall_score: 0,
-        form_rating: 'Analysis failed',
+        form_rating: t('formcoach.analysisFailed'),
         good_points: [],
-        corrections: ['Something went wrong analyzing the frame. Try capturing again.'],
+        corrections: [t('formcoach.analysisErrorCorrection')],
         injury_risks: [],
-        tip: 'If this keeps happening, refresh the page to reset the AI model.',
+        tip: t('formcoach.analysisErrorTip'),
       });
     } finally {
       clearTimeout(slowMessageTimer);
@@ -84,9 +90,9 @@ export default function FormCoachModal({ open, onClose }) {
         <div className="p-5 sm:p-6">
           <DialogHeader className="mb-4">
             <DialogTitle className="flex items-center gap-2">
-              {t('formcoach.title') !== 'formcoach.title' ? t('formcoach.title') : 'Form Coach'}
+              {t('formcoach.title')}
               <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
-                Beta
+                {t('formcoach.beta')}
               </span>
             </DialogTitle>
           </DialogHeader>
@@ -112,7 +118,7 @@ export default function FormCoachModal({ open, onClose }) {
               <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
               <p className="font-heading font-semibold">{loadingMessage}</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Detecting body posture and joint angles.
+                {t('formcoach.detectingBody')}
               </p>
             </div>
           )}
@@ -124,26 +130,21 @@ export default function FormCoachModal({ open, onClose }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
               >
-                {/* Beta disclosure — the analysis is real but rule-based on a single frame */}
+                {/* Disclosure — explains the analysis is local & rule-based */}
                 <div className="mb-4 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs">
                   <p className="text-foreground/80 leading-relaxed">
-                    <span className="font-bold text-primary">How this works:</span>{' '}
-                    Your photo is analyzed locally on this device using AI pose detection
-                    (MoveNet). No images are sent to any server. Feedback is based on joint
-                    angles and posture from a single frame — for the most accurate read,
-                    capture mid-rep at the bottom (or top, for pull-ups).
+                    <span className="font-bold text-primary">{t('formcoach.howItWorksHeader')}</span>{' '}
+                    {t('formcoach.betaDisclosure')}
                   </p>
                 </div>
 
-                {/* Pose quality warning */}
                 {isPartial && (
                   <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs">
                     <p className="font-bold text-yellow-700 dark:text-yellow-400 mb-1">
-                      Partial detection
+                      {t('formcoach.partialDetectionTitle')}
                     </p>
                     <p className="text-yellow-700/80 dark:text-yellow-400/80">
-                      Some joints weren't fully visible. Results below are best-effort —
-                      try better lighting or a clearer angle for a more confident read.
+                      {t('formcoach.partialDetectionMessage')}
                     </p>
                   </div>
                 )}
@@ -165,7 +166,7 @@ export default function FormCoachModal({ open, onClose }) {
                     </ul>
                     {feedback.tip && (
                       <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
-                        <span className="font-semibold">Tip:</span> {feedback.tip}
+                        {feedback.tip}
                       </p>
                     )}
                   </div>
@@ -175,7 +176,7 @@ export default function FormCoachModal({ open, onClose }) {
                   onClick={reset}
                   className="mt-4 w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
                 >
-                  Analyze another rep
+                  {t('formcoach.analyzeAnother')}
                 </button>
               </motion.div>
             )}

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -16,9 +16,16 @@ import StickerDisplay from './StickerDisplay';
 import StickerPanel from './StickerPanel';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
+import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translation';
 
 export default function HubPostCard({ post, onAuthorClick = null }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  // On-demand translation state. Translation is shown alongside (or in place
+  // of) the original body when the user taps "Translate".
+  const [translation, setTranslation] = useState(null); // { text, sourceLang } | null
+  const [translating, setTranslating]   = useState(false);
+  const [translateError, setTranslateError] = useState(null);
+  const [showOriginal, setShowOriginal] = useState(false); // toggle when translation exists
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -186,8 +193,67 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
       {/* Body */}
       {postBody && (
-        <div className="px-3 pb-3 text-sm whitespace-pre-wrap break-words">
-          {postBody}
+        <div className="px-3 pb-3 text-sm break-words">
+          <div className="whitespace-pre-wrap">
+            {translation && !showOriginal ? translation.text : postBody}
+          </div>
+          {/* Translate / Show original — only show if it's plausibly worth translating */}
+          {!isLikelyAlreadyInLanguage(postBody, language) && (
+            <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+              {translation ? (
+                <button
+                  onClick={() => setShowOriginal((v) => !v)}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {showOriginal
+                    ? (t('hub.post.showTranslation') === 'hub.post.showTranslation' ? 'Show translation' : t('hub.post.showTranslation'))
+                    : (t('hub.post.showOriginal') === 'hub.post.showOriginal' ? 'Show original' : t('hub.post.showOriginal'))}
+                </button>
+              ) : translating ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {t('hub.post.translating') === 'hub.post.translating' ? 'Translating…' : t('hub.post.translating')}
+                </span>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (translating) return;
+                    setTranslating(true);
+                    setTranslateError(null);
+                    try {
+                      const result = await translateText(postBody, language, 'auto');
+                      if (result?.translatedText && result.translatedText.trim() !== postBody.trim()) {
+                        setTranslation({ text: result.translatedText, sourceLang: result.sourceLang });
+                        setShowOriginal(false);
+                      } else {
+                        setTranslateError(true);
+                      }
+                    } catch (err) {
+                      console.warn('[HubPostCard] translation failed:', err);
+                      setTranslateError(true);
+                    } finally {
+                      setTranslating(false);
+                    }
+                  }}
+                  className="flex items-center gap-1 hover:text-primary transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {t('hub.post.translate') === 'hub.post.translate' ? 'Translate' : t('hub.post.translate')}
+                </button>
+              )}
+              {translation?.sourceLang && translation.sourceLang !== language && !showOriginal && (
+                <span className="text-muted-foreground/70">
+                  · {t('hub.post.translatedFrom') === 'hub.post.translatedFrom' ? 'translated from' : t('hub.post.translatedFrom')} {translation.sourceLang}
+                </span>
+              )}
+              {translateError && (
+                <span className="text-destructive/80">
+                  {t('hub.post.translateError') === 'hub.post.translateError' ? 'Translation unavailable' : t('hub.post.translateError')}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       )}
 
