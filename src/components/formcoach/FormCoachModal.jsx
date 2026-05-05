@@ -1,53 +1,20 @@
 // src/components/formcoach/FormCoachModal.jsx
 //
-// Wires the four orphaned formcoach components (CameraView, ExercisePicker,
-// DemoSection, FeedbackPanel) into a usable Beta flow. Until an AI analysis
-// backend is connected, analyzeForm returns mock feedback so the UI is fully
-// navigable and demoable.
+// Real Form Coach. Wires the four formcoach sub-components into a usable
+// flow backed by TensorFlow.js MoveNet pose detection. The analyzer lives
+// at src/lib/formCoach/analyzeForm.js — see that file for how the rule-based
+// per-exercise checks work.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2, X } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import CameraView from './CameraView';
 import ExercisePicker from './ExercisePicker';
 import DemoSection from './DemoSection';
 import FeedbackPanel from './FeedbackPanel';
 import { useLanguage } from '@/lib/LanguageContext';
-
-/**
- * MOCK form analyzer. Replace with a real call to the AI vision endpoint.
- *
- * Returns:
- *   {
- *     score: 0-10,
- *     scoreLabel: 'excellent' | 'good' | 'needswork' | 'poor',
- *     positives: string[],
- *     warnings: string[],
- *     tips: string[],
- *   }
- */
-async function mockAnalyzeForm(_imageDataUrl, exerciseName) {
-  // Simulate latency
-  await new Promise((r) => setTimeout(r, 1500));
-  return {
-    score: 7,
-    scoreLabel: 'good',
-    exercise: exerciseName,
-    positives: [
-      'Good bar path — staying close to your body',
-      'Solid setup position',
-    ],
-    warnings: [
-      'Slight forward lean at the bottom — engage your core more',
-    ],
-    tips: [
-      'Try filming from the side for the clearest feedback',
-      'Lower lighting is making depth detection harder — try a brighter spot',
-    ],
-    isBeta: true,
-  };
-}
+import { analyzeForm, prewarmDetector } from '@/lib/formCoach/analyzeForm';
 
 export default function FormCoachModal({ open, onClose }) {
   const { t } = useLanguage();
@@ -55,15 +22,41 @@ export default function FormCoachModal({ open, onClose }) {
   const [exerciseDisplay, setExerciseDisplay] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
   const [feedback, setFeedback] = useState(null);
+  const [loadingMessage, setLoadingMessage] = useState('Analyzing your form…');
+
+  // Pre-warm the model in the background as soon as the modal opens, so the
+  // user's first capture isn't blocked on the 3 MB model download.
+  useEffect(() => {
+    if (open) prewarmDetector();
+  }, [open]);
 
   const handleCapture = async (imageDataUrl) => {
     if (!exercise) return;
     setAnalyzing(true);
     setFeedback(null);
+    setLoadingMessage('Analyzing your form…');
+
+    // After 2.5s, switch the loading message — first-call model load can take
+    // 3-6s on slow devices, and silence makes it feel broken.
+    const slowMessageTimer = setTimeout(() => {
+      setLoadingMessage('Loading the AI model (one-time, ~3 MB)…');
+    }, 2500);
+
     try {
-      const result = await mockAnalyzeForm(imageDataUrl, exerciseDisplay || exercise);
+      const result = await analyzeForm(imageDataUrl, exerciseDisplay || exercise);
       setFeedback(result);
+    } catch (err) {
+      console.error('[FormCoach] analysis failed:', err);
+      setFeedback({
+        overall_score: 0,
+        form_rating: 'Analysis failed',
+        good_points: [],
+        corrections: ['Something went wrong analyzing the frame. Try capturing again.'],
+        injury_risks: [],
+        tip: 'If this keeps happening, refresh the page to reset the AI model.',
+      });
     } finally {
+      clearTimeout(slowMessageTimer);
       setAnalyzing(false);
     }
   };
@@ -72,6 +65,18 @@ export default function FormCoachModal({ open, onClose }) {
     setFeedback(null);
     setAnalyzing(false);
   };
+
+  // Reset state when the modal closes so the next open is a clean slate
+  useEffect(() => {
+    if (!open) {
+      setFeedback(null);
+      setAnalyzing(false);
+      // Keep the exercise selection — most users want to analyze the same lift
+    }
+  }, [open]);
+
+  const isPartial = feedback?._poseQuality === 'partial';
+  const noBody    = feedback?._poseQuality === 'no_body';
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -105,8 +110,10 @@ export default function FormCoachModal({ open, onClose }) {
           {analyzing && (
             <div className="flex flex-col items-center justify-center py-16">
               <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
-              <p className="font-heading font-semibold">Analyzing your form…</p>
-              <p className="text-xs text-muted-foreground mt-1">This usually takes a few seconds.</p>
+              <p className="font-heading font-semibold">{loadingMessage}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Detecting body posture and joint angles.
+              </p>
             </div>
           )}
 
@@ -117,19 +124,58 @@ export default function FormCoachModal({ open, onClose }) {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
               >
-                {feedback.isBeta && (
+                {/* Beta disclosure — the analysis is real but rule-based on a single frame */}
+                <div className="mb-4 p-3 rounded-lg bg-primary/5 border border-primary/20 text-xs">
+                  <p className="text-foreground/80 leading-relaxed">
+                    <span className="font-bold text-primary">How this works:</span>{' '}
+                    Your photo is analyzed locally on this device using AI pose detection
+                    (MoveNet). No images are sent to any server. Feedback is based on joint
+                    angles and posture from a single frame — for the most accurate read,
+                    capture mid-rep at the bottom (or top, for pull-ups).
+                  </p>
+                </div>
+
+                {/* Pose quality warning */}
+                {isPartial && (
                   <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/30 text-xs">
-                    <span className="font-bold text-yellow-700 dark:text-yellow-400">Beta:</span>{' '}
-                    AI form analysis is in early testing. Feedback shown is a sample — real
-                    coaching coming soon.
+                    <p className="font-bold text-yellow-700 dark:text-yellow-400 mb-1">
+                      Partial detection
+                    </p>
+                    <p className="text-yellow-700/80 dark:text-yellow-400/80">
+                      Some joints weren't fully visible. Results below are best-effort —
+                      try better lighting or a clearer angle for a more confident read.
+                    </p>
                   </div>
                 )}
-                <FeedbackPanel feedback={feedback} />
+
+                {!noBody && (
+                  <FeedbackPanel feedback={feedback} exercise={exerciseDisplay || exercise} />
+                )}
+
+                {noBody && (
+                  <div className="rounded-xl bg-muted p-5">
+                    <p className="font-heading font-bold mb-2">{feedback.form_rating}</p>
+                    <ul className="text-sm text-muted-foreground space-y-1.5">
+                      {feedback.corrections.map((c, i) => (
+                        <li key={i} className="flex gap-2">
+                          <span>→</span>
+                          <span>{c}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    {feedback.tip && (
+                      <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                        <span className="font-semibold">Tip:</span> {feedback.tip}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={reset}
-                  className="mt-4 w-full py-2 rounded-md bg-secondary text-foreground text-sm font-medium hover:bg-secondary/80 transition-colors"
+                  className="mt-4 w-full py-2 rounded-md bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
                 >
-                  Try another rep
+                  Analyze another rep
                 </button>
               </motion.div>
             )}
