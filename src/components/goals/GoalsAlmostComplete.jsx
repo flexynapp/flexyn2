@@ -86,11 +86,16 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
       xpReward = Math.min(xpReward, 500);
 
       if (xpReward > 0) {
-        await base44.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: xpReward,
-          action_type: 'goal_completed',
-          action_data: { goal_id: goalId, xp_earned: xpReward }
-        });
+        // XP failure must NOT block goal completion (see GoalsModal for rationale).
+        try {
+          await base44.functions.invoke('updateUserXpAndAchievements', {
+            xp_gained: xpReward,
+            action_type: 'goal_completed',
+            action_data: { goal_id: goalId, xp_earned: xpReward }
+          });
+        } catch (xpErr) {
+          console.warn('[GoalsAlmostComplete] XP update failed (non-blocking):', xpErr);
+        }
       }
 
       return base44.entities.Goal.update(goalId, { status: 'completed' });

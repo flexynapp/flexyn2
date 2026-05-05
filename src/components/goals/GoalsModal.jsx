@@ -79,11 +79,17 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       xpReward = Math.min(xpReward, 500);
 
       if (xpReward > 0) {
-        await base44.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: xpReward,
-          action_type: 'goal_completed',
-          action_data: { goal_id: goalId, goal_name: goal?.exercise_name, xp_earned: xpReward },
-        });
+        // XP failure must NOT block goal completion. The user finished the goal —
+        // they get credit even if the XP/achievement service is temporarily down.
+        try {
+          await base44.functions.invoke('updateUserXpAndAchievements', {
+            xp_gained: xpReward,
+            action_type: 'goal_completed',
+            action_data: { goal_id: goalId, goal_name: goal?.exercise_name, xp_earned: xpReward },
+          });
+        } catch (xpErr) {
+          console.warn('[GoalsModal] XP update failed (non-blocking):', xpErr);
+        }
       }
       // Snapshot the achieved values at completion time so Hub posts can
       // display "achieved / target" rather than just the target.

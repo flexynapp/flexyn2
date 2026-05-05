@@ -50,11 +50,18 @@ export default function RegimensSection({ onStartRegimen }) {
   const createMutation = useMutation({
     mutationFn: async (data) => {
       const regimen = await base44.entities.Regimen.create(data);
-      await base44.functions.invoke('updateUserXpAndAchievements', {
-        xp_gained: 100,
-        action_type: 'regimen_created',
-        action_data: {},
-      });
+      // XP failure must NOT roll back the regimen — it was successfully created
+      // server-side. Reverting the optimistic UI on XP failure causes the regimen
+      // to "disappear" until the next refetch, which looks like a save bug.
+      try {
+        await base44.functions.invoke('updateUserXpAndAchievements', {
+          xp_gained: 100,
+          action_type: 'regimen_created',
+          action_data: {},
+        });
+      } catch (xpErr) {
+        console.warn('[RegimensSection] XP update failed (non-blocking):', xpErr);
+      }
       return regimen;
     },
     onMutate: async (data) => {

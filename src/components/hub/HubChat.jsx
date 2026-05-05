@@ -202,26 +202,48 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
     try {
       let attachmentUrl = null;
+      let uploadFailed = false;
       if (fileToUpload) {
         setUploading(true);
         try {
           const result = await base44.integrations.Core.UploadFile({ file: fileToUpload });
           attachmentUrl = result?.file_url || null;
+          if (!attachmentUrl) uploadFailed = true;
         } catch (uploadErr) {
           console.error('[HubChat] upload threw:', uploadErr);
-          toast.error('Image upload failed — message sent without attachment');
+          uploadFailed = true;
         } finally {
           setUploading(false);
         }
       }
 
-      await hubMessages.sendMessage({
+      // If upload failed AND there's no text, the message is empty — abort
+      // cleanly rather than silently dropping the optimistic bubble on refetch.
+      if (uploadFailed && !trimmed) {
+        queryClient.setQueryData(queryKey, previous);
+        toast.error('Image upload failed — try again');
+        return;
+      }
+      if (uploadFailed) {
+        toast.error('Image upload failed — message sent without attachment');
+      }
+
+      const sent = await hubMessages.sendMessage({
         conversationId: conversation.id,
         senderEmail: user.email || '',
         recipientEmail: otherEmail,
         body: trimmed,
         ...(attachmentUrl ? { attachmentUrl } : {}),
       });
+      // sendMessage returns null on validation failure rather than throwing.
+      // Treat that as an error so the optimistic bubble is rolled back instead
+      // of being silently replaced by stale server data on refetch.
+      if (!sent) {
+        queryClient.setQueryData(queryKey, previous);
+        setDraft(trimmed);
+        toast.error(t('hub.messages.sendError'));
+        return;
+      }
       queryClient.invalidateQueries({ queryKey });
       queryClient.invalidateQueries({ queryKey: ['hubConversations'] });
     } catch (err) {

@@ -402,8 +402,20 @@ export default function HubComposer({ onClose }) {
       if (selected.kind === 'status') {
         finalBody = body.trim();
       } else {
-        const autoBody = t(`hub.share.body.${selected.kind}`).replace('{summary}', selected.summary);
+        const translationKey = `hub.share.body.${selected.kind}`;
+        const translated = t(translationKey);
+        // Detect missing translation: i18n returns the raw key on miss.
+        const isTranslationMissing = translated === translationKey;
+        const summary = selected.summary || '';
+        const autoBody = isTranslationMissing || !summary
+          ? '' // Don't post the literal key string or "Just shared my undefined"
+          : translated.replace('{summary}', summary);
         finalBody = body.trim() || autoBody;
+        // Guard: never post an activity-tied post with empty body. Fall back to
+        // a minimal language-agnostic label if everything above failed.
+        if (!finalBody) {
+          finalBody = `Shared ${selected.kind}`;
+        }
       }
 
       // Build snapshot for activity-linked posts
