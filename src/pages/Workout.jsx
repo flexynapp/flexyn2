@@ -16,6 +16,7 @@ import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
 import FormCoachModal from '@/components/formcoach/FormCoachModal';
 import WorkoutGeneratorModal from '@/components/workout/WorkoutGeneratorModal';
+import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation } from 'react-router-dom';
@@ -74,6 +75,7 @@ export default function Workout() {
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
+  const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -221,6 +223,10 @@ export default function Workout() {
     onSuccess: (_, data) => {
       const xpGained = calculateWorkoutXp(data);
       if (activeSessionId) removeSession(activeSessionId);
+      // Snapshot the workout for the share card *before* resetting state.
+      // Capturing here means the share card preview is built from exactly
+      // what was saved (including the date and the user's actual data).
+      setShareCardWorkout({ ...data, date: data.date || format(new Date(), 'yyyy-MM-dd') });
       resetWorkout();
       toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -1123,6 +1129,13 @@ export default function Workout() {
       <ProfanityWarningDialog open={guard.open} onContinue={guard.onContinue} />
 
       <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+
+      <WorkoutShareCard
+        open={!!shareCardWorkout}
+        onClose={() => setShareCardWorkout(null)}
+        workout={shareCardWorkout}
+        username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+      />
 
       <WorkoutGeneratorModal
         open={generatorOpen}
