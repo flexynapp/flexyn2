@@ -1,5 +1,7 @@
 // src/lib/data/hubFollows.js
 import { base44 } from '@/api/base44Client';
+import { notifyFriendFollow } from './notifications';
+import * as users from './users';
 
 const e = () => base44.entities.HubFollow;
 
@@ -30,7 +32,24 @@ export const follow = async (followerEmail, followeeEmail) => {
   if (followerEmail === followeeEmail) return null;
   const existing = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
-  return await e().create({ follower_email: followerEmail, followee_email: followeeEmail });
+  const created = await e().create({ follower_email: followerEmail, followee_email: followeeEmail });
+  // Notify the followee — non-blocking, fire and forget
+  (async () => {
+    try {
+      const all = await users.list().catch(() => []);
+      const followee = all.find(u => u.email?.toLowerCase() === followeeEmail.toLowerCase());
+      const follower = all.find(u => u.email?.toLowerCase() === followerEmail.toLowerCase());
+      if (followee?.id) {
+        const followerName = follower?.username ? `@${follower.username}` : (followerEmail.split('@')[0] || 'Someone');
+        await notifyFriendFollow({
+          recipientUserId: followee.id,
+          recipientEmail:  followee.email,
+          followerName,
+        });
+      }
+    } catch { /* swallow — notification failure must not block follow */ }
+  })();
+  return created;
 };
 
 /** Remove a follow relationship. */

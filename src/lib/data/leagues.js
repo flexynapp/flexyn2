@@ -22,6 +22,7 @@ import {
   getTier,
   resolveStanding,
 } from '@/lib/leagueTiers';
+import { notifyLeagueResolution } from './notifications';
 
 /** ISO week boundaries: Mon 00:00:00 → Sun 23:59:59 in the local timezone. */
 function currentWeekRange() {
@@ -266,6 +267,23 @@ async function _resolveLeague(leagueId) {
         capsule_type: capsuleAwarded,
       }).then(({ error }) => {
         if (error) console.warn('[leagues] capsule grant failed:', error);
+      });
+    }
+
+    // In-app notification — only for noteworthy outcomes (promote/demote, or
+    // a coin-paying hold like top 3 in legend). Skip silent middle-of-pack
+    // holds to avoid notification spam.
+    const noteworthy = outcome === 'promote' || outcome === 'demote' || coinsAwarded > 0;
+    if (noteworthy) {
+      const fromTier = getTier(league.tier).label;
+      const toTier   = getTier(newTier).label;
+      await notifyLeagueResolution({
+        user: { id: m.user_id, email: m.user_email },
+        outcome,
+        fromTier,
+        toTier,
+        coinsAwarded,
+        capsuleAwarded,
       });
     }
   }));

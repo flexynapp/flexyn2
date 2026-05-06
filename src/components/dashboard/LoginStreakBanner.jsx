@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as loginStreak from '@/lib/data/loginStreak';
+import * as notifications from '@/lib/data/notifications';
 import { supabase } from '@/api/supabaseClient';
 
 export default function LoginStreakBanner() {
@@ -62,6 +63,22 @@ export default function LoginStreakBanner() {
         queryClient.invalidateQueries({ queryKey: ['loginStreakProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] });
+
+        // In-app notification (non-blocking, only on milestone days where coins are awarded)
+        const isMilestone = result.streak === 1 || result.streak === 3 || result.streak === 5
+          || result.streak === 7 || result.streak === 14 || result.streak === 21
+          || result.streak === 30 || result.streak === 60 || result.streak === 100;
+        if (isMilestone || result.eliteCapsuleAwarded) {
+          notifications.notifyStreakMilestone({
+            user,
+            kind: 'login',
+            day: result.streak,
+            coinsAwarded: result.coinsAwarded,
+            eliteCapsuleAwarded: result.eliteCapsuleAwarded,
+          })
+            .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
+            .catch(() => {});
+        }
       }
     }).catch((err) => {
       console.warn('[LoginStreakBanner] recordLogin failed:', err);

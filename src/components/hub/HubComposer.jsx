@@ -23,7 +23,10 @@ import { useProfanityGuard } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from '@/lib/data/hubPosts';
+import * as hubFollows from '@/lib/data/hubFollows';
 import * as quests from '@/lib/data/quests';
+import * as notifications from '@/lib/data/notifications';
+import * as users from '@/lib/data/users';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as workouts from '@/lib/data/workouts';
 import * as cardio from '@/lib/data/cardio';
@@ -448,6 +451,32 @@ export default function HubComposer({ onClose }) {
       quests.recordAction(user, ACTION_TYPES.HUB_POST, 1)
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});
+
+      // Notify followers — non-blocking, capped at 100 followers per post to
+      // avoid hammering the DB on viral posts. Look up each follower's user_id
+      // for the recipient_id field on the notification row.
+      (async () => {
+        try {
+          const followerEmails = await hubFollows.listFollowers(user.email);
+          if (!followerEmails || followerEmails.length === 0) return;
+          const allUsers = await users.list().catch(() => []);
+          const lcMap = new Map(allUsers.map(u => [u.email?.toLowerCase(), u]));
+          const posterName = user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'A friend');
+          const preview = (finalBody || '').slice(0, 100);
+          const capped = followerEmails.slice(0, 100);
+          await Promise.all(capped.map(email => {
+            const recipient = lcMap.get(email?.toLowerCase());
+            if (!recipient?.id) return null;
+            return notifications.notifyFriendPost({
+              recipient: { id: recipient.id, email: recipient.email },
+              posterName,
+              postPreview: preview,
+            });
+          }).filter(Boolean));
+        } catch (err) {
+          console.warn('[HubComposer] follower notify failed:', err);
+        }
+      })();
 
       onClose();
     } catch (err) {

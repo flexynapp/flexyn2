@@ -35,6 +35,7 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
+import * as notifications from '@/lib/data/notifications';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 
@@ -246,6 +247,16 @@ export default function Workout() {
             toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
               ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
               : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
+            // In-app notification on milestone
+            notifications.notifyStreakMilestone({
+              user,
+              kind: 'workout',
+              day: res.streak,
+              coinsAwarded: res.coinsAwarded,
+              eliteCapsuleAwarded: res.eliteCapsuleAwarded,
+            })
+              .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
+              .catch(() => {});
           }
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });

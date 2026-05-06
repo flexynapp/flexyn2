@@ -7,6 +7,7 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import ProfileMenu from './ProfileMenu';
 import LevelBar from './LevelBar';
+import NotificationBell from './NotificationBell';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -84,6 +85,7 @@ export default function Header() {
           {isChildRoute ? title : t('app.name')}
         </button>
         <div className="flex items-center gap-1 shrink-0">
+          <NotificationBell />
           <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
           <div className="-ml-2">
             <ProfileMenu />

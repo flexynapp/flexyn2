@@ -36,3 +36,4 @@ export * as loginStreak from './loginStreak';
 export * as coinShop from './coinShop';
 export * as leagues from './leagues';
 export * as workoutStreak from './workoutStreak';
+export * as notifications from './notifications';

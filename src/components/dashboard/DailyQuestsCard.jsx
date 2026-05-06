@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
+import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition, QUEST_DIFFICULTY } from '@/lib/questCatalog';
 
 export default function DailyQuestsCard() {
@@ -46,6 +47,18 @@ export default function DailyQuestsCard() {
       toast.success(t('dashboard.coinsClaimedToast').replace('{coins}', result.coinsAwarded), { icon: '🪙' });
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+      // In-app notification — non-blocking
+      const def = getQuestDefinition(questRow.quest_id);
+      const labelKey = `quest.${questRow.quest_id}.label`;
+      const translatedLabel = t(labelKey);
+      const label = translatedLabel === labelKey ? (def?.label || 'Quest') : translatedLabel;
+      notifications.notifyQuestClaimed({
+        user,
+        questLabel: label,
+        coinsAwarded: result.coinsAwarded,
+      })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
+        .catch(() => {});
     } else {
       toast.error(t('dashboard.claimError'));
     }

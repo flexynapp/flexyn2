@@ -6,6 +6,7 @@ import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
 import PullToRefresh from './PullToRefresh';
 import ProfileMenu from './ProfileMenu';
+import NotificationBell from './NotificationBell';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
@@ -46,8 +47,9 @@ export default function Layout() {
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>
-          <div className="w-full mt-1">
-            <ProfileMenu />
+          <div className="w-full mt-1 flex items-center gap-2">
+            <div className="flex-1"><ProfileMenu /></div>
+            <NotificationBell />
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1">
