@@ -9,7 +9,8 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import {
   Trophy, Sparkles, Coins, Package, ChevronRight,
 } from 'lucide-react';
@@ -62,6 +63,16 @@ export default function StatsHubModal({ open, onClose }) {
     <>
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto p-0 gap-0">
+          {/* Visually-hidden DialogTitle + Description for screen readers.
+              Radix logs an a11y warning otherwise. The visual hero below
+              already shows the title, so we don't repeat it visibly. */}
+          <VisuallyHidden.Root>
+            <DialogTitle>{tFallback('statsHub.title', 'Your stats')}</DialogTitle>
+            <DialogDescription>
+              {tFallback('statsHub.a11yDesc', 'Level, coins, daily quests, league standing, and quick links to leaderboards, achievements, your bag, and the coin shop.')}
+            </DialogDescription>
+          </VisuallyHidden.Root>
+
           {/* Hero — level + coins. Radix DialogContent ships its own close X
               in the corner; we don't add a second one. */}
           <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 px-5 pt-5 pb-6 text-white">
