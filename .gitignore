@@ -1,6 +1,7 @@
-#env
+# env — ignore all local env files but allow .env.example to be committed
 .env
 .env.*
+!.env.example
 
 # Logs
 /logs
@@ -29,3 +30,7 @@ dist-ssr
 
 .env
 .vite
+
+# Claude Code local config and worktrees — never commit these
+.claude/settings.local.json
+.claude/worktrees/

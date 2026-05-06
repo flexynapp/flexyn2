@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { Drawer as DrawerPrimitive } from "vaul"
+import { motion, AnimatePresence } from "framer-motion"
 
 import { cn } from "@/lib/utils"
 
@@ -20,26 +21,42 @@ const DrawerPortal = DrawerPrimitive.Portal
 const DrawerClose = DrawerPrimitive.Close
 
 const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
-  <DrawerPrimitive.Overlay
-    ref={ref}
-    className={cn("fixed inset-0 z-50 bg-black/80", className)}
-    {...props} />
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    exit={{ opacity: 0 }}
+    transition={{ duration: 0.2, ease: 'easeInOut' }}
+  >
+    <DrawerPrimitive.Overlay
+      ref={ref}
+      className={cn("fixed inset-0 z-50 bg-black/80", className)}
+      {...props} />
+  </motion.div>
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
 const DrawerContent = React.forwardRef(({ className, children, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
-    <DrawerPrimitive.Content
-      ref={ref}
-      className={cn(
-        "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
-        className
-      )}
-      {...props}>
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
-      {children}
-    </DrawerPrimitive.Content>
+    <AnimatePresence mode="wait">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.25, ease: 'easeInOut' }}
+      >
+        <DrawerPrimitive.Content
+          ref={ref}
+          className={cn(
+            "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
+            className
+          )}
+          {...props}>
+          <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+          {children}
+        </DrawerPrimitive.Content>
+      </motion.div>
+    </AnimatePresence>
   </DrawerPortal>
 ))
 DrawerContent.displayName = "DrawerContent"
