@@ -1,7 +1,7 @@
 // src/pages/Hub.jsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store, Trophy } from 'lucide-react';
+import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store, Trophy, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,6 +17,7 @@ import * as hubMessages from '@/lib/data/hubMessages';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
 import LeaderboardsContent from '@/components/LeaderboardsContent';
+import CoachChat from '@/components/coach/CoachChat';
 import { toast } from 'sonner';
 
 export default function Hub() {
@@ -200,6 +201,20 @@ export default function Hub() {
                 <Search className="w-5 h-5" />
               </button>
 
+              {/* Coach */}
+              <button
+                type="button"
+                onClick={() => setSection(section === 'coach' ? 'feed' : 'coach')}
+                aria-label="Coach"
+                className={`relative p-2 rounded-lg transition-colors ${
+                  section === 'coach'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                <Sparkles className="w-5 h-5" />
+              </button>
+
               {/* Messages */}
               <button
                 type="button"
@@ -334,6 +349,10 @@ export default function Hub() {
               pendingChatTarget={pendingChatTarget}
               onPendingConsumed={() => setPendingChatTarget(null)}
             />
+          )}
+
+          {section === 'coach' && (
+            <CoachChat />
           )}
 
           {section === 'profile' && (
