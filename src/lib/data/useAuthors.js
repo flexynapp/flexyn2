@@ -29,7 +29,7 @@ export function useAuthorsByEmail() {
  * @param {object} byEmail - the map from useAuthorsByEmail()
  * @param {string} authorEmail - the post/comment's author_email
  * @param {{ author_name?: string, author_avatar_url?: string }} snapshot
- * @returns {{ handle: string, avatarUrl: string|null, initials: string, username: string }}
+ * @returns {{ handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId }}
  */
 export function resolveAuthor(byEmail, authorEmail, snapshot = {}) {
   const live = authorEmail ? byEmail[authorEmail.toLowerCase()] : null;
@@ -40,5 +40,9 @@ export function resolveAuthor(byEmail, authorEmail, snapshot = {}) {
   const handle = `@${username}`;
   const avatarUrl = live?.avatar_url || snapshot.author_avatar_url || null;
   const initials = (username || '?').slice(0, 2).toUpperCase();
-  return { handle, avatarUrl, initials, username };
+  // Equipped loot — only available from the live record (not snapshotted).
+  // Falls through to null when the user list hasn't loaded yet.
+  const equippedTitleId = live?.equipped_title_id || null;
+  const equippedFrameId = live?.equipped_frame_id || null;
+  return { handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId };
 }

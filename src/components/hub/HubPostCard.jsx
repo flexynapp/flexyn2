@@ -17,6 +17,8 @@ import StickerPanel from './StickerPanel';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
+import { getLootTitleById } from '@/lib/lootTitles';
+import { getLootFrameById } from '@/lib/lootFrames';
 
 export default function HubPostCard({ post, onAuthorClick = null }) {
   const { t, language } = useLanguage();
@@ -157,7 +159,10 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     <article className="bg-card border border-border rounded-xl overflow-hidden">
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
-        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-sm overflow-hidden pointer-events-none">
+        <div
+          className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-sm overflow-hidden pointer-events-none"
+          style={author.equippedFrameId ? (getLootFrameById(author.equippedFrameId)?.css || {}) : {}}
+        >
           {author.avatarUrl ? (
             <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
@@ -165,9 +170,27 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           )}
         </div>
         <div className="flex-1 min-w-0 pointer-events-none">
-          <p className={`font-heading font-bold text-sm truncate ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
-            {author.handle}
-          </p>
+          <div className="flex items-baseline gap-1.5 truncate">
+            <p className={`font-heading font-bold text-sm truncate ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
+              {author.handle}
+            </p>
+            {author.equippedTitleId && (() => {
+              const title = getLootTitleById(author.equippedTitleId);
+              if (!title) return null;
+              return (
+                <span
+                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                  style={{
+                    background: 'hsl(var(--primary) / 0.12)',
+                    color: 'hsl(var(--primary))',
+                  }}
+                  title={title.description}
+                >
+                  {title.emoji} {title.name}
+                </span>
+              );
+            })()}
+          </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <span>{timeLabel}</span>
             <span>·</span>

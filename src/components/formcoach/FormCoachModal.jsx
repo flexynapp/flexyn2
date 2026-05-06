@@ -30,6 +30,12 @@ export default function FormCoachModal({ open, onClose }) {
     if (open) prewarmDetector();
   }, [open]);
 
+  // Diagnostic — same logging the WorkoutGenerator has so we can confirm
+  // the modal is actually mounting/re-rendering when state goes true.
+  useEffect(() => {
+    console.log('[FormCoachModal] render with open=', open);
+  }, [open]);
+
   const handleCapture = async (imageDataUrl) => {
     if (!exercise) return;
     setAnalyzing(true);

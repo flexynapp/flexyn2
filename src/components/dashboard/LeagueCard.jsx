@@ -62,7 +62,7 @@ export default function LeagueCard({ onClick }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className="block w-full text-left"
     >
-      <Card className="overflow-hidden border-border/60">
+      <Card className="overflow-hidden border-border/60 theme-card-accent">
         {/* Top stripe — gradient by tier */}
         <div className={`relative bg-gradient-to-r ${tier.gradient} px-4 pt-3 pb-4 text-white`}>
           <div className="flex items-center justify-between">

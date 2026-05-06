@@ -29,6 +29,14 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
 
+  // Diagnostic — track open transitions so we know if state is propagating.
+  // If "Generator Modal: open=true" never logs, the parent isn't passing the
+  // prop. If it logs but the dialog is invisible, it's a Radix portal /
+  // z-index / CSS issue.
+  React.useEffect(() => {
+    console.log('[GeneratorModal] render with open=', open);
+  }, [open]);
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {

@@ -81,7 +81,7 @@ export default function DailyQuestsCard() {
     .reduce((sum, q) => sum + q.coin_reward, 0);
 
   return (
-    <Card className="p-4 md:p-5 bg-gradient-to-br from-card to-secondary/30 border-border/60">
+    <Card className="p-4 md:p-5 bg-gradient-to-br from-card to-secondary/30 border-border/60 theme-card-accent">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="w-4 h-4 text-primary" />

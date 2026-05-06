@@ -229,8 +229,20 @@ export function ThemeProvider({ children }) {
       const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
       applyVars(theme.vars);
     }
+    // Set [data-theme-tier] on <html> so CSS can target animated/legendary
+    // themes (e.g. card accent stripe defined in src/index.css). The tier
+    // string mirrors the theme's animation name where present.
+    try {
+      const root = document.documentElement;
+      if (lootTheme?.animated) {
+        root.setAttribute('data-theme-tier',
+          lootTheme.rarity === 'legendary' ? 'legendary' : 'animated');
+      } else {
+        root.removeAttribute('data-theme-tier');
+      }
+    } catch { /* ignore */ }
     try { localStorage.setItem('fn-theme', themeId); } catch {}
-  }, [themeId, lootThemeId]);
+  }, [themeId, lootThemeId, lootTheme]);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
