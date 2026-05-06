@@ -15,6 +15,7 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -478,9 +479,11 @@ export default function Dashboard() {
       </div>
 
       {/* ── Login + Workout streak banners ──────────────────────── */}
+      {/* Each widget wrapped in its own ErrorBoundary so a missing migration
+          or DB error in one doesn't take down the whole Dashboard. */}
       <div className="mb-3 space-y-2">
-        <LoginStreakBanner />
-        <WorkoutStreakBanner />
+        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
+        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
       </div>
 
       {/* ── Weekly League card ──────────────────────────────────── */}
@@ -490,7 +493,9 @@ export default function Dashboard() {
         transition={{ duration: 0.4, delay: 0.10 }}
         className="mb-3"
       >
-        <LeagueCard onClick={() => setLeagueModalOpen(true)} />
+        <ErrorBoundary label="LeagueCard">
+          <LeagueCard onClick={() => setLeagueModalOpen(true)} />
+        </ErrorBoundary>
       </motion.div>
 
       {/* ── Daily quests card ───────────────────────────────────── */}
@@ -500,7 +505,9 @@ export default function Dashboard() {
         transition={{ duration: 0.4, delay: 0.15 }}
         className="mb-5 md:mb-6"
       >
-        <DailyQuestsCard />
+        <ErrorBoundary label="DailyQuestsCard">
+          <DailyQuestsCard />
+        </ErrorBoundary>
       </motion.div>
 
       {/* ── Goals row ─────────────────────────────────────────── */}

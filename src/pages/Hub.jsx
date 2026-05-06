@@ -18,6 +18,7 @@ import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
 import LeaderboardsContent from '@/components/LeaderboardsContent';
 import CoachChat from '@/components/coach/CoachChat';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { toast } from 'sonner';
 
 export default function Hub() {
@@ -352,7 +353,9 @@ export default function Hub() {
           )}
 
           {section === 'coach' && (
-            <CoachChat />
+            <ErrorBoundary label="CoachChat">
+              <CoachChat />
+            </ErrorBoundary>
           )}
 
           {section === 'profile' && (

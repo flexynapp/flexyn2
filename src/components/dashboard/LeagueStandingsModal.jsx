@@ -53,6 +53,16 @@ export default function LeagueStandingsModal({ open, onClose }) {
 }
 
 function Body({ data, userId, t, tFallback }) {
+  // Defensive: if anything's missing, render an empty-state instead of crashing
+  if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
+    return (
+      <div className="p-8 text-center">
+        <p className="text-sm text-muted-foreground">
+          {tFallback('league.empty', 'No league standings available right now.')}
+        </p>
+      </div>
+    );
+  }
   const { league, tier, members, totalMembers } = data;
   const promoteN = tier.promote;
   const demoteN  = tier.demote;

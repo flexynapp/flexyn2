@@ -33,12 +33,15 @@ export default function LeagueCard({ onClick }) {
     return <Skeleton className="h-28 rounded-xl" />;
   }
 
-  if (!data || !data.league) {
+  // Defensive: bail if data is missing or any required field is absent.
+  // A migration that hasn't run yet, a DB error, or stale cached data shouldn't
+  // crash the whole Dashboard.
+  if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return null;
   }
 
   const { league, tier, members, myRank, totalMembers } = data;
-  const me = members.find(m => m.user_id === user.id);
+  const me = members.find(m => m && m.user_id === user.id);
   const myXp = me?.weekly_xp || 0;
 
   // Days left in the week (week_end is a YYYY-MM-DD string)
