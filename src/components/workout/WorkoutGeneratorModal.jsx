@@ -62,7 +62,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[90vh] overflow-y-auto p-0 gap-0">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0">
         <div className="p-4 sm:p-6">
           <DialogHeader className="mb-4">
             <DialogTitle className="flex items-center gap-2">
