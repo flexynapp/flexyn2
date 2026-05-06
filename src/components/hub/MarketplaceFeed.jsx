@@ -327,8 +327,40 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
     try {
       const conv = await findOrCreateConversation(user.email, listing.seller_email);
       if (!conv) throw new Error('Could not open conversation');
+
+      // Structured payload — HubChat detects the [TRADE_OFFER_V1] prefix and
+      // renders an interactive card instead of raw text. Plain-text fallback
+      // is concatenated below so older clients (or copy/paste) still see
+      // something readable.
+      const fromName = user.username ?? user.email.split('@')[0];
+      const tradePayload = {
+        v: 1,
+        type: 'trade_offer',
+        status: 'pending',
+        fromEmail: user.email,
+        fromName,
+        toEmail: listing.seller_email,
+        myItem: {
+          inventoryId: selectedOffer.id,
+          itemId: selectedOffer.item_id,
+          name: selectedOffer.item_name,
+          emoji: selectedOffer.item_emoji,
+          rarity: selectedOffer.item_rarity,
+        },
+        theirItem: {
+          listingId: listing.id,
+          itemId: listing.item_id,
+          name: listing.item_name,
+          emoji: listing.item_emoji,
+          rarity: listing.item_rarity,
+          price: listing.price ?? null,
+        },
+        createdAt: new Date().toISOString(),
+      };
       const body = [
-        `🔁 Trade Offer from ${user.username ?? user.email.split('@')[0]}`,
+        '[TRADE_OFFER_V1]' + JSON.stringify(tradePayload),
+        '',
+        `🔁 Trade Offer from ${fromName}`,
         `I'm offering: ${selectedOffer.item_emoji} ${selectedOffer.item_name} (${RARITY[selectedOffer.item_rarity]?.label ?? selectedOffer.item_rarity})`,
         `For your: ${listing.item_emoji} ${listing.item_name} listed in the Marketplace.`,
         `Reply to accept or decline!`,

@@ -9,6 +9,7 @@ import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+import TradeOfferCard, { parseTradeOffer } from './TradeOfferCard';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -312,30 +313,54 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                     </span>
                   </div>
                 )}
-                <motion.div
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: Math.min(i, 8) * 0.02 }}
-                  className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity ${
-                      isMine
-                        ? 'bg-primary text-primary-foreground rounded-br-sm'
-                        : 'bg-secondary text-foreground rounded-bl-sm'
-                    } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
-                  >
-                    {(m.body || m.content) ? <span>{m.body || m.content}</span> : null}
-                    {m.attachment_url && (
-                      <img
-                        src={m.attachment_url}
-                        alt="attachment"
-                        className={`rounded-lg max-h-64 object-cover cursor-pointer ${(m.body || m.content) ? 'mt-1.5' : ''} max-w-full`}
-                        onClick={() => window.open(m.attachment_url, '_blank', 'noopener,noreferrer')}
-                      />
-                    )}
-                  </div>
-                </motion.div>
+                {(() => {
+                  // If the body starts with a trade-offer marker, render the
+                  // interactive card instead of the plain text bubble.
+                  const tradePayload = parseTradeOffer(m.body || m.content);
+                  if (tradePayload) {
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i, 8) * 0.02 }}
+                        className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'} ${isOptimistic ? 'opacity-70' : ''}`}
+                      >
+                        <TradeOfferCard
+                          payload={tradePayload}
+                          isMine={isMine}
+                          user={user}
+                          conversationId={conversation?.id}
+                        />
+                      </motion.div>
+                    );
+                  }
+                  return (
+                    <motion.div
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: Math.min(i, 8) * 0.02 }}
+                      className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity ${
+                          isMine
+                            ? 'bg-primary text-primary-foreground rounded-br-sm'
+                            : 'bg-secondary text-foreground rounded-bl-sm'
+                        } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
+                      >
+                        {(m.body || m.content) ? <span>{m.body || m.content}</span> : null}
+                        {m.attachment_url && (
+                          <img
+                            src={m.attachment_url}
+                            alt="attachment"
+                            className={`rounded-lg max-h-64 object-cover cursor-pointer ${(m.body || m.content) ? 'mt-1.5' : ''} max-w-full`}
+                            onClick={() => window.open(m.attachment_url, '_blank', 'noopener,noreferrer')}
+                          />
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })()}
                 {isLastSent && !isOptimistic && (
                   <div className="flex justify-end mb-2 pr-1">
                     <span className="text-[10px] text-muted-foreground">

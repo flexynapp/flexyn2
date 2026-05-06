@@ -163,7 +163,16 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
     ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
   });
   try {
-    const preview = body ? body.slice(0, 80) : '📎 Image';
+    // Trade offers embed a [TRADE_OFFER_V1]{json} marker at the start of
+    // the body — strip that for the conversation preview so the inbox
+    // doesn't show raw JSON.
+    let previewText = body || '';
+    if (previewText.startsWith('[TRADE_OFFER_V1]')) {
+      const newlineIdx = previewText.indexOf('\n');
+      previewText = newlineIdx >= 0 ? previewText.slice(newlineIdx + 1).trim() : '';
+      if (!previewText) previewText = '🔁 Trade offer';
+    }
+    const preview = previewText ? previewText.slice(0, 80) : '📎 Image';
     await conv().update(conversationId, {
       last_message_at: new Date().toISOString(),
       last_message_preview: preview,
