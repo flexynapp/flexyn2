@@ -227,8 +227,13 @@ export default function BodyMetricsTab() {
   const prev = sorted[sorted.length - 2];
 
   const delta = (key) => {
-    if (!latest?.[key] || !prev?.[key]) return null;
-    return (latest[key] - prev[key]).toFixed(1);
+    // Defensive: Supabase numeric columns can come back as strings, in which
+    // case `latest[key] - prev[key]` may produce NaN-or-string under strict
+    // type checks. Coerce both sides to Number explicitly.
+    const a = Number(latest?.[key]);
+    const b = Number(prev?.[key]);
+    if (!Number.isFinite(a) || !Number.isFinite(b)) return null;
+    return (a - b).toFixed(1);
   };
 
   if (isLoading) return <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 bg-secondary rounded-xl animate-pulse" />)}</div>;
