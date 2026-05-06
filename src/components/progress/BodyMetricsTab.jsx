@@ -186,15 +186,30 @@ export default function BodyMetricsTab() {
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); toast.success(t('bodyMetrics.deleted')); },
   });
 
-  const sorted = useMemo(() => [...entries].sort((a, b) => new Date(a.date) - new Date(b.date)), [entries]);
+  const sorted = useMemo(() => {
+    // Filter out entries with bad/missing dates BEFORE chart rendering — date-fns
+    // format() throws on Invalid Date which used to crash the whole tab.
+    const valid = (entries || []).filter(e => {
+      if (!e?.date) return false;
+      const d = new Date(e.date);
+      return !isNaN(d.getTime());
+    });
+    return valid.sort((a, b) => new Date(a.date) - new Date(b.date));
+  }, [entries]);
 
-  const chartData = useMemo(() => sorted.map(e => ({
-    date: format(new Date(e.date), 'MMM d', { locale: dateLocale }),
-    weight_lbs: e.weight_lbs ?? null,
-    weightDisplay: e.weight_lbs != null ? fromLbs(e.weight_lbs, weightUnit) : null,
-    body_fat_pct: e.body_fat_pct ?? null,
-    ...Object.fromEntries(MEASUREMENTS.map(m => [m.key, e[m.key] ?? null])),
-  })), [sorted, dateLocale, weightUnit]);
+  const chartData = useMemo(() => sorted.map(e => {
+    let dateLabel = '—';
+    try {
+      dateLabel = format(new Date(e.date), 'MMM d', { locale: dateLocale });
+    } catch { /* keep fallback */ }
+    return {
+      date: dateLabel,
+      weight_lbs: e.weight_lbs ?? null,
+      weightDisplay: e.weight_lbs != null ? fromLbs(e.weight_lbs, weightUnit) : null,
+      body_fat_pct: e.body_fat_pct ?? null,
+      ...Object.fromEntries(MEASUREMENTS.map(m => [m.key, e[m.key] ?? null])),
+    };
+  }), [sorted, dateLocale, weightUnit]);
 
   const ALL_METRICS = [
     { key: 'weight_lbs', label: t('workout.weightWithUnit').replace('lbs', weightUnit) },

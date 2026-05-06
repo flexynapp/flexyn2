@@ -199,14 +199,9 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
           />
         </div>
 
-        {/* Skip button */}
-        <button
-          onClick={handleSkip}
-          className="absolute top-3 right-3 z-10 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          aria-label="Skip nutrition setup"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {/* Note: Radix DialogContent ships its own close X in the top-right
+            corner. We previously added a second one here which created a
+            duplicate-X bug; relying on the built-in keeps a single button. */}
 
         <div className="p-6">
           <AnimatePresence mode="wait">

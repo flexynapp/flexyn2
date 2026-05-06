@@ -149,11 +149,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [attachmentPreview]);
 
+  // DMs are private, so we can be generous. 50 MB easily covers Live Photos,
+  // 4K screenshots, screen recordings, and large camera-roll exports.
+  const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024; // 50 MB
   const handleFilePick = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('Image must be 5 MB or smaller');
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      toast.error('Image must be 50 MB or smaller');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }

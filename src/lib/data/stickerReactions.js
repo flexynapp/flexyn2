@@ -30,10 +30,17 @@ export async function getMyReaction(postId, userId) {
 
 /**
  * Place or replace the current user's sticker reaction.
- * sticker = { item_id, item_emoji, item_rarity, variant }
+ * sticker = { item_id, item_name, item_emoji, item_rarity, variant }
+ *
+ * NOTE: post_sticker_reactions.item_name is NOT NULL in the DB schema (set
+ * by an early seed script before migration 010 ran). We MUST send a non-empty
+ * item_name on insert, else Postgres rejects with "null value in column
+ * 'item_name' violates not-null constraint". Fall back to the emoji or a
+ * literal 'Sticker' so callers can be lazy.
  */
 export async function reactWithSticker(postId, user, sticker) {
   if (!postId || !user?.id || !sticker) throw new Error('Missing args');
+  const itemName = sticker.item_name || sticker.name || sticker.item_emoji || 'Sticker';
   const { error } = await supabase
     .from('post_sticker_reactions')
     .upsert({
@@ -43,6 +50,7 @@ export async function reactWithSticker(postId, user, sticker) {
       user_name:      user.username ?? user.email?.split('@')[0] ?? 'User',
       user_avatar_url: user.avatar_url ?? null,
       item_id:        sticker.item_id,
+      item_name:      itemName,
       item_emoji:     sticker.item_emoji,
       item_rarity:    sticker.item_rarity ?? 'common',
       variant:        sticker.variant ?? null,

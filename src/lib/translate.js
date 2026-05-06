@@ -17,7 +17,12 @@ const LINGVA_ENDPOINTS = [
   'https://translate.plausibility.cloud',    // Mirror
 ];
 const MYMEMORY_ENDPOINT = 'https://api.mymemory.translated.net/get';
-const REQUEST_TIMEOUT_MS = 6000;
+// Per-request timeout — short so a dead endpoint falls through quickly to
+// the next engine instead of leaving the user staring at "Translating…".
+const REQUEST_TIMEOUT_MS = 4000;
+// Hard wall-clock cap on a full translateText() call (all engines combined).
+// Beyond this we give up so the UI never hangs longer than this.
+const TOTAL_TIMEOUT_MS = 9000;
 
 // LRU-ish cache keyed by `${target}|${text.slice(0, 200)}`. Survives the page
 // session — translations are deterministic enough to cache aggressively.
@@ -67,23 +72,32 @@ export async function translateText(text, targetLang, sourceLang = 'auto') {
   const cached = _cacheGet(cacheKey);
   if (cached) return cached;
 
-  // Chunk if needed
-  if (trimmed.length > 480) {
-    const chunks = chunkText(trimmed, 460);
-    const translated = await Promise.all(
-      chunks.map(c => _translateOne(c, targetLang, sourceLang))
-    );
-    if (translated.some(t => t === null)) return null;
-    const combined = {
-      translatedText: translated.map(t => t.translatedText).join(' '),
-      sourceLang: translated[0].sourceLang,
-      engine: translated[0].engine,
-    };
-    _cacheSet(cacheKey, combined);
-    return combined;
-  }
+  // Race the whole translation against a wall-clock timeout. Returning null
+  // here is the same surface as any other engine failure — the caller renders
+  // "Translation unavailable" and the spinner stops.
+  const timeoutPromise = new Promise((resolve) =>
+    setTimeout(() => resolve(null), TOTAL_TIMEOUT_MS)
+  );
 
-  const result = await _translateOne(trimmed, targetLang, sourceLang);
+  const workPromise = (async () => {
+    // Chunk if needed
+    if (trimmed.length > 480) {
+      const chunks = chunkText(trimmed, 460);
+      const translated = await Promise.all(
+        chunks.map(c => _translateOne(c, targetLang, sourceLang))
+      );
+      if (translated.some(t => t === null)) return null;
+      const combined = {
+        translatedText: translated.map(t => t.translatedText).join(' '),
+        sourceLang: translated[0].sourceLang,
+        engine: translated[0].engine,
+      };
+      return combined;
+    }
+    return _translateOne(trimmed, targetLang, sourceLang);
+  })();
+
+  const result = await Promise.race([workPromise, timeoutPromise]);
   if (result) _cacheSet(cacheKey, result);
   return result;
 }

@@ -54,14 +54,31 @@ export default class ErrorBoundary extends React.Component {
           <p className="font-heading font-bold text-base mb-1">Something went wrong</p>
           <p className="text-sm text-muted-foreground mb-4">
             This section failed to load. Try refreshing the page.
+            {this.props.label && (
+              <span className="block text-[11px] text-muted-foreground/70 mt-1">
+                Section: {this.props.label}
+              </span>
+            )}
           </p>
-          <button
-            onClick={() => this.setState({ hasError: false, error: null })}
-            className="text-xs text-primary underline underline-offset-2"
-          >
-            Try again
-          </button>
-          {import.meta.env.DEV && this.state.error && (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => this.setState({ hasError: false, error: null, showDetails: false })}
+              className="text-xs text-primary underline underline-offset-2"
+            >
+              Try again
+            </button>
+            {this.state.error && (
+              <button
+                onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))}
+                className="text-xs text-muted-foreground underline underline-offset-2"
+              >
+                {this.state.showDetails ? 'Hide details' : 'Show details'}
+              </button>
+            )}
+          </div>
+          {/* Error details — visible in BOTH dev and production so users can
+              report what crashed. Toggle off by default in prod via Show details. */}
+          {(import.meta.env.DEV || this.state.showDetails) && this.state.error && (
             <pre className="mt-4 text-left text-[10px] text-destructive bg-destructive/5 rounded-lg p-3 max-w-full overflow-x-auto whitespace-pre-wrap">
               {this.state.error.toString()}
             </pre>

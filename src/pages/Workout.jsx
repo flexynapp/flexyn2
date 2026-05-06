@@ -17,6 +17,7 @@ import CardioSection from '@/components/cardio/CardioSection';
 import FormCoachModal from '@/components/formcoach/FormCoachModal';
 import WorkoutGeneratorModal from '@/components/workout/WorkoutGeneratorModal';
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation } from 'react-router-dom';
@@ -1147,15 +1148,22 @@ export default function Workout() {
 
       <ProfanityWarningDialog open={guard.open} onContinue={guard.onContinue} />
 
-      <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+      {/* Each AI modal in its own ErrorBoundary so a TF.js load failure or
+          generator crash doesn't take down the whole Workout page. */}
+      <ErrorBoundary label="FormCoach">
+        <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+      </ErrorBoundary>
 
-      <WorkoutShareCard
-        open={!!shareCardWorkout}
-        onClose={() => setShareCardWorkout(null)}
-        workout={shareCardWorkout}
-        username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
-      />
+      <ErrorBoundary label="WorkoutShareCard">
+        <WorkoutShareCard
+          open={!!shareCardWorkout}
+          onClose={() => setShareCardWorkout(null)}
+          workout={shareCardWorkout}
+          username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+        />
+      </ErrorBoundary>
 
+      <ErrorBoundary label="WorkoutGenerator">
       <WorkoutGeneratorModal
         open={generatorOpen}
         onClose={() => setGeneratorOpen(false)}
@@ -1172,6 +1180,7 @@ export default function Workout() {
           toast.success(t('generator.loaded') === 'generator.loaded' ? 'Workout loaded — start lifting!' : t('generator.loaded'));
         }}
       />
+      </ErrorBoundary>
 
       {editingLog && (
         <EditWorkoutModal

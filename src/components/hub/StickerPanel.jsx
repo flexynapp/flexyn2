@@ -76,6 +76,7 @@ export default function StickerPanel({ postId, onClose }) {
       } else {
         await stickerReactions.reactWithSticker(postId, user, {
           item_id:    sticker.item_id,
+          item_name:  sticker.item_name || sticker.name || sticker.item_emoji || 'Sticker',
           item_emoji: sticker.item_emoji,
           item_rarity: sticker.item_rarity,
           variant:    sticker.variant ?? null,
