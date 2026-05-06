@@ -10,11 +10,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import MobileSelect from '@/components/MobileSelect';
 import { toast } from 'sonner';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
 import FormCoachModal from '@/components/formcoach/FormCoachModal';
+import WorkoutGeneratorModal from '@/components/workout/WorkoutGeneratorModal';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation } from 'react-router-dom';
@@ -72,6 +73,7 @@ export default function Workout() {
   const [regimensOpen, setRegimensOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
+  const [generatorOpen, setGeneratorOpen] = useState(false);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -739,6 +741,30 @@ export default function Workout() {
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
+                  className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
+                  onClick={() => setGeneratorOpen(true)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
+                      <Sparkles className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-heading font-bold text-sm leading-tight">
+                        {t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        {t('generator.cardSubtitle') === 'generator.cardSubtitle'
+                          ? 'AI builds a session from your history'
+                          : t('generator.cardSubtitle')}
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </div>
+                </Card>
+              </motion.div>
+
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+                <Card
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                   onClick={() => setFormCoachOpen(true)}
                 >
@@ -1097,6 +1123,23 @@ export default function Workout() {
       <ProfanityWarningDialog open={guard.open} onContinue={guard.onContinue} />
 
       <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+
+      <WorkoutGeneratorModal
+        open={generatorOpen}
+        onClose={() => setGeneratorOpen(false)}
+        userProfile={userProfile}
+        onUseWorkout={(workout) => {
+          // Hydrate the workout form with the generated session and scroll to it
+          setExercises(workout.exercises.map(ex => ({
+            name: ex.name,
+            sets: ex.sets.map(s => ({ weight: s.weight || '', reps: s.reps || '' })),
+          })));
+          setDuration(String(workout.duration_minutes || ''));
+          setNotes(workout.title || '');
+          setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+          toast.success(t('generator.loaded') === 'generator.loaded' ? 'Workout loaded — start lifting!' : t('generator.loaded'));
+        }}
+      />
 
       {editingLog && (
         <EditWorkoutModal
