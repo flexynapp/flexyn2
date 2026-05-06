@@ -6,7 +6,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sparkles, Palette, ShoppingBag, Coins, Store } from 'lucide-react';
+import { X, Package, Sparkles, Palette, ShoppingBag, Coins, Store, Crown, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -15,6 +15,7 @@ import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
 import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
 import { getLootThemeById } from '@/lib/lootThemes';
+import { getLootFrameById } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
 import CoinShopModal from './CoinShopModal';
 
@@ -205,6 +206,151 @@ function EmptyState({ icon: Icon, label }) {
   );
 }
 
+// ─── Title equip list ─────────────────────────────────────────────────────────
+
+function TitleList({ items, userId }) {
+  const qc = useQueryClient();
+  const { data: profile } = useQuery({
+    queryKey: ['userProfileEquip', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('equipped_title_id')
+        .eq('id', userId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!userId,
+    staleTime: 10_000,
+  });
+  const equippedId = profile?.equipped_title_id;
+
+  const equip = async (titleId) => {
+    if (!userId) return;
+    const newId = equippedId === titleId ? null : titleId;
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ equipped_title_id: newId })
+      .eq('id', userId);
+    if (error) { toast.error('Could not save'); return; }
+    toast.success(newId ? 'Title equipped' : 'Title removed');
+    qc.invalidateQueries({ queryKey: ['userProfileEquip', userId] });
+  };
+
+  // Dedupe by item_id (multiple drops of the same title)
+  const seen = new Set();
+  const unique = items.filter(i => {
+    if (seen.has(i.item_id)) return false;
+    seen.add(i.item_id);
+    return true;
+  });
+
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {unique.map(item => {
+        const isEquipped = equippedId === item.item_id;
+        const rarityBadge = (RARITY[item.item_rarity] ?? RARITY.common);
+        return (
+          <button
+            key={item.id}
+            onClick={() => equip(item.item_id)}
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+              isEquipped ? 'border-primary bg-primary/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-bold text-sm text-white">{item.item_name}</p>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: rarityBadge.color }}>{item.item_rarity}</p>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary shrink-0">
+              {isEquipped ? 'Equipped' : 'Equip'}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Frame equip list ─────────────────────────────────────────────────────────
+
+function FrameList({ items, userId }) {
+  const qc = useQueryClient();
+  const { data: profile } = useQuery({
+    queryKey: ['userProfileEquipFrame', userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('equipped_frame_id, avatar_url, username')
+        .eq('id', userId)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!userId,
+    staleTime: 10_000,
+  });
+  const equippedId = profile?.equipped_frame_id;
+
+  const equip = async (frameId) => {
+    if (!userId) return;
+    const newId = equippedId === frameId ? null : frameId;
+    const { error } = await supabase
+      .from('user_profiles')
+      .update({ equipped_frame_id: newId })
+      .eq('id', userId);
+    if (error) { toast.error('Could not save'); return; }
+    toast.success(newId ? 'Frame equipped' : 'Frame removed');
+    qc.invalidateQueries({ queryKey: ['userProfileEquipFrame', userId] });
+  };
+
+  const seen = new Set();
+  const unique = items.filter(i => {
+    if (seen.has(i.item_id)) return false;
+    seen.add(i.item_id);
+    return true;
+  });
+
+  return (
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {unique.map(item => {
+        const isEquipped = equippedId === item.item_id;
+        const frameDef = getLootFrameById(item.item_id);
+        const rarityBadge = (RARITY[item.item_rarity] ?? RARITY.common);
+        return (
+          <button
+            key={item.id}
+            onClick={() => equip(item.item_id)}
+            className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
+              isEquipped ? 'border-primary bg-primary/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
+            }`}
+          >
+            <div
+              className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center overflow-hidden"
+              style={frameDef?.css || {}}
+            >
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-heading font-bold text-foreground">
+                  {(profile?.username?.[0] || '?').toUpperCase()}
+                </span>
+              )}
+            </div>
+            <p className="font-heading font-bold text-xs text-white text-center leading-tight">{item.item_name}</p>
+            <p className="text-[9px] uppercase tracking-wider" style={{ color: rarityBadge.color }}>{item.item_rarity}</p>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
+              {isEquipped ? 'Equipped' : 'Equip'}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function UserBag({ open, onClose, onOpenCapsule }) {
   const { user } = useAuth();
@@ -254,6 +400,8 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const duplicateCount = stickerGroups.filter(g => g.filter(i => !i.is_listed).length > 1).length;
 
   const themes     = inventoryItems.filter(i => i.item_type === 'theme');
+  const titles     = inventoryItems.filter(i => i.item_type === 'title');
+  const frames     = inventoryItems.filter(i => i.item_type === 'frame');
   const isLoading  = capsLoading || invLoading;
 
   // Flex coins from auth user profile
@@ -279,6 +427,8 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const TABS = [
     { id: 'capsules', label: 'Capsules', icon: Package,  count: capsuleRows.length },
     { id: 'stickers', label: 'Stickers', icon: Sparkles, count: stickers.length, badge: duplicateCount > 0 ? `${duplicateCount} dupe${duplicateCount > 1 ? 's' : ''}` : null },
+    { id: 'titles',   label: 'Titles',   icon: Crown,    count: titles.length    },
+    { id: 'frames',   label: 'Frames',   icon: Square,   count: frames.length    },
     { id: 'themes',   label: 'Themes',   icon: Palette,  count: themes.length    },
   ];
 
@@ -401,6 +551,18 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                     />
                   ))}
                 </motion.div>
+              )
+            ) : activeTab === 'titles' ? (
+              titles.length === 0 ? (
+                <EmptyState icon={Crown} label="No titles yet — open capsules to earn them!" />
+              ) : (
+                <TitleList items={titles} userId={user?.id} />
+              )
+            ) : activeTab === 'frames' ? (
+              frames.length === 0 ? (
+                <EmptyState icon={Square} label="No frames yet — open capsules to earn them!" />
+              ) : (
+                <FrameList items={frames} userId={user?.id} />
               )
             ) : (
               themes.length === 0 ? (

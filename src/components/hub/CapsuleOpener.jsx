@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { ITEMS, RARITY, rollCapsule, rollVariant, VARIANTS } from '@/lib/lootCatalog';
 import { rollLootTheme, getLootThemeById } from '@/lib/lootThemes';
+import { rollLootTitle } from '@/lib/lootTitles';
+import { rollLootFrame } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -170,25 +172,40 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const handleOpen = useCallback(() => {
     const capsuleType = capsule?.capsule_type ?? 'standard';
 
-    // Check for a theme drop first (rare; returns null most of the time).
-    const themeItem = rollLootTheme(capsuleType);
-    if (themeItem) {
-      // Theme wins override the normal sticker roll.
-      // Build a reel with a generic "theme" placeholder at the win position.
-      const themePlaceholder = {
-        id: themeItem.id,
-        emoji: themeItem.emoji,
-        name: themeItem.name,
-        rarity: themeItem.rarity,
-        type: 'theme',
-      };
-      const cards = buildReel(themePlaceholder);
-      setWonItem(themeItem);
-      setReel(cards);
-      setPhase('spinning');
-      return;
+    // Roll order matters: rarer drop types check first so a single open can
+    // produce only one type. Probabilities sum to <1 so the fallback (sticker)
+    // is the most common outcome.
+    //   1. Theme  (~3 % premium / 8 % elite)
+    //   2. Title  (~5 % standard / 12 % premium / 20 % elite)
+    //   3. Frame  (~4 % standard / 10 % premium / 18 % elite)
+    //   4. Sticker (the rest — most common)
+    //
+    // For non-sticker drops we build the reel using a placeholder card so
+    // the animation still runs visually.
+    const rollers = [
+      { fn: rollLootTheme, type: 'theme' },
+      { fn: rollLootTitle, type: 'title' },
+      { fn: rollLootFrame, type: 'frame' },
+    ];
+    for (const r of rollers) {
+      const item = r.fn(capsuleType);
+      if (item) {
+        const placeholder = {
+          id: item.id,
+          emoji: item.emoji,
+          name: item.name,
+          rarity: item.rarity,
+          type: r.type,
+        };
+        const cards = buildReel(placeholder);
+        setWonItem(item);
+        setReel(cards);
+        setPhase('spinning');
+        return;
+      }
     }
 
+    // Sticker fallback — the regular path
     const won  = rollCapsule(capsuleType);
     const variant = rollVariant(capsuleType);
     const wonWithVariant = { ...won, variant };

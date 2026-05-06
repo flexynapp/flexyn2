@@ -187,3 +187,43 @@
   0%,100% { opacity: 0.12; transform: scale(1); }
   50%     { opacity: 0.2; transform: scale(1.1); }
 }
+
+/* ── Profile Frame Animations ─────────────────────────────────────────────── */
+/* Used by src/lib/lootFrames.js — applied via inline style to avatar wrappers. */
+@keyframes frame-pulse {
+  0%, 100% { box-shadow: 0 0 8px rgba(250, 204, 21, 0.4); }
+  50%      { box-shadow: 0 0 16px rgba(250, 204, 21, 0.85); }
+}
+@keyframes frame-rainbow {
+  0%   { background-position: 0% 0%, 0% 50%; }
+  50%  { background-position: 0% 0%, 100% 50%; }
+  100% { background-position: 0% 0%, 0% 50%; }
+}
+@keyframes frame-rotate {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* The conic gradient inside .frame-rotate-aura needs to spin its own bg, not
+   the element itself — applied directly via the rotate animation on a wrapper
+   pseudo-element when the frame is equipped. */
+
+/* ── Theme-aware Card Accent ──────────────────────────────────────────────── */
+/* When the user has a theme equipped (especially animated themes), every
+   <Card> picks up a subtle primary-tinted top border so the theme is felt
+   across the whole app — not just on a few highlight elements. */
+[data-theme-tier='animated'] .theme-card-accent,
+[data-theme-tier='legendary'] .theme-card-accent {
+  position: relative;
+}
+[data-theme-tier='animated'] .theme-card-accent::before,
+[data-theme-tier='legendary'] .theme-card-accent::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.55), transparent);
+  pointer-events: none;
+  border-radius: inherit;
+}
+
