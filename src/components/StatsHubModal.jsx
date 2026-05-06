@@ -1,0 +1,176 @@
+// src/components/StatsHubModal.jsx
+//
+// "Stats Hub" — single modal that consolidates the gamification surface:
+// level, coins, daily quests, login + workout streaks, weekly league,
+// achievements collection, leaderboards, capsules. Opens by tapping the
+// LevelBar in the header so users can reach it from any page.
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import {
+  X, Trophy, Flame, Dumbbell, Sparkles, Coins, Crown, Package, Target, ChevronRight,
+} from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
+import { supabase } from '@/api/supabaseClient';
+import { calculateLevelFromXp } from '@/lib/xpSystem';
+import LeagueCard from '@/components/dashboard/LeagueCard';
+import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
+import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
+import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
+import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
+import LeaderboardsModal from '@/components/LeaderboardsModal';
+import CoinShopModal from '@/components/hub/CoinShopModal';
+import ErrorBoundary from '@/components/ErrorBoundary';
+
+export default function StatsHubModal({ open, onClose }) {
+  const { user } = useAuth();
+  const { tFallback } = useLanguage();
+  const navigate = useNavigate();
+  const [leagueOpen, setLeagueOpen] = useState(false);
+  const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
+  const [shopOpen, setShopOpen] = useState(false);
+
+  const { data: profile } = useQuery({
+    queryKey: ['statsHubProfile', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('total_xp, flex_coins, login_streak, workout_streak, longest_workout_streak')
+        .eq('id', user.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id && open,
+    staleTime: 15_000,
+  });
+
+  const totalXp = profile?.total_xp || 0;
+  const levelInfo = calculateLevelFromXp(totalXp);
+  const coins = profile?.flex_coins || 0;
+
+  const handleNavigate = (path) => {
+    onClose();
+    setTimeout(() => navigate(path), 150);
+  };
+
+  return (
+    <>
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto p-0 gap-0">
+          {/* Hero — level + coins */}
+          <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 px-5 pt-5 pb-6 text-white">
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-1">
+              {tFallback('statsHub.title', 'Your stats')}
+            </p>
+            <div className="flex items-end justify-between">
+              <div>
+                <p className="font-heading font-black text-5xl leading-none drop-shadow">
+                  {tFallback('levelBar.level', 'Lv').replace('{n}', '').trim() || 'Lv'} {levelInfo.level}
+                </p>
+                <p className="text-xs opacity-80 mt-1">
+                  {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="flex items-center gap-1.5 justify-end">
+                  <Coins className="w-4 h-4" />
+                  <span className="font-heading font-bold text-2xl tabular-nums">{coins.toLocaleString()}</span>
+                </div>
+                <button
+                  onClick={() => setShopOpen(true)}
+                  className="mt-1 text-[11px] underline underline-offset-2 opacity-90 hover:opacity-100"
+                >
+                  {tFallback('statsHub.openShop', 'Open shop')}
+                </button>
+              </div>
+            </div>
+            {/* XP progress bar */}
+            <div className="mt-4 h-2 rounded-full bg-white/20 overflow-hidden">
+              <div
+                className="h-full bg-white"
+                style={{ width: `${Math.min(100, levelInfo.progressPercent || 0)}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-4 space-y-4">
+            {/* Streaks */}
+            <ErrorBoundary label="StatsHub.Streaks">
+              <div className="space-y-2">
+                <LoginStreakBanner />
+                <WorkoutStreakBanner />
+              </div>
+            </ErrorBoundary>
+
+            {/* League */}
+            <ErrorBoundary label="StatsHub.League">
+              <LeagueCard onClick={() => setLeagueOpen(true)} />
+            </ErrorBoundary>
+
+            {/* Daily Quests */}
+            <ErrorBoundary label="StatsHub.Quests">
+              <DailyQuestsCard />
+            </ErrorBoundary>
+
+            {/* Quick links */}
+            <div className="grid grid-cols-2 gap-2">
+              <NavTile
+                icon={Trophy}
+                label={tFallback('statsHub.leaderboards', 'Leaderboards')}
+                onClick={() => setLeaderboardsOpen(true)}
+              />
+              <NavTile
+                icon={Sparkles}
+                label={tFallback('statsHub.achievements', 'Achievements')}
+                onClick={() => handleNavigate('/progress')}
+              />
+              <NavTile
+                icon={Package}
+                label={tFallback('statsHub.bag', 'Bag & Capsules')}
+                onClick={() => handleNavigate('/hub')}
+              />
+              <NavTile
+                icon={Coins}
+                label={tFallback('statsHub.shop', 'Coin Shop')}
+                onClick={() => setShopOpen(true)}
+              />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Nested modals — rendered outside the main dialog so backdrop layers stack right */}
+      <LeagueStandingsModal open={leagueOpen} onClose={() => setLeagueOpen(false)} />
+      <LeaderboardsModal open={leaderboardsOpen} onClose={() => setLeaderboardsOpen(false)} />
+      <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
+    </>
+  );
+}
+
+function NavTile({ icon: Icon, label, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-2.5 p-3 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-left"
+    >
+      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4 text-primary" />
+      </div>
+      <span className="flex-1 text-sm font-medium leading-tight">{label}</span>
+      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+    </button>
+  );
+}

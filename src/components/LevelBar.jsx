@@ -8,6 +8,7 @@ import Particles from '@/components/Particles';
 import { useLanguage } from '@/lib/LanguageContext';
 import LeaderboardsModal from '@/components/LeaderboardsModal';
 import RegionalLeaderboardsModal from '@/components/RegionalLeaderboardsModal';
+import StatsHubModal from '@/components/StatsHubModal';
 
 export default function LevelBar({ totalXp = 0, compact = false }) {
   const { t } = useLanguage();
@@ -17,6 +18,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
   const [showTooltip, setShowTooltip] = useState(false);
   const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
   const [regionalLeaderboardsOpen, setRegionalLeaderboardsOpen] = useState(false);
+  const [statsHubOpen, setStatsHubOpen] = useState(false);
   const tooltipRef = useRef(null);
 
   useEffect(() => {
@@ -36,9 +38,11 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
 
   if (compact) {
     return (
+      <>
       <div className="relative" ref={tooltipRef}>
         <motion.button
-          onClick={() => setShowTooltip(v => !v)}
+          onClick={() => setStatsHubOpen(true)}
+          aria-label="Open Stats Hub"
           className={`relative flex items-center gap-2 px-3 py-2 rounded-xl overflow-hidden ${tier.bg} shadow-md ${tier.glow} cursor-pointer`}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.93 }}
@@ -234,6 +238,8 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
         <LeaderboardsModal open={leaderboardsOpen} onClose={() => setLeaderboardsOpen(false)} />
         <RegionalLeaderboardsModal open={regionalLeaderboardsOpen} onClose={() => setRegionalLeaderboardsOpen(false)} />
       </div>
+      <StatsHubModal open={statsHubOpen} onClose={() => setStatsHubOpen(false)} />
+      </>
     );
   }
 

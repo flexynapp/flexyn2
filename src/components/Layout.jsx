@@ -37,7 +37,7 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-[100dvh] bg-background font-body">
+    <div className="min-h-[100dvh] bg-background font-body overscroll-y-none">
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
@@ -102,7 +102,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="lg:ml-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0">
+      <main className="lg:ml-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
           <AnimatedRoutes>

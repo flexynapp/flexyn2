@@ -297,18 +297,8 @@ export default function Hub() {
                 <Store className="w-4 h-4" />
                 Market
               </button>
-              <button
-                type="button"
-                onClick={() => setFeedTab('leaderboards')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-colors ${
-                  feedTab === 'leaderboards'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Trophy className="w-4 h-4" />
-                Ranks
-              </button>
+              {/* Ranks tab removed — leaderboards now live inside the StatsHub
+                  modal (tap the Level Bar in the header to open). */}
             </div>
           )}
         </div>
@@ -339,11 +329,8 @@ export default function Hub() {
             />
           )}
 
-          {section === 'feed' && feedTab === 'leaderboards' && (
-            <div className="rounded-2xl overflow-hidden border border-border bg-card">
-              <LeaderboardsContent active={true} />
-            </div>
-          )}
+          {/* Leaderboards tab content removed — accessible via the StatsHub
+              modal (tap the Level Bar). */}
 
           {section === 'messages' && (
             <HubMessages
