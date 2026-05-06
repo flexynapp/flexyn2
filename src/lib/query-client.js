@@ -9,7 +9,3 @@ export const queryClientInstance = new QueryClient({
 		},
 	},
 });
-
-export function clearQueryCache() {
-  queryClientInstance.clear();
-}

@@ -1,173 +1,70 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
-import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, Play, TrendingUp, Users } from 'lucide-react';
-import Header from './Header';
-import LanguagePicker from './LanguagePicker';
-import AnimatedRoutes from './AnimatedRoutes';
-import PullToRefresh from './PullToRefresh';
-import ProfileMenu from './ProfileMenu';
-import NotificationBell from './NotificationBell';
-import { motion } from 'framer-motion';
-import { useLanguage } from '@/lib/LanguageContext';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/lib/AuthContext';
-import { unreadCountFor } from '@/lib/data/hubMessages';
+import { Dumbbell, LayoutDashboard, ClipboardList, Play, TrendingUp } from 'lucide-react';
+
+const navItems = [
+  { path: '/', label: 'Dashboard', icon: LayoutDashboard },
+  { path: '/regimens', label: 'Regimens', icon: ClipboardList },
+  { path: '/workout', label: 'Workout', icon: Play },
+  { path: '/progress', label: 'Progress', icon: TrendingUp },
+];
 
 export default function Layout() {
   const location = useLocation();
-  const { t } = useLanguage();
-  const { user } = useAuth();
-
-  // Global unread DM count — drives the Hub nav badge from any page.
-  // 30-second poll to match the in-Hub badge cadence without hammering the DB.
-  const { data: hubUnreadCount = 0 } = useQuery({
-    queryKey: ['hubUnreadCount', user?.email],
-    queryFn: () => unreadCountFor(user.email),
-    enabled: !!user?.email,
-    refetchInterval: 30_000,
-    staleTime: 15_000,
-  });
-
-  const navItems = [
-    { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
-    { path: '/workout',   label: t('nav.workout'),   icon: Play },
-    { path: '/hub',       label: t('nav.hub'),       icon: Users, isHub: true },
-    { path: '/progress',  label: t('nav.progress'),  icon: TrendingUp },
-    { path: '/nutrition', label: t('nav.nutrition'), icon: Apple },
-  ];
 
   return (
-    <div className="min-h-[100dvh] bg-background font-body overscroll-y-none">
+    <div className="min-h-screen bg-background font-body">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border z-30">
-        <div className="p-6 flex flex-col items-center gap-2">
-          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img src="{LOGO_URL}" alt="Flexyn" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
-          </Link>
-          <div className="w-full mt-1 flex items-center gap-2">
-            <div className="flex-1"><ProfileMenu /></div>
-            <NotificationBell />
+      <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border z-30">
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+            <Dumbbell className="w-5 h-5 text-primary-foreground" />
           </div>
+          <span className="font-heading font-bold text-xl text-foreground tracking-tight">IronLog</span>
         </div>
-        <nav className="flex-1 px-3 space-y-1">
-          {navItems.map((item, i) => {
+        <nav className="flex-1 px-3 mt-4 space-y-1">
+          {navItems.map(item => {
             const isActive = location.pathname === item.path;
-            const isHubItem = item.isHub;
             return (
-              <motion.div
+              <Link
                 key={item.path}
-                initial={{ opacity: 0, x: -16 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.06, duration: 0.3, ease: 'easeOut' }}
-                whileHover={{ x: 4 }}
-                whileTap={{ scale: 0.97 }}
+                to={item.path}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200
+                  ${isActive
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+                  }`}
               >
-                <Link
-                  to={item.path}
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className={`flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 select-none-ui
-                    ${isActive
-                      ? 'bg-primary text-primary-foreground shadow-md'
-                      : isHubItem
-                        ? 'text-primary border-2 border-primary/40 hover:bg-primary/5 hover:border-primary'
-                        : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
-                    }`}
-                >
-                  <motion.div animate={isActive ? { scale: 1.15 } : { scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
-                    <item.icon className="w-5 h-5" />
-                  </motion.div>
-                  {item.label}
-                  {/* Unread DM badge — desktop sidebar */}
-                  {isHubItem && hubUnreadCount > 0 && (
-                    <motion.span
-                      key={hubUnreadCount}
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
-                    >
-                      {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
-                    </motion.span>
-                  )}
-                </Link>
-              </motion.div>
+                <item.icon className="w-5 h-5" />
+                {item.label}
+              </Link>
             );
           })}
         </nav>
-        <div className="p-4 border-t border-border">
-          <LanguagePicker variant="inline" />
-        </div>
       </aside>
 
       {/* Main content */}
-      <main className="lg:ml-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
-        <Header />
-        <PullToRefresh>
-          <AnimatedRoutes>
-            <Outlet />
-          </AnimatedRoutes>
-        </PullToRefresh>
+      <main className="md:ml-64 min-h-screen pb-20 md:pb-0">
+        <Outlet />
       </main>
 
-      {/* Mobile + Tablet bottom nav */}
-      <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui"
-        style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
-      >
-        <div className="flex justify-evenly items-end">
+      {/* Mobile bottom nav */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-30 px-2 py-2">
+        <div className="flex justify-around">
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
-            const isHubItem = item.isHub;
-
             return (
-              <motion.div
+              <Link
                 key={item.path}
-                whileTap={{ scale: 0.88 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+                to={item.path}
+                className={`flex flex-col items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all
+                  ${isActive
+                    ? 'text-primary'
+                    : 'text-muted-foreground'
+                  }`}
               >
-                <Link
-                  to={item.path}
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-                  className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-                >
-                  {/* Icon container — Hub gets a theme-colored ring/circle to draw attention */}
-                  <motion.div
-                    animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                    className={[
-                      'relative',
-                      isHubItem
-                        ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                              : 'border-2 border-primary text-primary bg-primary/5'
-                          }`
-                        : '',
-                    ].join(' ')}
-                  >
-                    <item.icon
-                      className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`}
-                    />
-                    {/* Unread DM badge — mobile bottom nav */}
-                    {isHubItem && hubUnreadCount > 0 && (
-                      <motion.span
-                        key={hubUnreadCount}
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
-                      >
-                        {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
-                      </motion.span>
-                    )}
-                  </motion.div>
-                  <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
-                    {item.label}
-                  </motion.span>
-                </Link>
-              </motion.div>
+                <item.icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5]' : ''}`} />
+                {item.label}
+              </Link>
             );
           })}
         </div>

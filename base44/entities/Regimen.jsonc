@@ -25,38 +25,14 @@
           "target_reps": {
             "type": "number"
           },
-          "target_duration_minutes": {
-            "type": "number",
-            "description": "Optional target duration in minutes (for cardio/timed exercises)"
-          },
           "muscle_group": {
-            "type": "string",
-            "description": "Primary muscle group (legacy)"
-          },
-          "muscle_groups": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "All targeted muscle groups"
+            "type": "string"
           },
           "notes": {
             "type": "string"
           }
         }
       }
-    },
-    "copied_from_post_id": {
-      "type": "string",
-      "description": "If this regimen was copied from a Hub post, the id of the source HubPost. Used to derive the 'Copied' button state on the post card."
-    },
-    "original_author_username": {
-      "type": "string",
-      "description": "Snapshotted @username (or display name) of the original poster at copy time. Survives deletion of the source post."
-    },
-    "original_author_email": {
-      "type": "string",
-      "description": "Snapshotted email of the original poster at copy time. Used for future 'view profile' links from the regimen card."
     }
   },
   "required": [

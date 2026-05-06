@@ -29,35 +29,7 @@
             "type": "string"
           },
           "muscle_group": {
-            "type": "string",
-            "description": "Primary muscle group (legacy)"
-          },
-          "muscle_groups": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "description": "All targeted muscle groups (legacy)"
-          },
-          "muscles": {
-            "type": "object",
-            "description": "Detailed muscle targeting for heatmap",
-            "properties": {
-              "primary": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Primary muscle IDs or category IDs"
-              },
-              "secondary": {
-                "type": "array",
-                "items": {
-                  "type": "string"
-                },
-                "description": "Secondary muscle IDs or category IDs"
-              }
-            }
+            "type": "string"
           },
           "sets": {
             "type": "array",
@@ -82,55 +54,5 @@
   },
   "required": [
     "date"
-  ],
-  "rls": {
-    "create": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "read": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "update": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    },
-    "delete": {
-      "$or": [
-        {
-          "created_by": "{{user.email}}"
-        },
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        }
-      ]
-    }
-  }
+  ]
 }
