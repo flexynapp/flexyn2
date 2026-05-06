@@ -767,8 +767,11 @@ export default function Workout() {
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
+                  role="button"
+                  tabIndex={0}
                   className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
-                  onClick={() => setGeneratorOpen(true)}
+                  onClick={() => { console.log('[Workout] Generate Workout clicked'); setGeneratorOpen(true); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
@@ -791,8 +794,11 @@ export default function Workout() {
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
+                  role="button"
+                  tabIndex={0}
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setFormCoachOpen(true)}
+                  onClick={() => { console.log('[Workout] Form Coach clicked'); setFormCoachOpen(true); }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">

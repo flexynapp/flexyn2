@@ -25,7 +25,7 @@ function RarityBadge({ rarity, variant }) {
   );
 }
 
-export default function StickerPanel({ postId, onClose }) {
+export default function StickerPanel({ postId, onClose, onAuthorClick = null }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [tab, setTab] = useState('reactions'); // 'reactions' | 'pick'
@@ -153,19 +153,46 @@ export default function StickerPanel({ postId, onClose }) {
               </div>
             ) : (
               <div className="flex flex-col gap-2">
-                {reactions.map(r => (
+                {reactions.map(r => {
+                  const handleProfileClick = () => {
+                    if (!onAuthorClick || !r.user_email) return;
+                    onAuthorClick({
+                      email: r.user_email,
+                      username: r.user_name,
+                      avatar_url: r.user_avatar_url,
+                    });
+                    onClose?.();
+                  };
+                  const profileClickable = !!(onAuthorClick && r.user_email);
+                  return (
                   <div key={r.id} className="flex items-center gap-2.5">
-                    {/* Avatar */}
-                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0 overflow-hidden">
+                    {/* Avatar — clickable when onAuthorClick is wired */}
+                    <button
+                      type="button"
+                      onClick={handleProfileClick}
+                      disabled={!profileClickable}
+                      className={`w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-[10px] font-bold text-primary shrink-0 overflow-hidden ${profileClickable ? 'hover:ring-2 hover:ring-primary/30 transition-shadow' : 'cursor-default'}`}
+                      aria-label={profileClickable ? `Open ${r.user_name}'s profile` : undefined}
+                    >
                       {r.user_avatar_url ? (
                         <img src={r.user_avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         (r.user_name?.[0] ?? '?').toUpperCase()
                       )}
-                    </div>
-                    <span className="text-xs text-muted-foreground flex-1 truncate">
-                      @{r.user_name ?? r.user_email?.split('@')[0]}
-                    </span>
+                    </button>
+                    {profileClickable ? (
+                      <button
+                        type="button"
+                        onClick={handleProfileClick}
+                        className="text-xs text-muted-foreground hover:text-primary hover:underline flex-1 truncate text-left transition-colors"
+                      >
+                        @{r.user_name ?? r.user_email?.split('@')[0]}
+                      </button>
+                    ) : (
+                      <span className="text-xs text-muted-foreground flex-1 truncate">
+                        @{r.user_name ?? r.user_email?.split('@')[0]}
+                      </span>
+                    )}
                     <StickerDisplay
                       emoji={r.item_emoji}
                       variant={r.variant}
@@ -177,7 +204,8 @@ export default function StickerPanel({ postId, onClose }) {
                       </span>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </motion.div>

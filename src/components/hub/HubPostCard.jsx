@@ -376,6 +376,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             <StickerPanel
               postId={post.id}
               onClose={() => setStickerPanelOpen(false)}
+              onAuthorClick={onAuthorClick}
             />
           </div>
         )}
