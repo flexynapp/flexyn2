@@ -1,5 +1,6 @@
 // src/pages/Hub.jsx
 import { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store, Trophy, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -33,6 +34,25 @@ export default function Hub() {
   const [pendingChatTarget, setPendingChatTarget] = useState(null);
   const [bagOpen, setBagOpen] = useState(false);
   const [openingCapsule, setOpeningCapsule] = useState(null); // capsule row being opened
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Deep-link: ?bag=open opens the user bag (called from StatsHubModal).
+  // Strip the param after handling so reloads don't keep re-opening.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('bag') === 'open') {
+      setBagOpen(true);
+      params.delete('bag');
+      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+    }
+    if (params.get('compose') === '1') {
+      setComposerOpen(true);
+      params.delete('compose');
+      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const { data: unreadCount = 0 } = useQuery({
     queryKey: ['hubUnreadCount', user?.email],

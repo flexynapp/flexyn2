@@ -8,6 +8,7 @@ import { fromLbs, formatWeight } from '@/lib/weightUnit';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 import { useQuery } from '@tanstack/react-query';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
@@ -345,7 +346,29 @@ export default function Progress() {
     { id: 'photos', label: t('progress.tabs.photos') },
     { id: 'achievements', label: t('progress.achievements') },
   ];
-  const [activeTab, setActiveTab] = useState('trends');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Read ?tab= from the URL — used by StatsHubModal to deep-link the user
+  // straight to the Achievements tab. Strip the param after consuming so a
+  // reload doesn't keep re-applying it.
+  const initialTab = (() => {
+    const p = new URLSearchParams(location.search);
+    const t = p.get('tab');
+    if (TABS.some(x => x.id === t)) return t;
+    return 'trends';
+  })();
+  const [activeTab, setActiveTab] = useState(initialTab);
+  useEffect(() => {
+    const p = new URLSearchParams(location.search);
+    const t = p.get('tab');
+    if (t && TABS.some(x => x.id === t)) {
+      setActiveTab(t);
+      p.delete('tab');
+      navigate({ pathname: '/progress', search: p.toString() ? '?' + p.toString() : '' }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen] = useState(false);
   const [selectedRegimen, setSelectedRegimen] = useState('all');

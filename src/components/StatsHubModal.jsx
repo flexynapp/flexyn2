@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import {
-  X, Trophy, Flame, Dumbbell, Sparkles, Coins, Crown, Package, Target, ChevronRight,
+  Trophy, Sparkles, Coins, Package, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -62,15 +62,9 @@ export default function StatsHubModal({ open, onClose }) {
     <>
       <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
         <DialogContent className="max-w-lg w-[calc(100vw-1rem)] max-h-[92vh] overflow-y-auto p-0 gap-0">
-          {/* Hero — level + coins */}
+          {/* Hero — level + coins. Radix DialogContent ships its own close X
+              in the corner; we don't add a second one. */}
           <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 px-5 pt-5 pb-6 text-white">
-            <button
-              onClick={onClose}
-              aria-label="Close"
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-1">
               {tFallback('statsHub.title', 'Your stats')}
             </p>
@@ -120,12 +114,18 @@ export default function StatsHubModal({ open, onClose }) {
               <LeagueCard onClick={() => setLeagueOpen(true)} />
             </ErrorBoundary>
 
-            {/* Daily Quests */}
+            {/* Daily Quests — clicking a quest closes the modal and routes
+                to the page where the quest can be completed. */}
             <ErrorBoundary label="StatsHub.Quests">
-              <DailyQuestsCard />
+              <DailyQuestsCard onNavigated={onClose} />
             </ErrorBoundary>
 
-            {/* Quick links */}
+            {/* Quick links — destinations handle their own opening:
+                  - Leaderboards: in-modal LeaderboardsModal
+                  - Achievements: navigate to /progress?tab=achievements
+                                  (Progress.jsx reads ?tab= and selects it)
+                  - Bag: navigate to /hub?bag=open (Hub reads ?bag= and opens)
+                  - Coin Shop: in-modal CoinShopModal */}
             <div className="grid grid-cols-2 gap-2">
               <NavTile
                 icon={Trophy}
@@ -135,12 +135,12 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Sparkles}
                 label={tFallback('statsHub.achievements', 'Achievements')}
-                onClick={() => handleNavigate('/progress')}
+                onClick={() => handleNavigate('/progress?tab=achievements')}
               />
               <NavTile
                 icon={Package}
                 label={tFallback('statsHub.bag', 'Bag & Capsules')}
-                onClick={() => handleNavigate('/hub')}
+                onClick={() => handleNavigate('/hub?bag=open')}
               />
               <NavTile
                 icon={Coins}
@@ -164,12 +164,12 @@ function NavTile({ icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2.5 p-3 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-left"
+      className="flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-left min-w-0"
     >
       <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
         <Icon className="w-4 h-4 text-primary" />
       </div>
-      <span className="flex-1 text-sm font-medium leading-tight">{label}</span>
+      <span className="flex-1 min-w-0 text-sm font-medium leading-tight break-words">{label}</span>
       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
     </button>
   );

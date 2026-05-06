@@ -217,3 +217,28 @@ export function getQuestDefinition(questId) {
   if (!def) return null;
   return { id: questId, ...def, coinReward: QUEST_DIFFICULTY[def.difficulty].coinReward };
 }
+
+// ── Quest → route map ────────────────────────────────────────────────────────
+// When a user taps a daily-quest card, send them to the page where they can
+// actually complete the quest. Routes are React Router paths; some include a
+// query string the receiving page reads to auto-open a sub-section.
+
+const ROUTE_BY_ACTION = {
+  [ACTION_TYPES.MEAL_LOGGED]:        '/nutrition?openLogMeal=1',
+  [ACTION_TYPES.WATER_LOGGED]:       '/nutrition',
+  [ACTION_TYPES.WORKOUT_COMPLETED]:  '/workout',
+  [ACTION_TYPES.WORKOUT_MINUTES]:    '/workout',
+  [ACTION_TYPES.CARDIO_COMPLETED]:   '/workout?openCardio=1',
+  [ACTION_TYPES.CARDIO_SECONDS]:     '/workout?openCardio=1',
+  [ACTION_TYPES.PR_ACHIEVED]:        '/workout',
+  [ACTION_TYPES.PROGRESS_PHOTO]:     '/progress?tab=photos',
+  [ACTION_TYPES.HUB_POST]:           '/hub?compose=1',
+  [ACTION_TYPES.GOAL_COMPLETED]:     '/workout?openGoals=1',
+};
+
+/** Where should tapping this quest take the user? Returns a route string or null. */
+export function questDestinationRoute(questId) {
+  const def = QUEST_CATALOG[questId];
+  if (!def) return null;
+  return ROUTE_BY_ACTION[def.actionType] || '/dashboard';
+}

@@ -6,6 +6,7 @@
 
 import React, { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Coins, Sparkles, CheckCircle2 } from 'lucide-react';
@@ -14,12 +15,23 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
-import { getQuestDefinition, QUEST_DIFFICULTY } from '@/lib/questCatalog';
+import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/lib/questCatalog';
 
-export default function DailyQuestsCard() {
+export default function DailyQuestsCard({ onNavigated }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+
+  // Navigate to the page where this quest can be completed. Notifies the
+  // parent (e.g. StatsHubModal) so it can close itself first — otherwise
+  // the modal stays mounted and intercepts the new page's UI.
+  const goToQuest = (questRow) => {
+    const route = questDestinationRoute(questRow.quest_id);
+    if (!route) return;
+    onNavigated?.();
+    navigate(route);
+  };
 
   // Ensure today's quests exist on mount, then read them.
   const { data: rows = [], refetch } = useQuery({
@@ -104,7 +116,13 @@ export default function DailyQuestsCard() {
 
       <div className="space-y-2">
         {annotated.map((q) => (
-          <QuestRow key={q.id} quest={q} onClaim={() => handleClaim(q)} t={t} />
+          <QuestRow
+            key={q.id}
+            quest={q}
+            onClaim={() => handleClaim(q)}
+            onGo={() => goToQuest(q)}
+            t={t}
+          />
         ))}
       </div>
 
@@ -117,7 +135,7 @@ export default function DailyQuestsCard() {
   );
 }
 
-function QuestRow({ quest, onClaim, t }) {
+function QuestRow({ quest, onClaim, onGo, t }) {
   const def = quest.definition;
   const completed = !!quest.completed_at;
   const claimed = !!quest.claimed_at;
@@ -128,10 +146,18 @@ function QuestRow({ quest, onClaim, t }) {
   // missing in the current language.
   const label = (() => { const k = `quest.${def.id}.label`; const v = t(k); return v === k ? def.label : v; })();
 
+  // Claimed quests are read-only; in-progress and ready-to-claim are tappable
+  // to deep-link the user to where they can complete (or claim) the quest.
+  const tappable = !claimed && onGo;
+
   return (
     <motion.div
       layout
-      className="relative rounded-lg bg-background/60 border border-border/50 p-3 overflow-hidden"
+      role={tappable ? 'button' : undefined}
+      tabIndex={tappable ? 0 : undefined}
+      onClick={tappable ? onGo : undefined}
+      onKeyDown={tappable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); } } : undefined}
+      className={`relative rounded-lg bg-background/60 border border-border/50 p-3 overflow-hidden ${tappable ? 'cursor-pointer hover:border-border transition-colors' : ''}`}
     >
       {/* Subtle progress bar fill in background */}
       <div
@@ -176,7 +202,7 @@ function QuestRow({ quest, onClaim, t }) {
               key="claim"
               initial={{ scale: 0.85, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              onClick={onClaim}
+              onClick={(e) => { e.stopPropagation(); onClaim(); }}
               className="px-3 py-1 rounded-md bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity"
             >
               {t('dashboard.claim')}

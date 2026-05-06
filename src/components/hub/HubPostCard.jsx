@@ -386,9 +386,6 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           {stickerRxns.length > 6 && (
             <span className="text-xs text-muted-foreground">+{stickerRxns.length - 6}</span>
           )}
-          <span className="text-xs text-muted-foreground ml-1">
-            {stickerRxns.length === 1 ? '1 sticker reaction' : `${stickerRxns.length} sticker reactions`}
-          </span>
         </button>
       )}
 
