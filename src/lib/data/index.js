@@ -34,3 +34,5 @@ export * as marketplace from './marketplace';
 export * as quests from './quests';
 export * as loginStreak from './loginStreak';
 export * as coinShop from './coinShop';
+export * as leagues from './leagues';
+export * as workoutStreak from './workoutStreak';

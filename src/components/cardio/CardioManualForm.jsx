@@ -15,6 +15,9 @@ import { base44 } from '@/api/base44Client';
 import { toMeters, metersTo, formatPace, speedKmhFrom, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import * as leagues from '@/lib/data/leagues';
+import * as workoutStreak from '@/lib/data/workoutStreak';
+import { calculateCardioXp } from '@/lib/xpSystem';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { checkCardioSpeed, getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
@@ -201,6 +204,22 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         prCount > 0 ? quests.recordAction(user, ACTION_TYPES.PR_ACHIEVED, prCount) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
+      // League weekly XP + workout streak — non-blocking
+      const cardioXp = calculateCardioXp({
+        duration_seconds: payload.duration_seconds,
+        distance_meters:  payload.distance_meters,
+        calories:         payload.calories,
+      });
+      leagues.recordWeeklyXp(user, cardioXp)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
+        .catch(() => {});
+      workoutStreak.recordWorkoutDay(user)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        })
         .catch(() => {});
 
       onSaved();

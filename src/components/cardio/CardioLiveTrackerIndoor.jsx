@@ -24,6 +24,9 @@ import { snapshot, readSnapshot, clearSnapshot } from '@/lib/cardioSession';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import * as leagues from '@/lib/data/leagues';
+import * as workoutStreak from '@/lib/data/workoutStreak';
+import { calculateCardioXp } from '@/lib/xpSystem';
 
 export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, userProfile = {} }) {
   const { t } = useLanguage();
@@ -213,6 +216,22 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         prs.length > 0 ? quests.recordAction(_user, ACTION_TYPES.PR_ACHIEVED, prs.length) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
+      // League weekly XP + workout streak — non-blocking
+      const cardioXp = calculateCardioXp({
+        duration_seconds: payload.duration_seconds,
+        distance_meters:  payload.distance_meters,
+        calories:         payload.calories,
+      });
+      leagues.recordWeeklyXp(_user, cardioXp)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', _user?.id] }))
+        .catch(() => {});
+      workoutStreak.recordWorkoutDay(_user)
+        .then(() => {
+          queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', _user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['userProfile', _user?.email] });
+        })
         .catch(() => {});
 
       onSaved();

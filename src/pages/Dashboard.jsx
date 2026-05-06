@@ -13,6 +13,9 @@ import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
+import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
+import LeagueCard from '@/components/dashboard/LeagueCard';
+import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -217,6 +220,7 @@ export default function Dashboard() {
   const isFirstLoad = location.state?.fromSplash;
   const [showWelcome, setShowWelcome] = useState(isFirstLoad);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+  const [leagueModalOpen, setLeagueModalOpen] = useState(false);
 
   useEffect(() => {
     if (showWelcome) {
@@ -473,10 +477,21 @@ export default function Dashboard() {
         <DailyQuote />
       </div>
 
-      {/* ── Login streak banner ─────────────────────────────────── */}
-      <div className="mb-3">
+      {/* ── Login + Workout streak banners ──────────────────────── */}
+      <div className="mb-3 space-y-2">
         <LoginStreakBanner />
+        <WorkoutStreakBanner />
       </div>
+
+      {/* ── Weekly League card ──────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.10 }}
+        className="mb-3"
+      >
+        <LeagueCard onClick={() => setLeagueModalOpen(true)} />
+      </motion.div>
 
       {/* ── Daily quests card ───────────────────────────────────── */}
       <motion.div
@@ -555,6 +570,11 @@ export default function Dashboard() {
         goals={goals}
         logs={logs}
         userProfile={userProfile}
+      />
+
+      <LeagueStandingsModal
+        open={leagueModalOpen}
+        onClose={() => setLeagueModalOpen(false)}
       />
     </motion.div>
   );

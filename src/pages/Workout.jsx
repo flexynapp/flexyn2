@@ -33,6 +33,8 @@ import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions
 import { calculateWorkoutXp } from '@/lib/xpSystem';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import * as leagues from '@/lib/data/leagues';
+import * as workoutStreak from '@/lib/data/workoutStreak';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 
@@ -230,6 +232,24 @@ export default function Workout() {
         durationMin > 0 ? quests.recordAction(user, ACTION_TYPES.WORKOUT_MINUTES, durationMin) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
+        .catch(() => {});
+
+      // League weekly XP — non-blocking
+      leagues.recordWeeklyXp(user, xpGained)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
+        .catch(() => {});
+
+      // Workout streak — milestone days celebrate with toast + invalidate profile
+      workoutStreak.recordWorkoutDay(user)
+        .then((res) => {
+          if (res?.isNewDay && res.coinsAwarded > 0) {
+            toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
+              ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
+              : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
+          }
+          queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        })
         .catch(() => {});
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] }),
