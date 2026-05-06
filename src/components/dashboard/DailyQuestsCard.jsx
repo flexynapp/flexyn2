@@ -29,7 +29,10 @@ export default function DailyQuestsCard() {
       return quests.listTodaysQuests(user);
     },
     enabled: !!user?.id,
-    refetchInterval: 30_000,        // catch async progress bumps
+    // Quest progress also invalidates on action (workout save, meal log, etc.)
+    // so we don't need to poll aggressively. 90s is fine for the rare async
+    // bump case while saving battery on mobile.
+    refetchInterval: 90_000,
     refetchOnWindowFocus: true,
   });
 

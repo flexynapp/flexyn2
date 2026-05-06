@@ -16,7 +16,7 @@ import { Button } from '@/components/ui/button';
 import MobileSelect from '@/components/MobileSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, ChevronDown, ChevronUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon, Award, Activity } from 'lucide-react';
+import { TrendingUp, ChevronDown, ChevronUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon, Activity } from 'lucide-react';
 import ExerciseProgressCard from '@/components/progress/ExerciseProgressCard';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';

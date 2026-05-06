@@ -201,13 +201,16 @@ export async function getMyLeague(user) {
   }
 
   const members = await listLeagueMembers(ctx.league.id);
-  const myRank = (members.findIndex(m => m.user_id === user.id) ?? -1) + 1;
+  // Look up the user's rank. findIndex returns -1 when not found, so guard
+  // explicitly and return null in that case (UI uses null to render an em-dash).
+  const idx = members.findIndex(m => m.user_id === user.id);
+  const myRank = idx >= 0 ? idx + 1 : null;
 
   return {
     league: ctx.league,
     member: ctx.member,
     members,
-    myRank: myRank > 0 ? myRank : null,
+    myRank,
     totalMembers: members.length,
     tier: getTier(ctx.league.tier),
   };

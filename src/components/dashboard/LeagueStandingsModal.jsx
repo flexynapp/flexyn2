@@ -17,7 +17,7 @@ import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueStandingsModal({ open, onClose }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -37,14 +37,14 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} userId={user.id} t={t} />
+          <Body data={data} userId={user.id} t={t} tFallback={tFallback} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Body({ data, userId, t }) {
+function Body({ data, userId, t, tFallback }) {
   const { league, tier, members, totalMembers } = data;
   const promoteN = tier.promote;
   const demoteN  = tier.demote;
@@ -58,17 +58,17 @@ function Body({ data, userId, t }) {
         <DialogHeader>
           <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pr-8">
             <span className="text-2xl">{tier.icon}</span>
-            {tier.label} {t('league.title') === 'league.title' ? 'League' : t('league.title')}
+            {tier.label} {tFallback('league.title', 'League')}
           </DialogTitle>
         </DialogHeader>
         <div className="mt-3 flex items-center gap-4 text-sm flex-wrap">
           <div className="flex items-center gap-1.5">
             <Trophy className="w-4 h-4" />
-            <span>{totalMembers} {t('league.members') === 'league.members' ? 'members' : t('league.members')}</span>
+            <span>{totalMembers} {tFallback('league.members', 'members')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-              {t('league.daysLeft') === 'league.daysLeft' ? 'Days left' : t('league.daysLeft')}
+              {tFallback('league.daysLeft', 'Days left')}
             </span>
             <span className="font-heading font-bold tabular-nums">{daysLeft}</span>
           </div>
@@ -76,9 +76,7 @@ function Body({ data, userId, t }) {
             <div className="flex items-center gap-1 text-emerald-100">
               <ArrowUp className="w-3.5 h-3.5" />
               <span className="text-xs">
-                {t('league.topPromoted') === 'league.topPromoted'
-                  ? `Top ${promoteN} promoted`
-                  : t('league.topPromoted').replace('{n}', promoteN)}
+                {tFallback('league.topPromoted', `Top ${promoteN} promoted`).replace('{n}', promoteN)}
               </span>
             </div>
           )}
@@ -86,9 +84,7 @@ function Body({ data, userId, t }) {
             <div className="flex items-center gap-1 text-rose-100">
               <ArrowDown className="w-3.5 h-3.5" />
               <span className="text-xs">
-                {t('league.bottomDemoted') === 'league.bottomDemoted'
-                  ? `Bottom ${demoteN} demoted`
-                  : t('league.bottomDemoted').replace('{n}', demoteN)}
+                {tFallback('league.bottomDemoted', `Bottom ${demoteN} demoted`).replace('{n}', demoteN)}
               </span>
             </div>
           )}
@@ -99,7 +95,7 @@ function Body({ data, userId, t }) {
       <div className="p-4 sm:p-5 md:p-6">
         {members.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-8">
-            {t('league.empty') === 'league.empty' ? 'No members yet — earn XP to join the standings!' : t('league.empty')}
+            {tFallback('league.empty', 'No members yet — earn XP to join the standings!')}
           </p>
         ) : (
           <AnimatePresence>
@@ -140,7 +136,7 @@ function Body({ data, userId, t }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm truncate">
                         {isMe
-                          ? (t('progress.you') === 'progress.you' ? 'You' : t('progress.you'))
+                          ? tFallback('progress.you', 'You')
                           : (m.user_email?.split('@')[0] || 'Athlete')}
                       </p>
                     </div>
@@ -160,11 +156,11 @@ function Body({ data, userId, t }) {
         <div className="mt-5 pt-4 border-t border-border flex items-center gap-4 text-[11px] text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-emerald-500/30" />
-            <span>{t('league.promoteZone') === 'league.promoteZone' ? 'Promotion' : t('league.promoteZone')}</span>
+            <span>{tFallback('league.promoteZone', 'Promotion')}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded-sm bg-rose-500/30" />
-            <span>{t('league.demoteZone') === 'league.demoteZone' ? 'Demotion' : t('league.demoteZone')}</span>
+            <span>{tFallback('league.demoteZone', 'Demotion')}</span>
           </div>
         </div>
       </div>

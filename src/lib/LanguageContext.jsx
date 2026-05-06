@@ -74,10 +74,23 @@ export function LanguageProvider({ children }) {
     }
     return str;
   }, [language]);
+
+  /**
+   * Translation with explicit fallback. If the key is missing in the current
+   * language (i18n returns the raw key), use the fallback string instead.
+   * Avoids the verbose `t(k) === k ? 'fallback' : t(k)` pattern across the
+   * codebase. Use this when shipping new components that haven't had their
+   * keys added to every language file yet.
+   */
+  const tFallback = useCallback((key, fallback, vars) => {
+    const v = t(key, vars);
+    return v === key ? fallback : v;
+  }, [t]);
+
   const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
 
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, currentLanguage, SUPPORTED_LANGUAGES }}>
+    <LanguageContext.Provider value={{ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }}>
       {children}
     </LanguageContext.Provider>
   );

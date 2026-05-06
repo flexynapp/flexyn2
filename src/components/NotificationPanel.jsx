@@ -16,7 +16,7 @@ import * as notifications from '@/lib/data/notifications';
 
 export default function NotificationPanel({ open, onClose }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -27,7 +27,9 @@ export default function NotificationPanel({ open, onClose }) {
     staleTime: 5_000,
   });
 
-  // Mark all read once they've been displayed
+  // Mark all read once they've been displayed. Depend on user?.id (a primitive)
+  // rather than the user object reference, so an unrelated auth refresh that
+  // returns a new object reference doesn't re-fire the markAllRead call.
   useEffect(() => {
     if (!open || !user?.id || rows.length === 0) return;
     const hasUnread = rows.some(r => !r.is_read);
@@ -36,7 +38,8 @@ export default function NotificationPanel({ open, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notificationsList', user.id] });
     });
-  }, [open, rows, user, queryClient]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, rows, user?.id, queryClient]);
 
   const handleRowClick = (n) => {
     if (n.link_url) {
@@ -74,7 +77,7 @@ export default function NotificationPanel({ open, onClose }) {
             <div className="flex items-center gap-2">
               <BellIcon className="w-4 h-4 text-primary" />
               <h2 className="font-heading font-bold">
-                {t('notifications.title') === 'notifications.title' ? 'Notifications' : t('notifications.title')}
+                {tFallback('notifications.title', 'Notifications')}
               </h2>
             </div>
             <button
@@ -98,10 +101,10 @@ export default function NotificationPanel({ open, onClose }) {
                   <BellIcon className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <p className="font-heading font-bold text-base mb-1">
-                  {t('notifications.empty.title') === 'notifications.empty.title' ? 'No notifications yet' : t('notifications.empty.title')}
+                  {tFallback('notifications.empty.title', 'No notifications yet')}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {t('notifications.empty.desc') === 'notifications.empty.desc' ? 'When you complete quests, hit streaks, or your friends post, you\'ll see it here.' : t('notifications.empty.desc')}
+                  {tFallback('notifications.empty.desc', "When you complete quests, hit streaks, or your friends post, you'll see it here.")}
                 </p>
               </div>
             ) : (
@@ -111,7 +114,7 @@ export default function NotificationPanel({ open, onClose }) {
                 ))}
                 {rows.length >= 50 && (
                   <p className="text-[11px] text-center text-muted-foreground py-3">
-                    {t('notifications.showing50') === 'notifications.showing50' ? 'Showing the 50 most recent' : t('notifications.showing50')}
+                    {tFallback('notifications.showing50', 'Showing the 50 most recent')}
                   </p>
                 )}
               </div>
@@ -129,7 +132,7 @@ export default function NotificationPanel({ open, onClose }) {
               className="flex items-center justify-center gap-1.5 py-3 border-t border-border text-xs font-medium text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
             >
               <CheckCheck className="w-3.5 h-3.5" />
-              {t('notifications.markAllRead') === 'notifications.markAllRead' ? 'Mark all as read' : t('notifications.markAllRead')}
+              {tFallback('notifications.markAllRead', 'Mark all as read')}
             </button>
           )}
         </motion.div>

@@ -16,6 +16,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Skip rest',
     'restTimer.add15':          'Add 15 seconds',
     'restTimer.subtract15':     'Subtract 15 seconds',
+    'restTimer.voiceCues':      'Voice cues',
+    'restTimer.voiceHint':      'Hands-free coaching: rest start, 3-2-1 countdown, "time\'s up". Plug in your headphones.',
   },
 
   es: {
@@ -27,6 +29,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Saltar descanso',
     'restTimer.add15':          'Sumar 15 segundos',
     'restTimer.subtract15':     'Restar 15 segundos',
+    'restTimer.voiceCues':      'Indicaciones por voz',
+    'restTimer.voiceHint':      'Entrenamiento manos libres: inicio del descanso, cuenta atrás 3-2-1, "se acabó". Conecta los audífonos.',
   },
 
   fr: {
@@ -38,6 +42,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Passer le repos',
     'restTimer.add15':          'Ajouter 15 secondes',
     'restTimer.subtract15':     'Retirer 15 secondes',
+    'restTimer.voiceCues':      'Repères vocaux',
+    'restTimer.voiceHint':      "Coaching mains libres : début du repos, décompte 3-2-1, « c'est fini ». Branche tes écouteurs.",
   },
 
   de: {
@@ -49,6 +55,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Pause überspringen',
     'restTimer.add15':          '15 Sekunden hinzufügen',
     'restTimer.subtract15':     '15 Sekunden abziehen',
+    'restTimer.voiceCues':      'Sprach-Coaching',
+    'restTimer.voiceHint':      'Freihändiges Coaching: Pause-Start, 3-2-1-Countdown, "Zeit ist um". Kopfhörer einstecken.',
   },
 
   pt: {
@@ -60,6 +68,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Pular descanso',
     'restTimer.add15':          'Adicionar 15 segundos',
     'restTimer.subtract15':     'Subtrair 15 segundos',
+    'restTimer.voiceCues':      'Comandos de voz',
+    'restTimer.voiceHint':      'Treino mãos livres: início do descanso, contagem 3-2-1, "acabou". Conecte os fones.',
   },
 
   it: {
@@ -71,6 +81,8 @@ export const restTimerI18n = {
     'restTimer.skip':           'Salta il riposo',
     'restTimer.add15':          'Aggiungi 15 secondi',
     'restTimer.subtract15':     'Sottrai 15 secondi',
+    'restTimer.voiceCues':      'Indicazioni vocali',
+    'restTimer.voiceHint':      'Coaching a mani libere: inizio del riposo, conto alla rovescia 3-2-1, "tempo scaduto". Collega le cuffie.',
   },
 
   ja: {
@@ -82,6 +94,8 @@ export const restTimerI18n = {
     'restTimer.skip':           '休憩をスキップ',
     'restTimer.add15':          '15秒追加',
     'restTimer.subtract15':     '15秒減らす',
+    'restTimer.voiceCues':      '音声ガイド',
+    'restTimer.voiceHint':      'ハンズフリーコーチング：休憩開始、3-2-1カウントダウン、「タイムアップ」。イヤホンを接続してください。',
   },
 
   ko: {

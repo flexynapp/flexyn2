@@ -13,12 +13,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as leagues from '@/lib/data/leagues';
-import { TIERS } from '@/lib/leagueTiers';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueCard({ onClick }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -68,7 +67,7 @@ export default function LeagueCard({ onClick }) {
               <span className="text-2xl drop-shadow" aria-hidden="true">{tier.icon}</span>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider opacity-90">
-                  {t('league.weekly') === 'league.weekly' ? 'Weekly League' : t('league.weekly')}
+                  {tFallback('league.weekly', 'Weekly League')}
                 </p>
                 <p className="font-heading font-bold text-base leading-tight drop-shadow">
                   {tier.label}
@@ -82,7 +81,7 @@ export default function LeagueCard({ onClick }) {
           <div className="mt-3 flex items-end justify-between">
             <div>
               <p className="text-[10px] uppercase tracking-wider opacity-80">
-                {t('league.yourRank') === 'league.yourRank' ? 'Your rank' : t('league.yourRank')}
+                {tFallback('league.yourRank', 'Your rank')}
               </p>
               <p className="font-heading font-bold text-2xl leading-none mt-0.5 tabular-nums">
                 {myRank ? `#${myRank}` : '—'}
@@ -93,7 +92,7 @@ export default function LeagueCard({ onClick }) {
             </div>
             <div className="text-right">
               <p className="text-[10px] uppercase tracking-wider opacity-80">
-                {t('league.daysLeft') === 'league.daysLeft' ? 'Days left' : t('league.daysLeft')}
+                {tFallback('league.daysLeft', 'Days left')}
               </p>
               <p className="font-heading font-bold text-xl leading-none mt-0.5 tabular-nums">{daysLeft}</p>
             </div>
@@ -105,21 +104,21 @@ export default function LeagueCard({ onClick }) {
           {inPromoteZone ? (
             <span className="flex items-center gap-1 text-xs font-bold text-emerald-600">
               <ArrowUp className="w-3.5 h-3.5" />
-              {t('league.promoteZone') === 'league.promoteZone' ? 'Promotion zone' : t('league.promoteZone')}
+              {tFallback('league.promoteZone', 'Promotion zone')}
             </span>
           ) : inDemoteZone ? (
             <span className="flex items-center gap-1 text-xs font-bold text-destructive">
               <ArrowDown className="w-3.5 h-3.5" />
-              {t('league.demoteZone') === 'league.demoteZone' ? 'Demotion zone' : t('league.demoteZone')}
+              {tFallback('league.demoteZone', 'Demotion zone')}
             </span>
           ) : (
             <span className="flex items-center gap-1 text-xs text-muted-foreground">
               <Trophy className="w-3.5 h-3.5" />
-              {t('league.holdingPosition') === 'league.holdingPosition' ? 'Holding position' : t('league.holdingPosition')}
+              {tFallback('league.holdingPosition', 'Holding position')}
             </span>
           )}
           <span className="text-xs font-medium tabular-nums text-muted-foreground">
-            {myXp.toLocaleString()} XP {t('league.thisWeek') === 'league.thisWeek' ? 'this week' : t('league.thisWeek')}
+            {myXp.toLocaleString()} XP {tFallback('league.thisWeek', 'this week')}
           </span>
         </div>
       </Card>

@@ -15,7 +15,7 @@ import { differenceInCalendarDays } from 'date-fns';
 
 export default function WorkoutStreakBanner() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
 
   const { data: profile } = useQuery({
     queryKey: ['workoutStreakProfile', user?.id],
@@ -64,19 +64,19 @@ export default function WorkoutStreakBanner() {
           <span className="text-muted-foreground">
             {' '}
             {streak === 1
-              ? (t('dashboard.workoutDayStreak') === 'dashboard.workoutDayStreak' ? 'day workout streak' : t('dashboard.workoutDayStreak'))
-              : (t('dashboard.workoutDaysStreak') === 'dashboard.workoutDaysStreak' ? 'day workout streak' : t('dashboard.workoutDaysStreak'))}
+              ? tFallback('dashboard.workoutDayStreak', 'day workout streak')
+              : tFallback('dashboard.workoutDaysStreak', 'day workout streak')}
           </span>
           {isPersonalBest && (
             <span className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
-              {t('dashboard.best') === 'dashboard.best' ? 'Best' : t('dashboard.best')}
+              {tFallback('dashboard.best', 'Best')}
             </span>
           )}
         </span>
       </div>
       {atRisk && (
         <span className="text-[11px] font-medium text-amber-500">
-          {t('dashboard.atRiskToday') === 'dashboard.atRiskToday' ? 'Train today to keep it' : t('dashboard.atRiskToday')}
+          {tFallback('dashboard.atRiskToday', 'Train today to keep it')}
         </span>
       )}
       {!atRisk && (

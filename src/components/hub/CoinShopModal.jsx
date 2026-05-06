@@ -16,6 +16,15 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem } from '@/lib/data/coinShop';
 
+// SKU → camelCase translation-key segment. Single source of truth so adding
+// a new shop item only requires one edit instead of two chained replaces.
+const SKU_TO_CAMEL = {
+  capsule_standard: 'standardCapsule',
+  capsule_premium:  'premiumCapsule',
+  capsule_elite:    'eliteCapsule',
+  streak_freeze:    'streakFreeze',
+};
+
 export default function CoinShopModal({ open, onClose }) {
   const { user } = useAuth();
   const { t } = useLanguage();
@@ -48,9 +57,10 @@ export default function CoinShopModal({ open, onClose }) {
       if (result.success) {
         const item = SHOP_CATALOG[sku];
         // Use translated item name in the success toast
-        const itemNameKey = `shop.${item.sku.replace('capsule_standard', 'standardCapsule').replace('capsule_premium', 'premiumCapsule').replace('capsule_elite', 'eliteCapsule').replace('streak_freeze', 'streakFreeze')}.name`;
-        const translatedName = t(itemNameKey);
-        const displayName = translatedName === itemNameKey ? item.name : translatedName;
+        const camel = SKU_TO_CAMEL[item.sku];
+        const itemNameKey = camel ? `shop.${camel}.name` : null;
+        const translatedName = itemNameKey ? t(itemNameKey) : null;
+        const displayName = translatedName && translatedName !== itemNameKey ? translatedName : item.name;
         toast.success(t('shop.purchasedToast').replace('{item}', displayName), { icon: item.icon });
         queryClient.invalidateQueries({ queryKey: ['coinShopProfile'] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -131,12 +141,8 @@ export default function CoinShopModal({ open, onClose }) {
 
 function ShopRow({ item, balance, busy, onBuy, t }) {
   const affordable = balance >= item.price;
-  // Translation key derived from sku — see SHOP_CATALOG: 'shop.<camelKey>.name'
-  const camelKey = item.sku === 'capsule_standard' ? 'standardCapsule'
-                 : item.sku === 'capsule_premium'  ? 'premiumCapsule'
-                 : item.sku === 'capsule_elite'    ? 'eliteCapsule'
-                 : item.sku === 'streak_freeze'    ? 'streakFreeze'
-                 : null;
+  // Translation key derived from sku via SKU_TO_CAMEL (single source of truth).
+  const camelKey = SKU_TO_CAMEL[item.sku] || null;
   const nameKey = camelKey ? `shop.${camelKey}.name` : null;
   const descKey = camelKey ? `shop.${camelKey}.desc` : null;
   const translatedName = nameKey ? t(nameKey) : null;

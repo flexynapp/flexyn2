@@ -33,7 +33,7 @@ function saveHistory(userId, messages) {
 
 export default function CoachChat() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   const [thinking, setThinking] = useState(false);
@@ -93,7 +93,7 @@ export default function CoachChat() {
       console.error('[CoachChat] askCoach threw:', err);
       setMessages(prev => [...prev, {
         role: 'coach',
-        text: "Something went wrong on my side — try asking again in a moment.",
+        text: tFallback('coach.error', "Something went wrong on my side — try asking again in a moment."),
         ts: Date.now(),
         source: 'error',
       }]);
@@ -103,7 +103,7 @@ export default function CoachChat() {
   };
 
   const handleClear = () => {
-    if (!confirm('Clear chat history?')) return;
+    if (!confirm(tFallback('coach.clearConfirm', 'Clear chat history?'))) return;
     setMessages([]);
     if (user?.id) try { localStorage.removeItem(_historyKey(user.id)); } catch {}
   };
@@ -130,10 +130,10 @@ export default function CoachChat() {
           </div>
           <div>
             <p className="font-heading font-bold text-sm">
-              {t('coach.title') === 'coach.title' ? 'Coach' : t('coach.title')}
+              {tFallback('coach.title', 'Coach')}
             </p>
             <p className="text-[10px] text-muted-foreground">
-              {t('coach.subtitle') === 'coach.subtitle' ? 'Personalized advice from your data' : t('coach.subtitle')}
+              {tFallback('coach.subtitle', 'Personalized advice from your data')}
             </p>
           </div>
         </div>
@@ -155,7 +155,7 @@ export default function CoachChat() {
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1"
       >
         {isEmpty ? (
-          <CoachWelcome onPick={handleSend} t={t} />
+          <CoachWelcome onPick={handleSend} tFallback={tFallback} />
         ) : (
           <>
             {messages.map((m, i) => (
@@ -166,7 +166,7 @@ export default function CoachChat() {
                 <div className="bg-secondary text-foreground rounded-2xl rounded-bl-sm px-3 py-2 flex items-center gap-2">
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
                   <span className="text-xs text-muted-foreground">
-                    {t('coach.thinking') === 'coach.thinking' ? 'Thinking…' : t('coach.thinking')}
+                    {tFallback('coach.thinking', 'Thinking…')}
                   </span>
                 </div>
               </div>
@@ -187,7 +187,7 @@ export default function CoachChat() {
               handleSend();
             }
           }}
-          placeholder={t('coach.placeholder') === 'coach.placeholder' ? 'Ask Coach anything…' : t('coach.placeholder')}
+          placeholder={tFallback('coach.placeholder', 'Ask Coach anything…')}
           maxLength={500}
           rows={1}
           className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-snug"
@@ -227,19 +227,17 @@ function MessageBubble({ m }) {
   );
 }
 
-function CoachWelcome({ onPick, t }) {
+function CoachWelcome({ onPick, tFallback }) {
   return (
     <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 px-2">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center mb-4">
         <Sparkles className="w-7 h-7 text-white" />
       </div>
       <h2 className="font-heading font-bold text-lg mb-1">
-        {t('coach.welcome.title') === 'coach.welcome.title' ? "Your personal coach" : t('coach.welcome.title')}
+        {tFallback('coach.welcome.title', 'Your personal coach')}
       </h2>
       <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-        {t('coach.welcome.desc') === 'coach.welcome.desc'
-          ? "Ask me anything about your training. I read your actual workout data to give you specific advice."
-          : t('coach.welcome.desc')}
+        {tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.")}
       </p>
       <div className="space-y-1.5 w-full max-w-sm">
         {SUGGESTED_PROMPTS.map(p => (

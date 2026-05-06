@@ -21,7 +21,7 @@ import {
 
 export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, userProfile = {} }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
   const [focus, setFocus] = useState('full_body');
   const [duration, setDuration] = useState(45);
   const [equipment, setEquipment] = useState('gym');
@@ -69,32 +69,32 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
               <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center">
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
-              {t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
+              {tFallback('generator.title', 'Generate Workout')}
             </DialogTitle>
           </DialogHeader>
 
           {!result && !generating && (
             <>
               <Pillset
-                label={t('generator.focus') === 'generator.focus' ? 'Focus' : t('generator.focus')}
+                label={tFallback('generator.focus', 'Focus')}
                 options={FOCUS_OPTIONS}
                 value={focus}
                 onChange={setFocus}
               />
               <Pillset
-                label={t('generator.duration') === 'generator.duration' ? 'Duration' : t('generator.duration')}
+                label={tFallback('generator.duration', 'Duration')}
                 options={DURATION_OPTIONS}
                 value={duration}
                 onChange={setDuration}
               />
               <Pillset
-                label={t('generator.equipment') === 'generator.equipment' ? 'Equipment' : t('generator.equipment')}
+                label={tFallback('generator.equipment', 'Equipment')}
                 options={EQUIPMENT_OPTIONS}
                 value={equipment}
                 onChange={setEquipment}
               />
               <Pillset
-                label={t('generator.skill') === 'generator.skill' ? 'Experience' : t('generator.skill')}
+                label={tFallback('generator.skill', 'Experience')}
                 options={SKILL_OPTIONS}
                 value={skill}
                 onChange={setSkill}
@@ -106,12 +106,10 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
                 size="lg"
               >
                 <Sparkles className="w-4 h-4" />
-                {t('generator.generate') === 'generator.generate' ? 'Generate' : t('generator.generate')}
+                {tFallback('generator.generate', 'Generate')}
               </Button>
               <p className="text-[11px] text-muted-foreground mt-3 text-center leading-relaxed">
-                {t('generator.disclaimer') === 'generator.disclaimer'
-                  ? "Personalized using your last 60 days of workout history. Not a substitute for a coach if you have injuries or special needs."
-                  : t('generator.disclaimer')}
+                {tFallback('generator.disclaimer', "Personalized using your last 60 days of workout history. Not a substitute for a coach if you have injuries or special needs.")}
               </p>
             </>
           )}
@@ -120,10 +118,10 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
             <div className="flex flex-col items-center justify-center py-16">
               <Loader2 className="w-10 h-10 animate-spin text-primary mb-4" />
               <p className="font-heading font-semibold">
-                {t('generator.thinking') === 'generator.thinking' ? 'Building your workout…' : t('generator.thinking')}
+                {tFallback('generator.thinking', 'Building your workout…')}
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                {t('generator.thinkingDesc') === 'generator.thinkingDesc' ? 'Reading your training history.' : t('generator.thinkingDesc')}
+                {tFallback('generator.thinkingDesc', 'Reading your training history.')}
               </p>
             </div>
           )}
@@ -164,11 +162,11 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
                 <div className="flex gap-2">
                   <Button onClick={handleGenerate} variant="outline" className="flex-1 gap-2">
                     <RefreshCw className="w-4 h-4" />
-                    {t('generator.regenerate') === 'generator.regenerate' ? 'Regenerate' : t('generator.regenerate')}
+                    {tFallback('generator.regenerate', 'Regenerate')}
                   </Button>
                   <Button onClick={handleUse} className="flex-1 gap-2">
                     <Play className="w-4 h-4" />
-                    {t('generator.use') === 'generator.use' ? 'Use this' : t('generator.use')}
+                    {tFallback('generator.use', 'Use this')}
                   </Button>
                 </div>
               </motion.div>

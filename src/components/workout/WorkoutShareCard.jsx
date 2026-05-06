@@ -194,7 +194,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 export default function WorkoutShareCard({ open, onClose, workout, username }) {
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -281,7 +281,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
         <div className="p-5">
           <DialogHeader className="mb-3">
             <DialogTitle>
-              {t('share.title') === 'share.title' ? 'Share your workout' : t('share.title')}
+              {tFallback('share.title', 'Share your workout')}
             </DialogTitle>
           </DialogHeader>
 
@@ -313,15 +313,15 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
           <div className="flex gap-2">
             <Button onClick={handleDownload} variant="outline" disabled={busy || !imgUrl} className="flex-1 gap-2">
               <Download className="w-4 h-4" />
-              {t('share.download') === 'share.download' ? 'Save image' : t('share.download')}
+              {tFallback('share.download', 'Save image')}
             </Button>
             <Button onClick={handleShare} disabled={busy || !imgUrl} className="flex-1 gap-2">
               <Share2 className="w-4 h-4" />
-              {t('share.share') === 'share.share' ? 'Share' : t('share.share')}
+              {tFallback('share.share', 'Share')}
             </Button>
           </div>
           <p className="text-[11px] text-muted-foreground mt-3 text-center">
-            {t('share.hint') === 'share.hint' ? 'Posts to Instagram, TikTok, or download for anywhere else.' : t('share.hint')}
+            {tFallback('share.hint', 'Posts to Instagram, TikTok, or download for anywhere else.')}
           </p>
         </div>
       </DialogContent>
