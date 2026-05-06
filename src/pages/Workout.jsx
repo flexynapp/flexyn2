@@ -38,6 +38,7 @@ import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import * as notifications from '@/lib/data/notifications';
+import { speakWorkoutComplete } from '@/lib/audioCues';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 
@@ -229,6 +230,8 @@ export default function Workout() {
       setShareCardWorkout({ ...data, date: data.date || format(new Date(), 'yyyy-MM-dd') });
       resetWorkout();
       toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
+      // Voice cue (no-op if user has voice cues disabled)
+      try { speakWorkoutComplete(); } catch {}
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       // Refetch achievements so the modal reflects newly unlocked ones immediately

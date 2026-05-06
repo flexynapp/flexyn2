@@ -1,5 +1,13 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
+import {
+  speakRestStart,
+  speakRestComplete,
+  speakCountdown,
+  isVoiceCuesEnabled,
+  setVoiceCuesEnabled as persistVoiceCuesEnabled,
+  preloadVoices,
+} from '@/lib/audioCues';
 
 /**
  * RestTimerContext — global rest timer for active workouts.
@@ -40,6 +48,13 @@ export function RestTimerProvider({ children }) {
     }
   });
 
+  // Voice cues — separate from sound (chimes). Lets users keep the chime
+  // but disable the spoken coach (or vice versa). Persisted via audioCues.js.
+  const [voiceCuesEnabled, setVoiceCuesEnabledState] = useState(() => isVoiceCuesEnabled());
+
+  // Eagerly load voices on first mount so the first cue doesn't lag
+  useEffect(() => { preloadVoices(); }, []);
+
   // Active timer state
   const [active, setActive] = useState(false);
   const [endsAt, setEndsAt] = useState(null);          // ms epoch when timer ends
@@ -58,16 +73,30 @@ export function RestTimerProvider({ children }) {
   }, [soundEnabled]);
 
   // Tick loop
+  // We track the last "spoken second" so countdown cues fire exactly once per
+  // second boundary, not on every 250ms tick.
+  const lastSpokenSecRef = useRef(null);
   useEffect(() => {
-    if (!active || endsAt == null) return;
+    if (!active || endsAt == null) {
+      lastSpokenSecRef.current = null;
+      return;
+    }
 
     const tick = () => {
       const remainingMs = endsAt - Date.now();
       const remaining = Math.max(0, Math.ceil(remainingMs / 1000));
       setSecondsLeft(remaining);
+
+      // Voice countdown for the last 3 seconds (fires once per second boundary)
+      if (voiceCuesEnabled && remaining > 0 && remaining <= 3 && remaining !== lastSpokenSecRef.current) {
+        lastSpokenSecRef.current = remaining;
+        speakCountdown(remaining);
+      }
+
       if (remaining <= 0 && !completedFiredRef.current) {
         completedFiredRef.current = true;
         fireCompletionFeedback(soundEnabled);
+        if (voiceCuesEnabled) speakRestComplete();
         // Auto-dismiss after 2 seconds at zero
         setTimeout(() => {
           setActive(false);
@@ -80,17 +109,19 @@ export function RestTimerProvider({ children }) {
     tick(); // initial sync
     tickRef.current = setInterval(tick, 250);
     return () => clearInterval(tickRef.current);
-  }, [active, endsAt, soundEnabled]);
+  }, [active, endsAt, soundEnabled, voiceCuesEnabled]);
 
   const start = useCallback((seconds) => {
     if (!restTimerEnabled) return;
     const dur = Number.isFinite(seconds) && seconds > 0 ? seconds : defaultDuration;
     completedFiredRef.current = false;
+    lastSpokenSecRef.current = null;
     setTotalSeconds(dur);
     setSecondsLeft(dur);
     setEndsAt(Date.now() + dur * 1000);
     setActive(true);
-  }, [defaultDuration, restTimerEnabled]);
+    if (voiceCuesEnabled) speakRestStart(dur);
+  }, [defaultDuration, restTimerEnabled, voiceCuesEnabled]);
 
   const stop = useCallback(() => {
     setActive(false);
@@ -112,12 +143,18 @@ export function RestTimerProvider({ children }) {
   }, []);
 
   const setSoundEnabled = useCallback((on) => setSoundEnabledState(!!on), []);
+  const setVoiceCuesEnabled = useCallback((on) => {
+    const next = !!on;
+    setVoiceCuesEnabledState(next);
+    persistVoiceCuesEnabled(next);
+  }, []);
 
   return (
     <RestTimerContext.Provider value={{
       active, secondsLeft, totalSeconds,
       defaultDuration, setDefaultDuration,
       soundEnabled, setSoundEnabled,
+      voiceCuesEnabled, setVoiceCuesEnabled,
       start, stop, addTime,
     }}>
       {children}
@@ -137,6 +174,8 @@ export function useRestTimer() {
       setDefaultDuration: () => {},
       soundEnabled: false,
       setSoundEnabled: () => {},
+      voiceCuesEnabled: false,
+      setVoiceCuesEnabled: () => {},
       start: () => {}, stop: () => {}, addTime: () => {},
     };
   }

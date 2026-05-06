@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Minus, X, Volume2, VolumeX, Settings2, Check } from 'lucide-react';
+import { Plus, Minus, X, Volume2, VolumeX, Settings2, Check, Mic, MicOff } from 'lucide-react';
 import { useRestTimer } from '@/lib/RestTimerContext';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -15,6 +15,7 @@ export default function RestTimerOverlay() {
     active, secondsLeft, totalSeconds,
     defaultDuration, setDefaultDuration,
     soundEnabled, setSoundEnabled,
+    voiceCuesEnabled, setVoiceCuesEnabled,
     stop, addTime,
   } = useRestTimer();
   const [expanded, setExpanded] = useState(false);
@@ -54,6 +55,8 @@ export default function RestTimerOverlay() {
               setDefaultDuration={setDefaultDuration}
               soundEnabled={soundEnabled}
               setSoundEnabled={setSoundEnabled}
+              voiceCuesEnabled={voiceCuesEnabled}
+              setVoiceCuesEnabled={setVoiceCuesEnabled}
               t={t}
             />
           ) : (
@@ -143,7 +146,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
   );
 }
 
-function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundEnabled, setSoundEnabled, t }) {
+function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundEnabled, setSoundEnabled, voiceCuesEnabled, setVoiceCuesEnabled, t }) {
   const PRESETS = [30, 60, 90, 120, 180, 300];
   return (
     <motion.div
@@ -207,6 +210,34 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
             style={{ transform: `translateX(${soundEnabled ? '1.125rem' : '0.125rem'})` }} />
         </span>
       </button>
+
+      <button
+        onClick={() => setVoiceCuesEnabled(!voiceCuesEnabled)}
+        className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm">
+          {voiceCuesEnabled
+            ? <Mic className="w-4 h-4 text-primary" />
+            : <MicOff className="w-4 h-4 text-muted-foreground" />}
+          <span className="font-medium">
+            {t('restTimer.voiceCues') === 'restTimer.voiceCues' ? 'Voice cues' : t('restTimer.voiceCues')}
+          </span>
+        </span>
+        <span className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
+          voiceCuesEnabled ? 'bg-primary' : 'bg-muted'
+        }`}>
+          <span className="pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform mt-0.5"
+            style={{ transform: `translateX(${voiceCuesEnabled ? '1.125rem' : '0.125rem'})` }} />
+        </span>
+      </button>
+
+      {voiceCuesEnabled && (
+        <p className="text-[11px] text-muted-foreground mt-2 px-1 leading-relaxed">
+          {t('restTimer.voiceHint') === 'restTimer.voiceHint'
+            ? 'Hands-free coaching: rest start, 3-2-1 countdown, "time\'s up". Plug in your headphones.'
+            : t('restTimer.voiceHint')}
+        </p>
+      )}
     </motion.div>
   );
 }
