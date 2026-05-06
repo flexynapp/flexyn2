@@ -122,7 +122,7 @@ export default function StatsHubModal({ open, onClose }) {
 
             {/* League */}
             <ErrorBoundary label="StatsHub.League">
-              <LeagueCard onClick={() => setLeagueOpen(true)} />
+              <LeagueCard onClick={() => { onClose(); setLeagueOpen(true); }} />
             </ErrorBoundary>
 
             {/* Daily Quests — clicking a quest closes the modal and routes
@@ -138,10 +138,13 @@ export default function StatsHubModal({ open, onClose }) {
                   - Bag: navigate to /hub?bag=open (Hub reads ?bag= and opens)
                   - Coin Shop: in-modal CoinShopModal */}
             <div className="grid grid-cols-2 gap-2">
+              {/* Replace-not-stack pattern: clicking these closes the Stats
+                  Hub first via onClose(), then opens the target so users
+                  see only the destination instead of two stacked modals. */}
               <NavTile
                 icon={Trophy}
                 label={tFallback('statsHub.leaderboards', 'Leaderboards')}
-                onClick={() => setLeaderboardsOpen(true)}
+                onClick={() => { onClose(); setLeaderboardsOpen(true); }}
               />
               <NavTile
                 icon={Sparkles}
@@ -156,7 +159,7 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Coins}
                 label={tFallback('statsHub.shop', 'Coin Shop')}
-                onClick={() => setShopOpen(true)}
+                onClick={() => { onClose(); setShopOpen(true); }}
               />
             </div>
           </div>
