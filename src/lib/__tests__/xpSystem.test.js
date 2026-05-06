@@ -27,8 +27,10 @@ describe('getXpForNextLevel', () => {
     }
   });
 
-  it('level 1 → 2 costs 300 XP (base)', () => {
-    expect(getXpForNextLevel(1)).toBe(300);
+  it('level 1 → 2 costs the configured base (150 XP)', () => {
+    // Lowered from 300 in the curve rebalance — keep this test in sync with
+    // LEVEL_CONFIG.baseXpPerLevel in src/lib/xpSystem.js.
+    expect(getXpForNextLevel(1)).toBe(150);
   });
 });
 
@@ -51,8 +53,9 @@ describe('calculateLevelFromXp', () => {
     expect(result.xpInLevel).toBe(0);
   });
 
-  it('returns level 1 with correct progress at 150 XP (half of first level)', () => {
-    const result = calculateLevelFromXp(150);
+  it('returns level 1 with correct progress at 75 XP (half of first level)', () => {
+    // Half of the new baseXpPerLevel (150). Update if curve config changes.
+    const result = calculateLevelFromXp(75);
     expect(result.level).toBe(1);
     expect(result.progressPercent).toBeCloseTo(50, 0);
   });

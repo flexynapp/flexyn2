@@ -9,17 +9,23 @@
 
 const LEVEL_CONFIG = {
   MAX_LEVEL: 100,
-  baseXpPerLevel: 300,      // ~20% harder baseline than before
-  exponentialGrowth: 1.15,
+  baseXpPerLevel: 150,      // halved from 300 — original curve put level 100 at
+                            // ~11M total XP (~12 years of play). New target:
+                            // level 50 in ~3 months, level 100 in ~1 year of
+                            // dedicated training. Existing users will see their
+                            // current level either hold or bump up on next save.
+  exponentialGrowth: 1.10,
 };
 
-// Tiered growth so early levels feel quick, mid-game slows down, late-game is a grind
+// Tiered growth so early levels feel quick, mid-game slows down, late-game is a grind.
+// Multipliers tuned down from the original (1.10/1.13/1.16/1.18/1.22) to make
+// level 100 a realistic year-long goal rather than a decade-long one.
 function getLevelMultiplier(level) {
-  if (level <= 10)  return 1.10; // fast early progression
-  if (level <= 30)  return 1.13;
-  if (level <= 60)  return 1.16;
-  if (level <= 80)  return 1.18;
-  return 1.22;                   // true endgame grind
+  if (level <= 10)  return 1.05; // very gentle early — first few levels in a session
+  if (level <= 30)  return 1.07;
+  if (level <= 60)  return 1.09;
+  if (level <= 80)  return 1.11;
+  return 1.13;                   // late-game grind, but reachable
 }
 
 // Total XP needed to reach a given level from 0

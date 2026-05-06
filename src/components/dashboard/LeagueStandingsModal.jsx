@@ -4,7 +4,7 @@
 // Promotion zone is highlighted green at the top, demotion zone red at the
 // bottom, holding-position grey in the middle.
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -25,6 +25,14 @@ export default function LeagueStandingsModal({ open, onClose }) {
     enabled: !!user?.id && open,
     staleTime: 15_000,
   });
+
+  // Lock body scroll while open to keep mobile users inside the modal scroller
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   if (!open) return null;
 

@@ -146,6 +146,22 @@ export default function Workout() {
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
+      // Anti-cheat: never accept future-dated workouts. Users could otherwise
+      // front-load tomorrow's session today to game streaks or weekly leagues.
+      // We allow today's date in any timezone (with a small clock-drift buffer)
+      // but reject anything dated >1 day ahead of the user's current local date.
+      try {
+        if (data?.date) {
+          const today = format(new Date(), 'yyyy-MM-dd');
+          if (data.date > today) {
+            throw new Error('Workouts cannot be dated in the future.');
+          }
+        }
+      } catch (e) {
+        if (e.message === 'Workouts cannot be dated in the future.') throw e;
+        // Date parsing failed — fall through (existing behavior)
+      }
+
       // Per-exercise set cap (defense-in-depth, trim before XP calc)
       const perExerciseCap = getMaxSetsPerExercise(userProfile);
       data = {

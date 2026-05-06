@@ -105,7 +105,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
           onClick={onSubtract}
           aria-label={t('restTimer.subtract15')}
           disabled={isDone}
-          className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-30"
+          className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-30"
         >
           <Minus className="w-4 h-4" />
         </button>
@@ -128,7 +128,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
           onClick={onAdd}
           aria-label={t('restTimer.add15')}
           disabled={isDone}
-          className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-30"
+          className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/15 active:bg-white/20 backdrop-blur-sm flex items-center justify-center transition-colors disabled:opacity-30"
         >
           <Plus className="w-4 h-4" />
         </button>
@@ -137,7 +137,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
           type="button"
           onClick={onSkip}
           aria-label={t('restTimer.skip')}
-          className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-colors"
+          className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 active:bg-white/25 backdrop-blur-sm flex items-center justify-center transition-colors"
         >
           {isDone ? <Check className="w-4 h-4" /> : <X className="w-4 h-4" />}
         </button>

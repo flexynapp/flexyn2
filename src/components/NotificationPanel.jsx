@@ -27,6 +27,15 @@ export default function NotificationPanel({ open, onClose }) {
     staleTime: 5_000,
   });
 
+  // Lock body scroll while the panel is open so the page behind doesn't
+  // scroll when the user is mid-swipe inside the panel on mobile.
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
   // Mark all read once they've been displayed. Depend on user?.id (a primitive)
   // rather than the user object reference, so an unrelated auth refresh that
   // returns a new object reference doesn't re-fire the markAllRead call.

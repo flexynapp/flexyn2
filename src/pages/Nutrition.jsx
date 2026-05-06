@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
 import { Plus, Barcode, Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -131,9 +132,11 @@ export default function Nutrition() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       if (variables.water_oz > 0) {
-        // Award 1 XP per glass (rate-limited server-side). Water is low-effort — keep XP minimal.
+        // XP value comes from XP_REWARDS.waterGlass (single source of truth).
+        // Was hardcoded to 1 inline, drifted from the documented 3.
+        const xpForWater = (XP_REWARDS && XP_REWARDS.waterGlass) || 3;
         base44.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: 1,
+          xp_gained: xpForWater,
           action_type: 'water_logged',
           action_data: { date, oz: variables.water_oz },
         }).catch(() => {});

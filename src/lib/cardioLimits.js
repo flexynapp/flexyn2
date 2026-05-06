@@ -74,8 +74,25 @@ export const DAILY_HOUR_LIMITS = {
  * Check whether a cardio entry's speed is implausible for its type.
  * Returns { implausible: true, speedKmh, limit } or { implausible: false }.
  */
+// Absolute single-session distance ceiling. Even the longest ultras (Spartathlon
+// 246 km, Badwater 217 km) finish under this cap — anything beyond is a typo
+// or a deliberate cheat attempt.
+const MAX_SESSION_DISTANCE_METERS = 250_000;
+
 export function checkCardioSpeed(type, distanceMeters, durationSeconds) {
-  // Only validate when both distance and duration are present.
+  // Absolute distance sanity check — fires even when duration is missing.
+  // Catches "submitted 1,000,000 m run with no time" cheat attempts that the
+  // speed-based check ignores.
+  if (distanceMeters && distanceMeters > MAX_SESSION_DISTANCE_METERS) {
+    return {
+      implausible: true,
+      reason: 'distance_ceiling',
+      distanceMeters,
+      maxDistanceMeters: MAX_SESSION_DISTANCE_METERS,
+    };
+  }
+
+  // Speed check requires both distance AND duration; bail if either is missing.
   if (!distanceMeters || distanceMeters <= 0 || !durationSeconds || durationSeconds <= 0) {
     return { implausible: false };
   }
@@ -83,7 +100,7 @@ export function checkCardioSpeed(type, distanceMeters, durationSeconds) {
   if (speed === null) return { implausible: false };
   const { maxKmh } = getSpeedLimits(type);
   if (speed > maxKmh) {
-    return { implausible: true, speedKmh: Math.round(speed * 10) / 10, maxKmh };
+    return { implausible: true, reason: 'speed', speedKmh: Math.round(speed * 10) / 10, maxKmh };
   }
   return { implausible: false };
 }
