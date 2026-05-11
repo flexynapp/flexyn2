@@ -770,7 +770,7 @@ export default function Workout() {
                   role="button"
                   tabIndex={0}
                   className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
-                  onClick={() => { console.log('[Workout] Generate Workout clicked'); setGeneratorOpen(true); }}
+                  onClick={() => setGeneratorOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                 >
                   <div className="flex items-center gap-3">
@@ -797,7 +797,7 @@ export default function Workout() {
                   role="button"
                   tabIndex={0}
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => { console.log('[Workout] Form Coach clicked'); setFormCoachOpen(true); }}
+                  onClick={() => setFormCoachOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                 >
                   <div className="flex items-center gap-3">

@@ -4,11 +4,10 @@
 // User can preview the result, regenerate, or load it into the workout form
 // to start lifting.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, RefreshCw, Play } from 'lucide-react';
+import { Loader2, Sparkles, RefreshCw, Play, X } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import {
@@ -19,6 +18,11 @@ import {
   SKILL_OPTIONS,
 } from '@/lib/aiCoach/workoutGenerator';
 
+// Plain framer-motion portal (NOT Radix). Same pattern as
+// ProfanityWarningDialog — known to work in every browser/viewport.
+// We swapped off Radix Dialog because clicking "Generate Workout" was
+// firing the setState handler but the Radix portal content never
+// became visible (no visible UI even though the wrapper mounted).
 export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, userProfile = {} }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
@@ -29,13 +33,21 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState(null);
 
-  // Diagnostic — log on EVERY render (not just open changes) so we can see
-  // whether the component is even mounting. If this log never fires, the
-  // parent isn't rendering us. If it fires with open=true but no UI appears,
-  // it's a Radix portal / z-index / CSS issue.
-  if (typeof window !== 'undefined') {
-    console.log('[GeneratorModal] render with open=', open);
-  }
+  // Lock body scroll while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') handleClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -69,17 +81,41 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
   };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && handleClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0">
-        <div className="p-4 sm:p-6">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center">
-                <Sparkles className="w-4 h-4 text-white" />
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="generator-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+          onClick={handleClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 32 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+          >
+            <button
+              onClick={handleClose}
+              aria-label="Close"
+              className="absolute top-3 right-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="p-4 sm:p-6">
+              <div className="mb-4 pr-8">
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
+                    <Sparkles className="w-4 h-4 text-white" />
+                  </div>
+                  {tFallback('generator.title', 'Generate Workout')}
+                </h2>
               </div>
-              {tFallback('generator.title', 'Generate Workout')}
-            </DialogTitle>
-          </DialogHeader>
 
           {!result && !generating && (
             <>
@@ -180,9 +216,11 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </DialogContent>
-    </Dialog>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

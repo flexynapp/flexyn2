@@ -7,8 +7,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Loader2 } from 'lucide-react';
+import { Loader2, X } from 'lucide-react';
 import CameraView from './CameraView';
 import ExercisePicker from './ExercisePicker';
 import DemoSection from './DemoSection';
@@ -16,6 +15,10 @@ import FeedbackPanel from './FeedbackPanel';
 import { useLanguage } from '@/lib/LanguageContext';
 import { analyzeForm, prewarmDetector } from '@/lib/formCoach/analyzeForm';
 
+// Plain framer-motion portal (NOT Radix). Same pattern as
+// ProfanityWarningDialog/WorkoutGeneratorModal — sidesteps Radix's
+// portal/focus-trap issues where the click handler fires but the dialog
+// content never visibly appears.
 export default function FormCoachModal({ open, onClose }) {
   const { t } = useLanguage();
   const [exercise, setExercise] = useState('');
@@ -30,12 +33,18 @@ export default function FormCoachModal({ open, onClose }) {
     if (open) prewarmDetector();
   }, [open]);
 
-  // Diagnostic — log on EVERY render so we can confirm the component is
-  // even mounting. If this log doesn't appear after clicking Form Coach, the
-  // parent isn't rendering us / boundary caught a throw before mount.
-  if (typeof window !== 'undefined') {
-    console.log('[FormCoachModal] render with open=', open);
-  }
+  // Lock body scroll while open + Esc-to-close
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
 
   const handleCapture = async (imageDataUrl) => {
     if (!exercise) return;
@@ -92,17 +101,41 @@ export default function FormCoachModal({ open, onClose }) {
   const noBody    = feedback?._poseQuality === 'no_body';
 
   return (
-    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 gap-0">
-        <div className="p-5 sm:p-6">
-          <DialogHeader className="mb-4">
-            <DialogTitle className="flex items-center gap-2">
-              {t('formcoach.title')}
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
-                {t('formcoach.beta')}
-              </span>
-            </DialogTitle>
-          </DialogHeader>
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          key="formcoach-overlay"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.18 }}
+          className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+          onClick={onClose}
+        >
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 40, scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 360, damping: 32 }}
+            onClick={(e) => e.stopPropagation()}
+            className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl"
+          >
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="absolute top-3 right-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
+            >
+              <X className="w-4 h-4" />
+            </button>
+            <div className="p-5 sm:p-6">
+              <div className="mb-4 pr-8">
+                <h2 className="font-heading font-bold text-lg flex items-center gap-2">
+                  {t('formcoach.title')}
+                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
+                    {t('formcoach.beta')}
+                  </span>
+                </h2>
+              </div>
 
           {!feedback && !analyzing && (
             <>
@@ -188,8 +221,10 @@ export default function FormCoachModal({ open, onClose }) {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-      </DialogContent>
-    </Dialog>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
