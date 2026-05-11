@@ -7,7 +7,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
-import { Loader2, Sparkles, RefreshCw, Play, X } from 'lucide-react';
+import { Loader2, Sparkles, RefreshCw, Play, X, Save } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import {
@@ -23,7 +23,7 @@ import {
 // We swapped off Radix Dialog because clicking "Generate Workout" was
 // firing the setState handler but the Radix portal content never
 // became visible (no visible UI even though the wrapper mounted).
-export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, userProfile = {} }) {
+export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onSaveAsRegimen, userProfile = {} }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const [focus, setFocus] = useState('full_body');
@@ -68,11 +68,23 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
     }
   };
 
+  const [savingRegimen, setSavingRegimen] = useState(false);
+
   const handleUse = () => {
     if (!result || !onUseWorkout) return;
     onUseWorkout(result);
     onClose();
     setResult(null);
+  };
+
+  const handleSaveAsRegimen = async () => {
+    if (!result || !onSaveAsRegimen) return;
+    setSavingRegimen(true);
+    try {
+      await onSaveAsRegimen(result);
+    } finally {
+      setSavingRegimen(false);
+    }
   };
 
   const handleClose = () => {
@@ -203,15 +215,30 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, use
                   ))}
                 </div>
 
-                <div className="flex gap-2">
-                  <Button onClick={handleGenerate} variant="outline" className="flex-1 gap-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <Button onClick={handleGenerate} variant="outline" className="gap-2">
                     <RefreshCw className="w-4 h-4" />
                     {tFallback('generator.regenerate', 'Regenerate')}
                   </Button>
-                  <Button onClick={handleUse} className="flex-1 gap-2">
+                  <Button onClick={handleUse} className="gap-2">
                     <Play className="w-4 h-4" />
                     {tFallback('generator.use', 'Use this')}
                   </Button>
+                  {onSaveAsRegimen && (
+                    <Button
+                      onClick={handleSaveAsRegimen}
+                      variant="secondary"
+                      disabled={savingRegimen}
+                      className="col-span-2 gap-2"
+                    >
+                      {savingRegimen ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Save className="w-4 h-4" />
+                      )}
+                      {tFallback('generator.saveAsRegimen', 'Save as Regimen')}
+                    </Button>
+                  )}
                 </div>
               </motion.div>
             )}

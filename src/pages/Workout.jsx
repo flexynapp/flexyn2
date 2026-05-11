@@ -35,6 +35,7 @@ import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
 import * as quests from '@/lib/data/quests';
+import * as regimens from '@/lib/data/regimens';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
@@ -941,6 +942,61 @@ export default function Workout() {
             }}
           />
         )}
+
+        {/* AI modals — MUST be mounted in the idle view because that's where
+            their trigger cards live (Generate Workout, Form Coach). Without
+            this, clicking the cards updates state but no modal exists in
+            the tree to react to the change. Each is wrapped in its own
+            ErrorBoundary so a TF.js load failure or generator crash doesn't
+            take down the whole Workout page. */}
+        <ErrorBoundary label="FormCoach">
+          <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+        </ErrorBoundary>
+
+        <ErrorBoundary label="WorkoutGenerator">
+          <WorkoutGeneratorModal
+            open={generatorOpen}
+            onClose={() => setGeneratorOpen(false)}
+            userProfile={userProfile}
+            onUseWorkout={(workout) => {
+              // Start a freestyle workout pre-filled with the AI session.
+              // Setting these state pieces flips `started=true` so the next
+              // render shows the active-workout form ready to log sets.
+              const id = `generated-${Date.now()}`;
+              setActiveSessionId(id);
+              setExercises(workout.exercises.map(ex => ({
+                name: ex.name,
+                sets: ex.sets.map(s => ({ weight: s.weight || '', reps: s.reps || '' })),
+              })));
+              setDuration(String(workout.duration_minutes || ''));
+              setNotes(workout.title || '');
+              setGeneratorOpen(false);
+              setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+              toast.success('Workout loaded — start lifting!');
+            }}
+            onSaveAsRegimen={async (workout) => {
+              try {
+                await regimens.create({
+                  name: workout.title || 'AI-Generated Workout',
+                  description: `AI ${workout.focus} session · ${workout.duration_minutes} min`,
+                  exercises: workout.exercises.map(ex => ({
+                    name: ex.name,
+                    target_sets: ex.sets.length,
+                    target_reps: ex.sets[0]?.reps ?? null,
+                    target_weight: ex.sets[0]?.weight ?? null,
+                    rest_seconds: ex.restSec ?? 90,
+                  })),
+                  is_public: false,
+                });
+                queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
+                toast.success('Saved to your Regimens!');
+              } catch (err) {
+                console.error('[Workout] save regimen failed:', err);
+                toast.error('Could not save regimen. Try again.');
+              }
+            }}
+          />
+        </ErrorBoundary>
       </motion.div>
     );
   }
