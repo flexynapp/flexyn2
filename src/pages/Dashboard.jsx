@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
@@ -232,31 +232,31 @@ export default function Dashboard() {
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => base44.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => base44.entities.CardioLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => base44.entities.Regimen.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
   const { data: rawGoals = [], isLoading: goalsLoading } = useQuery({
     queryKey: ['goals', user?.email],
-    queryFn: () => base44.entities.Goal.filter({ created_by: user.email }, '-created_date'),
+    queryFn: () => db.entities.Goal.filter({ created_by: user.email }, '-created_date'),
     enabled: !!user?.email,
   });
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 

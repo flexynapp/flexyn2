@@ -132,9 +132,13 @@ export default function Hub() {
     }
   };
 
-  // Pull userProfile for inventory operations
+  // Pull userProfile for inventory operations.
+  // NOTE: distinct queryKey ('hubUserProfile') from the global ProfileMenu/Header
+  // query ('userProfile') — those select the full row for the sidebar, while this
+  // one only needs id + flex_coins. Sharing the key would clobber full_name /
+  // avatar_url in the cache and the sidebar username would disappear on Hub.
   const { data: userProfile } = useQuery({
-    queryKey: ['userProfile', user?.email],
+    queryKey: ['hubUserProfile', user?.email],
     queryFn: async () => {
       const { supabase } = await import('@/api/supabaseClient');
       const { data: { user: authUser } } = await supabase.auth.getUser();

@@ -35,7 +35,7 @@ import * as goals from '@/lib/data/goals';
 import * as achievements from '@/lib/data/achievements';
 import * as regimens from '@/lib/data/regimens';
 import { loadProgressPhotos } from '@/components/progress/ProgressPhotoCapture';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { toast } from 'sonner';
 
 // Trim a GPS track down to ~250 points so the map render stays fast
@@ -366,7 +366,7 @@ export default function HubComposer({ onClose }) {
         try {
           const blob = await (await fetch(selected.item.dataUrl)).blob();
           const file = new File([blob], `progress-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
-          const result = await base44.integrations.Core.UploadFile({ file });
+          const result = await db.integrations.Core.UploadFile({ file });
           imageUrl = result?.file_url || null;
         } catch (e) {
           console.error('Photo upload failed', e);
@@ -378,7 +378,7 @@ export default function HubComposer({ onClose }) {
 
       if (selected.kind === 'meal' && mealImageFile) {
         try {
-          const result = await base44.integrations.Core.UploadFile({ file: mealImageFile });
+          const result = await db.integrations.Core.UploadFile({ file: mealImageFile });
           imageUrl = result?.file_url || null;
         } catch (e) {
           console.error('Meal photo upload failed', e);

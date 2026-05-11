@@ -1,5 +1,5 @@
 // src/components/ThemedScope.jsx
-import { getThemeStyle } from '@/lib/themeScope';
+import { getThemeStyle, isAnimatedTheme } from '@/lib/themeScope';
 
 /**
  * Wraps children in a div that overrides CSS variables for primary/accent/ring
@@ -9,19 +9,28 @@ import { getThemeStyle } from '@/lib/themeScope';
  * Dark mode is intentionally NOT scoped — the viewer keeps their own light/dark
  * preference. Only the theme accent palette changes.
  *
+ * Loot themes (capsule drops, including animated/legendary) take precedence
+ * over the level-up base theme when both ids are passed — same order as the
+ * global ThemeContext apply.
+ *
  * Usage:
- *   <ThemedScope themeId={otherUser.preferred_theme}>
+ *   <ThemedScope themeId={u.preferred_theme} lootThemeId={u.loot_theme_id}>
  *     <ProfileCard ... />
  *   </ThemedScope>
  *
- * Pass `null` or omit `themeId` to use the global theme (no override).
+ * Pass null/undefined for both to use the viewer's global theme (no override).
  */
-export default function ThemedScope({ themeId, className = '', children }) {
-  if (!themeId) {
+export default function ThemedScope({ themeId, lootThemeId, className = '', children }) {
+  if (!themeId && !lootThemeId) {
     return <div className={className}>{children}</div>;
   }
+  const style = getThemeStyle({ themeId, lootThemeId });
+  // Tag animated/legendary loot themes so CSS in src/index.css can target the
+  // scoped subtree (e.g. animated card accents) the same way the global
+  // <html data-theme-tier="..."> selector works.
+  const tier = lootThemeId && isAnimatedTheme({ themeId, lootThemeId }) ? 'animated' : null;
   return (
-    <div style={getThemeStyle(themeId)} className={className}>
+    <div style={style} className={className} data-theme-tier={tier || undefined}>
       {children}
     </div>
   );

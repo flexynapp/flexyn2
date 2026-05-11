@@ -30,11 +30,12 @@ export default function FormCoachModal({ open, onClose }) {
     if (open) prewarmDetector();
   }, [open]);
 
-  // Diagnostic — same logging the WorkoutGenerator has so we can confirm
-  // the modal is actually mounting/re-rendering when state goes true.
-  useEffect(() => {
+  // Diagnostic — log on EVERY render so we can confirm the component is
+  // even mounting. If this log doesn't appear after clicking Form Coach, the
+  // parent isn't rendering us / boundary caught a throw before mount.
+  if (typeof window !== 'undefined') {
     console.log('[FormCoachModal] render with open=', open);
-  }, [open]);
+  }
 
   const handleCapture = async (imageDataUrl) => {
     if (!exercise) return;

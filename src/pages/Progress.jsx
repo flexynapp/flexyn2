@@ -9,7 +9,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -395,31 +395,31 @@ export default function Progress() {
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => base44.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
 
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => base44.entities.Regimen.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
   const { data: rawAchievements = [] } = useQuery({
     queryKey: ['achievements', user?.email],
-    queryFn: () => base44.entities.Achievement.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Achievement.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 
   const { data: cardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => base44.entities.CardioLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
 

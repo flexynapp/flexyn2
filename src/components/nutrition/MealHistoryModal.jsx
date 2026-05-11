@@ -6,7 +6,7 @@ import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useState } from 'react';
 
@@ -123,7 +123,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => base44.entities.NutritionLog.filter({ created_by: user.email }, '-date', 500),
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-date', 500),
     enabled: !!user?.email && open,
   });
 

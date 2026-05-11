@@ -1,10 +1,10 @@
 // src/lib/data/templates.js
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 export const list = (email) =>
-  base44.entities.WorkoutTemplate.filter({ created_by: email }, '-created_date');
+  db.entities.WorkoutTemplate.filter({ created_by: email }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -16,20 +16,20 @@ function assertNoTextProfanity(fields) {
 
 export const create = (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description || '' });
-  return base44.entities.WorkoutTemplate.create(data);
+  return db.entities.WorkoutTemplate.create(data);
 };
 export const update = (id, data) => {
   const textFields = {};
   if (data.name !== undefined) textFields.name = data.name;
   if (data.description !== undefined) textFields.description = data.description;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return base44.entities.WorkoutTemplate.update(id, data);
+  return db.entities.WorkoutTemplate.update(id, data);
 };
-export const remove = (id) => base44.entities.WorkoutTemplate.delete(id);
+export const remove = (id) => db.entities.WorkoutTemplate.delete(id);
 
 /** Fetch all public templates from any user, sorted by copy count then date. */
 export const listPublic = async (limit = 100) => {
-  const rows = await base44.entities.WorkoutTemplate.filter(
+  const rows = await db.entities.WorkoutTemplate.filter(
     { is_public: true }, '-copy_count', limit
   ).catch(() => []);
   return rows;
@@ -40,7 +40,7 @@ export const listPublic = async (limit = 100) => {
  * Increments the original's copy_count.
  */
 export const copyTemplate = async (original, user) => {
-  const copy = await base44.entities.WorkoutTemplate.create({
+  const copy = await db.entities.WorkoutTemplate.create({
     created_by: user.email,
     name: original.name,
     exercises: original.exercises || [],
@@ -57,9 +57,9 @@ export const copyTemplate = async (original, user) => {
 
 export const purgeForUser = async (email) => {
   if (!email) return;
-  const batch = await base44.entities.WorkoutTemplate.filter({ created_by: email }).catch(() => []);
+  const batch = await db.entities.WorkoutTemplate.filter({ created_by: email }).catch(() => []);
   await Promise.all((batch || []).map(r =>
-    base44.entities.WorkoutTemplate.delete(r.id).catch(() => {})
+    db.entities.WorkoutTemplate.delete(r.id).catch(() => {})
   ));
 };
 

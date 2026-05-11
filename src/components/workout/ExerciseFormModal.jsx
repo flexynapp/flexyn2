@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Exercises that require multiple images to depict the full movement
@@ -85,7 +85,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
     try {
       // Always check cache first — only use if it has valid images
       // Filter by `exercise` (canonical column) OR `exercise_name` (legacy alias added in migration 004)
-      const cached = await base44.entities.ExerciseForm.filter({ exercise: exerciseName });
+      const cached = await db.entities.ExerciseForm.filter({ exercise: exerciseName });
       const validCache = cached?.find(c => c.image_urls?.length > 0);
       if (validCache) {
         setImageUrls(validCache.image_urls);
@@ -98,7 +98,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
       // Generate once and save permanently
       const prompts = buildPrompts(exerciseName);
       const [tipsRes, ...imageResults] = await Promise.all([
-        base44.integrations.Core.InvokeLLM({
+        db.integrations.Core.InvokeLLM({
           prompt: `Give 3 concise form tips for performing the "${exerciseName}" exercise correctly. Each tip should be one short sentence. Return as JSON.`,
           response_json_schema: {
             type: 'object',
@@ -108,7 +108,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
           },
         }),
         ...prompts.map(prompt =>
-          base44.integrations.Core.GenerateImage({ prompt })
+          db.integrations.Core.GenerateImage({ prompt })
         ),
       ]);
 
@@ -117,14 +117,14 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
 
       // Update existing stale record or create new
       if (cached?.length > 0) {
-        await base44.entities.ExerciseForm.update(cached[0].id, {
+        await db.entities.ExerciseForm.update(cached[0].id, {
           image_urls: urls,
           tips: newTips,
           is_movement: isMovement(exerciseName),
         });
         setCachedId(cached[0].id);
       } else {
-        const created = await base44.entities.ExerciseForm.create({
+        const created = await db.entities.ExerciseForm.create({
           exercise: exerciseName,       // canonical column
           exercise_name: exerciseName,  // alias column (migration 004)
           image_urls: urls,

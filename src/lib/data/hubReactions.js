@@ -5,10 +5,10 @@
 // The migration keeps emoji ↔ reaction_type and created_by ↔ user_email in sync via trigger,
 // but we write the canonical schema fields here (created_by via auto-inject, emoji for the value).
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import * as hubPosts from './hubPosts';
 
-const e = () => base44.entities.HubReaction;
+const e = () => db.entities.HubReaction;
 
 /** Get the current user's reaction (or null) for a given post. */
 export const getMyReaction = async (postId, email) => {

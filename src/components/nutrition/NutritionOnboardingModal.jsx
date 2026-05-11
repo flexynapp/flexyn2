@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight, ArrowLeft, AlertTriangle, ShieldCheck, X } from 'lucide-react';
 import { format, addDays } from 'date-fns';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -165,7 +165,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         payload.dietary_restrictions = dietaryRestrictions;
         persistRestrictions(dietaryRestrictions);
       }
-      await base44.auth.updateMe(payload);
+      await db.auth.updateMe(payload);
       try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
       toast.success(t('nutritionOnboarding.toast.saved'));
     } catch (err) {
@@ -183,7 +183,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
     // localStorage fallback so the modal won't re-open even if the DB column
     // is missing (e.g. migration 004 not yet applied to this Supabase project).
     try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
-    try { await base44.auth.updateMe({ nutrition_onboarding_complete: true }); } catch { /* ignore */ }
+    try { await db.auth.updateMe({ nutrition_onboarding_complete: true }); } catch { /* ignore */ }
     onComplete?.();
   };
 

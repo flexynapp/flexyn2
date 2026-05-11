@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Users, SearchX, Trash2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,7 +69,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
     setIsLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const allUsers = await base44.entities.User.list();
+        const allUsers = await db.entities.User.list();
         const q = searchQuery.toLowerCase();
         const filtered = allUsers
           .filter(u => {

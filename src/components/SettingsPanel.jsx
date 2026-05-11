@@ -7,7 +7,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toLbs, fromLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { differenceInYears, format } from 'date-fns';
@@ -25,7 +25,7 @@ export default function SettingsPanel() {
 
   const { data: profile } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
     staleTime: 60_000,
   });
@@ -35,12 +35,12 @@ export default function SettingsPanel() {
     setStatSaving(true);
     try {
       if (editingStat === 'birthday') {
-        await base44.auth.updateMe({ birthday: statValue });
+        await db.auth.updateMe({ birthday: statValue });
       } else {
         let parsed = parseFloat(statValue);
         if (isNaN(parsed)) return;
         if (editingStat === 'weight_lbs') parsed = toLbs(parsed, weightUnit);
-        await base44.auth.updateMe({ [editingStat]: parsed });
+        await db.auth.updateMe({ [editingStat]: parsed });
       }
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       setEditingStat(null);

@@ -3,7 +3,7 @@ import { LOGO_URL } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft } from 'lucide-react';
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { Button } from '@/components/ui/button';
 import ProfileMenu from './ProfileMenu';
 import LevelBar from './LevelBar';
@@ -40,7 +40,7 @@ export default function Header() {
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 

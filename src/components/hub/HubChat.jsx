@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { toast } from 'sonner';
 import TradeOfferCard, { parseTradeOffer } from './TradeOfferCard';
 
@@ -210,7 +210,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       if (fileToUpload) {
         setUploading(true);
         try {
-          const result = await base44.integrations.Core.UploadFile({ file: fileToUpload });
+          const result = await db.integrations.Core.UploadFile({ file: fileToUpload });
           attachmentUrl = result?.file_url || null;
           if (!attachmentUrl) uploadFailed = true;
         } catch (uploadErr) {

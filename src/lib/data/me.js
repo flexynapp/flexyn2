@@ -1,9 +1,9 @@
 // src/lib/data/me.js
 // Reads / writes the currently authenticated user's profile.
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-export const get = () => base44.auth.me();
+export const get = () => db.auth.me();
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -18,9 +18,9 @@ export const update = (data) => {
   if (data.username !== undefined) textFields.username = data.username;
   if (data.bio !== undefined) textFields.bio = data.bio;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return base44.auth.updateMe(data);
+  return db.auth.updateMe(data);
 };
-export const logout = () => base44.auth.logout();
+export const logout = () => db.auth.logout();
 
 /**
  * Reset every cumulative counter and clear profile fields on the
@@ -28,7 +28,7 @@ export const logout = () => base44.auth.logout();
  * the row "ghost-like" so the existing filterAfterReset and ghost-user
  * filters in the leaderboards hide the account.
  */
-export const resetForDeletion = () => base44.auth.updateMe({
+export const resetForDeletion = () => db.auth.updateMe({
   total_xp: 0,
   achievements_unlocked_count: 0,
   total_volume_lbs: 0,

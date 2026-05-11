@@ -1,7 +1,8 @@
 // src/components/hub/UserBag.jsx
-// Inventory bag modal — Capsules | Stickers | Themes tabs.
-// Capsules come from user_capsules table; stickers/themes from user_inventory.
+// Inventory bag modal — Capsules | Stickers | Titles | Frames | Themes tabs.
+// Capsules come from user_capsules; everything else from user_inventory.
 // Stickers are grouped by item_id so duplicates are visible and sellable.
+// Titles / Frames update equipped_title_id / equipped_frame_id on user_profiles.
 
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -156,11 +157,14 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
 
   return (
     <motion.div
-      layout
+      // NOTE: no `layout` prop — framer-motion's layout animation shifts
+      // sibling cards' positions when one becomes active, which lands stray
+      // taps on the wrong card. The active border highlight is enough
+      // feedback without animating the entire grid.
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
       className={[
-        'relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center transition-all',
+        'relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center',
         isActive ? 'border-purple-400 shadow-lg shadow-purple-500/20' : rc.borderClass,
       ].join(' ')}
     >
@@ -213,29 +217,64 @@ function TitleList({ items, userId }) {
   const { data: profile } = useQuery({
     queryKey: ['userProfileEquip', userId],
     queryFn: async () => {
-      if (!userId) return null;
-      const { data } = await supabase
+      // Resolve userId from the live session if the prop is missing —
+      // covers the auth-still-loading edge where user.id hasn't propagated
+      // through React context yet but supabase.auth has the session.
+      let resolved = userId;
+      if (!resolved) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        resolved = authUser?.id;
+      }
+      if (!resolved) return null;
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('equipped_title_id')
-        .eq('id', userId)
+        .eq('id', resolved)
         .maybeSingle();
+      if (error) {
+        console.warn('[TitleList] read equipped_title_id failed:', error);
+        return null;
+      }
       return data;
     },
-    enabled: !!userId,
     staleTime: 10_000,
   });
   const equippedId = profile?.equipped_title_id;
 
   const equip = async (titleId) => {
-    if (!userId) return;
+    let id = userId;
+    if (!id) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      id = authUser?.id;
+    }
+    if (!id) {
+      toast.error('Sign in required to equip titles');
+      return;
+    }
     const newId = equippedId === titleId ? null : titleId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_title_id: newId })
-      .eq('id', userId);
-    if (error) { toast.error('Could not save'); return; }
-    toast.success(newId ? 'Title equipped' : 'Title removed');
-    qc.invalidateQueries({ queryKey: ['userProfileEquip', userId] });
+      .eq('id', id);
+    if (error) {
+      // Surface the real cause so missing-column / RLS issues are diagnosable
+      // instead of all looking like generic "Could not save".
+      console.error('[TitleList] equip failed:', error);
+      if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
+        toast.error('Database not migrated — run migration 019');
+      } else if (error.code === '42501') {
+        toast.error('Permission denied — sign in again');
+      } else {
+        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+      }
+      return;
+    }
+    // No success toast — the "Equipped" pill on the card itself is the feedback.
+    // Stacking toasts on every tap was blocking the next button click.
+    qc.invalidateQueries({ queryKey: ['userProfileEquip', id] });
+    qc.invalidateQueries({ queryKey: ['hubAuthorsList'] });
+    qc.invalidateQueries({ queryKey: ['hubProfileLookup'] });
+    try { window.dispatchEvent(new CustomEvent('flexyn:loot-equipped', { detail: { type: 'title', id: newId } })); } catch {}
   };
 
   // Dedupe by item_id (multiple drops of the same title)
@@ -281,29 +320,58 @@ function FrameList({ items, userId }) {
   const { data: profile } = useQuery({
     queryKey: ['userProfileEquipFrame', userId],
     queryFn: async () => {
-      if (!userId) return null;
-      const { data } = await supabase
+      let resolved = userId;
+      if (!resolved) {
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        resolved = authUser?.id;
+      }
+      if (!resolved) return null;
+      const { data, error } = await supabase
         .from('user_profiles')
         .select('equipped_frame_id, avatar_url, username')
-        .eq('id', userId)
+        .eq('id', resolved)
         .maybeSingle();
+      if (error) {
+        console.warn('[FrameList] read equipped_frame_id failed:', error);
+        return null;
+      }
       return data;
     },
-    enabled: !!userId,
     staleTime: 10_000,
   });
   const equippedId = profile?.equipped_frame_id;
 
   const equip = async (frameId) => {
-    if (!userId) return;
+    let id = userId;
+    if (!id) {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      id = authUser?.id;
+    }
+    if (!id) {
+      toast.error('Sign in required to equip frames');
+      return;
+    }
     const newId = equippedId === frameId ? null : frameId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_frame_id: newId })
-      .eq('id', userId);
-    if (error) { toast.error('Could not save'); return; }
-    toast.success(newId ? 'Frame equipped' : 'Frame removed');
-    qc.invalidateQueries({ queryKey: ['userProfileEquipFrame', userId] });
+      .eq('id', id);
+    if (error) {
+      console.error('[FrameList] equip failed:', error);
+      if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
+        toast.error('Database not migrated — run migration 019');
+      } else if (error.code === '42501') {
+        toast.error('Permission denied — sign in again');
+      } else {
+        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+      }
+      return;
+    }
+    // No success toast — the equipped border on the card is the feedback.
+    qc.invalidateQueries({ queryKey: ['userProfileEquipFrame', id] });
+    qc.invalidateQueries({ queryKey: ['hubAuthorsList'] });
+    qc.invalidateQueries({ queryKey: ['hubProfileLookup'] });
+    try { window.dispatchEvent(new CustomEvent('flexyn:loot-equipped', { detail: { type: 'frame', id: newId } })); } catch {}
   };
 
   const seen = new Set();
@@ -364,11 +432,12 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
     if (lootThemeId === itemId) {
       // Tap again to deactivate
       setLootThemeId(null);
-      toast('Theme removed — base theme restored.');
     } else {
       setLootThemeId(itemId);
-      toast('🎨 Theme applied!');
     }
+    // No toast — the "✓ Active" pill on the card is the feedback. The
+    // global theme also visibly changes immediately, so a toast would just
+    // overlay the next button the user wants to tap.
   }, [lootThemeId, setLootThemeId]);
 
   // Capsules live in user_capsules (separate from inventory)
@@ -481,8 +550,10 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
             </div>
           </div>
 
-          {/* Tabs */}
-          <div className="flex border-b border-white/10 px-5">
+          {/* Tabs — 5 equal slices, stacked icon-over-label so even narrow
+              phones fit all of them without horizontal scroll. The tab row
+              uses table-fixed-style equal columns; nothing breaks layout. */}
+          <div className="grid grid-cols-5 border-b border-white/10 w-full">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -490,19 +561,22 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
+                  title={tab.label}
                   className={[
-                    'relative flex items-center gap-1.5 py-3 px-3 text-sm font-semibold border-b-2 transition-colors',
-                    isActive ? 'border-purple-400 text-purple-300' : 'border-transparent text-gray-500 hover:text-gray-300',
+                    'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
+                    isActive ? 'border-purple-400 text-purple-300' : 'border-transparent text-gray-400 hover:text-gray-200',
                   ].join(' ')}
                 >
-                  <Icon className="w-4 h-4" />
-                  {tab.label}
-                  <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full ${isActive ? 'bg-purple-500/30 text-purple-200' : 'bg-gray-700 text-gray-400'}`}>
+                  <div className="flex items-center gap-1 max-w-full">
+                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    <span className="text-[11px] font-semibold truncate">{tab.label}</span>
+                  </div>
+                  <span className={`text-[10px] px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-purple-500/30 text-purple-200' : 'bg-gray-700 text-gray-400'}`}>
                     {tab.count}
                   </span>
-                  {/* Duplicate indicator pill */}
+                  {/* Duplicate indicator — corner badge, doesn't take row space */}
                   {tab.badge && (
-                    <span className="ml-0.5 text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold">
+                    <span className="absolute top-0.5 right-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
                       {tab.badge}
                     </span>
                   )}

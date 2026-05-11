@@ -6,10 +6,10 @@
 // BACKEND_CONTRACT note: This entity is NOT scoped to created_by on read.
 // On migration, ensure the read path has no user-scoping filter.
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-const e = () => base44.entities.FoodItem;
+const e = () => db.entities.FoodItem;
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {

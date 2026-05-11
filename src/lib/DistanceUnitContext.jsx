@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 const DistanceUnitContext = createContext({ distanceUnit: 'mi', setDistanceUnit: () => {} });
 
@@ -25,7 +25,7 @@ export function DistanceUnitProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const me = await base44.auth.me();
+        const me = await db.auth.me();
         const serverUnit = me?.distance_unit;
         if (!cancelled && serverUnit && VALID.includes(serverUnit) && serverUnit !== distanceUnit) {
           setDistanceUnitState(serverUnit);
@@ -46,7 +46,7 @@ export function DistanceUnitProvider({ children }) {
     try { localStorage.setItem(LS_KEY, unit); } catch {}
     // Best-effort server write. Fails silently if not signed in.
     try {
-      base44.auth.updateMe({ distance_unit: unit }).catch(() => {});
+      db.auth.updateMe({ distance_unit: unit }).catch(() => {});
     } catch {}
   };
 

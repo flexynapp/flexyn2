@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Camera, Loader2 } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { update as updateMe } from '@/lib/data/me';
 import { useAuth } from '@/lib/AuthContext';
@@ -19,8 +19,15 @@ import { toast } from 'sonner';
  *   editable  — when true, shows a camera badge that opens a file picker
  *   size      — pixel size of the rendered circle (default 64)
  *   onChange  — optional callback called with the new URL after successful upload
+ *   frameCss  — optional inline-style object from a LootFrame's `css` field.
+ *               Applied to a wrapper around the circle so gradient/animated
+ *               frames render correctly without competing with the avatar's
+ *               own border. When omitted the default `border-card` border
+ *               is used (no frame equipped).
+ *   frameAnimation — optional CSS animation name for animated frames
+ *               (e.g. "frame-pulse", "frame-rainbow"). Wired up in src/index.css.
  */
-export default function AvatarUploader({ src, initials = '?', editable = false, size = 64, onChange }) {
+export default function AvatarUploader({ src, initials = '?', editable = false, size = 64, onChange, frameCss = null, frameAnimation = null }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -42,7 +49,7 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
     setUploading(true);
     try {
       // 1. Upload to Supabase Storage
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await db.integrations.Core.UploadFile({ file });
       if (!file_url) throw new Error('No URL returned');
 
       // 2. Save to profile
@@ -75,18 +82,36 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
 
   const dim = `${size}px`;
 
+  // When a frame is equipped, apply its CSS to a wrapper that sits OUTSIDE the
+  // avatar circle. This lets gradient frames (which need their own border +
+  // backgroundImage trick) render without conflicting with the default
+  // `border-card` ring. Animated frames pick up keyframes via animationName.
+  const hasFrame = !!frameCss;
+  const frameStyle = hasFrame
+    ? { ...frameCss, animationName: frameAnimation || undefined, animationDuration: frameAnimation ? '3s' : undefined, animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out', borderRadius: '9999px', padding: '2px' }
+    : null;
+
   return (
     <div className="relative inline-block" style={{ width: dim, height: dim }}>
-      {/* The circle */}
+      {/* Optional frame wrapper — only rendered when frameCss is present */}
       <div
-        className="w-full h-full rounded-full bg-primary/10 border-2 border-card flex items-center justify-center overflow-hidden font-heading font-bold text-primary"
-        style={{ fontSize: Math.round(size * 0.32) }}
+        className={hasFrame ? 'w-full h-full' : 'w-full h-full'}
+        style={frameStyle || undefined}
       >
-        {src ? (
-          <img src={src} alt="" className="w-full h-full object-cover" />
-        ) : (
-          initials || '?'
-        )}
+        {/* The circle */}
+        <div
+          className={[
+            'w-full h-full rounded-full bg-primary/10 flex items-center justify-center overflow-hidden font-heading font-bold text-primary',
+            hasFrame ? '' : 'border-2 border-card',
+          ].join(' ')}
+          style={{ fontSize: Math.round(size * 0.32) }}
+        >
+          {src ? (
+            <img src={src} alt="" className="w-full h-full object-cover" />
+          ) : (
+            initials || '?'
+          )}
+        </div>
       </div>
 
       {/* Edit badge */}

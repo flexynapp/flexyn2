@@ -11,7 +11,7 @@ import { Save, Calculator } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { toMeters, metersTo, formatPace, speedKmhFrom, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -155,19 +155,19 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
 
       let prCount = 0;
       if (initial?.id) {
-        await base44.entities.CardioLog.update(initial.id, payload);
+        await db.entities.CardioLog.update(initial.id, payload);
       } else {
-        const createdLog = await base44.entities.CardioLog.create(payload);
+        const createdLog = await db.entities.CardioLog.create(payload);
         // Denormalise total distance on the User record for the distance leaderboard.
         if (Number(payload.distance_meters) > 0) {
           try {
-            const me = await base44.auth.me();
+            const me = await db.auth.me();
             const prev = Number(me?.total_distance_meters) || 0;
-            await base44.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+            await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
           } catch { /* non-blocking */ }
         }
         // Fire achievement check (non-blocking)
-        base44.functions.invoke('updateUserXpAndAchievements', {
+        db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 0,
           action_type: 'cardio_completed',
           action_data: {
@@ -177,7 +177,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
           },
         }).catch(() => {});
         // Check for PRs
-        const prior = await base44.entities.CardioLog.filter(
+        const prior = await db.entities.CardioLog.filter(
           { created_by: user.email }, '-date', 1000
         );
         const priorOnly = prior.filter(l => l.id !== createdLog.id);

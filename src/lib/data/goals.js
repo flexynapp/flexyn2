@@ -1,9 +1,9 @@
 // src/lib/data/goals.js
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 export const list = (email) =>
-  base44.entities.Goal.filter({ created_by: email }, '-created_date');
+  db.entities.Goal.filter({ created_by: email }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -19,7 +19,7 @@ export const create = (data) => {
     exercise: data.exercise,
     notes: data.notes,
   });
-  return base44.entities.Goal.create(data);
+  return db.entities.Goal.create(data);
 };
 export const update = (id, data) => {
   const textFields = {};
@@ -27,14 +27,14 @@ export const update = (id, data) => {
   if (data.exercise      !== undefined) textFields.exercise      = data.exercise;
   if (data.notes         !== undefined) textFields.notes         = data.notes;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return base44.entities.Goal.update(id, data);
+  return db.entities.Goal.update(id, data);
 };
-export const remove = (id) => base44.entities.Goal.delete(id);
+export const remove = (id) => db.entities.Goal.delete(id);
 
 export const purgeForUser = async (email) => {
   if (!email) return;
-  const batch = await base44.entities.Goal.filter({ created_by: email }).catch(() => []);
+  const batch = await db.entities.Goal.filter({ created_by: email }).catch(() => []);
   await Promise.all((batch || []).map(r =>
-    base44.entities.Goal.delete(r.id).catch(() => {})
+    db.entities.Goal.delete(r.id).catch(() => {})
   ));
 };

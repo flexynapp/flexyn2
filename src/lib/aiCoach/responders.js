@@ -15,7 +15,7 @@
 // VITE_ANTHROPIC_API_KEY — see that file.
 
 import { supabase } from '@/api/supabaseClient';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { startOfWeek, subDays, differenceInCalendarDays, format } from 'date-fns';
 import { INTENTS } from './intents';
 
@@ -43,7 +43,7 @@ async function _fetchRecentWorkouts(userEmail, days = 14) {
   if (!userEmail) return [];
   const since = subDays(new Date(), days);
   try {
-    const all = await base44.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 200);
+    const all = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 200);
     return (all || []).filter(w => new Date(w.date) >= since);
   } catch {
     return [];
@@ -54,7 +54,7 @@ async function _fetchRecentCardio(userEmail, days = 14) {
   if (!userEmail) return [];
   const since = subDays(new Date(), days);
   try {
-    const all = await base44.entities.CardioLog.filter({ created_by: userEmail }, '-date', 200);
+    const all = await db.entities.CardioLog.filter({ created_by: userEmail }, '-date', 200);
     return (all || []).filter(l => new Date(l.date) >= since);
   } catch {
     return [];
@@ -391,7 +391,7 @@ async function hydration() {
 async function goalStatus({ user }) {
   if (!user?.email) return "Sign in to see your goals.";
   try {
-    const goals = await base44.entities.Goal.filter({ created_by: user.email }, '-created_date', 50).catch(() => []);
+    const goals = await db.entities.Goal.filter({ created_by: user.email }, '-created_date', 50).catch(() => []);
     const active = goals.filter(g => g.status !== 'completed');
     if (active.length === 0) {
       return "No active goals. Open the Goals modal to set a PR target — having a number to chase changes how you train.";

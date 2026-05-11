@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format, differenceInYears, parseISO, isValid } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -139,7 +139,7 @@ export default function BodyMetricsTab() {
   // Fetch user profile for height + pre-filled weight
   const { data: profile } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 
@@ -154,13 +154,13 @@ export default function BodyMetricsTab() {
 
   const { data: rawEntries = [], isLoading } = useQuery({
     queryKey: ['bodyMetrics', user?.email],
-    queryFn: () => base44.entities.BodyMetric.filter({ created_by: user.email }, 'date', 200),
+    queryFn: () => db.entities.BodyMetric.filter({ created_by: user.email }, 'date', 200),
     enabled: !!user?.email,
   });
 
   const { data: rawLogs = [] } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => base44.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
 
@@ -172,17 +172,17 @@ export default function BodyMetricsTab() {
   };
 
   const createMutation = useMutation({
-    mutationFn: d => base44.entities.BodyMetric.create(d),
+    mutationFn: d => db.entities.BodyMetric.create(d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); setShowForm(false); toast.success(t('bodyMetrics.saved')); },
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.BodyMetric.update(id, data),
+    mutationFn: ({ id, data }) => db.entities.BodyMetric.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); setEditingId(null); toast.success(t('bodyMetrics.updated')); },
   });
 
   const deleteMutation = useMutation({
-    mutationFn: id => base44.entities.BodyMetric.delete(id),
+    mutationFn: id => db.entities.BodyMetric.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); toast.success(t('bodyMetrics.deleted')); },
   });
 
@@ -259,7 +259,7 @@ export default function BodyMetricsTab() {
     if (field === 'birthday') {
       if (!value) return;
       try {
-        await base44.auth.updateMe({ birthday: value });
+        await db.auth.updateMe({ birthday: value });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         setEditingProfile(null);
         setEditValue('');
@@ -293,7 +293,7 @@ export default function BodyMetricsTab() {
 
     try {
       const updatePayload = field === 'birthday' ? { birthday: value } : { [field]: parsed };
-      await base44.auth.updateMe(updatePayload);
+      await db.auth.updateMe(updatePayload);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       setEditingProfile(null);
       setEditValue('');

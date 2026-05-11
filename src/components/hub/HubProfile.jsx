@@ -10,19 +10,42 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as users from '@/lib/data/users';
 import HubPostCard from './HubPostCard';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
+import { getLootTitleById } from '@/lib/lootTitles';
+import { getLootFrameById } from '@/lib/lootFrames';
+import { RARITY } from '@/lib/lootCatalog';
+import { useTheme } from '@/lib/ThemeContext';
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, checkUserAuth } = useAuth();
+  // Read the user's currently-equipped theme from ThemeContext (always fresh)
+  // instead of useAuth().user, which only loads once at bootstrap and doesn't
+  // refresh when the user equips a new theme — that's why a freshly-applied
+  // theme would show globally but stay default on the profile card.
+  const { themeId: liveThemeId, lootThemeId: liveLootThemeId } = useTheme();
   const queryClient = useQueryClient();
   const isSelf = !targetUser || targetUser?.email === user?.email;
+
+  // Refresh AuthContext when ANY cosmetic is equipped/unequipped so the
+  // self-profile (which reads equipped_title_id / equipped_frame_id from
+  // useAuth) reflects the change immediately. Without this the bag UI saves
+  // to the DB but the profile card keeps showing the previously-cached state.
+  useEffect(() => {
+    const handler = () => { checkUserAuth?.(); };
+    window.addEventListener('flexyn:loot-equipped', handler);
+    window.addEventListener('flexyn:theme-changed', handler);
+    return () => {
+      window.removeEventListener('flexyn:loot-equipped', handler);
+      window.removeEventListener('flexyn:theme-changed', handler);
+    };
+  }, [checkUserAuth]);
   const email = isSelf ? user?.email : targetUser?.email;
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
@@ -254,8 +277,26 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     ? displayUsername.slice(0, 2).toUpperCase()
     : '?';
 
-  // Theme scope — render the profile card in the profile owner's theme
-  const ownerThemeId = isSelf ? user?.preferred_theme : targetProfile?.preferred_theme;
+  // Theme scope — render the profile card in the profile owner's theme.
+  // Reads BOTH the level-up theme and the loot theme; ThemedScope resolves
+  // loot first (matches the global ThemeContext priority) so a user's
+  // legendary loot theme is what other viewers see when they navigate to
+  // their profile, even if the viewer has a different theme equipped.
+  //
+  // For self: read from ThemeContext (live, updates immediately on equip).
+  // For others: read from the cached profile lookup (refreshes on window
+  // focus + 60 s staleTime).
+  const ownerThemeId     = isSelf ? liveThemeId     : targetProfile?.preferred_theme;
+  const ownerLootThemeId = isSelf ? liveLootThemeId : targetProfile?.loot_theme_id;
+
+  // Equipped Title + Frame — Steam-style profile flair. Both are stored as
+  // ids on user_profiles (migration 019). Public read RLS lets every viewer
+  // resolve them, so other users see the equipped flair when visiting.
+  const equippedTitleId = isSelf ? user?.equipped_title_id : targetProfile?.equipped_title_id;
+  const equippedFrameId = isSelf ? user?.equipped_frame_id : targetProfile?.equipped_frame_id;
+  const equippedTitle = equippedTitleId ? getLootTitleById(equippedTitleId) : null;
+  const equippedFrame = equippedFrameId ? getLootFrameById(equippedFrameId) : null;
+  const titleRarity = equippedTitle ? (RARITY[equippedTitle.rarity] ?? RARITY.common) : null;
 
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
@@ -282,7 +323,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   }
 
   return (
-    <ThemedScope themeId={ownerThemeId}>
+    <ThemedScope themeId={ownerThemeId} lootThemeId={ownerLootThemeId}>
       {/* Header card */}
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -296,10 +337,25 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             initials={initials}
             editable={isSelf}
             size={64}
+            frameCss={equippedFrame?.css}
+            frameAnimation={equippedFrame?.animation}
           />
           <div className="flex-1 min-w-0">
             <h2 className="font-heading font-bold text-lg truncate">{displayHandle}</h2>
-            {/* No full_name, no email — username is the only identity element shown */}
+            {/* Equipped Title — text label below the @handle, colored by rarity.
+                Not shown when nothing is equipped. Visible to other users. */}
+            {equippedTitle && (
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <span className="text-base leading-none">{equippedTitle.emoji}</span>
+                <span
+                  className="text-xs font-bold uppercase tracking-wider"
+                  style={{ color: titleRarity?.color }}
+                  title={equippedTitle.description}
+                >
+                  {equippedTitle.name}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -527,7 +583,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
     queryKey: ['hubProfileUsers', emails],
     queryFn: async () => {
       if (!emails.length) return [];
-      const users = await base44.entities.User.list().catch(() => []);
+      const users = await db.entities.User.list().catch(() => []);
       return users.filter(u => emails.includes(u.email)).map(u => ({
         ...u,
         // Fallback to email prefix if username is stripped by User.list()

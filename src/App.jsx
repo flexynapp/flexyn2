@@ -41,8 +41,8 @@ const AuthenticatedApp = () => {
   useEffect(() => {
     const hasRealUsername = user?.username && !user.username.startsWith('deleted_');
     if (hasRealUsername && !user?.onboarding_complete && !user?.onboarding_completed && !isLoadingAuth) {
-      import('@/api/base44Client').then(({ base44 }) => {
-        base44.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
+      import('@/api/db').then(({ db }) => {
+        db.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
           .then(() => checkUserAuth())
           .catch(() => {}); // fail silently if columns not yet migrated
       });

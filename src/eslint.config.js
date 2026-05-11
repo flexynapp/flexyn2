@@ -7,8 +7,8 @@ export default [
   {
     files: ['src/**/*.{js,jsx,ts,tsx}'],
     ignores: [
-      'src/lib/data/**',           // The data layer is the seam — it's allowed to call base44.
-      'src/api/base44Client.js',   // The client itself.
+      'src/lib/data/**',           // The data layer is the seam — it's allowed to call db.
+      'src/api/db.js',             // The client itself.
       'src/lib/AuthContext.jsx',   // Auth bootstrapping needs the raw client.
     ],
     languageOptions: {
@@ -20,23 +20,23 @@ export default [
       'no-restricted-syntax': [
         'warn',
         {
-          selector: "MemberExpression[object.name='base44'][property.name='entities']",
+          selector: "MemberExpression[object.name='db'][property.name='entities']",
           message:
-            "❌ Direct base44.entities access is not allowed outside the data layer.\n" +
+            "❌ Direct db.entities access is not allowed outside the data layer.\n" +
             "   Use src/lib/data/* instead. See BACKEND_CONTRACT.md.\n" +
             "   Example: import { workouts } from '@/lib/data'; workouts.list(email)",
         },
         {
-          selector: "MemberExpression[object.name='base44'][property.name='auth']",
+          selector: "MemberExpression[object.name='db'][property.name='auth']",
           message:
-            "❌ Direct base44.auth access is not allowed outside the data layer.\n" +
+            "❌ Direct db.auth access is not allowed outside the data layer.\n" +
             "   Use src/lib/data/me.js instead.\n" +
             "   Example: import { me } from '@/lib/data'; me.update({...})",
         },
         {
-          selector: "MemberExpression[object.name='base44'][property.name='functions']",
+          selector: "MemberExpression[object.name='db'][property.name='functions']",
           message:
-            "❌ Direct base44.functions access is not allowed outside the data layer.\n" +
+            "❌ Direct db.functions access is not allowed outside the data layer.\n" +
             "   Use src/lib/data/serverFunctions.js instead.",
         },
       ],
@@ -45,9 +45,9 @@ export default [
         {
           paths: [
             {
-              name: '@/api/base44Client',
+              name: '@/api/db',
               message:
-                "❌ Don't import base44Client outside src/lib/data/. " +
+                "❌ Don't import the db client outside src/lib/data/. " +
                 "All data access must go through src/lib/data/*. See BACKEND_CONTRACT.md.",
             },
           ],

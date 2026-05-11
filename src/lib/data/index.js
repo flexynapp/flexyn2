@@ -3,7 +3,7 @@
 // THE DATA-ACCESS SEAM.
 //
 // All NEW code must import from this module instead of calling base44 directly.
-// Existing code that calls `base44.entities.X` is grandfathered; migrate
+// Existing code that calls `db.entities.X` is grandfathered; migrate
 // incrementally as files get touched.
 //
 // On migration to a different backend (Firebase, Supabase, custom Node, etc.):

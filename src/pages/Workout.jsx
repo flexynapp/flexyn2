@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -112,31 +112,31 @@ export default function Workout() {
 
   const { data: rawRegimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => base44.entities.Regimen.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => base44.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
   });
 
   const { data: rawCardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => base44.entities.CardioLog.filter({ created_by: user.email }, '-date', 100),
+    queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 100),
     enabled: !!user?.email,
   });
 
   const { data: rawGoals = [] } = useQuery({
     queryKey: ['goals', user?.email],
-    queryFn: () => base44.entities.Goal.filter({ created_by: user.email }),
+    queryFn: () => db.entities.Goal.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 
@@ -197,7 +197,7 @@ export default function Workout() {
         data = { ...data, exercises: clampedExercises };
       }
 
-      const workoutLog = await base44.entities.WorkoutLog.create(data);
+      const workoutLog = await db.entities.WorkoutLog.create(data);
       const xpGained = calculateWorkoutXp(data);
       const sessionVolume = calculateTotalVolume(data.exercises);
 
@@ -206,7 +206,7 @@ export default function Workout() {
       // Wrapped in try-catch so a server-side failure never kills the mutation
       // or prevents the success toast / workout reset from running.
       try {
-        await base44.functions.invoke('updateUserXpAndAchievements', {
+        await db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: xpGained,
           action_type: 'workout_completed',
           action_data: { totalVolume: sessionVolume, workout_date: data.date }
@@ -218,9 +218,9 @@ export default function Workout() {
       // Denormalise total volume on the User record for leaderboards.
       if (sessionVolume > 0) {
         try {
-          const me = await base44.auth.me();
+          const me = await db.auth.me();
           const prev = Number(me?.total_volume_lbs) || 0;
-          await base44.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
+          await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
         } catch { /* non-blocking */ }
       }
 
@@ -930,12 +930,12 @@ export default function Workout() {
             open={!!editingLog}
             onClose={() => setEditingLog(null)}
             onSave={async (id, data) => {
-              await base44.entities.WorkoutLog.update(id, data);
+              await db.entities.WorkoutLog.update(id, data);
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               setEditingLog(null);
             }}
             onDelete={async (id) => {
-              await base44.entities.WorkoutLog.delete(id);
+              await db.entities.WorkoutLog.delete(id);
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               setEditingLog(null);
             }}
@@ -1197,12 +1197,12 @@ export default function Workout() {
           open={!!editingLog}
           onClose={() => setEditingLog(null)}
           onSave={async (id, data) => {
-            await base44.entities.WorkoutLog.update(id, data);
+            await db.entities.WorkoutLog.update(id, data);
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
             setEditingLog(null);
           }}
           onDelete={async (id) => {
-            await base44.entities.WorkoutLog.delete(id);
+            await db.entities.WorkoutLog.delete(id);
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
             setEditingLog(null);
           }}

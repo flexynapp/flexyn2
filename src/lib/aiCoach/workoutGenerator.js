@@ -8,7 +8,7 @@
 // exercises, balance push/pull, scale weights from history, set reasonable
 // reps — is deterministic and explainable. Real LLMs would only add flair.
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { subDays } from 'date-fns';
 
 // ── Exercise catalog by muscle group, scored by equipment + experience ────
@@ -104,7 +104,7 @@ async function _historyByExercise(userEmail, days = 60) {
   const since = subDays(new Date(), days);
   let logs = [];
   try {
-    logs = await base44.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 100);
+    logs = await db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 100);
   } catch { return {}; }
   logs = (logs || []).filter(w => new Date(w.date) >= since);
 

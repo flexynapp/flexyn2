@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 
 export const THEMES = [
@@ -201,7 +201,7 @@ export function ThemeProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const me = await base44.auth.me();
+        const me = await db.auth.me();
         if (cancelled) return;
         if (me?.preferred_theme && THEMES.some(t => t.id === me.preferred_theme) && me.preferred_theme !== themeId) {
           setThemeIdState(me.preferred_theme);
@@ -254,7 +254,8 @@ export function ThemeProvider({ children }) {
     setThemeIdState(id);
     setLootThemeIdState(null);
     try { localStorage.removeItem('fn-loot-theme'); } catch {}
-    try { base44.auth.updateMe({ preferred_theme: id, loot_theme_id: null }).catch(() => {}); } catch {}
+    try { db.auth.updateMe({ preferred_theme: id, loot_theme_id: null }).catch(() => {}); } catch {}
+    try { window.dispatchEvent(new CustomEvent('flexyn:theme-changed')); } catch {}
   }, []);
 
   const setLootThemeId = useCallback((id) => {
@@ -262,17 +263,21 @@ export function ThemeProvider({ children }) {
     try {
       if (id) {
         localStorage.setItem('fn-loot-theme', id);
-        base44.auth.updateMe({ loot_theme_id: id }).catch(() => {});
+        db.auth.updateMe({ loot_theme_id: id }).catch(() => {});
       } else {
         localStorage.removeItem('fn-loot-theme');
-        base44.auth.updateMe({ loot_theme_id: null }).catch(() => {});
+        db.auth.updateMe({ loot_theme_id: null }).catch(() => {});
       }
+      // Notify any cross-user views (HubProfile of others, hub authors list)
+      // that this user's theme changed. Other-tab viewers will refetch on
+      // their next staleTime / window-focus.
+      window.dispatchEvent(new CustomEvent('flexyn:theme-changed'));
     } catch {}
   }, []);
 
   const setDarkMode = useCallback((val) => {
     setDarkModeState(val);
-    try { base44.auth.updateMe({ dark_mode: val }).catch(() => {}); } catch {}
+    try { db.auth.updateMe({ dark_mode: val }).catch(() => {}); } catch {}
   }, []);
 
   return (

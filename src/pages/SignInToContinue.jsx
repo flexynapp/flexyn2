@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { LOGO_URL } from '@/lib/constants';
 import { LogIn, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 export default function SignInToContinue() {
   return (
@@ -49,7 +49,7 @@ export default function SignInToContinue() {
       >
         <Button
           className="w-full h-12 font-heading font-bold text-base"
-          onClick={() => base44.auth.redirectToLogin('/')}
+          onClick={() => db.auth.redirectToLogin('/')}
         >
           Sign in <ArrowRight className="w-5 h-5 ml-1" />
         </Button>

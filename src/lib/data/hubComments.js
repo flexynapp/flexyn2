@@ -1,10 +1,10 @@
 // src/lib/data/hubComments.js
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from './hubPosts';
 import * as hubCommentLikes from './hubCommentLikes';
 
-const e = () => base44.entities.HubComment;
+const e = () => db.entities.HubComment;
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -37,10 +37,20 @@ export const incrementCounter = async (commentId, field, delta = 1) => {
  * Create a comment and bump the post's comment_count.
  * Passes parent_comment_id through unchanged (null for top-level).
  * Replies count toward post.comment_count the same way as top-level comments.
+ *
+ * NOTE: writes `body` AND `content` so the insert succeeds whether the
+ * legacy `content` column still has a NOT NULL constraint or the newer
+ * `body` column is the source of truth (migration 004 introduced `body`
+ * but didn't drop `content` to avoid breaking older clients). The payload
+ * cleanup in src/api/db.js will strip whichever column doesn't exist.
  */
 export const create = async (data) => {
   assertNoTextProfanity({ body: data.body });
-  const created = await e().create(data);
+  const payload = {
+    ...data,
+    ...(data.body && data.content == null ? { content: data.body } : {}),
+  };
+  const created = await e().create(payload);
   if (data.post_id) {
     await hubPosts.incrementCounter(data.post_id, 'comment_count', +1);
   }

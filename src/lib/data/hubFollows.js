@@ -1,9 +1,9 @@
 // src/lib/data/hubFollows.js
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { notifyFriendFollow } from './notifications';
 import * as users from './users';
 
-const e = () => base44.entities.HubFollow;
+const e = () => db.entities.HubFollow;
 
 /** List emails the given user is following. */
 export const listFollowing = async (email) => {

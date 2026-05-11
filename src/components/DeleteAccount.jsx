@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -56,13 +56,13 @@ export default function DeleteAccount() {
     try {
       // ── 1. Identify the user so we can scope deletes correctly ──
       let me = null;
-      try { me = await base44.auth.me(); } catch {}
+      try { me = await db.auth.me(); } catch {}
       const email = me?.email;
 
       // Helper: best-effort delete every record owned by this user from a given entity.
       const purgeEntity = async (entityName) => {
         if (!email) return;
-        const entity = base44.entities?.[entityName];
+        const entity = db.entities?.[entityName];
         if (!entity?.filter || !entity?.delete) return;
         try {
           // Page through up to several thousand records to be safe.
@@ -110,7 +110,7 @@ export default function DeleteAccount() {
       // Sets a fresh account_reset_at so filterAfterReset hides any survivors,
       // and zeroes the leaderboard counters so stale totals can't leak.
       try {
-        await base44.auth.updateMe({
+        await db.auth.updateMe({
           // Cumulative counters (leaderboards)
           total_xp: 0,
           achievements_unlocked_count: 0,
@@ -136,7 +136,7 @@ export default function DeleteAccount() {
       // If the backend supports a true delete, this still runs. If it fails
       // or partially succeeds, the steps above already neutralised the data.
       try {
-        const result = await base44.functions.invoke('deleteAccountData', {});
+        const result = await db.functions.invoke('deleteAccountData', {});
         if (result?.data?.success === false || result?.data?.error) {
           // Don't throw — we've already done the heavy lifting client-side.
           console.warn('Server-side delete reported failure:', result?.data?.error);
@@ -148,7 +148,7 @@ export default function DeleteAccount() {
       // ── 5. Wipe local state and bounce ──
       clearQueryCache();
       wipeLocalClientState();
-      try { base44.auth.logout(); } catch {}
+      try { db.auth.logout(); } catch {}
       window.location.href = '/';
     } catch (err) {
       console.error('Account delete failed:', err);

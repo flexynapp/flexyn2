@@ -9,7 +9,7 @@ import {
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap, MapPin, Map } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -58,7 +58,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
 
   const { data: allUsers = [], isLoading } = useQuery({
     queryKey: ['allUsersLeaderboards'],
-    queryFn: () => base44.entities.User.list(),
+    queryFn: () => db.entities.User.list(),
     enabled: open,
   });
 

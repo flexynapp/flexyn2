@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dumbbell, ChevronRight } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -30,7 +30,7 @@ export default function WorkoutSavedList({ onSelectLog }) {
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
-    queryFn: () => base44.entities.WorkoutLog.filter(
+    queryFn: () => db.entities.WorkoutLog.filter(
       { created_by: user.email }, '-date', 50
     ),
     enabled: !!user?.email,

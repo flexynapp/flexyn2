@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import * as nutritionData from '@/lib/data/nutrition';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
@@ -78,7 +78,7 @@ export default function Nutrition() {
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email
   });
 
@@ -110,7 +110,7 @@ export default function Nutrition() {
 
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
-    queryFn: () => base44.entities.NutritionLog.filter({ created_by: user.email, date }),
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email, date }),
     enabled: !!user?.email
   });
   // Also wait for the profile so macro goals render correctly on first paint
@@ -135,7 +135,7 @@ export default function Nutrition() {
         // XP value comes from XP_REWARDS.waterGlass (single source of truth).
         // Was hardcoded to 1 inline, drifted from the documented 3.
         const xpForWater = (XP_REWARDS && XP_REWARDS.waterGlass) || 3;
-        base44.functions.invoke('updateUserXpAndAchievements', {
+        db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: xpForWater,
           action_type: 'water_logged',
           action_data: { date, oz: variables.water_oz },

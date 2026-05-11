@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
@@ -1934,7 +1934,7 @@ export default function Onboarding() {
 
     let saved = false;
     try {
-      await base44.auth.updateMe(fullProfile);
+      await db.auth.updateMe(fullProfile);
       setWeightUnit(weightUnit);
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
@@ -1948,7 +1948,7 @@ export default function Onboarding() {
       // Fallback: save only the columns guaranteed to exist (username is in migration 001).
       // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
       try {
-        await base44.auth.updateMe({
+        await db.auth.updateMe({
           username:                data.username.trim(),
           onboarding_completed:    true,
           onboarding_completed_at: new Date().toISOString(),
@@ -1995,9 +1995,9 @@ export default function Onboarding() {
                 <WelcomeStep
                   onNext={() => {
                     if (isAuthenticated) { next(); }
-                    else { base44.auth.redirectToLogin('/'); }
+                    else { db.auth.redirectToLogin('/'); }
                   }}
-                  onSignIn={() => base44.auth.redirectToLogin('/')}
+                  onSignIn={() => db.auth.redirectToLogin('/')}
                 />
               )}
 

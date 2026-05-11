@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { LOGO_URL } from '@/lib/constants';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { markReturningUser } from '@/lib/firstLaunch';
 
 export default function Splash() {
@@ -13,7 +13,7 @@ export default function Splash() {
       // With Supabase, a valid session means we already have a JWT token.
       // The old Base44 localStorage key check has been removed — it was
       // causing an infinite OAuth redirect loop on every page load.
-      const isAuthed = await base44.auth.isAuthenticated();
+      const isAuthed = await db.auth.isAuthenticated();
 
       if (!isAuthed) {
         // Brand-new visitor or signed-out user — go to the welcome screen.
@@ -22,7 +22,7 @@ export default function Splash() {
       }
 
       // Authenticated — check if onboarding is done.
-      const user = await base44.auth.me().catch(() => null);
+      const user = await db.auth.me().catch(() => null);
       const onboardingDone =
         user?.onboarding_complete || user?.onboarding_completed || user?.username;
 

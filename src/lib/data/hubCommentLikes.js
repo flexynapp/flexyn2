@@ -5,10 +5,10 @@
 // Unique constraint: (created_by, comment_id)
 // We filter by `created_by` (email) which is auto-injected on every create().
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import * as hubComments from './hubComments';
 
-const e = () => base44.entities.HubCommentLike;
+const e = () => db.entities.HubCommentLike;
 
 /** Get the current user's like row for a comment, or null. */
 export const getMyLike = async (commentId, email) => {

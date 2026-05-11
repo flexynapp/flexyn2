@@ -13,10 +13,10 @@
 // All five functions below are part of the standard contract. Omit `purgeForUser`
 // only if the entity is shared across users (like ExerciseForm).
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 const ENTITY = '__ENTITY__';
-const e = () => base44.entities[ENTITY];
+const e = () => db.entities[ENTITY];
 
 /** List records owned by `email`, newest first. */
 export const list = (email, limit = 50) =>

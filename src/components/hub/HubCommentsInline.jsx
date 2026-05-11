@@ -127,8 +127,19 @@ export default function HubCommentsInline({ post, open, onClose }) {
       setReplyTarget(null);
       queryClient.invalidateQueries({ queryKey: ['hubComments', post.id] });
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-    } catch {
-      toast.error(t('hub.comments.postError'));
+    } catch (err) {
+      // Surface the actual cause so we can diagnose RLS / schema issues.
+      // The previous swallow-everything catch made every cause look identical.
+      console.error('[HubCommentsInline] post failed:', err);
+      const code = err?.code || err?.status;
+      if (code === 'PROFANITY') {
+        toast.error(t('hub.composer.profanityError'));
+      } else if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
+        // RLS rejection — surfaces a useful hint instead of a generic error
+        toast.error(t('hub.comments.postError') + ' (permission denied)');
+      } else {
+        toast.error(t('hub.comments.postError'));
+      }
     } finally {
       setPosting(false);
     }

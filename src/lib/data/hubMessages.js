@@ -14,10 +14,10 @@
 //   sender_email     TEXT
 //   conversation_id  UUID
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
-const conv = () => base44.entities.HubConversation;
-const msg  = () => base44.entities.HubMessage;
+const conv = () => db.entities.HubConversation;
+const msg  = () => db.entities.HubMessage;
 
 // ── Per-conversation last-read tracking ───────────────────────────────────────
 // Stored in localStorage so the badge clears instantly when a conversation is

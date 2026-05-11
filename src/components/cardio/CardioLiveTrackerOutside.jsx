@@ -20,7 +20,7 @@ import {
 } from '@/lib/distanceUnit';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { getMaxRealisticCalories } from '@/lib/cardioLimits';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -409,18 +409,18 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         notes: null,
         gps_track: trackRef.current,
       };
-      const createdLog = await base44.entities.CardioLog.create(payload);
+      const createdLog = await db.entities.CardioLog.create(payload);
       clearSnapshot();
       // Denormalise total distance on the User record for the distance leaderboard.
       if (Number(payload.distance_meters) > 0) {
         try {
-          const me = await base44.auth.me();
+          const me = await db.auth.me();
           const prev = Number(me?.total_distance_meters) || 0;
-          await base44.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+          await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
         } catch { /* non-blocking */ }
       }
       // Fire achievement check (non-blocking)
-      base44.functions.invoke('updateUserXpAndAchievements', {
+      db.functions.invoke('updateUserXpAndAchievements', {
         xp_gained: 0,
         action_type: 'cardio_completed',
         action_data: {
@@ -430,7 +430,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         },
       }).catch(() => {});
       // Check for PRs
-      const prior = await base44.entities.CardioLog.filter(
+      const prior = await db.entities.CardioLog.filter(
         { created_by: user.email }, '-date', 1000
       );
       const priorOnly = prior.filter(l => l.id !== createdLog.id);

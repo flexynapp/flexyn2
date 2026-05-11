@@ -5,7 +5,7 @@ import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Footprints, PersonStanding, Bike, Activity, ChevronRight } from 'lucide-react';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -39,7 +39,7 @@ export default function CardioSavedList({ onSelectLog }) {
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => base44.entities.CardioLog.filter(
+    queryFn: () => db.entities.CardioLog.filter(
       { created_by: user.email }, '-date', 50
     ),
     enabled: !!user?.email,

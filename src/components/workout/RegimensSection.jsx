@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Card } from '@/components/ui/card';
@@ -37,24 +37,24 @@ export default function RegimensSection({ onStartRegimen }) {
 
   const { data: regimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => base44.entities.Regimen.filter({ created_by: user.email }, '-created_date'),
+    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }, '-created_date'),
     enabled: !!user?.email,
   });
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
 
   const createMutation = useMutation({
     mutationFn: async (data) => {
-      const regimen = await base44.entities.Regimen.create(data);
+      const regimen = await db.entities.Regimen.create(data);
       // XP failure must NOT roll back the regimen — it was successfully created
       // server-side. Reverting the optimistic UI on XP failure causes the regimen
       // to "disappear" until the next refetch, which looks like a save bug.
       try {
-        await base44.functions.invoke('updateUserXpAndAchievements', {
+        await db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 100,
           action_type: 'regimen_created',
           action_data: {},
@@ -88,7 +88,7 @@ export default function RegimensSection({ onStartRegimen }) {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Regimen.update(id, data),
+    mutationFn: ({ id, data }) => db.entities.Regimen.update(id, data),
     onMutate: async ({ id, data }) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
       const previous = queryClient.getQueryData(['regimens', user?.email]);
@@ -106,7 +106,7 @@ export default function RegimensSection({ onStartRegimen }) {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Regimen.delete(id),
+    mutationFn: (id) => db.entities.Regimen.delete(id),
     onMutate: async (id) => {
       await queryClient.cancelQueries({ queryKey: ['regimens', user?.email] });
       const previous = queryClient.getQueryData(['regimens', user?.email]);

@@ -7,9 +7,9 @@ import {
   SKILL_OPTIONS,
 } from '../aiCoach/workoutGenerator';
 
-// Mock the base44 import to control workout history
-vi.mock('@/api/base44Client', () => ({
-  base44: {
+// Mock the data client to control workout history
+vi.mock('@/api/db', () => ({
+  db: {
     entities: {
       WorkoutLog: {
         filter: vi.fn(() => Promise.resolve([])),

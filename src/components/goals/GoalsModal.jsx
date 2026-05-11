@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import * as goalsData from '@/lib/data/goals';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -84,7 +84,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
         // XP failure must NOT block goal completion. The user finished the goal —
         // they get credit even if the XP/achievement service is temporarily down.
         try {
-          await base44.functions.invoke('updateUserXpAndAchievements', {
+          await db.functions.invoke('updateUserXpAndAchievements', {
             xp_gained: xpReward,
             action_type: 'goal_completed',
             action_data: { goal_id: goalId, goal_name: goal?.exercise_name, xp_earned: xpReward },

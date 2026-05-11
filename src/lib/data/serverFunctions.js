@@ -2,7 +2,7 @@
 // Wrapped server-side function invocations.
 // On migration: replace the body with calls to the new backend's RPC layer
 // (e.g., Firebase Cloud Functions, Supabase Edge Functions, REST endpoints).
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 /**
  * Awards XP and recomputes achievements for the current user after an action.
@@ -10,7 +10,7 @@ import { base44 } from '@/api/base44Client';
  * client-side increment patterns produce drift under concurrent saves.
  */
 export const updateUserXpAndAchievements = ({ xp_gained, action_type, action_data }) =>
-  base44.functions.invoke('updateUserXpAndAchievements', { xp_gained, action_type, action_data });
+  db.functions.invoke('updateUserXpAndAchievements', { xp_gained, action_type, action_data });
 
 /**
  * Server-side account-data deletion. Called as a backstop after the client
@@ -18,4 +18,4 @@ export const updateUserXpAndAchievements = ({ xp_gained, action_type, action_dat
  * path — the client doesn't need cascade logic if the server handles it.
  */
 export const deleteAccountData = () =>
-  base44.functions.invoke('deleteAccountData', {});
+  db.functions.invoke('deleteAccountData', {});

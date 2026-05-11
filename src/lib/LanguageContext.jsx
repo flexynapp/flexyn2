@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { getTranslation, SUPPORTED_LANGUAGES } from './i18n';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { clearTranslationCache } from './translate';
 
 const LANG_STORAGE_KEY = 'fn-language';
@@ -26,7 +26,7 @@ export function LanguageProvider({ children }) {
     let cancelled = false;
     (async () => {
       try {
-        const me = await base44.auth.me();
+        const me = await db.auth.me();
         const serverLang = me?.preferred_language;
         if (!cancelled && serverLang && SUPPORTED_LANGUAGES.some(l => l.code === serverLang) && serverLang !== language) {
           setLanguageState(serverLang);
@@ -55,7 +55,7 @@ export function LanguageProvider({ children }) {
     try { window.dispatchEvent(new CustomEvent('flexyn:language-changed', { detail: { code } })); } catch {}
     // Best-effort server write. Fails silently if not signed in.
     try {
-      base44.auth.updateMe({ preferred_language: code }).catch(() => {});
+      db.auth.updateMe({ preferred_language: code }).catch(() => {});
     } catch {}
   }, []);
 

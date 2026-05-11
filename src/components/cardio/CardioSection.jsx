@@ -7,7 +7,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import {
   Footprints, PersonStanding, Bike, BookOpen,
   Trees, Activity, Pencil, Radio, RotateCcw
@@ -100,7 +100,7 @@ export default function CardioSection({ onBack }) {
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
   const [detailLog, setDetailLog] = useState(null);
@@ -109,7 +109,7 @@ export default function CardioSection({ onBack }) {
 
   const { data: lastLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
-    queryFn: () => base44.entities.CardioLog.filter(
+    queryFn: () => db.entities.CardioLog.filter(
       { created_by: user.email }, '-date', 1
     ),
     enabled: !!user?.email,

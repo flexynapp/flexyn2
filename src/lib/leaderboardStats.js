@@ -2,7 +2,7 @@
 // Note: country_code / state_code are NOT backfilled here — they come from
 // onboarding location step. Pre-existing users without those fields will be
 // excluded from regional leaderboards until they update their profile.
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v2';
 
@@ -15,7 +15,7 @@ const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v2';
 export async function backfillLeaderboardStatsOnce(userEmail) {
   if (!userEmail) return;
 
-  const me = await base44.auth.me();
+  const me = await db.auth.me();
   const flagValue = `${userEmail}|${me?.account_reset_at || ''}`;
   try {
     if (localStorage.getItem(BACKFILL_FLAG) === flagValue) return;
@@ -23,9 +23,9 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
 
   try {
     const [logs, cardioLogs, achievements] = await Promise.all([
-      base44.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 1000),
-      base44.entities.CardioLog.filter({ created_by: userEmail }, '-date', 1000),
-      base44.entities.Achievement.filter({ created_by: userEmail }),
+      db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 1000),
+      db.entities.CardioLog.filter({ created_by: userEmail }, '-date', 1000),
+      db.entities.Achievement.filter({ created_by: userEmail }),
     ]);
 
     const volume = logs.reduce((sum, log) =>
@@ -49,7 +49,7 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
       update.achievements_unlocked_count = unlockedCount;
     }
     if (Object.keys(update).length > 0) {
-      await base44.auth.updateMe(update);
+      await db.auth.updateMe(update);
     }
 
     try { localStorage.setItem(BACKFILL_FLAG, flagValue); } catch { /* ignore */ }

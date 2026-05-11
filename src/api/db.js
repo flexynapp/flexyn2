@@ -1,10 +1,10 @@
-// src/api/base44Client.js
+// src/api/dbClient.js
 // ─────────────────────────────────────────────────────────────────────────────
 // Supabase compatibility shim.
-// Exports `base44` with the same surface area the rest of the app uses:
-//   base44.entities.X  → .filter / .list / .get / .create / .update / .delete
-//   base44.auth        → .me / .updateMe / .logout / .redirectToLogin
-//   base44.functions   → .invoke
+// Exports `db` with the same surface area the rest of the app uses:
+//   db.entities.X  → .filter / .list / .get / .create / .update / .delete
+//   db.auth        → .me / .updateMe / .logout / .redirectToLogin
+//   db.functions   → .invoke
 // Nothing outside this file needs to change for the migration.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabaseClient';
@@ -423,5 +423,5 @@ const integrations = {
   },
 };
 
-/* ── Public export — same shape as the old base44 object ─────────────────── */
-export const base44 = { entities, auth, functions, storage: {}, integrations };
+/* ── Public export — same shape as the old db object ─────────────────── */
+export const db = { entities, auth, functions, storage: {}, integrations };

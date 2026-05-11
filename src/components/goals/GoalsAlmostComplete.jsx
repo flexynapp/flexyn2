@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -90,7 +90,7 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
       if (xpReward > 0) {
         // XP failure must NOT block goal completion (see GoalsModal for rationale).
         try {
-          await base44.functions.invoke('updateUserXpAndAchievements', {
+          await db.functions.invoke('updateUserXpAndAchievements', {
             xp_gained: xpReward,
             action_type: 'goal_completed',
             action_data: { goal_id: goalId, xp_earned: xpReward }
@@ -100,7 +100,7 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
         }
       }
 
-      return base44.entities.Goal.update(goalId, { status: 'completed' });
+      return db.entities.Goal.update(goalId, { status: 'completed' });
     },
     onSuccess: (_, id) => {
       setDismissedIds(prev => [...prev, id]);

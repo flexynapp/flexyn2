@@ -2,10 +2,10 @@
 // Hub posts — community feed entries.
 // Privacy is enforced here (and should be re-enforced server-side on migration).
 
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { containsProfanity } from '@/lib/profanityFilter';
 
-const e = () => base44.entities.HubPost;
+const e = () => db.entities.HubPost;
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {

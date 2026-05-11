@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X } from 'lucide-react';
@@ -52,12 +52,12 @@ export default function ProfileMenu() {
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
     try {
-      const result = await base44.functions.invoke('deleteAccountData', {});
+      const result = await db.functions.invoke('deleteAccountData', {});
       if (result?.data?.success === false || result?.data?.error) {
         throw new Error(result?.data?.error || 'Delete failed');
       }
       wipeLocalClientState();
-      try { base44.auth.logout(); } catch {}
+      try { db.auth.logout(); } catch {}
       setAccountDeleted(true);
     } catch (err) {
       setIsDeleting(false);
@@ -68,7 +68,7 @@ export default function ProfileMenu() {
   const { user: authUser } = useAuth();
   const { data: user } = useQuery({
     queryKey: ['userProfile', authUser?.email],
-    queryFn: () => base44.auth.me(),
+    queryFn: () => db.auth.me(),
   });
 
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function ProfileMenu() {
                     </button>
                     <ThemePicker />
                     <button
-                      onClick={() => base44.auth.logout('/')}
+                      onClick={() => db.auth.logout('/')}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
                     >
                       <LogOut className="w-4 h-4" />
@@ -237,7 +237,7 @@ export default function ProfileMenu() {
               </AnimatePresence>
             ) : (
               <button
-                onClick={() => base44.auth.redirectToLogin()}
+                onClick={() => db.auth.redirectToLogin()}
                 className="w-full flex items-center gap-2 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
               >
                 <User className="w-4 h-4" />

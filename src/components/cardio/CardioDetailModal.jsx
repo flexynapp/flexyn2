@@ -15,7 +15,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import RouteMap from './RouteMap';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 
@@ -90,7 +90,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
     if (!log?.id) return;
     let cancelled = false;
     (async () => {
-      const all = await base44.entities.CardioLog.filter(
+      const all = await db.entities.CardioLog.filter(
         { created_by: user.email }, '-date', 1000
       );
       if (cancelled) return;
@@ -114,7 +114,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
     : null;
 
   const handleDelete = async () => {
-    await base44.entities.CardioLog.delete(log.id);
+    await db.entities.CardioLog.delete(log.id);
     queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
     toast.success(t('cardio.deleted'));
     onOpenChange(false);

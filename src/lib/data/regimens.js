@@ -1,10 +1,10 @@
 // src/lib/data/regimens.js
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 export const list = (email) =>
-  base44.entities.Regimen.filter({ created_by: email }, '-created_date');
+  db.entities.Regimen.filter({ created_by: email }, '-created_date');
 
 function assertNoTextProfanity(fields) {
   for (const [key, val] of Object.entries(fields)) {
@@ -16,20 +16,20 @@ function assertNoTextProfanity(fields) {
 
 export const create = (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description });
-  return base44.entities.Regimen.create(data);
+  return db.entities.Regimen.create(data);
 };
 export const update = (id, data) => {
   const textFields = {};
   if (data.name !== undefined) textFields.name = data.name;
   if (data.description !== undefined) textFields.description = data.description;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
-  return base44.entities.Regimen.update(id, data);
+  return db.entities.Regimen.update(id, data);
 };
-export const remove = (id) => base44.entities.Regimen.delete(id);
+export const remove = (id) => db.entities.Regimen.delete(id);
 
 /** Fetch all public templates from any user, sorted by copy count then date. */
 export const listPublic = async (limit = 100) => {
-  const rows = await base44.entities.Regimen.filter({ is_public: true }, '-copy_count', limit).catch(() => []);
+  const rows = await db.entities.Regimen.filter({ is_public: true }, '-copy_count', limit).catch(() => []);
   return rows;
 };
 
@@ -38,7 +38,7 @@ export const listPublic = async (limit = 100) => {
  * Increments the original's copy_count and records authorship on the copy.
  */
 export const copyTemplate = async (original, user) => {
-  const copy = await base44.entities.Regimen.create({
+  const copy = await db.entities.Regimen.create({
     created_by: user.email,
     name: original.name,
     description: original.description || '',
@@ -56,8 +56,8 @@ export const copyTemplate = async (original, user) => {
 
 export const purgeForUser = async (email) => {
   if (!email) return;
-  const batch = await base44.entities.Regimen.filter({ created_by: email }).catch(() => []);
+  const batch = await db.entities.Regimen.filter({ created_by: email }).catch(() => []);
   await Promise.all((batch || []).map(r =>
-    base44.entities.Regimen.delete(r.id).catch(() => {})
+    db.entities.Regimen.delete(r.id).catch(() => {})
   ));
 };

@@ -11,7 +11,7 @@
 // The caller is responsible for showing the "not found" UI when null is returned.
 
 import { findByBarcode } from '@/lib/data/foodItems';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 
 // ── Normalised product shape ─────────────────────────────────────────────────
 // {
@@ -38,8 +38,8 @@ async function lookupUSDA(barcode) {
   // or null on no-match / upstream error. Errors here are swallowed by the
   // caller's try/catch in lookupBarcode().
   try {
-    const result = await base44.functions.invoke('usdaBarcodeLookup', { barcode });
-    // base44.functions.invoke returns { data, ... } — the function's body is in `data`.
+    const result = await db.functions.invoke('usdaBarcodeLookup', { barcode });
+    // db.functions.invoke returns { data, ... } — the function's body is in `data`.
     const product = result?.data ?? result;
     if (!product || product.error) return null;
     return product;

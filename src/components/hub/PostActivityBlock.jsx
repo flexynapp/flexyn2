@@ -29,7 +29,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
-import { base44 } from '@/api/base44Client';
+import { db } from '@/api/db';
 import RouteMap from '@/components/cardio/RouteMap';
 
 const TYPE_META = {
@@ -142,7 +142,7 @@ export default function PostActivityBlock({ post }) {
     queryKey: ['postActivityFallback', post.id, post.linked_entity_id, normalizedType],
     queryFn: async () => {
       try {
-        const list = await base44.entities[meta.entity]
+        const list = await db.entities[meta.entity]
           .filter({ id: post.linked_entity_id })
           .catch(() => []);
         const item = Array.isArray(list) ? list[0] : null;
@@ -362,7 +362,7 @@ function RegimenBlock({ snap, post }) {
   // Query the user's regimens so the "Copied" state survives card unmounts.
   const { data: myRegimens = [] } = useQuery({
     queryKey: ['regimens', user?.email],
-    queryFn: () => base44.entities.Regimen.list(),
+    queryFn: () => db.entities.Regimen.list(),
     enabled: !!user?.email,
     staleTime: 30_000,
   });
@@ -388,7 +388,7 @@ function RegimenBlock({ snap, post }) {
         notes: '',
       }));
 
-      await base44.entities.Regimen.create({
+      await db.entities.Regimen.create({
         name: snap.name,
         description: snap.description || '',
         exercises: copiedExercises,
