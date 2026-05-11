@@ -368,6 +368,55 @@ export default function Workout() {
     setStarted(true);
   };
 
+  // Start an active workout pre-filled from the AI generator. SHARED between
+  // both modal mount points (idle-view and active-view) so we never have to
+  // worry about one path drifting from the other. Mirrors startFromRegimen /
+  // startFreestyle so the form behaves identically regardless of entry point.
+  const startFromGeneratedWorkout = (workout) => {
+    const id = `generated-${Date.now()}`;
+    setActiveSessionId(id);
+    setSelectedRegimen(null);
+    setExercises((workout?.exercises || []).map(ex => ({
+      name: ex.name,
+      muscle_group: ex.group || '',
+      muscle_groups: ex.group ? [ex.group] : [],
+      sets: (ex.sets || []).map(s => ({
+        weight: s.weight != null ? s.weight : null,
+        reps:   s.reps   != null ? s.reps   : null,
+      })),
+    })));
+    setDuration(String(workout?.duration_minutes || ''));
+    setNotes(workout?.title || '');
+    setStarted(true);
+    setGeneratorOpen(false);
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
+    toast.success('Workout loaded — log your sets!');
+  };
+
+  // SHARED save-as-regimen handler for the AI generator modal — used at
+  // both mount points so they can't drift.
+  const saveGeneratedAsRegimen = async (workout) => {
+    try {
+      await regimens.create({
+        name: workout.title || 'AI-Generated Workout',
+        description: `AI ${workout.focus} session · ${workout.duration_minutes} min`,
+        exercises: (workout.exercises || []).map(ex => ({
+          name: ex.name,
+          target_sets: ex.sets?.length || 3,
+          target_reps: ex.sets?.[0]?.reps ?? null,
+          target_weight: ex.sets?.[0]?.weight ?? null,
+          rest_seconds: ex.restSec ?? 90,
+        })),
+        is_public: false,
+      });
+      queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
+      toast.success('Saved to your Regimens!');
+    } catch (err) {
+      console.error('[Workout] save regimen failed:', err);
+      toast.error('Could not save regimen. Try again.');
+    }
+  };
+
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
     if (!session) return;
@@ -958,43 +1007,8 @@ export default function Workout() {
             open={generatorOpen}
             onClose={() => setGeneratorOpen(false)}
             userProfile={userProfile}
-            onUseWorkout={(workout) => {
-              // Start a freestyle workout pre-filled with the AI session.
-              // Setting these state pieces flips `started=true` so the next
-              // render shows the active-workout form ready to log sets.
-              const id = `generated-${Date.now()}`;
-              setActiveSessionId(id);
-              setExercises(workout.exercises.map(ex => ({
-                name: ex.name,
-                sets: ex.sets.map(s => ({ weight: s.weight || '', reps: s.reps || '' })),
-              })));
-              setDuration(String(workout.duration_minutes || ''));
-              setNotes(workout.title || '');
-              setGeneratorOpen(false);
-              setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-              toast.success('Workout loaded — start lifting!');
-            }}
-            onSaveAsRegimen={async (workout) => {
-              try {
-                await regimens.create({
-                  name: workout.title || 'AI-Generated Workout',
-                  description: `AI ${workout.focus} session · ${workout.duration_minutes} min`,
-                  exercises: workout.exercises.map(ex => ({
-                    name: ex.name,
-                    target_sets: ex.sets.length,
-                    target_reps: ex.sets[0]?.reps ?? null,
-                    target_weight: ex.sets[0]?.weight ?? null,
-                    rest_seconds: ex.restSec ?? 90,
-                  })),
-                  is_public: false,
-                });
-                queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
-                toast.success('Saved to your Regimens!');
-              } catch (err) {
-                console.error('[Workout] save regimen failed:', err);
-                toast.error('Could not save regimen. Try again.');
-              }
-            }}
+            onUseWorkout={startFromGeneratedWorkout}
+            onSaveAsRegimen={saveGeneratedAsRegimen}
           />
         </ErrorBoundary>
       </motion.div>
@@ -1226,22 +1240,13 @@ export default function Workout() {
       </ErrorBoundary>
 
       <ErrorBoundary label="WorkoutGenerator">
-      <WorkoutGeneratorModal
-        open={generatorOpen}
-        onClose={() => setGeneratorOpen(false)}
-        userProfile={userProfile}
-        onUseWorkout={(workout) => {
-          // Hydrate the workout form with the generated session and scroll to it
-          setExercises(workout.exercises.map(ex => ({
-            name: ex.name,
-            sets: ex.sets.map(s => ({ weight: s.weight || '', reps: s.reps || '' })),
-          })));
-          setDuration(String(workout.duration_minutes || ''));
-          setNotes(workout.title || '');
-          setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-          toast.success(t('generator.loaded') === 'generator.loaded' ? 'Workout loaded — start lifting!' : t('generator.loaded'));
-        }}
-      />
+        <WorkoutGeneratorModal
+          open={generatorOpen}
+          onClose={() => setGeneratorOpen(false)}
+          userProfile={userProfile}
+          onUseWorkout={startFromGeneratedWorkout}
+          onSaveAsRegimen={saveGeneratedAsRegimen}
+        />
       </ErrorBoundary>
 
       {editingLog && (
