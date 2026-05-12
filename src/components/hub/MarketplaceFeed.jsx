@@ -529,58 +529,43 @@ export default function MarketplaceFeed() {
   }, [qc, user?.email]);
 
   // ── Buy item ───────────────────────────────────────────────────────────────
+  // Server-atomic via purchase_listing RPC (migration 025): locks the listing,
+  // validates the buyer can afford it, deducts buyer coins, credits seller,
+  // transfers the inventory row, marks listing completed — ALL in one
+  // transaction. Replaces the old 5-step client-orchestrated sequence
+  // which had two critical bugs:
+  //   • Race: two buyers could both pass `status='active'` check and both
+  //     receive the item (seller item duplicated).
+  //   • Cheat: a tampered client could skip the deduct step and just call
+  //     inventory.addItem + completeListing for a free item.
   const handleBuyConfirm = useCallback(async () => {
     if (!buyTarget || !user) return;
     setBuyBusy(true);
     try {
-      const price = buyTarget.asking_price ?? 0;
-
-      // 1. Deduct coins from buyer
-      const { data: buyerProfile, error: bpErr } = await supabase
-        .from('user_profiles')
-        .select('flex_coins')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (bpErr) throw bpErr;
-      const buyerCoins = buyerProfile?.flex_coins ?? 0;
-      if (buyerCoins < price) { toast.error('Not enough Flex Coins.'); return; }
-
-      await supabase.from('user_profiles').update({ flex_coins: buyerCoins - price }).eq('id', user.id);
-
-      // 2. Add item to buyer's inventory
-      await inventory.addItem(user.id, user.email, {
-        id:     buyTarget.item_id,
-        name:   buyTarget.item_name,
-        emoji:  buyTarget.item_emoji,
-        rarity: buyTarget.item_rarity,
-        type:   'sticker',
-      }, 'marketplace');
-
-      // 3. Remove item from seller's inventory
-      await inventory.removeItem(buyTarget.inventory_id);
-
-      // 4. Add coins to seller (best-effort — seller's row may differ)
-      const { data: sellerProfiles } = await supabase
-        .from('user_profiles')
-        .select('id, flex_coins')
-        .eq('email', buyTarget.seller_email)
-        .maybeSingle();
-      if (sellerProfiles) {
-        await supabase
-          .from('user_profiles')
-          .update({ flex_coins: (sellerProfiles.flex_coins ?? 0) + price })
-          .eq('id', sellerProfiles.id);
-      }
-
-      // 5. Mark listing completed
-      await marketplace.completeListing(buyTarget.id);
-
+      await marketplace.purchaseListing(buyTarget.id);
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+      await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
       toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
       setBuyTarget(null);
     } catch (err) {
-      toast.error('Purchase failed: ' + err.message);
+      console.error('[Marketplace] purchase failed:', err);
+      // Map server error messages to user-friendly toasts.
+      const msg = err?.message || '';
+      if (/insufficient_coins/.test(msg)) {
+        toast.error('Not enough Flex Coins for this purchase.');
+      } else if (/item no longer available/.test(msg)) {
+        toast.error('That item was already sold or is no longer available.');
+        // Refresh so the buyer sees the listing is gone.
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      } else if (/listing is /.test(msg)) {
+        toast.error('That listing is no longer active.');
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      } else if (/cannot purchase your own listing/.test(msg)) {
+        toast.error("You can't buy your own listing.");
+      } else {
+        toast.error('Purchase failed: ' + (msg || 'unknown error'));
+      }
     } finally {
       setBuyBusy(false);
     }

@@ -56,19 +56,51 @@ function PageLoader() {
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkUserAuth } = useAuth();
 
-  // Auto-heal: if the user has a REAL username (not a deleted_ placeholder) but
-  // onboarding flags are false, silently set the flags so they land on dashboard.
-  // Accounts with deleted_ usernames must re-onboard — don't heal them.
+  // Auto-heal: if the user has a fully-populated profile but the onboarding
+  // flags are false, silently set the flags so they land on dashboard.
+  //
+  // Narrowed scope (previously this fired whenever ANY username existed):
+  // we now ALSO require a fitness-related profile field that onboarding
+  // ALWAYS sets (e.g. fitness_level OR fitness_goals OR primary_goal).
+  // Without that gate, the heal could fire on a half-completed profile
+  // where the user set a username early but never finished onboarding —
+  // they'd be silently bounced to dashboard with an empty profile.
+  //
+  // Accounts with deleted_ usernames must re-onboard — never heal them.
   useEffect(() => {
     const hasRealUsername = user?.username && !user.username.startsWith('deleted_');
-    if (hasRealUsername && !user?.onboarding_complete && !user?.onboarding_completed && !isLoadingAuth) {
-      import('@/api/db').then(({ db }) => {
-        db.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
-          .then(() => checkUserAuth())
-          .catch(() => {}); // fail silently if columns not yet migrated
-      });
-    }
-  }, [user?.username, user?.onboarding_complete, user?.onboarding_completed, isLoadingAuth]);
+    if (!hasRealUsername || isLoadingAuth) return;
+    if (user?.onboarding_complete || user?.onboarding_completed) return;
+    // Require evidence that onboarding actually produced a full profile.
+    // ANY of these being populated indicates the user completed the
+    // legacy onboarding flow on a deploy that didn't yet write the
+    // onboarding_complete flag.
+    const hasFullProfile = !!(
+      user?.fitness_level ||
+      user?.fitness_goals ||
+      user?.primary_goal ||
+      user?.training_days_per_week ||
+      user?.weight_lbs ||
+      user?.height_inches
+    );
+    if (!hasFullProfile) return;
+    import('@/api/db').then(({ db }) => {
+      db.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
+        .then(() => checkUserAuth())
+        .catch(() => {}); // fail silently if columns not yet migrated
+    });
+  }, [
+    user?.username,
+    user?.onboarding_complete,
+    user?.onboarding_completed,
+    user?.fitness_level,
+    user?.fitness_goals,
+    user?.primary_goal,
+    user?.training_days_per_week,
+    user?.weight_lbs,
+    user?.height_inches,
+    isLoadingAuth,
+  ]);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {

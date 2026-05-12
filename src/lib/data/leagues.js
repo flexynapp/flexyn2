@@ -111,7 +111,10 @@ export async function ensureCurrentLeague(user) {
   const league = await _findOrCreateLeague(tier, start, end);
   if (!league) return null;
 
-  // Insert membership
+  // Insert membership. Migration 027 added a trigger that maintains
+  // leagues.member_count automatically — the client no longer bumps it
+  // (the old read-modify-write let two concurrent joins both increment
+  // off the same baseline, exceeding MAX_LEAGUE_SIZE).
   const { data: member, error: mErr } = await supabase
     .from('league_members')
     .insert({
@@ -137,29 +140,50 @@ export async function ensureCurrentLeague(user) {
     return null;
   }
 
-  // Bump member_count
-  await supabase
-    .from('leagues')
-    .update({ member_count: (league.member_count || 0) + 1 })
-    .eq('id', league.id);
-
   return { league, member };
 }
 
 /**
  * Add `amount` XP to the user's current-week league standing. No-ops if the
  * user can't be placed in a league (auth issue, etc).
+ *
+ * Uses the atomic increment_league_xp RPC (migration 027) so concurrent
+ * XP-earning events on the same user don't lose updates via the previous
+ * read-modify-write pattern. Falls back to the legacy non-atomic path
+ * only when the RPC isn't available (pre-migration).
  */
 export async function recordWeeklyXp(user, amount) {
   if (!user?.id || !amount || amount <= 0) return;
   const ctx = await ensureCurrentLeague(user);
   if (!ctx) return;
+
+  try {
+    const { error } = await supabase.rpc('increment_league_xp', {
+      p_league_member_id: ctx.member.id,
+      p_amount: amount,
+    });
+    if (!error) return;
+    if (error.code === '42883' || error.code === '42P01') {
+      // RPC missing — fall through.
+      console.warn('[leagues] xp RPC missing, falling back');
+    } else {
+      console.warn('[leagues] xp RPC failed:', error);
+      return;
+    }
+  } catch (err) {
+    if (err?.code !== '42883' && err?.code !== '42P01') {
+      console.warn('[leagues] xp RPC threw:', err);
+      return;
+    }
+  }
+
+  // Legacy fallback — non-atomic.
   const newXp = (ctx.member.weekly_xp || 0) + amount;
   const { error } = await supabase
     .from('league_members')
     .update({ weekly_xp: newXp })
     .eq('id', ctx.member.id);
-  if (error) console.warn('[leagues] recordWeeklyXp failed:', error);
+  if (error) console.warn('[leagues] recordWeeklyXp fallback failed:', error);
 }
 
 /**
@@ -218,16 +242,49 @@ export async function getMyLeague(user) {
 
 /**
  * Resolve a finished league: rank members, apply promotions/demotions, award
- * rewards, mark as resolved. Idempotent — calling twice is harmless because
- * the second call sees is_resolved=true and bails.
+ * rewards, mark as resolved.
+ *
+ * Idempotency: uses the claim_league_resolution RPC (migration 027) which
+ * atomically flips is_resolved=true and returns the league row ONLY if
+ * this caller is the first to claim it. Subsequent callers see null and
+ * bail without double-awarding coins/capsules. Pre-migration fallback
+ * uses the old read-check-then-write which has a small race window where
+ * two clients could both pass the guard.
  */
 async function _resolveLeague(leagueId) {
-  const { data: league } = await supabase
-    .from('leagues')
-    .select('*')
-    .eq('id', leagueId)
-    .maybeSingle();
-  if (!league || league.is_resolved) return;
+  let league = null;
+
+  // Atomic claim — only the FIRST caller proceeds.
+  try {
+    const { data, error } = await supabase.rpc('claim_league_resolution', {
+      p_league_id: leagueId,
+    });
+    if (!error) {
+      if (!data) return; // someone else claimed it — bail
+      league = data;
+    } else if (error.code === '42883' || error.code === '42P01') {
+      console.warn('[leagues] claim RPC missing, falling back to non-atomic guard');
+    } else {
+      console.warn('[leagues] claim RPC failed:', error);
+      return;
+    }
+  } catch (err) {
+    if (err?.code !== '42883' && err?.code !== '42P01') {
+      console.warn('[leagues] claim RPC threw:', err);
+      return;
+    }
+  }
+
+  if (!league) {
+    // Legacy fallback — small race window remains but better than nothing.
+    const { data: row } = await supabase
+      .from('leagues')
+      .select('*')
+      .eq('id', leagueId)
+      .maybeSingle();
+    if (!row || row.is_resolved) return;
+    league = row;
+  }
 
   const members = await listLeagueMembers(leagueId);
   const total = members.length;
@@ -291,11 +348,15 @@ async function _resolveLeague(leagueId) {
     }
   }));
 
-  // Mark resolved
-  await supabase
-    .from('leagues')
-    .update({ is_resolved: true })
-    .eq('id', leagueId);
+  // Mark resolved — the atomic claim above already flipped this for hosts
+  // that have migration 027 applied. For pre-migration hosts we still need
+  // to flip it explicitly here.
+  if (!league.is_resolved) {
+    await supabase
+      .from('leagues')
+      .update({ is_resolved: true })
+      .eq('id', leagueId);
+  }
 }
 
 /**

@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
@@ -1823,7 +1824,13 @@ export default function Onboarding() {
   const [direction, setDirection] = useState(1);
   const [saving, setSaving] = useState(false);
 
-  const [data, setData] = useState({
+  // Persist in-flight onboarding state to localStorage so a refresh / tab
+  // close mid-flow doesn't lose 6 steps of input. Cleared on successful
+  // submit (handleRevealNext). Keyed independent of user id so unauthed
+  // users persist too; on auth, the same value carries through.
+  const ONBOARDING_DRAFT_KEY = 'fn-onboarding-draft-v1';
+
+  const DEFAULT_DATA = {
     username: '',
     goal: [],
     level: null,
@@ -1835,7 +1842,31 @@ export default function Onboarding() {
     },
     days: [],
     preferredTime: '',
+  };
+
+  const [data, setData] = useState(() => {
+    try {
+      const raw = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      if (!raw) return DEFAULT_DATA;
+      const parsed = JSON.parse(raw);
+      // Shallow-merge so any new fields we add later get their defaults
+      // and stale partial drafts don't break the form.
+      return {
+        ...DEFAULT_DATA,
+        ...parsed,
+        stats: { ...DEFAULT_DATA.stats, ...(parsed.stats || {}) },
+      };
+    } catch {
+      return DEFAULT_DATA;
+    }
   });
+
+  // Persist every data change. Cheap — the object is small (< 500 bytes).
+  useEffect(() => {
+    try {
+      localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(data));
+    } catch { /* private mode / quota */ }
+  }, [data]);
 
   const [usernameError, setUsernameError] = useState('');
 
@@ -1905,6 +1936,31 @@ export default function Onboarding() {
     }
   };
 
+  // Debounced username availability check. Without this, the user fills
+  // every step and only discovers their username is taken when the final
+  // submit fails with a confusing toast. We query as they type and surface
+  // a clear "That username is taken" message inline.
+  useEffect(() => {
+    const u = (data.username || '').trim();
+    if (u.length < 3) return;
+    if (usernameError) return; // already showing a different validation error
+    const timer = setTimeout(async () => {
+      try {
+        const { data: rows } = await supabase
+          .from('user_profiles')
+          .select('id')
+          .ilike('username', u)
+          .limit(1);
+        if (!rows || rows.length === 0) return;
+        // If the only matching row IS the current user, that's fine.
+        if (user?.id && rows[0].id === user.id) return;
+        setUsernameError('That username is already taken.');
+      } catch { /* network/RLS — fall through silently, the final-submit
+                  check will still catch the duplicate via 23505 */ }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [data.username, user?.id, usernameError]);
+
   const handleRevealNext = async () => {
     setSaving(true);
     const s = data.stats;
@@ -1945,6 +2001,26 @@ export default function Onboarding() {
       saved = true;
     } catch (err) {
       console.error('Full profile save failed, trying minimal save:', err);
+      // Detect duplicate-username error and route the user back to a step
+      // where they can fix it — the old code just toasted a misleading
+      // "check your connection" message and stranded them on the reveal
+      // screen. Postgres 23505 = unique_violation, message also mentions
+      // "username" when the username unique constraint is the culprit.
+      const isDupUsername =
+        err?.code === '23505' ||
+        /duplicate key|unique constraint|already exists/i.test(err?.message || '') ||
+        /username/i.test(err?.message || '');
+      if (isDupUsername) {
+        setUsernameError('That username is already taken. Try another.');
+        setSaving(false);
+        // Jump back to the age step (last step before reveal where the
+        // username field is visible) so the user can edit it.
+        const ageIdx = STEPS.indexOf('age');
+        if (ageIdx >= 0) goTo(ageIdx);
+        toast.error('That username is already taken — try another.');
+        return;
+      }
+
       // Fallback: save only the columns guaranteed to exist (username is in migration 001).
       // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
       try {
@@ -1959,14 +2035,29 @@ export default function Onboarding() {
         saved = true;
       } catch (minErr) {
         console.error('Minimal save also failed:', minErr);
-        // Do NOT mark as returning user — onboarding_completed never wrote to DB.
-        // User will be able to retry by tapping Save again.
-        toast.error('Could not save your profile — check your connection and try again.');
+        // Same duplicate detection on the minimal save.
+        const isDupUsernameMin =
+          minErr?.code === '23505' ||
+          /duplicate key|unique constraint|already exists/i.test(minErr?.message || '');
+        if (isDupUsernameMin) {
+          setUsernameError('That username is already taken. Try another.');
+          const ageIdx = STEPS.indexOf('age');
+          if (ageIdx >= 0) goTo(ageIdx);
+          toast.error('That username is already taken — try another.');
+        } else {
+          // Do NOT mark as returning user — onboarding_completed never wrote to DB.
+          // User will be able to retry by tapping Save again.
+          toast.error('Could not save your profile — check your connection and try again.');
+        }
       }
     } finally {
       setSaving(false);
       // Only navigate away if at least the minimal save succeeded.
-      if (saved) navigate('/dashboard', { replace: true });
+      if (saved) {
+        // Clear the persisted draft now that the profile is in the DB.
+        try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch { /* ignore */ }
+        navigate('/dashboard', { replace: true });
+      }
     }
   };
 

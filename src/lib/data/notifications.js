@@ -80,9 +80,48 @@ export async function markAllRead(user) {
 }
 
 // ── Internal: low-level create ────────────────────────────────────────────────
+//
+// SELF-TARGETED writes: direct INSERT — RLS policy `user_id = auth.uid()`
+// (migration 026) allows these.
+//
+// CROSS-USER writes (notifyFriendFollow, notifyFriendPost): route through
+// the create_notification_for SECURITY DEFINER RPC. The RPC's whitelist
+// constrains which `type` values can be dispatched cross-user, blocking
+// the phishing/spam surface where any authenticated client could forge
+// notifications into any other user's inbox.
 
-async function _create({ userId, userEmail, type, title, body, icon, linkUrl, metadata }) {
+async function _create({ userId, userEmail, type, title, body, icon, linkUrl, metadata, crossUser = false }) {
   if (!userId || !type || !title) return null;
+
+  if (crossUser) {
+    // Server-side validated cross-user dispatch.
+    try {
+      const { data: id, error } = await supabase.rpc('create_notification_for', {
+        p_user_id:  userId,
+        p_type:     type,
+        p_title:    title,
+        p_body:     body ?? null,
+        p_icon:     icon ?? null,
+        p_link_url: linkUrl ?? null,
+        p_metadata: metadata ?? {},
+      });
+      if (!error) return id ? { id, user_id: userId, type, title } : null;
+      // Pre-migration: function not found. Fall through to the legacy
+      // direct-insert path, which will hit the new RLS check and fail
+      // — but only on hosts that haven't applied migration 026 yet.
+      if (error.code !== '42883' && error.code !== '42P01') {
+        console.warn('[notifications] cross-user RPC failed:', error);
+        return null;
+      }
+    } catch (err) {
+      if (err?.code !== '42883' && err?.code !== '42P01') {
+        console.warn('[notifications] cross-user RPC threw:', err);
+        return null;
+      }
+    }
+    // Fall through to legacy path for pre-migration hosts.
+  }
+
   const { data, error } = await supabase
     .from('notifications')
     .insert({
@@ -170,6 +209,8 @@ export async function notifyLeagueResolution({ user, outcome, fromTier, toTier, 
 }
 
 export async function notifyFriendPost({ recipient, posterName, postPreview }) {
+  // crossUser=true routes through create_notification_for RPC — the RLS
+  // policy on direct INSERT only allows user_id = auth.uid().
   return _create({
     userId:    recipient.id || recipient.user_id,
     userEmail: recipient.email || recipient.user_email,
@@ -179,6 +220,7 @@ export async function notifyFriendPost({ recipient, posterName, postPreview }) {
     icon:      '✨',
     linkUrl:   '/hub',
     metadata:  { posterName },
+    crossUser: true,
   });
 }
 
@@ -192,6 +234,7 @@ export async function notifyFriendFollow({ recipientUserId, recipientEmail, foll
     icon:      '👋',
     linkUrl:   '/hub',
     metadata:  { followerName },
+    crossUser: true,
   });
 }
 
