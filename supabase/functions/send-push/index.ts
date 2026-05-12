@@ -37,6 +37,37 @@
 //      that POSTs to this function whenever a new row is inserted into
 //      the notifications table.
 //
+//   6. Set the shared-secret used by the DB trigger in migration 034 so
+//      pg_net callers can authenticate without a Supabase JWT:
+//
+//        supabase secrets set SEND_PUSH_TRIGGER_SECRET="<random-256-bit-hex>"
+//
+//      Then mirror it onto the database so the trigger can read it:
+//
+//        ALTER DATABASE postgres SET app.send_push_url     =
+//          'https://<project-ref>.functions.supabase.co/send-push';
+//        ALTER DATABASE postgres SET app.send_push_secret  = '<same value>';
+//
+//      Generate the secret with: `openssl rand -hex 32`. Anyone with
+//      this secret can fan out pushes to any user, so treat it like a
+//      service-role key — never expose it to clients.
+//
+// ── AUTH ─────────────────────────────────────────────────────────────────────
+//
+// Callers MUST pass ONE of:
+//
+//   • `Authorization: Bearer <SUPABASE_ANON_KEY or service_role JWT>` — the
+//     default Supabase function-invoke header. Used for client-initiated
+//     test sends and admin tooling.
+//
+//   • `X-Send-Push-Secret: <SEND_PUSH_TRIGGER_SECRET>` — used by the DB
+//     trigger (migration 034) which calls pg_net.http_post and cannot
+//     mint Supabase JWTs.
+//
+// Requests missing both fail with 401. Without this, anyone on the
+// public internet could fan out arbitrary push notifications to any
+// user_id they could enumerate.
+//
 // ── INVOCATION ───────────────────────────────────────────────────────────────
 //
 // Request body (JSON):
@@ -69,6 +100,22 @@ const VAPID_PUBLIC_KEY  = Deno.env.get('VAPID_PUBLIC_KEY')  || '';
 const VAPID_PRIVATE_KEY = Deno.env.get('VAPID_PRIVATE_KEY') || '';
 const VAPID_SUBJECT     = Deno.env.get('VAPID_SUBJECT')     || 'mailto:noreply@flexyn.app';
 
+// Shared secret used by the DB trigger in migration 034. When unset,
+// trigger-style auth is disabled and only Bearer JWT auth is accepted —
+// this keeps the function deployable for client-only testing without
+// silently allowing anonymous fan-out.
+const SEND_PUSH_TRIGGER_SECRET = Deno.env.get('SEND_PUSH_TRIGGER_SECRET') || '';
+
+// Constant-time string compare. We don't want timing differences to
+// leak the length or contents of the shared secret to a remote attacker
+// who controls request timing.
+function safeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
 
 interface PushPayload {
@@ -84,6 +131,32 @@ serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
       status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ── AUTH ─────────────────────────────────────────────────────────────
+  // Accept either:
+  //   • a Bearer JWT in Authorization  (Supabase's default — verify_jwt
+  //     in supabase/config.toml is ON, so the gateway has already
+  //     validated this. The handler only needs to be sure the header
+  //     was present; the gateway rejects bad tokens before we run.)
+  //   • the shared trigger secret in X-Send-Push-Secret matching env.
+  //
+  // The reason we still check Authorization explicitly is that local
+  // `supabase functions serve` does NOT enforce verify_jwt by default
+  // and we don't want a misconfigured deploy to silently allow
+  // anonymous fan-out.
+  const triggerSecret = req.headers.get('x-send-push-secret') || '';
+  const authHeader    = req.headers.get('authorization')      || '';
+  const hasBearer     = /^Bearer\s+\S+/i.test(authHeader);
+  const hasTrigger    = SEND_PUSH_TRIGGER_SECRET.length > 0
+                      && triggerSecret.length > 0
+                      && safeEqual(triggerSecret, SEND_PUSH_TRIGGER_SECRET);
+
+  if (!hasBearer && !hasTrigger) {
+    return new Response(JSON.stringify({ error: 'unauthorized' }), {
+      status: 401,
       headers: { 'Content-Type': 'application/json' },
     });
   }

@@ -31,6 +31,27 @@ export function AuthProvider({ children }) {
     } finally {
       setIsLoadingAuth(false);
     }
+
+    // Capture timezone offset so the streak-break reminder cron (migration
+    // 035) can nudge users in THEIR local evening, not the server's UTC.
+    // We do this every bootstrap (cheap RPC, idempotent) so travellers
+    // whose tz changed mid-trip get nudged at the right hour. Fire-and-
+    // forget: if the RPC doesn't exist yet (pre-migration deploy) we
+    // silently no-op — the server defaults to NULL = no nudges for that
+    // user, which is the safe behavior.
+    try {
+      // Date.getTimezoneOffset() returns MINUTES WEST of UTC (positive
+      // for the Americas) — invert it to "minutes east" which is what
+      // the SQL function expects so it can simply ADD the offset.
+      const offsetMinutes = -new Date().getTimezoneOffset();
+      if (Number.isInteger(offsetMinutes)) {
+        supabase.rpc('update_user_timezone_offset', {
+          p_offset_minutes: offsetMinutes,
+        }).then(() => {}, () => {});
+      }
+    } catch {
+      // Never break auth bootstrap over a timezone capture failure.
+    }
   }, []);
 
   useEffect(() => {
