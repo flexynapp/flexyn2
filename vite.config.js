@@ -98,14 +98,13 @@ export default defineConfig({
         //
         // Order matters: more specific patterns first, generic last.
         manualChunks: (id) => {
-          // i18n is ~1 MB raw / ~250 KB gzip of translation tables. Isolating
-          // it into its own chunk:
-          //   1. Shrinks the entry chunk dramatically (parses faster).
-          //   2. Caches across deploys — translation strings rarely change
-          //      compared to app code, so return visits skip re-downloading.
-          //   3. The chunk can be HTTP/2-pushed or prefetched independently
-          //      of the rest of the app.
-          if (id.includes('/src/lib/i18n')) return 'i18n';
+          // Per-language i18n aggregates (src/lib/i18n-langs/*.js) MUST stay
+          // as separate chunks so each language is its own dynamic-import
+          // target. Return undefined here so Vite's default code-splitting
+          // (driven by import.meta.glob in i18n.js) handles them.
+          if (id.includes('/src/lib/i18n-langs/')) return undefined;
+          // The i18n.js root module is tiny now (~2 KB of loader logic);
+          // let it fall into the entry chunk.
 
           if (!id.includes('node_modules')) return undefined;
 

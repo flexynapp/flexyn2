@@ -19,7 +19,33 @@
  *
  * Import this file once in src/main.jsx (inside a DEV guard) to activate it.
  */
-import { translations, SUPPORTED_LANGUAGES } from './i18n';
+import { loadLanguage, SUPPORTED_LANGUAGES } from './i18n';
+
+// Lazy-load all per-language aggregates and return them as a single
+// `{ <code>: { key: value, ... } }` object — matches the shape the rest
+// of this file expects. Only runs in DEV. Each aggregate is dynamic-
+// imported via the i18n module's importer map, so production users
+// never pay this cost.
+async function loadAllLanguages() {
+  const out = {};
+  await Promise.all(
+    SUPPORTED_LANGUAGES.map(async ({ code }) => {
+      await loadLanguage(code);
+      // After loadLanguage, the i18n module cached the data internally;
+      // we need a way to read it. Use a fresh import of the aggregate
+      // — it's deduplicated by the module system so this is free after
+      // the loadLanguage call cached the module.
+      try {
+        const mod = await import(/* @vite-ignore */ `./i18n-langs/${code}.js`);
+        out[code] = mod.default || mod;
+      } catch (err) {
+        console.warn(`[i18n-check] Could not load "${code}":`, err);
+        out[code] = {};
+      }
+    })
+  );
+  return out;
+}
 
 /**
  * Keys that are intentionally identical across all languages.
@@ -52,9 +78,10 @@ function shouldSkipIdenticalCheck(key, enValue) {
   return false;
 }
 
-export function checkI18nCompleteness() {
+export async function checkI18nCompleteness() {
   if (!import.meta.env.DEV) return;
 
+  const translations = await loadAllLanguages();
   const enDict = translations['en'] || {};
   const enKeys = new Set(Object.keys(enDict));
 

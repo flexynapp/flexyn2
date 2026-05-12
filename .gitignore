@@ -17,6 +17,11 @@ dist
 dist-ssr
 *.local
 
+# Generated per-language i18n aggregates (built by scripts/split-i18n.mjs
+# via the `dev` / `build` / `build:i18n` npm scripts). Source of truth
+# lives in src/lib/i18n-*.js part files; the aggregates are derived.
+src/lib/i18n-langs/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

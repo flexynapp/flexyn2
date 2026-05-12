@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { getTranslation, SUPPORTED_LANGUAGES } from './i18n';
+import { getTranslation, loadLanguage, isLanguageLoaded, SUPPORTED_LANGUAGES } from './i18n';
 import { db } from '@/api/db';
 import { clearTranslationCache } from './translate';
 
@@ -8,15 +8,40 @@ const DEFAULT_LANG = 'en';
 
 const LanguageContext = createContext(null);
 
+// Resolve the starting language synchronously (localStorage or 'en' default)
+// so we can KICK OFF the loadLanguage promise BEFORE React mounts — this
+// way the language is usually ready by the time LanguageProvider renders.
+function readInitialLang() {
+  try {
+    const v = localStorage.getItem(LANG_STORAGE_KEY);
+    if (v && SUPPORTED_LANGUAGES.some(l => l.code === v)) return v;
+  } catch { /* private mode */ }
+  return DEFAULT_LANG;
+}
+
+// Kick off the load immediately on module import — by the time the
+// LanguageProvider component runs, the fetch is already in flight.
+// English is always loaded as the fallback dictionary.
+const _initialLang = readInitialLang();
+const _bootstrapLoad = Promise.all([
+  loadLanguage('en'),
+  _initialLang !== 'en' ? loadLanguage(_initialLang) : Promise.resolve(true),
+]);
+
 export function LanguageProvider({ children }) {
-  // Start from localStorage (or 'en' default). This renders instantly.
-  const [language, setLanguageState] = useState(() => {
-    try {
-      return localStorage.getItem(LANG_STORAGE_KEY) || DEFAULT_LANG;
-    } catch {
-      return DEFAULT_LANG;
-    }
-  });
+  const [language, setLanguageState] = useState(_initialLang);
+  // `ready` flips true once English + the active language are loaded.
+  // First render returns null so the UI doesn't flash raw translation keys.
+  const [ready, setReady] = useState(isLanguageLoaded('en') && isLanguageLoaded(_initialLang));
+
+  // Wait for the module-level bootstrap load (started before render) to
+  // finish, then flip ready. Typically resolves within ~50ms on first
+  // visit, instantly on subsequent visits (HTTP cache).
+  useEffect(() => {
+    let cancelled = false;
+    _bootstrapLoad.then(() => { if (!cancelled) setReady(true); });
+    return () => { cancelled = true; };
+  }, []);
 
   // Track whether we have hydrated from the server yet to avoid race-condition writes.
   const hydratedFromServer = useRef(false);
@@ -29,6 +54,9 @@ export function LanguageProvider({ children }) {
         const me = await db.auth.me();
         const serverLang = me?.preferred_language;
         if (!cancelled && serverLang && SUPPORTED_LANGUAGES.some(l => l.code === serverLang) && serverLang !== language) {
+          // Load before flipping so we don't show raw keys mid-transition.
+          await loadLanguage(serverLang);
+          if (cancelled) return;
           setLanguageState(serverLang);
           try { localStorage.setItem(LANG_STORAGE_KEY, serverLang); } catch {}
         }
@@ -41,19 +69,16 @@ export function LanguageProvider({ children }) {
     return () => { cancelled = true; };
   }, []);
 
-  const setLanguage = useCallback((code) => {
+  const setLanguage = useCallback(async (code) => {
     if (!SUPPORTED_LANGUAGES.some(l => l.code === code)) return;
+    // Load the new language BEFORE flipping state so the next render
+    // has translations available. Without this, every t() call between
+    // setState and the load resolving would return raw keys.
+    await loadLanguage(code);
     setLanguageState(code);
     try { localStorage.setItem(LANG_STORAGE_KEY, code); } catch {}
-    // Clear any cached on-demand translations so future Hub posts re-translate
-    // into the newly-selected language. (The cache key already includes target
-    // lang so old entries wouldn't be wrong — clearing is mostly to keep the
-    // cache lean and avoid stale entries from previous language choices.)
     clearTranslationCache();
-    // Notify listeners (HubPostCard, etc.) to reset any "currently translated"
-    // UI state so users see the new language on the next view.
     try { window.dispatchEvent(new CustomEvent('flexyn:language-changed', { detail: { code } })); } catch {}
-    // Best-effort server write. Fails silently if not signed in.
     try {
       db.auth.updateMe({ preferred_language: code }).catch(() => {});
     } catch {}
@@ -88,6 +113,19 @@ export function LanguageProvider({ children }) {
   }, [t]);
 
   const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
+
+  // First render gate: until English + active language are loaded, return
+  // a minimal loading shell instead of `children`. Without this, every
+  // t() call would return the raw key (e.g. "nav.dashboard") and the UI
+  // would briefly show keys before the dictionary lands. ~50ms first
+  // load, instant on subsequent visits.
+  if (!ready) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center bg-background">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }}>
