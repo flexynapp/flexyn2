@@ -1201,6 +1201,16 @@ export default function Workout() {
           <div className="flex flex-col gap-2 mt-2">
             <Button className="w-full" onClick={() => {
               const { flaggedSets } = cheatWarningData;
+              // Count how many fields we're about to clear so the
+              // follow-up toast can be specific. Without this, the user
+              // dismisses the dialog and lands on a form with mysteriously
+              // empty inputs — no breadcrumb to what changed.
+              let weightsCleared = 0;
+              let repsCleared = 0;
+              for (const f of flaggedSets) {
+                if (f.weightFlagged) weightsCleared += 1;
+                if (f.repsFlagged) repsCleared += 1;
+              }
               setExercises(exercises.map((ex, exIndex) => ({
                 ...ex,
                 sets: (ex.sets || []).map((s, setIndex) => {
@@ -1214,6 +1224,17 @@ export default function Workout() {
                 }),
               })));
               setCheatWarningData(null);
+              // Single follow-up toast naming exactly what was cleared.
+              const parts = [];
+              if (weightsCleared) parts.push(`${weightsCleared} weight${weightsCleared === 1 ? '' : 's'}`);
+              if (repsCleared) parts.push(`${repsCleared} rep ${repsCleared === 1 ? 'field' : 'fields'}`);
+              const cleared = parts.join(' and ');
+              if (cleared) {
+                toast.message(`Cleared ${cleared}`, {
+                  description: 'Re-enter realistic values and Save again.',
+                  duration: 5000,
+                });
+              }
             }}>
               Go Back &amp; Fix
             </Button>

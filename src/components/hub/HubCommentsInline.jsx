@@ -316,6 +316,11 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
 
         {/* Bubble + actions */}
         <div className="flex-1 min-w-0">
+          {c._orphan && (
+            <p className="text-[10px] text-muted-foreground italic mb-0.5 ml-2">
+              ↳ Reply to a deleted comment
+            </p>
+          )}
           <div className="bg-secondary/50 rounded-2xl px-3 py-2">
             <p className="text-xs font-bold leading-tight">{author.handle}</p>
             <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{c.body}</p>

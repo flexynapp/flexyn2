@@ -6,6 +6,7 @@
 // but we write the canonical schema fields here (created_by via auto-inject, emoji for the value).
 
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import * as hubPosts from './hubPosts';
 
 const e = () => db.entities.HubReaction;
@@ -21,30 +22,51 @@ export const getMyReaction = async (postId, email) => {
 /**
  * Set the user's reaction on a post. Pass `null` to clear.
  * Handles all transitions: none→like, like→dislike, like→none, etc.
- * Updates the denormalised counters on the post (best-effort).
+ *
+ * Atomicity: prefers the set_post_reaction RPC (migration 024) which
+ * performs delete+insert+counter updates inside a single transaction.
+ * The old non-atomic path remains as a fallback for users who haven't
+ * applied migration 024 yet — same per-step behavior as before, including
+ * the small drift risk if a partial failure happens between writes.
  */
 export const setReaction = async (postId, email, newReaction /* 'like' | 'dislike' | null */) => {
-  const existing = await getMyReaction(postId, email);
+  // Atomic path — migration 024.
+  try {
+    const { error } = await supabase.rpc('set_post_reaction', {
+      p_post_id:  postId,
+      p_reaction: newReaction,
+    });
+    if (!error) {
+      // RPC succeeded. Return the new reaction's row shape (or null) for
+      // callers — fetch only when we transitioned INTO a non-null state.
+      if (newReaction) return getMyReaction(postId, email);
+      return null;
+    }
+    // 42883 = function does not exist (migration not yet applied).
+    // 42P01 = relation does not exist. Anything else is real — log and fall through.
+    if (error.code !== '42883' && error.code !== '42P01') {
+      console.warn('[hubReactions] RPC failed, falling back:', error);
+    }
+  } catch (err) {
+    console.warn('[hubReactions] RPC threw, falling back:', err);
+  }
 
-  // No-op if the reaction hasn't changed
+  // Fallback path — non-atomic, pre-migration-024.
+  const existing = await getMyReaction(postId, email);
   if (existing && existing.reaction_type === newReaction) return existing;
 
-  // Decrement old counter if switching away from a previous reaction
   if (existing) {
     await e().delete(existing.id).catch(() => {});
     const field = existing.reaction_type === 'like' ? 'like_count' : 'dislike_count';
     await hubPosts.incrementCounter(postId, field, -1);
   }
 
-  // Insert new reaction (if not clearing)
   if (newReaction) {
-    // `created_by` and `user_id` are auto-injected by base44Client.create().
-    // Write `reaction_type` AND `emoji` so both columns stay populated.
     const created = await e().create({
       post_id: postId,
       reaction_type: newReaction,
-      emoji: newReaction,         // schema unique constraint uses (created_by, post_id, emoji)
-      user_email: email,          // redundant but kept for legacy queries
+      emoji: newReaction,
+      user_email: email,
     });
     const field = newReaction === 'like' ? 'like_count' : 'dislike_count';
     await hubPosts.incrementCounter(postId, field, +1);

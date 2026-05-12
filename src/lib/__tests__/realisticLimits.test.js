@@ -82,9 +82,13 @@ describe('getMaxRealisticReps — weighted sets', () => {
     expect(light).toBeGreaterThan(medium);
   });
 
-  it('no weight provided → returns 60 (generous default)', () => {
+  it('no weight provided → treated as bodyweight (300 cap)', () => {
+    // Previously 60 ("generous default"). Bumped to 300 because weight=0
+    // unambiguously means "no load" — a 60-rep cap there flagged legit
+    // high-rep bodyweight variants whose names didn't match the built-in
+    // pattern list (custom names like "Wall Tap Push-up").
     const max = getMaxRealisticReps('back squat', 0, MALE_180);
-    expect(max).toBe(60);
+    expect(max).toBe(300);
   });
 });
 
@@ -101,6 +105,30 @@ describe('getMaxRealisticReps — bodyweight exercises', () => {
 
   it('burpees are treated as bodyweight', () => {
     expect(getMaxRealisticReps('burpee', 0, MALE_180)).toBe(300);
+  });
+
+  it('expanded pattern list catches variants — pike, diamond, decline, hindu', () => {
+    expect(getMaxRealisticReps('pike push-up', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('diamond push-up', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('decline push-up', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('hindu push-up', 0, MALE_180)).toBe(300);
+  });
+
+  it('hollow hold / v-up / russian twist / superman / box jump / inverted row', () => {
+    expect(getMaxRealisticReps('hollow hold', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('v-up', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('russian twist', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('superman', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('box jump', 0, MALE_180)).toBe(300);
+    expect(getMaxRealisticReps('inverted row', 0, MALE_180)).toBe(300);
+  });
+
+  it('explicit isBodyweight option overrides name detection', () => {
+    // A custom/unknown name + non-zero weight would normally hit the
+    // weighted cap (60 max). With isBodyweight=true, the caller can
+    // declare intent and get the 300 cap regardless.
+    expect(getMaxRealisticReps('Wall Tap', 0, MALE_180, { isBodyweight: true })).toBe(300);
+    expect(getMaxRealisticReps('Cossack Squat Hold', 25, MALE_180, { isBodyweight: true })).toBe(300);
   });
 });
 

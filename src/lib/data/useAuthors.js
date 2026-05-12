@@ -7,16 +7,37 @@
 // Snapshot is used as a fallback only — for deleted accounts, RLS-stripped
 // fields, or when the list query hasn't loaded yet.
 
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as users from '@/lib/data/users';
 
 export function useAuthorsByEmail() {
+  const qc = useQueryClient();
   const { data: list = [] } = useQuery({
     queryKey: ['hubAuthorsList'],
     queryFn: () => users.list().catch(() => []),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
+
+  // Live-refresh the author cache when ANY user equips a cosmetic OR
+  // changes a theme. Without this, an equipped Title/Frame change took up
+  // to 60 s (or a window blur/focus) to propagate to other users viewing
+  // the same feed — which made the showcase feature feel half-broken.
+  // refetchQueries (not just invalidate) so already-rendered feed cards
+  // pick up the new flair without needing a remount.
+  useEffect(() => {
+    const handler = () => {
+      qc.refetchQueries({ queryKey: ['hubAuthorsList'] }).catch(() => {});
+    };
+    window.addEventListener('flexyn:loot-equipped', handler);
+    window.addEventListener('flexyn:theme-changed', handler);
+    return () => {
+      window.removeEventListener('flexyn:loot-equipped', handler);
+      window.removeEventListener('flexyn:theme-changed', handler);
+    };
+  }, [qc]);
+
   const byEmail = {};
   for (const u of list) {
     if (u?.email) byEmail[u.email.toLowerCase()] = u;

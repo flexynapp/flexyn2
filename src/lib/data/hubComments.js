@@ -85,7 +85,14 @@ export const remove = async (commentId, postId) => {
 /**
  * Build a threaded structure from a flat list (sorted oldest-first).
  * Returns { topLevel: Comment[], repliesByParent: Map<string, Comment[]> }
- * Orphan replies (parent not in list) are skipped.
+ *
+ * Orphan replies — replies whose parent_comment_id no longer exists in the
+ * list (parent was deleted between fetches, or never visible to this user
+ * due to RLS) — are PROMOTED to top-level rather than silently dropped.
+ * Previously they vanished from the UI, which meant a user's reply could
+ * become invisible to them with no warning. Promotion preserves the
+ * content; the slightly orphaned context is a smaller harm than losing
+ * the comment altogether.
  */
 export const buildThread = (comments) => {
   const byId = new Map(comments.map(c => [c.id, c]));
@@ -100,8 +107,12 @@ export const buildThread = (comments) => {
         repliesByParent.set(c.parent_comment_id, []);
       }
       repliesByParent.get(c.parent_comment_id).push(c);
+    } else {
+      // Orphan reply — parent is gone. Promote to top-level so the
+      // comment remains visible. Tag with an orphan flag so the UI can
+      // surface a small "in reply to a deleted comment" hint if desired.
+      topLevel.push({ ...c, _orphan: true });
     }
-    // else: orphan reply — skip
   }
 
   return { topLevel, repliesByParent };
