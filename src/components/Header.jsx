@@ -58,6 +58,7 @@ export default function Header() {
           <Button
             variant="ghost"
             size="icon"
+            aria-label="Back"
             className="shrink-0"
             onClick={() => {
               // Give the current page a chance to intercept back navigation
@@ -73,9 +74,10 @@ export default function Header() {
         ) : (
           <button
             onClick={() => navigate('/dashboard')}
+            aria-label="Go to dashboard"
             className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
           >
-            <img src="{LOGO_URL}" alt="Flexyn" className="w-full h-full object-contain" />
+            <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
           </button>
         )}
         <button

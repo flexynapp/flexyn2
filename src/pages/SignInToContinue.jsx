@@ -16,7 +16,7 @@ export default function SignInToContinue() {
       >
         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-primary/30">
           <img
-            src="{LOGO_URL}"
+            src={LOGO_URL}
             alt="Flexyn"
             className="w-full h-full object-contain"
           />

@@ -186,6 +186,7 @@ export default function ProgressPhotoCapture({ workoutName }) {
                 </p>
                 <button
                   onClick={closeCamera}
+                  aria-label={t('photos.closeCamera') === 'photos.closeCamera' ? 'Close camera' : t('photos.closeCamera')}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
@@ -235,14 +236,18 @@ export default function ProgressPhotoCapture({ workoutName }) {
                     {/* Flip button */}
                     <button
                       onClick={toggleFacingMode}
+                      aria-label={t('photos.flipCamera') === 'photos.flipCamera' ? 'Flip camera' : t('photos.flipCamera')}
                       className="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
                     >
                       <FlipHorizontal className="w-5 h-5 text-white" />
                     </button>
 
-                    {/* Shutter button */}
+                    {/* Shutter button — critical that blind users know what
+                        this circle does. Without aria-label it's announced
+                        as an unlabeled "button". */}
                     <button
                       onClick={capturePhoto}
+                      aria-label={t('photos.takePhoto') === 'photos.takePhoto' ? 'Take photo' : t('photos.takePhoto')}
                       className="w-16 h-16 rounded-full bg-white hover:bg-white/90 transition-colors active:scale-95"
                     />
 

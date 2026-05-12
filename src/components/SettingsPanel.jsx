@@ -15,7 +15,7 @@ import { usePushSubscription } from '@/lib/usePushSubscription';
 import { toast } from 'sonner';
 
 export default function SettingsPanel() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { distanceUnit, setDistanceUnit } = useDistanceUnit();
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const { user } = useAuth();
@@ -23,6 +23,7 @@ export default function SettingsPanel() {
   const queryClient = useQueryClient();
   const [editingStat, setEditingStat] = useState(null); // 'weight_lbs' | 'height_inches' | 'birthday'
   const [statValue, setStatValue] = useState('');
+  const [initialStatValue, setInitialStatValue] = useState('');
   const [statSaving, setStatSaving] = useState(false);
 
   const { data: profile } = useQuery({
@@ -34,21 +35,77 @@ export default function SettingsPanel() {
 
   const saveStatEdit = async () => {
     if (!editingStat || !statValue) return;
+    // If the user didn't actually change the value, close without saving.
+    // This prevents the weight round-trip drift caught by the audit: the
+    // displayed value is `formatWeightNumber(stored_lbs, weightUnit)` which
+    // is rounded; saving it back would re-convert and lose precision on
+    // every edit cycle. Comparing to the initial value short-circuits the
+    // no-op save entirely.
+    if (statValue === initialStatValue) {
+      setEditingStat(null);
+      setStatValue('');
+      setInitialStatValue('');
+      return;
+    }
     setStatSaving(true);
     try {
       if (editingStat === 'birthday') {
+        // Reject future dates AND impossible ages.
+        const d = new Date(statValue);
+        if (isNaN(d.getTime())) {
+          toast.error('Invalid date.');
+          return;
+        }
+        if (d > new Date()) {
+          toast.error("Birthday can't be in the future.");
+          return;
+        }
+        const yearsAgo = (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        if (yearsAgo > 120) {
+          toast.error('Please enter a realistic birthday.');
+          return;
+        }
+        if (yearsAgo < 13) {
+          toast.error('You must be 13 or older to use Flexyn.');
+          return;
+        }
         await db.auth.updateMe({ birthday: statValue });
       } else {
-        let parsed = parseFloat(statValue);
-        if (isNaN(parsed)) return;
-        if (editingStat === 'weight_lbs') parsed = toLbs(parsed, weightUnit);
-        await db.auth.updateMe({ [editingStat]: parsed });
+        const parsed = parseFloat(statValue);
+        if (isNaN(parsed) || parsed <= 0) {
+          toast.error('Please enter a number greater than zero.');
+          return;
+        }
+        // Range validation per stat so a fat-finger entry doesn't corrupt
+        // the profile. Anti-cheat already validates set-level weights/reps,
+        // but profile-level values were unguarded.
+        if (editingStat === 'weight_lbs') {
+          const lbs = toLbs(parsed, weightUnit);
+          if (lbs < 50 || lbs > 800) {
+            toast.error('Weight must be between 50 and 800 lb (23–363 kg).');
+            return;
+          }
+          await db.auth.updateMe({ weight_lbs: lbs });
+        } else if (editingStat === 'height_inches') {
+          if (parsed < 24 || parsed > 96) {
+            toast.error('Height must be between 24 and 96 inches (61–244 cm).');
+            return;
+          }
+          await db.auth.updateMe({ height_inches: parsed });
+        } else {
+          await db.auth.updateMe({ [editingStat]: parsed });
+        }
       }
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       setEditingStat(null);
       setStatValue('');
+      setInitialStatValue('');
     } catch (err) {
+      // Surface the real cause instead of swallowing silently — the audit
+      // caught that the previous `console.error` left users with no signal
+      // the save failed.
       console.error('Stat update failed:', err);
+      toast.error('Could not save — try again.');
     } finally {
       setStatSaving(false);
     }
@@ -120,7 +177,12 @@ export default function SettingsPanel() {
   );
 
   const settings = [
-    { icon: Bell, label: t('settings.notifications'), value: enableNotifications, onChange: setEnableNotifications },
+    // Distinguish from the push-notification toggle below — this one only
+    // controls in-app sonner toasts. Audit caught users confusing the two
+    // when both were labeled "Notifications". Uses tFallback so English
+    // users (and any locale missing the key) see "In-app alerts" without
+    // needing to regenerate all 15 language aggregates.
+    { icon: Bell, label: tFallback('settings.inAppAlerts', 'In-app alerts'), value: enableNotifications, onChange: setEnableNotifications },
     { icon: Dumbbell, label: t('settings.workoutReminders'), value: enableWorkoutReminders, onChange: setEnableWorkoutReminders },
     { icon: Pause, label: t('cardio.settings.autoPause'), value: cardioAutoPause, onChange: setCardioAutoPause },
     { icon: Timer, label: t('settings.restTimer'), value: restTimerEnabled, onChange: setRestTimerEnabled },
@@ -263,7 +325,7 @@ export default function SettingsPanel() {
             ].map(({ icon: Icon, label, field, display, editValue: ev }) => (
               <button
                 key={field}
-                onClick={() => { setEditingStat(field); setStatValue(ev); }}
+                onClick={() => { setEditingStat(field); setStatValue(ev); setInitialStatValue(ev); }}
                 className="w-full flex items-center justify-between py-1 px-1 rounded-md hover:bg-secondary/60 transition-colors group"
               >
                 <div className="flex items-center gap-2">

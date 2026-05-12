@@ -28,11 +28,18 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
         setShowTooltip(false);
       }
     };
+    // Escape closes the tooltip — keyboard-only users had no way to
+    // dismiss it before; only mouse/touch outside-click was wired up.
+    const keyHandler = (e) => {
+      if (e.key === 'Escape') setShowTooltip(false);
+    };
     document.addEventListener('mousedown', handler);
     document.addEventListener('touchstart', handler);
+    document.addEventListener('keydown', keyHandler);
     return () => {
       document.removeEventListener('mousedown', handler);
       document.removeEventListener('touchstart', handler);
+      document.removeEventListener('keydown', keyHandler);
     };
   }, [showTooltip]);
 

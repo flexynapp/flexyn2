@@ -43,7 +43,7 @@ export default function Layout() {
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img src="{LOGO_URL}" alt="Flexyn" className="w-full h-full object-contain" />
+              <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>

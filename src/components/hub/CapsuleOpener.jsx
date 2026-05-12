@@ -295,8 +295,31 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const rarityConfig = wonItem ? (RARITY[wonItem.rarity] ?? RARITY.common) : null;
   const cardStyle    = wonItem ? (RARITY_CARD[wonItem.rarity] ?? RARITY_CARD.common) : null;
 
+  // Escape-to-close + body scroll lock. Keyboard-only users previously had
+  // no way to dismiss this overlay because it's a raw <div> rather than a
+  // Radix Dialog. We also only allow Escape while in the 'idle' phase so
+  // a user can't escape mid-reveal animation and re-open a still-unopened
+  // capsule (the server-side claim is atomic but the UX would be jarring).
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape' && phase === 'idle') onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [phase, onClose]);
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Open capsule"
+    >
       {/* Backdrop */}
       <motion.div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"

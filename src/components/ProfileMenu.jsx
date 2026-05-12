@@ -172,7 +172,15 @@ export default function ProfileMenu() {
                     </button>
                     <ThemePicker />
                     <button
-                      onClick={() => db.auth.logout('/')}
+                      onClick={() => {
+                        // Sign-out MUST clear local state too — without this,
+                        // the next user on the same device inherits the
+                        // previous user's localStorage settings, IndexedDB
+                        // caches, react-query cache, and onboarding drafts.
+                        // The audit caught this as a privacy issue.
+                        wipeLocalClientState();
+                        db.auth.logout('/');
+                      }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
                     >
                       <LogOut className="w-4 h-4" />

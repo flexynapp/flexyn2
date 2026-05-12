@@ -1158,6 +1158,7 @@ export default function Workout() {
                   type="button"
                   onClick={() => setExercises(exercises.filter((_, idx) => idx !== i))}
                   className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Remove exercise"
                   title="Remove exercise"
                 >
                   <Trash2 className="w-3.5 h-3.5" />
@@ -1169,8 +1170,8 @@ export default function Workout() {
       </motion.div>
 
       <div className="mb-4">
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>
-        <Textarea value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" maxLength={1000} />
+        <label htmlFor="workout-notes" className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>
+        <Textarea id="workout-notes" value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" maxLength={1000} />
       </div>
 
       <ProgressPhotoCapture workoutName={selectedRegimen?.name || t('workout.freestyle')} />
