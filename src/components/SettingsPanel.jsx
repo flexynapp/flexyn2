@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2 } from 'lucide-react';
 import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
@@ -11,6 +11,8 @@ import { db } from '@/api/db';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toLbs, fromLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { differenceInYears, format } from 'date-fns';
+import { usePushSubscription } from '@/lib/usePushSubscription';
+import { toast } from 'sonner';
 
 export default function SettingsPanel() {
   const { t } = useLanguage();
@@ -66,6 +68,39 @@ export default function SettingsPanel() {
     levelAnimationsEnabled, setLevelAnimationsEnabled,
     nutrientRingView, setNutrientRingView,
   } = useSettings();
+
+  // Web Push subscription state for THIS device. Distinct from the
+  // in-app `enableNotifications` toggle above — that controls whether
+  // sonner toasts fire while the app is open; push notifications are
+  // for delivery when the app ISN'T open.
+  const push = usePushSubscription();
+
+  // Handler for the push toggle. Translates browser-level outcomes
+  // into user-friendly toasts so the toggle never silently fails.
+  const handlePushToggle = async () => {
+    if (push.isSubscribed) {
+      const res = await push.unsubscribe();
+      if (res.ok) {
+        toast.success(t('settings.push.disabled') === 'settings.push.disabled'
+          ? 'Push notifications disabled.' : t('settings.push.disabled'));
+      } else {
+        toast.error('Could not disable push notifications.');
+      }
+      return;
+    }
+    const res = await push.subscribe();
+    if (res.ok) {
+      toast.success(t('settings.push.enabled') === 'settings.push.enabled'
+        ? 'Push notifications enabled!' : t('settings.push.enabled'));
+    } else if (res.reason === 'denied') {
+      toast.error('Permission denied — enable notifications in your browser settings.');
+    } else if (res.reason === 'unsupported') {
+      toast.error('Push notifications not supported on this device.');
+    } else if (res.reason === 'server_error') {
+      toast.error('Could not save your subscription. Try again.');
+    }
+    // 'default' (user dismissed without choosing) → no toast, they'll try again.
+  };
 
   const ToggleSwitch = ({ checked, onChange }) => (
     <button
@@ -139,6 +174,38 @@ export default function SettingsPanel() {
           </div>
         );
       })}
+
+      {/* Push notifications — separate from in-app `enableNotifications`.
+          Only shown when the browser supports Web Push AND a VAPID key is
+          configured at build time. Disabled state shows when permission
+          was denied (user has to go into browser settings to re-enable). */}
+      {push.isSupported && (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <BellRing className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <div className="min-w-0">
+              <p className="text-xs text-foreground leading-tight">
+                {t('settings.pushNotifications') === 'settings.pushNotifications'
+                  ? 'Push notifications'
+                  : t('settings.pushNotifications')}
+              </p>
+              {push.permission === 'denied' && (
+                <p className="text-[10px] text-destructive leading-tight mt-0.5">
+                  Blocked — change in browser settings
+                </p>
+              )}
+            </div>
+          </div>
+          {push.isLoading ? (
+            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+          ) : (
+            <ToggleSwitch
+              checked={push.isSubscribed}
+              onChange={handlePushToggle}
+            />
+          )}
+        </div>
+      )}
 
       {/* Body Stats */}
       <div className="border-t border-border pt-3 mt-1">

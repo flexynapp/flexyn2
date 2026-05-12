@@ -24,6 +24,25 @@ export default defineConfig({
     //     because they have content-hash filenames.
     VitePWA({
       registerType: 'autoUpdate',
+      // injectManifest mode lets us provide our own service worker file
+      // (src/lib/push-sw.js) so we can hook into the `push` and
+      // `notificationclick` events — the auto-generated GenerateSW
+      // strategy doesn't expose those hooks. The vite-plugin-pwa
+      // build step still injects the precache manifest into our file.
+      strategies: 'injectManifest',
+      srcDir: 'src/lib',
+      filename: 'push-sw.js',
+      injectManifest: {
+        // i18n chunks + tfjs/pose chunks are huge — exclude from precache
+        // so the SW build doesn't choke on the 5 MB default cap.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        globIgnores: [
+          '**/vendor-tfjs-*.js',
+          '**/vendor-pose-*.js',
+          '**/graph_model-*.js',
+          '**/pose-detection.esm-*.js',
+        ],
+      },
       includeAssets: ['favicon.ico', 'robots.txt'],
       manifest: {
         name: 'Flexyn',
@@ -58,20 +77,10 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        // Cache the app shell (HTML, JS, CSS) for instant subsequent loads.
-        // Anything else (Supabase API, images, fonts from CDN) goes to
-        // network so we don't accidentally serve stale data.
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
-        // Don't precache the giant tfjs/pose-detection chunks — they're
-        // already lazy-loaded only on Form Coach open. Precaching would
-        // waste storage on users who never use that feature.
-        globIgnores: ['**/vendor-tfjs-*.js', '**/vendor-pose-*.js', '**/graph_model-*.js', '**/pose-detection.esm-*.js'],
-        // Bump payload size limit — i18n chunk is ~940 KB.
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
-        // Supabase API calls bypass the SW entirely.
-        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
-      },
+      // NOTE: with `strategies: 'injectManifest'`, the `workbox` field is
+      // not used — caching strategies and lifecycle hooks live inside our
+      // own SW file at src/lib/push-sw.js. The plugin injects the
+      // precache manifest into that file at build time.
     }),
   ],
   resolve: {
