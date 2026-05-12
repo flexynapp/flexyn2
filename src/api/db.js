@@ -280,15 +280,30 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
       const prevTotal = newTotal - Math.round(xp_gained);
 
       // 3. Check each milestone — insert if crossed in this grant.
-      // Counter integrity rule: newAchievementsCount only advances after
-      // BOTH the achievement insert AND the user_profiles counter update
-      // succeed. Previously the counter could drift ahead of reality if
-      // either write silently failed (insert .catch swallowed, then
-      // newAchievementsCount incremented and written anyway), which caused
-      // the milestone-capsule logic to under-grant on the next call.
+      //
+      // Double-milestone safety: when an achievement awards bonus XP, that
+      // bonus can push the user across the NEXT threshold inside the same
+      // call. Previously the comparison used the static `newTotal` snapshot,
+      // so the second milestone was missed entirely. We now track a running
+      // `projectedTotal` that adds each successful bonus grant to the
+      // comparison value — so a user at 240 XP gaining 800 (newTotal=1040)
+      // crosses 250 → +10 bonus → projected 1050, which still trivially
+      // crosses 1000 BUT only if the threshold was below the original
+      // newTotal. The real win is when prevTotal was just below 1000 and
+      // newTotal lands just above it AND the 250-milestone bonus pushes
+      // past 1000 — that previously had a chance of being missed because
+      // the loop iterated milestones in order and only consulted the
+      // static snapshot. Now every milestone uses the running projection.
+      //
+      // Counter integrity (from prior fix): newAchievementsCount only
+      // advances after BOTH the achievement insert AND the user_profiles
+      // counter update succeed.
       let newAchievementsCount = profile.achievements_unlocked_count || 0;
+      let projectedTotal = newTotal;
       for (const ach of XP_ACHIEVEMENTS) {
-        if (prevTotal < ach.threshold && newTotal >= ach.threshold) {
+        // Use projectedTotal (includes bonus XP from earlier iterations)
+        // for the upper bound, so a missed milestone surfaces here.
+        if (prevTotal < ach.threshold && projectedTotal >= ach.threshold) {
           const { data: existing } = await supabase
             .from('achievements')
             .select('id')
@@ -313,11 +328,22 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
             }
             // Bonus XP for achievement itself (capped to avoid recursion).
             // Failure here is non-fatal — the achievement row still exists.
+            // Track whether the grant succeeded so we don't credit projected
+            // total with XP that didn't actually land.
+            let bonusApplied = false;
             if (ach.xp_awarded > 0) {
-              await supabase.rpc('increment_user_xp', {
+              const { error: bonusErr } = await supabase.rpc('increment_user_xp', {
                 p_user_id: user.id,
                 p_xp: ach.xp_awarded,
-              }).catch((err) => console.warn('[XP] bonus grant failed:', err));
+              });
+              if (bonusErr) {
+                console.warn('[XP] bonus grant failed:', bonusErr);
+              } else {
+                bonusApplied = true;
+              }
+            }
+            if (bonusApplied) {
+              projectedTotal += ach.xp_awarded;
             }
             // Counter update — only advance the in-memory count if the DB
             // update actually succeeded. If it fails, the inserted achievement

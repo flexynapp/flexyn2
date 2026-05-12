@@ -14,7 +14,7 @@
 // migration will introduce a real backend trade-execution flow (escrow +
 // dual-confirm), at which point these buttons will be wired to it.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightLeft, Check, X, Coins, Info } from 'lucide-react';
 import { toast } from 'sonner';
@@ -50,6 +50,41 @@ export function parseTradeOffer(body) {
 }
 
 /**
+ * Parse a hub_messages.body string for a trade RESPONSE marker. Replies to
+ * an offer carry `[TRADE_RESPONSE_V1]<offerId>:<accepted|declined>` as the
+ * first line of the body so any client (including the original sender)
+ * can recover the response state from the server, not just from local
+ * storage. Returns `{ offerId, response }` or null.
+ */
+export function parseTradeResponse(body) {
+  if (!body || typeof body !== 'string') return null;
+  if (!body.startsWith('[TRADE_RESPONSE_V1]')) return null;
+  const after = body.slice('[TRADE_RESPONSE_V1]'.length);
+  const newlineIdx = after.indexOf('\n');
+  const head = newlineIdx >= 0 ? after.slice(0, newlineIdx) : after;
+  const colonIdx = head.indexOf(':');
+  if (colonIdx < 0) return null;
+  const offerId = head.slice(0, colonIdx).trim();
+  const response = head.slice(colonIdx + 1).trim();
+  if (!offerId || (response !== 'accepted' && response !== 'declined')) return null;
+  return { offerId, response };
+}
+
+/**
+ * Serialize a trade-response marker into a message body. The marker is the
+ * first line so parseTradeResponse can read it without scanning, and a
+ * human-readable line follows so clients that DON'T know about the marker
+ * still render something useful.
+ */
+export function formatTradeResponseBody(offerId, accepted) {
+  const status = accepted ? 'accepted' : 'declined';
+  const friendly = accepted
+    ? `✅ I'd like to do this trade. Let's coordinate delivery in chat.`
+    : `❌ Not interested in this trade — thanks for asking!`;
+  return `[TRADE_RESPONSE_V1]${offerId}:${status}\n${friendly}`;
+}
+
+/**
  * @param {object} props
  * @param {object} props.payload - parsed trade offer
  * @param {boolean} props.isMine - whether the current user sent this offer
@@ -57,22 +92,40 @@ export function parseTradeOffer(body) {
  * @param {object} props.user - current user (for sending replies)
  * @param {string} props.conversationId - conversation to send replies into
  */
-export default function TradeOfferCard({ payload, isMine, user, conversationId }) {
+export default function TradeOfferCard({ payload, isMine, user, conversationId, conversationMessages = [] }) {
   const [busy, setBusy] = useState(false);
   const [responded, setResponded] = useState(null); // 'accepted' | 'declined' | null
 
-  // Hydrate from localStorage on mount — without this the buttons reappeared
-  // on chat re-mount/scroll and a user could "reply" multiple times.
-  // offerId is set on the payload at send time; we fall back to a hash-ish
-  // of the items so older payloads without an id still get persistence.
+  // Two-tier response state:
+  //   1. SERVER (canonical) — any message in the conversation carrying
+  //      [TRADE_RESPONSE_V1]<offerId>:<...> is the source of truth. Works
+  //      across devices and survives reload/cache clear.
+  //   2. LOCAL STORAGE (fallback) — hydrated only when no server-side
+  //      response exists yet (e.g. between send and refetch). Keeps the
+  //      "you replied" state instant even before the message round-trips.
   const offerId = payload?.offerId
     || `${payload?.fromEmail || ''}|${payload?.myItem?.name || ''}|${payload?.theirItem?.name || ''}`;
+  const serverResponse = useMemo(() => {
+    for (const m of conversationMessages) {
+      const parsed = parseTradeResponse(m?.body || m?.content || '');
+      if (parsed && parsed.offerId === offerId) return parsed.response;
+    }
+    return null;
+  }, [conversationMessages, offerId]);
   useEffect(() => {
+    if (serverResponse) {
+      // Server already knows the answer — adopt it and mirror into local
+      // storage so a quick re-mount before next fetch still feels instant.
+      setResponded(serverResponse);
+      try { localStorage.setItem(responseKey(conversationId, offerId), serverResponse); } catch { /* ignore */ }
+      return;
+    }
+    // No server signal yet — fall back to local storage.
     try {
       const stored = localStorage.getItem(responseKey(conversationId, offerId));
       if (stored === 'accepted' || stored === 'declined') setResponded(stored);
     } catch { /* SSR / no localStorage */ }
-  }, [conversationId, offerId]);
+  }, [conversationId, offerId, serverResponse]);
 
   const myItem    = isMine ? payload.myItem : payload.theirItem;
   const theirItem = isMine ? payload.theirItem : payload.myItem;
@@ -83,11 +136,11 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId }
     if (busy || responded) return;
     setBusy(true);
     try {
-      // Honest copy — no claim of an inventory swap, because none happens.
-      // The reply just signals intent; the sender then delivers manually.
-      const replyBody = accept
-        ? `✅ I'd like to do this trade. Let's coordinate delivery in chat.`
-        : `❌ Not interested in this trade — thanks for asking!`;
+      // Reply body carries a [TRADE_RESPONSE_V1] marker so any device viewing
+      // this conversation can recover the response state from the server.
+      // Localstorage is still updated optimistically so the UI doesn't flash
+      // back to the buttons before the next message refetch lands.
+      const replyBody = formatTradeResponseBody(offerId, accept);
       const recipient = isMine ? payload.toEmail : payload.fromEmail;
       await sendMessage({
         conversationId,

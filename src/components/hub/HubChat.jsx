@@ -9,7 +9,7 @@ import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import { db } from '@/api/db';
 import { toast } from 'sonner';
-import TradeOfferCard, { parseTradeOffer } from './TradeOfferCard';
+import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -314,9 +314,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   </div>
                 )}
                 {(() => {
-                  // If the body starts with a trade-offer marker, render the
-                  // interactive card instead of the plain text bubble.
-                  const tradePayload = parseTradeOffer(m.body || m.content);
+                  // Body parsing routes:
+                  //  1. [TRADE_OFFER_V1] → render interactive offer card.
+                  //  2. [TRADE_RESPONSE_V1] → render as a regular plain
+                  //     bubble showing only the human-readable second line
+                  //     (the marker is hidden — its job is server-side
+                  //     state recovery for the original offer card).
+                  const body = m.body || m.content || '';
+                  const tradePayload = parseTradeOffer(body);
                   if (tradePayload) {
                     return (
                       <motion.div
@@ -330,6 +335,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           isMine={isMine}
                           user={user}
                           conversationId={conversation?.id}
+                          conversationMessages={messages}
                         />
                       </motion.div>
                     );
@@ -348,7 +354,19 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             : 'bg-secondary text-foreground rounded-bl-sm'
                         } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
                       >
-                        {(m.body || m.content) ? <span>{m.body || m.content}</span> : null}
+                        {(() => {
+                          // Strip the [TRADE_RESPONSE_V1] marker line so the
+                          // bubble shows only the human-readable reply text.
+                          // The marker exists for offer-card state recovery,
+                          // not for the message bubble to display.
+                          const raw = m.body || m.content || '';
+                          if (parseTradeResponse(raw)) {
+                            const newline = raw.indexOf('\n');
+                            const visible = newline >= 0 ? raw.slice(newline + 1) : '';
+                            return visible ? <span>{visible}</span> : null;
+                          }
+                          return raw ? <span>{raw}</span> : null;
+                        })()}
                         {m.attachment_url && (
                           <img
                             src={m.attachment_url}

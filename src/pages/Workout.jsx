@@ -3,6 +3,7 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -216,16 +217,37 @@ export default function Workout() {
         console.warn('XP/achievement update failed (non-blocking):', xpErr);
       }
 
-      // Denormalise total volume on the User record for leaderboards.
+      // Atomic volume accumulation via RPC (migration 023). The previous
+      // read-modify-write pattern raced against itself when a workout and
+      // cardio finished within ~200ms — both reads saw the same `prev`,
+      // and the second write overwrote the first, losing one session's
+      // volume from leaderboards. The increment_user_volume RPC adds the
+      // delta in a single SQL statement, so concurrent calls compose
+      // instead of overwriting. Falls back to read-modify-write only if
+      // the RPC isn't available (pre-migration).
       if (sessionVolume > 0) {
         try {
-          const me = await db.auth.me();
-          const prev = Number(me?.total_volume_lbs) || 0;
-          await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
-        } catch { /* non-blocking */ }
+          const { error: rpcErr } = await supabase.rpc('increment_user_volume', {
+            p_delta: sessionVolume,
+          });
+          if (rpcErr) {
+            // RPC missing or denied — fall back to non-atomic update so
+            // the count at least advances on this device. Migration 023
+            // adds the RPC; this fallback exists for pre-migration users.
+            console.warn('[Workout] volume RPC failed, falling back:', rpcErr);
+            const me = await db.auth.me();
+            const prev = Number(me?.total_volume_lbs) || 0;
+            await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
+          }
+        } catch (volErr) { console.warn('[Workout] volume accumulate failed:', volErr); }
       }
 
-      return workoutLog;
+      // Return the CLAMPED data alongside the workoutLog so onSuccess can
+      // show the correct XP / volume numbers in the success toast.
+      // Previously onSuccess re-called calculateWorkoutXp on the original
+      // unclamped data, which could overstate the XP by up to ~30% when
+      // sets had been trimmed by the per-group cap.
+      return { workoutLog, clampedData: data, xpGained, sessionVolume };
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -257,13 +279,18 @@ export default function Workout() {
         toast.error('Could not save workout', { description: err?.message || 'Try again.' });
       }
     },
-    onSuccess: (_, data) => {
-      const xpGained = calculateWorkoutXp(data);
+    onSuccess: (result, _origData) => {
+      // Read clamped data + xpGained from the mutation result, NOT recompute
+      // from the original payload. Recomputing on the original input ignored
+      // the per-group cap clamping inside mutationFn and could overstate the
+      // XP by ~30% on workouts that had sets trimmed.
+      const clampedData = result?.clampedData || _origData;
+      const xpGained = result?.xpGained ?? calculateWorkoutXp(clampedData);
       if (activeSessionId) removeSession(activeSessionId);
       // Snapshot the workout for the share card *before* resetting state.
       // Capturing here means the share card preview is built from exactly
       // what was saved (including the date and the user's actual data).
-      setShareCardWorkout({ ...data, date: data.date || format(new Date(), 'yyyy-MM-dd') });
+      setShareCardWorkout({ ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') });
       resetWorkout();
       toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
       // Voice cue (no-op if user has voice cues disabled)
@@ -274,7 +301,7 @@ export default function Workout() {
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
 
       // Quest progress — non-blocking, fire-and-forget
-      const durationMin = Number(data.duration_minutes) || 0;
+      const durationMin = Number(clampedData.duration_minutes) || 0;
       Promise.all([
         quests.recordAction(user, ACTION_TYPES.WORKOUT_COMPLETED, 1),
         durationMin > 0 ? quests.recordAction(user, ACTION_TYPES.WORKOUT_MINUTES, durationMin) : null,
@@ -1121,7 +1148,7 @@ export default function Workout() {
 
       <div className="mb-4">
         <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>
-        <Textarea value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" />
+        <Textarea value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" maxLength={1000} />
       </div>
 
       <ProgressPhotoCapture workoutName={selectedRegimen?.name || t('workout.freestyle')} />

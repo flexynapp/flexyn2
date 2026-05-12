@@ -12,6 +12,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { toMeters, metersTo, formatPace, speedKmhFrom, paceSecPerKmFrom } from '@/lib/distanceUnit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -158,13 +159,23 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         await db.entities.CardioLog.update(initial.id, payload);
       } else {
         const createdLog = await db.entities.CardioLog.create(payload);
-        // Denormalise total distance on the User record for the distance leaderboard.
+        // Atomic accumulation via increment_user_distance RPC (migration 023).
+        // The previous read-modify-write raced against itself when a workout +
+        // cardio finished within ~200ms — both reads saw the same `prev` and
+        // one write lost. Falls back to the old path only if the RPC isn't
+        // available (pre-migration).
         if (Number(payload.distance_meters) > 0) {
           try {
-            const me = await db.auth.me();
-            const prev = Number(me?.total_distance_meters) || 0;
-            await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
-          } catch { /* non-blocking */ }
+            const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
+              p_delta: Number(payload.distance_meters),
+            });
+            if (rpcErr) {
+              console.warn('[Cardio] distance RPC failed, falling back:', rpcErr);
+              const me = await db.auth.me();
+              const prev = Number(me?.total_distance_meters) || 0;
+              await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+            }
+          } catch (err) { console.warn('[Cardio] distance accumulate failed:', err); }
         }
         // Fire achievement check (non-blocking)
         db.functions.invoke('updateUserXpAndAchievements', {

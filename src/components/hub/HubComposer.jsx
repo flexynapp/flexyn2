@@ -319,7 +319,14 @@ export default function HubComposer({ onClose }) {
   const handlePost = async () => {
     if (!selected) return;
 
-    // Custom meal post: food_name is required
+    // Custom meal post: food_name is required.
+    // The previous implementation did `selected.item = {...}` — directly
+    // mutating the React state object. That worked the first time but on
+    // a post-failure retry the now-non-null selected.item caused this
+    // validation branch to be skipped, bypassing food_name + profanity
+    // checks. We now build the finalized item locally and ALSO update
+    // React state so subsequent retries see the correct state.
+    let effectiveSelected = selected;
     if (selected.kind === 'meal' && !selected.item) {
       if (!customMeal.food_name.trim()) {
         toast.error('Please enter a meal name.');
@@ -329,15 +336,16 @@ export default function HubComposer({ onClose }) {
         toast.error(t('hub.composer.profanityError'));
         return;
       }
-      // Finalise the item so buildSnapshot picks it up
-      selected.item = {
+      const item = {
         food_name: customMeal.food_name.trim(),
         calories: parseFloat(customMeal.calories) || null,
         protein_g: parseFloat(customMeal.protein_g) || null,
         carbs_g: parseFloat(customMeal.carbs_g) || null,
         fat_g: parseFloat(customMeal.fat_g) || null,
       };
-      selected.summary = summarize.meal(selected.item);
+      const summary = summarize.meal(item);
+      effectiveSelected = { ...selected, item, summary };
+      setSelected((prev) => prev ? { ...prev, item, summary } : prev);
     }
 
     // Status posts: body is mandatory and is the entire post.
@@ -362,9 +370,9 @@ export default function HubComposer({ onClose }) {
     try {
       let imageUrl = null;
 
-      if (selected.kind === 'progressPhoto' && selected.item?.dataUrl) {
+      if (effectiveSelected.kind === 'progressPhoto' && effectiveSelected.item?.dataUrl) {
         try {
-          const blob = await (await fetch(selected.item.dataUrl)).blob();
+          const blob = await (await fetch(effectiveSelected.item.dataUrl)).blob();
           const file = new File([blob], `progress-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
           const result = await db.integrations.Core.UploadFile({ file });
           imageUrl = result?.file_url || null;
@@ -376,7 +384,7 @@ export default function HubComposer({ onClose }) {
         }
       }
 
-      if (selected.kind === 'meal' && mealImageFile) {
+      if (effectiveSelected.kind === 'meal' && mealImageFile) {
         try {
           const result = await db.integrations.Core.UploadFile({ file: mealImageFile });
           imageUrl = result?.file_url || null;
@@ -404,14 +412,14 @@ export default function HubComposer({ onClose }) {
       //   Status:        body field = whole post content
       //   Activity-tied: body field = caption (if any) OR auto-generated summary
       let finalBody;
-      if (selected.kind === 'status') {
+      if (effectiveSelected.kind === 'status') {
         finalBody = body.trim();
       } else {
-        const translationKey = `hub.share.body.${selected.kind}`;
+        const translationKey = `hub.share.body.${effectiveSelected.kind}`;
         const translated = t(translationKey);
         // Detect missing translation: i18n returns the raw key on miss.
         const isTranslationMissing = translated === translationKey;
-        const summary = selected.summary || '';
+        const summary = effectiveSelected.summary || '';
         const autoBody = isTranslationMissing || !summary
           ? '' // Don't post the literal key string or "Just shared my undefined"
           : translated.replace('{summary}', summary);
@@ -419,28 +427,28 @@ export default function HubComposer({ onClose }) {
         // Guard: never post an activity-tied post with empty body. Fall back to
         // a minimal language-agnostic label if everything above failed.
         if (!finalBody) {
-          finalBody = `Shared ${selected.kind}`;
+          finalBody = `Shared ${effectiveSelected.kind}`;
         }
       }
 
       // Build snapshot for activity-linked posts
-      const snapshot = selected.kind === 'status'
+      const snapshot = effectiveSelected.kind === 'status'
         ? null
-        : buildSnapshot(selected.kind, selected.item);
+        : buildSnapshot(effectiveSelected.kind, effectiveSelected.item);
 
       await hubPosts.create({
         author_email:           user.email,
         author_name:            user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
         author_avatar_url:      user.avatar_url || null,
-        post_type:              postTypeMap[selected.kind] || 'status',
+        post_type:              postTypeMap[effectiveSelected.kind] || 'status',
         body:                   finalBody,
         image_url:              imageUrl,
         privacy,
         like_count:             0,
         dislike_count:          0,
         comment_count:          0,
-        linked_entity_type:     selected.kind === 'status' ? null : selected.kind,
-        linked_entity_id:       selected.kind === 'status' ? null : (selected.item?.id || null),
+        linked_entity_type:     effectiveSelected.kind === 'status' ? null : effectiveSelected.kind,
+        linked_entity_id:       effectiveSelected.kind === 'status' ? null : (effectiveSelected.item?.id || null),
         linked_entity_snapshot: snapshot,
       });
 

@@ -75,16 +75,30 @@ export async function translateText(text, targetLang, sourceLang = 'auto') {
   // Race the whole translation against a wall-clock timeout. Returning null
   // here is the same surface as any other engine failure — the caller renders
   // "Translation unavailable" and the spinner stops.
-  const timeoutPromise = new Promise((resolve) =>
-    setTimeout(() => resolve(null), TOTAL_TIMEOUT_MS)
-  );
+  //
+  // Cleanup rule: clear the setTimeout AND abort any in-flight engine fetches
+  // as soon as Promise.race settles. Previously the timer fired up to 9s
+  // after the user already had their answer, holding a closure over `resolve`
+  // for no reason, and the per-engine AbortControllers (4s each) leaked
+  // their network requests if the racer beat them.
+  let timer;
+  let didSettle = false;
+  const abortController = new AbortController();
+  const timeoutPromise = new Promise((resolve) => {
+    timer = setTimeout(() => {
+      if (didSettle) return;
+      // Abort the in-flight network requests so we don't waste round-trips.
+      try { abortController.abort('translate-total-timeout'); } catch { /* ignore */ }
+      resolve(null);
+    }, TOTAL_TIMEOUT_MS);
+  });
 
   const workPromise = (async () => {
     // Chunk if needed
     if (trimmed.length > 480) {
       const chunks = chunkText(trimmed, 460);
       const translated = await Promise.all(
-        chunks.map(c => _translateOne(c, targetLang, sourceLang))
+        chunks.map(c => _translateOne(c, targetLang, sourceLang, abortController.signal))
       );
       if (translated.some(t => t === null)) return null;
       const combined = {
@@ -94,30 +108,50 @@ export async function translateText(text, targetLang, sourceLang = 'auto') {
       };
       return combined;
     }
-    return _translateOne(trimmed, targetLang, sourceLang);
+    return _translateOne(trimmed, targetLang, sourceLang, abortController.signal);
   })();
 
-  const result = await Promise.race([workPromise, timeoutPromise]);
-  if (result) _cacheSet(cacheKey, result);
-  return result;
+  try {
+    const result = await Promise.race([workPromise, timeoutPromise]);
+    didSettle = true;
+    if (timer) clearTimeout(timer);
+    if (result) _cacheSet(cacheKey, result);
+    return result;
+  } catch (err) {
+    didSettle = true;
+    if (timer) clearTimeout(timer);
+    throw err;
+  }
 }
 
-/** Try each engine in order until one returns a usable result. */
-async function _translateOne(text, targetLang, sourceLang) {
+/** Try each engine in order until one returns a usable result.
+ *  externalSignal — when aborted (by the wall-clock timeout) all in-flight
+ *  engine fetches abort instead of running to completion. */
+async function _translateOne(text, targetLang, sourceLang, externalSignal) {
   // Engine 1: Lingva (try each public mirror)
   for (const base of LINGVA_ENDPOINTS) {
-    const r = await _viaLingva(text, targetLang, sourceLang, base);
+    if (externalSignal?.aborted) return null;
+    const r = await _viaLingva(text, targetLang, sourceLang, base, externalSignal);
     if (r) return r;
   }
   // Engine 2: MyMemory fallback
-  const r = await _viaMyMemory(text, targetLang, sourceLang);
+  if (externalSignal?.aborted) return null;
+  const r = await _viaMyMemory(text, targetLang, sourceLang, externalSignal);
   if (r) return r;
   return null;
 }
 
-async function _fetchWithTimeout(url, ms = REQUEST_TIMEOUT_MS) {
+async function _fetchWithTimeout(url, ms = REQUEST_TIMEOUT_MS, externalSignal) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), ms);
+  const timer = setTimeout(() => controller.abort('per-request-timeout'), ms);
+  // Bridge the external (wall-clock) signal into this controller so a
+  // top-level timeout cancels in-flight engine calls instead of letting
+  // them run for their full per-request budget.
+  const onExternalAbort = () => controller.abort('external-abort');
+  if (externalSignal) {
+    if (externalSignal.aborted) controller.abort('external-already-aborted');
+    else externalSignal.addEventListener('abort', onExternalAbort, { once: true });
+  }
   try {
     return await fetch(url, {
       method: 'GET',
@@ -126,14 +160,15 @@ async function _fetchWithTimeout(url, ms = REQUEST_TIMEOUT_MS) {
     });
   } finally {
     clearTimeout(timer);
+    if (externalSignal) externalSignal.removeEventListener('abort', onExternalAbort);
   }
 }
 
-async function _viaLingva(text, targetLang, sourceLang, base) {
+async function _viaLingva(text, targetLang, sourceLang, base, externalSignal) {
   const src = sourceLang === 'auto' ? 'auto' : sourceLang;
   const url = `${base}/api/v1/${encodeURIComponent(src)}/${encodeURIComponent(targetLang)}/${encodeURIComponent(text)}`;
   try {
-    const response = await _fetchWithTimeout(url);
+    const response = await _fetchWithTimeout(url, REQUEST_TIMEOUT_MS, externalSignal);
     if (!response.ok) return null;
     const data = await response.json();
     const translatedText = data?.translation;
@@ -149,13 +184,13 @@ async function _viaLingva(text, targetLang, sourceLang, base) {
   }
 }
 
-async function _viaMyMemory(text, targetLang, sourceLang) {
+async function _viaMyMemory(text, targetLang, sourceLang, externalSignal) {
   const langpair = sourceLang === 'auto'
     ? `autodetect|${targetLang}`
     : `${sourceLang}|${targetLang}`;
   const url = `${MYMEMORY_ENDPOINT}?q=${encodeURIComponent(text)}&langpair=${encodeURIComponent(langpair)}`;
   try {
-    const response = await _fetchWithTimeout(url);
+    const response = await _fetchWithTimeout(url, REQUEST_TIMEOUT_MS, externalSignal);
     if (!response.ok) return null;
     const data = await response.json();
     const translatedText = data?.responseData?.translatedText;

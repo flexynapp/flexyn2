@@ -167,11 +167,26 @@ export const THEMES = [
 
 const ThemeContext = createContext(null);
 
-/** Apply CSS custom-property vars from a theme object to :root */
+// Track which CSS custom-properties we've set so we can clear stale ones
+// when switching to a theme that doesn't define them. Without this, a theme
+// that lacks a key (e.g. a future legendary theme without --sidebar-ring)
+// would inherit the prior theme's value silently. Today all themes happen
+// to share the same key set so this is a forward-compat safety net.
+let _previouslySetThemeKeys = new Set();
+
 function applyVars(vars) {
   if (!vars) return;
   const root = document.documentElement;
-  Object.entries(vars).forEach(([k, v]) => root.style.setProperty(k, v));
+  const newKeys = new Set(Object.keys(vars));
+  // Clear any keys we set on a prior theme that the new one doesn't define.
+  for (const oldKey of _previouslySetThemeKeys) {
+    if (!newKeys.has(oldKey)) root.style.removeProperty(oldKey);
+  }
+  // Apply the new theme's vars.
+  for (const [k, v] of Object.entries(vars)) {
+    root.style.setProperty(k, v);
+  }
+  _previouslySetThemeKeys = newKeys;
 }
 
 export function ThemeProvider({ children }) {

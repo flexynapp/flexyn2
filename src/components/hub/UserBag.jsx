@@ -239,7 +239,13 @@ function TitleList({ items, userId }) {
     },
     staleTime: 10_000,
   });
-  const equippedId = profile?.equipped_title_id;
+  // Race-safe equippedId: a useRef holds the "intent" — what the user wants
+  // equipped right now, regardless of whether the query cache has caught up.
+  // Without this, two fast taps on the same title (toggle off) could read
+  // the same pre-invalidate equippedId of `null` and re-equip the title
+  // instead of clearing it.
+  const intentRef = React.useRef(null);
+  const equippedId = intentRef.current ?? profile?.equipped_title_id;
 
   const equip = async (titleId) => {
     let id = userId;
@@ -252,6 +258,9 @@ function TitleList({ items, userId }) {
       return;
     }
     const newId = equippedId === titleId ? null : titleId;
+    // Record intent immediately so a follow-up tap sees the projected state.
+    // Sentinel '' = unequipped (so it isn't confused with "unknown" null).
+    intentRef.current = newId == null ? '' : newId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_title_id: newId })
@@ -339,7 +348,11 @@ function FrameList({ items, userId }) {
     },
     staleTime: 10_000,
   });
-  const equippedId = profile?.equipped_frame_id;
+  // See TitleList for the rationale on the intent ref — prevents a fast
+  // double-tap from reading the same pre-invalidate cache and re-equipping
+  // a frame that the user was trying to toggle off.
+  const intentRef = React.useRef(null);
+  const equippedId = intentRef.current ?? profile?.equipped_frame_id;
 
   const equip = async (frameId) => {
     let id = userId;
@@ -352,6 +365,7 @@ function FrameList({ items, userId }) {
       return;
     }
     const newId = equippedId === frameId ? null : frameId;
+    intentRef.current = newId == null ? '' : newId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_frame_id: newId })

@@ -86,9 +86,28 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
   // avatar circle. This lets gradient frames (which need their own border +
   // backgroundImage trick) render without conflicting with the default
   // `border-card` ring. Animated frames pick up keyframes via animationName.
+  //
+  // Override-order rule: defaults FIRST, frameCss LAST so any frame that
+  // defines its own borderRadius / padding / shape (square, hex, animated
+  // ring with custom padding) wins. Previously the order was reversed
+  // and every frame silently got flattened to a 2px round wrapper.
   const hasFrame = !!frameCss;
   const frameStyle = hasFrame
-    ? { ...frameCss, animationName: frameAnimation || undefined, animationDuration: frameAnimation ? '3s' : undefined, animationIterationCount: 'infinite', animationTimingFunction: 'ease-in-out', borderRadius: '9999px', padding: '2px' }
+    ? {
+        // Defaults — applied only when the frame doesn't specify them.
+        borderRadius: '9999px',
+        padding: '2px',
+        // Animation defaults; cleared/overridden below for non-animated frames.
+        animationIterationCount: 'infinite',
+        animationTimingFunction: 'ease-in-out',
+        // Frame-defined CSS wins over the defaults above.
+        ...frameCss,
+        // Animation name comes from the prop, not from frameCss. Override
+        // last so the explicit prop is authoritative. Setting animationName
+        // to undefined disables the animation when none is specified.
+        animationName: frameAnimation || undefined,
+        animationDuration: frameAnimation ? '3s' : undefined,
+      }
     : null;
 
   return (

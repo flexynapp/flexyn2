@@ -20,6 +20,7 @@ import {
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
 import { getMaxRealisticCalories } from '@/lib/cardioLimits';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { snapshot, readSnapshot, clearSnapshot } from '@/lib/cardioSession';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import * as quests from '@/lib/data/quests';
@@ -172,13 +173,20 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       };
       const createdLog = await db.entities.CardioLog.create(payload);
       clearSnapshot();
-      // Denormalise total distance on the User record for the distance leaderboard.
+      // Atomic accumulation via increment_user_distance RPC (migration 023).
+      // See CardioManualForm for context on the race this fixes.
       if (Number(payload.distance_meters) > 0) {
         try {
-          const me = await db.auth.me();
-          const prev = Number(me?.total_distance_meters) || 0;
-          await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
-        } catch { /* non-blocking */ }
+          const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
+            p_delta: Number(payload.distance_meters),
+          });
+          if (rpcErr) {
+            console.warn('[CardioIndoor] distance RPC failed, falling back:', rpcErr);
+            const me = await db.auth.me();
+            const prev = Number(me?.total_distance_meters) || 0;
+            await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+          }
+        } catch (err) { console.warn('[CardioIndoor] distance accumulate failed:', err); }
       }
       // Fire achievement check (non-blocking)
       db.functions.invoke('updateUserXpAndAchievements', {
