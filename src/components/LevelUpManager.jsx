@@ -1,11 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useSettings } from '@/lib/SettingsContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import LevelUpOverlay from '@/components/LevelUpOverlay';
 import * as capsules from '@/lib/data/capsules';
+
+// Capsule emoji per type — kept in sync with CAPSULE_META in UserBag.
+const CAPSULE_EMOJI = { standard: '📦', premium: '🎁', elite: '💠' };
+const CAPSULE_LABEL = { standard: 'Standard Capsule', premium: 'Premium Capsule', elite: 'Elite Capsule' };
 
 /**
  * Watches the authenticated user's total_xp and shows LevelUpOverlay when —
@@ -98,6 +103,28 @@ export default function LevelUpManager() {
     userProfile?.total_xp,
     levelAnimationsEnabled,
   ]);
+
+  // Listen for capsule grants from anywhere (achievement milestones, future
+  // sources like quest bundles, etc.) and surface a toast. Centralized here
+  // because LevelUpManager is already mounted globally + already handles
+  // capsule-related celebration UI.
+  useEffect(() => {
+    const handler = (e) => {
+      const { type, source, threshold } = e.detail || {};
+      if (!type) return;
+      const emoji = CAPSULE_EMOJI[type] || '🎁';
+      const label = CAPSULE_LABEL[type] || 'Capsule';
+      const subtitle =
+        source === 'achievement_milestone' && threshold
+          ? `${threshold} achievements unlocked — open it in your Bag!`
+          : 'Open it in your Bag to see what dropped.';
+      toast.success(`${emoji} ${label} earned!`, { description: subtitle, duration: 4500 });
+      // Refresh the bag's capsule count so the badge updates immediately.
+      queryClient.invalidateQueries({ queryKey: ['userCapsules', user?.email] });
+    };
+    window.addEventListener('flexyn:capsule-granted', handler);
+    return () => window.removeEventListener('flexyn:capsule-granted', handler);
+  }, [queryClient, user?.email]);
 
   return <LevelUpOverlay event={event} onDismiss={() => setEvent(null)} />;
 }

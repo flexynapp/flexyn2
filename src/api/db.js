@@ -280,6 +280,7 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
       const prevTotal = newTotal - Math.round(xp_gained);
 
       // 3. Check each milestone — insert if crossed in this grant
+      let newAchievementsCount = profile.achievements_unlocked_count || 0;
       for (const ach of XP_ACHIEVEMENTS) {
         if (prevTotal < ach.threshold && newTotal >= ach.threshold) {
           const { data: existing } = await supabase
@@ -306,12 +307,25 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
               }).catch(() => {});
             }
             // Increment the counter on the profile
+            newAchievementsCount += 1;
             await supabase
               .from('user_profiles')
-              .update({ achievements_unlocked_count: (profile.achievements_unlocked_count || 0) + 1 })
+              .update({ achievements_unlocked_count: newAchievementsCount })
               .eq('id', user.id)
               .catch(() => {});
           }
+        }
+      }
+
+      // 4. After all achievement inserts, check if any milestone capsule
+      //    rewards are owed. Idempotent via user_profiles.milestone_capsules_awarded
+      //    so we won't re-grant on subsequent unlocks/reconciliations.
+      if (newAchievementsCount > 0) {
+        try {
+          const { grantForAchievementMilestone } = await import('@/lib/data/capsules');
+          await grantForAchievementMilestone(user.id, user.email, newAchievementsCount);
+        } catch (err) {
+          console.warn('[XP] milestone capsule check failed:', err);
         }
       }
     }
@@ -349,6 +363,7 @@ async function _invokeDeleteAccount() {
     avatar_url:             null,
     total_xp:               0,
     achievements_unlocked_count: 0,
+    milestone_capsules_awarded:  0,
     total_volume_lbs:       0,
     total_distance_meters:  0,
     onboarding_complete:    false,

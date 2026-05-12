@@ -119,3 +119,101 @@ export async function grantWelcomeCapsule(userId, userEmail) {
   if (existing > 0) return; // already has capsules — nothing to do
   await _grantCapsule(userId, userEmail, 'standard');
 }
+
+// ─── Achievement-milestone capsules ──────────────────────────────────────────
+//
+// As users unlock achievements, they earn capsules at these thresholds.
+// Tiered so high counts feel meaningful — the elite drop at 100 is a real
+// flex. Idempotency is enforced by milestone_capsules_awarded on
+// user_profiles (migration 022): the column counts how many milestones
+// have already been granted, and grantForAchievementMilestone only inserts
+// capsules whose milestone index is >= awarded count.
+
+export const ACHIEVEMENT_MILESTONES = [
+  { threshold: 5,   type: 'standard' },
+  { threshold: 10,  type: 'standard' },
+  { threshold: 25,  type: 'premium'  },
+  { threshold: 50,  type: 'premium'  },
+  { threshold: 100, type: 'elite'    },
+];
+
+/**
+ * Compare a user's current unlocked-achievement count against the milestone
+ * schedule and grant any capsules they're owed but haven't received.
+ *
+ * Idempotent: safe to call from multiple paths (the XP grant in _invokeXp
+ * AND the backfill in leaderboardStats) without double-granting. Awarded
+ * count is persisted on user_profiles.milestone_capsules_awarded.
+ *
+ * Emits a `flexyn:capsule-granted` window event per capsule so the UI can
+ * surface a toast/notification without this function having any UI deps.
+ *
+ * @returns {Array<{type:string, threshold:number}>} milestones granted this call
+ */
+export async function grantForAchievementMilestone(userId, userEmail, unlockedCount) {
+  if (!userId || !userEmail || !Number.isFinite(unlockedCount)) return [];
+
+  // Read current awarded count from the source of truth (NOT the cached
+  // profile — that can be stale by minutes during a streak of unlocks).
+  const { data: profile, error: readErr } = await supabase
+    .from('user_profiles')
+    .select('milestone_capsules_awarded')
+    .eq('id', userId)
+    .maybeSingle();
+  if (readErr) {
+    console.warn('[capsules] milestone read failed:', readErr);
+    return [];
+  }
+  const alreadyAwarded = Number(profile?.milestone_capsules_awarded) || 0;
+
+  // Milestones the user has now passed (by index), minus what they've
+  // already received. Slice preserves order so we grant low→high.
+  const earnedIndices = ACHIEVEMENT_MILESTONES
+    .map((m, i) => (unlockedCount >= m.threshold ? i : -1))
+    .filter(i => i >= 0);
+  const owedIndices = earnedIndices.slice(alreadyAwarded);
+  if (owedIndices.length === 0) return [];
+
+  const owed = owedIndices.map(i => ACHIEVEMENT_MILESTONES[i]);
+
+  // Insert capsules one at a time so a partial failure still gives the
+  // user whatever portion went through, and only bump the counter by the
+  // number we actually inserted. Stop on first failure.
+  let inserted = 0;
+  for (const m of owed) {
+    try {
+      await _grantCapsule(userId, userEmail, m.type);
+      inserted += 1;
+    } catch (err) {
+      console.warn('[capsules] milestone insert failed:', err);
+      break;
+    }
+  }
+  if (inserted === 0) return [];
+
+  // Bump the awarded counter to match what actually got inserted.
+  const { error: updErr } = await supabase
+    .from('user_profiles')
+    .update({ milestone_capsules_awarded: alreadyAwarded + inserted })
+    .eq('id', userId);
+  if (updErr) {
+    console.warn('[capsules] milestone counter bump failed:', updErr);
+    // Counter didn't move — next call will try to grant these again, which
+    // would double-grant. Don't return granted list in that case so the
+    // toast doesn't fire either.
+    return [];
+  }
+
+  // Fire window events so UI can surface toasts without this module
+  // depending on sonner/i18n.
+  const granted = owed.slice(0, inserted);
+  try {
+    for (const m of granted) {
+      window.dispatchEvent(new CustomEvent('flexyn:capsule-granted', {
+        detail: { type: m.type, source: 'achievement_milestone', threshold: m.threshold },
+      }));
+    }
+  } catch { /* SSR / non-browser */ }
+
+  return granted;
+}

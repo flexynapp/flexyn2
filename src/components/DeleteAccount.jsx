@@ -116,6 +116,8 @@ export default function DeleteAccount() {
           achievements_unlocked_count: 0,
           total_volume_lbs: 0,
           total_distance_meters: 0,
+          // Reset milestone-capsule counter so a fresh start can re-earn them
+          milestone_capsules_awarded: 0,
           // Profile fields the user filled in via onboarding
           username: '',
           gender: null,

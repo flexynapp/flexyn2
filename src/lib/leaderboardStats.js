@@ -3,8 +3,12 @@
 // onboarding location step. Pre-existing users without those fields will be
 // excluded from regional leaderboards until they update their profile.
 import { db } from '@/api/db';
+import { grantForAchievementMilestone } from '@/lib/data/capsules';
 
-const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v2';
+// v3 — bumped to force one-time re-run that also grants achievement-milestone
+// capsules to pre-existing users (added in migration 022). Without this bump
+// users who already have v2's flag would never receive their back-payment.
+const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v3';
 
 /**
  * One-time client-side backfill: aggregate the current user's WorkoutLog
@@ -50,6 +54,18 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
     }
     if (Object.keys(update).length > 0) {
       await db.auth.updateMe(update);
+    }
+
+    // Back-pay achievement milestone capsules for existing users. The grant
+    // function is idempotent via user_profiles.milestone_capsules_awarded —
+    // running it here every session is safe and ensures pre-existing users
+    // get the capsules they were owed before this feature shipped.
+    if (me?.id && unlockedCount > 0) {
+      try {
+        await grantForAchievementMilestone(me.id, userEmail, unlockedCount);
+      } catch (err) {
+        console.warn('[backfill] milestone capsule grant failed:', err);
+      }
     }
 
     try { localStorage.setItem(BACKFILL_FLAG, flagValue); } catch { /* ignore */ }
