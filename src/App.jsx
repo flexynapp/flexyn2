@@ -21,6 +21,7 @@ import RestTimerOverlay from '@/components/RestTimerOverlay';
 import LevelUpManager from '@/components/LevelUpManager';
 import ThemeAnimationLayer from '@/components/ThemeAnimationLayer';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Layout from './components/Layout';
 
 // Page-level code-splitting. Each route is a separate chunk so the initial
@@ -159,6 +160,7 @@ const AuthenticatedApp = () => {
       <ThemeAnimationLayer />
       <RestTimerOverlay />
       <LevelUpManager />
+      <PWAInstallPrompt />
     </>
   );
 };

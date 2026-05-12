@@ -1030,13 +1030,35 @@ export default function Workout() {
             open={!!editingLog}
             onClose={() => setEditingLog(null)}
             onSave={async (id, data) => {
+              // Volume delta on edit. Without this, a user could log a heavy
+              // session (huge total_volume_lbs accrual for XP/leaderboards),
+              // then edit the same log down to 0 — keeping the volume credit
+              // even though the underlying log is empty.
+              const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
+              const newVolume = calculateTotalVolume(data?.exercises || []);
+              const delta = newVolume - oldVolume;
               await db.entities.WorkoutLog.update(id, data);
+              if (delta !== 0) {
+                try {
+                  await supabase.rpc('increment_user_volume', { p_delta: delta });
+                } catch (err) { console.warn('[Workout] edit volume delta failed:', err); }
+              }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+              queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
             }}
             onDelete={async (id) => {
+              // Same volume accumulator concern on delete — subtract the
+              // deleted log's contribution so leaderboards reflect reality.
+              const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
               await db.entities.WorkoutLog.delete(id);
+              if (deletedVolume > 0) {
+                try {
+                  await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+                } catch (err) { console.warn('[Workout] delete volume delta failed:', err); }
+              }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+              queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
               setEditingLog(null);
             }}
           />

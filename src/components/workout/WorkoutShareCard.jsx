@@ -14,6 +14,8 @@ import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -117,14 +119,18 @@ function drawCard(ctx, { username, dateStr, stats }) {
   ctx.font = 'bold 200px ui-sans-serif, system-ui, sans-serif';
   ctx.fillText(volumeStr, 80, 490);
 
-  // "lb" suffix
+  // Weight-unit suffix (lb / kg / stone) — pulled from stats.unit so the
+  // card shows the user's preferred unit, not the lbs internal storage.
+  const unitSuffix = stats.unit === 'kg' ? ' kg'
+                   : stats.unit === 'stone' ? ' st'
+                   : ' lb';
   ctx.fillStyle = 'rgba(255,255,255,0.6)';
   ctx.font = 'bold 60px ui-sans-serif, system-ui, sans-serif';
   const volWidth = ctx.measureText(volumeStr).width;
   ctx.font = 'bold 200px ui-sans-serif, system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = 'bold 60px ui-sans-serif, system-ui, sans-serif';
-  ctx.fillText(' lb', 80 + volWidth, 490);
+  ctx.fillText(unitSuffix, 80 + volWidth, 490);
 
   // ── Stat row: 3 secondary stats ───────────────────────────────────────
   const statBoxes = [
@@ -167,7 +173,8 @@ function drawCard(ctx, { username, dateStr, stats }) {
 
     ctx.fillStyle = '#ffffff';
     ctx.font = 'bold 56px ui-sans-serif, system-ui, sans-serif';
-    const liftLine = `${stats.topLift.name}: ${stats.topLift.weight} lb × ${stats.topLift.reps}`;
+    const liftUnit = stats.unit === 'kg' ? 'kg' : stats.unit === 'stone' ? 'st' : 'lb';
+    const liftLine = `${stats.topLift.name}: ${stats.topLift.weight} ${liftUnit} × ${stats.topLift.reps}`;
     // Truncate if too wide
     let display = liftLine;
     while (ctx.measureText(display).width > W - 160 && display.length > 10) {
@@ -195,6 +202,7 @@ function roundRect(ctx, x, y, w, h, r) {
 
 export default function WorkoutShareCard({ open, onClose, workout, username }) {
   const { tFallback } = useLanguage();
+  const { weightUnit } = useWeightUnit();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -205,7 +213,20 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
-    const stats = computeStats(workout);
+    // Volumes stored in lbs internally — convert to the user's preferred
+    // unit (kg / stone) so users see the share card in the unit they
+    // use everywhere else. Without this, a user on kg sees "TOTAL VOLUME
+    // 12500 lb" instead of the kg they actually log in.
+    const rawStats = computeStats(workout);
+    const stats = {
+      ...rawStats,
+      totalVolume: Math.round(fromLbs(rawStats.totalVolume, weightUnit)),
+      topLift: rawStats.topLift ? {
+        ...rawStats.topLift,
+        weight: Math.round(fromLbs(rawStats.topLift.weight, weightUnit) * 10) / 10,
+      } : null,
+      unit: weightUnit, // shown as the suffix in drawCard
+    };
     const dateStr = (() => {
       try { return format(new Date(workout.date || Date.now()), 'MMM d, yyyy'); }
       catch { return format(new Date(), 'MMM d, yyyy'); }

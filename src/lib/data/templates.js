@@ -18,11 +18,28 @@ export const create = (data) => {
   assertNoTextProfanity({ name: data.name, description: data.description || '' });
   return db.entities.WorkoutTemplate.create(data);
 };
-export const update = (id, data) => {
+export const update = async (id, data) => {
   const textFields = {};
   if (data.name !== undefined) textFields.name = data.name;
   if (data.description !== undefined) textFields.description = data.description;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
+
+  // Anti-attribution-laundering: if the caller is flipping is_public to true,
+  // refuse on a copy of someone else's template (i.e. original_template_id
+  // is set). Without this, a user could copy a popular template, mark it
+  // public, and effectively republish someone else's work as their own.
+  // The block is loaded from the live row (not trusted from the caller).
+  if (data.is_public === true) {
+    const { data: existing } = await supabase
+      .from('workout_templates')
+      .select('original_template_id')
+      .eq('id', id)
+      .maybeSingle();
+    if (existing?.original_template_id) {
+      throw Object.assign(new Error('cannot_publish_copy'), { code: 'COPY_NOT_PUBLISHABLE' });
+    }
+  }
+
   return db.entities.WorkoutTemplate.update(id, data);
 };
 export const remove = (id) => db.entities.WorkoutTemplate.delete(id);

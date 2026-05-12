@@ -1,19 +1,22 @@
 // src/components/hub/HubFeed.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Users, RefreshCw } from 'lucide-react';
+import { Loader2, Users, RefreshCw, UserPlus, Sparkles } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubFollows from '@/lib/data/hubFollows';
 import HubPostCard from './HubPostCard';
+import EmptyState from '@/components/EmptyState';
 
 const PAGE_SIZE = 8;
 
 export default function HubFeed({ feedTab, onAuthorClick }) {
   const { t } = useLanguage();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [following, setFollowing] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
@@ -99,30 +102,44 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   if (allPosts.length === 0) {
     const isSquadWithFollowing = feedTab === 'squad' && following.length > 0;
+    // Friendly empty state with an actionable CTA — previously was just text.
+    // The right next step depends on the surface:
+    //   - Pump empty: encourage the user to make the first post (everyone
+    //     starts here once, including the very first user on the platform).
+    //   - Squad empty (no follows): point to discover/search for people.
+    //   - Squad empty (has follows but no posts yet): same CTA as Pump —
+    //     posting yourself fills your own Squad feed too.
+    const ctaShare = {
+      label: t('hub.empty.cta.share') === 'hub.empty.cta.share' ? 'Share a workout' : t('hub.empty.cta.share'),
+      onClick: () => navigate('/workout'),
+    };
+    const ctaDiscover = {
+      label: t('hub.empty.cta.discover') === 'hub.empty.cta.discover' ? 'Find athletes' : t('hub.empty.cta.discover'),
+      // Squad empty discovery → the search overlay handles it; we route to
+      // /hub which is already on /hub, but resetting the section state via
+      // a query param tells Hub.jsx to open the search overlay.
+      onClick: () => navigate('/hub?search=open'),
+    };
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="text-center py-12 px-4"
-      >
-        <div className="w-16 h-16 mx-auto rounded-full bg-secondary flex items-center justify-center mb-3">
-          <Users className="w-7 h-7 text-muted-foreground" />
-        </div>
-        <p className="font-heading font-bold text-base mb-1">
-          {feedTab === 'pump' 
-            ? t('hub.empty.pumpTitle') 
-            : isSquadWithFollowing 
-            ? t('hub.empty.squadNoPosts')
-            : t('hub.empty.squadTitle')}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {feedTab === 'pump' 
-            ? t('hub.empty.pumpDesc') 
+      <EmptyState
+        icon={feedTab === 'pump' ? Sparkles : Users}
+        title={
+          feedTab === 'pump'
+            ? (t('hub.empty.pumpTitle') === 'hub.empty.pumpTitle' ? 'No posts yet' : t('hub.empty.pumpTitle'))
             : isSquadWithFollowing
-            ? t('hub.empty.squadNoPostsDesc')
-            : t('hub.empty.squadDesc')}
-        </p>
-      </motion.div>
+            ? (t('hub.empty.squadNoPosts') === 'hub.empty.squadNoPosts' ? "Your squad hasn't posted yet" : t('hub.empty.squadNoPosts'))
+            : (t('hub.empty.squadTitle') === 'hub.empty.squadTitle' ? 'Build your squad' : t('hub.empty.squadTitle'))
+        }
+        body={
+          feedTab === 'pump'
+            ? (t('hub.empty.pumpDesc') === 'hub.empty.pumpDesc' ? 'Be the first to share — your workouts inspire the rest of the community.' : t('hub.empty.pumpDesc'))
+            : isSquadWithFollowing
+            ? (t('hub.empty.squadNoPostsDesc') === 'hub.empty.squadNoPostsDesc' ? 'Your followed athletes haven\'t shared yet. Share your own session in the meantime!' : t('hub.empty.squadNoPostsDesc'))
+            : (t('hub.empty.squadDesc') === 'hub.empty.squadDesc' ? 'Follow other athletes to see their workouts and progress here.' : t('hub.empty.squadDesc'))
+        }
+        action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
+        secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}
+      />
     );
   }
 

@@ -51,6 +51,13 @@ export default function Hub() {
       params.delete('compose');
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
+    // ?search=open — opens the search overlay (used by empty-state CTAs
+    // to send users with no follows into discovery).
+    if (params.get('search') === 'open') {
+      setSearchOpen(true);
+      params.delete('search');
+      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 

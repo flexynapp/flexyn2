@@ -1,5 +1,6 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
@@ -8,7 +9,71 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // https://vite.dev/config/
 export default defineConfig({
   logLevel: 'error', // Suppress warnings, only show errors
-  plugins: [react()],
+  plugins: [
+    react(),
+    // PWA — generates manifest.webmanifest, registers a service worker,
+    // pre-caches the static shell, and unlocks the "Install App" prompt
+    // on Chrome/Edge/Safari. The Workbox config keeps the runtime cache
+    // small (just the shell + entry chunks); we let supabase + image
+    // requests pass through to network.
+    //
+    // After this ships, the app will:
+    //   • Be installable on Android and iOS Safari (home-screen icon).
+    //   • Load the previously-cached shell instantly on subsequent visits.
+    //   • Continue to fetch fresh translations / vendor chunks per session
+    //     because they have content-hash filenames.
+    VitePWA({
+      registerType: 'autoUpdate',
+      includeAssets: ['favicon.ico', 'robots.txt'],
+      manifest: {
+        name: 'Flexyn',
+        short_name: 'Flexyn',
+        description: 'Your personal fitness companion — workouts, nutrition, and progress.',
+        theme_color: '#f97316',
+        background_color: '#f8fafc',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: '/',
+        scope: '/',
+        icons: [
+          // Until we host our own PWA icons we reference the existing
+          // logo on the Base44 CDN — matches what `LOGO_URL` resolves to
+          // throughout the rest of the app. Replace with local files
+          // (public/pwa-192x192.png + 512x512.png) when assets move.
+          {
+            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
+            sizes: '192x192',
+            type: 'image/png',
+          },
+          {
+            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
+            sizes: '512x512',
+            type: 'image/png',
+          },
+          {
+            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
+            sizes: '512x512',
+            type: 'image/png',
+            purpose: 'maskable',
+          },
+        ],
+      },
+      workbox: {
+        // Cache the app shell (HTML, JS, CSS) for instant subsequent loads.
+        // Anything else (Supabase API, images, fonts from CDN) goes to
+        // network so we don't accidentally serve stale data.
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,webmanifest}'],
+        // Don't precache the giant tfjs/pose-detection chunks — they're
+        // already lazy-loaded only on Form Coach open. Precaching would
+        // waste storage on users who never use that feature.
+        globIgnores: ['**/vendor-tfjs-*.js', '**/vendor-pose-*.js', '**/graph_model-*.js', '**/pose-detection.esm-*.js'],
+        // Bump payload size limit — i18n chunk is ~940 KB.
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        // Supabase API calls bypass the SW entirely.
+        navigateFallbackDenylist: [/^\/api/, /^\/auth/],
+      },
+    }),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
