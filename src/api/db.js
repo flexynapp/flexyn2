@@ -391,34 +391,129 @@ async function _invokeDeleteAccount() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
   const email = user.email;
-  const tables = [
-    'workout_logs', 'cardio_logs', 'goals', 'regimens', 'nutrition_logs',
+
+  // 1. Regimens — use the tombstone-aware purge so public templates that
+  //    other users have copied don't leave dangling original_template_id
+  //    references in the clones. Private/uncopied regimens are deleted.
+  try {
+    const { purgeForUser: purgeRegimens } = await import('@/lib/data/regimens');
+    await purgeRegimens(email);
+  } catch (err) {
+    console.warn('[delete] regimen purge failed:', err);
+  }
+
+  // 2. All other user-owned rows. EVERY new table added since this
+  //    function was first written MUST be added here too — the audit
+  //    found multiple tables (loot, marketplace, leagues, notifications,
+  //    sticker reactions, reports, daily quests) that were silently
+  //    leaving orphan rows containing user-identifying data.
+  //
+  // Tables are split into two groups:
+  //   - `tables_with_created_by`: rows owned via created_by (email) AND user_id
+  //   - `tables_with_user_id_only`: rows owned via user_id only (newer tables)
+  // We delete both filter variants where applicable so we don't miss rows
+  // that were inserted before the column-sync triggers were in place.
+  const tables_with_created_by = [
+    'workout_logs', 'cardio_logs', 'goals', 'nutrition_logs',
     'body_metrics', 'achievements', 'workout_templates',
-    'hub_posts', 'hub_follows', 'hub_comments', 'hub_comment_likes',
-    'hub_reactions', 'hub_messages',
+    'hub_posts', 'hub_comments', 'hub_comment_likes', 'hub_reactions',
+    'hub_messages',
   ];
+  // Newer tables (migrations 009, 010, 014, 016, 017, 007) — user_id only.
+  const tables_with_user_id_only = [
+    'user_inventory',           // loot owned
+    'user_capsules',            // earned capsules
+    'league_members',           // league standings
+    'notifications',            // inbox
+    'post_sticker_reactions',   // sticker reactions on posts
+    'user_daily_quests',        // daily quest history
+  ];
+
   await Promise.allSettled([
-    ...tables.map(t => supabase.from(t).delete().eq('created_by', email)),
-    ...tables.map(t => supabase.from(t).delete().eq('user_id', user.id)),
+    // created_by + user_id variants for the legacy tables
+    ...tables_with_created_by.map(t => supabase.from(t).delete().eq('created_by', email)),
+    ...tables_with_created_by.map(t => supabase.from(t).delete().eq('user_id', user.id)),
+
+    // user_id-only newer tables
+    ...tables_with_user_id_only.map(t => supabase.from(t).delete().eq('user_id', user.id)),
+
+    // marketplace_listings — owned via seller_user_id + seller_email
+    supabase.from('marketplace_listings').delete().eq('seller_user_id', user.id),
+    supabase.from('marketplace_listings').delete().eq('seller_email', email),
+
+    // hub_reports — owned via reporter_user_id + reporter_email
+    supabase.from('hub_reports').delete().eq('reporter_user_id', user.id),
+    supabase.from('hub_reports').delete().eq('reporter_email', email),
+
+    // hub_posts also has an `author_email` column distinct from `created_by`.
     supabase.from('hub_posts').delete().eq('author_email', email),
+
+    // hub_follows uses two distinct identity columns.
     supabase.from('hub_follows').delete().or(`follower_email.eq.${email},followee_email.eq.${email}`),
+
+    // hub_conversations is participant-based; delete any conversation we're in.
     supabase.from('hub_conversations').delete().contains('participant_emails', [email]),
   ]);
-  await supabase.from('user_profiles').update({
-    // Clear username and onboarding flags so the user re-onboards and picks a new username.
-    // Hub posts already created keep the author_name snapshot so attribution isn't lost.
+
+  // 3. Reset every cumulative / denormalized field on the user_profiles row
+  //    AND clear every onboarding-collected field so a fresh start is truly
+  //    fresh. Username goes to null to release the handle (it's nullable
+  //    in the schema; the App.jsx re-onboarding gate handles null too).
+  //
+  // Use auth.updateMe (NOT direct supabase.update) so the column-stripping
+  // retry handles fields that might not exist on the schema yet — older
+  // environments missing some of the newer columns (e.g. loot_theme_id
+  // pre-021, milestone_capsules_awarded pre-022) won't block the reset.
+  await auth.updateMe({
+    // Identity
     username:               null,
     bio:                    '',
     avatar_url:             null,
+    // Cumulative counters / leaderboards
     total_xp:               0,
+    flex_coins:             0,
     achievements_unlocked_count: 0,
     milestone_capsules_awarded:  0,
     total_volume_lbs:       0,
     total_distance_meters:  0,
+    // Streaks
+    login_streak:           0,
+    workout_streak:         0,
+    longest_workout_streak: 0,
+    // League position
+    league_tier:            'bronze',
+    // Equipped cosmetics (loot — clear so the next account starts blank)
+    loot_theme_id:          null,
+    equipped_title_id:      null,
+    equipped_frame_id:      null,
+    preferred_theme:        null,
+    // Onboarding profile fields
+    gender:                 null,
+    birthday:               null,
+    age:                    null,
+    height_inches:          null,
+    height_cm:              null,
+    height_unit:            null,
+    weight_lbs:             null,
+    weight_kg:              null,
+    weight_unit:            null,
+    fitness_level:          null,
+    fitness_goals:          null,
+    fitness_goals_arr:      null,
+    training_days:          null,
+    preferred_workout_time: null,
+    country_code:           null,
+    state_code:             null,
+    // Onboarding gate
     onboarding_complete:    false,
     onboarding_completed:   false,
+    onboarding_completed_at: null,
+    // Defensive reset timestamp — filterAfterReset uses this to hide
+    // any row that survived the cascade (RLS denial, network error, etc.)
+    // from rendering on the post-reset account.
     account_reset_at:       new Date().toISOString(),
-  }).eq('id', user.id);
+  });
+
   _clearProfile();
 }
 
