@@ -308,12 +308,24 @@ function Confetti({ pieces = 32 }) {
 ═══════════════════════════════════════════════════════════════ */
 
 function StepHeader({ step, total, onBack }) {
+  // Hide the Back button when there's nowhere to go back to. The first
+  // form step (goal) had a broken Back button: it called `back()` →
+  // stepIdx=0 (welcome) → an auto-advance effect immediately bounced
+  // the authenticated user back to goal. The button LOOKED broken.
+  // Treating `onBack === null` as "no back" lets the parent step decide.
+  const canBack = typeof onBack === 'function';
   return (
     <div className="flex items-center gap-3 mb-7">
-      <button onClick={onBack} aria-label="Back"
-        className="w-9 h-9 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card transition-colors shrink-0">
-        <Icon name="arrow-left" size={17} strokeWidth={2.5} />
-      </button>
+      {canBack ? (
+        <button onClick={onBack} aria-label="Back"
+          className="w-9 h-9 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card transition-colors shrink-0">
+          <Icon name="arrow-left" size={17} strokeWidth={2.5} />
+        </button>
+      ) : (
+        // Spacer keeps the progress bar in the same position even when
+        // the button is hidden — no layout jump between steps.
+        <div className="w-9 h-9 shrink-0" aria-hidden="true" />
+      )}
       <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
         <motion.div className="h-full rounded-full bg-primary"
           initial={{ width: `${((step - 1) / total) * 100}%` }}
@@ -2095,7 +2107,12 @@ export default function Onboarding() {
               {stepName === 'goal' && (
                 <GoalStep step={formStep} total={TOTAL_FORM}
                   value={data.goal} onChange={v => setData(d => ({ ...d, goal: v }))}
-                  onNext={next} onBack={back} />
+                  onNext={next}
+                  // No Back button for authenticated users: a Back from
+                  // `goal` would land on `welcome`, which the auto-advance
+                  // effect immediately bounces back to `goal`. The button
+                  // would look broken. Pass null → StepHeader hides it.
+                  onBack={isAuthenticated ? null : back} />
               )}
 
               {stepName === 'experience' && (

@@ -33,6 +33,15 @@ export default defineConfig({
         //
         // Order matters: more specific patterns first, generic last.
         manualChunks: (id) => {
+          // i18n is ~1 MB raw / ~250 KB gzip of translation tables. Isolating
+          // it into its own chunk:
+          //   1. Shrinks the entry chunk dramatically (parses faster).
+          //   2. Caches across deploys — translation strings rarely change
+          //      compared to app code, so return visits skip re-downloading.
+          //   3. The chunk can be HTTP/2-pushed or prefetched independently
+          //      of the rest of the app.
+          if (id.includes('/src/lib/i18n')) return 'i18n';
+
           if (!id.includes('node_modules')) return undefined;
 
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
