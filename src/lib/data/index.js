@@ -2,12 +2,13 @@
 //
 // THE DATA-ACCESS SEAM.
 //
-// All NEW code must import from this module instead of calling base44 directly.
-// Existing code that calls `db.entities.X` is grandfathered; migrate
-// incrementally as files get touched.
+// All code outside `src/lib/data/` must import from this module instead of
+// calling `db.entities.X` directly. The ESLint config enforces this with
+// no-restricted-syntax on `db.*`.
 //
-// On migration to a different backend (Firebase, Supabase, custom Node, etc.):
-// rewrite the modules in this folder. Components and pages don't need to change.
+// On migration to a different backend (Firebase, custom Node, etc.):
+// rewrite the modules in this folder + the `src/api/db.js` adapter.
+// Components and pages don't need to change.
 
 export * as workouts from './workouts';
 export * as cardio from './cardio';

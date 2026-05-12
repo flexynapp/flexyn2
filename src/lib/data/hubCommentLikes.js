@@ -36,7 +36,8 @@ export const setLiked = async (commentId, email, liked) => {
 
   if (liked) {
     if (existing) return existing; // already liked — no-op
-    // created_by and user_id are auto-injected by base44Client.create()
+    // created_by and user_id are auto-injected by the db.entities.X.create() shim
+    // — see src/api/db.js for the enrichment logic.
     const created = await e().create({ comment_id: commentId });
     await hubComments.incrementCounter(commentId, 'like_count', +1);
     return created;

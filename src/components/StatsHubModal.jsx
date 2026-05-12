@@ -5,9 +5,9 @@
 // achievements collection, leaderboards, capsules. Opens by tapping the
 // LevelBar in the header so users can reach it from any page.
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
@@ -26,14 +26,31 @@ import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import LeaderboardsModal from '@/components/LeaderboardsModal';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import AvatarUploader from '@/components/AvatarUploader';
+import { getLootTitleById } from '@/lib/lootTitles';
+import { getLootFrameById } from '@/lib/lootFrames';
+import { RARITY } from '@/lib/lootCatalog';
 
 export default function StatsHubModal({ open, onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [leagueOpen, setLeagueOpen] = useState(false);
   const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+
+  // Live-refresh the showcase when the user equips a new title/frame/theme
+  // — without this, the hero would only update on next modal open.
+  useEffect(() => {
+    const handler = () => qc.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
+    window.addEventListener('flexyn:loot-equipped', handler);
+    window.addEventListener('flexyn:theme-changed', handler);
+    return () => {
+      window.removeEventListener('flexyn:loot-equipped', handler);
+      window.removeEventListener('flexyn:theme-changed', handler);
+    };
+  }, [qc, user?.id]);
 
   const { data: profile } = useQuery({
     queryKey: ['statsHubProfile', user?.id],
@@ -41,7 +58,7 @@ export default function StatsHubModal({ open, onClose }) {
       if (!user?.id) return null;
       const { data } = await supabase
         .from('user_profiles')
-        .select('total_xp, flex_coins, login_streak, workout_streak, longest_workout_streak')
+        .select('total_xp, flex_coins, login_streak, workout_streak, longest_workout_streak, equipped_title_id, equipped_frame_id, avatar_url, username')
         .eq('id', user.id)
         .maybeSingle();
       return data;
@@ -53,6 +70,20 @@ export default function StatsHubModal({ open, onClose }) {
   const totalXp = profile?.total_xp || 0;
   const levelInfo = calculateLevelFromXp(totalXp);
   const coins = profile?.flex_coins || 0;
+
+  // Equipped cosmetics — render in the hero so the Stats Hub feels like a
+  // "show off" surface, closing the loop with HubProfile + HubPostCard
+  // which already render them. Falls back to useAuth().user if the query
+  // hasn't returned yet so the first paint isn't bare.
+  const equippedTitleId = profile?.equipped_title_id || user?.equipped_title_id || null;
+  const equippedFrameId = profile?.equipped_frame_id || user?.equipped_frame_id || null;
+  const equippedTitle = equippedTitleId ? getLootTitleById(equippedTitleId) : null;
+  const equippedFrame = equippedFrameId ? getLootFrameById(equippedFrameId) : null;
+  const titleRarity = equippedTitle ? (RARITY[equippedTitle.rarity] ?? RARITY.common) : null;
+  const avatarUrl = profile?.avatar_url || user?.avatar_url || null;
+  const initials = (profile?.username || user?.username || user?.email || '?')
+    .slice(0, 2)
+    .toUpperCase();
 
   const handleNavigate = (path) => {
     onClose();
@@ -73,22 +104,51 @@ export default function StatsHubModal({ open, onClose }) {
             </DialogDescription>
           </VisuallyHidden.Root>
 
-          {/* Hero — level + coins. Radix DialogContent ships its own close X
-              in the corner; we don't add a second one. */}
+          {/* Hero — avatar (with equipped frame), level, equipped title, coins.
+              The avatar + title here close the Steam-style showcase loop:
+              cosmetics earned via capsules now render on HubProfile,
+              HubPostCard, AND in this Stats Hub. Radix DialogContent
+              ships its own close X — we don't add a second one. */}
           <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 px-5 pt-5 pb-6 text-white">
-            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-1">
+            <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
               {tFallback('statsHub.title', 'Your stats')}
             </p>
-            <div className="flex items-end justify-between">
-              <div>
-                <p className="font-heading font-black text-5xl leading-none drop-shadow">
-                  {tFallback('levelBar.level', 'Lv').replace('{n}', '').trim() || 'Lv'} {levelInfo.level}
-                </p>
-                <p className="text-xs opacity-80 mt-1">
-                  {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
-                </p>
+            <div className="flex items-start justify-between gap-3">
+              {/* Avatar + level + title */}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0">
+                  <AvatarUploader
+                    src={avatarUrl}
+                    initials={initials}
+                    editable={false}
+                    size={64}
+                    frameCss={equippedFrame?.css}
+                    frameAnimation={equippedFrame?.animation}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-heading font-black text-4xl leading-none drop-shadow">
+                    {tFallback('levelBar.level', 'Lv').replace('{n}', '').trim() || 'Lv'} {levelInfo.level}
+                  </p>
+                  {equippedTitle ? (
+                    <div className="flex items-center gap-1 mt-1.5 px-2 py-0.5 rounded-full bg-white/15 backdrop-blur w-fit max-w-full">
+                      <span className="text-sm leading-none shrink-0">{equippedTitle.emoji}</span>
+                      <span
+                        className="text-[11px] font-bold uppercase tracking-wider truncate"
+                        style={{ color: titleRarity?.color || 'white' }}
+                      >
+                        {equippedTitle.name}
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-xs opacity-80 mt-1">
+                      {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
+              {/* Coins */}
+              <div className="text-right shrink-0">
                 <div className="flex items-center gap-1.5 justify-end">
                   <Coins className="w-4 h-4" />
                   <span className="font-heading font-bold text-2xl tabular-nums">{coins.toLocaleString()}</span>
@@ -101,12 +161,20 @@ export default function StatsHubModal({ open, onClose }) {
                 </button>
               </div>
             </div>
-            {/* XP progress bar */}
-            <div className="mt-4 h-2 rounded-full bg-white/20 overflow-hidden">
-              <div
-                className="h-full bg-white"
-                style={{ width: `${Math.min(100, levelInfo.progressPercent || 0)}%` }}
-              />
+            {/* XP progress bar — always shown, even when title is displayed
+                (title replaced the inline XP text but the bar is still useful). */}
+            <div className="mt-4">
+              {equippedTitle && (
+                <p className="text-[10px] opacity-80 mb-1">
+                  {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
+                </p>
+              )}
+              <div className="h-2 rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className="h-full bg-white"
+                  style={{ width: `${Math.min(100, levelInfo.progressPercent || 0)}%` }}
+                />
+              </div>
             </div>
           </div>
 

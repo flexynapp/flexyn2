@@ -169,52 +169,43 @@ even when the client passes it explicitly.
 
 ---
 
-## 6. Data-layer migration steps
+## 6. Backend status (post-migration)
 
-When migrating to a new backend, the steps are:
+The Base44 → Supabase migration is complete. The data client lives at
+`src/api/db.js` and presents the same `entities.X.{filter,list,...}`
+shape the rest of the app uses. Schema is owned by the SQL migrations
+under `supabase/migrations/`.
 
-1. Implement the entities above on the new backend with the exact field
-   names and types listed.
-2. Implement the two critical server functions (`updateUserXpAndAchievements`,
-   `deleteAccountData`) with the same input/output shape.
-3. Rewrite each module in `src/lib/data/*` to call the new backend's SDK
-   instead of `base44.entities.X`. Keep the exported function names and
-   signatures identical.
-4. Replace the `base44Client.js` import in `src/lib/data/*` modules with
-   the new backend's client.
-5. New code should already be calling `data.workouts.list()` etc. via the
-   data layer. Old code that still calls `base44.entities.X` directly will
-   need to be migrated — see the migration log section below.
+The data-access seam at `src/lib/data/*` is still the convention —
+business logic (pages, components, hooks) calls into the data layer;
+the data layer calls the client. A future swap to another backend
+would only need to rewrite `src/api/db.js` + the data-layer modules.
 
----
+## 7. Server-side RPCs (security-critical)
 
-## 7. Migration log
+State changes that involve multiple rows, or where the client could lie
+about inputs, go through Postgres SECURITY DEFINER RPCs. Current set:
 
-As legacy `base44.entities.X` call sites are migrated to the data layer,
-log them here:
+| RPC | Migration | What it protects |
+|---|---|---|
+| `increment_user_xp` | base | atomic XP accumulation |
+| `increment_user_volume` | 023 | concurrent workout/cardio volume race |
+| `increment_user_distance` | 023 | same for cardio distance |
+| `set_post_reaction` | 024 | atomic like/dislike toggle (delete+insert+counter) |
+| `purchase_listing` | 025 | marketplace race + cheat |
+| `create_marketplace_listing` | 025 | ownership validation |
+| `create_notification_for` | 026 | cross-user notification whitelist |
+| `increment_league_xp` | 027 | concurrent XP earns lose updates |
+| `claim_league_resolution` | 027 | double-fire reward double-grant |
+| `claim_capsule_loot` | 028 | client-side roll cheat |
+| (sticker trigger) | 029 | inventory ownership + canonical rarity |
+| `complete_goal` | 030 | idempotent goal-complete double-credit |
+| `increment_flex_coins` | 030 | atomic coin delta |
 
-- [ ] `src/pages/Dashboard.jsx` — workout logs, cardio logs, regimens, goals
-- [ ] `src/pages/Workout.jsx` — workout logs, regimens, goals, save mutation
-- [ ] `src/pages/Progress.jsx` — workout logs, regimens, achievements, cardio logs
-- [ ] `src/pages/Nutrition.jsx` — nutrition logs
-- [ ] `src/components/DeleteAccount.jsx` — already uses cascade purge pattern
-- [ ] `src/components/LeaderboardsModal.jsx` — User.list()
-- [ ] `src/components/RegionalLeaderboardsModal.jsx` — User.list()
-- [ ] `src/components/cardio/*` — cardio logs
-- [ ] `src/components/workout/*` — workout-related entities
-- [ ] `src/components/progress/BodyMetricsTab.jsx` — body metrics
-- [ ] `src/components/regimens/RegimenForm.jsx` — regimens
-- [ ] `src/components/goals/GoalForm.jsx` — goals
-- [ ] `src/components/workout/TemplatesModal.jsx` — workout templates
-- [ ] `src/components/workout/ExerciseFormModal.jsx` — exercise forms
-- [ ] `src/lib/leaderboardStats.js` — multi-entity aggregation
-- [ ] `src/pages/Nutrition.jsx` — barcode scanner now uses `lookupBarcode()` from `src/lib/foodLookup.js`; `foodItems.findByBarcode()` uses data layer
-- [ ] `src/components/nutrition/BarcodeNotFoundModal.jsx` — uses `create` from `src/lib/data/foodItems`
-- [ ] `src/lib/foodLookup.js` — uses `findByBarcode` from data layer; all external fetch calls are here and migrate cleanly
-
-Total: ~37 files, ~115 call sites. Migration is mechanical: replace
-`base44.entities.X.method(...)` with `data.x.method(...)` per the
-data layer's exported names.
+When adding a new flow with similar properties (atomic multi-row state
+change, cross-user write, inventory-validated action), define a new RPC
+in a fresh migration file. Always include a graceful client-side fallback
+so the rollout window doesn't break pre-migration hosts.
 
 ---
 
@@ -237,23 +228,27 @@ These travel with the app to any new backend without changes.
 
 ## 9. Adding a new entity (development workflow)
 
-When the app needs a new entity (e.g., friendships, social posts, custom
-exercises), follow this exact order so the migration seam stays intact:
+When the app needs a new entity (e.g., friendships, custom exercises),
+follow this exact order so the seam stays intact:
 
-1. Create the entity on Base44 with the fields you need.
+1. Add a Supabase migration file (`supabase/migrations/NNN_*.sql`) that
+   creates the table + RLS policies + any required RPCs.
 2. Copy `src/lib/data/_template.js` to `src/lib/data/<entityname>s.js`.
-   Find/replace `__ENTITY__` with the Base44 entity name.
+   Find/replace `__ENTITY__` with the entity name (matches the table
+   name referenced by `db.entities.<Name>` in `src/api/db.js`).
 3. Add `export * as <entityname>s from './<entityname>s';` to
    `src/lib/data/index.js`.
 4. Document the entity in § 3 of this file with its field list.
-5. Add the new file to the § 7 migration log.
+5. If the new flow needs atomicity or cross-user writes, define an RPC
+   in the same migration and add it to § 7's table.
 6. In components / pages, import via the data layer:
    `import { friendships } from '@/lib/data';`
    then call `friendships.list(email)`, `friendships.create(...)`, etc.
 
-The ESLint rule (`no-restricted-syntax` on `base44.entities`) will fail
-the build if any file outside `src/lib/data/` calls Base44 directly.
-That's the safety net — if you forget steps 2–3, the build tells you.
+The ESLint rule (`no-restricted-syntax` on `db.entities`) will fail
+the build if any file outside `src/lib/data/` calls the client
+directly. That's the safety net — if you forget steps 2–3, the build
+tells you.
 
 ---
 
@@ -307,15 +302,18 @@ indexing on `(privacy, created_date)`.
 
 ## 11. AI assistant instructions
 
-If you are an AI agent (Base44, Claude, etc.) writing code in this
-project, follow these rules:
+If you are an AI agent writing code in this project, follow these rules:
 
-1. **Never call `base44.entities.X`, `base44.auth.X`, or
-   `base44.functions.invoke` from any file outside `src/lib/data/`.**
-   The build will fail. Use the data layer.
+1. **Never call `db.entities.X`, `db.auth.X`, or `db.functions.invoke`
+   from any file outside `src/lib/data/`.** The build will fail.
+   Use the data layer.
 2. **If the data layer doesn't have a function you need, add it first**
    to the appropriate module in `src/lib/data/`, then use it.
 3. **If you need a new entity**, follow § 9 above before writing the
    feature that uses it.
-4. **Keep entity field shapes platform-agnostic**: avoid Base44-specific
-   field names or behaviors leaking into the UI layer.
+4. **Atomicity / security-critical flows go through an RPC** — see § 7
+   for the pattern. Multi-row state changes, cross-user writes, and
+   anything where the client could lie about inputs all qualify.
+5. **Keep entity field shapes stable** — UI / pages should be able to
+   move between backends with no changes if the data layer + RPCs
+   provide the same surface.

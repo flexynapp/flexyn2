@@ -4,22 +4,23 @@ A personal fitness companion app for tracking workouts, nutrition, and body metr
 
 ## ⚠️ Architecture: the data-access seam
 
-This app is being prepared for migration off Base44 to a long-term
-mobile platform. **All data access must go through `src/lib/data/*`** —
-never call `base44.entities.X`, `base44.auth.X`, or
-`base44.functions.invoke` directly from components or pages.
+The Base44 migration is complete. The data client is `src/api/db.js`
+(Supabase-backed), but the same seam convention applies:
+**all data access must go through `src/lib/data/*`** — never call
+`db.entities.X`, `db.auth.X`, or `db.functions.invoke` directly from
+components or pages.
 
-The data layer is the migration seam: on platform migration, only files
-in `src/lib/data/` need to be rewritten. Everything else (pages,
-components, business logic) is platform-agnostic.
+The data layer keeps business logic platform-agnostic: a future
+swap to a different backend would only need to rewrite files in
+`src/lib/data/` (and the `src/api/db.js` adapter). Pages and
+components are insulated.
 
 See [`BACKEND_CONTRACT.md`](./BACKEND_CONTRACT.md) for:
 - The complete entity / field schema
-- Required server functions and atomicity guarantees
-- The migration log (legacy direct call sites being incrementally migrated)
-- AI-agent instructions (read this if you're an AI writing code here)
+- Server-side RPCs (atomicity-critical multi-row state changes)
+- The migration log
 
-An ESLint rule fails the build on direct `base44.*` access outside the
+An ESLint rule fails the build on direct `db.*` access outside the
 data layer — if you see that error, the fix is to use or extend the
 appropriate `src/lib/data/<entity>.js` module.
 
