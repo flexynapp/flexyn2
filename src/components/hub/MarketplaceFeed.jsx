@@ -336,6 +336,12 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
       const tradePayload = {
         v: 1,
         type: 'trade_offer',
+        // Stable id so the receiver's TradeOfferCard can persist their
+        // response across chat re-mount via localStorage. Without this the
+        // accept/decline buttons reappeared every time the chat scrolled.
+        offerId: (typeof crypto !== 'undefined' && crypto.randomUUID)
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
         status: 'pending',
         fromEmail: user.email,
         fromName,

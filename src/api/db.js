@@ -279,7 +279,13 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
       const newTotal = profile.total_xp || 0;
       const prevTotal = newTotal - Math.round(xp_gained);
 
-      // 3. Check each milestone — insert if crossed in this grant
+      // 3. Check each milestone — insert if crossed in this grant.
+      // Counter integrity rule: newAchievementsCount only advances after
+      // BOTH the achievement insert AND the user_profiles counter update
+      // succeed. Previously the counter could drift ahead of reality if
+      // either write silently failed (insert .catch swallowed, then
+      // newAchievementsCount incremented and written anyway), which caused
+      // the milestone-capsule logic to under-grant on the next call.
       let newAchievementsCount = profile.achievements_unlocked_count || 0;
       for (const ach of XP_ACHIEVEMENTS) {
         if (prevTotal < ach.threshold && newTotal >= ach.threshold) {
@@ -290,29 +296,46 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
             .eq('achievement_id', ach.id)
             .maybeSingle();
           if (!existing) {
-            await supabase.from('achievements').insert({
-              created_by: user.email,
-              user_id: user.id,
-              achievement_id: ach.id,
-              name: ach.name,
-              description: ach.description,
-              xp_awarded: ach.xp_awarded,
-              unlocked_at: new Date().toISOString(),
-            }).catch(() => {});
-            // Bonus XP for achievement itself (capped to avoid recursion)
+            const { error: insertErr } = await supabase
+              .from('achievements')
+              .insert({
+                created_by: user.email,
+                user_id: user.id,
+                achievement_id: ach.id,
+                name: ach.name,
+                description: ach.description,
+                xp_awarded: ach.xp_awarded,
+                unlocked_at: new Date().toISOString(),
+              });
+            if (insertErr) {
+              console.warn('[XP] achievement insert failed — skipping counter bump:', insertErr);
+              continue; // do NOT increment counter for an insert that failed
+            }
+            // Bonus XP for achievement itself (capped to avoid recursion).
+            // Failure here is non-fatal — the achievement row still exists.
             if (ach.xp_awarded > 0) {
               await supabase.rpc('increment_user_xp', {
                 p_user_id: user.id,
                 p_xp: ach.xp_awarded,
-              }).catch(() => {});
+              }).catch((err) => console.warn('[XP] bonus grant failed:', err));
             }
-            // Increment the counter on the profile
-            newAchievementsCount += 1;
-            await supabase
+            // Counter update — only advance the in-memory count if the DB
+            // update actually succeeded. If it fails, the inserted achievement
+            // row is still there and the next leaderboardStats reconcile will
+            // resync the counter from the source of truth.
+            const tentative = newAchievementsCount + 1;
+            const { error: updErr } = await supabase
               .from('user_profiles')
-              .update({ achievements_unlocked_count: newAchievementsCount })
-              .eq('id', user.id)
-              .catch(() => {});
+              .update({ achievements_unlocked_count: tentative })
+              .eq('id', user.id);
+            if (updErr) {
+              console.warn('[XP] achievement counter update failed:', updErr);
+              // Don't advance newAchievementsCount — the milestone capsule
+              // check at step 4 will see the un-updated count and skip
+              // grants until the reconcile fixes the underlying counter.
+              continue;
+            }
+            newAchievementsCount = tentative;
           }
         }
       }

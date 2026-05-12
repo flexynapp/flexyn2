@@ -24,28 +24,17 @@ import { useTheme } from '@/lib/ThemeContext';
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
   const { t } = useLanguage();
-  const { user, checkUserAuth } = useAuth();
+  const { user } = useAuth();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
   // instead of useAuth().user, which only loads once at bootstrap and doesn't
   // refresh when the user equips a new theme — that's why a freshly-applied
   // theme would show globally but stay default on the profile card.
+  // (AuthProvider listens for `flexyn:loot-equipped` / `flexyn:theme-changed`
+  // app-wide and refreshes useAuth().user, so this component no longer
+  // needs its own listener.)
   const { themeId: liveThemeId, lootThemeId: liveLootThemeId } = useTheme();
   const queryClient = useQueryClient();
   const isSelf = !targetUser || targetUser?.email === user?.email;
-
-  // Refresh AuthContext when ANY cosmetic is equipped/unequipped so the
-  // self-profile (which reads equipped_title_id / equipped_frame_id from
-  // useAuth) reflects the change immediately. Without this the bag UI saves
-  // to the DB but the profile card keeps showing the previously-cached state.
-  useEffect(() => {
-    const handler = () => { checkUserAuth?.(); };
-    window.addEventListener('flexyn:loot-equipped', handler);
-    window.addEventListener('flexyn:theme-changed', handler);
-    return () => {
-      window.removeEventListener('flexyn:loot-equipped', handler);
-      window.removeEventListener('flexyn:theme-changed', handler);
-    };
-  }, [checkUserAuth]);
   const email = isSelf ? user?.email : targetUser?.email;
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);

@@ -230,14 +230,32 @@ export default function Workout() {
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
       const previous = queryClient.getQueryData(['workoutLogs', user?.email]);
+      // Unique optimistic id so two queued mutations don't collide. The
+      // double-tap guard in saveWorkout SHOULD prevent two from queueing,
+      // but if anything bypasses that (background sync, programmatic call)
+      // a literal '__optimistic__' would create a React key collision.
+      const optimisticId = `__optimistic__${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       queryClient.setQueryData(['workoutLogs', user?.email], (old = []) => [
-        { id: '__optimistic__', ...data },
+        { id: optimisticId, ...data },
         ...old,
       ]);
       return { previous };
     },
-    onError: (_err, _data, ctx) => {
+    onError: (err, _data, ctx) => {
+      // Roll back the optimistic insert AND tell the user something went
+      // wrong — previously this swallowed the failure and the row just
+      // disappeared with no toast, which is the worst possible UX.
       queryClient.setQueryData(['workoutLogs', user?.email], ctx.previous);
+      console.error('[Workout] save failed:', err);
+      const code = err?.code || err?.status;
+      // RLS / permission denied surfaces a clearer hint than a generic message.
+      if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
+        toast.error('Could not save — permission denied. Try signing in again.');
+      } else if (/network|fetch|failed to fetch/i.test(err?.message || '')) {
+        toast.error('Could not save — check your connection and try again.');
+      } else {
+        toast.error('Could not save workout', { description: err?.message || 'Try again.' });
+      }
     },
     onSuccess: (_, data) => {
       const xpGained = calculateWorkoutXp(data);
@@ -483,6 +501,11 @@ export default function Workout() {
   };
 
   const saveWorkout = (forceIgnoreMissing = false) => {
+    // Guard against double-tap. saveMutation.isPending isn't true during the
+    // warning-dialog detour, so a fast double-tap on "Save anyway" could fire
+    // .mutate() twice in the same tick, producing two WorkoutLog rows AND
+    // two XP grants. This early-return is the actual safety net.
+    if (saveMutation.isPending) return;
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName]);
     if (hasAnyProfanity(notes, exerciseStrings)) {
       toast.error('Please remove inappropriate language before saving.');

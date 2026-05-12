@@ -76,6 +76,22 @@ export function AuthProvider({ children }) {
     if (authUser) await loadProfile(authUser);
   }, [loadProfile]);
 
+  // App-wide refresh on cosmetic equip / theme change. Previously this lived
+  // inside HubProfile, so equipping in the Bag from any non-profile screen
+  // (Header, sidebar, Dashboard) left `useAuth().user` stale — the sidebar
+  // avatar wouldn't pick up a freshly equipped frame until the next page
+  // navigation. Mounting the listener here means every consumer of useAuth
+  // gets the fresh row immediately after equip.
+  useEffect(() => {
+    const handler = () => { checkUserAuth().catch(() => {}); };
+    window.addEventListener('flexyn:loot-equipped', handler);
+    window.addEventListener('flexyn:theme-changed', handler);
+    return () => {
+      window.removeEventListener('flexyn:loot-equipped', handler);
+      window.removeEventListener('flexyn:theme-changed', handler);
+    };
+  }, [checkUserAuth]);
+
   const logout = useCallback((shouldRedirect = true) => {
     setUser(null);
     setIsAuthenticated(false);
