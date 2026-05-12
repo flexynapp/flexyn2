@@ -558,8 +558,12 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 <span className="text-amber-300 font-bold text-sm tabular-nums">{flexCoins.toLocaleString()}</span>
                 <Store className="w-3.5 h-3.5 text-amber-300/80 ml-0.5" />
               </button>
-              <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10">
-                <X className="w-5 h-5" />
+              <button
+                onClick={onClose}
+                aria-label="Close bag"
+                className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -576,6 +580,8 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
                   title={tab.label}
+                  aria-label={tab.label}
+                  aria-pressed={isActive}
                   className={[
                     'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
                     isActive ? 'border-purple-400 text-purple-300' : 'border-transparent text-gray-400 hover:text-gray-200',

@@ -275,7 +275,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm overflow-hidden shrink-0">
-          {otherAvatarUrl ? <img src={otherAvatarUrl} alt="" className="w-full h-full object-cover" /> : otherInitials}
+          {otherAvatarUrl ? <img src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" /> : otherInitials}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-heading font-bold text-sm truncate">{otherHandle}</p>
@@ -368,12 +368,23 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           return raw ? <span>{raw}</span> : null;
                         })()}
                         {m.attachment_url && (
-                          <img
-                            src={m.attachment_url}
-                            alt="attachment"
-                            className={`rounded-lg max-h-64 object-cover cursor-pointer ${(m.body || m.content) ? 'mt-1.5' : ''} max-w-full`}
+                          // Attachment opens full-res in a new tab. Wrapped in
+                          // a real <button> (not an <img onClick>) so it's
+                          // tabbable, keyboard-actionable (Enter/Space), and
+                          // announced by screen readers as an interactive
+                          // element instead of an image.
+                          <button
+                            type="button"
                             onClick={() => window.open(m.attachment_url, '_blank', 'noopener,noreferrer')}
-                          />
+                            aria-label="Open attachment in new tab"
+                            className={`block rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-white/60 ${(m.body || m.content) ? 'mt-1.5' : ''}`}
+                          >
+                            <img
+                              src={m.attachment_url}
+                              alt="Message attachment"
+                              className="rounded-lg max-h-64 object-cover max-w-full"
+                            />
+                          </button>
                         )}
                       </div>
                     </motion.div>

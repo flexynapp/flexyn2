@@ -49,9 +49,11 @@ SECURITY DEFINER
 SET search_path = public, extensions
 AS $$
 DECLARE
-  v_url    TEXT;
-  v_secret TEXT;
-  v_body   JSONB;
+  v_url      TEXT;
+  v_secret   TEXT;
+  v_body     JSONB;
+  v_category TEXT;
+  v_prefs    JSONB;
 BEGIN
   -- Read runtime config. Missing settings → silently no-op so the
   -- notification insert still succeeds in dev / partially-configured
@@ -66,6 +68,34 @@ BEGIN
   IF v_url IS NULL OR v_url = '' OR v_secret IS NULL OR v_secret = '' THEN
     RETURN NEW;
   END IF;
+
+  -- Honor per-category notification preferences (migration 036). If the
+  -- type maps to a category the user has muted, skip push dispatch.
+  -- The in-app row still inserts — only the push fanout is skipped.
+  -- notification_type_category() returns NULL for unmapped types; we
+  -- intentionally let those through (better than silently dropping a
+  -- new type that wasn't added to the mapping yet).
+  BEGIN
+    v_category := public.notification_type_category(NEW.type);
+    IF v_category IS NOT NULL THEN
+      SELECT notification_prefs INTO v_prefs
+        FROM public.user_profiles
+       WHERE id = NEW.user_id;
+      IF v_prefs IS NOT NULL
+         AND v_prefs ? v_category
+         AND (v_prefs ->> v_category) = 'false' THEN
+        RETURN NEW;
+      END IF;
+    END IF;
+  EXCEPTION WHEN undefined_function THEN
+    -- Migration 036 not yet applied → no prefs gating, fall through.
+    NULL;
+  WHEN OTHERS THEN
+    -- Any other error reading prefs → fall through to dispatch.
+    -- Better to over-deliver than to silently mute everyone if the
+    -- prefs subsystem is broken.
+    NULL;
+  END;
 
   -- Build the payload matching send-push's PushPayload shape.
   v_body := jsonb_build_object(

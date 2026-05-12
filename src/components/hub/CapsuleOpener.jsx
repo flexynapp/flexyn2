@@ -318,7 +318,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
-      aria-label="Open capsule"
+      aria-labelledby="capsule-opener-title"
     >
       {/* Backdrop */}
       <motion.div
@@ -341,16 +341,17 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
         {/* Header */}
         <div className="relative flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-400" />
+          <h2 id="capsule-opener-title" className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-400" aria-hidden="true" />
             Open Capsule
           </h2>
           {(phase === 'idle' || phase === 'claimed') && (
             <button
               onClick={onClose}
+              aria-label="Close capsule dialog"
               className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
             >
-              <X className="w-5 h-5" />
+              <X className="w-5 h-5" aria-hidden="true" />
             </button>
           )}
         </div>

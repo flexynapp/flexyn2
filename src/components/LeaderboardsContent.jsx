@@ -145,13 +145,14 @@ export default function LeaderboardsContent({ active = true }) {
               <motion.button
                 key={b.id}
                 onClick={() => setActiveBoard(b.id)}
+                aria-pressed={isActive}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-colors ${
                   isActive ? 'bg-white text-foreground shadow-lg' : 'bg-white/15 text-white hover:bg-white/25'
                 }`}
                 whileTap={{ scale: 0.94 }}
                 layout
               >
-                <Icon className="w-3.5 h-3.5" />
+                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
                 {t(b.labelKey)}
               </motion.button>
             );

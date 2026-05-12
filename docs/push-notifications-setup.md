@@ -97,14 +97,17 @@ before configuring the URL/secret if needed.
 In order, via the Supabase SQL editor or your migration runner:
 
 ```
-033_push_subscriptions.sql        — subscription table + upsert RPC
-034_notification_push_trigger.sql — AFTER INSERT trigger + pg_net dispatch
-035_streak_break_reminders.sql    — timezone column, cron, reminder function
+033_push_subscriptions.sql             — subscription table + upsert RPC
+034_notification_push_trigger.sql      — AFTER INSERT trigger + pg_net dispatch
+035_streak_break_reminders.sql         — timezone+language columns, streak cron, i18n
+036_notification_prefs_and_language.sql — per-category prefs JSONB + pref RPC
+037_welcome_back_and_quest_crons.sql   — welcome-back + quest-expiry crons
 ```
 
 Migration 034 requires the `pg_net` extension (preinstalled on Supabase).
-Migration 035 requires the `pg_cron` extension (also preinstalled). Both
-`CREATE EXTENSION IF NOT EXISTS` themselves — no manual setup needed.
+Migrations 035 + 037 require `pg_cron` (also preinstalled). All migrations
+`CREATE EXTENSION IF NOT EXISTS` themselves — no manual extension setup
+needed.
 
 ---
 
@@ -116,10 +119,14 @@ SELECT trigger_name, event_manipulation, action_timing
   FROM information_schema.triggers
  WHERE event_object_table = 'notifications';
 
--- (b) Cron job is registered:
+-- (b) All cron jobs are registered:
 SELECT jobid, jobname, schedule, active
   FROM cron.job
- WHERE jobname = 'streak_break_reminders_hourly';
+ WHERE jobname IN (
+   'streak_break_reminders_hourly',
+   'welcome_back_hourly',
+   'quest_expiry_15min'
+ );
 
 -- (c) Dry-run the streak reminder function manually:
 SELECT public.run_streak_break_reminders();
@@ -162,7 +169,51 @@ End-to-end smoke test:
 
 ---
 
-## 8. Tuning the streak-reminder window
+## 8. Per-category preferences (migration 036)
+
+Users can mute push categories without disabling push entirely. The
+`user_profiles.notification_prefs` JSONB column has these flags (default
+all `true`):
+
+| Category | Notification types gated |
+|----------|--------------------------|
+| `streak` | `streak_milestone`, `streak_break_warning` |
+| `quests` | `quest_claimed`, `quest_expiry_warning` |
+| `league` | `league_promoted`, `league_demoted`, `league_held` |
+| `social` | `friend_post`, `friend_follow`, `comment_reply`, `post_reaction`, `sticker_reaction`, `trade_offer` |
+| `achievements` | `pr_set`, `capsule_earned`, `coin_milestone` |
+| `engagement` | `welcome_back` |
+
+The `notify_push_fanout` trigger consults this column before dispatching.
+Notification types that don't map to a category (via
+`notification_type_category()`) always fan out — better to over-deliver
+a new type than silently drop it. To add a new category-aware type,
+add a WHEN branch in `notification_type_category` (migration 036).
+
+Client API:
+- Read: `SELECT notification_prefs FROM user_profiles WHERE id = auth.uid()`
+- Write: `supabase.rpc('update_notification_pref', { p_category: 'streak', p_enabled: false })`
+
+The Settings panel shows toggles for each category under the push
+master switch (`src/components/SettingsPanel.jsx`).
+
+---
+
+## 9. Localization
+
+Migration 035 ships `streak_break_text(language, streak)` and migration
+037 ships `welcome_back_text(language)` + `quest_expiry_text(language,
+remaining)` — pre-translated for 15 languages keyed off
+`user_profiles.preferred_language`. Unknown codes fall through to
+English.
+
+Adding a new language: append a WHEN branch to each of those three
+functions and ship a migration with the updated `CREATE OR REPLACE
+FUNCTION` definitions.
+
+---
+
+## 10. Tuning the streak-reminder window
 
 Edit `run_streak_break_reminders()` in migration 035 if you want to
 change behavior:

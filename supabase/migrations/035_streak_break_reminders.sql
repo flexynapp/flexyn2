@@ -33,7 +33,14 @@ ALTER TABLE public.user_profiles
   ADD COLUMN IF NOT EXISTS timezone_offset_minutes INTEGER,
   -- When we last sent a streak-nudge to this user. Used to enforce the
   -- 18h cooldown.
-  ADD COLUMN IF NOT EXISTS last_streak_nudge_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS last_streak_nudge_at TIMESTAMPTZ,
+  -- ISO 639-1 language code. The client (LanguageContext) reads/writes
+  -- this via db.auth.updateMe(); we read it here to render the streak-
+  -- break push text in the user's language (see streak_break_text below).
+  -- Migration 036 owns the policy/access side of this column for the
+  -- notification_prefs subsystem; we just ensure it exists so the cron
+  -- can reference it without depending on 036 running first.
+  ADD COLUMN IF NOT EXISTS preferred_language TEXT;
 
 -- ── Client-callable RPC to update the timezone offset ───────────────────
 --
@@ -79,6 +86,89 @@ GRANT EXECUTE ON FUNCTION public.update_user_timezone_offset(INTEGER) TO authent
 -- the UPDATE...RETURNING claim on last_streak_nudge_at IS the lock.
 -- Two concurrent cron runs CANNOT both claim the same user.
 
+-- ── Localized text helper ───────────────────────────────────────────────
+--
+-- Server-side translation table for the streak-break push. Adding new
+-- languages: append a WHEN branch. Falling-through to the default 'en'
+-- block means an unknown language code still ships English text (better
+-- than NULL bodies that violate the notifications schema).
+--
+-- We render TITLE and BODY as a single jsonb pair so the caller pulls
+-- both fields in one go.
+
+CREATE OR REPLACE FUNCTION public.streak_break_text(
+  p_language TEXT,
+  p_streak   INTEGER
+) RETURNS JSONB
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE COALESCE(p_language, 'en')
+    WHEN 'es' THEN jsonb_build_object(
+      'title', '🔥 Racha de ' || p_streak || ' días en riesgo',
+      'body',  'Tu racha termina a medianoche. Un entrenamiento rápido la mantiene viva.'
+    )
+    WHEN 'fr' THEN jsonb_build_object(
+      'title', '🔥 Série de ' || p_streak || ' jours en péril',
+      'body',  'Votre série se termine à minuit. Un entraînement rapide la sauve.'
+    )
+    WHEN 'de' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '-Tage-Streak in Gefahr',
+      'body',  'Dein Streak endet um Mitternacht. Ein schnelles Training rettet ihn.'
+    )
+    WHEN 'pt' THEN jsonb_build_object(
+      'title', '🔥 Sequência de ' || p_streak || ' dias em risco',
+      'body',  'Sua sequência termina à meia-noite. Um treino rápido a salva.'
+    )
+    WHEN 'it' THEN jsonb_build_object(
+      'title', '🔥 Serie di ' || p_streak || ' giorni a rischio',
+      'body',  'La tua serie finisce a mezzanotte. Un allenamento veloce la salva.'
+    )
+    WHEN 'ja' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '日連続記録が危険',
+      'body',  '深夜にストリークが途切れます。短い運動で維持できます。'
+    )
+    WHEN 'ko' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '일 연속 기록 위험',
+      'body',  '자정에 연속 기록이 끊깁니다. 짧은 운동으로 유지하세요.'
+    )
+    WHEN 'zh' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '天连胜面临中断',
+      'body',  '你的连胜将在午夜结束。一次快速锻炼即可保持。'
+    )
+    WHEN 'ar' THEN jsonb_build_object(
+      'title', '🔥 سلسلة ' || p_streak || ' أيام في خطر',
+      'body',  'تنتهي سلسلتك عند منتصف الليل. تمرين سريع يحافظ عليها.'
+    )
+    WHEN 'hi' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || ' दिन की लकीर खतरे में',
+      'body',  'आपकी लकीर आधी रात को समाप्त होगी। एक छोटा वर्कआउट इसे जीवित रखेगा।'
+    )
+    WHEN 'ru' THEN jsonb_build_object(
+      'title', '🔥 Серия ' || p_streak || ' дней под угрозой',
+      'body',  'Ваша серия закончится в полночь. Быстрая тренировка её сохранит.'
+    )
+    WHEN 'tr' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || ' günlük seri risk altında',
+      'body',  'Serin gece yarısı sona eriyor. Hızlı bir antrenman onu kurtarır.'
+    )
+    WHEN 'pl' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '-dniowa passa zagrożona',
+      'body',  'Twoja passa kończy się o północy. Szybki trening ją uratuje.'
+    )
+    WHEN 'nl' THEN jsonb_build_object(
+      'title', '🔥 ' || p_streak || '-daagse reeks loopt gevaar',
+      'body',  'Je reeks eindigt om middernacht. Een snelle workout houdt hem in leven.'
+    )
+    ELSE jsonb_build_object(
+      'title', '🔥 ' || p_streak || '-day streak at risk',
+      'body',  'Your streak ends at midnight. A quick workout keeps it alive.'
+    )
+  END;
+$$;
+
+REVOKE ALL ON FUNCTION public.streak_break_text(TEXT, INTEGER) FROM PUBLIC;
+
 CREATE OR REPLACE FUNCTION public.run_streak_break_reminders()
 RETURNS INTEGER
 LANGUAGE plpgsql
@@ -93,6 +183,8 @@ DECLARE
   v_streak     INTEGER;
   v_title      TEXT;
   v_body       TEXT;
+  v_text       JSONB;
+  v_lang       TEXT;
 BEGIN
   -- Atomic claim: select all users whose LOCAL hour is in [18, 21) AND
   -- who have a streak ≥ 2 AND haven't worked out today (in their tz)
@@ -115,7 +207,8 @@ BEGIN
        -- Local hour of day right now, derived from offset:
        AND EXTRACT(HOUR FROM (v_now + (p.timezone_offset_minutes || ' minutes')::interval) AT TIME ZONE 'UTC')
            BETWEEN 18 AND 20
-    RETURNING p.id AS user_id, p.email AS user_email, p.workout_streak, p.full_name
+    RETURNING p.id AS user_id, p.email AS user_email, p.workout_streak,
+              p.full_name, p.preferred_language
   LOOP
     v_streak := v_row.workout_streak;
 
@@ -127,12 +220,12 @@ BEGIN
       CONTINUE;
     END IF;
 
-    -- Pre-rendered, English. Client doesn't translate notification body
-    -- text on render (it stores already-translated strings — see
-    -- migration 017 schema notes). If we add server-side i18n later, we
-    -- look up the user's language column here.
-    v_title := '🔥 ' || v_streak || '-day streak at risk';
-    v_body  := 'Your streak ends at midnight. A quick workout keeps it alive.';
+    -- Server-side i18n. preferred_language is pulled in the RETURNING
+    -- clause above so we don't do an extra round trip per row.
+    v_lang  := COALESCE(v_row.preferred_language, 'en');
+    v_text  := public.streak_break_text(v_lang, v_streak);
+    v_title := v_text ->> 'title';
+    v_body  := v_text ->> 'body';
 
     INSERT INTO public.notifications
       (user_id, user_email, type, title, body, icon, link_url, metadata)

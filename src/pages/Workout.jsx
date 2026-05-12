@@ -869,6 +869,7 @@ export default function Workout() {
                 <Card
                   role="button"
                   tabIndex={0}
+                  aria-label={t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
                   className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
                   onClick={() => setGeneratorOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
@@ -896,6 +897,7 @@ export default function Workout() {
                 <Card
                   role="button"
                   tabIndex={0}
+                  aria-label="Form Coach"
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                   onClick={() => setFormCoachOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}

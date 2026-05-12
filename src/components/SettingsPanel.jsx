@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2 } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart } from 'lucide-react';
+import { supabase } from '@/api/supabaseClient';
 import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
@@ -9,8 +10,8 @@ import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { toLbs, fromLbs, formatWeightNumber } from '@/lib/weightUnit';
-import { differenceInYears, format } from 'date-fns';
+import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
+import { differenceInYears } from 'date-fns';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { toast } from 'sonner';
 
@@ -131,6 +132,42 @@ export default function SettingsPanel() {
   // sonner toasts fire while the app is open; push notifications are
   // for delivery when the app ISN'T open.
   const push = usePushSubscription();
+
+  // ── Per-category notification preferences ───────────────────────────
+  // Mirrored from profile.notification_prefs (migration 036) for instant
+  // UI feedback; the RPC update_notification_pref is fire-and-forget on
+  // toggle. We revert + toast on failure rather than blocking the UI.
+  const [prefs, setPrefs] = useState(null);
+  useEffect(() => {
+    if (profile?.notification_prefs && typeof profile.notification_prefs === 'object') {
+      setPrefs(profile.notification_prefs);
+    } else if (profile && prefs === null) {
+      // Profile loaded but column not yet populated (pre-migration 036
+      // back-fill, or freshly-created row before the DEFAULT kicked in).
+      // Show all-on so the toggles aren't stuck in an unknown state.
+      setPrefs({ streak: true, quests: true, league: true, social: true, achievements: true, engagement: true });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [profile?.notification_prefs]);
+
+  const handlePrefToggle = async (category) => {
+    if (!prefs) return;
+    const next = !prefs[category];
+    const prev = prefs;
+    // Optimistic update so the switch flips instantly.
+    setPrefs({ ...prefs, [category]: next });
+    const { error } = await supabase.rpc('update_notification_pref', {
+      p_category: category,
+      p_enabled:  next,
+    });
+    if (error) {
+      // Revert.
+      setPrefs(prev);
+      toast.error('Could not save preference — try again.');
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+  };
 
   // Handler for the push toggle. Translates browser-level outcomes
   // into user-friendly toasts so the toggle never silently fails.
@@ -266,6 +303,34 @@ export default function SettingsPanel() {
               onChange={handlePushToggle}
             />
           )}
+        </div>
+      )}
+
+      {/* Per-category push preferences. Render only when push is supported —
+          if push isn't an option the toggles are meaningless. The user can
+          still set prefs before subscribing so the prefs they want are
+          already honored the first time a push fires after they enable. */}
+      {push.isSupported && prefs && (
+        <div className="pl-5 -mt-1 space-y-1.5 border-l border-border/60 ml-1.5">
+          {[
+            { key: 'streak',       icon: Flame,  label: tFallback('settings.push.streak',       'Streak reminders') },
+            { key: 'quests',       icon: Target, label: tFallback('settings.push.quests',       'Quest updates') },
+            { key: 'league',       icon: Trophy, label: tFallback('settings.push.league',       'League results') },
+            { key: 'social',       icon: Users,  label: tFallback('settings.push.social',       'Friend activity') },
+            { key: 'achievements', icon: Star,   label: tFallback('settings.push.achievements', 'Achievements') },
+            { key: 'engagement',   icon: Heart,  label: tFallback('settings.push.engagement',   'Welcome back') },
+          ].map(({ key, icon: Icon, label }) => (
+            <div key={key} className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 flex-1 min-w-0">
+                <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" />
+                <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+              </div>
+              <ToggleSwitch
+                checked={prefs[key] !== false}
+                onChange={() => handlePrefToggle(key)}
+              />
+            </div>
+          ))}
         </div>
       )}
 
