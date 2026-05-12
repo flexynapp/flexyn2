@@ -64,31 +64,51 @@ supabase functions deploy send-push
 
 ---
 
-## 4. Database runtime settings
+## 4. Database secrets (Supabase Vault)
 
-The trigger in migration 034 reads two `current_setting()` values. Set
-them on the database so trigger sessions can see them:
+> **Why Vault and not `ALTER DATABASE`?** Managed Supabase blocks
+> `ALTER DATABASE postgres SET …` (you'd hit `42501: permission
+> denied to set parameter`). Migration 038 replaced the original
+> GUC-based wiring with Supabase Vault (`vault.decrypted_secrets`),
+> which any regular project owner can write to from the SQL Editor.
+
+Run these once in the SQL Editor (the values come from steps 1 & 3
+above):
 
 ```sql
--- Run these in the Supabase SQL editor as a database owner.
+SELECT vault.create_secret(
+  'https://<project-ref>.functions.supabase.co/send-push',
+  'send_push_url'
+);
 
-ALTER DATABASE postgres SET app.send_push_url    =
-  'https://<project-ref>.functions.supabase.co/send-push';
-
-ALTER DATABASE postgres SET app.send_push_secret =
-  '<same value as SEND_PUSH_TRIGGER_SECRET above>';
+SELECT vault.create_secret(
+  '<the same value you set as SEND_PUSH_TRIGGER_SECRET on the Edge
+   Function via `supabase secrets set`>',
+  'send_push_secret'
+);
 ```
 
-After running these, force config reload so new connections pick them
-up:
+Verify both rows exist:
 
 ```sql
-SELECT pg_reload_conf();
+SELECT name, created_at FROM vault.secrets
+ WHERE name IN ('send_push_url', 'send_push_secret');
+```
+
+To rotate the secret later (e.g. if leaked):
+
+```sql
+SELECT vault.update_secret(
+  (SELECT id FROM vault.secrets WHERE name = 'send_push_secret'),
+  '<new value>'
+);
+-- Then `supabase secrets set SEND_PUSH_TRIGGER_SECRET=<same new value>` so
+-- the Edge Function and the trigger agree.
 ```
 
 **If you skip this step the trigger gracefully no-ops** — notifications
 still insert, just without push fanout. So you can deploy the migrations
-before configuring the URL/secret if needed.
+before configuring secrets.
 
 ---
 
@@ -97,11 +117,12 @@ before configuring the URL/secret if needed.
 In order, via the Supabase SQL editor or your migration runner:
 
 ```
-033_push_subscriptions.sql             — subscription table + upsert RPC
-034_notification_push_trigger.sql      — AFTER INSERT trigger + pg_net dispatch
-035_streak_break_reminders.sql         — timezone+language columns, streak cron, i18n
+033_push_subscriptions.sql              — subscription table + upsert RPC
+034_notification_push_trigger.sql       — AFTER INSERT trigger + pg_net dispatch
+035_streak_break_reminders.sql          — timezone+language columns, streak cron, i18n
 036_notification_prefs_and_language.sql — per-category prefs JSONB + pref RPC
-037_welcome_back_and_quest_crons.sql   — welcome-back + quest-expiry crons
+037_welcome_back_and_quest_crons.sql    — welcome-back + quest-expiry crons
+038_push_secrets_via_vault.sql          — re-point trigger at Supabase Vault
 ```
 
 Migration 034 requires the `pg_net` extension (preinstalled on Supabase).
@@ -160,7 +181,8 @@ End-to-end smoke test:
 
 | Symptom | Cause | Fix |
 |---------|-------|-----|
-| Notification inserts but no push | `app.send_push_url` not set | Run ALTER DATABASE (step 4) + `pg_reload_conf()` |
+| `42501: permission denied to set parameter "app.send_push_url"` | Tried `ALTER DATABASE` on managed Supabase | Use Vault instead — see step 4 |
+| Notification inserts but no push | Vault secrets not set | Run `vault.create_secret(...)` (step 4) |
 | Edge Function returns 401 | Secret mismatch | Confirm `SEND_PUSH_TRIGGER_SECRET` (function) == `app.send_push_secret` (DB) |
 | `unauthorized` on local `supabase functions serve` | No Bearer + no trigger secret | Pass `Authorization: Bearer <anon-key>` from your test caller |
 | Subscriptions table empty after Settings toggle | Service Worker not registered | Confirm HTTPS, hard-reload, check `navigator.serviceWorker.controller` |
