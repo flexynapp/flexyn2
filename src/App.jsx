@@ -4,7 +4,7 @@ getWasFirstLaunchThisSession();
 
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "sonner"
-import { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -22,14 +22,35 @@ import LevelUpManager from '@/components/LevelUpManager';
 import ThemeAnimationLayer from '@/components/ThemeAnimationLayer';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import Layout from './components/Layout';
+
+// Page-level code-splitting. Each route is a separate chunk so the initial
+// load only fetches the page the user is actually visiting. The main bundle
+// drops by hundreds of KB because pages no longer pull every other page's
+// dependencies into the entry chunk transitively.
+//
+// Splash + SignIn + Onboarding are eagerly imported because they're shown
+// during auth bootstrap — lazy-loading them would introduce a visible
+// loading flash during the auth flow, which is bad first-impression UX.
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
 import SignInToContinue from './pages/SignInToContinue';
-import Dashboard from './pages/Dashboard';
-import Nutrition from './pages/Nutrition';
-import Workout from './pages/Workout';
-import Progress from './pages/Progress';
-import Hub from './pages/Hub';
+
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Nutrition = lazy(() => import('./pages/Nutrition'));
+const Workout   = lazy(() => import('./pages/Workout'));
+const Progress  = lazy(() => import('./pages/Progress'));
+const Hub       = lazy(() => import('./pages/Hub'));
+
+// Tiny fallback shown while a lazy page chunk loads. Designed to match the
+// loading spinner used during auth bootstrap so the visual transition is
+// continuous — same color, same size, same position.
+function PageLoader() {
+  return (
+    <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
+      <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+    </div>
+  );
+}
 
 
 const AuthenticatedApp = () => {
@@ -87,18 +108,19 @@ const AuthenticatedApp = () => {
     return <Onboarding />;
   }
 
-  // Render the main app
+  // Render the main app — each lazy page is wrapped in Suspense so the
+  // PageLoader shows for the brief moment its chunk is fetching.
   return (
     <>
       <Routes>
         <Route path="/" element={<Splash />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route element={<Layout />}>
-          <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Dashboard /></ErrorBoundary>} />
-          <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Nutrition /></ErrorBoundary>} />
-          <Route path="/workout" element={<ErrorBoundary label="Workout"><Workout /></ErrorBoundary>} />
-          <Route path="/hub" element={<ErrorBoundary label="Hub"><Hub /></ErrorBoundary>} />
-          <Route path="/progress" element={<ErrorBoundary label="Progress"><Progress /></ErrorBoundary>} />
+          <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Suspense fallback={<PageLoader />}><Dashboard /></Suspense></ErrorBoundary>} />
+          <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
+          <Route path="/workout"   element={<ErrorBoundary label="Workout"><Suspense fallback={<PageLoader />}><Workout /></Suspense></ErrorBoundary>} />
+          <Route path="/hub"       element={<ErrorBoundary label="Hub"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
+          <Route path="/progress"  element={<ErrorBoundary label="Progress"><Suspense fallback={<PageLoader />}><Progress /></Suspense></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
