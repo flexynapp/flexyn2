@@ -87,6 +87,30 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
       }
       xpReward = Math.min(xpReward, 500);
 
+      // Atomic state transition via complete_goal RPC (migration 030).
+      // Only the FIRST caller flips the status — prevents the
+      // GoalsAlmostComplete + GoalsModal racing on the same row.
+      let alreadyCompleted = false;
+      try {
+        const { supabase } = await import('@/api/supabaseClient');
+        const { data, error } = await supabase.rpc('complete_goal', { p_goal_id: goalId });
+        if (!error) {
+          if (data?.already) alreadyCompleted = true;
+        } else if (error.code === '42883' || error.code === '42P01') {
+          await db.entities.Goal.update(goalId, { status: 'completed' });
+        } else {
+          throw error;
+        }
+      } catch (rpcErr) {
+        if (rpcErr?.code === '42883' || rpcErr?.code === '42P01') {
+          await db.entities.Goal.update(goalId, { status: 'completed' });
+        } else {
+          throw rpcErr;
+        }
+      }
+
+      if (alreadyCompleted) return { alreadyCompleted: true };
+
       if (xpReward > 0) {
         // XP failure must NOT block goal completion (see GoalsModal for rationale).
         try {
@@ -100,12 +124,13 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
         }
       }
 
-      return db.entities.Goal.update(goalId, { status: 'completed' });
+      return { alreadyCompleted: false };
     },
-    onSuccess: (_, id) => {
+    onSuccess: (result, id) => {
       setDismissedIds(prev => [...prev, id]);
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
-      // Quest progress — non-blocking
+      if (result?.alreadyCompleted) return; // skip quest credit on duplicate
+      // Quest progress — only on first completion.
       quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});

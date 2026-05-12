@@ -15,10 +15,30 @@ async function _grantCapsule(userId, userEmail, capsuleType) {
   if (error) throw error;
 }
 
-/** Add flex_coins delta to the user's profile. */
+/** Add flex_coins delta to the user's profile.
+ *
+ * Atomic path uses `increment_flex_coins` RPC (migration 030). Falls back
+ * to non-atomic read-modify-write only when the RPC isn't available.
+ * The previous comment said "to avoid race conditions" but the
+ * implementation BELOW the comment was the racy version — that's now
+ * actually fixed.
+ */
 async function _addFlexCoins(userId, amount) {
   if (!amount || amount <= 0) return;
-  // Use RPC increment to avoid race conditions; fall back to a read-then-write.
+
+  try {
+    const { error } = await supabase.rpc('increment_flex_coins', { p_delta: amount });
+    if (!error) return;
+    if (error.code !== '42883' && error.code !== '42P01') {
+      console.warn('[capsules] flex_coins RPC failed, falling back:', error);
+    }
+  } catch (err) {
+    if (err?.code !== '42883' && err?.code !== '42P01') {
+      console.warn('[capsules] flex_coins RPC threw, falling back:', err);
+    }
+  }
+
+  // Legacy non-atomic fallback for pre-migration-030 hosts.
   const { data: profile, error: readErr } = await supabase
     .from('user_profiles')
     .select('flex_coins')
@@ -81,8 +101,15 @@ export async function listUnopenedCapsules(userEmail) {
 }
 
 /**
- * Mark a capsule as opened.
- * Returns the updated row.
+ * Mark a capsule as opened. Idempotent — only fires the UPDATE when
+ * is_opened is still false, so a second call from the same client (or
+ * from a concurrent tab racing the open) returns null without changing
+ * the row. Migration 028's `claim_capsule_loot` RPC already flips the
+ * flag atomically; this function is kept for the legacy fallback path
+ * where the RPC isn't available yet.
+ *
+ * Returns the updated row when this call did the flip, or null when the
+ * capsule was already opened by another path.
  */
 export async function openCapsule(capsuleId) {
   if (!capsuleId) return null;
@@ -90,6 +117,7 @@ export async function openCapsule(capsuleId) {
     .from('user_capsules')
     .update({ is_opened: true, opened_at: new Date().toISOString() })
     .eq('id', capsuleId)
+    .eq('is_opened', false)
     .select()
     .maybeSingle();
   if (error) throw error;

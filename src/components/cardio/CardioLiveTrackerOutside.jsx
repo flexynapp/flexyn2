@@ -53,6 +53,24 @@ const STABILIZE_MS = 5000;
 const STILL_SPEED_THRESHOLD_MPS = 0.5;
 const STILL_DURATION_MS = 5000;
 
+// Per-mode maximum plausible instantaneous speed (m/s). Used to reject GPS
+// outliers — urban canyon / tunnel exit / signal bounce can show as a
+// teleport even when accuracy reports look fine. A 200m jump in 2s implies
+// 100 m/s (~360 km/h), which is obviously bogus for running. Caps are
+// world-record + safety margin, NOT typical performance, so we don't
+// accidentally clip a fast sprinter.
+//   running:  Bolt sprint peak 12.4 m/s → cap 15
+//   walking:  fast walk 2.5 m/s → cap 5
+//   cycling:  Tour-de-France descents reach ~30 m/s → cap 35
+//   hiking:   trail jog max ~5 m/s → cap 8
+//   default:  cycling cap (generous fallback for unknown modes)
+const MAX_MODE_SPEED_MPS = {
+  running: 15,
+  walking: 5,
+  cycling: 35,
+  hiking:  8,
+};
+
 function weatherEmoji(code) {
   if (code === 0) return '☀️';
   if (code <= 2) return '🌤';
@@ -98,6 +116,9 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   const lastMilestoneRef = useRef(0);
   const stillSinceRef = useRef(null);
   const wasAutoPausedRef = useRef(false);
+  // True for 30s after a transient GPS error so we don't spam the toast on
+  // every retry. See onGpsError for the soft-vs-hard error distinction.
+  const transientGpsToastRef = useRef(false);
 
   // ── Restore snapshot on mount ──
   useEffect(() => {
@@ -105,7 +126,13 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     if (!snap || snap.kind !== 'outside' || snap.mode !== mode) return;
     startedAtRef.current = snap.startedAt;
     pausedTotalMsRef.current = snap.pausedTotalMs || 0;
-    if (snap.pauseStartedAt) pauseStartedAtRef.current = snap.pauseStartedAt;
+    // Recovery always lands in a paused state. The snapshot may or may not
+    // include a pauseStartedAt value — if it doesn't (e.g. the app was
+    // killed while tracking), we MUST initialize one anyway, otherwise
+    // resume() does `Date.now() - null` → NaN and the timer corrupts
+    // for the rest of the session. Default to savedAt-or-now so the
+    // paused-time accounting only counts the gap since recovery.
+    pauseStartedAtRef.current = snap.pauseStartedAt || snap.savedAt || Date.now();
     trackRef.current = snap.track || [];
     distanceMetersRef.current = snap.distanceMeters || 0;
     lastAcceptedRef.current = snap.track?.length ? snap.track[snap.track.length - 1] : null;
@@ -264,6 +291,23 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     if (lastAcceptedRef.current) {
       const d = haversineMeters(lastAcceptedRef.current, fix);
       if (d < MIN_MOVE_METERS) return;
+
+      // GPS outlier rejection. Even with accuracy < 30m, a fix can be plain
+      // wrong (urban canyon, tunnel exit, signal bounce) and report a 200m
+      // jump in 2s. Reject any sample whose implied speed exceeds the mode's
+      // physical maximum. We DON'T update lastAcceptedRef in this case so
+      // subsequent samples are compared against the last known-good point —
+      // a single jump is silently dropped without polluting downstream
+      // distance accumulation.
+      const dtSec = Math.max(0.001,
+        (fix.timestamp_ms - (lastAcceptedRef.current.timestamp_ms || fix.timestamp_ms)) / 1000);
+      const impliedSpeed = d / dtSec;
+      const maxSpeed = MAX_MODE_SPEED_MPS[mode] ?? MAX_MODE_SPEED_MPS.cycling;
+      if (impliedSpeed > maxSpeed) {
+        // Discard the outlier — don't add distance, don't advance lastAccepted.
+        return;
+      }
+
       distanceMetersRef.current += d;
     }
     lastAcceptedRef.current = fix;
@@ -294,12 +338,31 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   };
 
   const onGpsError = (err) => {
-    if (err.code === err.PERMISSION_DENIED) setError('denied');
-    else setError('unavailable');
-    setStatus('error');
-    if (watchIdRef.current != null) {
-      navigator.geolocation.clearWatch(watchIdRef.current);
-      watchIdRef.current = null;
+    // Hard error — permission denied. The user MUST grant access; transition
+    // to error state, clear the watch, surface the recovery UI.
+    if (err.code === err.PERMISSION_DENIED) {
+      setError('denied');
+      setStatus('error');
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
+      }
+      return;
+    }
+    // Soft errors — POSITION_UNAVAILABLE or TIMEOUT happen routinely during
+    // a long run (entering a tunnel, brief signal loss). The OS retries on
+    // its own. Previously these transitioned to status='error' and CLEARED
+    // THE WATCH, killing the entire session. Now they just emit a transient
+    // toast on the first occurrence per pause-window and let the watch keep
+    // running; distance accumulation is already paused naturally because
+    // no fix is arriving.
+    if (!transientGpsToastRef.current) {
+      transientGpsToastRef.current = true;
+      toast.message(t('cardio.live.gpsTransient') === 'cardio.live.gpsTransient'
+        ? 'GPS signal weak — keep moving, it should recover.'
+        : t('cardio.live.gpsTransient'));
+      // Allow the toast to fire again after 30s of continued errors.
+      setTimeout(() => { transientGpsToastRef.current = false; }, 30000);
     }
   };
 
@@ -388,8 +451,31 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     onCancel();
   };
 
+  // Ref-based guard against double-tap on Save. The Save button is
+  // `disabled={saving}` but `setSaving(true)` is async and React can
+  // batch a rapid double-tap on mobile so two clicks fire before the
+  // button re-renders disabled. The ref synchronously blocks the
+  // second call.
+  const savingGuardRef = useRef(false);
+
   // ── Save ──
   const save = async () => {
+    if (savingGuardRef.current) return;
+    savingGuardRef.current = true;
+
+    // Refuse to save a 0-distance / sub-30s outdoor session — previously
+    // these still went through and credited XP/league/quest/streak from
+    // empty data (e.g. user opened the tracker, never moved, hit Finish).
+    if (distanceMetersRef.current <= 0 || elapsedSeconds < 30) {
+      savingGuardRef.current = false;
+      toast.error(
+        distanceMetersRef.current <= 0
+          ? 'No distance tracked yet — start moving before saving.'
+          : 'Session too short to save (under 30 seconds).'
+      );
+      return;
+    }
+
     setSaving(true);
     try {
       const cappedCalories = Math.min(
@@ -481,9 +567,16 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         .catch(() => {});
 
       onSaved();
-    } catch {
+    } catch (err) {
+      console.error('[CardioOutside] save failed:', err);
       toast.error(t('cardio.saveFailed'));
+    } finally {
+      // ALWAYS release the saving state, regardless of success / failure /
+      // success-path-threw. The previous code only reset on the error
+      // branch, so any post-create error (PR detection throws, etc.)
+      // stranded the user on the saving spinner forever.
       setSaving(false);
+      savingGuardRef.current = false;
     }
   };
 
@@ -504,6 +597,25 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       wakeLockRef.current = null;
     };
   }, [status]);
+
+  // Belt-and-braces wake-lock cleanup on unmount. The status-dependent
+  // effect above releases the lock when status changes, but if the user
+  // navigates away mid-tracking (route change, back button, hard close)
+  // the component unmounts without status changing first — the lock
+  // would otherwise remain acquired, draining battery silently.
+  useEffect(() => () => {
+    try { wakeLockRef.current?.release?.(); } catch {}
+    wakeLockRef.current = null;
+    // Also clear any leftover watch / tick — defense in depth.
+    if (watchIdRef.current != null) {
+      try { navigator.geolocation.clearWatch(watchIdRef.current); } catch {}
+      watchIdRef.current = null;
+    }
+    if (tickIdRef.current) {
+      try { clearInterval(tickIdRef.current); } catch {}
+      tickIdRef.current = null;
+    }
+  }, []);
 
   // ── Auto-resume watch ──
   useEffect(() => {

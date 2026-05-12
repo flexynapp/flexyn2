@@ -142,8 +142,23 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     onCancel();
   };
 
+  // Ref-based guard against double-tap on Save. See CardioOutside for the
+  // full rationale — same race condition applies here.
+  const savingGuardRef = useRef(false);
+
   // ── Save ──
   const save = async () => {
+    if (savingGuardRef.current) return;
+    savingGuardRef.current = true;
+
+    // Block 0-distance / sub-30s saves. Indoor sessions with no movement
+    // are not a thing — refusing here prevents accidental empty-credit saves.
+    if (elapsedSeconds < 30) {
+      savingGuardRef.current = false;
+      toast.error('Session too short to save (under 30 seconds).');
+      return;
+    }
+
     setSaving(true);
     try {
       const finalCalories = estimateCalories({
@@ -243,9 +258,12 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         .catch(() => {});
 
       onSaved();
-    } catch {
+    } catch (err) {
+      console.error('[CardioIndoor] save failed:', err);
       toast.error(t('cardio.saveFailed'));
+    } finally {
       setSaving(false);
+      savingGuardRef.current = false;
     }
   };
 
@@ -268,7 +286,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   }, [status]);
 
   // ── Cleanup on unmount ──
+  // Belt-and-braces wake-lock release (the status-dependent effect above
+  // only releases on status change, not on bare unmount) plus tick cleanup.
   useEffect(() => () => {
+    try { wakeLockRef.current?.release?.(); } catch {}
+    wakeLockRef.current = null;
     if (tickIdRef.current) clearInterval(tickIdRef.current);
   }, []);
 

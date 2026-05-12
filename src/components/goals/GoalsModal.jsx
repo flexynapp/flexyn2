@@ -76,13 +76,42 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       if (hasWeight && hasReps) xpReward = Math.floor(goal.target_weight * 0.5 + goal.target_reps * 3);
       else if (hasWeight) xpReward = Math.floor(goal.target_weight * 0.75);
       else if (hasReps) xpReward = Math.floor(goal.target_reps * 4);
+      xpReward = Math.min(xpReward, 500); // Hard cap.
 
-      // Hard cap: goal XP cannot exceed 500 regardless of targets
-      xpReward = Math.min(xpReward, 500);
+      // Idempotency: atomic state transition via complete_goal RPC (migration
+      // 030). Only the FIRST caller flips status active→completed; subsequent
+      // callers get { already: true } and we SKIP the XP grant + quest progress
+      // so a stale-state double-tap can't double-credit the user.
+      // Falls back to the legacy direct UPDATE when the RPC isn't available
+      // (pre-migration). The fallback path retains the double-credit risk but
+      // matches old behavior so it doesn't break.
+      let alreadyCompleted = false;
+      try {
+        const { supabase } = await import('@/api/supabaseClient');
+        const { data, error } = await supabase.rpc('complete_goal', { p_goal_id: goalId });
+        if (!error) {
+          if (data?.already) alreadyCompleted = true;
+        } else if (error.code === '42883' || error.code === '42P01') {
+          // RPC missing — legacy direct write below.
+          await goalsData.update(goalId, { status: 'completed' });
+        } else {
+          throw error;
+        }
+      } catch (rpcErr) {
+        if (rpcErr?.code === '42883' || rpcErr?.code === '42P01') {
+          await goalsData.update(goalId, { status: 'completed' });
+        } else {
+          throw rpcErr;
+        }
+      }
 
+      if (alreadyCompleted) {
+        // Skip all reward grants. Return 0 XP so the toast reflects no-op.
+        return { xpReward: 0, alreadyCompleted: true };
+      }
+
+      // First-time completion path — grant XP, snapshot achieved values.
       if (xpReward > 0) {
-        // XP failure must NOT block goal completion. The user finished the goal —
-        // they get credit even if the XP/achievement service is temporarily down.
         try {
           await db.functions.invoke('updateUserXpAndAchievements', {
             xp_gained: xpReward,
@@ -95,18 +124,25 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       }
       // Snapshot the achieved values at completion time so Hub posts can
       // display "achieved / target" rather than just the target.
-      const achievedUpdate = { status: 'completed' };
+      const achievedUpdate = {};
       if (goal?.target_weight > 0) achievedUpdate.achieved_weight = goal.target_weight;
       if (goal?.target_reps > 0) achievedUpdate.achieved_reps = goal.target_reps;
-      await goalsData.update(goalId, achievedUpdate);
-      return xpReward;
+      if (Object.keys(achievedUpdate).length > 0) {
+        await goalsData.update(goalId, achievedUpdate);
+      }
+
+      return { xpReward, alreadyCompleted: false };
     },
-    onSuccess: (xpReward) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
-      toast.success(t('goals.toast.completed').replace('{xp}', xpReward));
-      // Quest progress — non-blocking
+      if (result?.alreadyCompleted) {
+        // Idempotent double-tap path — no toast.
+        return;
+      }
+      toast.success(t('goals.toast.completed').replace('{xp}', result?.xpReward ?? 0));
+      // Quest progress — only on the genuine first completion.
       quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});

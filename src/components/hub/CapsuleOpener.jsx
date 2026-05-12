@@ -4,11 +4,28 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
-import { ITEMS, RARITY, rollCapsule, rollVariant, VARIANTS } from '@/lib/lootCatalog';
-import { rollLootTheme, getLootThemeById } from '@/lib/lootThemes';
-import { rollLootTitle } from '@/lib/lootTitles';
-import { rollLootFrame } from '@/lib/lootFrames';
+import { toast } from 'sonner';
+import { ITEMS, RARITY, rollCapsule, rollVariant, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { LOOT_THEMES, rollLootTheme, getLootThemeById } from '@/lib/lootThemes';
+import { LOOT_TITLES, rollLootTitle } from '@/lib/lootTitles';
+import { LOOT_FRAMES, rollLootFrame } from '@/lib/lootFrames';
+import { supabase } from '@/api/supabaseClient';
 import StickerDisplay from './StickerDisplay';
+
+// Given a (category, rarity) tuple from the server-side roll, pick a random
+// specific item from the client-side catalog that matches. Items within the
+// same rarity tier are equivalent in value, so this residual client-side
+// choice doesn't enable a meaningful exploit (vs. forcing the rarity tier
+// itself, which IS now server-rolled).
+function pickItemForRoll(category, rarity) {
+  let pool = [];
+  if (category === 'sticker') pool = getItemsByRarity(rarity);
+  else if (category === 'theme') pool = LOOT_THEMES.filter(t => t.rarity === rarity);
+  else if (category === 'title') pool = LOOT_TITLES.filter(t => t.rarity === rarity);
+  else if (category === 'frame') pool = LOOT_FRAMES.filter(f => f.rarity === rarity);
+  if (!pool.length) return null;
+  return pool[Math.floor(Math.random() * pool.length)];
+}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_W     = 130; // px
@@ -168,53 +185,105 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
     ? '💠' : capsule?.capsule_type === 'premium'
     ? '🎁' : '📦';
 
-  // ── Trigger spin ────────────────────────────────────────────────────────────
-  const handleOpen = useCallback(() => {
-    const capsuleType = capsule?.capsule_type ?? 'standard';
+  // Synchronous guard against double-tap on Open (in addition to the
+  // phase state machine, which is async). Without this a fast mobile
+  // double-tap could fire two RPC calls before phase flips.
+  const openGuardRef = useRef(false);
 
-    // Roll order matters: rarer drop types check first so a single open can
-    // produce only one type. Probabilities sum to <1 so the fallback (sticker)
-    // is the most common outcome.
-    //   1. Theme  (~3 % premium / 8 % elite)
-    //   2. Title  (~5 % standard / 12 % premium / 20 % elite)
-    //   3. Frame  (~4 % standard / 10 % premium / 18 % elite)
-    //   4. Sticker (the rest — most common)
-    //
-    // For non-sticker drops we build the reel using a placeholder card so
-    // the animation still runs visually.
-    const rollers = [
-      { fn: rollLootTheme, type: 'theme' },
-      { fn: rollLootTitle, type: 'title' },
-      { fn: rollLootFrame, type: 'frame' },
-    ];
-    for (const r of rollers) {
-      const item = r.fn(capsuleType);
-      if (item) {
-        const placeholder = {
-          id: item.id,
-          emoji: item.emoji,
-          name: item.name,
-          rarity: item.rarity,
-          type: r.type,
-        };
-        const cards = buildReel(placeholder);
-        setWonItem(item);
-        setReel(cards);
-        setPhase('spinning');
-        return;
+  // ── Trigger spin ────────────────────────────────────────────────────────────
+  // Server-authoritative roll (migration 028). The RPC:
+  //   1. Locks the capsule row atomically (concurrent opens fail).
+  //   2. Rolls rarity using server random() with capsule-type-specific odds.
+  //   3. Rolls category (sticker / theme / title / frame).
+  //   4. Rolls variant (foil / gold / diamond — sticker only).
+  //   5. Persists the rolled values back onto the capsule row.
+  // The client then picks a SPECIFIC item from its catalog matching the
+  // server-rolled (category, rarity) tuple. Items in the same tier are
+  // equivalent in value so the residual client-side choice is safe.
+  //
+  // Falls back to the legacy fully-client roll only if the RPC doesn't
+  // exist yet (pre-migration-028).
+  const handleOpen = useCallback(async () => {
+    if (openGuardRef.current) return;
+    openGuardRef.current = true;
+
+    const capsuleType = capsule?.capsule_type ?? 'standard';
+    const capsuleId   = capsule?.id;
+
+    let rolledItem = null;
+    let rolledVariant = null;
+    let usedFallback = false;
+
+    if (capsuleId) {
+      try {
+        const { data, error } = await supabase.rpc('claim_capsule_loot', {
+          p_capsule_id: capsuleId,
+        });
+        if (!error && data) {
+          rolledVariant = data.variant || null;
+          rolledItem    = pickItemForRoll(data.category, data.rarity);
+          // If catalog has no match for the server-rolled tuple (e.g. the
+          // server rolled a rarity that no client item supports yet), fall
+          // back to a sticker of the same rarity.
+          if (!rolledItem) {
+            const fallback = getItemsByRarity(data.rarity);
+            rolledItem = fallback.length ? fallback[0] : null;
+          }
+        } else if (error && (error.code === '42883' || error.code === '42P01')) {
+          // RPC missing — fall back to legacy.
+          usedFallback = true;
+        } else if (error) {
+          console.error('[CapsuleOpener] RPC error:', error);
+          toast.error('Could not open capsule. Try again.');
+          openGuardRef.current = false;
+          return;
+        }
+      } catch (err) {
+        console.error('[CapsuleOpener] RPC threw:', err);
+        if (err?.code !== '42883' && err?.code !== '42P01') {
+          toast.error('Could not open capsule. Try again.');
+          openGuardRef.current = false;
+          return;
+        }
+        usedFallback = true;
+      }
+    } else {
+      usedFallback = true;
+    }
+
+    // Legacy fully-client roll — only runs when the RPC isn't available.
+    // Pre-migration hosts retain the old behavior so the capsule UI still
+    // works during the rollout window.
+    if (usedFallback || !rolledItem) {
+      const rollers = [
+        { fn: rollLootTheme, type: 'theme' },
+        { fn: rollLootTitle, type: 'title' },
+        { fn: rollLootFrame, type: 'frame' },
+      ];
+      for (const r of rollers) {
+        const item = r.fn(capsuleType);
+        if (item) { rolledItem = item; break; }
+      }
+      if (!rolledItem) {
+        rolledItem    = rollCapsule(capsuleType);
+        rolledVariant = rollVariant(capsuleType);
       }
     }
 
-    // Sticker fallback — the regular path
-    const won  = rollCapsule(capsuleType);
-    const variant = rollVariant(capsuleType);
-    const wonWithVariant = { ...won, variant };
-    const cards = buildReel(won);
+    if (!rolledItem) {
+      toast.error('No loot available — capsule pool empty.');
+      openGuardRef.current = false;
+      return;
+    }
+
+    const wonWithVariant = rolledVariant ? { ...rolledItem, variant: rolledVariant } : rolledItem;
+    const cards = buildReel(rolledItem);
     setWonItem(wonWithVariant);
     setReel(cards);
     setPhase('spinning');
     // Actual CSS animation is kicked off in the useEffect below once the
-    // reel DOM element is mounted.
+    // reel DOM element is mounted. Guard stays set — only the parent
+    // closing the modal will reset it via component unmount.
   }, [capsule]);
 
   // ── Claim ────────────────────────────────────────────────────────────────────

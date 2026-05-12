@@ -3,16 +3,20 @@
 
 import { supabase } from '@/api/supabaseClient';
 
-/** Fetch all sticker reactions for a post, oldest first. */
-export async function getPostReactions(postId) {
+/** Fetch the most recent N sticker reactions for a post (default 50).
+ *  Capped to avoid hammering the DB on viral posts; the UI shows a
+ *  "+N more" rollup when the count exceeds the limit. */
+export async function getPostReactions(postId, limit = 50) {
   if (!postId) return [];
   const { data, error } = await supabase
     .from('post_sticker_reactions')
     .select('*')
     .eq('post_id', postId)
-    .order('created_at', { ascending: true });
+    .order('created_at', { ascending: false })
+    .limit(limit);
   if (error) throw error;
-  return data ?? [];
+  // Reverse for chronological display order (UI expects oldest-first).
+  return (data ?? []).reverse();
 }
 
 /** Get the current user's sticker reaction for a post (or null). */
