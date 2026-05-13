@@ -8,6 +8,7 @@
 // Nothing outside this file needs to change for the migration.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabaseClient';
+import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 
 /* ── Entity name → Postgres table name ─────────────────────────────────── */
 const TABLE = {
@@ -216,12 +217,19 @@ const auth = {
     });
   },
 
-  /** Sign out and optionally redirect. */
-  logout(redirectUrl) {
+  /**
+   * Sign out and optionally redirect.
+   *
+   * Privacy: drop this device's push subscription BEFORE signOut so
+   * the next user on the same device doesn't inherit pushes (security
+   * audit, migration 042 doc). See src/lib/pushCleanup.js. Cleanup is
+   * fire-and-forget — failures never block sign-out.
+   */
+  async logout(redirectUrl) {
     _clearProfile();
-    supabase.auth.signOut().then(() => {
-      window.location.href = redirectUrl ?? '/';
-    });
+    await unsubscribePushOnLogout();
+    try { await supabase.auth.signOut(); }
+    finally { window.location.href = redirectUrl ?? '/'; }
   },
 
   /** Returns true if there is an active session. */

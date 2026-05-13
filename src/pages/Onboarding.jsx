@@ -1031,6 +1031,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             value={username}
             onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="e.g. jordan_lifts"
+            maxLength={20}
             className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[14px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
@@ -1486,6 +1487,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
             value={username}
             onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="e.g. jordan_lifts"
+            maxLength={20}
             className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[15px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1.5">{usernameError}</p>}

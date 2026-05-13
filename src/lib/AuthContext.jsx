@@ -2,6 +2,7 @@
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
+import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 
 const AuthContext = createContext();
 
@@ -113,12 +114,19 @@ export function AuthProvider({ children }) {
     };
   }, [checkUserAuth]);
 
-  const logout = useCallback((shouldRedirect = true) => {
+  const logout = useCallback(async (shouldRedirect = true) => {
+    // Privacy: drop this device's push subscription BEFORE signOut so
+    // the next user on the same device doesn't inherit pushes. See
+    // src/lib/pushCleanup.js for the rationale.
+    await unsubscribePushOnLogout();
+
     setUser(null);
     setIsAuthenticated(false);
-    supabase.auth.signOut().then(() => {
+    try {
+      await supabase.auth.signOut();
+    } finally {
       if (shouldRedirect) window.location.href = '/';
-    });
+    }
   }, []);
 
   const navigateToLogin = useCallback(() => {

@@ -9,6 +9,13 @@
 //   height?: number — container height in px (default 240)
 //   interactive?: boolean — when false, disables zoom/drag (default true)
 
+// Bundle the leaflet stylesheet via JS. Previously this CSS was loaded
+// synchronously from unpkg.com in index.html — a single-point-of-failure
+// that took the cardio map down whenever unpkg blipped. The npm package
+// ships the CSS and Vite handles it through the asset pipeline now, so
+// it lands in our own /assets/ chunk and gets the same long-cache
+// headers as everything else.
+import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Polyline, CircleMarker } from 'react-leaflet';
 
 export default function RouteMap({ track, height = 240, interactive = true }) {

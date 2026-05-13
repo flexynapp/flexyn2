@@ -55,26 +55,16 @@ export default defineConfig({
         start_url: '/',
         scope: '/',
         icons: [
-          // Until we host our own PWA icons we reference the existing
-          // logo on the Base44 CDN — matches what `LOGO_URL` resolves to
-          // throughout the rest of the app. Replace with local files
-          // (public/pwa-192x192.png + 512x512.png) when assets move.
-          {
-            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
-            sizes: '192x192',
-            type: 'image/png',
-          },
-          {
-            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
-            sizes: '512x512',
-            type: 'image/png',
-          },
-          {
-            src: 'https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          // Self-hosted PWA icons. The SVG covers most install
+          // scenarios; PNG variants take over on Android (which
+          // currently can't render SVG manifest icons reliably) and
+          // iOS Safari pinned/install. Place the PNGs in /public/
+          // before shipping a production build — see docs/icons-todo.md
+          // for the file list and recommended source.
+          { src: '/favicon.svg',  sizes: 'any',     type: 'image/svg+xml' },
+          { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
       // NOTE: with `strategies: 'injectManifest'`, the `workbox` field is

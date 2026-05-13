@@ -5,6 +5,7 @@ getWasFirstLaunchThisSession();
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "sonner"
 import React, { useEffect, lazy, Suspense } from 'react';
+import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -198,6 +199,13 @@ const AuthenticatedApp = () => {
 
 function App() {
   return (
+    // MotionConfig with reducedMotion="user" tells every framer-motion
+    // animation in the tree to honor the OS-level
+    // prefers-reduced-motion setting. Users who have toggled
+    // "Reduce motion" on macOS / iOS / Windows / Android no longer get
+    // the heavy animations that can trigger motion sickness or
+    // vestibular issues. WCAG 2.3.3 compliance + real-user comfort.
+    <MotionConfig reducedMotion="user">
     <ThemeProvider>
     <LanguageProvider>
     <WeightUnitProvider>
@@ -219,6 +227,7 @@ function App() {
     </WeightUnitProvider>
     </LanguageProvider>
     </ThemeProvider>
+    </MotionConfig>
   )
 }
 

@@ -3,8 +3,16 @@
   <head>
     <meta charset="UTF-8" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png" />
+    <!--
+      Favicon — self-hosted SVG. Used to load a PNG from media.base44.com
+      which is an external CDN we don't control; if that domain ever
+      goes away the tab icon breaks. SVG works in every modern browser.
+      For non-SVG-capable contexts (Safari pinned tabs etc.) we ship
+      /favicon.ico as a fallback when you generate one — see
+      docs/icons-todo.md.
+    -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <!-- Viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -20,17 +28,25 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Flexyn" />
-    <link rel="apple-touch-icon" href="https://media.base44.com/images/public/69dfb5d1674e81512478f6f7/a7dcfb0be_transparent-logo.png" />
+    <!--
+      iOS Safari doesn't support SVG apple-touch-icons. Until a PNG is
+      uploaded to /public/apple-touch-icon.png (180x180), iOS PWA
+      install will fall back to a screenshot. See docs/icons-todo.md
+      for the file you need to add.
+    -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     <!-- SEO -->
     <meta name="description" content="Your AI-powered fitness companion — track workouts, nutrition, and progress." />
 
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
+    <!--
+      Leaflet CSS is now bundled via npm and imported from
+      src/components/cardio/RouteMap.jsx. Used to load from unpkg.com
+      here, but a sync CDN stylesheet is a single point of failure —
+      if unpkg blips, the map (and any visible CSS-dependent layout
+      while it loads) breaks. Local bundle takes the same caching
+      treatment as the rest of our assets.
+    -->
     <title>Flexyn</title>
   </head>
   <body>
