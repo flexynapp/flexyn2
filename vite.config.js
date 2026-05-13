@@ -125,8 +125,26 @@ export default defineConfig({
           // Supabase — large, used across the app.
           if (id.includes('@supabase')) return 'vendor-supabase';
 
-          // Radix UI primitives — many small modules that together are sizable.
-          if (id.includes('@radix-ui')) return 'vendor-radix';
+          // ⚠ DO NOT split @radix-ui into its own chunk.
+          //
+          // Radix's runtime imports several non-`@radix-ui/*` peer packages
+          // (`react-remove-scroll`, `aria-hidden`, `@floating-ui/*`, etc.)
+          // and those land in `vendor-misc`. When Vite/Rollup splits Radix
+          // out, the chunks form a circular import graph that ES modules
+          // evaluate in an order Radix can't tolerate — you get
+          // `ReferenceError: can't access lexical declaration 'dt' before
+          // initialization` thrown at top-level of vendor-radix on every
+          // page load.
+          //
+          // The minified `dt` is a Radix internal helper that's read by
+          // another chunk that finished loading first. The TDZ trap is
+          // the standard symptom of an unresolvable cross-chunk cycle.
+          //
+          // The robust fix: let Radix ride along with its peers in
+          // vendor-misc so the cycle stays intra-chunk (which IS allowed).
+          // Cache-wise we lose ~75 KB of dedicated-chunk benefit;
+          // correctness-wise we gain a working app.
+          // if (id.includes('@radix-ui')) return 'vendor-radix';  // ← intentional
 
           // Framer Motion — animation library used everywhere.
           if (id.includes('framer-motion')) return 'vendor-motion';
