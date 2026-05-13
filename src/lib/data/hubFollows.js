@@ -2,6 +2,7 @@
 import { db } from '@/api/db';
 import { notifyFriendFollow } from './notifications';
 import * as users from './users';
+import { supabase } from '@/api/supabaseClient';
 
 const e = () => db.entities.HubFollow;
 
@@ -49,12 +50,25 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
       const follower = all.find(u => u.email?.toLowerCase() === followerEmail.toLowerCase());
       if (followee?.id) {
         const followerName = follower?.username ? `@${follower.username}` : (followerEmail.split('@')[0] || 'Someone');
-        await notifyFriendFollow({
-          recipientUserId: followee.id,
-          recipientEmail:  followee.email,
-          followerName,
-          t,
+        // Per-recipient i18n via notify_friend_follow_for (migration 041).
+        // The RPC reads the recipient's preferred_language server-side so
+        // the title renders in their language, not the follower's. Falls
+        // back to the legacy client-rendered notifyFriendFollow helper if
+        // the RPC is unavailable (pre-migration hosts).
+        const { error } = await supabase.rpc('notify_friend_follow_for', {
+          p_user_id:       followee.id,
+          p_follower_name: followerName,
         });
+        if (error && (error.code === '42883' || error.code === '42P01')) {
+          await notifyFriendFollow({
+            recipientUserId: followee.id,
+            recipientEmail:  followee.email,
+            followerName,
+            t,
+          });
+        } else if (error) {
+          console.warn('[hubFollows] notify_friend_follow_for failed:', error);
+        }
       }
     } catch { /* swallow — notification failure must not block follow */ }
   })();

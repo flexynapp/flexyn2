@@ -27,6 +27,7 @@ import * as hubFollows from '@/lib/data/hubFollows';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import * as users from '@/lib/data/users';
+import { supabase } from '@/api/supabaseClient';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as workouts from '@/lib/data/workouts';
 import * as cardio from '@/lib/data/cardio';
@@ -472,16 +473,30 @@ export default function HubComposer({ onClose }) {
           const posterName = user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'A friend');
           const preview = (finalBody || '').slice(0, 100);
           const capped = followerEmails.slice(0, 100);
-          await Promise.all(capped.map(email => {
+          // Per-recipient i18n via notify_friend_post_for (migration 041).
+          // The RPC reads each recipient's preferred_language server-side
+          // so the title renders in their language, not the poster's.
+          // Falls back to the legacy client-rendered notifyFriendPost
+          // helper if the RPC is unavailable (pre-migration hosts).
+          await Promise.all(capped.map(async (email) => {
             const recipient = lcMap.get(email?.toLowerCase());
             if (!recipient?.id) return null;
-            return notifications.notifyFriendPost({
-              recipient: { id: recipient.id, email: recipient.email },
-              posterName,
-              postPreview: preview,
-              t,
+            const { error } = await supabase.rpc('notify_friend_post_for', {
+              p_user_id:      recipient.id,
+              p_poster_name:  posterName,
+              p_post_preview: preview,
             });
-          }).filter(Boolean));
+            if (error && (error.code === '42883' || error.code === '42P01')) {
+              return notifications.notifyFriendPost({
+                recipient: { id: recipient.id, email: recipient.email },
+                posterName,
+                postPreview: preview,
+                t,
+              });
+            }
+            if (error) console.warn('[HubComposer] notify_friend_post_for failed:', error);
+            return null;
+          }));
         } catch (err) {
           console.warn('[HubComposer] follower notify failed:', err);
         }
