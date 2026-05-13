@@ -6,7 +6,10 @@ import { clearTranslationCache } from './translate';
 const LANG_STORAGE_KEY = 'fn-language';
 const DEFAULT_LANG = 'en';
 
-const LanguageContext = createContext(null);
+// Exported so class components (e.g. ErrorBoundary) can read the
+// context directly via React.useContext instead of going through the
+// useLanguage() hook, which throws if no provider is mounted above.
+export const LanguageContext = createContext(null);
 
 // Resolve the starting language synchronously (localStorage or 'en' default)
 // so we can KICK OFF the loadLanguage promise BEFORE React mounts — this
