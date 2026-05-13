@@ -11,6 +11,8 @@
 // can't provide — they're why we switched to `injectManifest` mode.
 
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { registerRoute, NavigationRoute } from 'workbox-routing';
+import { NetworkFirst } from 'workbox-strategies';
 
 // Plugin injects the precache file list here.
 precacheAndRoute(self.__WB_MANIFEST);
@@ -18,6 +20,34 @@ precacheAndRoute(self.__WB_MANIFEST);
 // Drop old precaches when the SW updates (auto-update mode = activate on
 // new content-hashed manifest).
 cleanupOutdatedCaches();
+
+// ── Navigation requests: NETWORK-FIRST, not cache-first ─────────────────
+//
+// The default precacheAndRoute strategy intercepts navigation requests
+// (i.e. document loads — when the user types the URL or refreshes) and
+// serves the precached index.html, falling back to the network only on
+// cache miss. That means a returning user with an old SW gets served
+// the OLD index.html forever — which references OLD content-hashed
+// chunk filenames. When those filenames change in a new deploy (and
+// they always do), the browser hits 404 on the chunks the old shell
+// asked for, OR (worse) hits stale JS that crashes at top-level.
+//
+// Network-first inverts the priority for navigation: try the network
+// first, fall back to the cached shell only if offline. Returning
+// users get the FRESH index.html on every visit, which references the
+// current chunk hashes. Online users always self-heal after a deploy.
+//
+// We keep the precache for asset (JS/CSS/icon) requests — those use
+// content-hashed filenames so cache-first is correct and free of the
+// stale-reference problem above.
+registerRoute(
+  new NavigationRoute(
+    new NetworkFirst({
+      cacheName: 'flexyn-html-shell',
+      networkTimeoutSeconds: 4, // fall back to cache only if network is slow/offline
+    })
+  )
+);
 
 // ── Push event ──────────────────────────────────────────────────────────────
 // Fires when a Web Push message arrives from the server. The payload is
