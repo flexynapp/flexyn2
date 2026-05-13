@@ -173,6 +173,13 @@ export default defineConfig({
           // Tanstack Query — react-query for caching.
           if (id.includes('@tanstack')) return 'vendor-query';
 
+          // Recharts — only used by Dashboard widgets and the Progress
+          // page (both code-split route chunks). Pulling it into its own
+          // vendor chunk means recharts doesn't load until the user
+          // navigates to one of those pages. Shared across both so the
+          // chunk caches and is reused.
+          if (id.includes('recharts')) return 'vendor-charts';
+
           // Lucide icons — many small SVG components.
           if (id.includes('lucide-react')) return 'vendor-icons';
 
