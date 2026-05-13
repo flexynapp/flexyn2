@@ -12,11 +12,19 @@
 
 const enKeys = {
   // ── Panel chrome ─────────────────────────────────────────────────────────
-  'notifications.title':       'Notifications',
-  'notifications.markAllRead': 'Mark all as read',
-  'notifications.empty.title': 'No notifications yet',
-  'notifications.empty.desc':  'When you complete quests, hit streaks, or your friends post, you\'ll see it here.',
-  'notifications.showing50':   'Showing the 50 most recent',
+  'notifications.title':           'Notifications',
+  'notifications.markAllRead':     'Mark all as read',
+  'notifications.clearAll':        'Clear all',
+  'notifications.delete':          'Delete',
+  'notifications.deleteFailed':    'Could not delete — try again.',
+  'notifications.clearAllFailed':  'Could not clear — try again.',
+  'notifications.empty.title':     'No notifications yet',
+  'notifications.empty.desc':      'When you complete quests, hit streaks, or your friends post, you\'ll see it here.',
+  'notifications.error.title':     "Couldn't load notifications",
+  'notifications.error.desc':      'Check your connection and try again.',
+  'notifications.unreadBadge':     '{count} unread notification',
+  'notifications.unreadBadgePlural': '{count} unread notifications',
+  'notifications.showing50':       'Showing the 50 most recent',
 
   // ── Row content per event type ───────────────────────────────────────────
   'notifications.row.quest_claimed.title':                    '🪙 +{coins} coins · {quest}',
@@ -58,11 +66,19 @@ const enKeys = {
 };
 
 const esKeys = {
-  'notifications.title':       'Notificaciones',
-  'notifications.markAllRead': 'Marcar todo como leído',
-  'notifications.empty.title': 'Aún no hay notificaciones',
-  'notifications.empty.desc':  'Cuando completes misiones, mantengas rachas o tus amigos publiquen, lo verás aquí.',
-  'notifications.showing50':   'Mostrando las 50 más recientes',
+  'notifications.title':             'Notificaciones',
+  'notifications.markAllRead':       'Marcar todo como leído',
+  'notifications.clearAll':          'Borrar todo',
+  'notifications.delete':            'Eliminar',
+  'notifications.deleteFailed':      'No se pudo eliminar — inténtalo de nuevo.',
+  'notifications.clearAllFailed':    'No se pudo borrar — inténtalo de nuevo.',
+  'notifications.empty.title':       'Aún no hay notificaciones',
+  'notifications.empty.desc':        'Cuando completes misiones, mantengas rachas o tus amigos publiquen, lo verás aquí.',
+  'notifications.error.title':       'No se pudieron cargar las notificaciones',
+  'notifications.error.desc':        'Comprueba tu conexión e inténtalo de nuevo.',
+  'notifications.unreadBadge':       '{count} notificación sin leer',
+  'notifications.unreadBadgePlural': '{count} notificaciones sin leer',
+  'notifications.showing50':         'Mostrando las 50 más recientes',
 
   'notifications.row.quest_claimed.title':                    '🪙 +{coins} monedas · {quest}',
   'notifications.row.quest_claimed.body':                     'Recompensa de misión reclamada.',

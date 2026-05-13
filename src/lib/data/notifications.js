@@ -96,6 +96,38 @@ export async function markAllRead(user) {
     .eq('is_read', false);
 }
 
+/**
+ * Delete a single notification. RLS policy "notifications: delete own"
+ * (migration 039) restricts this to the recipient's own rows, so a
+ * forged id from another user is silently no-op'd by the server.
+ */
+export async function deleteNotification(notificationId) {
+  if (!notificationId) return { ok: false, reason: 'no_id' };
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('id', notificationId);
+  if (error) {
+    console.warn('[notifications] delete failed:', error);
+    return { ok: false, error };
+  }
+  return { ok: true };
+}
+
+/** Delete every notification for the given user. Used by the "Clear all" action. */
+export async function deleteAllForUser(user) {
+  if (!user?.id) return { ok: false, reason: 'no_user' };
+  const { error } = await supabase
+    .from('notifications')
+    .delete()
+    .eq('user_id', user.id);
+  if (error) {
+    console.warn('[notifications] delete-all failed:', error);
+    return { ok: false, error };
+  }
+  return { ok: true };
+}
+
 // ── Internal: low-level create ────────────────────────────────────────────────
 //
 // SELF-TARGETED writes: direct INSERT — RLS policy `user_id = auth.uid()`
