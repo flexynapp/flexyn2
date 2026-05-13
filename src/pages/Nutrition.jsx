@@ -26,7 +26,9 @@ import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import { lookupBarcode } from '@/lib/foodLookup';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { BrowserMultiFormatReader } from '@zxing/browser';
+// @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
+// the barcode scanner — so we dynamic-import it inside the scan
+// handler instead of pulling it into the entry chunk.
 import { useLanguage } from '@/lib/LanguageContext';
 import { useLocation } from 'react-router-dom';
 
@@ -186,6 +188,10 @@ export default function Nutrition() {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Your browser does not support camera access.');
       }
+      // Dynamic-import the barcode reader on first scan. The module is
+      // cached by the browser after the initial fetch, so subsequent
+      // scans don't re-download. Keeps ~80 KB out of the entry chunk.
+      const { BrowserMultiFormatReader } = await import('@zxing/browser');
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
       if (devices.length === 0) throw new Error('No camera found on this device.');
       const rearCamera = devices.find((d) => /back|rear|environment/i.test(d.label));

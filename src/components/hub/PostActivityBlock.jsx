@@ -15,7 +15,7 @@
 // activity), and silently fail otherwise — in which case we render a
 // minimal type pill so the post still has visual context.
 
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Dumbbell, Activity, Apple, Target, Trophy, ListChecks,
@@ -30,7 +30,9 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
 import { db } from '@/api/db';
-import RouteMap from '@/components/cardio/RouteMap';
+// Lazy-load — leaflet + react-leaflet are ~150 KB and most hub posts
+// don't render a map. Shared chunk with CardioDetailModal.
+const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
 
 const TYPE_META = {
   workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout' },
@@ -206,7 +208,9 @@ function CardioBlock({ snap }) {
     <>
       {hasRoute && (
         <div className="mb-3 -mx-3 -mt-3">
-          <RouteMap track={snap.gps_track} height={220} interactive={false} />
+          <Suspense fallback={<div style={{ height: 220 }} className="bg-secondary/50 animate-pulse" />}>
+            <RouteMap track={snap.gps_track} height={220} interactive={false} />
+          </Suspense>
         </div>
       )}
       <h4 className="font-heading font-bold text-base mb-2">

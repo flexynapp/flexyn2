@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogHeader,
@@ -16,8 +16,13 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
-import RouteMap from './RouteMap';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
+
+// RouteMap pulls in leaflet + react-leaflet (~150 KB minified). Most
+// cardio rows have no GPS track, so eager-loading the whole map vendor
+// for every cardio modal is wasteful. Lazy-load it: the map vendor
+// chunk only fetches when a row WITH a track actually renders.
+const RouteMap = lazy(() => import('./RouteMap'));
 
 function DetailRow({ label, value }) {
   if (value == null || value === '') return null;
@@ -145,7 +150,9 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
         {log.gps_track && Array.isArray(log.gps_track) && log.gps_track.length > 1 && (
           <div className="mb-4">
             <p className="text-sm font-medium mb-2">{t('cardio.detail.routeMap')}</p>
-            <RouteMap track={log.gps_track} />
+            <Suspense fallback={<div className="w-full h-60 rounded-lg bg-secondary/50 animate-pulse" />}>
+              <RouteMap track={log.gps_track} />
+            </Suspense>
           </div>
         )}
 

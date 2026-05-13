@@ -117,6 +117,27 @@ export default defineConfig({
 
           if (!id.includes('node_modules')) return undefined;
 
+          // ── Libraries we DELIBERATELY lazy-load via dynamic import ─
+          //
+          // Returning `undefined` lets Vite/Rollup place these modules
+          // in the lazy chunk that imports them, rather than yanking
+          // them into the always-loaded vendor-misc bucket below.
+          //
+          //   leaflet + react-leaflet  → RouteMap chunk (cardio details
+          //                              + activity feed map renders)
+          //   @zxing/browser           → barcode-scan handler in
+          //                              Nutrition.jsx (dynamic import())
+          //   canvas-confetti          → LevelUpOverlay's effect
+          //                              (dynamic import())
+          //
+          // Without these explicit `undefined` returns, the vendor-misc
+          // catch-all below pulls them into the entry bundle even
+          // though only one feature ever touches them. ~250 KB saved
+          // off vendor-misc.
+          if (id.includes('leaflet')) return undefined;
+          if (id.includes('@zxing'))  return undefined;
+          if (id.includes('canvas-confetti')) return undefined;
+
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
           // pin to its own chunks so it definitely doesn't bleed into entry.
           if (id.includes('@tensorflow-models/pose-detection')) return 'vendor-pose';

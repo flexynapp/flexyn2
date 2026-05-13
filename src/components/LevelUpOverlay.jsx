@@ -2,7 +2,9 @@ import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowRight } from 'lucide-react';
-import confetti from 'canvas-confetti';
+// canvas-confetti is ~10 KB gzip. The level-up overlay only fires on
+// the rare moment a user crosses a level — every other page load
+// shouldn't pay the cost. Dynamic-import inside the effect.
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -27,24 +29,39 @@ export default function LevelUpOverlay({ event, onDismiss }) {
     return () => clearTimeout(dismissTimerRef.current);
   }, [event, onDismiss]);
 
-  // Confetti burst and haptic feedback
+  // Confetti burst and haptic feedback. The module load is async, so
+  // we resolve it once and then schedule both bursts off the same
+  // resolved confetti() function — keeps the visual timing identical
+  // to the old eager-import version.
   useEffect(() => {
     if (!event || reducedMotion) return;
     const colors = getTierColors(event.toLevel);
-    
+
     // Haptic feedback
     try {
       navigator.vibrate?.([15, 50, 15]);
     } catch { /* Safari iOS throws on iframes */ }
-    
-    const t1 = setTimeout(() => {
-      confetti({ particleCount: 80, spread: 70, origin: { x: 0.2, y: 0.6 }, colors });
-    }, 300);
-    const t2 = setTimeout(() => {
-      confetti({ particleCount: 80, spread: 70, origin: { x: 0.8, y: 0.6 }, colors });
-    }, 500);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [event]);
+
+    let cancelled = false;
+    let t1, t2;
+    import('canvas-confetti').then(({ default: confetti }) => {
+      if (cancelled) return;
+      t1 = setTimeout(() => {
+        confetti({ particleCount: 80, spread: 70, origin: { x: 0.2, y: 0.6 }, colors });
+      }, 300);
+      t2 = setTimeout(() => {
+        confetti({ particleCount: 80, spread: 70, origin: { x: 0.8, y: 0.6 }, colors });
+      }, 500);
+    }).catch(() => {
+      // Confetti is decorative — silently skip on load failure.
+    });
+
+    return () => {
+      cancelled = true;
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [event, reducedMotion]);
 
   const tier = event ? getTier(event.toLevel, t) : null;
 
