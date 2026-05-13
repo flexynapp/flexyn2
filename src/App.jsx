@@ -19,6 +19,7 @@ import { DistanceUnitProvider } from '@/lib/DistanceUnitContext';
 import { RestTimerProvider } from '@/lib/RestTimerContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
+import LoginStreakSync from '@/components/LoginStreakSync';
 import Layout from './components/Layout';
 
 // Overlay components — each renders null until its trigger fires, so
@@ -182,6 +183,14 @@ const AuthenticatedApp = () => {
       <Suspense fallback={null}><RestTimerOverlay /></Suspense>
       <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
+      {/*
+        Fires recordLogin() exactly once per session, regardless of
+        which route the user lands on. Previously this side-effect
+        lived inside LoginStreakBanner on /dashboard, so users who
+        skipped Dashboard never updated their last_login_date and the
+        welcome-back cron mis-fired for them. Renders null.
+      */}
+      <LoginStreakSync />
     </>
   );
 };

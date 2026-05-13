@@ -1,25 +1,24 @@
 // src/components/dashboard/LoginStreakBanner.jsx
 //
-// Compact streak indicator on the Dashboard. Auto-records the login on mount
-// (idempotent — only one credit per day). Shows a celebratory toast when a
-// new streak day is recorded.
+// Compact streak indicator on the Dashboard. PURELY DISPLAY — the
+// recordLogin() side-effect (writes last_login_date, fires toast +
+// in-app notification) used to live here, but that meant users who
+// opened the app and never visited /dashboard didn't update their
+// last_login_date. The welcome-back cron (migration 037) saw them as
+// inactive even though they were using the app daily. Moved to the
+// global LoginStreakSync component which mounts at the App level.
 
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
-import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import * as loginStreak from '@/lib/data/loginStreak';
-import * as notifications from '@/lib/data/notifications';
+import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
 
 export default function LoginStreakBanner() {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const queryClient = useQueryClient();
-  const recordedRef = useRef(false);
 
   // Read the user's streak data
   const { data: profile } = useQuery({
@@ -36,55 +35,6 @@ export default function LoginStreakBanner() {
     enabled: !!user?.id,
     staleTime: 30_000,
   });
-
-  // Record today's login exactly once per page load
-  useEffect(() => {
-    if (!user?.id) return;
-    if (recordedRef.current) return;
-    recordedRef.current = true;
-
-    loginStreak.recordLogin(user).then((result) => {
-      if (result.isNewDay && result.coinsAwarded > 0) {
-        const tplKey = result.freezeUsed ? 'dashboard.streakSavedToast' : 'dashboard.streakDayToast';
-        const msg = t(tplKey)
-          .replace('{day}', result.streak)
-          .replace('{coins}', result.coinsAwarded);
-        toast.success(msg, { icon: '🔥', duration: 4500 });
-
-        if (result.eliteCapsuleAwarded) {
-          setTimeout(() => {
-            toast.success(t('dashboard.eliteCapsuleToast').replace('{day}', result.streak), {
-              icon: '💎',
-              duration: 5000,
-            });
-          }, 600);
-        }
-
-        queryClient.invalidateQueries({ queryKey: ['loginStreakProfile'] });
-        queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-        queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] });
-
-        // In-app notification (non-blocking, only on milestone days where coins are awarded)
-        const isMilestone = result.streak === 1 || result.streak === 3 || result.streak === 5
-          || result.streak === 7 || result.streak === 14 || result.streak === 21
-          || result.streak === 30 || result.streak === 60 || result.streak === 100;
-        if (isMilestone || result.eliteCapsuleAwarded) {
-          notifications.notifyStreakMilestone({
-            user,
-            kind: 'login',
-            day: result.streak,
-            coinsAwarded: result.coinsAwarded,
-            eliteCapsuleAwarded: result.eliteCapsuleAwarded,
-            t,
-          })
-            .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
-            .catch(() => {});
-        }
-      }
-    }).catch((err) => {
-      console.warn('[LoginStreakBanner] recordLogin failed:', err);
-    });
-  }, [user, queryClient]);
 
   if (!user?.id) return null;
   const streak = profile?.login_streak ?? 0;
