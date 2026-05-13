@@ -337,21 +337,38 @@ async function _resolveLeague(leagueId) {
     if (noteworthy) {
       const fromTier = getTier(league.tier).label;
       const toTier   = getTier(newTier).label;
-      // NOTE: `t` is intentionally omitted. This batch runs for every
-      // member of the resolving league, including users whose language
-      // differs from the viewer's — passing the viewer's `t` would
-      // localize each recipient's notification into the WRONG language.
-      // True per-recipient i18n requires a server-side text helper
-      // (see streak_break_text in migration 035). Falls back to English
-      // until that ships.
-      await notifyLeagueResolution({
-        user: { id: m.user_id, email: m.user_email },
-        outcome,
-        fromTier,
-        toTier,
-        coinsAwarded,
-        capsuleAwarded,
+      // Route through notify_league_resolution_for (migration 040): the
+      // RPC reads each recipient's preferred_language server-side and
+      // renders title/body in their language. This solves the
+      // mixed-language-batch problem the JS-only path couldn't —
+      // calling notifyLeagueResolution from here would have rendered
+      // every recipient's notification in the resolver's language.
+      //
+      // Falls back to English client-rendering on the legacy notify
+      // helper if the RPC is unavailable (e.g. host hasn't applied
+      // migration 040 yet).
+      const { error: rpcError } = await supabase.rpc('notify_league_resolution_for', {
+        p_user_id:   m.user_id,
+        p_outcome:   outcome,
+        p_from_tier: fromTier,
+        p_to_tier:   toTier,
+        p_coins:     coinsAwarded || 0,
+        p_capsule:   capsuleAwarded || null,
       });
+      if (rpcError && (rpcError.code === '42883' || rpcError.code === '42P01')) {
+        // Pre-migration host — fall back to the legacy client-rendered
+        // English text. Better than dropping the notification.
+        await notifyLeagueResolution({
+          user: { id: m.user_id, email: m.user_email },
+          outcome,
+          fromTier,
+          toTier,
+          coinsAwarded,
+          capsuleAwarded,
+        });
+      } else if (rpcError) {
+        console.warn('[leagues] notify_league_resolution_for failed:', rpcError);
+      }
     }
   }));
 
