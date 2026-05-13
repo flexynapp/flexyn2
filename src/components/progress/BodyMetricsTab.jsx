@@ -150,7 +150,7 @@ export default function BodyMetricsTab() {
     } else if (!showForm) {
       setInitialForm(null);
     }
-  }, [showForm, profile]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showForm, profile]);  
 
   const { data: rawEntries = [], isLoading } = useQuery({
     queryKey: ['bodyMetrics', user?.email],

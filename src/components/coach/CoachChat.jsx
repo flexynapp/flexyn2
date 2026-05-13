@@ -5,9 +5,8 @@
 // returns a personalized reply based on the user's actual data.
 
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Send, Sparkles, Loader2, Trash2 } from 'lucide-react';
-import { format } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';

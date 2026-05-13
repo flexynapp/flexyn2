@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Trophy, Lock, Star } from 'lucide-react';
 import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';

@@ -40,7 +40,7 @@ export const purgeForUser = async (email) => {
   if (!email) return;
   const PAGE = 100;
   let total = 0;
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const batch = await e()
       .filter({ created_by: email }, '-created_date', PAGE)

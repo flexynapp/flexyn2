@@ -60,7 +60,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     setStatus('paused');
     toast.success(t('cardio.recover.recovered'));
     forceTick(n => n + 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   // ── Auto-snapshot every 10s while active ──

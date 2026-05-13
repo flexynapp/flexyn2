@@ -61,7 +61,7 @@ export default function NotificationPanel({ open, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notificationsList', user.id] });
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [open, rows, user?.id, queryClient]);
 
   // Escape closes the panel — standard dialog convention. The outside-click

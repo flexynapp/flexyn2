@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  ShoppingBag, X, Coins, Zap, Star, Package,
+  ShoppingBag, X, Coins, Zap,
   Sparkles, ChevronLeft, RefreshCw, Lock,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,7 +13,6 @@ import { useAuth } from '@/lib/AuthContext';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
-import { supabase } from '@/api/supabaseClient';
 import { RARITY } from '@/lib/lootCatalog';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

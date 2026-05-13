@@ -15,7 +15,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useSettings } from '@/lib/SettingsContext';
 import {
-  formatDistance, formatDuration, formatPace,
+  formatDistance, formatPace,
   speedKmhFrom, paceSecPerKmFrom,
 } from '@/lib/distanceUnit';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
@@ -139,7 +139,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     setStatus('paused');
     toast.success(t('cardio.recover.recovered'));
     forceTick(n => n + 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, []);
 
   // ── Fetch weather on mount ──

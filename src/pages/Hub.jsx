@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Package, Store, Trophy, Sparkles } from 'lucide-react';
+import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Store, Sparkles } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -17,7 +17,6 @@ import MarketplaceFeed from '@/components/hub/MarketplaceFeed';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
-import LeaderboardsContent from '@/components/LeaderboardsContent';
 import CoachChat from '@/components/coach/CoachChat';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { toast } from 'sonner';
@@ -58,7 +57,7 @@ export default function Hub() {
       params.delete('search');
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [location.search]);
 
   const { data: unreadCount = 0 } = useQuery({

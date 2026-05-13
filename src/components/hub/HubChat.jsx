@@ -124,7 +124,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   useLayoutEffect(() => {
     scrollToBottom(false);
     stickToBottomRef.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [conversation?.id]);
 
   useEffect(() => {

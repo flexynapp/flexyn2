@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { toLbs, fromLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
-import { format, subDays, startOfMonth } from 'date-fns';
+import { format, startOfMonth } from 'date-fns';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Dumbbell, Clock, RotateCcw, Hash } from 'lucide-react';
+import { Clock, RotateCcw, Hash } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 

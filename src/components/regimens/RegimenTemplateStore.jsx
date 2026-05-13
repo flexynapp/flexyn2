@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Search, Copy, Globe, Lock, Send, Dumbbell, ChevronDown, ChevronUp, X,
+  Search, Copy, Globe, Lock, Send, Dumbbell, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';

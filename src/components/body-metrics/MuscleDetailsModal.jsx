@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { format } from 'date-fns';
 import { Dumbbell } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { MUSCLE_CATEGORIES, MUSCLE_IDS } from './MuscleDiagram';
+import { MUSCLE_CATEGORIES } from './MuscleDiagram';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';

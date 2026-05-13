@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
-import { fromLbs, toLbs, formatWeightNumber } from '../../lib/weightUnit';
+import { toLbs, formatWeightNumber } from '../../lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {} }) {

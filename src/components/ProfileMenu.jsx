@@ -4,7 +4,6 @@ import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X } from 'lucide-react';
-import AvatarUploader from '@/components/AvatarUploader';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import LevelBar from './LevelBar';
 import { toast } from 'sonner';

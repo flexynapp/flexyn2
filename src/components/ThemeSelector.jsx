@@ -9,7 +9,7 @@ import { useTheme, THEMES } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
-import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
+import { LOOT_THEMES } from '@/lib/lootThemes';
 import * as inventory from '@/lib/data/inventory';
 import { toast } from 'sonner';
 

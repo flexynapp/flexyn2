@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -14,11 +14,9 @@ import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import MobileSelect from '@/components/MobileSelect';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, ChevronDown, ChevronUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon, Activity } from 'lucide-react';
-import ExerciseProgressCard from '@/components/progress/ExerciseProgressCard';
+import { TrendingUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon, Activity } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -27,12 +25,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 import AchievementsTab from '@/components/progress/AchievementsTab';
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
-import LevelBar from '@/components/LevelBar';
 import PageHeader from '@/components/PageHeader';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Legend,
+  ResponsiveContainer,
 } from 'recharts';
 
 const CHART_STYLE = {
@@ -367,7 +364,7 @@ export default function Progress() {
       p.delete('tab');
       navigate({ pathname: '/progress', search: p.toString() ? '?' + p.toString() : '' }, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [location.search]);
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen] = useState(false);

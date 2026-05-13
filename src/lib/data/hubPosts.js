@@ -109,7 +109,7 @@ export const incrementCounter = async (postId, field, delta = 1) => {
 export const purgeForUser = async (email) => {
   if (!email) return;
   const PAGE = 100;
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     const batch = await e()
       .filter({ author_email: email }, '-created_date', PAGE)

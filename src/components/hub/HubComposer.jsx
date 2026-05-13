@@ -13,7 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Send, Globe2, Lock,
   Dumbbell, Activity, Apple, Target, Trophy, ListChecks, Image as ImageIcon, BarChart3,
-  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle, PenLine,
+  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';

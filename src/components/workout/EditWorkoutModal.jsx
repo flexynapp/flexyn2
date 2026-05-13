@@ -11,7 +11,7 @@ import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { toLbs, fromLbs, formatWeightNumber } from '@/lib/weightUnit';
+import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 
 function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {

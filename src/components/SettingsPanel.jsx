@@ -147,7 +147,7 @@ export default function SettingsPanel() {
       // Show all-on so the toggles aren't stuck in an unknown state.
       setPrefs({ streak: true, quests: true, league: true, social: true, achievements: true, engagement: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [profile?.notification_prefs]);
 
   const handlePrefToggle = async (category) => {

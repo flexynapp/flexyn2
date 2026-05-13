@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
-import { translateExerciseName, searchExercises, muscleKey } from '@/lib/exerciseTranslations';
+import { searchExercises, muscleKey } from '@/lib/exerciseTranslations';
 
 const EXERCISE_LIBRARY = [
   // Chest

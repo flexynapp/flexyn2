@@ -153,7 +153,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
       setLoading(true);
       setCurrentIndex(0);
     }
-  }, [open, exerciseName]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, exerciseName]);  
 
   const handleOpenChange = (isOpen) => {
     if (!isOpen) onClose();

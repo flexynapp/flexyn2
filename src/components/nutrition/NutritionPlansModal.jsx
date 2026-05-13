@@ -1,8 +1,7 @@
 // src/components/nutrition/NutritionPlansModal.jsx
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Wheat, Droplets, Pill, CheckCircle2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, filterPlans, loadRestrictions } from '@/lib/nutritionPlans';
 
