@@ -9,8 +9,10 @@
     <!-- Viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
-    <!-- PWA -->
-    <link rel="manifest" href="/manifest.json" />
+    <!-- PWA. vite-plugin-pwa emits manifest.webmanifest; the old
+         /manifest.json reference 404'd silently and broke the
+         install-prompt. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0f1117" />
     <meta name="mobile-web-app-capable" content="yes" />
 
@@ -33,6 +35,95 @@
   </head>
   <body>
     <div id="root"></div>
+
+    <!--
+      ── Inline boot-time error reporter + SW kill-switch ──────────────────
+
+      Two things this script does, in order, BEFORE main.jsx loads:
+
+      1. KILL-SWITCH for the service worker. If the URL contains
+         `?reset-sw=1` we unregister every SW and nuke every cache before
+         continuing — useful when a bad SW deploy leaves users on a stale
+         shell. Bookmark `https://<site>/?reset-sw=1` as a recovery URL.
+
+      2. BOOT-TIME ERROR REPORTER. Captures `error` and
+         `unhandledrejection` events and, if React never managed to
+         mount, paints the error message into #root so a blank-screen
+         deploy turns into a visible diagnostic the user can screenshot.
+
+      Both are intentionally tiny vanilla JS — they must work even if
+      the main bundle fails to load.
+    -->
+    <script>
+      (function () {
+        try {
+          var params = new URLSearchParams(window.location.search);
+          if (params.has('reset-sw')) {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistrations().then(function (regs) {
+                regs.forEach(function (r) { r.unregister(); });
+              });
+            }
+            if (window.caches && caches.keys) {
+              caches.keys().then(function (keys) {
+                keys.forEach(function (k) { caches.delete(k); });
+              });
+            }
+            // Strip the param and reload once the unregister kicks off.
+            params.delete('reset-sw');
+            var clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '');
+            setTimeout(function () { window.location.replace(clean); }, 250);
+          }
+        } catch (_) { /* never block boot on the kill-switch */ }
+
+        var booted = false;
+        function paintError(label, err) {
+          if (booted) return; // React already painted something — don't overwrite.
+          var root = document.getElementById('root');
+          if (!root || root.children.length > 0) { booted = true; return; }
+          var msg = (err && (err.message || err.reason && err.reason.message)) || String(err);
+          var stack = (err && (err.stack || err.reason && err.reason.stack)) || '';
+          root.innerHTML =
+            '<div style="font-family:system-ui,sans-serif;padding:24px;color:#fff;background:#0f1117;min-height:100vh;line-height:1.5">' +
+              '<h1 style="color:#f97316;margin:0 0 12px;font-size:18px">App failed to start</h1>' +
+              '<p style="margin:0 0 8px;color:#cbd5e1;font-size:13px">Source: ' + label + '</p>' +
+              '<pre style="background:#1e293b;color:#fca5a5;padding:12px;border-radius:8px;overflow-x:auto;font-size:12px;white-space:pre-wrap;word-break:break-word">' +
+                (msg || '(no message)') +
+                (stack ? '\n\n' + stack : '') +
+              '</pre>' +
+              '<p style="color:#94a3b8;font-size:12px;margin-top:16px">' +
+                'Try <a href="?reset-sw=1" style="color:#fbbf24">resetting the service worker</a> ' +
+                'or take a screenshot of this and send it to support.' +
+              '</p>' +
+            '</div>';
+        }
+        window.addEventListener('error', function (e) {
+          paintError('window.error', e.error || e);
+        });
+        window.addEventListener('unhandledrejection', function (e) {
+          paintError('unhandledrejection', e);
+        });
+        // After ~6 s, if #root is still empty, surface a stuck-loading hint.
+        setTimeout(function () {
+          var root = document.getElementById('root');
+          if (root && root.children.length === 0 && !booted) {
+            paintError('timeout', new Error('No content rendered after 6 seconds. The JavaScript bundle may have failed to load — check your network tab.'));
+          }
+        }, 6000);
+        // Once React mounts ANYTHING, mark booted so we don't clobber it.
+        var mountedObserver = new MutationObserver(function () {
+          var root = document.getElementById('root');
+          if (root && root.children.length > 0) {
+            booted = true;
+            mountedObserver.disconnect();
+          }
+        });
+        if (document.getElementById('root')) {
+          mountedObserver.observe(document.getElementById('root'), { childList: true });
+        }
+      })();
+    </script>
+
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
