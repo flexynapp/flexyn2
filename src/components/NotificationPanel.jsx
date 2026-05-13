@@ -27,12 +27,21 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as notifications from '@/lib/data/notifications';
 
+// Notification types that a real human triggered. Used for the
+// "Friends" tab filter. Mirrors the `social` bucket in migration
+// 036's notification_type_category function.
+const FRIEND_TYPES = new Set([
+  'friend_post', 'friend_follow', 'comment_reply',
+  'post_reaction', 'sticker_reaction', 'trade_offer',
+]);
+
 export default function NotificationPanel({ open, onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [deletingIds, setDeletingIds] = useState(() => new Set());
+  const [tab, setTab] = useState('all'); // 'all' | 'friends'
 
   const { data: rows = [], isLoading, isError, refetch } = useQuery({
     queryKey: ['notificationsList', user?.id],
@@ -130,8 +139,16 @@ export default function NotificationPanel({ open, onClose }) {
 
   if (!open) return null;
 
+  // "All" shows everything; "Friends" filters to types where a real
+  // human triggered the row. Two tabs is the ceiling — anything more
+  // would duplicate the per-category prefs in Settings.
+  const filteredRows = tab === 'friends'
+    ? rows.filter(r => FRIEND_TYPES.has(r.type))
+    : rows;
+
   const hasUnread = rows.some(r => !r.is_read);
   const hasAny    = rows.length > 0;
+  const friendsCount = rows.filter(r => FRIEND_TYPES.has(r.type)).length;
 
   return (
     <AnimatePresence>
@@ -192,6 +209,51 @@ export default function NotificationPanel({ open, onClose }) {
             </div>
           </div>
 
+          {/*
+            Tab filter. Only render when the user has at least one
+            friend-typed row — otherwise the "Friends" tab would be a
+            permanent empty state. aria-pressed announces the active
+            state to screen readers (not role="tab" because we don't
+            have a proper roving-focus tabpanel pattern; the filter
+            mutates the same list rather than swapping panels).
+          */}
+          {friendsCount > 0 && (
+            <div
+              role="group"
+              aria-label={tFallback('notifications.filter', 'Filter notifications')}
+              className="flex border-b border-border bg-card"
+            >
+              <button
+                onClick={() => setTab('all')}
+                aria-pressed={tab === 'all'}
+                className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+                  tab === 'all'
+                    ? 'text-primary border-primary'
+                    : 'text-muted-foreground border-transparent hover:text-foreground'
+                }`}
+              >
+                {tFallback('notifications.tab.all', 'All')}
+                <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                  {rows.length}
+                </span>
+              </button>
+              <button
+                onClick={() => setTab('friends')}
+                aria-pressed={tab === 'friends'}
+                className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+                  tab === 'friends'
+                    ? 'text-primary border-primary'
+                    : 'text-muted-foreground border-transparent hover:text-foreground'
+                }`}
+              >
+                {tFallback('notifications.tab.friends', 'Friends')}
+                <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                  {friendsCount}
+                </span>
+              </button>
+            </div>
+          )}
+
           {/* List */}
           <div
             className="flex-1 overflow-y-auto"
@@ -223,22 +285,38 @@ export default function NotificationPanel({ open, onClose }) {
                   {tFallback('common.retry', 'Retry')}
                 </button>
               </div>
-            ) : rows.length === 0 ? (
+            ) : filteredRows.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
                 <div className="w-14 h-14 rounded-full bg-secondary flex items-center justify-center mb-3">
                   <BellIcon className="w-6 h-6 text-muted-foreground" aria-hidden="true" />
                 </div>
-                <p className="font-heading font-bold text-base mb-1">
-                  {tFallback('notifications.empty.title', 'No notifications yet')}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {tFallback('notifications.empty.desc', "When you complete quests, hit streaks, or your friends post, you'll see it here.")}
-                </p>
+                {/* Different empty copy when the Friends tab has nothing
+                    yet — "No notifications yet" would be misleading if
+                    the All tab has rows but Friends doesn't. */}
+                {tab === 'friends' && rows.length > 0 ? (
+                  <>
+                    <p className="font-heading font-bold text-base mb-1">
+                      {tFallback('notifications.empty.friendsTitle', 'No friend activity yet')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {tFallback('notifications.empty.friendsDesc', "Follow friends and you'll see their posts and reactions here.")}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-heading font-bold text-base mb-1">
+                      {tFallback('notifications.empty.title', 'No notifications yet')}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {tFallback('notifications.empty.desc', "When you complete quests, hit streaks, or your friends post, you'll see it here.")}
+                    </p>
+                  </>
+                )}
               </div>
             ) : (
               <ul>
                 <AnimatePresence initial={false}>
-                  {rows.map(n => (
+                  {filteredRows.map(n => (
                     <NotificationRow
                       key={n.id}
                       n={n}
@@ -249,7 +327,7 @@ export default function NotificationPanel({ open, onClose }) {
                     />
                   ))}
                 </AnimatePresence>
-                {rows.length >= 50 && (
+                {rows.length >= 50 && tab === 'all' && (
                   <p className="text-[11px] text-center text-muted-foreground py-3">
                     {tFallback('notifications.showing50', 'Showing the 50 most recent')}
                   </p>

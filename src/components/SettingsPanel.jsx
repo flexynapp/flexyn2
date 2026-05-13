@@ -196,12 +196,17 @@ export default function SettingsPanel() {
     // 'default' (user dismissed without choosing) → no toast, they'll try again.
   };
 
-  const ToggleSwitch = ({ checked, onChange }) => (
+  // ToggleSwitch — must be passed `labelledBy` (an id of the visible
+  // text label) OR `ariaLabel`. Without an accessible name the switch
+  // is announced as "switch, on" / "switch, off" with no context.
+  const ToggleSwitch = ({ checked, onChange, labelledBy, ariaLabel }) => (
     <button
       role="switch"
       aria-checked={checked}
+      aria-labelledby={labelledBy}
+      aria-label={!labelledBy ? ariaLabel : undefined}
       onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none ${
+      className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
         checked ? 'bg-primary' : 'bg-muted'
       }`}
     >
@@ -242,7 +247,7 @@ export default function SettingsPanel() {
           <Ruler className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
           <p className="text-xs text-foreground leading-tight">{t('settings.distanceUnit')}</p>
         </div>
-        <div className="flex gap-1.5">
+        <div role="group" aria-label={t('settings.distanceUnit')} className="flex gap-1.5">
           {[
             { value: 'mi', label: t('settings.distanceUnit.mi') },
             { value: 'km', label: t('settings.distanceUnit.km') },
@@ -250,6 +255,7 @@ export default function SettingsPanel() {
             <button
               key={opt.value}
               onClick={() => setDistanceUnit(opt.value)}
+              aria-pressed={distanceUnit === opt.value}
               className={`flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors ${
                 distanceUnit === opt.value
                   ? 'border-primary bg-primary/10 text-primary font-medium'
@@ -263,13 +269,18 @@ export default function SettingsPanel() {
       </div>
       {settings.map((setting, i) => {
         const Icon = setting.icon;
+        const labelId = `settings-toggle-label-${i}`;
         return (
           <div key={i} className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-0">
-              <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-              <p className="text-xs text-foreground leading-tight">{setting.label}</p>
+              <Icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+              <p id={labelId} className="text-xs text-foreground leading-tight">{setting.label}</p>
             </div>
-            <ToggleSwitch checked={setting.value} onChange={setting.onChange} />
+            <ToggleSwitch
+              checked={setting.value}
+              onChange={setting.onChange}
+              labelledBy={labelId}
+            />
           </div>
         );
       })}
@@ -281,26 +292,29 @@ export default function SettingsPanel() {
       {push.isSupported && (
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <BellRing className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+            <BellRing className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
             <div className="min-w-0">
-              <p className="text-xs text-foreground leading-tight">
-                {t('settings.pushNotifications') === 'settings.pushNotifications'
-                  ? 'Push notifications'
-                  : t('settings.pushNotifications')}
+              <p id="settings-push-label" className="text-xs text-foreground leading-tight">
+                {tFallback('settings.pushNotifications', 'Push notifications')}
               </p>
               {push.permission === 'denied' && (
                 <p className="text-[10px] text-destructive leading-tight mt-0.5">
-                  Blocked — change in browser settings
+                  {tFallback('settings.pushBlocked', 'Blocked — change in browser settings')}
                 </p>
               )}
             </div>
           </div>
           {push.isLoading ? (
-            <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+            <Loader2
+              className="w-4 h-4 animate-spin text-muted-foreground"
+              role="status"
+              aria-label={tFallback('common.loading', 'Loading')}
+            />
           ) : (
             <ToggleSwitch
               checked={push.isSubscribed}
               onChange={handlePushToggle}
+              labelledBy="settings-push-label"
             />
           )}
         </div>
@@ -311,7 +325,11 @@ export default function SettingsPanel() {
           still set prefs before subscribing so the prefs they want are
           already honored the first time a push fires after they enable. */}
       {push.isSupported && prefs && (
-        <div className="pl-5 -mt-1 space-y-1.5 border-l border-border/60 ml-1.5">
+        <div
+          role="group"
+          aria-label={tFallback('settings.pushCategories', 'Push notification categories')}
+          className="pl-5 -mt-1 space-y-1.5 border-l border-border/60 ml-1.5"
+        >
           {[
             { key: 'streak',       icon: Flame,  label: tFallback('settings.push.streak',       'Streak reminders') },
             { key: 'quests',       icon: Target, label: tFallback('settings.push.quests',       'Quest updates') },
@@ -319,18 +337,22 @@ export default function SettingsPanel() {
             { key: 'social',       icon: Users,  label: tFallback('settings.push.social',       'Friend activity') },
             { key: 'achievements', icon: Star,   label: tFallback('settings.push.achievements', 'Achievements') },
             { key: 'engagement',   icon: Heart,  label: tFallback('settings.push.engagement',   'Welcome back') },
-          ].map(({ key, icon: Icon, label }) => (
-            <div key={key} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 flex-1 min-w-0">
-                <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" />
-                <p className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+          ].map(({ key, icon: Icon, label }) => {
+            const labelId = `settings-push-pref-label-${key}`;
+            return (
+              <div key={key} className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
+                  <p id={labelId} className="text-[11px] text-muted-foreground leading-tight">{label}</p>
+                </div>
+                <ToggleSwitch
+                  checked={prefs[key] !== false}
+                  onChange={() => handlePrefToggle(key)}
+                  labelledBy={labelId}
+                />
               </div>
-              <ToggleSwitch
-                checked={prefs[key] !== false}
-                onChange={() => handlePrefToggle(key)}
-              />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
