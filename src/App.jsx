@@ -17,12 +17,27 @@ import { LanguageProvider } from '@/lib/LanguageContext';
 import { WeightUnitProvider } from '@/lib/WeightUnitContext';
 import { DistanceUnitProvider } from '@/lib/DistanceUnitContext';
 import { RestTimerProvider } from '@/lib/RestTimerContext';
-import RestTimerOverlay from '@/components/RestTimerOverlay';
-import LevelUpManager from '@/components/LevelUpManager';
-import ThemeAnimationLayer from '@/components/ThemeAnimationLayer';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import Layout from './components/Layout';
+
+// Overlay components — each renders null until its trigger fires, so
+// they can safely lazy-load AFTER first paint. Wrapping them in
+// Suspense fallback={null} keeps the visual idle state empty (matches
+// the "renders nothing yet" state of the eager version). Combined
+// savings: the framer-motion-using overlay bodies stay out of the
+// entry chunk until needed.
+//
+//   • LevelUpManager  — fires on workout-XP boundary crosses
+//   • RestTimerOverlay— fires when user starts a workout set
+//   • ThemeAnimationLayer — fires on equip of nebula/legendary themes
+//
+// LevelUpManager registers a useQuery; lazy-loading delays the first
+// query by milliseconds. Other queries already fetch the profile, so
+// React Query dedupes and there's no data race.
+const LevelUpManager      = lazy(() => import('@/components/LevelUpManager'));
+const RestTimerOverlay    = lazy(() => import('@/components/RestTimerOverlay'));
+const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'));
 
 // Page-level code-splitting. Each route is a separate chunk so the initial
 // load only fetches the page the user is actually visiting. The main bundle
@@ -157,9 +172,15 @@ const AuthenticatedApp = () => {
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
-      <ThemeAnimationLayer />
-      <RestTimerOverlay />
-      <LevelUpManager />
+      {/*
+        Suspense fallback={null} for all three — they render null in
+        their idle state anyway, so a null fallback matches the visual
+        baseline and there's no flash. Each is independent so a slow
+        load of one doesn't gate the others.
+      */}
+      <Suspense fallback={null}><ThemeAnimationLayer /></Suspense>
+      <Suspense fallback={null}><RestTimerOverlay /></Suspense>
+      <Suspense fallback={null}><LevelUpManager /></Suspense>
       <PWAInstallPrompt />
     </>
   );
