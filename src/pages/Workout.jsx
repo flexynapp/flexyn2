@@ -328,6 +328,7 @@ export default function Workout() {
               day: res.streak,
               coinsAwarded: res.coinsAwarded,
               eliteCapsuleAwarded: res.eliteCapsuleAwarded,
+              t,
             })
               .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
               .catch(() => {});

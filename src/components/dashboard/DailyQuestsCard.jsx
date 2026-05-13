@@ -71,6 +71,7 @@ export default function DailyQuestsCard({ onNavigated }) {
         user,
         questLabel: label,
         coinsAwarded: result.coinsAwarded,
+        t,
       })
         .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
         .catch(() => {});

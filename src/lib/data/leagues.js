@@ -337,6 +337,13 @@ async function _resolveLeague(leagueId) {
     if (noteworthy) {
       const fromTier = getTier(league.tier).label;
       const toTier   = getTier(newTier).label;
+      // NOTE: `t` is intentionally omitted. This batch runs for every
+      // member of the resolving league, including users whose language
+      // differs from the viewer's — passing the viewer's `t` would
+      // localize each recipient's notification into the WRONG language.
+      // True per-recipient i18n requires a server-side text helper
+      // (see streak_break_text in migration 035). Falls back to English
+      // until that ships.
       await notifyLeagueResolution({
         user: { id: m.user_id, email: m.user_email },
         outcome,

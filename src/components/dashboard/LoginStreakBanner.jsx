@@ -75,6 +75,7 @@ export default function LoginStreakBanner() {
             day: result.streak,
             coinsAwarded: result.coinsAwarded,
             eliteCapsuleAwarded: result.eliteCapsuleAwarded,
+            t,
           })
             .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
             .catch(() => {});

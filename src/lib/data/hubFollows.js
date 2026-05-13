@@ -27,8 +27,16 @@ export const isFollowing = async (followerEmail, followeeEmail) => {
   return rows.length > 0;
 };
 
-/** Create a follow relationship. Idempotent — returns existing if already followed. */
-export const follow = async (followerEmail, followeeEmail) => {
+/**
+ * Create a follow relationship. Idempotent — returns existing if already
+ * followed.
+ *
+ * Optional `t` is the translation function from useLanguage; when
+ * supplied, the resulting notification row is rendered in the sender's
+ * language. Omitting it falls back to English (callers in non-React
+ * contexts can skip it).
+ */
+export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
   if (followerEmail === followeeEmail) return null;
   const existing = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
@@ -45,6 +53,7 @@ export const follow = async (followerEmail, followeeEmail) => {
           recipientUserId: followee.id,
           recipientEmail:  followee.email,
           followerName,
+          t,
         });
       }
     } catch { /* swallow — notification failure must not block follow */ }

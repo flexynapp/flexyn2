@@ -479,6 +479,7 @@ export default function HubComposer({ onClose }) {
               recipient: { id: recipient.id, email: recipient.email },
               posterName,
               postPreview: preview,
+              t,
             });
           }).filter(Boolean));
         } catch (err) {

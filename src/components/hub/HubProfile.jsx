@@ -127,7 +127,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       if (!user?.email || !email) {
         throw new Error('missing-user');
       }
-      return hubFollows.follow(user.email, email);
+      return hubFollows.follow(user.email, email, { t });
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.email, email] });

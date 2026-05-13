@@ -4,30 +4,47 @@
 // event type — they encapsulate the schema and keep call sites tidy.
 //
 // Event taxonomy (see NOTIFICATION_TYPES below):
-//   quest_claimed     — user claimed a quest reward
-//   streak_milestone  — workout or login streak hit a milestone day
-//   league_promoted   — user promoted from previous league tier
-//   league_demoted    — user demoted from previous league tier
-//   league_held       — user held position with a top-3 finish in legend
-//   friend_post       — followed user published a hub post
-//   friend_follow     — someone followed you
-//   pr_set            — you set a personal record
-//   capsule_earned    — you earned a capsule (level-up, milestone, etc.)
-//   coin_milestone    — flex coins crossed a threshold (10k, 25k, etc.)
+//   quest_claimed         — user claimed a quest reward
+//   streak_milestone      — workout or login streak hit a milestone day
+//   league_promoted       — user promoted from previous league tier
+//   league_demoted        — user demoted from previous league tier
+//   league_held           — user held position with a top-3 finish in legend
+//   friend_post           — followed user published a hub post
+//   friend_follow         — someone followed you
+//   pr_set                — you set a personal record
+//   capsule_earned        — you earned a capsule (level-up, milestone, etc.)
+//   coin_milestone        — flex coins crossed a threshold (10k, 25k, etc.)
+//   streak_break_warning  — cron-fired: streak about to end (also fireable from JS)
+//   welcome_back          — cron-fired: returning after N idle days
+//   quest_expiry_warning  — cron-fired: incomplete quests at end of day
+//
+// ── i18n NOTE ────────────────────────────────────────────────────────────
+// The migration 017 schema stores already-rendered title/body strings.
+// That means a notification is locked into the language the user had at
+// WRITE time — switching languages later won't retroactively translate
+// old rows. For SELF-TARGETED helpers we use the caller's `t` so users
+// see their own notifications in their own language. For CROSS-USER
+// helpers (notifyFriendFollow, notifyFriendPost) the SENDER's `t` is
+// what we have; for true recipient-language rendering of those, route
+// through a server-side text helper like streak_break_text() in
+// migration 035 — out of scope for this layer.
 
 import { supabase } from '@/api/supabaseClient';
 
 export const NOTIFICATION_TYPES = {
-  QUEST_CLAIMED:     'quest_claimed',
-  STREAK_MILESTONE:  'streak_milestone',
-  LEAGUE_PROMOTED:   'league_promoted',
-  LEAGUE_DEMOTED:    'league_demoted',
-  LEAGUE_HELD:       'league_held',
-  FRIEND_POST:       'friend_post',
-  FRIEND_FOLLOW:     'friend_follow',
-  PR_SET:            'pr_set',
-  CAPSULE_EARNED:    'capsule_earned',
-  COIN_MILESTONE:    'coin_milestone',
+  QUEST_CLAIMED:        'quest_claimed',
+  STREAK_MILESTONE:     'streak_milestone',
+  LEAGUE_PROMOTED:      'league_promoted',
+  LEAGUE_DEMOTED:       'league_demoted',
+  LEAGUE_HELD:          'league_held',
+  FRIEND_POST:          'friend_post',
+  FRIEND_FOLLOW:        'friend_follow',
+  PR_SET:               'pr_set',
+  CAPSULE_EARNED:       'capsule_earned',
+  COIN_MILESTONE:       'coin_milestone',
+  STREAK_BREAK_WARNING: 'streak_break_warning',
+  WELCOME_BACK:         'welcome_back',
+  QUEST_EXPIRY_WARNING: 'quest_expiry_warning',
 };
 
 const DEFAULT_LIMIT = 50;
@@ -143,57 +160,116 @@ async function _create({ userId, userEmail, type, title, body, icon, linkUrl, me
   return data;
 }
 
-// ── Helpers per event type ────────────────────────────────────────────────────
-// All helpers accept `t` from useLanguage so titles can be localized at write
-// time. If `t` isn't available (e.g. background context), pass null and the
-// caller-provided string defaults will be used.
+// ── i18n helpers ──────────────────────────────────────────────────────────────
+//
+// `tr(t, key, fallback, vars?)` mirrors tFallback semantics:
+//   - if `t` isn't provided OR the key resolves to itself (missing
+//     translation), substitute `{name}` placeholders in the English
+//     fallback string and return it
+//   - otherwise return the localized result from `t(key, vars)`
+//
+// Call sites pass `t` from useLanguage. Background callers that don't
+// have access to a React context can omit `t` and accept English
+// strings.
 
-export async function notifyQuestClaimed({ user, questLabel, coinsAwarded }) {
+function formatFallback(template, vars) {
+  if (!vars) return template;
+  let out = template;
+  for (const [k, v] of Object.entries(vars)) {
+    out = out.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));
+  }
+  return out;
+}
+
+function tr(t, key, fallback, vars) {
+  if (!t) return formatFallback(fallback, vars);
+  try {
+    const result = t(key, vars);
+    if (result === key) return formatFallback(fallback, vars);
+    return result;
+  } catch {
+    return formatFallback(fallback, vars);
+  }
+}
+
+// ── Helpers per event type ────────────────────────────────────────────────────
+// All helpers accept an optional `t` from useLanguage; if missing,
+// strings fall back to English. The translation lookup is read-time;
+// the result is stored at write-time, so changing language later won't
+// retranslate existing rows (see file-level i18n NOTE).
+
+export async function notifyQuestClaimed({ user, questLabel, coinsAwarded, t }) {
   return _create({
     userId:    user.id,
     userEmail: user.email,
     type:      NOTIFICATION_TYPES.QUEST_CLAIMED,
-    title:     `🪙 +${coinsAwarded} coins · ${questLabel}`,
-    body:      'Quest reward claimed.',
+    title:     tr(t, 'notifications.row.quest_claimed.title',
+                  '🪙 +{coins} coins · {quest}',
+                  { coins: coinsAwarded, quest: questLabel }),
+    body:      tr(t, 'notifications.row.quest_claimed.body',
+                  'Quest reward claimed.'),
     icon:      '🎯',
     linkUrl:   '/dashboard',
     metadata:  { questLabel, coinsAwarded },
   });
 }
 
-export async function notifyStreakMilestone({ user, kind, day, coinsAwarded, eliteCapsuleAwarded }) {
+export async function notifyStreakMilestone({ user, kind, day, coinsAwarded, eliteCapsuleAwarded, t }) {
   // kind: 'login' | 'workout'
-  const verb = kind === 'workout' ? 'Workout streak' : 'Login streak';
-  const capsule = eliteCapsuleAwarded ? ' + Elite Capsule' : '';
+  const titleKey = kind === 'workout'
+    ? 'notifications.row.streak_milestone.workout.title'
+    : 'notifications.row.streak_milestone.login.title';
+  const titleFallback = kind === 'workout'
+    ? '🔥 Workout streak: Day {day}!'
+    : '🔥 Login streak: Day {day}!';
+  const bodyKey = eliteCapsuleAwarded
+    ? 'notifications.row.streak_milestone.body_with_capsule'
+    : 'notifications.row.streak_milestone.body';
+  const bodyFallback = eliteCapsuleAwarded
+    ? '+{coins} coins + Elite Capsule'
+    : '+{coins} coins';
   return _create({
     userId:    user.id,
     userEmail: user.email,
     type:      NOTIFICATION_TYPES.STREAK_MILESTONE,
-    title:     `🔥 ${verb}: Day ${day}!`,
-    body:      `+${coinsAwarded} coins${capsule}`,
+    title:     tr(t, titleKey, titleFallback, { day }),
+    body:      tr(t, bodyKey, bodyFallback, { coins: coinsAwarded }),
     icon:      kind === 'workout' ? '💪' : '🔥',
     linkUrl:   '/dashboard',
     metadata:  { kind, day, coinsAwarded, eliteCapsuleAwarded: !!eliteCapsuleAwarded },
   });
 }
 
-export async function notifyLeagueResolution({ user, outcome, fromTier, toTier, coinsAwarded, capsuleAwarded }) {
+export async function notifyLeagueResolution({ user, outcome, fromTier, toTier, coinsAwarded, capsuleAwarded, t }) {
   // outcome: 'promote' | 'demote' | 'stay'
   let type, title, body, icon;
   if (outcome === 'promote') {
     type  = NOTIFICATION_TYPES.LEAGUE_PROMOTED;
-    title = `⬆️ Promoted to ${toTier}!`;
-    body  = `+${coinsAwarded} coins${capsuleAwarded ? ' + ' + capsuleAwarded + ' capsule' : ''}`;
+    title = tr(t, 'notifications.row.league_promoted.title',
+              '⬆️ Promoted to {tier}!', { tier: toTier });
+    body  = capsuleAwarded
+      ? tr(t, 'notifications.row.league_promoted.body_with_capsule',
+            '+{coins} coins + {capsule} capsule',
+            { coins: coinsAwarded, capsule: capsuleAwarded })
+      : tr(t, 'notifications.row.league_promoted.body',
+            '+{coins} coins', { coins: coinsAwarded });
     icon  = '🏆';
   } else if (outcome === 'demote') {
     type  = NOTIFICATION_TYPES.LEAGUE_DEMOTED;
-    title = `⬇️ Demoted to ${toTier}`;
-    body  = `Climb back next week!`;
+    title = tr(t, 'notifications.row.league_demoted.title',
+              '⬇️ Demoted to {tier}', { tier: toTier });
+    body  = tr(t, 'notifications.row.league_demoted.body',
+              'Climb back next week!');
     icon  = '📉';
   } else {
     type  = NOTIFICATION_TYPES.LEAGUE_HELD;
-    title = `Held position in ${fromTier}`;
-    body  = coinsAwarded > 0 ? `+${coinsAwarded} coins` : 'Push for promotion next week.';
+    title = tr(t, 'notifications.row.league_held.title',
+              'Held position in {tier}', { tier: fromTier });
+    body  = coinsAwarded > 0
+      ? tr(t, 'notifications.row.league_held.body_coins',
+            '+{coins} coins', { coins: coinsAwarded })
+      : tr(t, 'notifications.row.league_held.body_default',
+            'Push for promotion next week.');
     icon  = '🛡️';
   }
   return _create({
@@ -208,14 +284,17 @@ export async function notifyLeagueResolution({ user, outcome, fromTier, toTier, 
   });
 }
 
-export async function notifyFriendPost({ recipient, posterName, postPreview }) {
+export async function notifyFriendPost({ recipient, posterName, postPreview, t }) {
   // crossUser=true routes through create_notification_for RPC — the RLS
-  // policy on direct INSERT only allows user_id = auth.uid().
+  // policy on direct INSERT only allows user_id = auth.uid(). NOTE: the
+  // RENDERED text uses the SENDER's t, not the recipient's; recipient-
+  // language rendering would require a server-side text function.
   return _create({
     userId:    recipient.id || recipient.user_id,
     userEmail: recipient.email || recipient.user_email,
     type:      NOTIFICATION_TYPES.FRIEND_POST,
-    title:     `${posterName} posted`,
+    title:     tr(t, 'notifications.row.friend_post.title',
+                  '{name} posted', { name: posterName }),
     body:      postPreview?.slice(0, 100) || '',
     icon:      '✨',
     linkUrl:   '/hub',
@@ -224,13 +303,15 @@ export async function notifyFriendPost({ recipient, posterName, postPreview }) {
   });
 }
 
-export async function notifyFriendFollow({ recipientUserId, recipientEmail, followerName }) {
+export async function notifyFriendFollow({ recipientUserId, recipientEmail, followerName, t }) {
   return _create({
     userId:    recipientUserId,
     userEmail: recipientEmail,
     type:      NOTIFICATION_TYPES.FRIEND_FOLLOW,
-    title:     `${followerName} followed you`,
-    body:      'Tap to view their profile.',
+    title:     tr(t, 'notifications.row.friend_follow.title',
+                  '{name} followed you', { name: followerName }),
+    body:      tr(t, 'notifications.row.friend_follow.body',
+                  'Tap to view their profile.'),
     icon:      '👋',
     linkUrl:   '/hub',
     metadata:  { followerName },
@@ -238,12 +319,13 @@ export async function notifyFriendFollow({ recipientUserId, recipientEmail, foll
   });
 }
 
-export async function notifyPrSet({ user, prLabel, value, unit }) {
+export async function notifyPrSet({ user, prLabel, value, unit, t }) {
   return _create({
     userId:    user.id,
     userEmail: user.email,
     type:      NOTIFICATION_TYPES.PR_SET,
-    title:     `🏆 New ${prLabel} PR!`,
+    title:     tr(t, 'notifications.row.pr_set.title',
+                  '🏆 New {label} PR!', { label: prLabel }),
     body:      `${value}${unit ? ' ' + unit : ''}`,
     icon:      '⚡',
     linkUrl:   '/progress',
@@ -251,17 +333,84 @@ export async function notifyPrSet({ user, prLabel, value, unit }) {
   });
 }
 
-export async function notifyCapsuleEarned({ user, capsuleType, reason }) {
-  const labels = { standard: 'Standard', premium: 'Premium', elite: 'Elite' };
-  const label  = labels[capsuleType] || 'Mystery';
+export async function notifyCapsuleEarned({ user, capsuleType, reason, t }) {
+  // Per-rarity localized label. The fallback table here mirrors the
+  // English-only behavior of the previous implementation.
+  const labelKeys = {
+    standard: 'notifications.row.capsule.label.standard',
+    premium:  'notifications.row.capsule.label.premium',
+    elite:    'notifications.row.capsule.label.elite',
+  };
+  const labelFallbacks = {
+    standard: 'Standard',
+    premium:  'Premium',
+    elite:    'Elite',
+  };
+  const labelKey      = labelKeys[capsuleType]      || 'notifications.row.capsule.label.mystery';
+  const labelFallback = labelFallbacks[capsuleType] || 'Mystery';
+  const label = tr(t, labelKey, labelFallback);
   return _create({
     userId:    user.id,
     userEmail: user.email,
     type:      NOTIFICATION_TYPES.CAPSULE_EARNED,
-    title:     `🎁 ${label} Capsule earned`,
-    body:      reason || 'Open it from your bag.',
+    title:     tr(t, 'notifications.row.capsule_earned.title',
+                  '🎁 {label} Capsule earned', { label }),
+    body:      reason || tr(t, 'notifications.row.capsule_earned.body_default',
+                            'Open it from your bag.'),
     icon:      capsuleType === 'elite' ? '💎' : capsuleType === 'premium' ? '🎁' : '📦',
     linkUrl:   '/hub',
     metadata:  { capsuleType, reason },
+  });
+}
+
+// ── Cron-mirror helpers (rare manual fires) ───────────────────────────────────
+// The three reminder types below are normally inserted by SQL cron jobs
+// (migrations 035 + 037) with server-rendered text in the user's
+// preferred_language. These JS helpers exist for ad-hoc/test fires from
+// client code — e.g. an admin tool, or a "test push" button. They use
+// the same key namespace, so passing `t` produces parity with the cron.
+
+export async function notifyStreakBreakWarning({ user, workoutStreak, t }) {
+  return _create({
+    userId:    user.id,
+    userEmail: user.email,
+    type:      NOTIFICATION_TYPES.STREAK_BREAK_WARNING,
+    title:     tr(t, 'notifications.row.streak_break_warning.title',
+                  '🔥 {streak}-day streak at risk', { streak: workoutStreak }),
+    body:      tr(t, 'notifications.row.streak_break_warning.body',
+                  'Your streak ends at midnight. A quick workout keeps it alive.'),
+    icon:      '🔥',
+    linkUrl:   '/workouts',
+    metadata:  { workout_streak: workoutStreak },
+  });
+}
+
+export async function notifyWelcomeBack({ user, t }) {
+  return _create({
+    userId:    user.id,
+    userEmail: user.email,
+    type:      NOTIFICATION_TYPES.WELCOME_BACK,
+    title:     tr(t, 'notifications.row.welcome_back.title',
+                  '👋 We miss you'),
+    body:      tr(t, 'notifications.row.welcome_back.body',
+                  'Your progress is waiting. Quick session today?'),
+    icon:      '👋',
+    linkUrl:   '/dashboard',
+    metadata:  {},
+  });
+}
+
+export async function notifyQuestExpiry({ user, remaining, t }) {
+  return _create({
+    userId:    user.id,
+    userEmail: user.email,
+    type:      NOTIFICATION_TYPES.QUEST_EXPIRY_WARNING,
+    title:     tr(t, 'notifications.row.quest_expiry_warning.title',
+                  '⏳ {remaining} quests left today', { remaining }),
+    body:      tr(t, 'notifications.row.quest_expiry_warning.body',
+                  "Quests reset at midnight. Don't miss the coins!"),
+    icon:      '⏳',
+    linkUrl:   '/dashboard',
+    metadata:  { remaining },
   });
 }

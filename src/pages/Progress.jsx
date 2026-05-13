@@ -719,11 +719,19 @@ export default function Progress() {
           className="fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border z-40 md:ml-64"
         >
           <div className="max-w-5xl mx-auto px-4 md:px-8 py-4">
-            <div className="grid grid-cols-4 gap-3">
+            {/*
+              These "tabs" are scroll-to-anchor jump links, NOT WAI-ARIA
+              tabs (no tabpanels, no roving focus). `aria-pressed`
+              correctly communicates the toggle-style selection state to
+              screen readers without falsely promising tab semantics
+              the underlying markup doesn't honor.
+            */}
+            <div role="group" aria-label="Section navigation" className="grid grid-cols-4 gap-3">
               {TABS.map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setTimeout(() => scrollToTab(tab.id), 450); }}
+                  aria-pressed={activeTab === tab.id}
                   className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     activeTab === tab.id
                       ? 'bg-primary text-primary-foreground'

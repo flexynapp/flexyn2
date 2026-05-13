@@ -31,7 +31,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useLocation } from 'react-router-dom';
 
 export default function Nutrition() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const location = useLocation();
 
   const [openLogMeal, setOpenLogMeal] = useState(false);
@@ -528,12 +528,14 @@ export default function Nutrition() {
             {/* HEADER ROW */}
             <div className="flex items-center justify-between">
               <h3 className="font-heading text-lg font-bold">{t('nutrition.waterIntake')}</h3>
-              {/* Unit Toggle */}
-              <div className="flex rounded-lg border border-border overflow-hidden bg-secondary/30">
+              {/* Unit Toggle — radio-style group; aria-pressed lets screen
+                  readers announce active vs inactive state. */}
+              <div role="group" aria-label={t('nutrition.waterIntake')} className="flex rounded-lg border border-border overflow-hidden bg-secondary/30">
                 {['oz', 'ml', 'L'].map(unit => (
                   <button
                     key={unit}
                     onClick={() => setWaterUnit(unit)}
+                    aria-pressed={waterUnit === unit}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
                       waterUnit === unit
                         ? 'bg-primary text-primary-foreground'
@@ -637,8 +639,9 @@ export default function Nutrition() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm font-medium mb-2 block">{t('nutrition.amount')}</label>
+              <label htmlFor="bottle-amount" className="text-sm font-medium mb-2 block">{t('nutrition.amount')}</label>
               <Input
+                id="bottle-amount"
                 type="number"
                 min="1"
                 max={bottleInputUnit === 'ml' ? Math.round(MAX_BOTTLE_OZ * 29.5735) : bottleInputUnit === 'L' ? (MAX_BOTTLE_OZ * 0.0295735).toFixed(1) : MAX_BOTTLE_OZ}
@@ -649,12 +652,17 @@ export default function Nutrition() {
               <p className="text-xs text-muted-foreground mt-1">Max: {maxBottleInUnit(bottleInputUnit)}</p>
             </div>
             <div>
-              <label className="text-sm font-medium mb-2 block">{t('nutrition.unit')}</label>
-              <div className="flex rounded-lg border border-border overflow-hidden bg-secondary/30">
+              <span id="bottle-unit-label" className="text-sm font-medium mb-2 block">{t('nutrition.unit')}</span>
+              <div
+                role="group"
+                aria-labelledby="bottle-unit-label"
+                className="flex rounded-lg border border-border overflow-hidden bg-secondary/30"
+              >
                 {['oz', 'ml', 'L'].map(unit => (
                   <button
                     key={unit}
                     onClick={() => setBottleInputUnit(unit)}
+                    aria-pressed={bottleInputUnit === unit}
                     className={`flex-1 px-3 py-2 text-xs font-medium transition-colors ${
                       bottleInputUnit === unit
                         ? 'bg-primary text-primary-foreground'
@@ -708,8 +716,13 @@ export default function Nutrition() {
                       {entry.fat_g > 0 && <span>• F: {entry.fat_g}g</span>}
                     </p>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={() => deleteMutation.mutate(entry.id)}>
-                    <Trash2 className="w-4 h-4 text-destructive" />
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={tFallback ? tFallback('nutrition.deleteEntry', 'Delete entry') : 'Delete entry'}
+                    onClick={() => deleteMutation.mutate(entry.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-destructive" aria-hidden="true" />
                   </Button>
                 </Card>
               </motion.div>
@@ -785,8 +798,9 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
             onClick={() => onDelete(g.latestId)}
             className="ml-0.5 p-0.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Remove one"
+            aria-label={`Remove one ${g.label}`}
           >
-            <X className="w-3 h-3" />
+            <X className="w-3 h-3" aria-hidden="true" />
           </button>
         </motion.div>
       ))}

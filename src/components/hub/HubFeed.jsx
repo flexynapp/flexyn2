@@ -180,7 +180,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
             onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, allPosts.length))}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 hover:bg-secondary text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
             {t('hub.feed.loadingMore')}
           </button>
         </div>
