@@ -107,6 +107,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   const pauseStartedAtRef = useRef(null);
   const pausedTotalMsRef = useRef(0);
   const hiddenAtRef = useRef(null);
+  const frozenElapsedMsRef = useRef(null); // set by finish() — never recalculates after stop
   const trackRef = useRef([]);
   const distanceMetersRef = useRef(0);
   const lastAcceptedRef = useRef(null);
@@ -255,11 +256,13 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   }, []);
 
   // ── Derived ──
-  const elapsedMs = startedAtRef.current
-    ? (status === 'paused'
-        ? (pauseStartedAtRef.current - startedAtRef.current - pausedTotalMsRef.current)
-        : (Date.now() - startedAtRef.current - pausedTotalMsRef.current))
-    : 0;
+  const elapsedMs = frozenElapsedMsRef.current !== null
+    ? frozenElapsedMsRef.current
+    : (startedAtRef.current
+        ? (status === 'paused'
+            ? (pauseStartedAtRef.current - startedAtRef.current - pausedTotalMsRef.current)
+            : (Date.now() - startedAtRef.current - pausedTotalMsRef.current))
+        : 0);
   const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
   const distanceMeters = distanceMetersRef.current;
   const pace = paceSecPerKmFrom(distanceMeters, elapsedSeconds);
@@ -390,6 +393,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       setStatus('error');
       return;
     }
+    frozenElapsedMsRef.current = null;
     setStatus('tracking');
     startedAtRef.current = Date.now();
     pausedTotalMsRef.current = 0;
@@ -448,6 +452,11 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       clearInterval(tickIdRef.current);
       tickIdRef.current = null;
     }
+    // Freeze elapsed at this exact instant — any future render uses this value,
+    // never Date.now(), so coming back from background can't add ghost time.
+    frozenElapsedMsRef.current = startedAtRef.current
+      ? Math.max(0, Date.now() - startedAtRef.current - pausedTotalMsRef.current)
+      : 0;
     if (voiceEnabled) {
       const distLabel = distanceUnit === 'km'
         ? `${(distanceMetersRef.current / 1000).toFixed(2)} ${t('cardio.voice.kilometers')}`

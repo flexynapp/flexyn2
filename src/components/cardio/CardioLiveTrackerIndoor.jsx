@@ -48,6 +48,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   const tickIdRef = useRef(null);
   const wakeLockRef = useRef(null);
   const hiddenAtRef = useRef(null);
+  const frozenElapsedMsRef = useRef(null); // set by finish() — never recalculates after stop
 
   // ── Restore snapshot on mount ──
   useEffect(() => {
@@ -105,11 +106,13 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     ? toMeters(distanceUnit, Number(distanceInputUnits) || 0)
     : 0;
 
-  const elapsedMs = startedAtRef.current
-    ? (status === 'paused'
-        ? (pauseStartedAtRef.current - startedAtRef.current - pausedTotalMsRef.current)
-        : (Date.now() - startedAtRef.current - pausedTotalMsRef.current))
-    : 0;
+  const elapsedMs = frozenElapsedMsRef.current !== null
+    ? frozenElapsedMsRef.current
+    : (startedAtRef.current
+        ? (status === 'paused'
+            ? (pauseStartedAtRef.current - startedAtRef.current - pausedTotalMsRef.current)
+            : (Date.now() - startedAtRef.current - pausedTotalMsRef.current))
+        : 0);
   const elapsedSeconds = Math.max(0, Math.floor(elapsedMs / 1000));
   const pace = paceSecPerKmFrom(distanceMeters, elapsedSeconds);
   const speedKmh = speedKmhFrom(distanceMeters, elapsedSeconds);
@@ -123,6 +126,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
 
   // ── Start ──
   const start = () => {
+    frozenElapsedMsRef.current = null;
     setStatus('tracking');
     startedAtRef.current = Date.now();
     pausedTotalMsRef.current = 0;
@@ -149,6 +153,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   // ── Finish ──
   const finish = () => {
     if (tickIdRef.current) { clearInterval(tickIdRef.current); tickIdRef.current = null; }
+    // Freeze elapsed at this exact instant — any future render uses this value,
+    // never Date.now(), so coming back from background can't add ghost time.
+    frozenElapsedMsRef.current = startedAtRef.current
+      ? Math.max(0, Date.now() - startedAtRef.current - pausedTotalMsRef.current)
+      : 0;
     setStatus('finished');
   };
 
