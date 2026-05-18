@@ -88,8 +88,10 @@ function makeEntity(entityName) {
      *  hasn't been applied yet — the extra fields are silently dropped rather
      *  than crashing the entire feature. */
     async create(data) {
-      const { data: { session } } = await supabase.auth.getSession();
-      const authUser = session?.user;
+      // getUser() validates the token server-side; getSession() only reads
+      // localStorage and can return a stale/null session, leaving created_by
+      // unset and breaking the NOT NULL constraint on every insert.
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       const enriched = {
         ...(authUser?.email ? { created_by: authUser.email } : {}),
         ...(authUser?.id    ? { user_id:    authUser.id    } : {}),
