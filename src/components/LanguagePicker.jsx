@@ -80,7 +80,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           className="flex items-center justify-center w-8 h-8 rounded-lg border border-border hover:bg-secondary transition-colors"
           title="Change language"
         >
-          <span className="text-base leading-none">🌐</span>
+          <span className="text-base leading-none">🗣️</span>
         </button>
       ) : (
         <button
@@ -90,7 +90,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border hover:bg-secondary text-xs font-medium transition-colors"
           title="Change language / 언어 변경 / Idioma"
         >
-          <span>🌐</span>
+          <span>🗣️</span>
           <span>{currentLanguage.flag}</span>
           <motion.span animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
             <ChevronDown className="w-3 h-3 text-muted-foreground" />
