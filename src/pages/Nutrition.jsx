@@ -131,6 +131,26 @@ export default function Nutrition() {
 
   const saveMutation = useMutation({
     mutationFn: (data) => nutritionData.create(data),
+    onMutate: async (variables) => {
+      if (!(variables.water_oz > 0)) return;
+      const qKey = ['nutritionLogs', user?.email, date];
+      await queryClient.cancelQueries({ queryKey: qKey });
+      const previousLogs = queryClient.getQueryData(qKey);
+      queryClient.setQueryData(qKey, (old) => [
+        ...(old || []),
+        {
+          id: `optimistic-${Date.now()}`,
+          date,
+          food_name: 'Water',
+          water_oz: variables.water_oz,
+          calories: 0,
+          protein_g: 0, carbs_g: 0, fat_g: 0,
+          created_by: user?.email,
+          created_at: new Date().toISOString(),
+        },
+      ]);
+      return { previousLogs };
+    },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       if (variables.water_oz > 0) {
@@ -156,7 +176,10 @@ export default function Nutrition() {
           .catch(() => {});
       }
     },
-    onError: (err) => {
+    onError: (err, variables, context) => {
+      if (context?.previousLogs !== undefined) {
+        queryClient.setQueryData(['nutritionLogs', user?.email, date], context.previousLogs);
+      }
       console.error('[Nutrition] save failed:', err);
       toast.error(t('nutrition.toast.saveError'));
     },
