@@ -180,7 +180,7 @@ export default function Nutrition() {
       if (context?.previousLogs !== undefined) {
         queryClient.setQueryData(['nutritionLogs', user?.email, date], context.previousLogs);
       }
-      console.error('[Nutrition] save failed:', err);
+      console.error('[Nutrition] save failed — code:', err?.code, 'message:', err?.message, 'details:', err?.details, err);
       toast.error(t('nutrition.toast.saveError'));
     },
   });
@@ -314,6 +314,8 @@ export default function Nutrition() {
     if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return; }
     saveMutation.mutate({
       date,
+      created_by: user?.email,
+      user_id: user?.id,
       ...Object.fromEntries(Object.entries(newEntry).map(([k, v]) => [k, v === '' ? 0 : v]))
     });
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
@@ -590,7 +592,7 @@ export default function Nutrition() {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                     return;
                   }
-                  saveMutation.mutate({ date, food_name: 'Water', water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+                  saveMutation.mutate({ date, food_name: 'Water', water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
                 }}
                 disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
@@ -613,7 +615,7 @@ export default function Nutrition() {
                         toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                         return;
                       }
-                      saveMutation.mutate({ date, food_name: 'Water', water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0 });
+                      saveMutation.mutate({ date, food_name: 'Water', water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
                     }}
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pr-8 text-xs"
