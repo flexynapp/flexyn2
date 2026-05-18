@@ -106,6 +106,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
   const startedAtRef = useRef(null);
   const pauseStartedAtRef = useRef(null);
   const pausedTotalMsRef = useRef(0);
+  const hiddenAtRef = useRef(null);
   const trackRef = useRef([]);
   const distanceMetersRef = useRef(0);
   const lastAcceptedRef = useRef(null);
@@ -208,6 +209,22 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
 
     return () => clearTimeout(ipTimer);
   }, [distanceUnit]);
+
+  // ── Exclude background time from elapsed ──
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!startedAtRef.current || !tickIdRef.current) return;
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+      } else if (hiddenAtRef.current !== null) {
+        pausedTotalMsRef.current += Date.now() - hiddenAtRef.current;
+        hiddenAtRef.current = null;
+        forceTick(n => n + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   // ── Auto-snapshot every 10s while active ──
   useEffect(() => {

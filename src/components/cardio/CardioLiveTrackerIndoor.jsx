@@ -47,6 +47,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
   const pausedTotalMsRef = useRef(0);
   const tickIdRef = useRef(null);
   const wakeLockRef = useRef(null);
+  const hiddenAtRef = useRef(null);
 
   // ── Restore snapshot on mount ──
   useEffect(() => {
@@ -61,6 +62,22 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     toast.success(t('cardio.recover.recovered'));
     forceTick(n => n + 1);
    
+  }, []);
+
+  // ── Exclude background time from elapsed ──
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (!startedAtRef.current || !tickIdRef.current) return;
+      if (document.visibilityState === 'hidden') {
+        hiddenAtRef.current = Date.now();
+      } else if (hiddenAtRef.current !== null) {
+        pausedTotalMsRef.current += Date.now() - hiddenAtRef.current;
+        hiddenAtRef.current = null;
+        forceTick(n => n + 1);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, []);
 
   // ── Auto-snapshot every 10s while active ──
