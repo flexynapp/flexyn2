@@ -16,6 +16,7 @@
 //     new rows arrive while the panel is open.
 
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -137,8 +138,6 @@ export default function NotificationPanel({ open, onClose }) {
     queryClient.invalidateQueries({ queryKey: ['notificationsList', user.id] });
   };
 
-  if (!open) return null;
-
   // "All" shows everything; "Friends" filters to types where a real
   // human triggered the row. Two tabs is the ceiling — anything more
   // would duplicate the per-category prefs in Settings.
@@ -150,14 +149,18 @@ export default function NotificationPanel({ open, onClose }) {
   const hasAny    = rows.length > 0;
   const friendsCount = rows.filter(r => FRIEND_TYPES.has(r.type)).length;
 
-  return (
+  // Render into a portal so the panel sits outside the Header's stacking
+  // context (the Header uses backdrop-blur which creates a new stacking
+  // context, trapping any fixed children inside its z-index layer).
+  return createPortal(
     <AnimatePresence>
+      {open && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+        className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[9999]"
       >
         <motion.div
           role="dialog"
@@ -209,50 +212,41 @@ export default function NotificationPanel({ open, onClose }) {
             </div>
           </div>
 
-          {/*
-            Tab filter. Only render when the user has at least one
-            friend-typed row — otherwise the "Friends" tab would be a
-            permanent empty state. aria-pressed announces the active
-            state to screen readers (not role="tab" because we don't
-            have a proper roving-focus tabpanel pattern; the filter
-            mutates the same list rather than swapping panels).
-          */}
-          {friendsCount > 0 && (
-            <div
-              role="group"
-              aria-label={tFallback('notifications.filter', 'Filter notifications')}
-              className="flex border-b border-border bg-card"
+          {/* Tab filter — aria-pressed announces active tab to screen readers. */}
+          <div
+            role="group"
+            aria-label={tFallback('notifications.filter', 'Filter notifications')}
+            className="flex border-b border-border bg-card"
+          >
+            <button
+              onClick={() => setTab('all')}
+              aria-pressed={tab === 'all'}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+                tab === 'all'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-foreground'
+              }`}
             >
-              <button
-                onClick={() => setTab('all')}
-                aria-pressed={tab === 'all'}
-                className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
-                  tab === 'all'
-                    ? 'text-primary border-primary'
-                    : 'text-muted-foreground border-transparent hover:text-foreground'
-                }`}
-              >
-                {tFallback('notifications.tab.all', 'All')}
-                <span className="ml-1.5 text-[10px] text-muted-foreground/70">
-                  {rows.length}
-                </span>
-              </button>
-              <button
-                onClick={() => setTab('friends')}
-                aria-pressed={tab === 'friends'}
-                className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
-                  tab === 'friends'
-                    ? 'text-primary border-primary'
-                    : 'text-muted-foreground border-transparent hover:text-foreground'
-                }`}
-              >
-                {tFallback('notifications.tab.friends', 'Friends')}
-                <span className="ml-1.5 text-[10px] text-muted-foreground/70">
-                  {friendsCount}
-                </span>
-              </button>
-            </div>
-          )}
+              {tFallback('notifications.tab.all', 'All')}
+              <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                {rows.length}
+              </span>
+            </button>
+            <button
+              onClick={() => setTab('friends')}
+              aria-pressed={tab === 'friends'}
+              className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+                tab === 'friends'
+                  ? 'text-primary border-primary'
+                  : 'text-muted-foreground border-transparent hover:text-foreground'
+              }`}
+            >
+              {tFallback('notifications.tab.friends', 'Friends')}
+              <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+                {friendsCount}
+              </span>
+            </button>
+          </div>
 
           {/* List */}
           <div
@@ -337,7 +331,9 @@ export default function NotificationPanel({ open, onClose }) {
           </div>
         </motion.div>
       </motion.div>
-    </AnimatePresence>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
 
