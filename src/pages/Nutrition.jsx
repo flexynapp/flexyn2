@@ -139,7 +139,7 @@ export default function Nutrition() {
   const saveMutation = useMutation({
     mutationFn: (data) => nutritionData.create(data),
     onMutate: async (variables) => {
-      if (!(variables.water_oz > 0)) return;
+      if (!isWaterEntry(variables)) return;
       const qKey = ['nutritionLogs', user?.email, date];
       await queryClient.cancelQueries({ queryKey: qKey });
       const previousLogs = queryClient.getQueryData(qKey);
@@ -149,9 +149,8 @@ export default function Nutrition() {
           id: `optimistic-${Date.now()}`,
           date,
           food_name: variables.food_name,
-          water_oz: variables.water_oz,
+          water_oz: waterEntryOz(variables),
           calories: 0,
-          protein_g: 0, carbs_g: 0, fat_g: 0,
           created_by: user?.email,
           created_at: new Date().toISOString(),
         },
@@ -160,14 +159,14 @@ export default function Nutrition() {
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
-      if (variables.water_oz > 0) {
+      if (isWaterEntry(variables)) {
         // XP value comes from XP_REWARDS.waterGlass (single source of truth).
         // Was hardcoded to 1 inline, drifted from the documented 3.
         const xpForWater = (XP_REWARDS && XP_REWARDS.waterGlass) || 3;
         db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: xpForWater,
           action_type: 'water_logged',
-          action_data: { date, oz: variables.water_oz },
+          action_data: { date, oz: waterEntryOz(variables) },
         }).catch(() => {});
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         toast.success(t('nutrition.toast.waterLogged'));
@@ -599,7 +598,7 @@ export default function Nutrition() {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                     return;
                   }
-                  saveMutation.mutate({ date, food_name: waterFoodName(8), water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
+                  saveMutation.mutate({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
                 }}
                 disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
@@ -622,7 +621,7 @@ export default function Nutrition() {
                         toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                         return;
                       }
-                      saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
+                      saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
                     }}
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pr-8 text-xs"
