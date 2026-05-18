@@ -19,6 +19,7 @@ import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
 import CoachChat from '@/components/coach/CoachChat';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import StoriesRow from '@/components/stories/StoriesRow';
 import { toast } from 'sonner';
 
 export default function Hub() {
@@ -333,6 +334,9 @@ export default function Hub() {
           )}
         </div>
       </div>
+
+      {/* ── Stories — only visible on the feed tab ─────────────────────────── */}
+      {section === 'feed' && <StoriesRow />}
 
       {/* ── Sections ─────────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait" initial={false}>

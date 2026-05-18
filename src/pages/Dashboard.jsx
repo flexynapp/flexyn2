@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
@@ -390,6 +391,9 @@ export default function Dashboard() {
       transition={{ duration: 0.4 }}
       className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
     >
+      {/* ── Stories ─────────────────────────────────────────────── */}
+      <StoriesRow />
+
       {/* ── Greeting block ─────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: -8 }}
