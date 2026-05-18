@@ -106,9 +106,14 @@ export async function translateText(text, targetLang, sourceLang = 'auto') {
         sourceLang: translated[0].sourceLang,
         engine: translated[0].engine,
       };
+      // If auto-detect determined the text is already in the target language, noop.
+      if (combined.sourceLang === targetLang) return { translatedText: trimmed, sourceLang: combined.sourceLang, engine: 'noop' };
       return combined;
     }
-    return _translateOne(trimmed, targetLang, sourceLang, abortController.signal);
+    const r = await _translateOne(trimmed, targetLang, sourceLang, abortController.signal);
+    // If auto-detect determined the text is already in the target language, noop.
+    if (r && r.sourceLang === targetLang) return { translatedText: trimmed, sourceLang: r.sourceLang, engine: 'noop' };
+    return r;
   })();
 
   try {
@@ -195,8 +200,8 @@ async function _viaMyMemory(text, targetLang, sourceLang, externalSignal) {
     const data = await response.json();
     const translatedText = data?.responseData?.translatedText;
     if (!translatedText) return null;
-    // MyMemory returns warnings inside the translatedText field itself
-    if (/MYMEMORY WARNING|QUERY LENGTH LIMIT/i.test(translatedText)) return null;
+    // MyMemory returns error strings inside the translatedText field itself
+    if (/MYMEMORY WARNING|QUERY LENGTH LIMIT|PLEASE SELECT TWO DISTINCT|INVALID LANGUAGE PAIR/i.test(translatedText)) return null;
     return {
       translatedText,
       sourceLang: data?.responseData?.detectedSourceLanguage
