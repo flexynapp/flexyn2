@@ -32,6 +32,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useLanguage } from '@/lib/LanguageContext';
 import { useLocation } from 'react-router-dom';
 
+// Helpers for water entries — encode oz in food_name so the value survives
+// even when the water_oz DB column doesn't exist (migration 006 not applied).
+// Format: "Water" = 8 oz (legacy/standard glass), "Water|N" = N oz
+const isWaterEntry = (e) => e.food_name === 'Water' || e.food_name?.startsWith('Water|');
+const waterEntryOz = (e) => e.water_oz ?? (e.food_name?.startsWith('Water|') ? Number(e.food_name.split('|')[1]) : 8);
+const waterFoodName = (oz) => oz === 8 ? 'Water' : `Water|${oz}`;
+
 export default function Nutrition() {
   const { t, tFallback } = useLanguage();
   const location = useLocation();
@@ -121,8 +128,8 @@ export default function Nutrition() {
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
 
   // Derive water data from logs
-  const waterEntries = logs.filter(e => e.food_name === 'Water');
-  const waterOz = waterEntries.reduce((sum, e) => sum + (e.water_oz || 8), 0);
+  const waterEntries = logs.filter(isWaterEntry);
+  const waterOz = waterEntries.reduce((sum, e) => sum + waterEntryOz(e), 0);
 
   // Always sync — ensures carousel clears on delete and updates after refetch
   useEffect(() => {
@@ -141,7 +148,7 @@ export default function Nutrition() {
         {
           id: `optimistic-${Date.now()}`,
           date,
-          food_name: 'Water',
+          food_name: variables.food_name,
           water_oz: variables.water_oz,
           calories: 0,
           protein_g: 0, carbs_g: 0, fat_g: 0,
@@ -592,7 +599,7 @@ export default function Nutrition() {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                     return;
                   }
-                  saveMutation.mutate({ date, food_name: 'Water', water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
+                  saveMutation.mutate({ date, food_name: waterFoodName(8), water_oz: 8, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
                 }}
                 disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
@@ -615,7 +622,7 @@ export default function Nutrition() {
                         toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                         return;
                       }
-                      saveMutation.mutate({ date, food_name: 'Water', water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
+                      saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), water_oz: bottle.oz, calories: 0, protein_g: 0, carbs_g: 0, fat_g: 0, created_by: user?.email, user_id: user?.id });
                     }}
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pr-8 text-xs"
@@ -721,14 +728,14 @@ export default function Nutrition() {
       <motion.div className="space-y-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
         <h3 className="font-heading font-bold mb-4">{t('nutrition.todaysMeals')}</h3>
         <AnimatePresence>
-          {entries.filter(entry => !(entry.food_name === 'Water' && entry.water_oz > 0)).length === 0 ? (
+          {entries.filter(entry => !isWaterEntry(entry)).length === 0 ? (
             <Card className="p-8 text-center border-dashed">
               <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
               <p className="font-heading font-semibold">{t('nutrition.noMeals')}</p>
               <p className="text-sm text-muted-foreground mt-1">{t('nutrition.noMealsDesc')}</p>
             </Card>
           ) : (
-            entries.filter(entry => !(entry.food_name === 'Water' && entry.water_oz > 0)).map((entry) => (
+            entries.filter(entry => !isWaterEntry(entry)).map((entry) => (
               <motion.div
                 key={entry.id}
                 initial={{ opacity: 0, y: 16, scale: 0.95 }}
@@ -794,7 +801,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
   const groups = React.useMemo(() => {
     const map = new Map();
     for (const e of entries) {
-      const key = e.water_oz;
+      const key = waterEntryOz(e);
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(e);
     }
