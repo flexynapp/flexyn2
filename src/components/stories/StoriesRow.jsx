@@ -234,8 +234,8 @@ export default function StoriesRow() {
       toast.error('Please select a photo.');
       return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      toast.error('Photo must be under 20 MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error('Photo must be under 50 MB.');
       return;
     }
     setPreview({ file, objectUrl: URL.createObjectURL(file) });

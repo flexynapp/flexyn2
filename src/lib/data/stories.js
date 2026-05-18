@@ -102,7 +102,9 @@ export async function createStory(user, file) {
   if (!user?.id || !file) return null;
 
   const ext  = (file.name || 'story').split('.').pop() || 'jpg';
-  const path = `stories/${user.id}/${Date.now()}.${ext}`;
+  // Path must start with the user's UUID so the existing storage RLS policy
+  // "(storage.foldername(name))[1] = auth.uid()::text" passes.
+  const path = `${user.id}/stories/${Date.now()}.${ext}`;
 
   const { error: upErr } = await supabase.storage
     .from('uploads')
