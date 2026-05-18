@@ -103,11 +103,23 @@ function makeEntity(entityName) {
         const { data: row, error } = await supabase.from(table).insert(payload).select().single();
         if (!error) return row;
 
-        // PostgreSQL undefined_column — strip the bad column and retry
+        // PostgreSQL 42703 undefined_column — strip and retry
         if (error.code === '42703') {
           const match = error.message?.match(/column "([^"]+)"/);
           if (match?.[1] && match[1] in payload) {
             console.warn(`[Supabase] column "${match[1]}" not in ${table} yet — skipping (run migration 004)`);
+            delete payload[match[1]];
+            continue;
+          }
+        }
+
+        // PostgREST PGRST204 schema-cache miss — same fix, different error shape.
+        // Happens when a column exists in the JS payload but not in PostgREST's
+        // cached schema (e.g. migration 006 not yet applied).
+        if (error.code === 'PGRST204') {
+          const match = error.message?.match(/the '([^']+)' column/);
+          if (match?.[1] && match[1] in payload) {
+            console.warn(`[Supabase] PGRST204: column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
             delete payload[match[1]];
             continue;
           }
