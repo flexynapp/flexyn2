@@ -200,8 +200,10 @@ async function _viaMyMemory(text, targetLang, sourceLang, externalSignal) {
     const data = await response.json();
     const translatedText = data?.responseData?.translatedText;
     if (!translatedText) return null;
-    // MyMemory returns error strings inside the translatedText field itself
-    if (/MYMEMORY WARNING|QUERY LENGTH LIMIT|PLEASE SELECT TWO DISTINCT|INVALID LANGUAGE PAIR/i.test(translatedText)) return null;
+    // MyMemory embeds error strings directly in translatedText — filter them all.
+    if (/MYMEMORY WARNING|QUERY LENGTH LIMIT|PLEASE SELECT|DISTINCT LANGUAGE|INVALID LANGUAGE|YOU USED ALL AVAILABLE/i.test(translatedText)) return null;
+    // Reject responses that look like all-caps API errors (typical MyMemory pattern)
+    if (translatedText === translatedText.toUpperCase() && translatedText.length > 10 && !/\d/.test(translatedText)) return null;
     return {
       translatedText,
       sourceLang: data?.responseData?.detectedSourceLanguage

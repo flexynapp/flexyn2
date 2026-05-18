@@ -28,6 +28,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const [translating, setTranslating]   = useState(false);
   const [translateError, setTranslateError] = useState(null);
   const [showOriginal, setShowOriginal] = useState(false); // toggle when translation exists
+  const [canTranslate, setCanTranslate] = useState(true); // false once we know post is already in user's language
 
   // Reset translation state when:
   //   • The user's selected language changes (so the next render shows the
@@ -38,12 +39,14 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     setTranslation(null);
     setShowOriginal(false);
     setTranslateError(null);
+    setCanTranslate(true);
   }, [language]);
   useEffect(() => {
     const handler = () => {
       setTranslation(null);
       setShowOriginal(false);
       setTranslateError(null);
+      setCanTranslate(true);
     };
     window.addEventListener('flexyn:language-changed', handler);
     return () => window.removeEventListener('flexyn:language-changed', handler);
@@ -240,8 +243,8 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           <div className="whitespace-pre-wrap">
             {translation && !showOriginal ? translation.text : postBody}
           </div>
-          {/* Translate / Show original — only show if it's plausibly worth translating */}
-          {!isLikelyAlreadyInLanguage(postBody, language) && (
+          {/* Translate / Show original — hide once we know the post is already in the user's language */}
+          {canTranslate && !isLikelyAlreadyInLanguage(postBody, language) && (
             <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
               {translation ? (
                 <button
@@ -266,15 +269,20 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
                     setTranslateError(null);
                     try {
                       const result = await translateText(postBody, language, 'auto');
-                      if (result?.translatedText && result.translatedText.trim() !== postBody.trim()) {
+                      const translated = result?.translatedText?.trim();
+                      // Known API error strings that should never be shown as post content
+                      const isApiError = translated && /PLEASE SELECT TWO DISTINCT|MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID LANGUAGE/i.test(translated);
+                      if (translated && translated !== postBody.trim() && !isApiError) {
                         setTranslation({ text: result.translatedText, sourceLang: result.sourceLang });
                         setShowOriginal(false);
                       } else {
-                        setTranslateError(true);
+                        // Same language or all engines failed — hide the button so it
+                        // doesn't keep appearing for posts already in the user's language.
+                        setCanTranslate(false);
                       }
                     } catch (err) {
                       console.warn('[HubPostCard] translation failed:', err);
-                      setTranslateError(true);
+                      setCanTranslate(false);
                     } finally {
                       setTranslating(false);
                     }
@@ -288,11 +296,6 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
               {translation?.sourceLang && translation.sourceLang !== language && !showOriginal && (
                 <span className="text-muted-foreground/70">
                   · {t('hub.post.translatedFrom') === 'hub.post.translatedFrom' ? 'translated from' : t('hub.post.translatedFrom')} {translation.sourceLang}
-                </span>
-              )}
-              {translateError && (
-                <span className="text-destructive/80">
-                  {t('hub.post.translateError') === 'hub.post.translateError' ? 'Translation unavailable' : t('hub.post.translateError')}
                 </span>
               )}
             </div>
