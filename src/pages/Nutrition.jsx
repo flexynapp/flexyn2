@@ -121,8 +121,8 @@ export default function Nutrition() {
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
 
   // Derive water data from logs
-  const waterEntries = logs.filter(e => e.food_name === 'Water' && e.water_oz > 0);
-  const waterOz = waterEntries.reduce((sum, e) => sum + (e.water_oz || 0), 0);
+  const waterEntries = logs.filter(e => e.food_name === 'Water');
+  const waterOz = waterEntries.reduce((sum, e) => sum + (e.water_oz || 8), 0);
 
   // Always sync — ensures carousel clears on delete and updates after refetch
   useEffect(() => {
