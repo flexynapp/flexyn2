@@ -266,12 +266,28 @@ export default function StoriesRow() {
           className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 scrollbar-hide"
         >
           {groups.map(group => (
-            <StoryAvatarButton
-              key={group.email}
-              group={group}
-              onPress={() => handleAvatarPress(group)}
-              isUploading={uploadMutation.isPending && group.isOwn}
-            />
+            <React.Fragment key={group.email}>
+              <StoryAvatarButton
+                group={group}
+                onPress={() => handleAvatarPress(group)}
+                isUploading={uploadMutation.isPending && group.isOwn}
+              />
+              {/* "+" add-more button — shown right after own avatar when a story exists */}
+              {group.isOwn && group.stories.length > 0 && !uploadMutation.isPending && (
+                <motion.button
+                  whileTap={{ scale: 0.90 }}
+                  onClick={() => fileRef.current?.click()}
+                  className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
+                  style={{ minWidth: 68 }}
+                  aria-label="Add another story"
+                >
+                  <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-primary/60 flex items-center justify-center">
+                    <Plus className="w-5 h-5 text-primary" />
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate">Add More</span>
+                </motion.button>
+              )}
+            </React.Fragment>
           ))}
 
           {/* If no follows yet, show a placeholder hint */}
@@ -315,11 +331,16 @@ export default function StoriesRow() {
         groups={storyGroups}
         startIndex={viewerStartIdx}
         viewedIds={viewedIds}
-        userId={user?.id}
+        likedIds={feedData?.likedIds ?? new Set()}
+        user={user}
         onClose={() => setViewerOpen(false)}
         onStoriesChange={() => {
           queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
           setViewerOpen(false);
+        }}
+        onAddStory={() => {
+          setViewerOpen(false);
+          setTimeout(() => fileRef.current?.click(), 120);
         }}
       />
     </>
