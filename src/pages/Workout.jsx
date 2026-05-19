@@ -709,10 +709,32 @@ export default function Workout() {
 
   useEffect(() => {
     const state = location?.state;
+    let consumed = false;
     if (state?.openRegimens && !regimensOpen) {
       setRegimensOpen(true);
+      consumed = true;
+    }
+    // Deep-link intent from DiscoveryCards "Try Form Coach" CTA.
+    // Opens the FormCoachModal automatically so the user lands directly
+    // on the feature instead of having to find the card on the idle
+    // screen themselves.
+    if (state?.openFormCoach) {
+      setFormCoachOpen(true);
+      consumed = true;
+    }
+    if (consumed) {
       window.history.replaceState({}, document.title);
     }
+  }, []);
+
+  // Listen for the global "open form coach" event so any caller — not
+  // just a router state hand-off — can request the modal. Mirrors the
+  // existing flexyn-title / flexyn:open-crew custom-event pattern so
+  // we don't proliferate new orchestration shapes.
+  useEffect(() => {
+    const handler = () => setFormCoachOpen(true);
+    window.addEventListener('flexyn:open-formcoach', handler);
+    return () => window.removeEventListener('flexyn:open-formcoach', handler);
   }, []);
 
   useEffect(() => {

@@ -16,6 +16,7 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
+import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
@@ -445,6 +446,21 @@ export default function Dashboard() {
           onPrimary={() => navigate('/workout')}
           t={t}
         />
+      </div>
+
+      {/* ── Discovery cards ─────────────────────────────────────
+           Single-slot, prioritized: starter plan → Form Coach → AI Coach.
+           Wrapped in its own ErrorBoundary so a card-level bug never
+           kills the whole Dashboard. Dismissals persist via
+           discoveryPrefs. */}
+      <div className="mb-4 md:mb-5">
+        <ErrorBoundary label="DiscoveryCards">
+          <DiscoveryCards
+            logs={rawLogs}
+            regimens={rawRegimens}
+            isLoading={logsLoading || regimensLoading}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* ── Stats strip ────────────────────────────────────────── */}

@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, MessageCircle, Play, TrendingUp, Users } from 'lucide-react';
+import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -49,8 +49,20 @@ export default function Layout() {
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>
-          <div className="w-full mt-1 flex items-center gap-2">
+          <div className="w-full mt-1 flex items-center gap-1.5">
             <div className="flex-1"><ProfileMenu /></div>
+            <button
+              type="button"
+              onClick={() => navigate('/coach')}
+              aria-label={t('hub.coach.title') || 'AI Coach'}
+              className={`p-2 rounded-lg transition-colors ${
+                location.pathname === '/coach'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              <Sparkles className="w-5 h-5" />
+            </button>
             <button
               type="button"
               onClick={() => navigate('/messages')}

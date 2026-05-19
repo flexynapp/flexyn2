@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, MessageCircle } from 'lucide-react';
+import { ChevronLeft, MessageCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { db } from '@/api/db';
@@ -47,6 +47,7 @@ export default function Header() {
 
   const unreadDM = useUnreadDMCount();
   const onMessages = location.pathname === '/messages';
+  const onCoach = location.pathname === '/coach';
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -96,7 +97,19 @@ export default function Header() {
         >
           {isChildRoute ? title : t('app.name')}
         </button>
-        <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/coach')}
+            aria-label={t('hub.coach.title') || 'AI Coach'}
+            className={`p-2 rounded-lg transition-colors ${
+              onCoach
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-secondary'
+            }`}
+          >
+            <Sparkles className="w-5 h-5" />
+          </button>
           <button
             type="button"
             onClick={() => navigate('/messages')}
