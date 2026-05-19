@@ -397,6 +397,10 @@ export default function StoriesRow({ onViewProfile } = {}) {
   const groups      = feedData?.groups    ?? [];
   const viewedIds   = feedData?.viewedIds ?? new Set();
   const ownGroup    = groups.find(g => g.isOwn);
+
+  // Filter out anyone the user already follows (cache may predate the follow)
+  const followingSet   = new Set([user?.email, ...followingEmails]);
+  const visibleQaList  = qaList.filter(p => !followingSet.has(p.email));
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
   const showQuickAdd = !qaDismissed && qaHadItems;
@@ -568,9 +572,9 @@ export default function StoriesRow({ onViewProfile } = {}) {
               {/* Soft vertical separator */}
               <div className="self-center shrink-0 w-px h-[52px] rounded-full bg-border/60 mx-2" />
 
-              {qaList.length > 0 ? (
+              {visibleQaList.length > 0 ? (
                 <>
-                  {qaList.map(profile => (
+                  {visibleQaList.map(profile => (
                     <QuickAddAvatarItem
                       key={profile.email}
                       profile={profile}
