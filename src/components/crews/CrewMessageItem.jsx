@@ -8,8 +8,8 @@
 //   image_one_time — tap-to-view; local state blocks re-view
 //   image_one_hour — normal photo (filtered by expires_at server-side)
 
-import React, { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';

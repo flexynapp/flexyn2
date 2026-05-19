@@ -4,7 +4,7 @@
 // States: empty (no crews) → crew list → crew chat view → creation flow
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Shield, Plus, Users, ChevronRight, Loader2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
