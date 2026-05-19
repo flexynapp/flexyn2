@@ -26,6 +26,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { isVerified } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
+import * as storiesData from '@/lib/data/stories';
 
 const TROPHY_LABELS = {
   '🏆':'Trophy','🥇':'1st Place','🥈':'2nd Place','🥉':'3rd Place','🎯':'Target',
@@ -560,8 +561,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                       const file = e.target.files?.[0];
                       if (!file) return;
                       e.target.value = '';
-                      const { createStory } = await import('@/lib/data/stories');
-                      const result = await createStory(user, file);
+                      const result = await storiesData.createStory(user, file);
                       if (result?.limitReached) {
                         toast.error('Story limit reached (10 max)');
                       } else if (!result?.ok) {
