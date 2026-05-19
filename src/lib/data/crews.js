@@ -1,0 +1,286 @@
+// src/lib/data/crews.js
+import { supabase } from '@/api/supabaseClient';
+import { db } from '@/api/db';
+
+const CREW_XP_FUEL_AMOUNT = 500;
+
+// ── Crews ─────────────────────────────────────────────────────────────────────
+
+export async function createCrew(user, name) {
+  const { data: crew, error } = await supabase
+    .from('crews')
+    .insert({ name, created_by: user.id })
+    .select()
+    .single();
+  if (error || !crew) throw error || new Error('Failed to create crew');
+
+  await supabase.from('crew_members').insert({
+    crew_id: crew.id,
+    user_id: user.id,
+    is_admin: true,
+  });
+
+  return crew;
+}
+
+export async function getMyCrews(userId) {
+  if (!userId) return [];
+  const { data, error } = await supabase
+    .from('crew_members')
+    .select('crew_id, is_admin, joined_at, crews(id, name, created_at, max_capacity)')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: false });
+  if (error) return [];
+  return (data ?? []).map(row => ({
+    ...row.crews,
+    is_admin:  row.is_admin,
+    joined_at: row.joined_at,
+  }));
+}
+
+export async function getCrew(crewId) {
+  if (!crewId) return null;
+  const { data, error } = await supabase
+    .from('crews')
+    .select('*')
+    .eq('id', crewId)
+    .single();
+  return error ? null : data;
+}
+
+// ── Members ───────────────────────────────────────────────────────────────────
+
+export async function getCrewMembers(crewId) {
+  if (!crewId) return [];
+  const { data, error } = await supabase
+    .from('crew_members')
+    .select('id, user_id, is_admin, joined_at')
+    .eq('crew_id', crewId)
+    .order('is_admin', { ascending: false })
+    .order('joined_at',  { ascending: true });
+  return error ? [] : (data ?? []);
+}
+
+export async function joinCrew(crewId, userId) {
+  // Client-side cap check
+  const members = await getCrewMembers(crewId);
+  const crew    = await getCrew(crewId);
+  if (members.length >= (crew?.max_capacity ?? 16)) {
+    throw new Error('This Crew is full (max 16 members).');
+  }
+  const { data, error } = await supabase
+    .from('crew_members')
+    .insert({ crew_id: crewId, user_id: userId, is_admin: false })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function removeMember(crewId, userId) {
+  const { error } = await supabase
+    .from('crew_members')
+    .delete()
+    .eq('crew_id', crewId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+export async function setAdmin(crewId, userId, isAdmin) {
+  const { error } = await supabase
+    .from('crew_members')
+    .update({ is_admin: isAdmin })
+    .eq('crew_id', crewId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+// ── Messages ──────────────────────────────────────────────────────────────────
+
+export async function getCrewMessages(crewId, limit = 80) {
+  if (!crewId) return [];
+  const now = new Date().toISOString();
+  const { data, error } = await supabase
+    .from('crew_messages')
+    .select('*')
+    .eq('crew_id', crewId)
+    .or(`expires_at.is.null,expires_at.gt.${now}`)
+    .order('created_at', { ascending: true })
+    .limit(limit);
+  return error ? [] : (data ?? []);
+}
+
+export async function sendCrewMessage(crewId, senderId, type, content, extras = {}) {
+  const { data, error } = await supabase
+    .from('crew_messages')
+    .insert({
+      crew_id:      crewId,
+      sender_id:    senderId,
+      message_type: type,
+      content:      content ?? null,
+      media_url:    extras.media_url  ?? null,
+      regimen_id:   extras.regimen_id ?? null,
+      expires_at:   extras.expires_at ?? null,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ── Roll Call ─────────────────────────────────────────────────────────────────
+
+export async function getRollCallResults(messageId) {
+  if (!messageId) return { yes: 0, no: 0, votes: [] };
+  const { data, error } = await supabase
+    .from('roll_call_responses')
+    .select('user_id, vote')
+    .eq('message_id', messageId);
+  if (error) return { yes: 0, no: 0, votes: [] };
+  const votes = data ?? [];
+  return {
+    yes:   votes.filter(v => v.vote === 'yes').length,
+    no:    votes.filter(v => v.vote === 'no').length,
+    votes,
+  };
+}
+
+export async function respondToRollCall(messageId, userId, vote) {
+  const { data, error } = await supabase
+    .from('roll_call_responses')
+    .upsert(
+      { message_id: messageId, user_id: userId, vote },
+      { onConflict: 'message_id,user_id' },
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function notifyCrewRollCall(crewId, question, senderName) {
+  const members = await getCrewMembers(crewId);
+  await Promise.allSettled(
+    members.map(m =>
+      supabase.rpc('create_notification_for', {
+        p_user_id:  m.user_id,
+        p_type:     'crew_roll_call',
+        p_title:    `@everyone — ${senderName} posted a Roll Call`,
+        p_body:     question,
+        p_icon:     '📣',
+        p_link_url: '/hub',
+        p_metadata: { crew_id: crewId },
+      }).catch(() => {}),
+    ),
+  );
+}
+
+// ── Regimen Equip ─────────────────────────────────────────────────────────────
+
+export async function equipRegimen(regimenId, user) {
+  const { data: source, error } = await supabase
+    .from('regimens')
+    .select('*')
+    .eq('id', regimenId)
+    .single();
+  if (error || !source) throw new Error('Regimen not found');
+
+  const { data: copy, error: copyError } = await supabase
+    .from('regimens')
+    .insert({
+      created_by:              user.email,
+      name:                    source.name,
+      description:             source.description ?? null,
+      exercises:               source.exercises ?? [],
+      is_public:               false,
+      original_template_id:    source.id,
+      original_author_username:
+        source.original_author_username || source.created_by?.split('@')[0],
+    })
+    .select()
+    .single();
+  if (copyError) throw copyError;
+  return copy;
+}
+
+// ── XP Fuel ───────────────────────────────────────────────────────────────────
+
+export async function fireXpFuel(crewId, senderId, senderName) {
+  return sendCrewMessage(
+    crewId,
+    senderId,
+    'xp_fuel',
+    JSON.stringify({ username: senderName, xp: CREW_XP_FUEL_AMOUNT }),
+  );
+}
+
+export async function claimXpFuel(messageId, userId) {
+  const { error } = await supabase
+    .from('crew_xp_claims')
+    .insert({ message_id: messageId, user_id: userId });
+  // 23505 = unique violation = already claimed
+  if (error && error.code !== '23505') throw error;
+  return !error;
+}
+
+export async function getUnclaimedXpFuels(crewId, userId) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const { data: messages } = await supabase
+    .from('crew_messages')
+    .select('id, content, created_at')
+    .eq('crew_id', crewId)
+    .eq('message_type', 'xp_fuel')
+    .gte('created_at', today.toISOString());
+  if (!messages?.length) return [];
+
+  const ids = messages.map(m => m.id);
+  const { data: claimed } = await supabase
+    .from('crew_xp_claims')
+    .select('message_id')
+    .eq('user_id', userId)
+    .in('message_id', ids);
+  const claimedSet = new Set((claimed ?? []).map(c => c.message_id));
+  return messages.filter(m => !claimedSet.has(m.id));
+}
+
+// ── Crew Stories ──────────────────────────────────────────────────────────────
+
+export async function getCrewStories(crewId) {
+  if (!crewId) return [];
+  const cutoff = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('stories')
+    .select('id, user_id, image_url, media_type, overlay_style, created_at')
+    .eq('crew_id', crewId)
+    .gt('created_at', cutoff)
+    .order('created_at', { ascending: false });
+  return error ? [] : (data ?? []);
+}
+
+export async function postCrewStory(userId, crewId, imageUrl, mediaType, overlayStyle) {
+  const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabase
+    .from('stories')
+    .insert({
+      user_id:       userId,
+      crew_id:       crewId,
+      image_url:     imageUrl,
+      media_type:    mediaType,
+      overlay_style: overlayStyle ?? null,
+      expires_at:    expiresAt,
+      privacy:       'crew',
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// ── Image upload helper (reuses Base44 Core uploader) ─────────────────────────
+
+export async function uploadCrewMedia(file) {
+  const result = await db.integrations.Core.UploadFile({ file });
+  if (!result?.file_url) throw new Error('Upload failed');
+  return result.file_url;
+}

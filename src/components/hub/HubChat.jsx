@@ -10,6 +10,7 @@ import * as users from '@/lib/data/users';
 import { db } from '@/api/db';
 import { toast } from 'sonner';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
+import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -321,6 +322,23 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   //     (the marker is hidden — its job is server-side
                   //     state recovery for the original offer card).
                   const body = m.body || m.content || '';
+                  const crewInvitePayload = parseCrewInvite(body);
+                  if (crewInvitePayload) {
+                    return (
+                      <motion.div
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: Math.min(i, 8) * 0.02 }}
+                        className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <CrewDMInviteCard
+                          payload={crewInvitePayload}
+                          userId={user?.id}
+                          isMine={isMine}
+                        />
+                      </motion.div>
+                    );
+                  }
                   const tradePayload = parseTradeOffer(body);
                   if (tradePayload) {
                     return (

@@ -1,12 +1,12 @@
 // src/pages/Hub.jsx
-// Hub is now strictly the social feed: Pump + Squad, plus the Profile
+// Hub is now strictly the social feed: Pump + Squad + Crews, plus the Profile
 // sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -14,6 +14,7 @@ import HubProfile from '@/components/hub/HubProfile';
 import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import StoriesRow from '@/components/stories/StoriesRow';
+import CrewsSection from '@/components/crews/CrewsSection';
 import { useStartConversation } from '@/lib/hubMessaging';
 
 export default function Hub() {
@@ -24,6 +25,7 @@ export default function Hub() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
+  const [pendingCrewId, setPendingCrewId] = useState(null);
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -66,6 +68,19 @@ export default function Hub() {
     setProfileTarget(null);
   }, []);
 
+  // flexyn:open-crew — fired by CrewDMInviteCard when user accepts a DM invite
+  useEffect(() => {
+    const handler = (e) => {
+      const { crewId } = e.detail || {};
+      if (!crewId) return;
+      setPendingCrewId(crewId);
+      setFeedTab('crews');
+      setSection('feed');
+    };
+    window.addEventListener('flexyn:open-crew', handler);
+    return () => window.removeEventListener('flexyn:open-crew', handler);
+  }, []);
+
   return (
     <div className="px-4 md:px-6 pt-[120px] pb-6 max-w-3xl mx-auto">
       {/* Fixed Hub sub-header */}
@@ -97,7 +112,7 @@ export default function Hub() {
 
             <div className="flex items-center gap-1 lg:col-start-3 lg:justify-self-end">
               {/* Desktop: New Post */}
-              {section === 'feed' && (
+              {section === 'feed' && feedTab !== 'crews' && (
                 <button
                   type="button"
                   onClick={() => setComposerOpen(true)}
@@ -142,7 +157,7 @@ export default function Hub() {
             </div>
           </div>
 
-          {/* Feed sub-tabs — Pump | Squad. Marketplace moved to /market. */}
+          {/* Feed sub-tabs — Pump | Squad | Crews */}
           {section === 'feed' && (
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
@@ -169,13 +184,26 @@ export default function Hub() {
                 <UsersIcon className="w-4 h-4" />
                 {t('hub.feed.squad')}
               </button>
+              <button
+                type="button"
+                onClick={() => setFeedTab('crews')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-colors ${
+                  feedTab === 'crews'
+                    ? 'text-white shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+                style={feedTab === 'crews' ? { background: 'hsl(var(--primary))' } : {}}
+              >
+                <Shield className="w-4 h-4" />
+                Crews
+              </button>
             </div>
           )}
         </div>
       </div>
 
-      {/* Stories tray — only on the feed view, mirrors Dashboard's tray */}
-      {section === 'feed' && (
+      {/* Stories tray — hidden on Crews tab */}
+      {section === 'feed' && feedTab !== 'crews' && (
         <StoriesRow
           onViewProfile={(u) => {
             setProfileTarget(u);
@@ -193,13 +221,20 @@ export default function Hub() {
           exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          {section === 'feed' && (
+          {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
             <HubFeed
               feedTab={feedTab}
               onAuthorClick={(authorObj) => {
                 setProfileTarget(authorObj);
                 setSection('profile');
               }}
+            />
+          )}
+
+          {section === 'feed' && feedTab === 'crews' && (
+            <CrewsSection
+              initialCrewId={pendingCrewId}
+              key={pendingCrewId}
             />
           )}
 
@@ -213,8 +248,8 @@ export default function Hub() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Mobile FAB — only on the feed */}
-      {section === 'feed' && (
+      {/* Mobile FAB — only on the feed, not on Crews tab */}
+      {section === 'feed' && feedTab !== 'crews' && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
           style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
