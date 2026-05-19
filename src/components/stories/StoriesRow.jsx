@@ -2,11 +2,13 @@
 //
 // Horizontal scroll strip of story avatars + status note bubbles.
 //
-// Strip order:
+// Strip order (left → right):
 //   1. "Add Story" dashed circle — always first when own story exists
 //   2. Own avatar (Your Story) — orange ring if has story, "+" badge if not
 //   3. Friends WITH active stories or notes (unseen → orange, seen → gray)
 //   4. Friends WITHOUT active stories or notes (faded, no ring)
+//   5. Thin vertical divider  (only when ≤1 friend)
+//   6. Quick Add recommendations (friend-of-friend or recent profiles)
 //
 // Upload flow:
 //   tap Add Story / own "+" → file picker → preview sheet (with filters, text)
@@ -17,7 +19,7 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2, Heart } from 'lucide-react';
+import { Plus, Loader2, Heart, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubFollows from '@/lib/data/hubFollows';
@@ -26,7 +28,6 @@ import * as statusNotesData from '@/lib/data/statusNotes';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
-import QuickAddSection from './QuickAddSection';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -235,6 +236,77 @@ function StoryAvatarButton({
   );
 }
 
+// ── Quick Add inline card (lives inside the same horizontal scroll) ───────────
+//
+// Same paddingTop:40 as note-bearing avatars so circles align with `items-end`.
+// The "+ Add" pill occupies that top padding area, mirroring where notes appear.
+
+function QuickAddAvatarItem({ profile, onAdd }) {
+  const [state, setState] = useState('idle'); // idle | adding | added
+
+  const handleTap = useCallback(async () => {
+    if (state !== 'idle') return;
+    setState('adding');
+    try {
+      await onAdd(profile.email);
+      setState('added');
+    } catch {
+      setState('idle');
+    }
+  }, [state, onAdd, profile.email]);
+
+  return (
+    <motion.button
+      whileTap={{ scale: 0.90 }}
+      onClick={handleTap}
+      disabled={state === 'adding'}
+      className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
+      style={{ minWidth: 68, paddingTop: 40 }}
+      aria-label={`Add ${profile.username}`}
+    >
+      <div className="relative w-full flex justify-center">
+
+        {/* "+ Add" pill — sits in the top-padding zone above the circle */}
+        <div
+          style={{
+            position:  'absolute',
+            bottom:    '100%',
+            left:      '50%',
+            transform: 'translateX(-50%)',
+            marginBottom: 6,
+            zIndex: 10,
+            width: 68,
+          }}
+        >
+          <div
+            className={`flex items-center justify-center gap-0.5 px-2 py-1 rounded-xl border transition-colors ${
+              state === 'added'
+                ? 'bg-muted border-border'
+                : 'bg-orange-500/10 border-orange-500/40'
+            }`}
+          >
+            {state === 'adding' && <Loader2 className="w-2.5 h-2.5 text-orange-500 animate-spin" />}
+            {state === 'added'  && <Check   className="w-2.5 h-2.5 text-muted-foreground" />}
+            {state === 'idle'   && <Plus    className="w-2.5 h-2.5 text-orange-500 stroke-[3]" />}
+            <span className={`text-[9px] font-bold select-none ${state === 'added' ? 'text-muted-foreground' : 'text-orange-500'}`}>
+              {state === 'added' ? 'Added' : 'Add'}
+            </span>
+          </div>
+        </div>
+
+        {/* Avatar circle — no ring, subtle border */}
+        <div className="w-[60px] h-[60px] rounded-full overflow-hidden ring-1 ring-border/60 bg-secondary">
+          <AvatarImage avatarUrl={profile.avatar_url} username={profile.username} />
+        </div>
+      </div>
+
+      <span className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground">
+        @{profile.username}
+      </span>
+    </motion.button>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function StoriesRow() {
@@ -248,6 +320,7 @@ export default function StoriesRow() {
   const [noteEditorOpen,  setNoteEditorOpen]  = useState(false);
   const [notePillRect,    setNotePillRect]    = useState(null);
   const [likedNoteIds,    setLikedNoteIds]    = useState(new Set());
+  const [quickAdded,      setQuickAdded]      = useState(new Set());
   const notePillRef = useRef(null);
 
   const { data: followingEmails = [] } = useQuery({
@@ -273,6 +346,15 @@ export default function StoriesRow() {
   const viewedIds   = feedData?.viewedIds ?? new Set();
   const ownGroup    = groups.find(g => g.isOwn);
   const storyGroups = groups.filter(g => g.stories.length > 0);
+
+  const showQuickAdd = followingEmails.length <= 1;
+
+  const { data: recommendations = [] } = useQuery({
+    queryKey: ['quickAdd', user?.email, followingEmails.join(',')],
+    queryFn:  () => hubFollows.getRecommendations(user.email, followingEmails, 6),
+    enabled:  !!user?.email && showQuickAdd,
+    staleTime: 5 * 60_000,
+  });
 
   const uploadMutation = useMutation({
     mutationFn: ({ file, overlayStyle }) =>
@@ -374,17 +456,25 @@ export default function StoriesRow() {
     toast.success('Note removed.');
   }, [ownGroup, queryClient]);
 
+  const handleQuickAdd = useCallback(async (email) => {
+    setQuickAdded(prev => new Set([...prev, email]));
+    await hubFollows.follow(user.email, email);
+    queryClient.invalidateQueries({ queryKey: ['following'] });
+    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    queryClient.invalidateQueries({ queryKey: ['quickAdd'] });
+  }, [user, queryClient]);
+
   if (!user) return null;
 
   const showAddButton = ownGroup?.stories.length > 0 && !uploadMutation.isPending;
 
   return (
     <>
-      {/* Horizontal strip */}
-      <div className="mb-2 -mx-4 md:-mx-6">
+      {/* Horizontal strip — single seamless scroll */}
+      <div className="mb-4 -mx-4 md:-mx-6">
         <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-2 scrollbar-hide">
 
-          {/* "Add Story" — leftmost when own story exists */}
+          {/* Slot 1: "Add Story" — leftmost when own story exists */}
           {showAddButton && (
             <motion.button
               whileTap={{ scale: 0.90 }}
@@ -402,6 +492,7 @@ export default function StoriesRow() {
             </motion.button>
           )}
 
+          {/* Slots 2+: Own avatar + friends */}
           {groups.map(group => (
             <StoryAvatarButton
               key={group.email}
@@ -415,16 +506,28 @@ export default function StoriesRow() {
               noteEditorOpen={noteEditorOpen}
             />
           ))}
+
+          {/* Divider + Quick Add — inline, same scroll, only when ≤1 friend */}
+          {showQuickAdd && recommendations.length > 0 && (
+            <>
+              {/* Soft vertical separator */}
+              <div className="self-center shrink-0 w-px h-[52px] rounded-full bg-border/60 mx-2" />
+
+              {/* Recommendation cards */}
+              {recommendations.map(profile => (
+                <QuickAddAvatarItem
+                  key={profile.email}
+                  profile={profile}
+                  onAdd={handleQuickAdd}
+                />
+              ))}
+
+              {/* Trailing pad so last card isn't flush against edge */}
+              <div className="shrink-0 w-2" />
+            </>
+          )}
         </div>
       </div>
-
-      {/* Quick Add — visible when the user follows ≤1 friend */}
-      {followingEmails.length <= 1 && user?.email && (
-        <QuickAddSection
-          userEmail={user.email}
-          followingEmails={followingEmails}
-        />
-      )}
 
       {/* Hidden file input */}
       <input
