@@ -19,12 +19,14 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2, Heart, Check } from 'lucide-react';
+import { Plus, Loader2, Heart, Check, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as storiesData from '@/lib/data/stories';
 import * as statusNotesData from '@/lib/data/statusNotes';
+import * as crewsData from '@/lib/data/crews';
+import { isVerified } from '@/lib/verifiedUsers';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
@@ -225,6 +227,18 @@ function StoryAvatarButton({
             <Plus className="w-3 h-3 text-primary-foreground stroke-[3]" />
           </div>
         )}
+        {isVerified(group.username) && (
+          <div
+            className="absolute bottom-0 pointer-events-none w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-background"
+            style={{
+              background: 'hsl(var(--primary))',
+              right: (group.isOwn && noStory && !isUploading) ? 'auto' : '4px',
+              left:  (group.isOwn && noStory && !isUploading) ? '4px'  : 'auto',
+            }}
+          >
+            <Check className="w-3 h-3 text-white stroke-[3]" />
+          </div>
+        )}
       </div>
 
       <span
@@ -364,6 +378,16 @@ export default function StoriesRow({ onViewProfile } = {}) {
     onSuccess: (data) => {
       if (data?.likedNoteIds) setLikedNoteIds(new Set(data.likedNoteIds));
     },
+  });
+
+  const [crewStoryViewerOpen, setCrewStoryViewerOpen] = useState(null); // { crew, stories, idx }
+
+  const { data: crewStoryGroups = [] } = useQuery({
+    queryKey: ['crewStoriesFeed', user?.id],
+    queryFn:  () => crewsData.getCrewStoriesFeed(user.id),
+    enabled:  !!user?.id,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   // Load / refresh the Quick Add list once per noon cycle
@@ -551,6 +575,40 @@ export default function StoriesRow({ onViewProfile } = {}) {
             </motion.button>
           )}
 
+          {/* Crew story circles — shown before friend stories */}
+          {crewStoryGroups.map(({ crew, stories }) => {
+            const latest = stories[0];
+            return (
+              <motion.button
+                key={crew.id}
+                whileTap={{ scale: 0.90 }}
+                onClick={() => setCrewStoryViewerOpen({ crew, stories, idx: 0 })}
+                className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
+                style={{ minWidth: 68 }}
+              >
+                <div
+                  className="w-[60px] h-[60px] rounded-full flex items-center justify-center p-[2.5px]"
+                  style={{ background: 'linear-gradient(135deg, #FF6600 0%, #FFAA00 100%)' }}
+                >
+                  <div className="w-full h-full rounded-full overflow-hidden bg-background p-[2px]">
+                    <div className="w-full h-full rounded-full overflow-hidden">
+                      {latest?.image_url ? (
+                        <img src={latest.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-primary" />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate leading-tight">
+                  {crew.name}
+                </span>
+              </motion.button>
+            );
+          })}
+
           {/* Slots 2+: Own avatar + friends */}
           {groups.map(group => (
             <StoryAvatarButton
@@ -638,6 +696,48 @@ export default function StoriesRow({ onViewProfile } = {}) {
             onDelete={handleNoteDelete}
             onClose={() => setNoteEditorOpen(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Crew story lightbox */}
+      <AnimatePresence>
+        {crewStoryViewerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black flex items-center justify-center"
+            onClick={() => setCrewStoryViewerOpen(null)}
+          >
+            <img
+              src={crewStoryViewerOpen.stories[crewStoryViewerOpen.idx]?.image_url}
+              className="max-w-full max-h-full object-contain"
+              alt=""
+              draggable={false}
+              onClick={e => e.stopPropagation()}
+            />
+            <div className="absolute top-4 left-0 right-0 px-4 flex items-center justify-between">
+              <span className="text-white text-sm font-bold drop-shadow">{crewStoryViewerOpen.crew.name}</span>
+              <button
+                onClick={() => setCrewStoryViewerOpen(null)}
+                className="w-9 h-9 rounded-full bg-black/60 flex items-center justify-center"
+              >
+                <Check className="w-0 h-0" />
+                <span className="text-white text-lg leading-none">×</span>
+              </button>
+            </div>
+            {crewStoryViewerOpen.stories.length > 1 && (
+              <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2">
+                {crewStoryViewerOpen.stories.map((_, i) => (
+                  <button
+                    key={i}
+                    onClick={e => { e.stopPropagation(); setCrewStoryViewerOpen(p => ({ ...p, idx: i })); }}
+                    className={`w-1.5 h-1.5 rounded-full transition-colors ${i === crewStoryViewerOpen.idx ? 'bg-white' : 'bg-white/40'}`}
+                  />
+                ))}
+              </div>
+            )}
+          </motion.div>
         )}
       </AnimatePresence>
 

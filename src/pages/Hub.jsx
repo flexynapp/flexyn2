@@ -212,21 +212,34 @@ export default function Hub() {
         />
       )}
 
-      {/* Marketplace shortcut — shown on feed tabs, not crews */}
+      {/* Marketplace + New Post row — shown on feed tabs, not crews */}
       {section === 'feed' && feedTab !== 'crews' && (
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => navigate('/market')}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl mb-4 text-white"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(26,90%,40%))' }}
-        >
-          <Store className="w-5 h-5 shrink-0" />
-          <div className="flex-1 text-left">
-            <p className="text-sm font-bold leading-tight">Marketplace</p>
-            <p className="text-[11px] opacity-80 leading-tight">Trade gear, regimens &amp; more</p>
-          </div>
-          <span className="text-xs font-bold opacity-90 shrink-0">Browse →</span>
-        </motion.button>
+        <div className="flex gap-2.5 mb-4">
+          {/* Marketplace — 3/4 width */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/market')}
+            className="flex-[3] flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
+            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(26,90%,40%))' }}
+          >
+            <Store className="w-5 h-5 shrink-0" />
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-sm font-bold leading-tight">Marketplace</p>
+              <p className="text-[11px] opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
+            </div>
+          </motion.button>
+
+          {/* New Post — 1/4 width, orange outline + gray fill */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => setComposerOpen(true)}
+            className="flex-1 flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-2xl border-2 bg-secondary/60"
+            style={{ borderColor: 'hsl(var(--primary))' }}
+          >
+            <Plus className="w-4 h-4 stroke-[2.5]" style={{ color: 'hsl(var(--primary))' }} />
+            <span className="text-[10px] font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>New Post</span>
+          </motion.button>
+        </div>
       )}
 
       {/* Sections */}

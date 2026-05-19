@@ -68,13 +68,10 @@ export async function joinCrew(crewId, userId) {
   if (members.length >= (crew?.max_capacity ?? 16)) {
     throw new Error('This Crew is full (max 16 members).');
   }
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('crew_members')
-    .insert({ crew_id: crewId, user_id: userId, is_admin: false })
-    .select()
-    .single();
+    .insert({ crew_id: crewId, user_id: userId, is_admin: false });
   if (error) throw error;
-  return data;
 }
 
 export async function removeMember(crewId, userId) {
@@ -258,12 +255,13 @@ export async function getCrewStories(crewId) {
   return error ? [] : (data ?? []);
 }
 
-export async function postCrewStory(userId, crewId, imageUrl, mediaType, overlayStyle) {
+export async function postCrewStory(userId, userEmail, crewId, imageUrl, mediaType, overlayStyle) {
   const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabase
     .from('stories')
     .insert({
       user_id:       userId,
+      user_email:    userEmail,
       crew_id:       crewId,
       image_url:     imageUrl,
       media_type:    mediaType,
@@ -275,6 +273,18 @@ export async function postCrewStory(userId, crewId, imageUrl, mediaType, overlay
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function getCrewStoriesFeed(userId) {
+  const myCrews = await getMyCrews(userId);
+  if (!myCrews.length) return [];
+  const results = await Promise.all(
+    myCrews.map(async (crew) => {
+      const stories = await getCrewStories(crew.id);
+      return { crew, stories };
+    })
+  );
+  return results.filter(r => r.stories.length > 0);
 }
 
 // ── Image upload helper (reuses Base44 Core uploader) ─────────────────────────

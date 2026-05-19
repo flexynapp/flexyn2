@@ -8,9 +8,10 @@
 //   image_one_time — tap-to-view; local state blocks re-view
 //   image_one_hour — normal photo (filtered by expires_at server-side)
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2, Check } from 'lucide-react';
+import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
@@ -18,11 +19,24 @@ import * as crewsData from '@/lib/data/crews';
 
 function Avatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
-  return profile?.avatar_url ? (
-    <img src={profile.avatar_url} className="w-8 h-8 rounded-full object-cover shrink-0" alt="" draggable={false} />
-  ) : (
-    <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
-      {initials}
+  const verified = isVerified(profile?.username);
+  return (
+    <div className="relative shrink-0">
+      {profile?.avatar_url ? (
+        <img src={profile.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" draggable={false} />
+      ) : (
+        <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
+          {initials}
+        </div>
+      )}
+      {verified && (
+        <div
+          className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-background"
+          style={{ background: 'hsl(var(--primary))' }}
+        >
+          <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
+        </div>
+      )}
     </div>
   );
 }
@@ -40,7 +54,20 @@ function Timestamp({ dateStr }) {
 
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
-function TextMessage({ msg, senderProfile, isOwn }) {
+function TextMessage({ msg, senderProfile, isOwn, onDoubleTap }) {
+  const lastTapRef = useRef(0);
+  const [fireFlash, setFireFlash] = useState(false);
+
+  const handleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      setFireFlash(true);
+      setTimeout(() => setFireFlash(false), 600);
+      onDoubleTap?.();
+    }
+    lastTapRef.current = now;
+  };
+
   return (
     <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isOwn && <Avatar profile={senderProfile} />}
@@ -51,7 +78,8 @@ function TextMessage({ msg, senderProfile, isOwn }) {
           </span>
         )}
         <div
-          className={`px-3.5 py-2.5 rounded-2xl text-sm leading-snug ${
+          onClick={handleTap}
+          className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
             isOwn
               ? 'text-white rounded-br-sm'
               : 'bg-secondary text-foreground rounded-bl-sm'
@@ -59,6 +87,19 @@ function TextMessage({ msg, senderProfile, isOwn }) {
           style={isOwn ? { background: 'hsl(var(--primary))' } : {}}
         >
           {msg.content}
+          <AnimatePresence>
+            {fireFlash && (
+              <motion.span
+                initial={{ opacity: 0, scale: 0.5, y: 0 }}
+                animate={{ opacity: 1, scale: 1.4, y: -12 }}
+                exit={{ opacity: 0, scale: 0.8, y: -24 }}
+                transition={{ duration: 0.5 }}
+                className="absolute -top-1 left-1/2 -translate-x-1/2 text-lg pointer-events-none"
+              >
+                🔥
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
         <Timestamp dateStr={msg.created_at} />
       </div>
@@ -345,7 +386,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn }) {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId }) {
+export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId, onFireReact }) {
   const isOwn = msg.sender_id === currentUserId;
 
   switch (msg.message_type) {
@@ -360,6 +401,6 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'image_one_hour':
       return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
     default:
-      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
+      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} onDoubleTap={onFireReact} />;
   }
 }

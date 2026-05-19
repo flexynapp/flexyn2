@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2 } from 'lucide-react';
@@ -163,13 +164,27 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
         <div
-          className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-sm overflow-hidden pointer-events-none"
-          style={author.equippedFrameId ? (getLootFrameById(author.equippedFrameId)?.css || {}) : {}}
+          className="relative w-9 h-9 shrink-0 pointer-events-none"
         >
-          {author.avatarUrl ? (
-            <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
-          ) : (
-            author.initials
+          <div
+            className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm overflow-hidden"
+            style={author.equippedFrameId ? (getLootFrameById(author.equippedFrameId)?.css || {}) : {}}
+          >
+            {author.avatarUrl ? (
+              <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+            ) : (
+              author.initials
+            )}
+          </div>
+          {isVerified(author.username) && (
+            <div
+              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-[1.5px] ring-background"
+              style={{ background: 'hsl(var(--primary))' }}
+            >
+              <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="2,6 5,9 10,3" />
+              </svg>
+            </div>
           )}
         </div>
         <div className="flex-1 min-w-0 pointer-events-none">
