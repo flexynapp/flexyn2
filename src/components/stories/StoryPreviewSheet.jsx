@@ -22,7 +22,8 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Pipette } from 'lucide-react';
+import { Loader2, Pipette, Download, Check } from 'lucide-react';
+import { toast } from 'sonner';
 
 const FILTERS = [
   { label: 'Normal', css: 'none' },
@@ -334,6 +335,94 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     setLoupePos(null);
   }, [eyedropperActive, samplePixel]);
 
+  // ── Download handler — save edited frame to camera roll ──────────────────
+  const [justSaved, setJustSaved] = useState(false);
+
+  const handleDownload = useCallback(async () => {
+    const container = containerRef.current;
+    const mediaEl   = mediaElRef.current;
+    if (!container || !mediaEl) return;
+
+    if (isVideo) {
+      // Video: download the source blob directly (filter not composited)
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `flexyn-story-${Date.now()}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setJustSaved(true);
+      setTimeout(() => setJustSaved(false), 2000);
+      return;
+    }
+
+    // Image: render to canvas with current filter + text overlay
+    const { width: cW, height: cH } = container.getBoundingClientRect();
+    const dpr   = Math.min(window.devicePixelRatio || 1, 2); // cap at 2× retina
+    const natW  = mediaEl.naturalWidth  || cW;
+    const natH  = mediaEl.naturalHeight || cH;
+
+    // object-contain layout within the container
+    const imgScale = Math.min(cW / natW, cH / natH);
+    const drawW    = natW * imgScale;
+    const drawH    = natH * imgScale;
+    const ox       = (cW - drawW) / 2;
+    const oy       = (cH - drawH) / 2;
+
+    const offscreen = document.createElement('canvas');
+    offscreen.width  = cW * dpr;
+    offscreen.height = cH * dpr;
+    const ctx = offscreen.getContext('2d');
+    ctx.scale(dpr, dpr);
+
+    // Draw image with CSS filter
+    const filterCss = FILTERS[filterIdx].css;
+    if (filterCss !== 'none') ctx.filter = filterCss;
+    ctx.drawImage(mediaEl, ox, oy, drawW, drawH);
+    ctx.filter = 'none';
+
+    // Draw text overlay
+    if (overlayText.trim()) {
+      const { x, y, scale: tScale, rotate } = ts.current;
+      const cx = cW / 2 + x;
+      const cy = cH / 2 + y;
+      const fontSize = Math.round(28 * tScale);
+
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((rotate * Math.PI) / 180);
+      ctx.font       = `bold ${fontSize}px ${FONTS[fontIdx].family}`;
+      ctx.fillStyle  = textColor;
+      ctx.textAlign  = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.shadowColor  = 'rgba(0,0,0,0.95)';
+      ctx.shadowBlur   = 10;
+      ctx.shadowOffsetY = 2;
+
+      const lines  = overlayText.trim().split('\n');
+      const lineH  = fontSize * 1.3;
+      lines.forEach((line, i) => {
+        ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH);
+      });
+      ctx.restore();
+    }
+
+    offscreen.toBlob(blob => {
+      if (!blob) { toast.error('Could not save image.'); return; }
+      const url = URL.createObjectURL(blob);
+      const a   = document.createElement('a');
+      a.href     = url;
+      a.download = `flexyn-story-${Date.now()}.jpg`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 'image/jpeg', 0.95);
+
+    setJustSaved(true);
+    setTimeout(() => setJustSaved(false), 2000);
+  }, [isVideo, dataUrl, filterIdx, overlayText, fontIdx, textColor]);
+
   // ── Confirm handler ───────────────────────────────────────────────────────
   const handleConfirm = () => {
     const g      = ts.current;
@@ -364,9 +453,29 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     >
       {/* ── Top controls ─────────────────────────────────────────────── */}
       <div
-        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-end px-4"
+        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4"
         style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
       >
+        {/* Download — save edited frame to camera roll */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={handleDownload}
+          className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm"
+          aria-label="Save to camera roll"
+        >
+          <AnimatePresence mode="wait" initial={false}>
+            {justSaved ? (
+              <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Check className="w-4 h-4 text-green-400 stroke-[2.5]" />
+              </motion.span>
+            ) : (
+              <motion.span key="dl" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
+                <Download className="w-4 h-4 text-white" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+
         {/* Aa toggle */}
         <button
           onClick={() => setEditingText(v => !v)}
