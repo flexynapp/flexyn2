@@ -307,6 +307,25 @@ function QuickAddAvatarItem({ profile, onAdd }) {
   );
 }
 
+// ── Quick Add localStorage cache helpers ──────────────────────────────────────
+// Cache refreshes once per day at noon. Structure:
+//   { refreshedAt: ISO, list: [...profiles], addedEmails: [...] }
+
+const QA_KEY = 'flexyn_quickadd_v1';
+
+function qaLoad() {
+  try { return JSON.parse(localStorage.getItem(QA_KEY) ?? 'null'); } catch { return null; }
+}
+function qaSave(cache) {
+  try { localStorage.setItem(QA_KEY, JSON.stringify(cache)); } catch {}
+}
+function qaIsStale(cache) {
+  if (!cache?.refreshedAt) return true;
+  const now = new Date();
+  const todayNoon = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+  return new Date(cache.refreshedAt) < todayNoon;
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function StoriesRow({ onViewProfile } = {}) {
@@ -320,7 +339,13 @@ export default function StoriesRow({ onViewProfile } = {}) {
   const [noteEditorOpen,  setNoteEditorOpen]  = useState(false);
   const [notePillRect,    setNotePillRect]    = useState(null);
   const [likedNoteIds,    setLikedNoteIds]    = useState(new Set());
-  const [quickAdded,      setQuickAdded]      = useState(new Set());
+
+  // Quick Add: persisted daily list, independent of followingEmails length
+  const [qaList,         setQaList]         = useState([]);   // visible (not-yet-added) items
+  const [qaHadItems,     setQaHadItems]     = useState(false); // list was non-empty at load
+  const [qaDismissed,    setQaDismissed]    = useState(false);
+  const qaFetchedRef = useRef(false); // prevent double-fetch in StrictMode
+
   const notePillRef = useRef(null);
 
   const { data: followingEmails = [] } = useQuery({
@@ -337,24 +362,44 @@ export default function StoriesRow({ onViewProfile } = {}) {
     staleTime: 30_000,
     refetchOnWindowFocus: true,
     onSuccess: (data) => {
-      // Sync liked note IDs from server on each refetch
       if (data?.likedNoteIds) setLikedNoteIds(new Set(data.likedNoteIds));
     },
   });
+
+  // Load / refresh the Quick Add list once per noon cycle
+  useEffect(() => {
+    if (!user?.email || qaFetchedRef.current) return;
+    const cache = qaLoad();
+    if (!qaIsStale(cache) && cache.list?.length > 0) {
+      // Cache is fresh — restore, filter out already-added items
+      const addedSet = new Set(cache.addedEmails ?? []);
+      const remaining = (cache.list ?? []).filter(p => !addedSet.has(p.email));
+      setQaList(remaining);
+      setQaHadItems(true);
+      qaFetchedRef.current = true;
+      return;
+    }
+    // Stale or empty — only fetch when the user has ≤1 friend (initial discovery)
+    // Once cached, the section persists regardless of followingEmails.
+    if ((followingEmails.length <= 1 || (cache?.list?.length > 0))) {
+      qaFetchedRef.current = true;
+      hubFollows.getRecommendations(user.email, followingEmails, 6).then(recs => {
+        if (recs.length === 0) return;
+        qaSave({ refreshedAt: new Date().toISOString(), list: recs, addedEmails: [] });
+        setQaList(recs);
+        setQaHadItems(true);
+      }).catch(() => {});
+    }
+  // followingEmails intentionally omitted — we only want this to run once per mount
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.email]);
 
   const groups      = feedData?.groups    ?? [];
   const viewedIds   = feedData?.viewedIds ?? new Set();
   const ownGroup    = groups.find(g => g.isOwn);
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
-  const showQuickAdd = followingEmails.length <= 1;
-
-  const { data: recommendations = [] } = useQuery({
-    queryKey: ['quickAdd', user?.email, followingEmails.join(',')],
-    queryFn:  () => hubFollows.getRecommendations(user.email, followingEmails, 6),
-    enabled:  !!user?.email && showQuickAdd,
-    staleTime: 5 * 60_000,
-  });
+  const showQuickAdd = !qaDismissed && qaHadItems;
 
   const uploadMutation = useMutation({
     mutationFn: ({ file, overlayStyle }) =>
@@ -461,11 +506,17 @@ export default function StoriesRow({ onViewProfile } = {}) {
   }, [ownGroup, queryClient]);
 
   const handleQuickAdd = useCallback(async (email) => {
-    setQuickAdded(prev => new Set([...prev, email]));
+    // Remove from visible list immediately — the section stays mounted
+    setQaList(prev => prev.filter(p => p.email !== email));
+    // Persist the addition so it survives page refresh
+    const cache = qaLoad();
+    if (cache) {
+      cache.addedEmails = [...new Set([...(cache.addedEmails ?? []), email])];
+      qaSave(cache);
+    }
     await hubFollows.follow(user.email, email);
     queryClient.invalidateQueries({ queryKey: ['following'] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-    queryClient.invalidateQueries({ queryKey: ['quickAdd'] });
   }, [user, queryClient]);
 
   if (!user) return null;
@@ -511,20 +562,36 @@ export default function StoriesRow({ onViewProfile } = {}) {
             />
           ))}
 
-          {/* Divider + Quick Add — inline, same scroll, only when ≤1 friend */}
-          {showQuickAdd && recommendations.length > 0 && (
+          {/* Divider + Quick Add — inline, same scroll, persists until dismissed */}
+          {showQuickAdd && (
             <>
               {/* Soft vertical separator */}
               <div className="self-center shrink-0 w-px h-[52px] rounded-full bg-border/60 mx-2" />
 
-              {/* Recommendation cards */}
-              {recommendations.map(profile => (
-                <QuickAddAvatarItem
-                  key={profile.email}
-                  profile={profile}
-                  onAdd={handleQuickAdd}
-                />
-              ))}
+              {qaList.length > 0 ? (
+                <>
+                  {qaList.map(profile => (
+                    <QuickAddAvatarItem
+                      key={profile.email}
+                      profile={profile}
+                      onAdd={handleQuickAdd}
+                    />
+                  ))}
+                </>
+              ) : (
+                /* All 6 added — show calm placeholder until noon refresh */
+                <div className="self-center shrink-0 flex flex-col items-center justify-center px-3 py-2 max-w-[140px]">
+                  <p className="text-[10px] text-muted-foreground/70 text-center leading-snug">
+                    Check back at noon for more suggestions!
+                  </p>
+                  <button
+                    onClick={() => setQaDismissed(true)}
+                    className="mt-1.5 text-[9px] text-muted-foreground/50 underline underline-offset-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
 
               {/* Trailing pad so last card isn't flush against edge */}
               <div className="shrink-0 w-2" />

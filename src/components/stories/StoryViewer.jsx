@@ -311,8 +311,16 @@ export default function StoryViewer({
       {open && (
         <motion.div
           key="story-viewer"
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0, y: 40 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 60 }}
+          transition={{ duration: 0.22 }}
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0, bottom: 0.35 }}
+          onDragEnd={(_, info) => {
+            if (info.offset.y > 90 || info.velocity.y > 700) onClose();
+          }}
           className="fixed inset-0 z-[10000] bg-black flex flex-col select-none"
         >
           <div ref={mediaRef} className="relative flex-1 overflow-hidden">

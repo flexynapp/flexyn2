@@ -58,7 +58,14 @@ export default function Hub() {
       params.delete('search');
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
-     
+    // ?profile=<email> — deep-link from Dashboard stories tray (tap a no-story friend)
+    const profileEmail = params.get('profile');
+    if (profileEmail) {
+      setProfileTarget({ email: decodeURIComponent(profileEmail) });
+      setSection('profile');
+      params.delete('profile');
+      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+    }
   }, [location.search]);
 
   const { data: unreadCount = 0 } = useQuery({

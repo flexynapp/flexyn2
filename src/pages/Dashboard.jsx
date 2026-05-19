@@ -392,7 +392,11 @@ export default function Dashboard() {
       className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
     >
       {/* ── Stories ─────────────────────────────────────────────── */}
-      <StoriesRow />
+      <StoriesRow
+        onViewProfile={(u) =>
+          navigate('/hub?profile=' + encodeURIComponent(u.email))
+        }
+      />
 
       {/* ── Greeting block ─────────────────────────────────────── */}
       <motion.div
