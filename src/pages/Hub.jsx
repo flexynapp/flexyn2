@@ -336,7 +336,14 @@ export default function Hub() {
       </div>
 
       {/* ── Stories — only visible on the feed tab ─────────────────────────── */}
-      {section === 'feed' && <StoriesRow />}
+      {section === 'feed' && (
+        <StoriesRow
+          onViewProfile={(u) => {
+            setProfileTarget(u);
+            setSection('profile');
+          }}
+        />
+      )}
 
       {/* ── Sections ─────────────────────────────────────────────────────────── */}
       <AnimatePresence mode="wait" initial={false}>

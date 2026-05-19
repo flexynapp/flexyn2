@@ -82,6 +82,65 @@ export const unfollow = async (followerEmail, followeeEmail) => {
   await e().delete(existing[0].id).catch(() => {});
 };
 
+/**
+ * Return up to `limit` friend-of-friend recommendations for `userEmail`.
+ * Strategy:
+ *   1. Fetch the following-lists of the user's current friends (up to 5).
+ *   2. Collect everyone they follow who the user doesn't already follow.
+ *   3. Shuffle and cap at `limit`, then fetch their profiles.
+ * Falls back to any recent profiles with a username when the user has no friends yet.
+ */
+export const getRecommendations = async (userEmail, followingEmails = [], limit = 6) => {
+  if (!userEmail) return [];
+
+  const alreadyFollowing = new Set([userEmail, ...followingEmails]);
+
+  if (followingEmails.length === 0) {
+    // No friends yet — surface recent profiles as a starting point
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('email, username, avatar_url')
+      .neq('email', userEmail)
+      .not('username', 'is', null)
+      .limit(limit);
+    return data ?? [];
+  }
+
+  // Friend-of-friend: sample up to 5 friends to keep queries light.
+  // Pull BOTH directions — who they follow AND who follows them — so that
+  // a friend who doesn't follow many people still surfaces their community.
+  const sample = followingEmails.slice(0, 5);
+  const friendLists = await Promise.all(
+    sample.flatMap(email => [listFollowing(email), listFollowers(email)])
+  );
+
+  const candidates = [];
+  const seen = new Set();
+  for (const list of friendLists) {
+    for (const email of list) {
+      if (!alreadyFollowing.has(email) && !seen.has(email)) {
+        candidates.push(email);
+        seen.add(email);
+      }
+    }
+  }
+
+  // Fisher-Yates shuffle for fair random selection
+  for (let i = candidates.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
+  }
+
+  const selected = candidates.slice(0, limit);
+  if (selected.length === 0) return [];
+
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('email, username, avatar_url')
+    .in('email', selected);
+  return data ?? [];
+};
+
 /** Cascade-delete all follow rows involving a user (in either direction). */
 export const purgeForUser = async (email) => {
   if (!email) return;

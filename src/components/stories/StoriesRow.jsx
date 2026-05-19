@@ -309,7 +309,7 @@ function QuickAddAvatarItem({ profile, onAdd }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function StoriesRow() {
+export default function StoriesRow({ onViewProfile } = {}) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
@@ -413,12 +413,16 @@ export default function StoriesRow() {
       fileRef.current?.click();
       return;
     }
-    if (group.stories.length === 0) return;
+    if (group.stories.length === 0) {
+      // No story — navigate to their profile if the parent supports it
+      onViewProfile?.({ email: group.email, username: group.username, avatar_url: group.avatarUrl });
+      return;
+    }
 
     const idx = storyGroups.findIndex(g => g.email === group.email);
     setViewerStartIdx(Math.max(0, idx));
     setViewerOpen(true);
-  }, [storyGroups]);
+  }, [storyGroups, onViewProfile]);
 
   const handleNoteLike = useCallback(async (note) => {
     if (!user) return;
