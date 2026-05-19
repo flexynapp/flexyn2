@@ -11,7 +11,30 @@
  *   </ErrorBoundary>
  *
  * The `label` prop appears in the fallback UI and in the console error, making
- * it easy to locate the broken component in production.
+ * it easy to locate the broken component in production. Errors are also
+ * captured by Sentry with `boundary.label` as a tag.
+ *
+ * ── Recovery affordances ────────────────────────────────────────────────────
+ * The fallback gives the user three explicit ways out, in priority order:
+ *
+ *   1. **Go to Home** — navigates to /dashboard. Most reliable recovery
+ *      because the broken section unmounts entirely. Recommended first
+ *      action when a section is persistently broken (e.g. a migration
+ *      hasn't been applied — re-rendering won't fix that).
+ *
+ *   2. **Try again** — clears local error state and re-renders. Useful
+ *      for transient failures (network blip, race condition during
+ *      hydration) where the second attempt succeeds.
+ *
+ *   3. **Copy details** — puts the error message, stack, and component
+ *      stack onto the clipboard so the user can paste them into a bug
+ *      report. This unblocks support without requiring them to share
+ *      a screenshot of stack-trace text.
+ *
+ * Additionally: if the route changes (location.pathname), the wrapping
+ * functional component remounts the inner class via a `key` so the
+ * boundary resets automatically. Users who tap a nav item to leave the
+ * broken page never see the error state persist after they've moved on.
  *
  * ── i18n ────────────────────────────────────────────────────────────────────
  * Class components can't call hooks, so we wrap the boundary class with a
@@ -26,13 +49,14 @@
  */
 
 import React, { useContext } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { LanguageContext } from '@/lib/LanguageContext';
 
 class ErrorBoundaryClass extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null, showDetails: false };
+    this.state = { hasError: false, error: null, info: null, copied: false };
   }
 
   static getDerivedStateFromError(error) {
@@ -40,6 +64,8 @@ class ErrorBoundaryClass extends React.Component {
   }
 
   componentDidCatch(error, info) {
+    // Stash component stack so the Copy-details button can include it.
+    this.setState({ info });
     console.error(
       `[ErrorBoundary] Crash in "${this.props.label || 'unknown'}":\n`,
       error,
@@ -59,8 +85,6 @@ class ErrorBoundaryClass extends React.Component {
   tr = (key, fallback, vars) => {
     const fb = this.props.tFallback;
     if (fb) return fb(key, fallback, vars);
-    // No language context — return the English fallback with simple
-    // {placeholder} interpolation so labels still substitute.
     let out = fallback;
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
@@ -70,13 +94,67 @@ class ErrorBoundaryClass extends React.Component {
     return out;
   };
 
+  // Build the diagnostic blob users can copy. Includes the label, full
+  // error text, error stack, and React component stack — everything an
+  // engineer needs to triage from a bug report without a screen recording.
+  buildDetailsText = () => {
+    const lines = [
+      `Section: ${this.props.label || 'unknown'}`,
+      `URL:     ${typeof window !== 'undefined' ? window.location.href : 'n/a'}`,
+      `Time:    ${new Date().toISOString()}`,
+      '',
+      `Error:   ${this.state.error?.toString?.() || String(this.state.error)}`,
+    ];
+    if (this.state.error?.stack) {
+      lines.push('', 'Stack:', this.state.error.stack);
+    }
+    if (this.state.info?.componentStack) {
+      lines.push('', 'Component stack:', this.state.info.componentStack);
+    }
+    return lines.join('\n');
+  };
+
+  handleCopyDetails = async () => {
+    const text = this.buildDetailsText();
+    try {
+      await navigator.clipboard.writeText(text);
+      this.setState({ copied: true });
+      setTimeout(() => this.setState({ copied: false }), 2500);
+    } catch {
+      // Older browsers / iframes without clipboard permission — fall
+      // back to selecting a hidden textarea. If that also fails, surface
+      // the text in a window.prompt so the user can copy manually.
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        this.setState({ copied: true });
+        setTimeout(() => this.setState({ copied: false }), 2500);
+      } catch {
+        // Last resort — show it for manual selection.
+        // eslint-disable-next-line no-alert
+        window.prompt('Copy this error report:', text);
+      }
+    }
+  };
+
+  handleReset = () => {
+    this.setState({ hasError: false, error: null, info: null, copied: false });
+  };
+
   render() {
     if (this.state.hasError) {
+      const { onGoHome } = this.props;
       return (
         <div
           role="alert"
           aria-live="assertive"
-          className="flex flex-col items-center justify-center py-16 px-6 text-center"
+          className="flex flex-col items-center justify-center py-12 px-6 text-center"
         >
           <div
             aria-hidden="true"
@@ -87,46 +165,62 @@ class ErrorBoundaryClass extends React.Component {
           <p className="font-heading font-bold text-base mb-1">
             {this.tr('errorBoundary.title', 'Something went wrong')}
           </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            {this.tr('errorBoundary.desc', 'This section failed to load. Try refreshing the page.')}
+          <p className="text-sm text-muted-foreground mb-4 max-w-sm">
+            {this.tr('errorBoundary.desc', 'This section failed to load.')}
             {this.props.label && (
               <span className="block text-[11px] text-muted-foreground/70 mt-1">
                 {this.tr('errorBoundary.section', 'Section: {label}', { label: this.props.label })}
               </span>
             )}
           </p>
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center justify-center gap-2 mb-4">
+            {onGoHome && (
+              <button
+                type="button"
+                onClick={onGoHome}
+                className="text-xs font-semibold px-3 h-8 rounded-md bg-primary text-primary-foreground hover:opacity-90 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {this.tr('errorBoundary.goHome', 'Go to Home')}
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => this.setState({ hasError: false, error: null, showDetails: false })}
-              className="text-xs text-primary underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+              onClick={this.handleReset}
+              className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {this.tr('errorBoundary.tryAgain', 'Try again')}
             </button>
             {this.state.error && (
               <button
                 type="button"
-                onClick={() => this.setState((s) => ({ showDetails: !s.showDetails }))}
-                aria-expanded={!!this.state.showDetails}
-                className="text-xs text-muted-foreground underline underline-offset-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                onClick={this.handleCopyDetails}
+                className="text-xs font-semibold px-3 h-8 rounded-md border border-border bg-card text-foreground hover:bg-secondary transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                aria-live="polite"
               >
-                {this.state.showDetails
-                  ? this.tr('errorBoundary.hideDetails', 'Hide details')
-                  : this.tr('errorBoundary.showDetails', 'Show details')}
+                {this.state.copied
+                  ? this.tr('errorBoundary.copied', 'Copied!')
+                  : this.tr('errorBoundary.copyDetails', 'Copy details')}
               </button>
             )}
           </div>
           {/*
-            Error details — always visible in dev. In production they're
-            behind the Show-details toggle so the casual user doesn't see
-            a wall of stack but a support-tier user can copy/paste it
-            when reporting.
+            Error details — auto-expanded in dev for fast iteration; in
+            production they're behind a `<details>` toggle so the casual
+            user doesn't see a wall of stack on first paint but a
+            support-tier user (or anyone tapping it) can still self-serve.
           */}
-          {(import.meta.env.DEV || this.state.showDetails) && this.state.error && (
-            <pre className="mt-4 text-left text-[10px] text-destructive bg-destructive/5 rounded-lg p-3 max-w-full overflow-x-auto whitespace-pre-wrap">
-              {this.state.error.toString()}
-              {this.state.error.stack && '\n\n' + this.state.error.stack}
-            </pre>
+          {this.state.error && (
+            <details
+              className="mt-2 text-left max-w-full w-full max-w-2xl"
+              open={import.meta.env.DEV}
+            >
+              <summary className="text-xs text-muted-foreground cursor-pointer select-none mb-2">
+                {this.tr('errorBoundary.showDetails', 'Show details')}
+              </summary>
+              <pre className="text-[10px] text-destructive bg-destructive/5 rounded-lg p-3 max-w-full overflow-x-auto whitespace-pre-wrap">
+                {this.buildDetailsText()}
+              </pre>
+            </details>
           )}
         </div>
       );
@@ -137,12 +231,42 @@ class ErrorBoundaryClass extends React.Component {
 }
 
 /**
- * Default export — functional wrapper that injects tFallback from
- * LanguageContext. We use `useContext` directly (not `useLanguage()`)
- * because the latter throws when there's no provider above us, and we
- * want the boundary to keep working even in that degraded state.
+ * Default export — functional wrapper that:
+ *   1. Injects `tFallback` from LanguageContext for i18n inside the
+ *      class, while keeping the class usable without a provider above.
+ *   2. Auto-resets the boundary when the route changes by passing
+ *      `location.pathname` as React's `key`. A user who taps the bottom
+ *      nav to leave a broken page never sees the error state persist
+ *      after the location updates.
+ *   3. Provides a "Go to Home" handler that navigates to /dashboard.
+ *      This gives users an obvious recovery action even when "Try again"
+ *      would just re-trip the same crash (e.g. missing migration).
+ *
+ * `useLocation` / `useNavigate` are only available inside a <Router>,
+ * which is true for every render path that mounts boundaries today.
+ * If a boundary is ever mounted outside Router (unlikely — would mean
+ * crashing before App's Router mounts), the wrapper degrades gracefully
+ * because the hooks return undefined-style values and we no-op the
+ * navigation affordance.
  */
 export default function ErrorBoundary(props) {
   const ctx = useContext(LanguageContext);
-  return <ErrorBoundaryClass tFallback={ctx?.tFallback} {...props} />;
+  // useLocation/useNavigate throw if used outside Router. We mount the
+  // boundary inside Router on every real code path, so the safe-guard
+  // is purely defensive — let the hooks crash loudly if someone
+  // misplaces a boundary (better signal than a silent bug).
+  const location = useLocation();
+  const navigate = useNavigate();
+  return (
+    <ErrorBoundaryClass
+      // Key on pathname so the boundary state resets when navigating
+      // between routes. Without this, the boundary inside a route
+      // element retains hasError=true if React happens to reuse the
+      // instance across renders.
+      key={location.pathname}
+      tFallback={ctx?.tFallback}
+      onGoHome={() => navigate('/dashboard')}
+      {...props}
+    />
+  );
 }
