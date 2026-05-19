@@ -14,6 +14,7 @@ import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
+import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -992,8 +993,10 @@ function NumberReel({ value, digits = 2, size = 80 }) {
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const age = stats.age;
   const setAge = (v) => onChange({ ...stats, age: v });
-  const bumpAge = (dir) => setAge(Math.min(80, Math.max(14, age + dir)));
-  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
+  // Floor at 13 (COPPA-safe minimum for general apps); the under-18 stage
+  // chip still surfaces TEEN messaging for 13-17 so the tone stays appropriate.
+  const bumpAge = (dir) => setAge(Math.min(80, Math.max(13, age + dir)));
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 13, max: 80, axis: 'x', pxPerUnit: 20 });
 
   // Tap-to-type: tapping the big number opens a numeric keypad so users
   // on mobile don't have to drag-scrub or hammer ±1 to get to their age.
@@ -1003,7 +1006,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const handleAgeTap = () => { setEditingAge(true); setTimeout(() => ageInputRef.current?.focus(), 30); };
   const handleAgeInput = (e) => {
     const v = parseInt(e.target.value, 10);
-    if (!isNaN(v)) setAge(Math.min(80, Math.max(14, v)));
+    if (!isNaN(v)) setAge(Math.min(80, Math.max(13, v)));
   };
 
   // Track when the username field strips a character so we can surface a
@@ -1098,7 +1101,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 pattern="[0-9]*"
                 enterKeyHint="done"
                 defaultValue={age}
-                min={14}
+                min={13}
                 max={80}
                 onBlur={() => setEditingAge(false)}
                 onChange={handleAgeInput}
@@ -1159,7 +1162,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             }}
           >
             <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offset}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
-              {Array.from({ length: 81 - 14 }, (_, i) => i + 14).map(v => {
+              {Array.from({ length: 81 - 13 }, (_, i) => i + 13).map(v => {
                 const isMajor = v % 10 === 0, isMid = v % 5 === 0 && !isMajor;
                 const isActive = v === age;
                 return (
@@ -1185,7 +1188,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', pointerEvents: 'none', boxShadow: '0 0 10px hsl(var(--primary))' }} />
           </div>
           <div className="flex justify-between mt-1 px-1">
-            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">14</span>
+            <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">13</span>
             <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">DRAG OR USE BUTTONS</span>
             <span className="font-mono text-[9px] font-semibold text-muted-foreground tracking-wide">80</span>
           </div>
@@ -1569,7 +1572,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
 /* ─── Legacy combined stats step (kept but not used in main flow) ─── */
 function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack, step, total, usernameError }) {
-  const ageOk = stats.age >= 14 && stats.age <= 80;
+  const ageOk = stats.age >= 13 && stats.age <= 80;
   const userOk = username.trim().length >= 2 && !usernameError;
   const canNext = ageOk && userOk;
 
@@ -1605,7 +1608,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
         </motion.div>
 
         {/* Age */}
-        <StatCard icon="user" label="Age" value={stats.age} unit="yrs" min={14} max={80} majorEvery={5}
+        <StatCard icon="user" label="Age" value={stats.age} unit="yrs" min={13} max={80} majorEvery={5}
           onChange={v => onChange({ ...stats, age: v })}
           suffix={stats.age < 18 ? 'guardian consent reqd' : ''} />
 
@@ -1791,7 +1794,7 @@ function LoadingStep({ onDone }) {
    STEP 7: REVEAL
 ═══════════════════════════════════════════════════════════════ */
 
-function RevealStep({ data, onNext }) {
+function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
   const goalIds = Array.isArray(data.goal) ? data.goal : (data.goal ? [data.goal] : []);
   const primaryGoal = GOALS.find(g => g.id === goalIds[0]) || GOALS[0];
   const extraGoalCount = Math.max(0, goalIds.length - 1);
@@ -1799,6 +1802,11 @@ function RevealStep({ data, onNext }) {
   const daysCount = data.days.length;
   const weeklyVol = Math.round(80 + (level?.bars || 1) * 30 + daysCount * 12 + extraGoalCount * 14);
   const weeks = (level?.bars || 1) >= 3 ? 12 : 8;
+
+  // Real exercises from the regimen we'll persist on submit. Falls back to
+  // an empty list if the generator wasn't passed in (legacy / unit-test path).
+  const previewExercises = previewRegimen?.exercises ?? [];
+  const totalSets = previewExercises.reduce((s, ex) => s + (ex.target_sets || 0), 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -1840,31 +1848,49 @@ function RevealStep({ data, onNext }) {
           ))}
         </div>
 
-        {/* First session card */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.86 }}
-          className="rounded-2xl border bg-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">First session — tomorrow</span>
-            <span className="font-mono text-[10px] font-bold text-emerald-500">● READY</span>
-          </div>
-          <div className="font-heading font-bold text-[17px] tracking-tight text-foreground">Lower body · Foundation</div>
-          <div className="flex items-center gap-3 mt-2 text-[12px] text-muted-foreground">
-            <span>⏱ 52 min</span><span>· 6 lifts</span><span>· 18 sets</span>
-          </div>
-          <div className="flex gap-1 mt-3">
-            {Array.from({ length: 18 }).map((_, i) => (
-              <motion.span key={i} className="flex-1 h-1 rounded-sm bg-primary/25"
-                initial={{ scaleX: 0 }} animate={{ scaleX: 1 }} transition={{ delay: 0.9 + i * 0.025, ease: [0.16,1,0.3,1] }}
-                style={{ transformOrigin: 'left' }} />
-            ))}
-          </div>
-        </motion.div>
+        {/* Your starter plan — the exercises we'll actually save to your Regimens */}
+        {previewExercises.length > 0 && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.86 }}
+            className="rounded-2xl border bg-card p-4">
+            <div className="flex items-center justify-between mb-2">
+              <span className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Your starter plan</span>
+              <span className="font-mono text-[10px] font-bold text-emerald-500">● READY</span>
+            </div>
+            <div className="font-heading font-bold text-[17px] tracking-tight text-foreground">{previewRegimen?.name || `${primaryGoal.title} starter`}</div>
+            <div className="flex items-center gap-3 mt-1 text-[12px] text-muted-foreground">
+              <span>{previewExercises.length} lifts</span>
+              <span>· {totalSets} sets</span>
+              <span>· saved to Workout → Regimens</span>
+            </div>
+            <ul className="mt-3 grid grid-cols-1 gap-1.5">
+              {previewExercises.slice(0, 6).map((ex, i) => (
+                <motion.li
+                  key={ex.name}
+                  initial={{ opacity: 0, x: -8 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.9 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
+                  className="flex items-center justify-between text-[13px]"
+                >
+                  <span className="font-medium text-foreground truncate pr-2">{ex.name}</span>
+                  <span className="font-mono text-[11px] text-muted-foreground shrink-0">{ex.target_sets} × {ex.target_reps}</span>
+                </motion.li>
+              ))}
+            </ul>
+          </motion.div>
+        )}
       </div>
 
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1.1 }}
         className="pt-4 shrink-0">
-        <PrimaryBtn onClick={onNext}>
-          Enter Flexyn <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        <PrimaryBtn onClick={onNext} disabled={saving}>
+          {saving ? (
+            <>
+              <span className="inline-block w-4 h-4 rounded-full border-2 border-current border-t-transparent animate-spin" />
+              Saving…
+            </>
+          ) : (
+            <>Enter Flexyn <Icon name="arrow-right" size={18} strokeWidth={2.5} /></>
+          )}
         </PrimaryBtn>
       </motion.div>
     </div>
@@ -1994,6 +2020,19 @@ export default function Onboarding() {
 
   const [usernameError, setUsernameError] = useState('');
 
+  // Pre-compute the starter regimen the user will see on the Reveal step
+  // AND the one we'll actually persist on submit — same object both places,
+  // so the preview can't lie about what the user is getting. Pure function,
+  // safe to recompute on every relevant input change.
+  const previewRegimen = useMemo(
+    () => buildStarterRegimen({
+      goals: data.goal,
+      level: data.level,
+      daysCount: Array.isArray(data.days) ? data.days.length : 0,
+    }),
+    [data.goal, data.level, data.days]
+  );
+
   // Force Iron Orange theme during onboarding so new/reset users always see
   // the default look regardless of any previously-saved theme.
   useEffect(() => {
@@ -2064,10 +2103,17 @@ export default function Onboarding() {
   // every step and only discovers their username is taken when the final
   // submit fails with a confusing toast. We query as they type and surface
   // a clear "That username is taken" message inline.
+  //
+  // Race-safe via a monotonically increasing sequence ID: if a slow
+  // response arrives after the user has typed something newer, we drop
+  // it. Without this, a "name1 → name2" sequence where name1's reply
+  // returns after name2's could falsely flag name2 as taken.
+  const usernameCheckSeqRef = useRef(0);
   useEffect(() => {
     const u = (data.username || '').trim();
     if (u.length < 3) return;
     if (usernameError) return; // already showing a different validation error
+    const seq = ++usernameCheckSeqRef.current;
     const timer = setTimeout(async () => {
       try {
         const { data: rows } = await supabase
@@ -2075,6 +2121,7 @@ export default function Onboarding() {
           .select('id')
           .ilike('username', u)
           .limit(1);
+        if (seq !== usernameCheckSeqRef.current) return; // a newer keystroke superseded us
         if (!rows || rows.length === 0) return;
         // If the only matching row IS the current user, that's fine.
         if (user?.id && rows[0].id === user.id) return;
@@ -2118,10 +2165,32 @@ export default function Onboarding() {
       setWeightUnit(weightUnit);
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
-      // Grant starter capsule for brand-new users (idempotent — skips if they already have one).
+      // Grant starter capsule for brand-new users (idempotent — skips if they
+      // already have one). Fire-and-forget but log failures so we know if it
+      // ever breaks — previously this swallowed errors completely.
       if (user?.id && user?.email) {
-        grantWelcomeCapsule(user.id, user.email).catch(() => {});
+        grantWelcomeCapsule(user.id, user.email).catch(err => {
+          console.warn('[Onboarding] welcome capsule grant failed (non-fatal):', {
+            code: err?.code, message: err?.message,
+          });
+        });
       }
+      // Create the starter regimen we just promised on the Reveal screen.
+      // Fire-and-forget — onboarding completion must not be gated on this.
+      // ensureStarterRegimen is idempotent (skips if any regimens exist) so
+      // it's safe even if the user re-onboards after an account reset.
+      ensureStarterRegimen({
+        user,
+        profile: {
+          goals: data.goal,
+          level: data.level,
+          daysCount: Array.isArray(data.days) ? data.days.length : 0,
+        },
+      }).catch(err => {
+        console.warn('[Onboarding] starter regimen creation failed (non-fatal):', {
+          code: err?.code, message: err?.message, details: err?.details,
+        });
+      });
       saved = true;
     } catch (err) {
       console.error('[Onboarding] Full profile save failed, trying minimal save:', {
@@ -2284,7 +2353,12 @@ export default function Onboarding() {
               {stepName === 'loading' && <LoadingStep onDone={next} />}
 
               {stepName === 'reveal' && (
-                <RevealStep data={data} onNext={handleRevealNext} />
+                <RevealStep
+                  data={data}
+                  onNext={handleRevealNext}
+                  saving={saving}
+                  previewRegimen={previewRegimen}
+                />
               )}
 
             </motion.div>
