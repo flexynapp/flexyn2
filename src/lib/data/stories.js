@@ -3,6 +3,7 @@
 // 24-hour photo stories with likes and view insights.
 
 import { supabase } from '@/api/supabaseClient';
+import { findOrCreateConversation, sendMessage } from './hubMessages';
 
 /**
  * Fetch everything the StoriesRow needs in one parallel pass:
@@ -35,7 +36,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
 
     supabase
       .from('user_profiles')
-      .select('email, username, avatar_url')
+      .select('email, username, avatar_url, story_dms_disabled')
       .in('email', allEmails),
 
     supabase
@@ -67,11 +68,12 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     const userStories = storyMap.get(email) ?? [];
     return {
       email,
-      username:  profile.username || email.split('@')[0],
-      avatarUrl: profile.avatar_url ?? null,
-      isOwn:     email === user.email,
-      stories:   userStories,
-      hasUnseen: userStories.some(s => !viewedIds.has(s.id)),
+      username:         profile.username || email.split('@')[0],
+      avatarUrl:        profile.avatar_url ?? null,
+      storyDmsDisabled: profile.story_dms_disabled ?? false,
+      isOwn:            email === user.email,
+      stories:          userStories,
+      hasUnseen:        userStories.some(s => !viewedIds.has(s.id)),
     };
   });
 
@@ -93,7 +95,8 @@ export async function getStoriesFeedData(user, followingEmails = []) {
  * Path is <uid>/stories/<timestamp>.<ext> so the existing storage RLS
  * policy "(storage.foldername(name))[1] = auth.uid()" passes.
  */
-export async function createStory(user, file, overlayText = null) {
+// overlayStyle: { text, xFrac, yFrac, scale, rotation, color, font } | null
+export async function createStory(user, file, overlayStyle = null) {
   if (!user?.id || !file) return null;
 
   const ext       = (file.name || 'story').split('.').pop() || 'jpg';
@@ -111,17 +114,48 @@ export async function createStory(user, file, overlayText = null) {
   const { data, error } = await supabase
     .from('stories')
     .insert({
-      user_id:      user.id,
-      user_email:   user.email,
-      image_url:    publicUrl,
-      overlay_text: overlayText || null,
-      media_type:   mediaType,
+      user_id:       user.id,
+      user_email:    user.email,
+      image_url:     publicUrl,
+      overlay_text:  overlayStyle?.text || null,
+      overlay_style: overlayStyle || null,
+      media_type:    mediaType,
     })
     .select()
     .single();
 
   if (error) { console.warn('[stories] insert failed:', error); return null; }
   return data;
+}
+
+/** Send a reply to a story — routes through the existing DM system. */
+export async function sendStoryReply(storyOwnerEmail, sender, message) {
+  if (!storyOwnerEmail || !sender?.email || !message?.trim()) return false;
+  try {
+    const conv = await findOrCreateConversation(sender.email, storyOwnerEmail);
+    if (!conv?.id) return false;
+    await sendMessage({
+      conversationId: conv.id,
+      senderEmail:    sender.email,
+      recipientEmail: storyOwnerEmail,
+      body:           message.trim(),
+    });
+    return true;
+  } catch (err) {
+    console.warn('[stories] reply failed:', err);
+    return false;
+  }
+}
+
+/** Toggle story DMs on/off for the current user. */
+export async function updateStoryDmsSettings(userId, storyDmsDisabled) {
+  if (!userId) return false;
+  const { error } = await supabase
+    .from('user_profiles')
+    .update({ story_dms_disabled: storyDmsDisabled })
+    .eq('id', userId);
+  if (error) { console.warn('[stories] settings update failed:', error); return false; }
+  return true;
 }
 
 /** Mark a story viewed. Upsert is idempotent on the unique constraint. */

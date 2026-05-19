@@ -12,16 +12,16 @@
 //   tap Add Story / own "+" → file picker → preview sheet (with text overlay option)
 //   → "Post Story" → upload → insert → refetch
 
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useRef, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2, Type } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as storiesData from '@/lib/data/stories';
 import StoryViewer from './StoryViewer';
+import StoryPreviewSheet from './StoryPreviewSheet';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -124,128 +124,6 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
   );
 }
 
-// ── Upload preview / confirm sheet ────────────────────────────────────────────
-// Supports photos and videos. "Aa" button toggles text overlay editing.
-
-function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
-  const [overlayText, setOverlayText] = useState('');
-  const [editingText, setEditingText] = useState(false);
-  const inputRef = useRef(null);
-
-  useEffect(() => {
-    if (editingText) inputRef.current?.focus();
-  }, [editingText]);
-
-  return createPortal(
-    <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 40 }}
-      transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-      className="fixed inset-0 z-[9999] bg-black flex flex-col"
-    >
-      {/* "Aa" text button — top right */}
-      <div
-        className="absolute top-0 right-0 z-10 px-4"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
-      >
-        <button
-          onClick={() => setEditingText(v => !v)}
-          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${editingText ? 'bg-white text-black' : 'bg-black/50 text-white'}`}
-          aria-label="Add text"
-        >
-          Aa
-        </button>
-      </div>
-
-      {/* Preview area */}
-      <div
-        className="flex-1 relative overflow-hidden"
-        onClick={() => setEditingText(false)}
-      >
-        {isVideo ? (
-          <video
-            src={dataUrl}
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-contain"
-          />
-        ) : (
-          <img
-            src={dataUrl}
-            alt="Story preview"
-            className="absolute inset-0 w-full h-full object-contain"
-            draggable={false}
-          />
-        )}
-
-        {/* Text overlay — edit mode */}
-        {editingText && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/20"
-            onClick={e => e.stopPropagation()}
-          >
-            <textarea
-              ref={inputRef}
-              value={overlayText}
-              onChange={e => setOverlayText(e.target.value)}
-              onBlur={() => setEditingText(false)}
-              placeholder="Type something..."
-              rows={3}
-              className="bg-transparent border-none outline-none text-white text-2xl font-bold text-center w-4/5 resize-none placeholder-white/50 leading-snug"
-              style={{ textShadow: '0 2px 10px rgba(0,0,0,1)', caretColor: 'white' }}
-            />
-          </div>
-        )}
-
-        {/* Text overlay — display mode */}
-        {!editingText && overlayText.trim() !== '' && (
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <p
-              className="text-white text-2xl font-bold text-center px-8 break-words leading-snug"
-              style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}
-            >
-              {overlayText}
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Action row */}
-      <div
-        className="flex items-center gap-3 px-6 py-5 bg-black"
-        style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
-      >
-        <button
-          onClick={onCancel}
-          disabled={uploading}
-          className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={() => onConfirm(overlayText.trim())}
-          disabled={uploading}
-          className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
-        >
-          {uploading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Posting…
-            </>
-          ) : (
-            'Post Story'
-          )}
-        </motion.button>
-      </div>
-    </motion.div>,
-    document.body
-  );
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function StoriesRow() {
@@ -278,7 +156,7 @@ export default function StoriesRow() {
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file, overlayText }) => storiesData.createStory(user, file, overlayText),
+    mutationFn: ({ file, overlayStyle }) => storiesData.createStory(user, file, overlayStyle),
     onSuccess: (story) => {
       if (!story) { toast.error('Could not post story — try again.'); return; }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
@@ -400,7 +278,7 @@ export default function StoriesRow() {
             dataUrl={preview.objectUrl}
             isVideo={preview.isVideo}
             uploading={uploadMutation.isPending}
-            onConfirm={(overlayText) => uploadMutation.mutate({ file: preview.file, overlayText })}
+            onConfirm={(overlayStyle) => uploadMutation.mutate({ file: preview.file, overlayStyle })}
             onCancel={cleanupPreview}
           />
         )}

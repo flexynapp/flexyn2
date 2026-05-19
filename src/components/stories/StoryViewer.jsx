@@ -7,39 +7,80 @@
 //   Tap right 35%  → next story / person → close when at end
 //   X button       → close
 //
-// Per-story duration: 8 seconds (STORY_DURATION_MS).
-// Images and videos use object-contain — nothing is cropped.
-//
 // Own stories
-//   Camera "+" (top-right)  → onAddStory() — opens file picker
-//   🗑 (bottom-right)        → delete with confirmation prompt
-//   "👁 View Insights" (bottom-center) → tap → InsightsPanel slides up
+//   Camera + (top)          → onAddStory() — open file picker
+//   👁 View Insights (bottom) → InsightsPanel (likers then viewers)
+//   🗑 (bottom-right)        → delete with confirm prompt
 //
-// All stories
-//   ❤️ (bottom-left) → like / unlike (works on own stories too for testing)
+// Non-own stories
+//   ❤️ (bottom-left)         → like / unlike
+//   Reply bar (bottom)       → sends a DM to the story owner
+//                              (hidden if owner has story DMs disabled)
+//
+// All stories: ❤️ like button (own stories enabled for testing)
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Plus, Eye, Camera, Loader2 } from 'lucide-react';
+import { X, Trash2, Heart, Eye, Camera, Loader2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import * as storiesData from '@/lib/data/stories';
 
 const STORY_DURATION_MS = 8000;
 
+const FONT_MAP = {
+  normal:  "'Inter', system-ui, sans-serif",
+  serious: "Georgia, 'Times New Roman', serif",
+  casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
+};
+
+// ── Overlay text display ──────────────────────────────────────────────────────
+
+function StoryOverlayText({ style, containerRef }) {
+  const ref = useRef(null);
+
+  useLayoutEffect(() => {
+    if (!ref.current || !containerRef?.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const x    = (style.xFrac ?? 0) * rect.width;
+    const y    = (style.yFrac ?? 0) * rect.height;
+    ref.current.style.transform =
+      `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${style.scale ?? 1}) rotate(${style.rotation ?? 0}deg)`;
+  });
+
+  return (
+    <div
+      ref={ref}
+      className="absolute pointer-events-none"
+      style={{
+        left:       '50%',
+        top:        '50%',
+        transform:  'translate(-50%, -50%)',
+        fontSize:   '28px',
+        fontWeight: 'bold',
+        fontFamily: FONT_MAP[style.font ?? 'normal'],
+        color:      style.color ?? '#ffffff',
+        textShadow: '0 2px 10px rgba(0,0,0,0.95)',
+        whiteSpace: 'pre-wrap',
+        textAlign:  'center',
+        maxWidth:   '80vw',
+        lineHeight: 1.3,
+      }}
+    >
+      {style.text}
+    </div>
+  );
+}
+
 // ── Insights panel ────────────────────────────────────────────────────────────
 
 function MiniAvatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
   return profile?.avatar_url ? (
-    <img
-      src={profile.avatar_url}
-      alt={profile.username}
-      className="w-9 h-9 rounded-full object-cover shrink-0"
-      draggable={false}
-    />
+    <img src={profile.avatar_url} alt={profile.username}
+      className="w-9 h-9 rounded-full object-cover shrink-0" draggable={false} />
   ) : (
     <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
       {initials}
@@ -54,7 +95,6 @@ function InsightsPanel({ storyId, onClose }) {
     enabled:  !!storyId,
     staleTime: 15_000,
   });
-
   const viewers = insights?.viewers ?? [];
   const likers  = insights?.likers  ?? [];
 
@@ -75,17 +115,12 @@ function InsightsPanel({ storyId, onClose }) {
       <div className="flex justify-center pt-3 pb-1 shrink-0">
         <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
       </div>
-
       <div className="flex items-center justify-between px-5 py-3 shrink-0">
         <h3 className="font-heading font-bold text-base">Story Insights</h3>
-        <button
-          onClick={onClose}
-          className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground"
-        >
+        <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-muted-foreground">
           <X className="w-4 h-4" />
         </button>
       </div>
-
       <div className="overflow-y-auto px-5 pb-2">
         {isLoading ? (
           <div className="flex justify-center py-10">
@@ -96,8 +131,7 @@ function InsightsPanel({ storyId, onClose }) {
             {likers.length > 0 && (
               <div className="mb-5">
                 <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-                  <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />
-                  Likes · {likers.length}
+                  <Heart className="w-3.5 h-3.5 fill-red-500 text-red-500" />Likes · {likers.length}
                 </p>
                 <div className="space-y-3">
                   {likers.map(l => (
@@ -111,11 +145,9 @@ function InsightsPanel({ storyId, onClose }) {
                 </div>
               </div>
             )}
-
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
-                <Eye className="w-3.5 h-3.5" />
-                Views · {viewers.length}
+                <Eye className="w-3.5 h-3.5" />Views · {viewers.length}
               </p>
               {viewers.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No views yet.</p>
@@ -125,9 +157,7 @@ function InsightsPanel({ storyId, onClose }) {
                     <div key={v.viewer_id} className="flex items-center gap-3">
                       <MiniAvatar profile={v.profile} />
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm truncate">
-                          {v.profile?.username || 'Someone'}
-                        </p>
+                        <p className="font-medium text-sm truncate">{v.profile?.username || 'Someone'}</p>
                         <p className="text-[10px] text-muted-foreground">
                           {(() => { try { return formatDistanceToNow(new Date(v.viewed_at), { addSuffix: true }); } catch { return ''; } })()}
                         </p>
@@ -144,33 +174,17 @@ function InsightsPanel({ storyId, onClose }) {
   );
 }
 
-// ── Delete confirmation overlay ───────────────────────────────────────────────
+// ── Delete confirmation ───────────────────────────────────────────────────────
 
 function DeletePrompt({ onConfirm, onCancel }) {
   return (
-    <div
-      className="absolute inset-0 z-30 flex items-center justify-center bg-black/60"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-card rounded-2xl p-6 mx-6 text-center"
-        onClick={e => e.stopPropagation()}
-      >
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60" onClick={onCancel}>
+      <div className="bg-card rounded-2xl p-6 mx-6 text-center" onClick={e => e.stopPropagation()}>
         <p className="font-heading font-bold text-base mb-1">Remove this story?</p>
         <p className="text-sm text-muted-foreground mb-5">This can't be undone.</p>
         <div className="flex gap-3">
-          <button
-            onClick={onCancel}
-            className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold"
-          >
-            Remove
-          </button>
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold">Remove</button>
         </div>
       </div>
     </div>
@@ -180,25 +194,22 @@ function DeletePrompt({ onConfirm, onCancel }) {
 // ── Main viewer ───────────────────────────────────────────────────────────────
 
 export default function StoryViewer({
-  open,
-  groups,
-  startIndex,
-  viewedIds,
-  likedIds,
-  user,
-  onClose,
-  onStoriesChange,
-  onAddStory,
+  open, groups, startIndex, viewedIds, likedIds, user,
+  onClose, onStoriesChange, onAddStory,
 }) {
   const queryClient = useQueryClient();
 
-  const [groupIdx, setGroupIdx]         = useState(0);
-  const [storyIdx, setStoryIdx]         = useState(0);
-  const [tick, setTick]                 = useState(0);
-  const [insightsOpen, setInsightsOpen] = useState(false);
-  const [deletePrompt, setDeletePrompt] = useState(false);
-  const [localLiked, setLocalLiked]     = useState(new Set());
-  const timerRef = useRef(null);
+  const [groupIdx,      setGroupIdx]      = useState(0);
+  const [storyIdx,      setStoryIdx]      = useState(0);
+  const [tick,          setTick]          = useState(0);
+  const [insightsOpen,  setInsightsOpen]  = useState(false);
+  const [deletePrompt,  setDeletePrompt]  = useState(false);
+  const [localLiked,    setLocalLiked]    = useState(new Set());
+  const [reply,         setReply]         = useState('');
+  const [replyFocused,  setReplyFocused]  = useState(false);
+  const [replySending,  setReplySending]  = useState(false);
+  const timerRef   = useRef(null);
+  const mediaRef   = useRef(null);  // container for overlay text positioning
 
   useEffect(() => {
     if (open) {
@@ -208,6 +219,7 @@ export default function StoryViewer({
       setInsightsOpen(false);
       setDeletePrompt(false);
       setLocalLiked(new Set(likedIds));
+      setReply('');
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, startIndex]);
@@ -227,11 +239,9 @@ export default function StoryViewer({
   const goNext = useCallback(() => {
     const group = groups[groupIdx];
     if (!group) return;
-    setInsightsOpen(false);
-    setDeletePrompt(false);
+    setInsightsOpen(false); setDeletePrompt(false); setReply('');
     if (storyIdx < group.stories.length - 1) {
-      setStoryIdx(i => i + 1);
-      setTick(t => t + 1);
+      setStoryIdx(i => i + 1); setTick(t => t + 1);
     } else {
       const next = groups.findIndex((_, i) => i > groupIdx);
       if (next >= 0) { setGroupIdx(next); setStoryIdx(0); setTick(t => t + 1); }
@@ -240,13 +250,8 @@ export default function StoryViewer({
   }, [groupIdx, storyIdx, groups, onClose]);
 
   const goBack = useCallback(() => {
-    setInsightsOpen(false);
-    setDeletePrompt(false);
-    if (storyIdx > 0) {
-      setStoryIdx(i => i - 1);
-      setTick(t => t + 1);
-      return;
-    }
+    setInsightsOpen(false); setDeletePrompt(false); setReply('');
+    if (storyIdx > 0) { setStoryIdx(i => i - 1); setTick(t => t + 1); return; }
     let prev = -1;
     for (let i = groupIdx - 1; i >= 0; i--) { prev = i; break; }
     if (prev >= 0) {
@@ -256,42 +261,41 @@ export default function StoryViewer({
     }
   }, [groupIdx, storyIdx, groups]);
 
-  // Auto-advance pauses while insights or delete prompt is open
+  const paused = insightsOpen || deletePrompt || replyFocused;
+
   useEffect(() => {
-    if (!open || !currentStory || insightsOpen || deletePrompt) return;
+    if (!open || !currentStory || paused) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(goNext, STORY_DURATION_MS);
     return () => clearTimeout(timerRef.current);
-  }, [open, tick, insightsOpen, deletePrompt, goNext]);
+  }, [open, tick, paused, goNext]);
 
   const handleDelete = async () => {
     if (!currentStory) return;
     const { ok } = await storiesData.deleteStory(currentStory.id);
     if (!ok) { toast.error('Could not delete story.'); return; }
     onStoriesChange();
-    if (currentGroup.stories.length > 1) {
-      setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0);
-      setTick(t => t + 1);
-    } else {
-      onClose();
-    }
+    if (currentGroup.stories.length > 1) { setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0); setTick(t => t + 1); }
+    else onClose();
   };
 
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!currentStory || !user) return;
     const already = localLiked.has(currentStory.id);
-    setLocalLiked(prev => {
-      const next = new Set(prev);
-      already ? next.delete(currentStory.id) : next.add(currentStory.id);
-      return next;
-    });
-    if (already) {
-      await storiesData.unlikeStory(currentStory.id, user.id);
-    } else {
-      await storiesData.likeStory(currentStory.id, user);
-    }
+    setLocalLiked(prev => { const n = new Set(prev); already ? n.delete(currentStory.id) : n.add(currentStory.id); return n; });
+    if (already) await storiesData.unlikeStory(currentStory.id, user.id);
+    else         await storiesData.likeStory(currentStory.id, user);
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+  };
+
+  const handleSendReply = async () => {
+    if (!reply.trim() || !currentGroup || replySending) return;
+    setReplySending(true);
+    const ok = await storiesData.sendStoryReply(currentGroup.email, user, reply.trim());
+    setReplySending(false);
+    if (ok) { toast.success('Reply sent!'); setReply(''); }
+    else    { toast.error('Could not send reply — try again.'); }
   };
 
   const timeAgo = (() => {
@@ -300,7 +304,6 @@ export default function StoryViewer({
   })();
 
   if (!currentGroup || !currentStory) return null;
-
   const isLiked = localLiked.has(currentStory.id);
 
   return createPortal(
@@ -308,99 +311,71 @@ export default function StoryViewer({
       {open && (
         <motion.div
           key="story-viewer"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[10000] bg-black flex flex-col select-none"
         >
-          <div className="relative flex-1 overflow-hidden">
+          <div ref={mediaRef} className="relative flex-1 overflow-hidden">
 
-            {/* ── Media (image or video) ──────────────────────────────── */}
+            {/* ── Media ───────────────────────────────────────────────── */}
             <AnimatePresence mode="wait" initial={false}>
               {isVideo ? (
-                <motion.video
-                  key={currentStory.id}
-                  src={currentStory.image_url}
-                  autoPlay
-                  loop
-                  muted
-                  playsInline
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                <motion.video key={currentStory.id} src={currentStory.image_url}
+                  autoPlay loop muted playsInline
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="absolute inset-0 w-full h-full object-contain"
-                />
+                  className="absolute inset-0 w-full h-full object-contain" />
               ) : (
-                <motion.img
-                  key={currentStory.id}
-                  src={currentStory.image_url}
-                  alt=""
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
+                <motion.img key={currentStory.id} src={currentStory.image_url} alt=""
+                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
-                  className="absolute inset-0 w-full h-full object-contain"
-                  draggable={false}
-                />
+                  className="absolute inset-0 w-full h-full object-contain" draggable={false} />
               )}
             </AnimatePresence>
 
-            {/* ── Overlay text ────────────────────────────────────────── */}
-            {currentStory.overlay_text && (
+            {/* ── Overlay text ─────────────────────────────────────────── */}
+            {currentStory.overlay_style?.text ? (
+              <StoryOverlayText style={currentStory.overlay_style} containerRef={mediaRef} />
+            ) : currentStory.overlay_text ? (
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <p
-                  className="text-white text-2xl font-bold text-center px-8 break-words leading-snug"
-                  style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}
-                >
+                <p className="text-white text-2xl font-bold text-center px-8 break-words leading-snug"
+                  style={{ textShadow: '0 2px 10px rgba(0,0,0,0.95)' }}>
                   {currentStory.overlay_text}
                 </p>
               </div>
-            )}
+            ) : null}
 
             {/* ── Top gradient ─────────────────────────────────────────── */}
-            <div
-              className="absolute top-0 left-0 right-0 h-36 pointer-events-none"
-              style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)' }}
-            />
+            <div className="absolute top-0 left-0 right-0 h-36 pointer-events-none"
+              style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)' }} />
 
-            {/* ── Progress bars ───────────────────────────────────────── */}
-            <div
-              className="absolute top-0 left-0 right-0 flex gap-1 px-3"
-              style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}
-            >
+            {/* ── Progress bars ────────────────────────────────────────── */}
+            <div className="absolute top-0 left-0 right-0 flex gap-1 px-3"
+              style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
               {currentGroup.stories.map((s, i) => (
                 <div key={s.id} className="flex-1 h-0.5 rounded-full bg-white/30 overflow-hidden">
-                  {i < storyIdx ? (
-                    <div className="h-full w-full bg-white" />
-                  ) : i === storyIdx ? (
-                    <motion.div
-                      key={`bar-${tick}`}
-                      className="h-full bg-white origin-left"
+                  {i < storyIdx ? <div className="h-full w-full bg-white" /> :
+                   i === storyIdx ? (
+                    <motion.div key={`bar-${tick}`} className="h-full bg-white origin-left"
                       initial={{ scaleX: 0 }}
-                      animate={{ scaleX: (insightsOpen || deletePrompt) ? undefined : 1 }}
-                      transition={{ duration: STORY_DURATION_MS / 1000, ease: 'linear' }}
-                    />
+                      animate={{ scaleX: paused ? undefined : 1 }}
+                      transition={{ duration: STORY_DURATION_MS / 1000, ease: 'linear' }} />
                   ) : null}
                 </div>
               ))}
             </div>
 
-            {/* ── User info + controls row ─────────────────────────────── */}
-            <div
-              className="absolute left-0 right-0 flex items-center justify-between px-3 mt-2"
-              style={{ top: 'max(30px, calc(env(safe-area-inset-top) + 16px))' }}
-            >
+            {/* ── User info + controls ─────────────────────────────────── */}
+            <div className="absolute left-0 right-0 flex items-center justify-between px-3 mt-2"
+              style={{ top: 'max(30px, calc(env(safe-area-inset-top) + 16px))' }}>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/40 shrink-0">
-                  {currentGroup.avatarUrl ? (
-                    <img src={currentGroup.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
-                  ) : (
-                    <div className="w-full h-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white">
-                      {currentGroup.username.slice(0, 2).toUpperCase()}
-                    </div>
-                  )}
+                  {currentGroup.avatarUrl
+                    ? <img src={currentGroup.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+                    : <div className="w-full h-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white">
+                        {currentGroup.username.slice(0, 2).toUpperCase()}
+                      </div>
+                  }
                 </div>
                 <div>
                   <p className="text-white font-semibold text-sm leading-tight drop-shadow-md">
@@ -409,93 +384,93 @@ export default function StoryViewer({
                   <p className="text-white/70 text-[10px] leading-tight">{timeAgo}</p>
                 </div>
               </div>
-
               <div className="flex items-center gap-2">
                 {currentGroup.isOwn && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onAddStory?.(); }}
-                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
-                    aria-label="Add another story"
-                  >
+                  <button onClick={(e) => { e.stopPropagation(); onAddStory?.(); }}
+                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add another story">
                     <Camera className="w-4 h-4" />
                   </button>
                 )}
-                <button
-                  onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
-                  aria-label="Close"
-                >
+                <button onClick={onClose}
+                  className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Close">
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            {/* ── Bottom gradient ─────────────────────────────────────── */}
-            <div
-              className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
-              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}
-            />
+            {/* ── Bottom gradient ──────────────────────────────────────── */}
+            <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
+              style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)' }} />
 
-            {/* ── Bottom action bar ────────────────────────────────────── */}
-            <div
-              className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4"
-              style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
-            >
-              {/* Like button — all stories */}
-              <motion.button
-                whileTap={{ scale: 0.82 }}
-                onClick={handleLike}
-                className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center"
-                aria-label={isLiked ? 'Unlike' : 'Like'}
-              >
-                <Heart
-                  className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`}
-                />
-              </motion.button>
+            {/* ── Bottom bar — own stories ─────────────────────────────── */}
+            {currentGroup.isOwn && (
+              <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4"
+                style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
+                {/* Like (own — for testing) */}
+                <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center" aria-label={isLiked ? 'Unlike' : 'Like'}>
+                  <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                </motion.button>
 
-              {/* Insights — own only */}
-              {currentGroup.isOwn ? (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
-                  className="flex flex-col items-center gap-0.5 text-white/80"
-                  aria-label="View insights"
-                >
+                {/* View Insights */}
+                <button onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
+                  className="flex flex-col items-center gap-0.5 text-white/80" aria-label="View insights">
                   <Eye className="w-4 h-4" />
                   <span className="text-[10px] font-medium">View Insights</span>
                 </button>
-              ) : (
-                <div />
-              )}
 
-              {/* Delete — own only */}
-              {currentGroup.isOwn ? (
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDeletePrompt(true); }}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white"
-                  aria-label="Delete story"
-                >
+                {/* Delete */}
+                <button onClick={(e) => { e.stopPropagation(); setDeletePrompt(true); }}
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Delete story">
                   <Trash2 className="w-4 h-4" />
                 </button>
-              ) : (
-                <div className="w-11" />
-              )}
-            </div>
+              </div>
+            )}
 
-            {/* ── Invisible tap zones (stop 80px from bottom) ─────────── */}
-            <div
-              className="absolute left-0 top-0 w-[35%] cursor-pointer"
-              style={{ bottom: '80px' }}
-              onClick={goBack}
-              aria-label="Previous story"
-            />
-            <div
-              className="absolute right-0 top-0 w-[35%] cursor-pointer"
-              style={{ bottom: '80px' }}
-              onClick={goNext}
-              aria-label="Next story"
-            />
+            {/* ── Bottom bar — non-own stories ─────────────────────────── */}
+            {!currentGroup.isOwn && (
+              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-3"
+                style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
+                {/* Like */}
+                <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
+                  <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                </motion.button>
 
-            {/* ── Delete confirmation ──────────────────────────────────── */}
+                {/* Reply bar — hidden if owner disabled DMs */}
+                {!currentGroup.storyDmsDisabled && (
+                  <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
+                    onClick={e => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      value={reply}
+                      onChange={e => setReply(e.target.value)}
+                      onFocus={() => setReplyFocused(true)}
+                      onBlur={() => setReplyFocused(false)}
+                      onKeyDown={e => { if (e.key === 'Enter' && reply.trim()) handleSendReply(); }}
+                      placeholder={`Reply to ${currentGroup.username}…`}
+                      className="flex-1 bg-transparent text-white text-sm placeholder-white/45 outline-none min-w-0"
+                    />
+                    {reply.trim() && (
+                      <button onClick={handleSendReply} disabled={replySending}
+                        className="text-primary shrink-0 disabled:opacity-50" aria-label="Send reply">
+                        {replySending
+                          ? <Loader2 className="w-4 h-4 animate-spin" />
+                          : <Send className="w-4 h-4" />}
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Tap zones (stop 90px from bottom) ───────────────────── */}
+            <div className="absolute left-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
+              onClick={goBack} aria-label="Previous story" />
+            <div className="absolute right-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
+              onClick={goNext} aria-label="Next story" />
+
+            {/* ── Delete confirm ───────────────────────────────────────── */}
             {deletePrompt && (
               <DeletePrompt
                 onConfirm={() => { setDeletePrompt(false); handleDelete(); }}
@@ -506,16 +481,13 @@ export default function StoryViewer({
             {/* ── Insights panel ───────────────────────────────────────── */}
             <AnimatePresence>
               {insightsOpen && currentGroup.isOwn && (
-                <InsightsPanel
-                  storyId={currentStory.id}
-                  onClose={() => setInsightsOpen(false)}
-                />
+                <InsightsPanel storyId={currentStory.id} onClose={() => setInsightsOpen(false)} />
               )}
             </AnimatePresence>
           </div>
         </motion.div>
       )}
     </AnimatePresence>,
-    document.body
+    document.body,
   );
 }
