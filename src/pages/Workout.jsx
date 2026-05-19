@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
-import { format } from 'date-fns';
+import { format, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -65,8 +65,14 @@ export default function Workout() {
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [selectedRegimen, setSelectedRegimen] = useState(null);
   const [exercises, setExercises] = useState([]);
-  // Date is always today's local date — no editor, no resumed-session override.
-  const date = format(new Date(), 'yyyy-MM-dd');
+  // Date defaults to today. Can be rolled back to yesterday for late-night sessions
+  // that cross midnight (Rolling Day toggle).
+  const todayStr    = format(new Date(), 'yyyy-MM-dd');
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+  const [date, setDate] = useState(todayStr);
+  // Show the rolling-day banner from midnight until 5 AM.
+  const isLateNight = new Date().getHours() < 5;
+  const [rollingDay, setRollingDay] = useState(false);
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
   const [newExName, setNewExName] = useState('');
@@ -775,6 +781,44 @@ export default function Workout() {
         <motion.div variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
           <GoalsAlmostComplete goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
         </motion.div>
+
+        {/* Rolling Day Banner — visible midnight → 5 AM */}
+        {isLateNight && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-3 px-4 py-3 mb-4 rounded-xl border"
+            style={{ background: 'hsl(var(--primary) / 0.08)', borderColor: 'hsl(var(--primary) / 0.25)' }}
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>
+                🌙 Rolling Day
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
+                Log this session as <span className="font-semibold">{rollingDay ? yesterdayStr : todayStr}</span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs text-muted-foreground">{rollingDay ? 'Yesterday' : 'Today'}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  const next = !rollingDay;
+                  setRollingDay(next);
+                  setDate(next ? yesterdayStr : todayStr);
+                }}
+                className="relative w-10 h-5 rounded-full transition-colors shrink-0"
+                style={{ background: rollingDay ? 'hsl(var(--primary))' : 'hsl(var(--muted))' }}
+                aria-label="Toggle rolling day"
+              >
+                <span
+                  className="absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform"
+                  style={{ left: rollingDay ? '1.25rem' : '0.125rem', transform: 'none' }}
+                />
+              </button>
+            </div>
+          </motion.div>
+        )}
 
         {cardioOpen ? (
           <div className="mb-8">

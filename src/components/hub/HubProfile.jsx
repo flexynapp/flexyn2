@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Check, Plus, Pencil, ChevronDown, ChevronUp, Trophy } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -11,9 +11,12 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as users from '@/lib/data/users';
+import * as me from '@/lib/data/me';
+import * as statusNotesData from '@/lib/data/statusNotes';
 import HubPostCard from './HubPostCard';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
@@ -21,6 +24,9 @@ import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
 import { useTheme } from '@/lib/ThemeContext';
+import { isVerified } from '@/lib/verifiedUsers';
+import StoryViewer from '@/components/stories/StoryViewer';
+import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
   const { t } = useLanguage();
@@ -39,6 +45,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [noteEditorOpen, setNoteEditorOpen] = useState(false);
+  const [noteLocalLiked, setNoteLocalLiked] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [cityDraft, setCityDraft] = useState('');
+  const [flagPickerOpen, setFlagPickerOpen] = useState(false);
+  const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   // Always start a profile view at the top, regardless of where the user
   // scrolled before navigating in. Using 'auto' (not 'smooth') because the
@@ -48,33 +62,71 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [email]);
 
-  // Refetch the target user's profile to get up-to-date XP, theme, and avatar.
-  // We do NOT trust this query for `username` — the display layer reads
-  // `targetUser.username` first (passed in from the parent) and only falls
-  // through to this if it's missing. This avoids a class of bugs where a
-  // stale or field-stripped User.list() response overwrites a known-good
-  // username that came in via the navigation prop.
   const { data: targetProfile } = useQuery({
     queryKey: ['hubProfileLookup', email],
     queryFn: async () => {
       if (isSelf) return null;
-      const list = await users.list().catch(() => []);
-      const found = list.find(u => u.email?.toLowerCase() === email.toLowerCase());
-      if (!found) {
-        // List call returned but the user isn't visible to us. Return the
-        // navigation-prop snapshot so downstream readers have something to
-        // work with. Do NOT return null — that would clear avatarUrl/theme/XP.
-        return targetUser || null;
-      }
-      // Preserve username from targetUser if the list entry doesn't carry it.
-      // This happens when Base44 strips custom fields from cross-user reads.
-      return {
-        ...found,
-        username: found.username || targetUser?.username || null,
-      };
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('email, username, avatar_url, total_xp, preferred_theme, loot_theme_id, equipped_title_id, equipped_frame_id, city, country_flag, bio, trophy_case, trophy_case_visible')
+        .eq('email', email)
+        .single();
+      if (!data) return targetUser || null;
+      return { ...data, username: data.username || targetUser?.username || null };
     },
     enabled: !isSelf && !!email,
     initialData: isSelf ? null : targetUser,
+  });
+
+  // Profile stories (for clickable avatar → StoryViewer)
+  const { data: profileStories = [] } = useQuery({
+    queryKey: ['profileStories', email],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const { data } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('user_email', email)
+        .gt('expires_at', now)
+        .order('created_at', { ascending: true });
+      return data ?? [];
+    },
+    enabled: !!email,
+    staleTime: 30_000,
+  });
+
+  // Active status note for the profile owner
+  const { data: activeNote, refetch: refetchNote } = useQuery({
+    queryKey: ['profileNote', email],
+    queryFn: async () => {
+      const now = new Date().toISOString();
+      const { data } = await supabase
+        .from('status_notes')
+        .select('*')
+        .eq('user_email', email)
+        .gt('expires_at', now)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data ?? null;
+    },
+    enabled: !!email,
+    staleTime: 30_000,
+  });
+
+  // Has current viewer liked the note?
+  const { data: noteLikedServer = false, refetch: refetchNoteLike } = useQuery({
+    queryKey: ['profileNoteLike', activeNote?.id, user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('status_note_likes')
+        .select('id')
+        .eq('note_id', activeNote.id)
+        .eq('liker_id', user.id)
+        .maybeSingle();
+      return !!data;
+    },
+    enabled: !isSelf && !!activeNote?.id && !!user?.id,
   });
 
   const { data: followers = [] } = useQuery({
@@ -232,6 +284,71 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     unfollowMutation.mutate();
   };
 
+  // ── Note handlers ───────────────────────────────────────────────────────────
+  const handleNotePost = async (text) => {
+    await statusNotesData.postStatusNote(user, text);
+    refetchNote();
+    setNoteEditorOpen(false);
+  };
+  const handleNoteDelete = async () => {
+    if (!activeNote?.id) return;
+    await statusNotesData.deleteStatusNote(activeNote.id);
+    refetchNote();
+    setNoteEditorOpen(false);
+  };
+  const handleNoteLike = async () => {
+    if (!activeNote?.id || !user?.id || isSelf) return;
+    const next = !noteLiked;
+    setNoteLocalLiked(next);
+    try {
+      if (next) {
+        await statusNotesData.likeStatusNote(activeNote.id, user);
+      } else {
+        await statusNotesData.unlikeStatusNote(activeNote.id, user.id);
+      }
+      refetchNoteLike();
+    } catch {
+      setNoteLocalLiked(!next);
+    }
+  };
+
+  // ── Trophy handlers ──────────────────────────────────────────────────────────
+  const handleTrophySlotSet = async (slotIdx, emoji) => {
+    const next = Array(5).fill(null).map((_, i) => trophyCase[i] ?? null);
+    next[slotIdx] = emoji ? { type: 'emoji', value: emoji } : null;
+    try {
+      await me.update({ trophy_case: next });
+      queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
+    } catch {
+      toast.error('Could not update trophy case');
+    }
+    setTrophyPickerSlot(null);
+  };
+  const handleTrophyVisibility = async () => {
+    const next = !trophyVisible;
+    try {
+      await me.update({ trophy_case_visible: next });
+      queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
+    } catch {
+      toast.error('Could not update visibility');
+    }
+  };
+
+  // ── Profile edit save ────────────────────────────────────────────────────────
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      await me.update({ city: cityDraft.trim() });
+      queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
+      setEditProfileOpen(false);
+      toast.success('Profile updated');
+    } catch (err) {
+      toast.error(err?.message || 'Could not save');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
   // ── Username-only display ──
   // Hub profiles show the user's @username and nothing else identity-wise.
   // No full_name. No email. Falls back to a privacy-safe placeholder.
@@ -287,6 +404,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const equippedFrame = equippedFrameId ? getLootFrameById(equippedFrameId) : null;
   const titleRarity = equippedTitle ? (RARITY[equippedTitle.rarity] ?? RARITY.common) : null;
 
+  // New profile fields (migration 049)
+  const city         = isSelf ? (user?.city ?? '')          : (targetProfile?.city ?? '');
+  const countryFlag  = isSelf ? (user?.country_flag ?? '')  : (targetProfile?.country_flag ?? '');
+  const bio          = isSelf ? (user?.bio ?? '')           : (targetProfile?.bio ?? '');
+  const rawTrophy    = isSelf ? (user?.trophy_case ?? [])   : (targetProfile?.trophy_case ?? []);
+  const trophyCase   = Array.isArray(rawTrophy) ? rawTrophy : [];
+  const trophyVisible = isSelf ? (user?.trophy_case_visible ?? true) : (targetProfile?.trophy_case_visible ?? true);
+  const isVerifiedUser = isVerified(displayUsername);
+  const noteLiked    = noteLocalLiked || noteLikedServer;
+
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
@@ -320,22 +447,55 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         transition={{ duration: 0.3, ease: 'easeOut' }}
         className="bg-card border border-border rounded-xl p-5 mb-4"
       >
-        <div className="flex items-center gap-4 mb-4">
-          <AvatarUploader
-            src={avatarUrl}
-            initials={initials}
-            editable={isSelf}
-            size={64}
-            frameCss={equippedFrame?.css}
-            frameAnimation={equippedFrame?.animation}
-          />
+        <div className="flex items-start gap-4 mb-4">
+          {/* Avatar — clickable for story viewer (non-self), editable for self */}
+          <div className="flex flex-col items-center gap-1 shrink-0">
+            <div
+              className={profileStories.length > 0 ? 'rounded-full ring-2 ring-offset-2' : ''}
+              style={profileStories.length > 0 ? { '--tw-ring-color': 'hsl(var(--primary))', cursor: !isSelf ? 'pointer' : undefined } : {}}
+              onClick={!isSelf && profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
+            >
+              <AvatarUploader
+                src={avatarUrl}
+                initials={initials}
+                editable={isSelf}
+                size={64}
+                frameCss={equippedFrame?.css}
+                frameAnimation={equippedFrame?.animation}
+              />
+            </div>
+            {profileStories.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setStoryViewerOpen(true)}
+                className="text-[10px] font-bold leading-none"
+                style={{ color: 'hsl(var(--primary))' }}
+              >
+                {isSelf ? 'My Story' : 'View Story'}
+              </button>
+            )}
+          </div>
+
+          {/* Identity stack */}
           <div className="flex-1 min-w-0">
-            <h2 className="font-heading font-bold text-lg truncate">{displayHandle}</h2>
-            {/* Equipped Title — text label below the @handle, colored by rarity.
-                Not shown when nothing is equipped. Visible to other users. */}
+            {/* Handle + verified */}
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <h2 className="font-heading font-bold text-lg leading-tight truncate">{displayHandle}</h2>
+              {isVerifiedUser && (
+                <div
+                  className="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0"
+                  style={{ background: 'hsl(var(--primary) / 0.65)' }}
+                  title="Verified Admin"
+                >
+                  <Check className="w-2.5 h-2.5 text-white stroke-[2.5]" />
+                </div>
+              )}
+            </div>
+
+            {/* Equipped title */}
             {equippedTitle && (
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className="text-base leading-none">{equippedTitle.emoji}</span>
+              <div className="flex items-center gap-1 mt-0.5">
+                <span className="text-sm leading-none">{equippedTitle.emoji}</span>
                 <span
                   className="text-xs font-bold uppercase tracking-wider"
                   style={{ color: titleRarity?.color }}
@@ -345,8 +505,147 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </span>
               </div>
             )}
+
+            {/* City + flag */}
+            {(city || countryFlag) && (
+              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                <MapPin className="w-3 h-3 shrink-0" />
+                {city && <span>{city}</span>}
+                {city && countryFlag && <span>&nbsp;</span>}
+                {countryFlag && <span>{countryFlag}</span>}
+              </div>
+            )}
+
+            {/* Bio */}
+            {bio && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">{bio}</p>
+            )}
+
+            {/* Edit profile (own, no city/flag yet) */}
+            {isSelf && !city && !countryFlag && (
+              <button
+                type="button"
+                onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+                className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                <MapPin className="w-3 h-3" />
+                Add location
+              </button>
+            )}
           </div>
+
+          {/* Edit pencil (own profile, city already set) */}
+          {isSelf && (city || countryFlag) && (
+            <button
+              type="button"
+              onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors shrink-0"
+              aria-label="Edit location"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
+
+        {/* Status note */}
+        {isSelf ? (
+          <div className="mb-3">
+            {activeNote ? (
+              <div className="flex items-start gap-2">
+                <div
+                  className="flex-1 bg-card border border-border rounded-2xl px-3 py-2 cursor-pointer hover:bg-secondary/30 transition-colors"
+                  onClick={() => setNoteEditorOpen(true)}
+                >
+                  <p className="text-xs text-foreground leading-snug">{activeNote.text}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Tap to edit · expires in 8h</p>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setNoteEditorOpen(true)}
+                className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary/70 transition-colors"
+              >
+                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
+                Add a status note…
+              </button>
+            )}
+          </div>
+        ) : activeNote ? (
+          <div className="flex items-start gap-2 mb-3">
+            <div className="flex-1 bg-card border border-border rounded-2xl px-3 py-2">
+              <p className="text-xs text-foreground leading-snug">{activeNote.text}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handleNoteLike}
+              className="flex flex-col items-center gap-0.5 pt-1 shrink-0"
+              aria-label={noteLiked ? 'Unlike note' : 'Like note'}
+            >
+              <Heart
+                className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-red-400'}`}
+              />
+              {activeNote.like_count > 0 && (
+                <span className="text-[9px] text-muted-foreground">{activeNote.like_count}</span>
+              )}
+            </button>
+          </div>
+        ) : null}
+
+        {/* Edit profile panel */}
+        <AnimatePresence>
+          {isSelf && editProfileOpen && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+              style={{ overflow: 'hidden' }}
+              className="mb-3"
+            >
+              <div className="bg-secondary/30 rounded-xl p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="text"
+                    value={cityDraft}
+                    onChange={e => setCityDraft(e.target.value.slice(0, 40))}
+                    placeholder="Your city (e.g. Miami, FL)"
+                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm shrink-0">{countryFlag || '🌍'}</span>
+                  <button
+                    type="button"
+                    onClick={() => setFlagPickerOpen(true)}
+                    className="flex-1 text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {countryFlag ? 'Change flag' : 'Pick country flag →'}
+                  </button>
+                </div>
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setEditProfileOpen(false)}
+                    className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProfile}
+                    disabled={savingProfile}
+                    className="flex-1 py-1.5 text-xs rounded-lg text-white font-semibold disabled:opacity-60"
+                    style={{ background: 'hsl(var(--primary))' }}
+                  >
+                    {savingProfile ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Rank/Level/XP Block */}
         <motion.div
@@ -383,36 +682,52 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </div>
         </motion.div>
 
-        {/* Themes button — own profile only */}
-        {isSelf && (
-          <motion.button
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-            onClick={() => setThemeOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-2 mb-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
-          >
-            <Palette className="w-4 h-4 text-primary" />
-            {t('hub.profile.themes')}
-          </motion.button>
+        {/* Trophy Case */}
+        {(trophyVisible || isSelf) && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-muted-foreground" />
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Trophy Case</span>
+              </div>
+              {isSelf && (
+                <button
+                  type="button"
+                  onClick={handleTrophyVisibility}
+                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {trophyVisible ? 'Hide' : 'Show'}
+                </button>
+              )}
+            </div>
+            <div className="flex gap-2">
+              {Array(5).fill(null).map((_, i) => {
+                const slot = trophyCase[i] ?? null;
+                return (
+                  <motion.button
+                    key={i}
+                    type="button"
+                    onClick={isSelf ? () => setTrophyPickerSlot(i) : undefined}
+                    whileTap={isSelf ? { scale: 0.93 } : {}}
+                    className={`flex-1 aspect-square rounded-lg flex items-center justify-center text-xl border-2 border-dashed transition-colors ${
+                      isSelf ? 'hover:border-primary/50 cursor-pointer' : 'cursor-default'
+                    }`}
+                    style={{ borderColor: slot ? 'hsl(var(--primary) / 0.5)' : 'hsl(var(--primary) / 0.25)' }}
+                    aria-label={slot ? `Slot ${i + 1}: ${slot.value}` : `Empty slot ${i + 1}`}
+                  >
+                    {slot ? (
+                      <span>{slot.value}</span>
+                    ) : isSelf ? (
+                      <Plus className="w-4 h-4" style={{ color: 'hsl(var(--primary) / 0.4)' }} />
+                    ) : null}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
         )}
 
-        {/* Showcase slot — reserved for equipped loot items, capsule rewards,
-            and custom themes earned through the loot/inventory system.
-            Rendered in the profile owner's ThemedScope so equipped custom
-            themes here will preview correctly when other users view this
-            profile. Populated from a future User.equipped_showcase_items field. */}
-        {false && (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 }}
-            className="mb-4"
-          >
-            {/* ProfileShowcase component will be rendered here */}
-          </motion.div>
-        )}
-
+        {/* Stats row */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <Stat icon={FileText}  label={t('hub.profile.posts')}     value={posts.length} />
           <button onClick={() => setOpenModal('followers')} className="bg-secondary/40 rounded-lg p-2 text-center hover:bg-secondary/60 transition-colors">
@@ -426,6 +741,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('hub.profile.following')}</p>
           </button>
         </div>
+
+        {/* Themes button — own profile only */}
+        {isSelf && (
+          <motion.button
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18 }}
+            onClick={() => setThemeOpen(true)}
+            className="w-full flex items-center justify-center gap-2 py-2 mb-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+          >
+            <Palette className="w-4 h-4 text-primary" />
+            {t('hub.profile.themes')}
+          </motion.button>
+        )}
 
         {!isSelf && (
           <div className="flex gap-2">
@@ -485,6 +814,154 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           {posts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
         </div>
       )}
+
+      {/* Story Viewer */}
+      {storyViewerOpen && profileStories.length > 0 && (
+        <StoryViewer
+          open={storyViewerOpen}
+          groups={[{
+            email,
+            username: displayUsername || 'athlete',
+            avatarUrl,
+            storyDmsDisabled: false,
+            isOwn: isSelf,
+            stories: profileStories,
+            hasUnseen: true,
+            note: null,
+          }]}
+          startIndex={0}
+          viewedIds={new Set()}
+          likedIds={new Set()}
+          user={user}
+          onClose={() => setStoryViewerOpen(false)}
+          onStoriesChange={() => queryClient.invalidateQueries({ queryKey: ['profileStories', email] })}
+          onAddStory={() => {}}
+        />
+      )}
+
+      {/* Status Note Editor */}
+      <AnimatePresence>
+        {noteEditorOpen && (
+          <StatusNoteEditor
+            existingNote={activeNote}
+            origin={null}
+            onPost={handleNotePost}
+            onDelete={handleNoteDelete}
+            onClose={() => setNoteEditorOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Trophy Slot Picker */}
+      <AnimatePresence>
+        {trophyPickerSlot !== null && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 pb-safe"
+            onClick={() => setTrophyPickerSlot(null)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border rounded-t-2xl w-full max-w-lg p-5"
+              style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-heading font-bold text-base">Choose Trophy</h3>
+                <div className="flex items-center gap-2">
+                  {trophyCase[trophyPickerSlot] && (
+                    <button
+                      type="button"
+                      onClick={() => handleTrophySlotSet(trophyPickerSlot, null)}
+                      className="text-xs text-destructive hover:opacity-70 transition-opacity"
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <button type="button" onClick={() => setTrophyPickerSlot(null)} className="p-1 rounded text-muted-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-2">
+                {['🏆','🥇','🥈','🥉','🎯','💪','🔥','⚡','🌟','⭐','🎖️','🏅','🏋️','🤸','🏊','🚴','🧗','🥊','🥋','🎽','💯','👑','🦁','🐺','🦅','🦊','🐉','⚔️','🛡️','💎','🌈','🌊','🎆','🎇','🎉','🎊','🎁','🌙','☀️','🌸','🍀','❄️','🔮','🌀','🌪️','🏔️','🌋','🦾','🧠','💥','🎪','🎭','🎮','🕹️','🎲','♟️','🎸','🥁','🎤','🎬','📸','🚀','🛸','🌍','🌠','✨'].map(emoji => (
+                  <motion.button
+                    key={emoji}
+                    type="button"
+                    whileTap={{ scale: 0.88 }}
+                    onClick={() => handleTrophySlotSet(trophyPickerSlot, emoji)}
+                    className="aspect-square flex items-center justify-center text-xl rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    {emoji}
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Flag Picker */}
+      <AnimatePresence>
+        {flagPickerOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+            onClick={() => setFlagPickerOpen(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="bg-card border border-border rounded-t-2xl w-full max-w-lg p-5 max-h-[70vh] flex flex-col"
+              style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-center justify-between mb-3 shrink-0">
+                <h3 className="font-heading font-bold text-base">Country Flag</h3>
+                <button type="button" onClick={() => setFlagPickerOpen(false)} className="p-1 rounded text-muted-foreground">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <div className="overflow-y-auto flex-1">
+                <div className="grid grid-cols-8 gap-1">
+                  {[['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],['AG','Antigua'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],['AT','Austria'],['AZ','Azerbaijan'],['BS','Bahamas'],['BH','Bahrain'],['BD','Bangladesh'],['BB','Barbados'],['BY','Belarus'],['BE','Belgium'],['BZ','Belize'],['BJ','Benin'],['BT','Bhutan'],['BO','Bolivia'],['BA','Bosnia'],['BW','Botswana'],['BR','Brazil'],['BN','Brunei'],['BG','Bulgaria'],['BF','Burkina Faso'],['BI','Burundi'],['CV','Cape Verde'],['KH','Cambodia'],['CM','Cameroon'],['CA','Canada'],['CF','Cent. Africa'],['TD','Chad'],['CL','Chile'],['CN','China'],['CO','Colombia'],['KM','Comoros'],['CD','Congo DR'],['CG','Congo'],['CR','Costa Rica'],['CI','Côte dIvoire'],['HR','Croatia'],['CU','Cuba'],['CY','Cyprus'],['CZ','Czechia'],['DK','Denmark'],['DJ','Djibouti'],['DM','Dominica'],['DO','Dom. Republic'],['EC','Ecuador'],['EG','Egypt'],['SV','El Salvador'],['GQ','Eq. Guinea'],['ER','Eritrea'],['EE','Estonia'],['SZ','Eswatini'],['ET','Ethiopia'],['FJ','Fiji'],['FI','Finland'],['FR','France'],['GA','Gabon'],['GM','Gambia'],['GE','Georgia'],['DE','Germany'],['GH','Ghana'],['GR','Greece'],['GD','Grenada'],['GT','Guatemala'],['GN','Guinea'],['GW','Guinea-Bissau'],['GY','Guyana'],['HT','Haiti'],['HN','Honduras'],['HU','Hungary'],['IS','Iceland'],['IN','India'],['ID','Indonesia'],['IR','Iran'],['IQ','Iraq'],['IE','Ireland'],['IL','Israel'],['IT','Italy'],['JM','Jamaica'],['JP','Japan'],['JO','Jordan'],['KZ','Kazakhstan'],['KE','Kenya'],['KI','Kiribati'],['KW','Kuwait'],['KG','Kyrgyzstan'],['LA','Laos'],['LV','Latvia'],['LB','Lebanon'],['LS','Lesotho'],['LR','Liberia'],['LY','Libya'],['LI','Liechtenstein'],['LT','Lithuania'],['LU','Luxembourg'],['MG','Madagascar'],['MW','Malawi'],['MY','Malaysia'],['MV','Maldives'],['ML','Mali'],['MT','Malta'],['MH','Marshall Is.'],['MR','Mauritania'],['MU','Mauritius'],['MX','Mexico'],['MD','Moldova'],['MC','Monaco'],['MN','Mongolia'],['ME','Montenegro'],['MA','Morocco'],['MZ','Mozambique'],['MM','Myanmar'],['NA','Namibia'],['NR','Nauru'],['NP','Nepal'],['NL','Netherlands'],['NZ','New Zealand'],['NI','Nicaragua'],['NE','Niger'],['NG','Nigeria'],['NO','Norway'],['OM','Oman'],['PK','Pakistan'],['PW','Palau'],['PA','Panama'],['PG','Papua NG'],['PY','Paraguay'],['PE','Peru'],['PH','Philippines'],['PL','Poland'],['PT','Portugal'],['QA','Qatar'],['RO','Romania'],['RU','Russia'],['RW','Rwanda'],['KN','St Kitts'],['LC','St Lucia'],['VC','St Vincent'],['WS','Samoa'],['SM','San Marino'],['ST','São Tomé'],['SA','Saudi Arabia'],['SN','Senegal'],['RS','Serbia'],['SC','Seychelles'],['SL','Sierra Leone'],['SG','Singapore'],['SK','Slovakia'],['SI','Slovenia'],['SB','Solomon Is.'],['SO','Somalia'],['ZA','South Africa'],['SS','South Sudan'],['ES','Spain'],['LK','Sri Lanka'],['SD','Sudan'],['SR','Suriname'],['SE','Sweden'],['CH','Switzerland'],['SY','Syria'],['TW','Taiwan'],['TJ','Tajikistan'],['TZ','Tanzania'],['TH','Thailand'],['TL','Timor-Leste'],['TG','Togo'],['TO','Tonga'],['TT','Trinidad'],['TN','Tunisia'],['TR','Turkey'],['TM','Turkmenistan'],['TV','Tuvalu'],['UG','Uganda'],['UA','Ukraine'],['AE','UAE'],['GB','UK'],['US','USA'],['UY','Uruguay'],['UZ','Uzbekistan'],['VU','Vanuatu'],['VE','Venezuela'],['VN','Vietnam'],['YE','Yemen'],['ZM','Zambia'],['ZW','Zimbabwe']].map(([code, name]) => {
+                    const flag = [...code.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
+                    return (
+                      <motion.button
+                        key={code}
+                        type="button"
+                        whileTap={{ scale: 0.88 }}
+                        onClick={async () => {
+                          setFlagPickerOpen(false);
+                          try {
+                            await me.update({ country_flag: flag });
+                            queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
+                          } catch {
+                            toast.error('Could not save flag');
+                          }
+                        }}
+                        className="aspect-square flex items-center justify-center text-2xl rounded hover:bg-secondary transition-colors"
+                        title={name}
+                      >
+                        {flag}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Followers/Following Modal */}
       <AnimatePresence>

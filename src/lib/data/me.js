@@ -17,6 +17,7 @@ export const update = (data) => {
   const textFields = {};
   if (data.username !== undefined) textFields.username = data.username;
   if (data.bio !== undefined) textFields.bio = data.bio;
+  if (data.city !== undefined) textFields.city = data.city;
   if (Object.keys(textFields).length) assertNoTextProfanity(textFields);
   return db.auth.updateMe(data);
 };

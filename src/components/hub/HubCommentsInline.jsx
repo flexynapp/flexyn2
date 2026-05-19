@@ -1,10 +1,11 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
 import { useMultiProfanityGuard } from '@/lib/useProfanityGuard';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -294,13 +295,19 @@ export default function HubCommentsInline({ post, open, onClose }) {
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
 function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail }) {
+  const { language } = useLanguage();
   const [reportOpen, setReportOpen] = useState(false);
+  const [translation, setTranslation] = useState(null);
+  const [translating, setTranslating] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
+  const [canTranslate, setCanTranslate] = useState(true);
   const author = resolveAuthor(authorsByEmail, c.author_email, {
     author_name: c.author_name,
     author_avatar_url: c.author_avatar_url,
   });
   const isMine = c.author_email === user?.email;
   const timeLabel = c.created_date ? format(parseISO(c.created_date), 'MMM d, h:mma') : '';
+  const displayBody = translation && !showOriginal ? translation.text : c.body;
 
   return (
     <>
@@ -323,11 +330,11 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
           )}
           <div className="bg-secondary/50 rounded-2xl px-3 py-2">
             <p className="text-xs font-bold leading-tight">{author.handle}</p>
-            <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{c.body}</p>
+            <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{displayBody}</p>
           </div>
 
           {/* Action row */}
-          <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground">
+          <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground flex-wrap">
             <span>{timeLabel}</span>
 
             {/* Like */}
@@ -349,6 +356,50 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
               >
                 {t('hub.comments.reply')}
               </button>
+            )}
+
+            {/* Translate */}
+            {canTranslate && c.body && !isLikelyAlreadyInLanguage(c.body, language) && (
+              translation ? (
+                <button
+                  onClick={() => setShowOriginal(v => !v)}
+                  className="flex items-center gap-0.5 hover:text-primary transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  {showOriginal ? 'Show translation' : 'Show original'}
+                </button>
+              ) : translating ? (
+                <span className="flex items-center gap-0.5">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Translating…
+                </span>
+              ) : (
+                <button
+                  onClick={async () => {
+                    if (translating) return;
+                    setTranslating(true);
+                    try {
+                      const result = await translateText(c.body, language, 'auto');
+                      const translated = result?.translatedText?.trim();
+                      const isApiError = translated && /PLEASE SELECT TWO DISTINCT|MYMEMORY WARNING|QUERY LENGTH LIMIT|INVALID LANGUAGE/i.test(translated);
+                      if (translated && translated !== c.body.trim() && !isApiError) {
+                        setTranslation({ text: result.translatedText });
+                        setShowOriginal(false);
+                      } else {
+                        setCanTranslate(false);
+                      }
+                    } catch {
+                      setCanTranslate(false);
+                    } finally {
+                      setTranslating(false);
+                    }
+                  }}
+                  className="flex items-center gap-0.5 hover:text-primary transition-colors"
+                >
+                  <Languages className="w-3 h-3" />
+                  Translate
+                </button>
+              )
             )}
 
             {/* Report — only for other people's comments */}

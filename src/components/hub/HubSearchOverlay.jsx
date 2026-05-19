@@ -1,13 +1,14 @@
 // src/components/hub/HubSearchOverlay.jsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Users, SearchX, Trash2 } from 'lucide-react';
+import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
+import * as hubFollows from '@/lib/data/hubFollows';
 
 const RECENT_SEARCHES_KEY = 'hubRecentSearches';
 const MAX_RECENT_SEARCHES = 5;
@@ -50,13 +51,21 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
+  const [followedEmails, setFollowedEmails] = useState(new Set());
+  const [localAdded, setLocalAdded] = useState(new Set());
 
-  // Load recent searches on mount
+  // Load recent searches + following list on open
   useEffect(() => {
     if (open) {
       setRecentSearches(getRecentSearches());
+      setLocalAdded(new Set());
+      if (currentUser?.email) {
+        hubFollows.listFollowing(currentUser.email)
+          .then(emails => setFollowedEmails(new Set(emails)))
+          .catch(() => {});
+      }
     }
-  }, [open]);
+  }, [open, currentUser?.email]);
 
   // Search effect
   useEffect(() => {
@@ -243,14 +252,31 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
               {/* Results */}
               {searchQuery && !isLoading && searchResults.length > 0 && (
                 <div className="space-y-1.5">
-                  {searchResults.map((user, idx) => (
-                    <UserResultRow
-                      key={user.id}
-                      user={user}
-                      onClick={() => handleSelectUser(user)}
-                      delay={idx * 0.04}
-                    />
-                  ))}
+                  {searchResults.map((user, idx) => {
+                    const isFollowed = followedEmails.has(user.email) || localAdded.has(user.email);
+                    return (
+                      <UserResultRow
+                        key={user.id}
+                        user={user}
+                        onClick={() => handleSelectUser(user)}
+                        delay={idx * 0.04}
+                        isFollowed={isFollowed}
+                        onAdd={async (e) => {
+                          e.stopPropagation();
+                          setLocalAdded(prev => new Set([...prev, user.email]));
+                          try {
+                            await hubFollows.follow(currentUser.email, user.email, { t });
+                          } catch {
+                            setLocalAdded(prev => {
+                              const next = new Set(prev);
+                              next.delete(user.email);
+                              return next;
+                            });
+                          }
+                        }}
+                      />
+                    );
+                  })}
                 </div>
               )}
             </motion.div>
@@ -325,8 +351,9 @@ function RecentSearchCard({ user, onClick, onRemove }) {
   );
 }
 
-function UserResultRow({ user, onClick, delay }) {
+function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
   const { t } = useLanguage();
+  const [adding, setAdding] = useState(false);
   const userXp = Number(user?.total_xp) || 0;
   const levelData = calculateLevelFromXp(userXp);
   const tier = getTier(levelData.level, t);
@@ -371,18 +398,39 @@ function UserResultRow({ user, onClick, delay }) {
         )}
       </div>
 
-      {/* Center: handle */}
+      {/* Center: handle + tier */}
       <div className="flex-1 min-w-0">
         <p className="font-heading font-bold text-base truncate">@{username}</p>
-      </div>
-
-      {/* Right: level + tier */}
-      <div className="flex flex-col items-end gap-1 shrink-0">
-        <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${tier.badge} shadow-sm`}>
-          <span className="text-xs font-bold text-white drop-shadow">Lv {levelData.level}</span>
-        </div>
         <span className={`text-[10px] font-bold uppercase tracking-widest ${tier.text}`}>{tier.name}</span>
       </div>
+
+      {/* Right: Add button (if not following) OR level badge */}
+      {!isFollowed ? (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.85 }}
+          onClick={async (e) => {
+            if (adding) return;
+            setAdding(true);
+            await onAdd(e);
+            setAdding(false);
+          }}
+          disabled={adding}
+          className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold text-primary-foreground shrink-0 disabled:opacity-60"
+          style={{ background: 'hsl(var(--primary))' }}
+          aria-label={`Follow @${username}`}
+        >
+          {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+          {!adding && 'Add'}
+        </motion.button>
+      ) : (
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${tier.badge} shadow-sm`}>
+            <span className="text-xs font-bold text-white drop-shadow">Lv {levelData.level}</span>
+          </div>
+        </div>
+      )}
     </motion.button>
   );
 }
