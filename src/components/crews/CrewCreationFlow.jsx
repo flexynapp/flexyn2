@@ -9,6 +9,7 @@ import { X, ArrowLeft, ArrowRight, Shield, Check, Loader2, Search } from 'lucide
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/api/supabaseClient';
 import * as crewsData from '@/lib/data/crews';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as users from '@/lib/data/users';
@@ -62,9 +63,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
       const crew = await crewsData.createCrew(user, crewName.trim());
 
       // Send DM invite to each selected friend
-      const { data: myProfile } = await import('@/api/supabaseClient').then(({ supabase }) =>
-        supabase.from('user_profiles').select('username, avatar_url').eq('id', user.id).maybeSingle()
-      );
+      const { data: myProfile } = await supabase
+        .from('user_profiles')
+        .select('username, avatar_url')
+        .eq('id', user.id)
+        .maybeSingle();
       const inviterName   = myProfile?.username || user.email?.split('@')[0] || 'Someone';
       const inviterAvatar = myProfile?.avatar_url || null;
       const inviteBody    = buildCrewInviteBody(crew.id, crew.name, inviterName, inviterAvatar);

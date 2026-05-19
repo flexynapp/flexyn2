@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -210,6 +210,23 @@ export default function Hub() {
             setSection('profile');
           }}
         />
+      )}
+
+      {/* Marketplace shortcut — shown on feed tabs, not crews */}
+      {section === 'feed' && feedTab !== 'crews' && (
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/market')}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl mb-4 text-white"
+          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(26,90%,40%))' }}
+        >
+          <Store className="w-5 h-5 shrink-0" />
+          <div className="flex-1 text-left">
+            <p className="text-sm font-bold leading-tight">Marketplace</p>
+            <p className="text-[11px] opacity-80 leading-tight">Trade gear, regimens &amp; more</p>
+          </div>
+          <span className="text-xs font-bold opacity-90 shrink-0">Browse →</span>
+        </motion.button>
       )}
 
       {/* Sections */}
