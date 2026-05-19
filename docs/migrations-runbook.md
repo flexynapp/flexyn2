@@ -76,6 +76,8 @@ SQL Editor**. No CLI required.
 | 046 | `046_story_dms.sql` | `story_dms_disabled` on `user_profiles` + `overlay_style` JSONB on `stories` | — |
 | 047 | `047_story_enhancements.sql` | 25h expiry, privacy, `story_blocks`, `status_notes`, `status_note_likes` | — |
 | 048 | `048_crews.sql` | Crews group chat: 5 tables + 2 SECURITY DEFINER RPCs (`is_crew_member`, `is_crew_admin`) | — |
+| 049 | `049_profile_extensions.sql` | Add `city`, `country_flag`, `trophy_case` (JSONB), `trophy_case_visible` to `user_profiles` | — |
+| 050 | `050_username_profanity_check.sql` | `is_username_clean()` function + `enforce_username_profanity` trigger on `user_profiles.username` (raises 23514 on banned content) | — |
 
 ---
 
@@ -187,7 +189,17 @@ UNION ALL
 SELECT 'crew RPCs (048)', count(*), '2'
   FROM pg_proc
  WHERE pronamespace = 'public'::regnamespace
-   AND proname IN ('is_crew_member','is_crew_admin');
+   AND proname IN ('is_crew_member','is_crew_admin')
+UNION ALL
+SELECT 'profile extension columns (049)', count(*), '4'
+  FROM information_schema.columns
+ WHERE table_schema = 'public' AND table_name = 'user_profiles'
+   AND column_name IN ('city','country_flag','trophy_case','trophy_case_visible')
+UNION ALL
+SELECT 'username profanity trigger (050)', count(*), '1'
+  FROM information_schema.triggers
+ WHERE event_object_table = 'user_profiles'
+   AND trigger_name = 'trg_username_profanity';
 ```
 
 ---

@@ -2213,6 +2213,21 @@ export default function Onboarding() {
         toast.error('That username is already taken — try another.');
         return;
       }
+      // Server-side profanity trigger (migration 050) — surfaces as
+      // 23514 with a 'username_profanity' tag in err.message. Route the
+      // user back to the username step with a clear inline error so
+      // they can fix it without guessing.
+      const isProfaneUsername =
+        err?.code === '23514' &&
+        /username_profanity|prohibited content/i.test((err?.message || '') + ' ' + (err?.hint || ''));
+      if (isProfaneUsername) {
+        setUsernameError('That username contains prohibited content. Pick another.');
+        setSaving(false);
+        const ageIdx = STEPS.indexOf('age');
+        if (ageIdx >= 0) goTo(ageIdx);
+        toast.error('Username contains prohibited content — pick another.');
+        return;
+      }
 
       // Fallback: save only the columns guaranteed to exist (username is in migration 001).
       // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
@@ -2235,11 +2250,19 @@ export default function Onboarding() {
         const isDupUsernameMin =
           minErr?.code === '23505' ||
           /duplicate key|unique constraint|already exists/i.test(minErr?.message || '');
+        const isProfaneUsernameMin =
+          minErr?.code === '23514' &&
+          /username_profanity|prohibited content/i.test((minErr?.message || '') + ' ' + (minErr?.hint || ''));
         if (isDupUsernameMin) {
           setUsernameError('That username is already taken. Try another.');
           const ageIdx = STEPS.indexOf('age');
           if (ageIdx >= 0) goTo(ageIdx);
           toast.error('That username is already taken — try another.');
+        } else if (isProfaneUsernameMin) {
+          setUsernameError('That username contains prohibited content. Pick another.');
+          const ageIdx = STEPS.indexOf('age');
+          if (ageIdx >= 0) goTo(ageIdx);
+          toast.error('Username contains prohibited content — pick another.');
         } else {
           // Do NOT mark as returning user — onboarding_completed never wrote to DB.
           // User will be able to retry by tapping Save again. Include a hint
