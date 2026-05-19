@@ -43,11 +43,32 @@ export function deleteProgressPhoto(id) {
 }
 
 // Main component
-export default function ProgressPhotoCapture({ workoutName }) {
+//
+// Two modes:
+//
+//   Uncontrolled (default — used by Workout post-session card):
+//     renders its own "Take a progress photo" trigger button. Internal
+//     `promptOpen` state drives the dialog.
+//
+//   Controlled (when `open` prop is provided — e.g. Dashboard quick
+//   action): the trigger button is hidden; the parent owns the open
+//   state and is notified of closes via `onOpenChange`. This lets the
+//   Dashboard "Add photo" CTA jump straight into the prompt dialog
+//   without rendering a redundant button on its own surface.
+export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [promptOpen, setPromptOpen] = useState(false);
+  // When `open` is provided we run in controlled mode and the parent
+  // owns the dialog state. Otherwise the trigger button toggles our
+  // local `promptOpenLocal`.
+  const isControlled = open !== undefined;
+  const [promptOpenLocal, setPromptOpenLocal] = useState(false);
+  const promptOpen = isControlled ? open : promptOpenLocal;
+  const setPromptOpen = (next) => {
+    if (isControlled) onOpenChange?.(next);
+    else setPromptOpenLocal(next);
+  };
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
@@ -138,14 +159,17 @@ export default function ProgressPhotoCapture({ workoutName }) {
 
   return (
     <>
-      {/* Trigger Button */}
-      <Button
-        onClick={() => setPromptOpen(true)}
-        className="w-full h-12 font-heading font-semibold mb-2"
-      >
-        <Camera className="w-4 h-4 mr-2" />
-        <span>{t('photos.logPrompt')}</span>
-      </Button>
+      {/* Trigger Button — hidden in controlled mode; the parent has its
+          own surface and shouldn't show a duplicate button. */}
+      {!isControlled && (
+        <Button
+          onClick={() => setPromptOpen(true)}
+          className="w-full h-12 font-heading font-semibold mb-2"
+        >
+          <Camera className="w-4 h-4 mr-2" />
+          <span>{t('photos.logPrompt')}</span>
+        </Button>
+      )}
 
       {/* Prompt Dialog */}
       <AnimatePresence>

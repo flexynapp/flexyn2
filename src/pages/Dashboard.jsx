@@ -5,12 +5,14 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
+import LogWeightModal from '@/components/dashboard/LogWeightModal';
+import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
@@ -224,6 +226,8 @@ export default function Dashboard() {
   const isFirstLoad = location.state?.fromSplash;
   const [showWelcome, setShowWelcome] = useState(isFirstLoad);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
+  const [logWeightOpen, setLogWeightOpen] = useState(false);
+  const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
 
   useEffect(() => {
@@ -601,6 +605,18 @@ export default function Dashboard() {
             onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })}
             delay={0.36}
           />
+          <QuickAction
+            icon={Scale}
+            label={t('dashboard.logWeight') || 'Log weight'}
+            onClick={() => setLogWeightOpen(true)}
+            delay={0.42}
+          />
+          <QuickAction
+            icon={Camera}
+            label={t('dashboard.addPhoto') || 'Add progress photo'}
+            onClick={() => setPhotoCaptureOpen(true)}
+            delay={0.48}
+          />
         </div>
       </motion.div>
 
@@ -625,6 +641,24 @@ export default function Dashboard() {
         open={leagueModalOpen}
         onClose={() => setLeagueModalOpen(false)}
       />
+
+      {/* Dashboard-level quick-action modals.
+          LogWeightModal writes a body-metric row AND mirrors to
+          user_profiles.weight_lbs so the global weight stays in sync.
+          ProgressPhotoCapture runs in controlled mode (no internal
+          trigger button) — the parent owns the prompt's open state. */}
+      <LogWeightModal
+        open={logWeightOpen}
+        onOpenChange={setLogWeightOpen}
+        profile={userProfile}
+      />
+      <ErrorBoundary label="ProgressPhotoCapture">
+        <ProgressPhotoCapture
+          workoutName={null}
+          open={photoCaptureOpen}
+          onOpenChange={setPhotoCaptureOpen}
+        />
+      </ErrorBoundary>
     </motion.div>
   );
 }
