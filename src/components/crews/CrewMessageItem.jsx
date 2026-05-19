@@ -54,16 +54,19 @@ function Timestamp({ dateStr }) {
 
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
-function TextMessage({ msg, senderProfile, isOwn, onDoubleTap }) {
+function TextMessage({ msg, senderProfile, isOwn }) {
   const lastTapRef = useRef(0);
-  const [fireFlash, setFireFlash] = useState(false);
+  const [reacted, setReacted] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
-      setFireFlash(true);
-      setTimeout(() => setFireFlash(false), 600);
-      onDoubleTap?.();
+      setAnimating(true);
+      setTimeout(() => {
+        setAnimating(false);
+        setReacted(true);
+      }, 500);
     }
     lastTapRef.current = now;
   };
@@ -77,29 +80,47 @@ function TextMessage({ msg, senderProfile, isOwn, onDoubleTap }) {
             @{senderProfile?.username || 'member'}
           </span>
         )}
-        <div
-          onClick={handleTap}
-          className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
-            isOwn
-              ? 'text-white rounded-br-sm'
-              : 'bg-secondary text-foreground rounded-bl-sm'
-          }`}
-          style={isOwn ? { background: 'hsl(var(--primary))' } : {}}
-        >
-          {msg.content}
+        <div className="relative">
+          <div
+            onClick={handleTap}
+            className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
+              isOwn
+                ? 'text-white rounded-br-sm'
+                : 'bg-secondary text-foreground rounded-bl-sm'
+            }`}
+            style={isOwn ? { background: 'hsl(var(--primary))' } : {}}
+          >
+            {msg.content}
+          </div>
+
+          {/* Fire reaction — floats up on double-tap, then sticks as badge */}
           <AnimatePresence>
-            {fireFlash && (
+            {animating && (
               <motion.span
-                initial={{ opacity: 0, scale: 0.5, y: 0 }}
-                animate={{ opacity: 1, scale: 1.4, y: -12 }}
-                exit={{ opacity: 0, scale: 0.8, y: -24 }}
-                transition={{ duration: 0.5 }}
-                className="absolute -top-1 left-1/2 -translate-x-1/2 text-lg pointer-events-none"
+                key="float"
+                initial={{ opacity: 0, scale: 0.6, y: 0 }}
+                animate={{ opacity: 1, scale: 1.5, y: -20 }}
+                exit={{ opacity: 0, scale: 0.8, y: -36 }}
+                transition={{ duration: 0.45 }}
+                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
               >
                 🔥
               </motion.span>
             )}
           </AnimatePresence>
+
+          {/* Persistent reaction badge */}
+          {reacted && !animating && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+              onClick={() => setReacted(false)}
+              title="Tap to remove"
+            >
+              🔥
+            </motion.div>
+          )}
         </div>
         <Timestamp dateStr={msg.created_at} />
       </div>
@@ -386,7 +407,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn }) {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId, onFireReact }) {
+export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId }) {
   const isOwn = msg.sender_id === currentUserId;
 
   switch (msg.message_type) {
@@ -401,6 +422,6 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'image_one_hour':
       return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
     default:
-      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} onDoubleTap={onFireReact} />;
+      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
   }
 }

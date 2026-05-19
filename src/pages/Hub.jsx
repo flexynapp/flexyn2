@@ -111,18 +111,6 @@ export default function Hub() {
             </div>
 
             <div className="flex items-center gap-1 lg:col-start-3 lg:justify-self-end">
-              {/* Desktop: New Post */}
-              {section === 'feed' && feedTab !== 'crews' && (
-                <button
-                  type="button"
-                  onClick={() => setComposerOpen(true)}
-                  aria-label={t('hub.composer.fab')}
-                  className="hidden lg:inline-flex items-center gap-1.5 h-9 px-3 mr-1 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-opacity text-sm font-bold"
-                >
-                  <Plus className="w-4 h-4 stroke-[2.5]" />
-                  {t('hub.composer.fab')}
-                </button>
-              )}
 
               {/* Search */}
               <button
@@ -237,7 +225,7 @@ export default function Hub() {
             style={{ borderColor: 'hsl(var(--primary))' }}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" style={{ color: 'hsl(var(--primary))' }} />
-            <span className="text-[10px] font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>New Post</span>
+            <span className="text-xs font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>New Post</span>
           </motion.button>
         </div>
       )}

@@ -254,49 +254,48 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     <div className="flex flex-col h-full relative overflow-hidden">
 
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border shrink-0">
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border shrink-0">
         <button onClick={onBack} className="text-muted-foreground hover:text-foreground shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
 
-            {/* Crew story circles */}
-            {crewStories.length > 0 && (
-              <div className="flex items-center gap-1">
-                <span className="text-muted-foreground/40 text-xs">·</span>
-                <div className="flex -space-x-1.5">
-                  {crewStories.slice(0, 3).map((s, i) => (
-                    <button
-                      key={s.id}
-                      onClick={() => setStoryViewIdx(i)}
-                      className="w-5 h-5 rounded-full overflow-hidden ring-2 shrink-0"
-                      style={{ ringColor: 'hsl(var(--primary))', border: '2px solid hsl(var(--primary))' }}
-                    >
-                      <img src={s.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
-                    </button>
-                  ))}
-                  {crewStories.length > 3 && (
-                    <div className="w-5 h-5 rounded-full bg-secondary flex items-center justify-center text-[8px] font-bold text-muted-foreground ring-2 ring-background">
-                      +{crewStories.length - 3}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Add to story */}
+        {/* Story element */}
+        {crewStories.length > 0 ? (
+          /* Has story — tall circle (spans both header text lines) + "+ Story" text beside */
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => setStoryViewIdx(0)}
+              className="rounded-full overflow-hidden shrink-0"
+              style={{ width: 42, height: 42, border: '2.5px solid hsl(var(--primary))' }}
+            >
+              <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+            </button>
             <button
               onClick={() => storyFileRef.current?.click()}
-              className="flex items-center gap-0.5 text-[10px] font-semibold text-primary"
+              className="text-xs font-semibold shrink-0 flex items-center gap-0.5"
+              style={{ color: 'hsl(var(--primary))' }}
             >
               <Plus className="w-3 h-3" />
               Story
             </button>
           </div>
+        ) : (
+          /* No story — circle with + icon and "Story" label */
+          <button
+            onClick={() => storyFileRef.current?.click()}
+            className="flex flex-col items-center justify-center gap-0 shrink-0 rounded-full border-2 border-dashed"
+            style={{ width: 42, height: 42, borderColor: 'hsl(var(--primary) / 0.6)' }}
+          >
+            <Plus className="w-3.5 h-3.5" style={{ color: 'hsl(var(--primary))' }} />
+            <span className="text-[8px] font-bold leading-none" style={{ color: 'hsl(var(--primary))' }}>Story</span>
+          </button>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
+          <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
+
         <button
           onClick={() => setMemberPanelOpen(true)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -367,9 +366,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             currentUserId={user?.id}
             user={user}
             crewId={crew.id}
-            onFireReact={() => crewsData.sendCrewMessage(crew.id, user.id, 'text', '🔥')
-              .then(() => qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] }))
-              .catch(() => {})}
           />
         ))}
         <div style={{ height: 1 }} />
