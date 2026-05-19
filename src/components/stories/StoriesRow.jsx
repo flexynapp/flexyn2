@@ -26,6 +26,7 @@ import * as statusNotesData from '@/lib/data/statusNotes';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
+import QuickAddSection from './QuickAddSection';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -380,7 +381,7 @@ export default function StoriesRow() {
   return (
     <>
       {/* Horizontal strip */}
-      <div className="mb-4 -mx-4 md:-mx-6">
+      <div className="mb-2 -mx-4 md:-mx-6">
         <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-2 scrollbar-hide">
 
           {/* "Add Story" — leftmost when own story exists */}
@@ -414,17 +415,16 @@ export default function StoriesRow() {
               noteEditorOpen={noteEditorOpen}
             />
           ))}
-
-          {groups.length <= 1 && (
-            <div className="flex flex-col items-center gap-1 shrink-0 opacity-40" style={{ minWidth: 68 }}>
-              <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-muted-foreground flex items-center justify-center">
-                <Plus className="w-5 h-5 text-muted-foreground" />
-              </div>
-              <span className="text-[10px] text-muted-foreground w-[68px] text-center truncate">Follow friends</span>
-            </div>
-          )}
         </div>
       </div>
+
+      {/* Quick Add — visible when the user follows ≤1 friend */}
+      {followingEmails.length <= 1 && user?.email && (
+        <QuickAddSection
+          userEmail={user.email}
+          followingEmails={followingEmails}
+        />
+      )}
 
       {/* Hidden file input */}
       <input
