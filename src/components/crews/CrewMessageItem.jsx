@@ -17,6 +17,10 @@ import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
 
+const fireKey = (id) => `fire_${id}`;
+const loadFire = (id) => { try { return localStorage.getItem(fireKey(id)) === '1'; } catch { return false; } };
+const saveFire = (id, val) => { try { val ? localStorage.setItem(fireKey(id), '1') : localStorage.removeItem(fireKey(id)); } catch {} };
+
 function Avatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
   const verified = isVerified(profile?.username);
@@ -56,8 +60,10 @@ function Timestamp({ dateStr }) {
 
 function TextMessage({ msg, senderProfile, isOwn }) {
   const lastTapRef = useRef(0);
-  const [reacted, setReacted] = useState(false);
+  const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
+
+  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
 
   const handleTap = () => {
     const now = Date.now();
@@ -65,7 +71,7 @@ function TextMessage({ msg, senderProfile, isOwn }) {
       setAnimating(true);
       setTimeout(() => {
         setAnimating(false);
-        setReacted(true);
+        setReactedPersisted(true);
       }, 500);
     }
     lastTapRef.current = now;
@@ -115,7 +121,7 @@ function TextMessage({ msg, senderProfile, isOwn }) {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
-              onClick={() => setReacted(false)}
+              onClick={() => setReactedPersisted(false)}
               title="Tap to remove"
             >
               🔥
@@ -340,8 +346,10 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
   const [viewed, setViewed] = useState(false);
   const [open,   setOpen]   = useState(false);
   const lastTapRef = useRef(0);
-  const [reacted, setReacted] = useState(false);
+  const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
+
+  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
 
   const handleView = () => {
     if (viewed) return;
@@ -353,7 +361,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
       setAnimating(true);
-      setTimeout(() => { setAnimating(false); setReacted(true); }, 500);
+      setTimeout(() => { setAnimating(false); setReactedPersisted(true); }, 500);
     }
     lastTapRef.current = now;
   };
@@ -411,7 +419,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
-              onClick={() => setReacted(false)}
+              onClick={() => setReactedPersisted(false)}
               title="Tap to remove"
             >
               🔥
@@ -427,14 +435,16 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
 
 function TimedImageMessage({ msg, senderProfile, isOwn }) {
   const lastTapRef = useRef(0);
-  const [reacted, setReacted] = useState(false);
+  const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
+
+  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
 
   const handleTap = () => {
     const now = Date.now();
     if (now - lastTapRef.current < 320) {
       setAnimating(true);
-      setTimeout(() => { setAnimating(false); setReacted(true); }, 500);
+      setTimeout(() => { setAnimating(false); setReactedPersisted(true); }, 500);
     }
     lastTapRef.current = now;
   };
@@ -472,7 +482,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn }) {
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
-              onClick={() => setReacted(false)}
+              onClick={() => setReactedPersisted(false)}
               title="Tap to remove"
             >
               🔥

@@ -259,40 +259,31 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
-          <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
-        </div>
+        {/* Name + story circle side by side in the same flex group */}
+        <div className="flex-1 min-w-0 flex items-center gap-2.5">
+          <div className="min-w-0">
+            <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
+            <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+          </div>
 
-        {/* Story element — right of name */}
-        {crewStories.length > 0 ? (
-          <div className="flex items-center gap-2 shrink-0">
+          {crewStories.length > 0 ? (
             <button
               onClick={() => setStoryViewIdx(0)}
               className="rounded-full overflow-hidden shrink-0"
-              style={{ width: 42, height: 42, border: '2.5px solid hsl(var(--primary))' }}
+              style={{ width: 36, height: 36, border: '2.5px solid hsl(var(--primary))' }}
             >
               <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
             </button>
+          ) : (
             <button
               onClick={() => storyFileRef.current?.click()}
-              className="text-xs font-semibold shrink-0 flex items-center gap-0.5"
-              style={{ color: 'hsl(var(--primary))' }}
+              className="flex flex-col items-center justify-center shrink-0 rounded-full border-2 border-dashed"
+              style={{ width: 36, height: 36, borderColor: 'hsl(var(--primary) / 0.6)' }}
             >
-              <Plus className="w-3 h-3" />
-              Story
+              <Plus className="w-3 h-3" style={{ color: 'hsl(var(--primary))' }} />
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => storyFileRef.current?.click()}
-            className="flex flex-col items-center justify-center gap-0 shrink-0 rounded-full border-2 border-dashed"
-            style={{ width: 42, height: 42, borderColor: 'hsl(var(--primary) / 0.6)' }}
-          >
-            <Plus className="w-3.5 h-3.5" style={{ color: 'hsl(var(--primary))' }} />
-            <span className="text-[8px] font-bold leading-none" style={{ color: 'hsl(var(--primary))' }}>Story</span>
-          </button>
-        )}
+          )}
+        </div>
 
         <button
           onClick={() => setMemberPanelOpen(true)}

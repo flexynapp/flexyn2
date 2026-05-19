@@ -1,5 +1,5 @@
 // src/components/hub/HubProfile.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -43,12 +43,15 @@ const TROPHY_LABELS = {
   '🛸':'UFO','🌍':'Earth','🌠':'Shooting Star','✨':'Sparkles',
 };
 
-// Converts a 2-letter country code to a Twemoji CDN image URL (works on Windows Chrome)
-function flagUrl(emojiOrCode) {
-  if (!emojiOrCode) return null;
-  const chars = [...emojiOrCode];
-  const points = chars.map(c => c.codePointAt(0).toString(16));
-  return `https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/svg/${points.join('-')}.svg`;
+// Converts a flag emoji to a Twemoji SVG URL (works on all platforms including Windows Chrome)
+function flagUrl(emoji) {
+  if (!emoji) return null;
+  const points = [...emoji]
+    .map(c => c.codePointAt(0))
+    .filter(cp => cp !== 0xFE0F) // strip variation selector-16
+    .map(cp => cp.toString(16));
+  if (!points.length) return null;
+  return `https://cdn.jsdelivr.net/gh/twitter/twemoji@v14.0.2/assets/svg/${points.join('-')}.svg`;
 }
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
@@ -76,6 +79,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  const storyFileRef = useRef(null);
 
   // Always start a profile view at the top, regardless of where the user
   // scrolled before navigating in. Using 'auto' (not 'smooth') because the
@@ -471,46 +475,116 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         className="bg-card border border-border rounded-xl p-5 mb-4"
       >
         <div className="flex items-start gap-4 mb-4">
-          {/* Avatar — tapping opens story viewer when stories exist; ring applied directly */}
-          <div className="flex flex-col items-center shrink-0 relative">
-            {/* Speech bubble note above avatar */}
-            {activeNote && (
-              <div className="absolute z-10" style={{ bottom: '100%', marginBottom: 8, left: '50%', transform: 'translateX(-50%)', width: 140 }}>
-                <div className="bg-card border border-border rounded-xl px-2.5 py-1.5 shadow-sm relative">
-                  {isSelf ? (
-                    <button type="button" onClick={() => setNoteEditorOpen(true)} className="w-full text-left">
-                      <p className="text-[10px] text-foreground leading-snug">{activeNote.text}</p>
-                    </button>
-                  ) : (
-                    <p className="text-[10px] text-foreground leading-snug">{activeNote.text}</p>
-                  )}
-                  {/* Bubble tail pointing down toward avatar */}
-                  <div className="absolute left-1/2 -translate-x-1/2 -bottom-[7px] w-3 h-3 bg-card border-b border-r border-border rotate-45" />
-                </div>
-              </div>
-            )}
+          {/* Avatar column */}
+          <div className="flex flex-col items-center shrink-0">
+            {/* Wrapper sized exactly to the avatar — so speech bubble centers on it precisely */}
+            <div className="relative" style={{ width: 64 }}>
 
-            {/* Avatar circle with precise ring */}
-            <div
-              className="rounded-full overflow-hidden"
-              style={{
-                width: 64,
-                height: 64,
-                cursor: profileStories.length > 0 ? 'pointer' : undefined,
-                boxShadow: profileStories.length > 0
-                  ? '0 0 0 2.5px hsl(var(--primary)), 0 0 0 5px hsl(var(--background))'
-                  : 'none',
-              }}
-              onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
-            >
-              <AvatarUploader
-                src={avatarUrl}
-                initials={initials}
-                editable={isSelf && profileStories.length === 0}
-                size={64}
-                frameCss={equippedFrame?.css}
-                frameAnimation={equippedFrame?.animation}
-              />
+              {/* Speech bubble note above avatar — centered on this 64px container */}
+              {activeNote && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: 'calc(100% + 8px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 20,
+                  maxWidth: 180,
+                  minWidth: 80,
+                  width: 'max-content',
+                }}>
+                  <div style={{
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: 12,
+                    padding: '5px 10px',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                    textAlign: 'center',
+                    position: 'relative',
+                    maxWidth: 180,
+                  }}>
+                    {isSelf ? (
+                      <button type="button" onClick={() => setNoteEditorOpen(true)} className="block w-full">
+                        <p style={{ fontSize: 10, lineHeight: 1.4, color: 'hsl(var(--foreground))' }}>{activeNote.text}</p>
+                      </button>
+                    ) : (
+                      <p style={{ fontSize: 10, lineHeight: 1.4, color: 'hsl(var(--foreground))' }}>{activeNote.text}</p>
+                    )}
+                    {/* Tail pointing down */}
+                    <div style={{
+                      position: 'absolute',
+                      bottom: -6,
+                      left: '50%',
+                      transform: 'translateX(-50%) rotate(45deg)',
+                      width: 10,
+                      height: 10,
+                      background: 'hsl(var(--card))',
+                      borderRight: '1px solid hsl(var(--border))',
+                      borderBottom: '1px solid hsl(var(--border))',
+                    }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Avatar circle with story ring */}
+              <div
+                className="rounded-full overflow-hidden"
+                style={{
+                  width: 64,
+                  height: 64,
+                  cursor: profileStories.length > 0 ? 'pointer' : undefined,
+                  boxShadow: profileStories.length > 0
+                    ? '0 0 0 2.5px hsl(var(--primary)), 0 0 0 5px hsl(var(--background))'
+                    : 'none',
+                }}
+                onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
+              >
+                <AvatarUploader
+                  src={avatarUrl}
+                  initials={initials}
+                  editable={isSelf && profileStories.length === 0}
+                  size={64}
+                  frameCss={equippedFrame?.css}
+                  frameAnimation={equippedFrame?.animation}
+                />
+              </div>
+
+              {/* Camera badge — own profile: tap to add a story */}
+              {isSelf && (
+                <>
+                  <input
+                    ref={storyFileRef}
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      e.target.value = '';
+                      const { createStory } = await import('@/lib/data/stories');
+                      const result = await createStory(user, file);
+                      if (result?.limitReached) {
+                        toast.error('Story limit reached (10 max)');
+                      } else if (!result?.ok) {
+                        toast.error('Could not upload story');
+                      } else {
+                        queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
+                        toast.success('Story added!');
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => storyFileRef.current?.click()}
+                    className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center ring-2 ring-background"
+                    style={{ background: 'hsl(var(--primary))' }}
+                    aria-label="Add to story"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                    </svg>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Add status note trigger — own profile, no active note */}

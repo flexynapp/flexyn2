@@ -449,33 +449,39 @@ export default function StoryViewer({
 
                 {/* Reply bar — hidden if owner disabled DMs */}
                 {!currentGroup.storyDmsDisabled && (
-                  <div className="flex-1 flex items-center gap-2 min-w-0" onClick={e => e.stopPropagation()}>
-                    {/* Faded story thumbnail for reply context */}
+                  <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
+                    {/* Faded story thumbnail row — context for the reply */}
                     {currentStory?.image_url && (
-                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 opacity-55 ring-1 ring-white/20">
-                        <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                      <div className="flex items-center gap-2 mb-2">
+                        <div
+                          className="rounded-xl overflow-hidden shrink-0 ring-1 ring-white/20"
+                          style={{ width: 48, height: 48, opacity: 0.65 }}
+                        >
+                          <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                        </div>
+                        <p className="text-white/50 text-[11px] leading-tight">Replying to story</p>
                       </div>
                     )}
-                    <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0">
-                    <input
-                      type="text"
-                      value={reply}
-                      onChange={e => setReply(e.target.value)}
-                      onFocus={() => setReplyFocused(true)}
-                      onBlur={() => setReplyFocused(false)}
-                      onKeyDown={e => { if (e.key === 'Enter' && reply.trim()) handleSendReply(); }}
-                      placeholder={`Reply to ${currentGroup.username}…`}
-                      className="flex-1 bg-transparent text-white text-sm placeholder-white/45 outline-none min-w-0"
-                    />
-                    {reply.trim() && (
-                      <button onClick={handleSendReply} disabled={replySending}
-                        className="text-primary shrink-0 disabled:opacity-50" aria-label="Send reply">
-                        {replySending
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <Send className="w-4 h-4" />}
-                      </button>
-                    )}
-                  </div>
+                    <div className="flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0">
+                      <input
+                        type="text"
+                        value={reply}
+                        onChange={e => setReply(e.target.value)}
+                        onFocus={() => setReplyFocused(true)}
+                        onBlur={() => setReplyFocused(false)}
+                        onKeyDown={e => { if (e.key === 'Enter' && reply.trim()) handleSendReply(); }}
+                        placeholder={`Reply to ${currentGroup.username}…`}
+                        className="flex-1 bg-transparent text-white text-sm placeholder-white/45 outline-none min-w-0"
+                      />
+                      {reply.trim() && (
+                        <button onClick={handleSendReply} disabled={replySending}
+                          className="text-primary shrink-0 disabled:opacity-50" aria-label="Send reply">
+                          {replySending
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <Send className="w-4 h-4" />}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
