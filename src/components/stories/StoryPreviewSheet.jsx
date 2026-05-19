@@ -324,7 +324,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       <div
         ref={containerRef}
         className="flex-1 relative overflow-hidden"
-        onClick={() => { if (editingText) setEditingText(false); }}
+        onClick={() => setEditingText(v => !v)}
       >
         {isVideo ? (
           <video
@@ -371,6 +371,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
         {!editingText && hasText && (
           <div
             ref={textRef}
+            onClick={e => e.stopPropagation()} // prevent container toggle; tap-to-re-edit handled by mouse/touch handlers
             className="absolute"
             style={{
               left:       '50%',
