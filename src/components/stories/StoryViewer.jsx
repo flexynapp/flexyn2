@@ -208,8 +208,9 @@ export default function StoryViewer({
   const [reply,         setReply]         = useState('');
   const [replyFocused,  setReplyFocused]  = useState(false);
   const [replySending,  setReplySending]  = useState(false);
-  const timerRef   = useRef(null);
-  const mediaRef   = useRef(null);  // container for overlay text positioning
+  const timerRef      = useRef(null);
+  const mediaRef      = useRef(null);  // container for overlay text positioning
+  const slideDir      = useRef(0);     // 0 = same group, 1 = forward, -1 = back
 
   useEffect(() => {
     if (open) {
@@ -241,20 +242,22 @@ export default function StoryViewer({
     if (!group) return;
     setInsightsOpen(false); setDeletePrompt(false); setReply('');
     if (storyIdx < group.stories.length - 1) {
+      slideDir.current = 0;
       setStoryIdx(i => i + 1); setTick(t => t + 1);
     } else {
       const next = groups.findIndex((_, i) => i > groupIdx);
-      if (next >= 0) { setGroupIdx(next); setStoryIdx(0); setTick(t => t + 1); }
+      if (next >= 0) { slideDir.current = 1; setGroupIdx(next); setStoryIdx(0); setTick(t => t + 1); }
       else onClose();
     }
   }, [groupIdx, storyIdx, groups, onClose]);
 
   const goBack = useCallback(() => {
     setInsightsOpen(false); setDeletePrompt(false); setReply('');
-    if (storyIdx > 0) { setStoryIdx(i => i - 1); setTick(t => t + 1); return; }
+    if (storyIdx > 0) { slideDir.current = 0; setStoryIdx(i => i - 1); setTick(t => t + 1); return; }
     let prev = -1;
     for (let i = groupIdx - 1; i >= 0; i--) { prev = i; break; }
     if (prev >= 0) {
+      slideDir.current = -1;
       setGroupIdx(prev);
       setStoryIdx(Math.max(0, groups[prev].stories.length - 1));
       setTick(t => t + 1);
@@ -330,14 +333,18 @@ export default function StoryViewer({
               {isVideo ? (
                 <motion.video key={currentStory.id} src={currentStory.image_url}
                   autoPlay loop muted playsInline
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
+                  initial={{ opacity: 0, x: slideDir.current === 1 ? '60%' : slideDir.current === -1 ? '-60%' : 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: slideDir.current === 1 ? '-20%' : slideDir.current === -1 ? '20%' : 0 }}
+                  transition={{ duration: slideDir.current !== 0 ? 0.28 : 0.18, ease: 'easeOut' }}
                   style={{ filter: currentStory.overlay_style?.filter ?? 'none' }}
                   className="absolute inset-0 w-full h-full object-contain" />
               ) : (
                 <motion.img key={currentStory.id} src={currentStory.image_url} alt=""
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  transition={{ duration: 0.18 }}
+                  initial={{ opacity: 0, x: slideDir.current === 1 ? '60%' : slideDir.current === -1 ? '-60%' : 0 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: slideDir.current === 1 ? '-20%' : slideDir.current === -1 ? '20%' : 0 }}
+                  transition={{ duration: slideDir.current !== 0 ? 0.28 : 0.18, ease: 'easeOut' }}
                   style={{ filter: currentStory.overlay_style?.filter ?? 'none' }}
                   className="absolute inset-0 w-full h-full object-contain" draggable={false} />
               )}
@@ -401,8 +408,12 @@ export default function StoryViewer({
                     <Camera className="w-4 h-4" />
                   </button>
                 )}
-                <button onClick={onClose}
-                  className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Close">
+                <button
+                  onClick={(e) => { e.stopPropagation(); onClose(); }}
+                  className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
+                  style={{ position: 'relative', zIndex: 200, pointerEvents: 'all' }}
+                  aria-label="Close"
+                >
                   <X className="w-4 h-4" />
                 </button>
               </div>

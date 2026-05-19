@@ -99,6 +99,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     enabled: true,
   });
 
+  const hasDiamond = stickerRxns.some(r => r.variant === 'diamond');
   const isMine = post.author_email === user?.email;
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
@@ -160,7 +161,10 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const timeLabel = post.created_date ? format(parseISO(post.created_date), 'MMM d, h:mma') : '';
 
   return (
-    <article className="bg-card border border-border rounded-xl overflow-hidden">
+    <article
+      className={`bg-card border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/60' : 'border-border'}`}
+      style={hasDiamond ? { boxShadow: '0 0 14px rgba(103,232,249,0.30), 0 0 0 1px rgba(103,232,249,0.18)' } : undefined}
+    >
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
         <div

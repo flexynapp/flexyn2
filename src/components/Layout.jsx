@@ -49,8 +49,12 @@ export default function Layout() {
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>
-          <div className="w-full mt-1 flex items-center gap-1.5">
-            <div className="flex-1"><ProfileMenu /></div>
+          {/* Row 1: Profile menu (full width) */}
+          <div className="w-full mt-1">
+            <ProfileMenu />
+          </div>
+          {/* Row 2: Action buttons aligned right */}
+          <div className="w-full flex items-center justify-end gap-1 mt-0.5">
             <button
               type="button"
               onClick={() => navigate('/coach')}

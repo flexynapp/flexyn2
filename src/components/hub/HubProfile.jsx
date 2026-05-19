@@ -479,7 +479,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           {/* Avatar column */}
           <div className="flex flex-col items-center shrink-0">
             {/* Wrapper sized exactly to the avatar — so speech bubble centers on it precisely */}
-            <div className="relative" style={{ width: 64 }}>
+            <div className="relative" style={{ width: 64, height: 64 }}>
 
               {/* Speech bubble note above avatar — centered on this 64px container */}
               {activeNote && (
@@ -575,8 +575,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   <button
                     type="button"
                     onClick={() => storyFileRef.current?.click()}
-                    className="absolute bottom-0 right-0 w-6 h-6 rounded-full flex items-center justify-center ring-2 ring-background"
-                    style={{ background: 'hsl(var(--primary))' }}
+                    className="absolute w-6 h-6 rounded-full flex items-center justify-center"
+                    style={{
+                      bottom: -3,
+                      right: -3,
+                      background: 'hsl(var(--primary))',
+                      boxShadow: '0 0 0 2px hsl(var(--background))',
+                    }}
                     aria-label="Add to story"
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
