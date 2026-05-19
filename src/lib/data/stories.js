@@ -32,7 +32,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       .select('*')
       .in('user_email', allEmails)
       .gt('expires_at', now)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: true }),
 
     supabase
       .from('user_profiles')
