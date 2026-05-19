@@ -196,7 +196,10 @@ const auth = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
     let payload = { id: user.id, email: user.email, ...data, updated_at: new Date().toISOString() };
-    for (let attempt = 0; attempt < 15; attempt++) {
+    // 20 attempts so we can strip several one-off newer columns
+    // (fitness_goals_arr, milestone_capsules_awarded, etc.) without
+    // exhausting the retry budget. Onboarding sends a wide payload.
+    for (let attempt = 0; attempt < 20; attempt++) {
       const { data: row, error } = await supabase
         .from('user_profiles')
         .upsert(payload, { onConflict: 'id' })
@@ -206,10 +209,25 @@ const auth = {
         _profile = { id: user.id, email: user.email, ...row };
         return _profile;
       }
+      // PostgreSQL 42703 undefined_column — strip and retry
       if (error.code === '42703') {
         const match = error.message?.match(/column "([^"]+)"/);
         if (match?.[1] && match[1] in payload) {
-          console.warn(`[Supabase] column "${match[1]}" not in user_profiles yet — skipping (run migration 002)`);
+          console.warn(`[Supabase] column "${match[1]}" not in user_profiles yet — skipping`);
+          delete payload[match[1]];
+          continue;
+        }
+      }
+      // PostgREST PGRST204 schema-cache miss — same fix, different shape.
+      // PostgREST caches table schemas; when a newer-migration column is
+      // in our payload but not yet in the cached schema, we get PGRST204
+      // instead of 42703. Without this branch, onboarding fails on any
+      // environment where the cache is stale on, e.g., fitness_goals_arr
+      // (migration 006) — which is the bug users currently hit.
+      if (error.code === 'PGRST204') {
+        const match = error.message?.match(/the '([^']+)' column/);
+        if (match?.[1] && match[1] in payload) {
+          console.warn(`[Supabase] PGRST204: column "${match[1]}" not in PostgREST schema cache for user_profiles — skipping`);
           delete payload[match[1]];
           continue;
         }

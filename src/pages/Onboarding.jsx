@@ -925,14 +925,18 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
 }
 
 // Shared style for the ±1 / ±5 nudge buttons on weight / height / age steps
+// 48×48 hits Apple HIG (44pt) + WCAG 2.5.8 (24×24 minimum, 44×44 recommended)
+// with margin to spare — users on small phones were missing 40×40 targets.
 const nudgeBtnStyle = {
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-  width: 40, height: 40, borderRadius: '50%',
+  width: 48, height: 48, borderRadius: '50%',
   border: '1.5px solid hsl(var(--border))',
   background: 'hsl(var(--secondary))',
   color: 'hsl(var(--foreground))',
-  fontFamily: 'ui-monospace, monospace', fontSize: 13, fontWeight: 700,
+  fontFamily: 'ui-monospace, monospace', fontSize: 14, fontWeight: 700,
   cursor: 'pointer', userSelect: 'none',
+  WebkitTapHighlightColor: 'transparent',
+  touchAction: 'manipulation',
   transition: 'background 0.15s, transform 0.1s',
 };
 
@@ -991,6 +995,31 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const bumpAge = (dir) => setAge(Math.min(80, Math.max(14, age + dir)));
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 14, max: 80, axis: 'x', pxPerUnit: 20 });
 
+  // Tap-to-type: tapping the big number opens a numeric keypad so users
+  // on mobile don't have to drag-scrub or hammer ±1 to get to their age.
+  // Mirrors the Weight step's tap-to-type pattern.
+  const [editingAge, setEditingAge] = useState(false);
+  const ageInputRef = useRef(null);
+  const handleAgeTap = () => { setEditingAge(true); setTimeout(() => ageInputRef.current?.focus(), 30); };
+  const handleAgeInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!isNaN(v)) setAge(Math.min(80, Math.max(14, v)));
+  };
+
+  // Track when the username field strips a character so we can surface a
+  // friendly hint rather than just silently dropping the keystroke. Common
+  // confusion source: iOS auto-capitalizes the first letter and the user
+  // wonders why nothing appears.
+  const [stripWarning, setStripWarning] = useState(false);
+  const onUsernameChangeSanitized = (raw) => {
+    const cleaned = raw.toLowerCase().replace(/[^a-z0-9_]/g, '');
+    if (raw && cleaned !== raw.toLowerCase()) {
+      setStripWarning(true);
+      setTimeout(() => setStripWarning(false), 1500);
+    }
+    onUsernameChange(cleaned);
+  };
+
   const [trackW, setTrackW] = useState(300);
   useEffect(() => {
     const update = () => { if (ref.current) setTrackW(ref.current.offsetWidth); };
@@ -1029,12 +1058,21 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           <input
             type="text"
             value={username}
-            onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
+            onChange={e => onUsernameChangeSanitized(e.target.value)}
             placeholder="e.g. jordan_lifts"
             maxLength={20}
-            className="w-full h-11 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[14px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="username"
+            spellCheck={false}
+            inputMode="text"
+            enterKeyHint="next"
+            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[16px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1">{usernameError}</p>}
+          {!usernameError && stripWarning && (
+            <p className="text-xs text-muted-foreground mt-1">Letters, numbers and underscores only — capitals are auto-lowered.</p>
+          )}
         </motion.div>
 
         {/* Age drag section */}
@@ -1050,18 +1088,42 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             transition: 'background 0.5s', pointerEvents: 'none', animation: 'stat-glow-pulse 3s ease-in-out infinite',
           }} />
 
-          {/* Hero number */}
+          {/* Hero number — tap to type a value directly */}
           <div className="flex flex-col items-center mb-4">
-            <div style={{
-              fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800,
-              fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.06em',
-              color: 'hsl(var(--foreground))',
-              transform: isDragging ? 'scale(0.97)' : 'scale(1)',
-              transition: 'transform 0.15s ease-out',
-            }}>
-              <NumberReel value={age} digits={2} size={120} />
-            </div>
-            <div className="font-mono text-[11px] font-600 tracking-[0.3em] uppercase text-muted-foreground mt-2">YEARS OLD</div>
+            {editingAge ? (
+              <input
+                ref={ageInputRef}
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="done"
+                defaultValue={age}
+                min={14}
+                max={80}
+                onBlur={() => setEditingAge(false)}
+                onChange={handleAgeInput}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                style={{ width: 180, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 96, lineHeight: 0.9, letterSpacing: '-0.06em', textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '3px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
+              />
+            ) : (
+              <button
+                type="button"
+                onClick={handleAgeTap}
+                aria-label="Tap to type your age"
+                style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
+              >
+                <div style={{
+                  fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800,
+                  fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.06em',
+                  color: 'hsl(var(--foreground))',
+                  transform: isDragging ? 'scale(0.97)' : 'scale(1)',
+                  transition: 'transform 0.15s ease-out',
+                }}>
+                  <NumberReel value={age} digits={2} size={120} />
+                </div>
+              </button>
+            )}
+            <div className="font-mono text-[11px] font-600 tracking-[0.3em] uppercase text-muted-foreground mt-2">YEARS OLD · TAP TO TYPE</div>
 
             {/* Life-stage chip */}
             <motion.div
@@ -1170,6 +1232,18 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
+  // Tap-to-type for height — mobile users complained that the vertical
+  // ruler is too sensitive to drag accurately. Typing is faster anyway.
+  // In ft·in mode we accept total inches and let users see the readout
+  // convert to ft'in" live; this keeps the input simple (one number).
+  const [editingHeight, setEditingHeight] = useState(false);
+  const heightInputRef = useRef(null);
+  const handleHeightTap = () => { setEditingHeight(true); setTimeout(() => heightInputRef.current?.focus(), 30); };
+  const handleHeightInput = (e) => {
+    const v = parseInt(e.target.value, 10);
+    if (!isNaN(v)) setValue(Math.min(range[1], Math.max(range[0], v)));
+  };
+
   const [trackH, setTrackH] = useState(240);
   useEffect(() => {
     const update = () => { if (ref.current) setTrackH(ref.current.offsetHeight); };
@@ -1238,10 +1312,36 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
           {/* Readout + ruler */}
           <div style={{ width: 120, display: 'flex', flexDirection: 'column' }}>
             <div className="mb-3">
-              <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
-                {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
+              {editingHeight ? (
+                <input
+                  ref={heightInputRef}
+                  type="number"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  enterKeyHint="done"
+                  defaultValue={value}
+                  min={range[0]}
+                  max={range[1]}
+                  onBlur={() => setEditingHeight(false)}
+                  onChange={handleHeightInput}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                  style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleHeightTap}
+                  aria-label="Tap to type your height"
+                  style={{ background: 'none', border: 'none', cursor: 'text', padding: 0, textAlign: 'left' }}
+                >
+                  <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 38, lineHeight: 1, letterSpacing: '-0.04em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.97)' : 'scale(1)', transition: 'transform 0.15s' }}>
+                    {unit === 'cm' ? value : `${Math.floor(value/12)}'${value%12}"`}
+                  </div>
+                </button>
+              )}
+              <div className="font-mono text-[9px] font-semibold tracking-widest uppercase text-muted-foreground mt-1">
+                {unit === 'cm' ? 'CM · TAP TO TYPE' : 'FT · IN · TAP TO TYPE'}
               </div>
-              <div className="font-mono text-[9px] font-semibold tracking-widest uppercase text-muted-foreground mt-1">{unit === 'cm' ? 'CM' : 'FT · IN'}</div>
               <div className="font-mono text-[10px] text-muted-foreground/70 mt-1">≈ {displaySecondary}</div>
             </div>
             {/* Ruler */}
@@ -1406,12 +1506,16 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
               <input
                 ref={weightInputRef}
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                enterKeyHint="done"
                 defaultValue={value}
                 min={range[0]}
                 max={range[1]}
                 onBlur={handleWeightBlur}
                 onChange={handleWeightInput}
-                style={{ width: 90, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                style={{ width: 110, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
               />
             ) : (
               <button onClick={handleWeightTap} style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}>
@@ -1488,7 +1592,13 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
             onChange={e => onUsernameChange(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
             placeholder="e.g. jordan_lifts"
             maxLength={20}
-            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[15px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
+            autoCapitalize="none"
+            autoCorrect="off"
+            autoComplete="username"
+            spellCheck={false}
+            inputMode="text"
+            enterKeyHint="next"
+            className="w-full h-12 rounded-xl border border-border bg-secondary/50 px-4 font-mono text-[16px] font-medium text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30 transition-all"
           />
           {usernameError && <p className="text-xs text-destructive mt-1.5">{usernameError}</p>}
           <p className="text-xs text-muted-foreground mt-1.5">Lowercase, numbers and underscores only</p>
@@ -2014,7 +2124,12 @@ export default function Onboarding() {
       }
       saved = true;
     } catch (err) {
-      console.error('Full profile save failed, trying minimal save:', err);
+      console.error('[Onboarding] Full profile save failed, trying minimal save:', {
+        code: err?.code,
+        message: err?.message,
+        details: err?.details,
+        hint: err?.hint,
+      });
       // Detect duplicate-username error and route the user back to a step
       // where they can fix it — the old code just toasted a misleading
       // "check your connection" message and stranded them on the reveal
@@ -2048,7 +2163,14 @@ export default function Onboarding() {
         if (checkUserAuth) await checkUserAuth();
         saved = true;
       } catch (minErr) {
-        console.error('Minimal save also failed:', minErr);
+        // Surface the real error in the console for diagnosis. Without this
+        // every failure looks identical and on-call has nothing to grep for.
+        console.error('[Onboarding] Minimal save also failed:', {
+          code: minErr?.code,
+          message: minErr?.message,
+          details: minErr?.details,
+          hint: minErr?.hint,
+        });
         // Same duplicate detection on the minimal save.
         const isDupUsernameMin =
           minErr?.code === '23505' ||
@@ -2060,8 +2182,16 @@ export default function Onboarding() {
           toast.error('That username is already taken — try another.');
         } else {
           // Do NOT mark as returning user — onboarding_completed never wrote to DB.
-          // User will be able to retry by tapping Save again.
-          toast.error('Could not save your profile — check your connection and try again.');
+          // User will be able to retry by tapping Save again. Include a hint
+          // about which kind of failure this looks like so the user knows
+          // whether to retry or to take action.
+          const looksOffline = !navigator.onLine || /network|failed to fetch|timeout/i.test(minErr?.message || '');
+          toast.error(
+            looksOffline
+              ? "You're offline — reconnect and tap Save again."
+              : 'Could not save your profile. Tap Save to retry.',
+            { duration: 6000 }
+          );
         }
       }
     } finally {
