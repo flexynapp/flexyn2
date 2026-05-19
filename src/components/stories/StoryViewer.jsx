@@ -439,30 +439,35 @@ export default function StoryViewer({
 
             {/* ── Bottom bar — non-own stories ─────────────────────────── */}
             {!currentGroup.isOwn && (
-              <div className="absolute bottom-0 left-0 right-0 flex items-center gap-2 px-3"
+              <div className="absolute bottom-0 left-0 right-0 px-3"
                 style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
-                {/* Like */}
-                <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
-                  <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                </motion.button>
 
-                {/* Reply bar — hidden if owner disabled DMs */}
-                {!currentGroup.storyDmsDisabled && (
-                  <div className="flex-1 min-w-0" onClick={e => e.stopPropagation()}>
-                    {/* Faded story thumbnail row — context for the reply */}
-                    {currentStory?.image_url && (
-                      <div className="flex items-center gap-2 mb-2">
-                        <div
-                          className="rounded-xl overflow-hidden shrink-0 ring-1 ring-white/20"
-                          style={{ width: 48, height: 48, opacity: 0.65 }}
-                        >
-                          <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
-                        </div>
-                        <p className="text-white/50 text-[11px] leading-tight">Replying to story</p>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0">
+                {/* Story context thumbnail — always shown above reply bar */}
+                {currentStory?.image_url && !currentGroup.storyDmsDisabled && (
+                  <div className="flex items-center gap-2 mb-2.5 ml-1" onClick={e => e.stopPropagation()}>
+                    <div
+                      className="rounded-xl overflow-hidden shrink-0"
+                      style={{ width: 52, height: 52, opacity: 0.75, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.25)' }}
+                    >
+                      <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                    </div>
+                    <div>
+                      <p className="text-white/80 text-xs font-semibold leading-tight drop-shadow">Replying to story</p>
+                      <p className="text-white/45 text-[10px] leading-tight mt-0.5">{currentGroup.username}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Like + reply row */}
+                <div className="flex items-center gap-2">
+                  <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
+                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
+                    <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                  </motion.button>
+
+                  {!currentGroup.storyDmsDisabled && (
+                    <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
+                      onClick={e => e.stopPropagation()}>
                       <input
                         type="text"
                         value={reply}
@@ -482,8 +487,8 @@ export default function StoryViewer({
                         </button>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             )}
 

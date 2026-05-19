@@ -267,13 +267,23 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           </div>
 
           {crewStories.length > 0 ? (
-            <button
-              onClick={() => setStoryViewIdx(0)}
-              className="rounded-full overflow-hidden shrink-0"
-              style={{ width: 36, height: 36, border: '2.5px solid hsl(var(--primary))' }}
-            >
-              <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={() => setStoryViewIdx(0)}
+                className="rounded-full overflow-hidden shrink-0"
+                style={{ width: 36, height: 36, border: '2.5px solid hsl(var(--primary))' }}
+              >
+                <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+              </button>
+              <button
+                onClick={() => storyFileRef.current?.click()}
+                className="flex items-center gap-0.5 text-xs font-semibold shrink-0"
+                style={{ color: 'hsl(var(--primary))' }}
+              >
+                <Plus className="w-3 h-3" />
+                Story
+              </button>
+            </div>
           ) : (
             <button
               onClick={() => storyFileRef.current?.click()}
