@@ -58,6 +58,9 @@ const Nutrition = lazy(() => import('./pages/Nutrition'));
 const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
 const Hub       = lazy(() => import('./pages/Hub'));
+const Messages  = lazy(() => import('./pages/Messages'));
+const Market    = lazy(() => import('./pages/Market'));
+const Coach     = lazy(() => import('./pages/Coach'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -170,6 +173,9 @@ const AuthenticatedApp = () => {
           <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
           <Route path="/workout"   element={<ErrorBoundary label="Workout"><Suspense fallback={<PageLoader />}><Workout /></Suspense></ErrorBoundary>} />
           <Route path="/hub"       element={<ErrorBoundary label="Hub"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
+          <Route path="/messages"  element={<ErrorBoundary label="Messages"><Suspense fallback={<PageLoader />}><Messages /></Suspense></ErrorBoundary>} />
+          <Route path="/market"    element={<ErrorBoundary label="Market"><Suspense fallback={<PageLoader />}><Market /></Suspense></ErrorBoundary>} />
+          <Route path="/coach"     element={<ErrorBoundary label="Coach"><Suspense fallback={<PageLoader />}><Coach /></Suspense></ErrorBoundary>} />
           <Route path="/progress"  element={<ErrorBoundary label="Progress"><Suspense fallback={<PageLoader />}><Progress /></Suspense></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />

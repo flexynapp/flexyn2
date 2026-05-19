@@ -3,8 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
+import { requestOpenBag } from '@/lib/inventoryFlow';
+import * as capsules from '@/lib/data/capsules';
 import LevelBar from './LevelBar';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -68,6 +70,20 @@ export default function ProfileMenu() {
   const { data: user } = useQuery({
     queryKey: ['userProfile', authUser?.email],
     queryFn: () => db.auth.me(),
+  });
+
+  // Unopened-capsule count for the "My Bag" badge. Shares the same
+  // query key the Layout-level useBagFlow uses, so React Query dedupes
+  // and a single fetch updates both spots.
+  const { data: capsuleCount = 0 } = useQuery({
+    queryKey: ['userCapsulesCount', authUser?.email],
+    queryFn: async () => {
+      const list = await capsules.listUnopenedCapsules(authUser.email);
+      return list.length;
+    },
+    enabled: !!authUser?.email,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -168,6 +184,26 @@ export default function ProfileMenu() {
                         {t('profile.settings')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        requestOpenBag();
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShoppingBag className="w-4 h-4" />
+                        {t('profile.myBag') || 'My Bag'}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {capsuleCount > 0 && (
+                          <span className="min-w-[18px] h-[18px] px-1 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                            {capsuleCount > 9 ? '9+' : capsuleCount}
+                          </span>
+                        )}
+                        <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                      </div>
                     </button>
                     <ThemePicker />
                     <button

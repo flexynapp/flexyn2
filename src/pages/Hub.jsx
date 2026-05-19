@@ -1,167 +1,65 @@
 // src/pages/Hub.jsx
+// Hub is now strictly the social feed: Pump + Squad, plus the Profile
+// sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
+// Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
+// the global ProfileMenu respectively.
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, MessageCircle, User as UserIcon, Plus, ArrowLeft, Search, ShoppingBag, Store, Sparkles } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
 import HubFeed from '@/components/hub/HubFeed';
-import HubMessages from '@/components/hub/HubMessages';
 import HubProfile from '@/components/hub/HubProfile';
 import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
-import UserBag from '@/components/hub/UserBag';
-import CapsuleOpener from '@/components/hub/CapsuleOpener';
-import MarketplaceFeed from '@/components/hub/MarketplaceFeed';
-import * as hubMessages from '@/lib/data/hubMessages';
-import * as inventory from '@/lib/data/inventory';
-import * as capsules from '@/lib/data/capsules';
-import CoachChat from '@/components/coach/CoachChat';
-import ErrorBoundary from '@/components/ErrorBoundary';
 import StoriesRow from '@/components/stories/StoriesRow';
-import { toast } from 'sonner';
+import { useStartConversation } from '@/lib/hubMessaging';
 
 export default function Hub() {
   const { t } = useLanguage();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [section, setSection] = useState('feed');
   const [feedTab, setFeedTab] = useState('pump');
   const [composerOpen, setComposerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(null);
-  const [pendingChatTarget, setPendingChatTarget] = useState(null);
-  const [bagOpen, setBagOpen] = useState(false);
-  const [openingCapsule, setOpeningCapsule] = useState(null); // capsule row being opened
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Deep-link: ?bag=open opens the user bag (called from StatsHubModal).
-  // Strip the param after handling so reloads don't keep re-opening.
+  const startConversation = useStartConversation();
+
+  // Deep-links Hub still owns:
+  //   ?compose=1       — open the post composer (used by daily-quest links)
+  //   ?search=open     — open the user-search overlay (empty-state CTAs)
+  //   ?profile=<email> — open a profile (used by Dashboard stories tray
+  //                      when tapping a no-story friend avatar)
+  // ?bag=open is no longer handled here; callers use OPEN_BAG_EVENT
+  // (see StatsHubModal "Bag & Capsules" tile).
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get('bag') === 'open') {
-      setBagOpen(true);
-      params.delete('bag');
-      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
-    }
+    let changed = false;
     if (params.get('compose') === '1') {
       setComposerOpen(true);
       params.delete('compose');
-      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+      changed = true;
     }
-    // ?search=open — opens the search overlay (used by empty-state CTAs
-    // to send users with no follows into discovery).
     if (params.get('search') === 'open') {
       setSearchOpen(true);
       params.delete('search');
-      navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
+      changed = true;
     }
-    // ?profile=<email> — deep-link from Dashboard stories tray (tap a no-story friend)
     const profileEmail = params.get('profile');
     if (profileEmail) {
       setProfileTarget({ email: decodeURIComponent(profileEmail) });
       setSection('profile');
       params.delete('profile');
+      changed = true;
+    }
+    if (changed) {
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
-  }, [location.search]);
-
-  const { data: unreadCount = 0 } = useQuery({
-    queryKey: ['hubUnreadCount', user?.email],
-    queryFn: () => hubMessages.unreadCountFor(user.email),
-    enabled: !!user?.email,
-    refetchInterval: 15_000,
-    staleTime: 0, // always re-fetch when invalidated — ensures badge clears instantly
-  });
-
-  // Count unopened capsules for the bag badge
-  // NOTE: Uses a distinct key 'userCapsulesCount' so it doesn't conflict with
-  // UserBag's 'userCapsules' key (which must return the full array, not a number).
-  const { data: capsuleCount = 0 } = useQuery({
-    queryKey: ['userCapsulesCount', user?.email],
-    queryFn: async () => {
-      const list = await capsules.listUnopenedCapsules(user.email);
-      return list.length;
-    },
-    enabled: !!user?.email,
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  });
-
-  const handleStartConversation = async (targetUserObj) => {
-    if (!user?.email) {
-      toast.error(t('hub.messages.authNotReady') || 'Still signing you in — try again in a moment.');
-      return;
-    }
-    if (!targetUserObj?.email) {
-      console.error('[Hub] handleStartConversation called without target email');
-      return;
-    }
-    try {
-      const conv = await hubMessages.findOrCreateConversation(user.email, targetUserObj.email);
-      if (conv) {
-        setPendingChatTarget({ conversation: conv, otherUser: targetUserObj });
-        setSection('messages');
-      } else {
-        toast.error(t('hub.messages.startError') || 'Could not start conversation. Try again.');
-        throw new Error('no-conversation');
-      }
-    } catch (e) {
-      console.error('[Hub] startConversation failed:', e);
-      if (e?.message !== 'no-conversation') {
-        toast.error(t('hub.messages.startError') || 'Could not start conversation. Try again.');
-      }
-      throw e;
-    }
-  };
-
-  // Handle capsule open from the bag
-  const handleOpenCapsule = (capsuleRow) => {
-    setBagOpen(false);
-    setOpeningCapsule(capsuleRow);
-  };
-
-  // After capsule animation: mark capsule opened, save item to inventory, invalidate caches
-  const handleCapsuleClaim = async (wonItem) => {
-    const capsuleId = openingCapsule?.id;
-    setOpeningCapsule(null);
-    if (!wonItem || !user?.email) return;
-    try {
-      // Mark the capsule row as opened (in parallel with adding the item)
-      const saveOps = [
-        inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule'),
-      ];
-      if (capsuleId) saveOps.push(capsules.openCapsule(capsuleId));
-      await Promise.all(saveOps);
-
-      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
-      toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
-    } catch (err) {
-      console.error('[Hub] capsule claim failed:', err);
-      toast.error('Could not save item. Try again.');
-    }
-  };
-
-  // Pull userProfile for inventory operations.
-  // NOTE: distinct queryKey ('hubUserProfile') from the global ProfileMenu/Header
-  // query ('userProfile') — those select the full row for the sidebar, while this
-  // one only needs id + flex_coins. Sharing the key would clobber full_name /
-  // avatar_url in the cache and the sidebar username would disappear on Hub.
-  const { data: userProfile } = useQuery({
-    queryKey: ['hubUserProfile', user?.email],
-    queryFn: async () => {
-      const { supabase } = await import('@/api/supabaseClient');
-      const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return null;
-      const { data } = await supabase.from('user_profiles').select('id, flex_coins').eq('id', authUser.id).maybeSingle();
-      return data;
-    },
-    enabled: !!user?.email,
-  });
+  }, [location.search, navigate]);
 
   useEffect(() => {
     setSection('feed');
@@ -170,7 +68,7 @@ export default function Hub() {
 
   return (
     <div className="px-4 md:px-6 pt-[120px] pb-6 max-w-3xl mx-auto">
-      {/* ── Fixed combined Hub nav ─────────────────────────────────────────── */}
+      {/* Fixed Hub sub-header */}
       <div className="fixed left-0 right-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:left-64">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3">
 
@@ -211,25 +109,6 @@ export default function Hub() {
                 </button>
               )}
 
-              {/* Bag button */}
-              <button
-                type="button"
-                onClick={() => setBagOpen(true)}
-                aria-label="My Bag"
-                className="relative p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
-              >
-                <ShoppingBag className="w-5 h-5" />
-                {capsuleCount > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute top-0.5 right-0.5 min-w-[15px] h-[15px] px-0.5 rounded-full bg-primary text-primary-foreground text-[9px] font-bold flex items-center justify-center"
-                  >
-                    {capsuleCount > 9 ? '9+' : capsuleCount}
-                  </motion.span>
-                )}
-              </button>
-
               {/* Search */}
               <button
                 type="button"
@@ -240,40 +119,7 @@ export default function Hub() {
                 <Search className="w-5 h-5" />
               </button>
 
-              {/* Coach */}
-              <button
-                type="button"
-                onClick={() => setSection(section === 'coach' ? 'feed' : 'coach')}
-                aria-label="Coach"
-                className={`relative p-2 rounded-lg transition-colors ${
-                  section === 'coach'
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-secondary'
-                }`}
-              >
-                <Sparkles className="w-5 h-5" />
-              </button>
-
-              {/* Messages */}
-              <button
-                type="button"
-                onClick={() => setSection(section === 'messages' ? 'feed' : 'messages')}
-                aria-label={t('hub.messages')}
-                className={`relative p-2 rounded-lg transition-colors ${
-                  section === 'messages'
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-secondary'
-                }`}
-              >
-                <MessageCircle className="w-5 h-5" />
-                {unreadCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Profile */}
+              {/* Profile (self/other) */}
               <button
                 type="button"
                 onClick={() => {
@@ -296,7 +142,7 @@ export default function Hub() {
             </div>
           </div>
 
-          {/* Feed sub-tabs — Global | Following | Marketplace */}
+          {/* Feed sub-tabs — Pump | Squad. Marketplace moved to /market. */}
           {section === 'feed' && (
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
@@ -323,26 +169,12 @@ export default function Hub() {
                 <UsersIcon className="w-4 h-4" />
                 {t('hub.feed.squad')}
               </button>
-              <button
-                type="button"
-                onClick={() => setFeedTab('marketplace')}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-medium rounded-md transition-colors ${
-                  feedTab === 'marketplace'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Store className="w-4 h-4" />
-                Market
-              </button>
-              {/* Ranks tab removed — leaderboards now live inside the StatsHub
-                  modal (tap the Level Bar in the header to open). */}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Stories — only visible on the feed tab ─────────────────────────── */}
+      {/* Stories tray — only on the feed view, mirrors Dashboard's tray */}
       {section === 'feed' && (
         <StoriesRow
           onViewProfile={(u) => {
@@ -352,7 +184,7 @@ export default function Hub() {
         />
       )}
 
-      {/* ── Sections ─────────────────────────────────────────────────────────── */}
+      {/* Sections */}
       <AnimatePresence mode="wait" initial={false}>
         <motion.div
           key={section + feedTab}
@@ -361,7 +193,7 @@ export default function Hub() {
           exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
+          {section === 'feed' && (
             <HubFeed
               feedTab={feedTab}
               onAuthorClick={(authorObj) => {
@@ -371,40 +203,18 @@ export default function Hub() {
             />
           )}
 
-          {section === 'feed' && feedTab === 'marketplace' && (
-            <MarketplaceFeed
-              onStartConversation={handleStartConversation}
-            />
-          )}
-
-          {/* Leaderboards tab content removed — accessible via the StatsHub
-              modal (tap the Level Bar). */}
-
-          {section === 'messages' && (
-            <HubMessages
-              pendingChatTarget={pendingChatTarget}
-              onPendingConsumed={() => setPendingChatTarget(null)}
-            />
-          )}
-
-          {section === 'coach' && (
-            <ErrorBoundary label="CoachChat">
-              <CoachChat />
-            </ErrorBoundary>
-          )}
-
           {section === 'profile' && (
             <HubProfile
               targetUser={profileTarget}
               onSelectUser={(u) => setProfileTarget(u)}
-              onStartConversation={handleStartConversation}
+              onStartConversation={startConversation}
             />
           )}
         </motion.div>
       </AnimatePresence>
 
-      {/* Mobile FAB — only on the post feeds (pump/squad), not marketplace or leaderboards */}
-      {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
+      {/* Mobile FAB — only on the feed */}
+      {section === 'feed' && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
           style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
@@ -440,22 +250,6 @@ export default function Hub() {
           setSection('profile');
         }}
       />
-
-      {/* Bag */}
-      <UserBag
-        open={bagOpen}
-        onClose={() => setBagOpen(false)}
-        onOpenCapsule={handleOpenCapsule}
-      />
-
-      {/* Capsule opener */}
-      {openingCapsule && (
-        <CapsuleOpener
-          capsule={openingCapsule}
-          onClaim={handleCapsuleClaim}
-          onClose={() => setOpeningCapsule(null)}
-        />
-      )}
     </div>
   );
 }

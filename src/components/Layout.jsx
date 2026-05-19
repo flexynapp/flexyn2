@@ -1,6 +1,6 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, Play, TrendingUp, Users } from 'lucide-react';
+import { Apple, LayoutDashboard, MessageCircle, Play, TrendingUp, Users } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -9,24 +9,26 @@ import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/lib/AuthContext';
-import { unreadCountFor } from '@/lib/data/hubMessages';
+import { useUnreadDMCount } from '@/lib/hubMessaging';
+import { useBagFlow } from '@/lib/inventoryFlow';
+import UserBag from './hub/UserBag';
+import CapsuleOpener from './hub/CapsuleOpener';
 
 export default function Layout() {
   const location = useLocation();
+  const navigate = useNavigate();
   const { t } = useLanguage();
-  const { user } = useAuth();
 
-  // Global unread DM count — drives the Hub nav badge from any page.
-  // 30-second poll to match the in-Hub badge cadence without hammering the DB.
-  const { data: hubUnreadCount = 0 } = useQuery({
-    queryKey: ['hubUnreadCount', user?.email],
-    queryFn: () => unreadCountFor(user.email),
-    enabled: !!user?.email,
-    refetchInterval: 30_000,
-    staleTime: 15_000,
-  });
+  // Single source of truth for the DM badge — also read by Header.jsx.
+  // No longer attached to the Hub nav item; lives on dedicated Messages
+  // surfaces (header icon on mobile, sidebar icon on desktop).
+  const hubUnreadCount = useUnreadDMCount();
+
+  // Bag flow lives at the layout level so only one instance exists
+  // (ProfileMenu is rendered twice — sidebar + header — so hosting bag
+  // state inside it would split open/closed state across copies).
+  // ProfileMenu's "My Bag" entry triggers this via OPEN_BAG_EVENT.
+  const bag = useBagFlow();
 
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
@@ -49,6 +51,28 @@ export default function Layout() {
           </Link>
           <div className="w-full mt-1 flex items-center gap-2">
             <div className="flex-1"><ProfileMenu /></div>
+            <button
+              type="button"
+              onClick={() => navigate('/messages')}
+              aria-label={t('hub.messages.title') || 'Messages'}
+              className={`relative p-2 rounded-lg transition-colors ${
+                location.pathname === '/messages'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              <MessageCircle className="w-5 h-5" />
+              {hubUnreadCount > 0 && (
+                <motion.span
+                  key={hubUnreadCount}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                >
+                  {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
+                </motion.span>
+              )}
+            </button>
             <NotificationBell />
           </div>
         </div>
@@ -80,17 +104,6 @@ export default function Layout() {
                     <item.icon className="w-5 h-5" />
                   </motion.div>
                   {item.label}
-                  {/* Unread DM badge — desktop sidebar */}
-                  {isHubItem && hubUnreadCount > 0 && (
-                    <motion.span
-                      key={hubUnreadCount}
-                      initial={{ scale: 0.6, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="ml-auto min-w-[18px] h-[18px] px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
-                    >
-                      {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
-                    </motion.span>
-                  )}
                 </Link>
               </motion.div>
             );
@@ -151,17 +164,6 @@ export default function Layout() {
                     <item.icon
                       className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`}
                     />
-                    {/* Unread DM badge — mobile bottom nav */}
-                    {isHubItem && hubUnreadCount > 0 && (
-                      <motion.span
-                        key={hubUnreadCount}
-                        initial={{ scale: 0.5, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className="absolute -top-1 -right-1 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
-                      >
-                        {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
-                      </motion.span>
-                    )}
                   </motion.div>
                   <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
                     {item.label}
@@ -172,6 +174,21 @@ export default function Layout() {
           })}
         </div>
       </nav>
+
+      {/* Bag + Capsule Opener — single global mount, opened by ProfileMenu
+          or by the OPEN_BAG_EVENT (e.g. StatsHub modal "Bag & Capsules"). */}
+      <UserBag
+        open={bag.bagOpen}
+        onClose={bag.closeBag}
+        onOpenCapsule={bag.openCapsule}
+      />
+      {bag.openingCapsule && (
+        <CapsuleOpener
+          capsule={bag.openingCapsule}
+          onClaim={bag.claimCapsule}
+          onClose={bag.closeOpener}
+        />
+      )}
     </div>
   );
 }

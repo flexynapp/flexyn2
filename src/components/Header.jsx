@@ -1,7 +1,8 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, MessageCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { db } from '@/api/db';
 import { Button } from '@/components/ui/button';
@@ -10,8 +11,11 @@ import LevelBar from './LevelBar';
 import NotificationBell from './NotificationBell';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useUnreadDMCount } from '@/lib/hubMessaging';
 
-const CHILD_ROUTES = ['/workout', '/progress', '/nutrition'];
+// Routes that show a back arrow + page title (instead of the logo).
+// The four hoisted-from-Hub destinations all behave as child routes.
+const CHILD_ROUTES = ['/workout', '/progress', '/nutrition', '/messages', '/market', '/coach'];
 
 export default function Header() {
   const navigate = useNavigate();
@@ -36,7 +40,13 @@ export default function Header() {
     '/workout': t('nav.workout'),
     '/progress': t('nav.progress'),
     '/nutrition': t('nav.nutrition'),
+    '/messages': t('hub.messages.title') || 'Messages',
+    '/market': t('hub.market.title') || 'Marketplace',
+    '/coach': t('hub.coach.title') || 'AI Coach',
   };
+
+  const unreadDM = useUnreadDMCount();
+  const onMessages = location.pathname === '/messages';
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -87,6 +97,28 @@ export default function Header() {
           {isChildRoute ? title : t('app.name')}
         </button>
         <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => navigate('/messages')}
+            aria-label={t('hub.messages.title') || 'Messages'}
+            className={`relative p-2 rounded-lg transition-colors ${
+              onMessages
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:bg-secondary'
+            }`}
+          >
+            <MessageCircle className="w-5 h-5" />
+            {unreadDM > 0 && (
+              <motion.span
+                key={unreadDM}
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="absolute top-1 right-1 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+              >
+                {unreadDM > 9 ? '9+' : unreadDM}
+              </motion.span>
+            )}
+          </button>
           <NotificationBell />
           <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
           <div className="-ml-2">

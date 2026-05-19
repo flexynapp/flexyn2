@@ -25,6 +25,7 @@ import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import LeaderboardsModal from '@/components/LeaderboardsModal';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { requestOpenBag } from '@/lib/inventoryFlow';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
@@ -202,7 +203,8 @@ export default function StatsHubModal({ open, onClose }) {
                   - Leaderboards: in-modal LeaderboardsModal
                   - Achievements: navigate to /progress?tab=achievements
                                   (Progress.jsx reads ?tab= and selects it)
-                  - Bag: navigate to /hub?bag=open (Hub reads ?bag= and opens)
+                  - Bag: fires OPEN_BAG_EVENT — Layout's useBagFlow opens
+                         the bag globally (works from any route)
                   - Coin Shop: in-modal CoinShopModal */}
             <div className="grid grid-cols-2 gap-2">
               {/* Replace-not-stack pattern: clicking these closes the Stats
@@ -221,7 +223,7 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Package}
                 label={tFallback('statsHub.bag', 'Bag & Capsules')}
-                onClick={() => handleNavigate('/hub?bag=open')}
+                onClick={() => { onClose(); requestOpenBag(); }}
               />
               <NavTile
                 icon={Coins}
