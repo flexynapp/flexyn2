@@ -16,7 +16,7 @@
 //
 // Post limit: max 10 active stories per 25-hour window.
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2, Heart, Check } from 'lucide-react';
