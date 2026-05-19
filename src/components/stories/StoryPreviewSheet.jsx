@@ -2,8 +2,11 @@
 //
 // Full-screen story editor shown before posting.
 //
+// Filters (swipe left/right on the preview)
+//   Normal | B&W | Vivid | Bright — cycles with horizontal swipe
+//
 // Text overlay
-//   Tap "Aa" → centered textarea opens for typing
+//   Tap "Aa" or tap background → centered textarea opens for typing
 //   Tap positioned text → re-opens textarea to edit
 //   One-finger drag on text  → move text anywhere on screen
 //   Two-finger pinch (anywhere on preview) → scale + rotate text
@@ -18,8 +21,15 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Pipette } from 'lucide-react';
+
+const FILTERS = [
+  { label: 'Normal', css: 'none' },
+  { label: 'B&W',    css: 'grayscale(1) contrast(1.1)' },
+  { label: 'Vivid',  css: 'saturate(2.5) contrast(1.1)' },
+  { label: 'Bright', css: 'brightness(1.3) contrast(1.05)' },
+];
 
 const FONTS = [
   { label: 'Normal',  family: "'Inter', system-ui, sans-serif" },
@@ -40,11 +50,14 @@ function getContainLayout(containerEl, imgW, imgH) {
 }
 
 export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
-  const [overlayText,  setOverlayText]  = useState('');
-  const [editingText,  setEditingText]  = useState(false);
-  const [fontIdx,      setFontIdx]      = useState(0);
-  const [textColor,    setTextColor]    = useState('#ffffff');
-  const [hue,          setHue]          = useState(0);
+  const [overlayText,     setOverlayText]     = useState('');
+  const [editingText,     setEditingText]     = useState(false);
+  const [fontIdx,         setFontIdx]         = useState(0);
+  const [textColor,       setTextColor]       = useState('#ffffff');
+  const [hue,             setHue]             = useState(0);
+  const [filterIdx,       setFilterIdx]       = useState(0);
+  const [filterLabelVis,  setFilterLabelVis]  = useState(false);
+  const filterLabelTimer = useRef(null);
 
   // Eyedropper
   const [eyedropperActive, setEyedropperActive] = useState(false);
@@ -66,6 +79,52 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     tapStartX: 0, tapStartY: 0,   // for tap-to-re-edit detection
     touchStartTime: 0,
   });
+
+  const cycleFilter = useCallback((direction) => {
+    setFilterIdx(i => (i + direction + FILTERS.length) % FILTERS.length);
+    setFilterLabelVis(true);
+    clearTimeout(filterLabelTimer.current);
+    filterLabelTimer.current = setTimeout(() => setFilterLabelVis(false), 1500);
+  }, []);
+
+  // Swipe left/right on the preview area to change filter
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || editingText) return;
+    let startX, startY;
+
+    const onTouchStart = (e) => {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+    };
+
+    const onTouchEnd = (e) => {
+      if (startX === undefined || e.changedTouches.length !== 1) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      // Only treat as filter swipe if it's clearly horizontal and NOT starting near text
+      if (Math.abs(dx) > 60 && Math.abs(dy) < 80) {
+        const bounds = textRef.current?.getBoundingClientRect();
+        const nearText = bounds && (
+          startX >= bounds.left - 24 && startX <= bounds.right + 24 &&
+          startY >= bounds.top  - 24 && startY <= bounds.bottom + 24
+        );
+        if (!nearText) {
+          e.preventDefault();
+          cycleFilter(dx < 0 ? 1 : -1);
+        }
+      }
+      startX = undefined;
+    };
+
+    container.addEventListener('touchstart', onTouchStart, { passive: true });
+    container.addEventListener('touchend',   onTouchEnd,   { passive: false });
+    return () => {
+      container.removeEventListener('touchstart', onTouchStart);
+      container.removeEventListener('touchend',   onTouchEnd);
+    };
+  }, [editingText, cycleFilter]);
 
   // Focus textarea when entering edit mode
   useEffect(() => {
@@ -277,9 +336,10 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
 
   // ── Confirm handler ───────────────────────────────────────────────────────
   const handleConfirm = () => {
-    const g    = ts.current;
-    const rect = containerRef.current?.getBoundingClientRect();
-    const style = overlayText.trim() ? {
+    const g      = ts.current;
+    const rect   = containerRef.current?.getBoundingClientRect();
+    const filter = FILTERS[filterIdx].css !== 'none' ? FILTERS[filterIdx].css : null;
+    const style  = overlayText.trim() ? {
       text:     overlayText.trim(),
       xFrac:    rect ? g.x / rect.width  : 0,
       yFrac:    rect ? g.y / rect.height : 0,
@@ -287,7 +347,8 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       rotation: g.rotate,
       color:    textColor,
       font:     FONTS[fontIdx].label.toLowerCase(),
-    } : null;
+      filter,
+    } : (filter ? { filter } : null);
     onConfirm(style);
   };
 
@@ -332,6 +393,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             src={dataUrl}
             autoPlay loop muted playsInline
             className="absolute inset-0 w-full h-full object-contain"
+            style={{ filter: FILTERS[filterIdx].css }}
           />
         ) : (
           <img
@@ -339,9 +401,43 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             src={dataUrl}
             alt="Story preview"
             className="absolute inset-0 w-full h-full object-contain"
+            style={{ filter: FILTERS[filterIdx].css }}
             draggable={false}
           />
         )}
+
+        {/* Filter name label — briefly shown when filter changes */}
+        <AnimatePresence>
+          {filterLabelVis && (
+            <motion.div
+              key={filterIdx}
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="absolute top-1/2 left-1/2 pointer-events-none"
+              style={{ transform: 'translate(-50%, -50%)' }}
+            >
+              <div className="px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm border border-white/20">
+                <span className="text-white text-sm font-semibold">{FILTERS[filterIdx].label}</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Filter dot indicators */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          {FILTERS.map((_, i) => (
+            <div
+              key={i}
+              className="rounded-full transition-all"
+              style={{
+                width:           i === filterIdx ? 16 : 5,
+                height:          5,
+                backgroundColor: i === filterIdx ? '#ffffff' : 'rgba(255,255,255,0.45)',
+              }}
+            />
+          ))}
+        </div>
 
         {/* Editing textarea — centered, transparent */}
         {editingText && (

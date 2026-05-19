@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp } from 'lucide-react';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
+import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
 import { supabase } from '@/api/supabaseClient';
 import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
@@ -27,7 +28,12 @@ export default function SettingsPanel() {
   const [statValue, setStatValue] = useState('');
   const [initialStatValue, setInitialStatValue] = useState('');
   const [statSaving, setStatSaving] = useState(false);
-  const [storyDmsDisabled, setStoryDmsDisabled] = useState(false);
+  const [storyDmsDisabled,    setStoryDmsDisabled]    = useState(false);
+  const [defaultPrivacy,      setDefaultPrivacy]      = useState('friends');
+  const [storyBlocksOpen,     setStoryBlocksOpen]     = useState(false);
+  const [storyBlocks,         setStoryBlocks]         = useState([]);
+  const [blockEmail,          setBlockEmail]          = useState('');
+  const [blockSaving,         setBlockSaving]         = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -144,7 +150,44 @@ export default function SettingsPanel() {
     if (profile?.story_dms_disabled !== undefined) {
       setStoryDmsDisabled(!!profile.story_dms_disabled);
     }
-  }, [profile?.story_dms_disabled]);
+    if (profile?.default_story_privacy) {
+      setDefaultPrivacy(profile.default_story_privacy);
+    }
+  }, [profile?.story_dms_disabled, profile?.default_story_privacy]);
+
+  const loadStoryBlocks = async () => {
+    if (!user?.id) return;
+    const blocks = await getStoryBlocks(user.id);
+    setStoryBlocks(blocks);
+  };
+
+  const handleBlockAdd = async () => {
+    const email = blockEmail.trim().toLowerCase();
+    if (!email || !user) return;
+    setBlockSaving(true);
+    const ok = await blockUser(user, email);
+    setBlockSaving(false);
+    if (ok) {
+      setBlockEmail('');
+      await loadStoryBlocks();
+      queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+      toast.success(`Blocked ${email}`);
+    } else {
+      toast.error('Could not add block — try again.');
+    }
+  };
+
+  const handleUnblock = async (email) => {
+    if (!user?.id) return;
+    const ok = await unblockUser(user.id, email);
+    if (ok) {
+      setStoryBlocks(prev => prev.filter(b => b.blocked_email !== email));
+      queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+      toast.success(`Unblocked ${email}`);
+    } else {
+      toast.error('Could not remove block.');
+    }
+  };
 
   useEffect(() => {
     if (profile?.notification_prefs && typeof profile.notification_prefs === 'object') {
@@ -436,7 +479,9 @@ export default function SettingsPanel() {
 
       {/* Story settings */}
       <div className="border-t border-border pt-3 space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Stories</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Story Settings</p>
+
+        {/* Allow DM replies */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <MessageCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
@@ -456,6 +501,111 @@ export default function SettingsPanel() {
           >
             <span className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg transition-transform ${!storyDmsDisabled ? 'translate-x-4' : 'translate-x-0'}`} />
           </button>
+        </div>
+
+        {/* Default visibility */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {defaultPrivacy === 'friends'
+              ? <Lock className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+              : <Globe className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+            }
+            <div className="min-w-0">
+              <p className="text-xs text-foreground leading-tight">Default story visibility</p>
+              <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+                {defaultPrivacy === 'friends' ? 'Friends Only (private)' : 'Public'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-1" role="group" aria-label="Default story visibility">
+            {[
+              { value: 'friends', label: 'Friends', Icon: Lock },
+              { value: 'public',  label: 'Public',  Icon: Globe },
+            ].map(({ value, label, Icon }) => (
+              <button
+                key={value}
+                onClick={async () => {
+                  setDefaultPrivacy(value);
+                  await updateDefaultStoryPrivacy(user?.id, value);
+                  queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+                }}
+                aria-pressed={defaultPrivacy === value}
+                className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] border transition-colors ${
+                  defaultPrivacy === value
+                    ? 'border-primary bg-primary/10 text-primary font-medium'
+                    : 'border-border text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                <Icon className="w-2.5 h-2.5" />
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Block list */}
+        <div>
+          <button
+            onClick={() => {
+              setStoryBlocksOpen(v => !v);
+              if (!storyBlocksOpen) loadStoryBlocks();
+            }}
+            className="flex items-center justify-between w-full py-1 px-1 rounded-md hover:bg-secondary/60 transition-colors group"
+          >
+            <div className="flex items-center gap-2">
+              <ShieldOff className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+              <span className="text-xs text-foreground">Blocked accounts</span>
+            </div>
+            {storyBlocksOpen
+              ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+              : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />
+            }
+          </button>
+
+          {storyBlocksOpen && (
+            <div className="mt-2 space-y-2 pl-5">
+              {/* Add new block */}
+              <div className="flex gap-1.5">
+                <input
+                  type="email"
+                  value={blockEmail}
+                  onChange={e => setBlockEmail(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleBlockAdd()}
+                  placeholder="Email to block…"
+                  className="flex-1 h-7 rounded-md border border-border bg-secondary/50 px-2 text-[11px] text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-primary/50"
+                />
+                <button
+                  onClick={handleBlockAdd}
+                  disabled={!blockEmail.trim() || blockSaving}
+                  className="h-7 px-2 rounded-md bg-primary text-primary-foreground text-[11px] font-semibold disabled:opacity-50 flex items-center gap-1"
+                >
+                  {blockSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Block'}
+                </button>
+              </div>
+
+              {/* Existing blocks */}
+              {storyBlocks.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No accounts blocked.</p>
+              ) : (
+                <div className="space-y-1">
+                  {storyBlocks.map(b => (
+                    <div key={b.blocked_email} className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <UserX className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span className="text-[11px] text-foreground truncate">{b.blocked_email}</span>
+                      </div>
+                      <button
+                        onClick={() => handleUnblock(b.blocked_email)}
+                        className="text-[10px] text-primary font-medium shrink-0"
+                      >
+                        Unblock
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 

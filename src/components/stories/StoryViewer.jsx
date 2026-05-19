@@ -324,11 +324,13 @@ export default function StoryViewer({
                   autoPlay loop muted playsInline
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
+                  style={{ filter: currentStory.overlay_style?.filter ?? 'none' }}
                   className="absolute inset-0 w-full h-full object-contain" />
               ) : (
                 <motion.img key={currentStory.id} src={currentStory.image_url} alt=""
                   initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                   transition={{ duration: 0.18 }}
+                  style={{ filter: currentStory.overlay_style?.filter ?? 'none' }}
                   className="absolute inset-0 w-full h-full object-contain" draggable={false} />
               )}
             </AnimatePresence>

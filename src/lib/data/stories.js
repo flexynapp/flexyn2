@@ -1,32 +1,27 @@
 // src/lib/data/stories.js
 //
-// 24-hour photo stories with likes and view insights.
+// 24/25-hour photo stories with likes, view insights, status notes, and privacy.
 
 import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from './hubMessages';
 
 /**
  * Fetch everything the StoriesRow needs in one parallel pass:
- *   • non-expired stories for following list + self
- *   • profile records (username, avatar_url) for each person
- *   • Set of story IDs the current user has already viewed
- *   • Set of story IDs the current user has already liked
+ *   - non-expired stories for following list + self
+ *   - profile records (username, avatar_url, etc.)
+ *   - viewed/liked story IDs for current user
+ *   - active status notes for all emails
+ *   - story blocks (emails that blocked the viewer)
  *
- * Returns { groups, viewedIds, likedIds }
- *
- * StoryGroup = {
- *   email, username, avatarUrl, isOwn,
- *   stories: Story[],   // non-expired, newest first
- *   hasUnseen: boolean,
- * }
+ * Returns { groups, viewedIds, likedIds, noteByEmail, likedNoteIds, ownPrivacyDefault }
  */
 export async function getStoriesFeedData(user, followingEmails = []) {
-  if (!user?.id) return { groups: [], viewedIds: new Set(), likedIds: new Set() };
+  if (!user?.id) return { groups: [], viewedIds: new Set(), likedIds: new Set(), noteByEmail: {}, likedNoteIds: new Set(), ownPrivacyDefault: 'friends' };
 
   const allEmails = [...new Set([user.email, ...followingEmails])];
   const now = new Date().toISOString();
 
-  const [storiesRes, profilesRes, viewsRes, likesRes] = await Promise.all([
+  const [storiesRes, profilesRes, viewsRes, likesRes, notesRes, blocksRes] = await Promise.all([
     supabase
       .from('stories')
       .select('*')
@@ -36,7 +31,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
 
     supabase
       .from('user_profiles')
-      .select('email, username, avatar_url, story_dms_disabled')
+      .select('email, username, avatar_url, story_dms_disabled, default_story_privacy')
       .in('email', allEmails),
 
     supabase
@@ -48,12 +43,52 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       .from('story_likes')
       .select('story_id')
       .eq('liker_id', user.id),
+
+    supabase
+      .from('status_notes')
+      .select('*')
+      .in('user_email', allEmails)
+      .gt('expires_at', now)
+      .order('created_at', { ascending: false }),
+
+    // Who has blocked the current viewer?
+    supabase
+      .from('story_blocks')
+      .select('blocker_email')
+      .eq('blocked_email', user.email),
   ]);
 
-  const stories   = storiesRes.data  ?? [];
-  const profiles  = profilesRes.data ?? [];
-  const viewedIds = new Set((viewsRes.data  ?? []).map(r => r.story_id));
-  const likedIds  = new Set((likesRes.data  ?? []).map(r => r.story_id));
+  const stories          = storiesRes.data  ?? [];
+  const profiles         = profilesRes.data ?? [];
+  const viewedIds        = new Set((viewsRes.data  ?? []).map(r => r.story_id));
+  const likedIds         = new Set((likesRes.data  ?? []).map(r => r.story_id));
+  const notes            = notesRes.data    ?? [];
+  const blockedByEmails  = new Set((blocksRes.data ?? []).map(r => r.blocker_email));
+
+  // Fetch liked note IDs and note like counts in a second parallel pass
+  const noteIds = notes.map(n => n.id);
+  const [noteLikesRes, noteLikeCountsRes] = await Promise.all([
+    noteIds.length
+      ? supabase.from('status_note_likes').select('note_id').eq('liker_id', user.id).in('note_id', noteIds)
+      : Promise.resolve({ data: [] }),
+    noteIds.length
+      ? supabase.from('status_note_likes').select('note_id').in('note_id', noteIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const likedNoteIds = new Set((noteLikesRes.data ?? []).map(r => r.note_id));
+  const noteLikeCounts = {};
+  for (const r of (noteLikeCountsRes.data ?? [])) {
+    noteLikeCounts[r.note_id] = (noteLikeCounts[r.note_id] ?? 0) + 1;
+  }
+
+  // Most-recent active note per email
+  const noteByEmail = {};
+  for (const note of notes) {
+    if (!noteByEmail[note.user_email]) {
+      noteByEmail[note.user_email] = { ...note, likeCount: noteLikeCounts[note.id] ?? 0 };
+    }
+  }
 
   const profileByEmail = Object.fromEntries(profiles.map(p => [p.email, p]));
 
@@ -63,51 +98,74 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     storyMap.get(story.user_email).push(story);
   }
 
-  const groups = allEmails.map(email => {
-    const profile     = profileByEmail[email] ?? {};
-    const userStories = storyMap.get(email) ?? [];
-    return {
-      email,
-      username:         profile.username || email.split('@')[0],
-      avatarUrl:        profile.avatar_url ?? null,
-      storyDmsDisabled: profile.story_dms_disabled ?? false,
-      isOwn:            email === user.email,
-      stories:          userStories,
-      hasUnseen:        userStories.some(s => !viewedIds.has(s.id)),
-    };
-  });
+  const groups = allEmails
+    .filter(email => email === user.email || !blockedByEmails.has(email))
+    .map(email => {
+      const profile     = profileByEmail[email] ?? {};
+      const userStories = storyMap.get(email)   ?? [];
+      return {
+        email,
+        username:           profile.username || email.split('@')[0],
+        avatarUrl:          profile.avatar_url ?? null,
+        storyDmsDisabled:   profile.story_dms_disabled ?? false,
+        isOwn:              email === user.email,
+        stories:            userStories,
+        hasUnseen:          userStories.some(s => !viewedIds.has(s.id)),
+        note:               noteByEmail[email] ?? null,
+      };
+    });
 
-  // Sort: own first → unseen-story friends → seen-story friends → no-story friends
   groups.sort((a, b) => {
     if (a.isOwn !== b.isOwn) return a.isOwn ? -1 : 1;
-    const aHas = a.stories.length > 0;
-    const bHas = b.stories.length > 0;
+    const aHas = a.stories.length > 0 || !!a.note;
+    const bHas = b.stories.length > 0 || !!b.note;
     if (aHas !== bHas) return aHas ? -1 : 1;
     if (a.hasUnseen !== b.hasUnseen) return a.hasUnseen ? -1 : 1;
     return 0;
   });
 
-  return { groups, viewedIds, likedIds };
+  const ownProfile = profileByEmail[user.email] ?? {};
+  return {
+    groups,
+    viewedIds,
+    likedIds,
+    noteByEmail,
+    likedNoteIds,
+    ownPrivacyDefault: ownProfile.default_story_privacy ?? 'friends',
+  };
 }
 
 /**
- * Upload a photo and insert a story row. Returns the new story or null.
- * Path is <uid>/stories/<timestamp>.<ext> so the existing storage RLS
- * policy "(storage.foldername(name))[1] = auth.uid()" passes.
+ * Upload a photo/video and insert a story row.
+ * Returns { ok, data } on success or { ok: false, limitReached?, error? }.
+ *
+ * Enforces a 10-story limit per rolling 25-hour window and sets expires_at
+ * explicitly to 25 hours from now.
  */
-// overlayStyle: { text, xFrac, yFrac, scale, rotation, color, font } | null
-export async function createStory(user, file, overlayStyle = null) {
-  if (!user?.id || !file) return null;
+export async function createStory(user, file, overlayStyle = null, privacy = 'friends') {
+  if (!user?.id || !file) return { ok: false, error: 'missing_params' };
+
+  // Enforce 10-story limit
+  const now = new Date().toISOString();
+  const { count, error: countErr } = await supabase
+    .from('stories')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .gt('expires_at', now);
+
+  if (countErr) console.warn('[stories] count check failed:', countErr);
+  if ((count ?? 0) >= 10) return { ok: false, limitReached: true };
 
   const ext       = (file.name || 'story').split('.').pop() || 'jpg';
   const path      = `${user.id}/stories/${Date.now()}.${ext}`;
   const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+  const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
 
   const { error: upErr } = await supabase.storage
     .from('uploads')
     .upload(path, file, { upsert: true, contentType: file.type });
 
-  if (upErr) { console.warn('[stories] upload failed:', upErr); return null; }
+  if (upErr) { console.warn('[stories] upload failed:', upErr); return { ok: false, error: upErr }; }
 
   const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
 
@@ -118,14 +176,16 @@ export async function createStory(user, file, overlayStyle = null) {
       user_email:    user.email,
       image_url:     publicUrl,
       overlay_text:  overlayStyle?.text || null,
-      overlay_style: overlayStyle || null,
+      overlay_style: overlayStyle       || null,
       media_type:    mediaType,
+      privacy,
+      expires_at:    expiresAt,
     })
     .select()
     .single();
 
-  if (error) { console.warn('[stories] insert failed:', error); return null; }
-  return data;
+  if (error) { console.warn('[stories] insert failed:', error); return { ok: false, error }; }
+  return { ok: true, data };
 }
 
 /** Send a reply to a story — routes through the existing DM system. */
@@ -193,12 +253,7 @@ export async function unlikeStory(storyId, userId) {
 
 /**
  * Fetch viewer + liker lists for a single story (shown in the owner's
- * swipe-up insights panel). Batches profile lookups in one extra query.
- *
- * Returns {
- *   viewers: Array<{ viewer_id, viewed_at, profile: { username, avatar_url } }>,
- *   likers:  Array<{ liker_id,  created_at, profile: { username, avatar_url } }>,
- * }
+ * swipe-up insights panel).
  */
 export async function getStoryInsights(storyId) {
   if (!storyId) return { viewers: [], likers: [] };

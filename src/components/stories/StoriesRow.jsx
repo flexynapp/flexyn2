@@ -1,27 +1,31 @@
 // src/components/stories/StoriesRow.jsx
 //
-// Horizontal scroll strip of story avatars.
+// Horizontal scroll strip of story avatars + status note bubbles.
 //
 // Strip order:
 //   1. "Add Story" dashed circle — always first when own story exists
 //   2. Own avatar (Your Story) — orange ring if has story, "+" badge if not
-//   3. Friends WITH active stories (unseen → orange, seen → gray)
-//   4. Friends WITHOUT active stories (faded, no ring)
+//   3. Friends WITH active stories or notes (unseen → orange, seen → gray)
+//   4. Friends WITHOUT active stories or notes (faded, no ring)
 //
 // Upload flow:
-//   tap Add Story / own "+" → file picker → preview sheet (with text overlay option)
-//   → "Post Story" → upload → insert → refetch
+//   tap Add Story / own "+" → file picker → preview sheet (with filters, text)
+//   → "Post Story" → limit check → upload → insert → refetch
+//
+// Post limit: max 10 active stories per 25-hour window.
 
 import React, { useRef, useState, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as storiesData from '@/lib/data/stories';
+import * as statusNotesData from '@/lib/data/statusNotes';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
+import StatusNoteEditor from './StatusNoteEditor';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -44,7 +48,7 @@ function checkVideoDuration(file) {
   });
 }
 
-// ── Avatar helpers ────────────────────────────────────────────────────────────
+// ── Avatar image ──────────────────────────────────────────────────────────────
 
 function AvatarImage({ avatarUrl, username, faded }) {
   const initials = (username || '?').slice(0, 2).toUpperCase();
@@ -67,11 +71,52 @@ function AvatarImage({ avatarUrl, username, faded }) {
   );
 }
 
+// ── Status note bubble ────────────────────────────────────────────────────────
+
+function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
+  if (!note) return null;
+  return (
+    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5">
+      <div
+        className="relative max-w-[84px] bg-white rounded-2xl px-2.5 py-1.5 shadow-sm cursor-pointer"
+        onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
+      >
+        <p className="text-[9px] text-black leading-tight text-center line-clamp-2 select-none">
+          {note.text}
+        </p>
+        {/* Speech bubble tail */}
+        <div
+          className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
+          style={{
+            borderLeft:  '4px solid transparent',
+            borderRight: '4px solid transparent',
+            borderTop:   '5px solid white',
+          }}
+        />
+      </div>
+      {!isOwn && (
+        <button
+          onClick={e => { e.stopPropagation(); onLike(); }}
+          className="flex items-center gap-0.5 mt-0.5"
+          aria-label={isLiked ? 'Unlike note' : 'Like note'}
+        >
+          <Heart
+            className={`w-3 h-3 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground/60'}`}
+          />
+          {note.likeCount > 0 && (
+            <span className="text-[8px] text-muted-foreground font-medium">{note.likeCount}</span>
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Single avatar button ──────────────────────────────────────────────────────
 
-function StoryAvatarButton({ group, onPress, isUploading }) {
+function StoryAvatarButton({ group, onPress, onNoteLike, onNoteEditOwn, isUploading, likedNoteIds }) {
   const noStory     = group.stories.length === 0;
-  const faded       = !group.isOwn && noStory;
+  const faded       = !group.isOwn && noStory && !group.note;
   const hasUnseen   = group.hasUnseen && !noStory;
   const hasSeenOnly = !group.hasUnseen && !noStory;
 
@@ -81,16 +126,26 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
     ? { background: 'rgba(150,150,150,0.45)' }
     : {};
   const hasRing = hasUnseen || hasSeenOnly;
+  const isLiked = group.note ? likedNoteIds.has(group.note.id) : false;
 
   return (
     <motion.button
       whileTap={{ scale: 0.90 }}
       onClick={onPress}
-      className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
-      style={{ minWidth: 68 }}
+      className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
+      style={{ minWidth: 68, paddingTop: group.note ? 36 : 0 }}
       aria-label={group.isOwn ? 'Your story' : group.username}
     >
-      <div className="relative">
+      <div className="relative w-full flex justify-center">
+        {/* Note bubble above avatar */}
+        <NoteBubble
+          note={group.note}
+          isOwn={group.isOwn}
+          isLiked={isLiked}
+          onLike={onNoteLike}
+          onEditOwn={onNoteEditOwn}
+        />
+
         <div
           className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
           style={hasRing ? { ...ringStyle, padding: '2.5px' } : {}}
@@ -109,7 +164,7 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
         </div>
 
         {group.isOwn && noStory && !isUploading && (
-          <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background pointer-events-none">
+          <div className="absolute bottom-0 right-[4px] w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background pointer-events-none">
             <Plus className="w-3 h-3 text-primary-foreground stroke-[3]" />
           </div>
         )}
@@ -131,9 +186,11 @@ export default function StoriesRow() {
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
 
-  const [viewerOpen, setViewerOpen]         = useState(false);
-  const [viewerStartIdx, setViewerStartIdx] = useState(0);
-  const [preview, setPreview]               = useState(null); // { file, objectUrl, isVideo }
+  const [viewerOpen,      setViewerOpen]      = useState(false);
+  const [viewerStartIdx,  setViewerStartIdx]  = useState(0);
+  const [preview,         setPreview]         = useState(null); // { file, objectUrl, isVideo }
+  const [noteEditorOpen,  setNoteEditorOpen]  = useState(false);
+  const [likedNoteIds,    setLikedNoteIds]    = useState(new Set());
 
   const { data: followingEmails = [] } = useQuery({
     queryKey: ['following', user?.email],
@@ -148,17 +205,27 @@ export default function StoriesRow() {
     enabled:  !!user?.id,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
+    onSuccess: (data) => {
+      // Sync liked note IDs from server on each refetch
+      if (data?.likedNoteIds) setLikedNoteIds(new Set(data.likedNoteIds));
+    },
   });
 
-  const groups     = feedData?.groups    ?? [];
-  const viewedIds  = feedData?.viewedIds ?? new Set();
-  const ownGroup   = groups.find(g => g.isOwn);
+  const groups      = feedData?.groups    ?? [];
+  const viewedIds   = feedData?.viewedIds ?? new Set();
+  const ownGroup    = groups.find(g => g.isOwn);
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file, overlayStyle }) => storiesData.createStory(user, file, overlayStyle),
-    onSuccess: (story) => {
-      if (!story) { toast.error('Could not post story — try again.'); return; }
+    mutationFn: ({ file, overlayStyle }) =>
+      storiesData.createStory(user, file, overlayStyle, feedData?.ownPrivacyDefault ?? 'friends'),
+    onSuccess: (result) => {
+      if (result?.limitReached) {
+        toast.error("Hey, you can only have 10 posts at a time! Delete an active story or wait until tomorrow to post more.");
+        cleanupPreview();
+        return;
+      }
+      if (!result?.ok) { toast.error('Could not post story — try again.'); return; }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       cleanupPreview();
       toast.success('Story posted!');
@@ -213,17 +280,44 @@ export default function StoriesRow() {
     setViewerOpen(true);
   }, [storyGroups]);
 
+  const handleNoteLike = useCallback(async (note) => {
+    if (!user) return;
+    const already = likedNoteIds.has(note.id);
+    setLikedNoteIds(prev => { const n = new Set(prev); already ? n.delete(note.id) : n.add(note.id); return n; });
+    if (already) await statusNotesData.unlikeStatusNote(note.id, user.id);
+    else         await statusNotesData.likeStatusNote(note.id, user);
+    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+  }, [likedNoteIds, user, queryClient]);
+
+  const handleNotePost = useCallback(async (text) => {
+    const result = await statusNotesData.postStatusNote(user, text);
+    if (!result) { toast.error('Could not post note — try again.'); return; }
+    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    setNoteEditorOpen(false);
+    toast.success('Note posted!');
+  }, [user, queryClient]);
+
+  const handleNoteDelete = useCallback(async () => {
+    const note = ownGroup?.note;
+    if (!note) return;
+    const ok = await statusNotesData.deleteStatusNote(note.id);
+    if (!ok) { toast.error('Could not delete note.'); return; }
+    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    setNoteEditorOpen(false);
+    toast.success('Note removed.');
+  }, [ownGroup, queryClient]);
+
   if (!user) return null;
 
   const showAddButton = ownGroup?.stories.length > 0 && !uploadMutation.isPending;
 
   return (
     <>
-      {/* ── Horizontal strip ──────────────────────────────────────────── */}
+      {/* Horizontal strip */}
       <div className="mb-4 -mx-4 md:-mx-6">
-        <div className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 scrollbar-hide">
+        <div className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-10 scrollbar-hide">
 
-          {/* "Add Story" — always the leftmost item when own story exists */}
+          {/* "Add Story" — leftmost when own story exists */}
           {showAddButton && (
             <motion.button
               whileTap={{ scale: 0.90 }}
@@ -246,7 +340,10 @@ export default function StoriesRow() {
               key={group.email}
               group={group}
               onPress={() => handleAvatarPress(group)}
+              onNoteLike={() => group.note && handleNoteLike(group.note)}
+              onNoteEditOwn={() => setNoteEditorOpen(true)}
               isUploading={uploadMutation.isPending && group.isOwn}
+              likedNoteIds={likedNoteIds}
             />
           ))}
 
@@ -261,7 +358,7 @@ export default function StoriesRow() {
         </div>
       </div>
 
-      {/* Hidden file input — accepts photos and videos */}
+      {/* Hidden file input */}
       <input
         ref={fileRef}
         type="file"
@@ -270,7 +367,7 @@ export default function StoriesRow() {
         onChange={handleFileChange}
       />
 
-      {/* Upload preview + text overlay confirm */}
+      {/* Upload preview + filter/text editor */}
       <AnimatePresence>
         {preview && (
           <StoryPreviewSheet
@@ -284,7 +381,20 @@ export default function StoriesRow() {
         )}
       </AnimatePresence>
 
-      {/* Full-screen viewer */}
+      {/* Status note editor */}
+      <AnimatePresence>
+        {noteEditorOpen && (
+          <StatusNoteEditor
+            key="note-editor"
+            existingNote={ownGroup?.note ?? null}
+            onPost={handleNotePost}
+            onDelete={handleNoteDelete}
+            onClose={() => setNoteEditorOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Full-screen story viewer */}
       <StoryViewer
         open={viewerOpen}
         groups={storyGroups}
