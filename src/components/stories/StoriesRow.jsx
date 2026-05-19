@@ -114,7 +114,10 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
 
 // ── Single avatar button ──────────────────────────────────────────────────────
 
-function StoryAvatarButton({ group, onPress, onNoteLike, onNoteEditOwn, isUploading, likedNoteIds }) {
+function StoryAvatarButton({
+  group, onPress, onNoteLike, onNoteEditOwn, isUploading, likedNoteIds,
+  notePillRef, noteEditorOpen,
+}) {
   const noStory     = group.stories.length === 0;
   const faded       = !group.isOwn && noStory && !group.note;
   const hasUnseen   = group.hasUnseen && !noStory;
@@ -128,24 +131,76 @@ function StoryAvatarButton({ group, onPress, onNoteLike, onNoteEditOwn, isUpload
   const hasRing = hasUnseen || hasSeenOnly;
   const isLiked = group.note ? likedNoteIds.has(group.note.id) : false;
 
+  // Own avatar always reserves space for the note pill
+  const hasTopPill = group.isOwn || !!group.note;
+
   return (
     <motion.button
       whileTap={{ scale: 0.90 }}
       onClick={onPress}
       className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
-      style={{ minWidth: 68, paddingTop: group.note ? 36 : 0 }}
+      style={{ minWidth: 68, paddingTop: hasTopPill ? 40 : 0 }}
       aria-label={group.isOwn ? 'Your story' : group.username}
     >
       <div className="relative w-full flex justify-center">
-        {/* Note bubble above avatar */}
-        <NoteBubble
-          note={group.note}
-          isOwn={group.isOwn}
-          isLiked={isLiked}
-          onLike={onNoteLike}
-          onEditOwn={onNoteEditOwn}
-        />
 
+        {/* ── Own note pill: always shown, triggers editor ── */}
+        {group.isOwn && (
+          <div
+            ref={notePillRef}
+            onClick={e => { e.stopPropagation(); onNoteEditOwn(); }}
+            style={{
+              position: 'absolute',
+              bottom: '100%',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              marginBottom: 6,
+              zIndex: 10,
+              opacity: noteEditorOpen ? 0 : 1,
+              pointerEvents: noteEditorOpen ? 'none' : 'auto',
+              transition: 'opacity 0.15s',
+              width: 80,
+            }}
+          >
+            <div
+              className={`w-full px-2 py-1.5 rounded-xl cursor-pointer relative ${
+                group.note
+                  ? 'bg-card border border-border shadow-sm'
+                  : 'bg-muted/70 border border-dashed border-border'
+              }`}
+            >
+              <p className={`text-[9px] leading-tight text-center line-clamp-2 select-none ${
+                group.note ? 'text-foreground' : 'text-muted-foreground/70'
+              }`}>
+                {group.note ? group.note.text : 'Add a note...'}
+              </p>
+              {/* Chat bubble tail — only when note exists */}
+              {group.note && (
+                <div
+                  className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
+                  style={{
+                    borderLeft:  '4px solid transparent',
+                    borderRight: '4px solid transparent',
+                    borderTop:   '5px solid hsl(var(--card))',
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Others' note bubble ── */}
+        {!group.isOwn && (
+          <NoteBubble
+            note={group.note}
+            isOwn={false}
+            isLiked={isLiked}
+            onLike={onNoteLike}
+            onEditOwn={() => {}}
+          />
+        )}
+
+        {/* ── Avatar ring + image ── */}
         <div
           className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
           style={hasRing ? { ...ringStyle, padding: '2.5px' } : {}}
@@ -188,9 +243,11 @@ export default function StoriesRow() {
 
   const [viewerOpen,      setViewerOpen]      = useState(false);
   const [viewerStartIdx,  setViewerStartIdx]  = useState(0);
-  const [preview,         setPreview]         = useState(null); // { file, objectUrl, isVideo }
+  const [preview,         setPreview]         = useState(null);
   const [noteEditorOpen,  setNoteEditorOpen]  = useState(false);
+  const [notePillRect,    setNotePillRect]    = useState(null);
   const [likedNoteIds,    setLikedNoteIds]    = useState(new Set());
+  const notePillRef = useRef(null);
 
   const { data: followingEmails = [] } = useQuery({
     queryKey: ['following', user?.email],
@@ -289,6 +346,15 @@ export default function StoriesRow() {
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
   }, [likedNoteIds, user, queryClient]);
 
+  const handleOpenNoteEditor = useCallback(() => {
+    const el = notePillRef.current;
+    if (el) {
+      const r = el.getBoundingClientRect();
+      setNotePillRect({ top: r.top, left: r.left, width: r.width, height: r.height });
+    }
+    setNoteEditorOpen(true);
+  }, []);
+
   const handleNotePost = useCallback(async (text) => {
     const result = await statusNotesData.postStatusNote(user, text);
     if (!result) { toast.error('Could not post note — try again.'); return; }
@@ -341,9 +407,11 @@ export default function StoriesRow() {
               group={group}
               onPress={() => handleAvatarPress(group)}
               onNoteLike={() => group.note && handleNoteLike(group.note)}
-              onNoteEditOwn={() => setNoteEditorOpen(true)}
+              onNoteEditOwn={handleOpenNoteEditor}
               isUploading={uploadMutation.isPending && group.isOwn}
               likedNoteIds={likedNoteIds}
+              notePillRef={group.isOwn ? notePillRef : null}
+              noteEditorOpen={noteEditorOpen}
             />
           ))}
 
@@ -381,12 +449,13 @@ export default function StoriesRow() {
         )}
       </AnimatePresence>
 
-      {/* Status note editor */}
+      {/* Status note editor — expands from pill position */}
       <AnimatePresence>
         {noteEditorOpen && (
           <StatusNoteEditor
             key="note-editor"
             existingNote={ownGroup?.note ?? null}
+            origin={notePillRect}
             onPost={handleNotePost}
             onDelete={handleNoteDelete}
             onClose={() => setNoteEditorOpen(false)}
