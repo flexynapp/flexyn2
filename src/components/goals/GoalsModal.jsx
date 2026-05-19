@@ -13,6 +13,8 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalForm from './GoalForm';
 import GoalsList from './GoalsList';
+import { fireGoalCelebration } from '@/lib/goalCelebration';
+import { reportError } from '@/lib/reportError';
 
 export default function GoalsModal({ open, onClose, goals = [], logs = [], userProfile = {} }) {
   const [showForm, setShowForm] = useState(false);
@@ -36,7 +38,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       toast.success(t('goals.toast.created'));
     },
     onError: (err) => {
-      console.error('[Goals] create failed:', err);
+      reportError(err, { feature: 'goals.create', userEmail: user?.email });
       toast.error(t('goals.toast.saveError'));
     },
   });
@@ -50,7 +52,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       toast.success(t('goals.toast.updated'));
     },
     onError: (err) => {
-      console.error('[Goals] update failed:', err);
+      reportError(err, { feature: 'goals.update', userEmail: user?.email });
       toast.error(t('goals.toast.saveError'));
     },
   });
@@ -62,7 +64,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       toast.success(t('goals.toast.deleted'));
     },
     onError: (err) => {
-      console.error('[Goals] delete failed:', err);
+      reportError(err, { feature: 'goals.delete', userEmail: user?.email });
       toast.error(t('goals.toast.deleteError'));
     },
   });
@@ -107,7 +109,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
 
       if (alreadyCompleted) {
         // Skip all reward grants. Return 0 XP so the toast reflects no-op.
-        return { xpReward: 0, alreadyCompleted: true };
+        return { xpReward: 0, alreadyCompleted: true, goalName: goal?.exercise_name };
       }
 
       // First-time completion path — grant XP, snapshot achieved values.
@@ -119,7 +121,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
             action_data: { goal_id: goalId, goal_name: goal?.exercise_name, xp_earned: xpReward },
           });
         } catch (xpErr) {
-          console.warn('[GoalsModal] XP update failed (non-blocking):', xpErr);
+          reportError(xpErr, { feature: 'goals.xp-update', level: 'warning', userEmail: user?.email, goalId, xpReward });
         }
       }
       // Snapshot the achieved values at completion time so Hub posts can
@@ -131,7 +133,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
         await goalsData.update(goalId, achievedUpdate);
       }
 
-      return { xpReward, alreadyCompleted: false };
+      return { xpReward, alreadyCompleted: false, goalName: goal?.exercise_name };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
@@ -141,14 +143,21 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
         // Idempotent double-tap path — no toast.
         return;
       }
-      toast.success(t('goals.toast.completed').replace('{xp}', result?.xpReward ?? 0));
+      // Centralized celebration: confetti + haptic + XP toast + Sentry
+      // breadcrumb. Replaces the previous plain-text toast — the user
+      // now gets a real moment of feedback for hitting their target.
+      fireGoalCelebration({
+        goalName: result?.goalName,
+        xpReward: result?.xpReward ?? 0,
+        userEmail: user?.email,
+      });
       // Quest progress — only on the genuine first completion.
       quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(() => {});
+        .catch(err => reportError(err, { feature: 'goals.quest-credit', level: 'warning', userEmail: user?.email }));
     },
     onError: (err) => {
-      console.error('[Goals] complete failed:', err);
+      reportError(err, { feature: 'goals.complete', userEmail: user?.email });
       toast.error(t('goals.toast.saveError'));
     },
   });

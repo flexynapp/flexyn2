@@ -13,6 +13,8 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import { fireGoalCelebration } from '@/lib/goalCelebration';
+import { reportError } from '@/lib/reportError';
 
 export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, compact = false, onClick }) {
   const { t } = useLanguage();
@@ -120,20 +122,32 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
             action_data: { goal_id: goalId, xp_earned: xpReward }
           });
         } catch (xpErr) {
-          console.warn('[GoalsAlmostComplete] XP update failed (non-blocking):', xpErr);
+          reportError(xpErr, { feature: 'goals.xp-update', level: 'warning', userEmail: user?.email, goalId, xpReward });
         }
       }
 
-      return { alreadyCompleted: false };
+      // Pass the goal name + earned XP back to onSuccess so the
+      // celebration can render the correct copy.
+      return { alreadyCompleted: false, goalName: goal?.exercise_name, xpReward };
     },
     onSuccess: (result, id) => {
       setDismissedIds(prev => [...prev, id]);
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       if (result?.alreadyCompleted) return; // skip quest credit on duplicate
+
+      // Celebrate the completion — confetti + haptic + XP toast +
+      // analytics breadcrumb. Previously this was silent: the card
+      // animated out and the user got nothing back.
+      fireGoalCelebration({
+        goalName: result.goalName,
+        xpReward: result.xpReward,
+        userEmail: user?.email,
+      });
+
       // Quest progress — only on first completion.
       quests.recordAction(user, ACTION_TYPES.GOAL_COMPLETED, 1)
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(() => {});
+        .catch(err => reportError(err, { feature: 'goals.quest-credit', level: 'warning', userEmail: user?.email, goalId: id }));
     },
     onError: (err, id) => {
       if (err?.message === 'not_complete') {

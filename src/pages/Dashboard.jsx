@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
+import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
@@ -534,15 +535,32 @@ export default function Dashboard() {
         </ErrorBoundary>
       </motion.div>
 
-      {/* ── Goals row ─────────────────────────────────────────── */}
-      <div className="mb-5 md:mb-6">
-        <GoalsAlmostComplete
-          goals={goals}
-          logs={logs}
-          limit={1}
-          compact={false}
-          onOpen={() => setGoalsModalOpen(true)}
-        />
+      {/* ── Goals row ─────────────────────────────────────────────
+           Two cooperating components:
+             1. GoalsAlmostComplete — for any goal ≥75%, shows the
+                full-size "Push to Complete" card.
+             2. GoalsProgressStrip — for users whose best active goal
+                is <75%, shows a one-line nudge so the home screen
+                isn't silent about progress in the middle range.
+           They auto-hide via their own filters: the strip checks "no
+           goal ≥75%" before rendering, so they never both show. */}
+      <div className="mb-5 md:mb-6 space-y-3">
+        <ErrorBoundary label="GoalsAlmostComplete">
+          <GoalsAlmostComplete
+            goals={goals}
+            logs={logs}
+            limit={1}
+            compact={false}
+            onOpen={() => setGoalsModalOpen(true)}
+          />
+        </ErrorBoundary>
+        <ErrorBoundary label="GoalsProgressStrip">
+          <GoalsProgressStrip
+            goals={goals}
+            logs={logs}
+            onOpen={() => setGoalsModalOpen(true)}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* ── Quick Actions ──────────────────────────────────────── */}
