@@ -381,7 +381,7 @@ export default function StoriesRow() {
     <>
       {/* Horizontal strip */}
       <div className="mb-4 -mx-4 md:-mx-6">
-        <div className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-10 scrollbar-hide">
+        <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-2 scrollbar-hide">
 
           {/* "Add Story" — leftmost when own story exists */}
           {showAddButton && (
