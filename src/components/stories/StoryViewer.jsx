@@ -8,31 +8,28 @@
 //   X button       → close
 //
 // Per-story duration: 8 seconds (STORY_DURATION_MS).
-// Images use object-contain so nothing is cropped regardless of aspect ratio.
+// Images and videos use object-contain — nothing is cropped.
 //
 // Own stories
-//   "+" button (top-right area)  → onAddStory() — opens file picker in row
-//   🗑 button (bottom-right)     → delete story
-//   "👁 X seen" bar (bottom)     → tap or swipe-up → InsightsPanel
+//   Camera "+" (top-right)  → onAddStory() — opens file picker
+//   🗑 (bottom-right)        → delete with confirmation prompt
+//   "👁 View Insights" (bottom-center) → tap → InsightsPanel slides up
 //
-// Other people's stories
-//   ❤️ button (bottom-left)      → like / unlike; filled when already liked
+// All stories
+//   ❤️ (bottom-left) → like / unlike (works on own stories too for testing)
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Plus, Eye, Camera } from 'lucide-react';
+import { X, Trash2, Heart, Plus, Eye, Camera, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import * as storiesData from '@/lib/data/stories';
 
 const STORY_DURATION_MS = 8000;
 
 // ── Insights panel ────────────────────────────────────────────────────────────
-// Slides up from the bottom when the owner taps "👁 X seen".
-// Shows likers first (❤️), then viewers (👁).
 
 function MiniAvatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
@@ -75,7 +72,6 @@ function InsightsPanel({ storyId, onClose }) {
       className="absolute bottom-0 left-0 right-0 bg-card rounded-t-3xl z-20 max-h-[72vh] flex flex-col"
       style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
     >
-      {/* Drag handle */}
       <div className="flex justify-center pt-3 pb-1 shrink-0">
         <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
       </div>
@@ -97,7 +93,6 @@ function InsightsPanel({ storyId, onClose }) {
           </div>
         ) : (
           <>
-            {/* Likers */}
             {likers.length > 0 && (
               <div className="mb-5">
                 <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
@@ -117,7 +112,6 @@ function InsightsPanel({ storyId, onClose }) {
               </div>
             )}
 
-            {/* Viewers */}
             <div>
               <p className="text-xs font-semibold text-muted-foreground mb-3 flex items-center gap-1.5">
                 <Eye className="w-3.5 h-3.5" />
@@ -150,36 +144,69 @@ function InsightsPanel({ storyId, onClose }) {
   );
 }
 
+// ── Delete confirmation overlay ───────────────────────────────────────────────
+
+function DeletePrompt({ onConfirm, onCancel }) {
+  return (
+    <div
+      className="absolute inset-0 z-30 flex items-center justify-center bg-black/60"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-card rounded-2xl p-6 mx-6 text-center"
+        onClick={e => e.stopPropagation()}
+      >
+        <p className="font-heading font-bold text-base mb-1">Remove this story?</p>
+        <p className="text-sm text-muted-foreground mb-5">This can't be undone.</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onCancel}
+            className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-bold"
+          >
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main viewer ───────────────────────────────────────────────────────────────
 
 export default function StoryViewer({
   open,
-  groups,           // StoryGroup[] — only groups that have at least one story
+  groups,
   startIndex,
-  viewedIds,        // Set<storyId> at open time
-  likedIds,         // Set<storyId> the current user has already liked
-  user,             // full auth user object  {id, email}
+  viewedIds,
+  likedIds,
+  user,
   onClose,
-  onStoriesChange,  // called after delete → invalidates feed query
-  onAddStory,       // called when "+" tapped inside viewer → opens file picker
+  onStoriesChange,
+  onAddStory,
 }) {
   const queryClient = useQueryClient();
 
-  const [groupIdx, setGroupIdx]     = useState(0);
-  const [storyIdx, setStoryIdx]     = useState(0);
-  const [tick, setTick]             = useState(0);
+  const [groupIdx, setGroupIdx]         = useState(0);
+  const [storyIdx, setStoryIdx]         = useState(0);
+  const [tick, setTick]                 = useState(0);
   const [insightsOpen, setInsightsOpen] = useState(false);
-  // Local liked state — seeded from prop, updated optimistically
-  const [localLiked, setLocalLiked] = useState(new Set());
+  const [deletePrompt, setDeletePrompt] = useState(false);
+  const [localLiked, setLocalLiked]     = useState(new Set());
   const timerRef = useRef(null);
 
-  // ── sync state on open ────────────────────────────────────────────────────
   useEffect(() => {
     if (open) {
       setGroupIdx(Math.max(0, Math.min(startIndex, groups.length - 1)));
       setStoryIdx(0);
       setTick(t => t + 1);
       setInsightsOpen(false);
+      setDeletePrompt(false);
       setLocalLiked(new Set(likedIds));
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -187,8 +214,8 @@ export default function StoryViewer({
 
   const currentGroup = groups[groupIdx];
   const currentStory = currentGroup?.stories[storyIdx];
+  const isVideo      = currentStory?.media_type === 'video';
 
-  // ── mark viewed ───────────────────────────────────────────────────────────
   useEffect(() => {
     if (!open || !currentStory || !user?.id) return;
     if (!viewedIds.has(currentStory.id)) {
@@ -197,11 +224,11 @@ export default function StoryViewer({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, currentStory?.id, user?.id]);
 
-  // ── navigation ────────────────────────────────────────────────────────────
   const goNext = useCallback(() => {
     const group = groups[groupIdx];
     if (!group) return;
     setInsightsOpen(false);
+    setDeletePrompt(false);
     if (storyIdx < group.stories.length - 1) {
       setStoryIdx(i => i + 1);
       setTick(t => t + 1);
@@ -214,6 +241,7 @@ export default function StoryViewer({
 
   const goBack = useCallback(() => {
     setInsightsOpen(false);
+    setDeletePrompt(false);
     if (storyIdx > 0) {
       setStoryIdx(i => i - 1);
       setTick(t => t + 1);
@@ -228,15 +256,14 @@ export default function StoryViewer({
     }
   }, [groupIdx, storyIdx, groups]);
 
-  // ── auto-advance (paused while insights open) ─────────────────────────────
+  // Auto-advance pauses while insights or delete prompt is open
   useEffect(() => {
-    if (!open || !currentStory || insightsOpen) return;
+    if (!open || !currentStory || insightsOpen || deletePrompt) return;
     if (timerRef.current) clearTimeout(timerRef.current);
     timerRef.current = setTimeout(goNext, STORY_DURATION_MS);
     return () => clearTimeout(timerRef.current);
-  }, [open, tick, insightsOpen, goNext]);
+  }, [open, tick, insightsOpen, deletePrompt, goNext]);
 
-  // ── delete ────────────────────────────────────────────────────────────────
   const handleDelete = async () => {
     if (!currentStory) return;
     const { ok } = await storiesData.deleteStory(currentStory.id);
@@ -250,12 +277,10 @@ export default function StoryViewer({
     }
   };
 
-  // ── like / unlike ─────────────────────────────────────────────────────────
   const handleLike = async (e) => {
     e.stopPropagation();
     if (!currentStory || !user) return;
     const already = localLiked.has(currentStory.id);
-    // Optimistic
     setLocalLiked(prev => {
       const next = new Set(prev);
       already ? next.delete(currentStory.id) : next.add(currentStory.id);
@@ -267,12 +292,6 @@ export default function StoryViewer({
       await storiesData.likeStory(currentStory.id, user);
     }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-  };
-
-  // ── insights bar tap ──────────────────────────────────────────────────────
-  const handleInsightsTap = (e) => {
-    e.stopPropagation();
-    setInsightsOpen(v => !v);
   };
 
   const timeAgo = (() => {
@@ -295,23 +314,52 @@ export default function StoryViewer({
           transition={{ duration: 0.2 }}
           className="fixed inset-0 z-[10000] bg-black flex flex-col select-none"
         >
-          {/* ── Image (object-contain preserves full photo, no cropping) ── */}
           <div className="relative flex-1 overflow-hidden">
+
+            {/* ── Media (image or video) ──────────────────────────────── */}
             <AnimatePresence mode="wait" initial={false}>
-              <motion.img
-                key={currentStory.id}
-                src={currentStory.image_url}
-                alt=""
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="absolute inset-0 w-full h-full object-contain"
-                draggable={false}
-              />
+              {isVideo ? (
+                <motion.video
+                  key={currentStory.id}
+                  src={currentStory.image_url}
+                  autoPlay
+                  loop
+                  muted
+                  playsInline
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute inset-0 w-full h-full object-contain"
+                />
+              ) : (
+                <motion.img
+                  key={currentStory.id}
+                  src={currentStory.image_url}
+                  alt=""
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute inset-0 w-full h-full object-contain"
+                  draggable={false}
+                />
+              )}
             </AnimatePresence>
 
-            {/* Top gradient */}
+            {/* ── Overlay text ────────────────────────────────────────── */}
+            {currentStory.overlay_text && (
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                <p
+                  className="text-white text-2xl font-bold text-center px-8 break-words leading-snug"
+                  style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}
+                >
+                  {currentStory.overlay_text}
+                </p>
+              </div>
+            )}
+
+            {/* ── Top gradient ─────────────────────────────────────────── */}
             <div
               className="absolute top-0 left-0 right-0 h-36 pointer-events-none"
               style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)' }}
@@ -331,7 +379,7 @@ export default function StoryViewer({
                       key={`bar-${tick}`}
                       className="h-full bg-white origin-left"
                       initial={{ scaleX: 0 }}
-                      animate={{ scaleX: insightsOpen ? undefined : 1 }}
+                      animate={{ scaleX: (insightsOpen || deletePrompt) ? undefined : 1 }}
                       transition={{ duration: STORY_DURATION_MS / 1000, ease: 'linear' }}
                     />
                   ) : null}
@@ -339,7 +387,7 @@ export default function StoryViewer({
               ))}
             </div>
 
-            {/* ── User info + controls row ────────────────────────────── */}
+            {/* ── User info + controls row ─────────────────────────────── */}
             <div
               className="absolute left-0 right-0 flex items-center justify-between px-3 mt-2"
               style={{ top: 'max(30px, calc(env(safe-area-inset-top) + 16px))' }}
@@ -363,7 +411,6 @@ export default function StoryViewer({
               </div>
 
               <div className="flex items-center gap-2">
-                {/* "+" add another story — only for own */}
                 {currentGroup.isOwn && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onAddStory?.(); }}
@@ -373,7 +420,6 @@ export default function StoryViewer({
                     <Camera className="w-4 h-4" />
                   </button>
                 )}
-                {/* Close */}
                 <button
                   onClick={onClose}
                   className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white"
@@ -384,7 +430,7 @@ export default function StoryViewer({
               </div>
             </div>
 
-            {/* ── Bottom gradient ──────────────────────────────────────── */}
+            {/* ── Bottom gradient ─────────────────────────────────────── */}
             <div
               className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }}
@@ -395,27 +441,22 @@ export default function StoryViewer({
               className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4"
               style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
             >
-              {/* Like button — non-own stories only */}
-              {!currentGroup.isOwn ? (
-                <motion.button
-                  whileTap={{ scale: 0.82 }}
-                  onClick={handleLike}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center"
-                  aria-label={isLiked ? 'Unlike' : 'Like'}
-                >
-                  <Heart
-                    className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`}
-                  />
-                </motion.button>
-              ) : (
-                /* Spacer so center / right stay aligned */
-                <div className="w-11" />
-              )}
+              {/* Like button — all stories */}
+              <motion.button
+                whileTap={{ scale: 0.82 }}
+                onClick={handleLike}
+                className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center"
+                aria-label={isLiked ? 'Unlike' : 'Like'}
+              >
+                <Heart
+                  className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                />
+              </motion.button>
 
-              {/* Insights tap — own stories only */}
+              {/* Insights — own only */}
               {currentGroup.isOwn ? (
                 <button
-                  onClick={handleInsightsTap}
+                  onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
                   className="flex flex-col items-center gap-0.5 text-white/80"
                   aria-label="View insights"
                 >
@@ -426,10 +467,10 @@ export default function StoryViewer({
                 <div />
               )}
 
-              {/* Delete — own stories only */}
+              {/* Delete — own only */}
               {currentGroup.isOwn ? (
                 <button
-                  onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                  onClick={(e) => { e.stopPropagation(); setDeletePrompt(true); }}
                   className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white"
                   aria-label="Delete story"
                 >
@@ -440,7 +481,7 @@ export default function StoryViewer({
               )}
             </div>
 
-            {/* ── Invisible tap zones (don't cover bottom 80px) ───────── */}
+            {/* ── Invisible tap zones (stop 80px from bottom) ─────────── */}
             <div
               className="absolute left-0 top-0 w-[35%] cursor-pointer"
               style={{ bottom: '80px' }}
@@ -454,7 +495,15 @@ export default function StoryViewer({
               aria-label="Next story"
             />
 
-            {/* ── Insights panel (slides up inside the viewer) ────────── */}
+            {/* ── Delete confirmation ──────────────────────────────────── */}
+            {deletePrompt && (
+              <DeletePrompt
+                onConfirm={() => { setDeletePrompt(false); handleDelete(); }}
+                onCancel={() => setDeletePrompt(false)}
+              />
+            )}
+
+            {/* ── Insights panel ───────────────────────────────────────── */}
             <AnimatePresence>
               {insightsOpen && currentGroup.isOwn && (
                 <InsightsPanel

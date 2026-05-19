@@ -93,11 +93,12 @@ export async function getStoriesFeedData(user, followingEmails = []) {
  * Path is <uid>/stories/<timestamp>.<ext> so the existing storage RLS
  * policy "(storage.foldername(name))[1] = auth.uid()" passes.
  */
-export async function createStory(user, file) {
+export async function createStory(user, file, overlayText = null) {
   if (!user?.id || !file) return null;
 
-  const ext  = (file.name || 'story').split('.').pop() || 'jpg';
-  const path = `${user.id}/stories/${Date.now()}.${ext}`;
+  const ext       = (file.name || 'story').split('.').pop() || 'jpg';
+  const path      = `${user.id}/stories/${Date.now()}.${ext}`;
+  const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
 
   const { error: upErr } = await supabase.storage
     .from('uploads')
@@ -109,7 +110,13 @@ export async function createStory(user, file) {
 
   const { data, error } = await supabase
     .from('stories')
-    .insert({ user_id: user.id, user_email: user.email, image_url: publicUrl })
+    .insert({
+      user_id:      user.id,
+      user_email:   user.email,
+      image_url:    publicUrl,
+      overlay_text: overlayText || null,
+      media_type:   mediaType,
+    })
     .select()
     .single();
 

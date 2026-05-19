@@ -1,30 +1,48 @@
 // src/components/stories/StoriesRow.jsx
 //
-// Horizontal scroll strip of story avatars. Appears at the top of Dashboard
-// and (in the feed tab) at the top of Hub.
+// Horizontal scroll strip of story avatars.
 //
-// Layout (left → right):
-//   1. Own avatar — always first
-//      • No story  → avatar with orange "+" badge → tap opens file picker
-//      • Has story → orange gradient ring → tap opens viewer
-//   2. Friends WITH active stories → colored ring (unseen: orange; seen: gray)
-//   3. Friends WITHOUT active stories → faded avatar, no ring
-//      (friends list stays visible at all times so you know who hasn't posted)
+// Strip order:
+//   1. "Add Story" dashed circle — always first when own story exists
+//   2. Own avatar (Your Story) — orange ring if has story, "+" badge if not
+//   3. Friends WITH active stories (unseen → orange, seen → gray)
+//   4. Friends WITHOUT active stories (faded, no ring)
 //
 // Upload flow:
-//   tap own "+" → hidden <input type="file"> fires → preview sheet →
-//   "Post Story" → upload to Supabase Storage → insert stories row → refetch
+//   tap Add Story / own "+" → file picker → preview sheet (with text overlay option)
+//   → "Post Story" → upload → insert → refetch
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Type } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as storiesData from '@/lib/data/stories';
 import StoryViewer from './StoryViewer';
+
+// ── Video duration guard ──────────────────────────────────────────────────────
+
+function checkVideoDuration(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    const url = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      URL.revokeObjectURL(url);
+      video.duration > 10
+        ? reject(new Error('Video must be 10 seconds or less.'))
+        : resolve();
+    };
+    video.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not read video file.'));
+    };
+    video.src = url;
+  });
+}
 
 // ── Avatar helpers ────────────────────────────────────────────────────────────
 
@@ -57,10 +75,6 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
   const hasUnseen   = group.hasUnseen && !noStory;
   const hasSeenOnly = !group.hasUnseen && !noStory;
 
-  // Ring colours:
-  //   Unseen story  → gradient from primary orange to amber
-  //   Seen story    → gray ring
-  //   No story      → no ring (avatar shown faded)
   const ringStyle = hasUnseen
     ? { background: 'linear-gradient(135deg, #FF6600 0%, #FFAA00 100%)' }
     : hasSeenOnly
@@ -76,13 +90,11 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
       style={{ minWidth: 68 }}
       aria-label={group.isOwn ? 'Your story' : group.username}
     >
-      {/* Avatar + ring wrapper */}
       <div className="relative">
         <div
           className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
           style={hasRing ? { ...ringStyle, padding: '2.5px' } : {}}
         >
-          {/* Inner circle with a small gap so the ring is visible */}
           <div className={`rounded-full overflow-hidden bg-background ${hasRing ? 'w-full h-full p-[2px]' : 'w-[60px] h-[60px]'}`}>
             <div className="w-full h-full rounded-full overflow-hidden">
               {isUploading ? (
@@ -90,17 +102,12 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
                 </div>
               ) : (
-                <AvatarImage
-                  avatarUrl={group.avatarUrl}
-                  username={group.username}
-                  faded={faded}
-                />
+                <AvatarImage avatarUrl={group.avatarUrl} username={group.username} faded={faded} />
               )}
             </div>
           </div>
         </div>
 
-        {/* "+" badge — only for own avatar when no story exists */}
         {group.isOwn && noStory && !isUploading && (
           <div className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-primary flex items-center justify-center ring-2 ring-background pointer-events-none">
             <Plus className="w-3 h-3 text-primary-foreground stroke-[3]" />
@@ -108,7 +115,6 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
         )}
       </div>
 
-      {/* Label */}
       <span
         className={`text-[10px] font-medium w-[68px] text-center truncate leading-tight ${faded ? 'text-muted-foreground/45' : 'text-muted-foreground'}`}
       >
@@ -119,8 +125,17 @@ function StoryAvatarButton({ group, onPress, isUploading }) {
 }
 
 // ── Upload preview / confirm sheet ────────────────────────────────────────────
+// Supports photos and videos. "Aa" button toggles text overlay editing.
 
-function StoryPreviewSheet({ dataUrl, uploading, onConfirm, onCancel }) {
+function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
+  const [overlayText, setOverlayText] = useState('');
+  const [editingText, setEditingText] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editingText) inputRef.current?.focus();
+  }, [editingText]);
+
   return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 40 }}
@@ -129,14 +144,73 @@ function StoryPreviewSheet({ dataUrl, uploading, onConfirm, onCancel }) {
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
     >
-      {/* Preview image */}
-      <div className="flex-1 relative overflow-hidden">
-        <img
-          src={dataUrl}
-          alt="Story preview"
-          className="absolute inset-0 w-full h-full object-contain"
-          draggable={false}
-        />
+      {/* "Aa" text button — top right */}
+      <div
+        className="absolute top-0 right-0 z-10 px-4"
+        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
+      >
+        <button
+          onClick={() => setEditingText(v => !v)}
+          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-colors ${editingText ? 'bg-white text-black' : 'bg-black/50 text-white'}`}
+          aria-label="Add text"
+        >
+          Aa
+        </button>
+      </div>
+
+      {/* Preview area */}
+      <div
+        className="flex-1 relative overflow-hidden"
+        onClick={() => setEditingText(false)}
+      >
+        {isVideo ? (
+          <video
+            src={dataUrl}
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        ) : (
+          <img
+            src={dataUrl}
+            alt="Story preview"
+            className="absolute inset-0 w-full h-full object-contain"
+            draggable={false}
+          />
+        )}
+
+        {/* Text overlay — edit mode */}
+        {editingText && (
+          <div
+            className="absolute inset-0 flex items-center justify-center bg-black/20"
+            onClick={e => e.stopPropagation()}
+          >
+            <textarea
+              ref={inputRef}
+              value={overlayText}
+              onChange={e => setOverlayText(e.target.value)}
+              onBlur={() => setEditingText(false)}
+              placeholder="Type something..."
+              rows={3}
+              className="bg-transparent border-none outline-none text-white text-2xl font-bold text-center w-4/5 resize-none placeholder-white/50 leading-snug"
+              style={{ textShadow: '0 2px 10px rgba(0,0,0,1)', caretColor: 'white' }}
+            />
+          </div>
+        )}
+
+        {/* Text overlay — display mode */}
+        {!editingText && overlayText.trim() !== '' && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <p
+              className="text-white text-2xl font-bold text-center px-8 break-words leading-snug"
+              style={{ textShadow: '0 2px 10px rgba(0,0,0,1)' }}
+            >
+              {overlayText}
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Action row */}
@@ -153,7 +227,7 @@ function StoryPreviewSheet({ dataUrl, uploading, onConfirm, onCancel }) {
         </button>
         <motion.button
           whileTap={{ scale: 0.96 }}
-          onClick={onConfirm}
+          onClick={() => onConfirm(overlayText.trim())}
           disabled={uploading}
           className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
         >
@@ -181,9 +255,8 @@ export default function StoriesRow() {
 
   const [viewerOpen, setViewerOpen]         = useState(false);
   const [viewerStartIdx, setViewerStartIdx] = useState(0);
-  const [preview, setPreview]               = useState(null); // { file, objectUrl }
+  const [preview, setPreview]               = useState(null); // { file, objectUrl, isVideo }
 
-  // 1. Who does the current user follow?
   const { data: followingEmails = [] } = useQuery({
     queryKey: ['following', user?.email],
     queryFn:  () => hubFollows.listFollowing(user.email),
@@ -191,7 +264,6 @@ export default function StoriesRow() {
     staleTime: 60_000,
   });
 
-  // 2. Stories + profiles + viewed-IDs — all in one query
   const { data: feedData } = useQuery({
     queryKey: ['storiesFeed', user?.id, followingEmails.join(',')],
     queryFn:  () => storiesData.getStoriesFeedData(user, followingEmails),
@@ -200,15 +272,13 @@ export default function StoriesRow() {
     refetchOnWindowFocus: true,
   });
 
-  const groups    = feedData?.groups    ?? [];
-  const viewedIds = feedData?.viewedIds ?? new Set();
-
-  // Only groups that actually have stories go to the viewer
+  const groups     = feedData?.groups    ?? [];
+  const viewedIds  = feedData?.viewedIds ?? new Set();
+  const ownGroup   = groups.find(g => g.isOwn);
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
-  // 3. Upload mutation
   const uploadMutation = useMutation({
-    mutationFn: (file) => storiesData.createStory(user, file),
+    mutationFn: ({ file, overlayText }) => storiesData.createStory(user, file, overlayText),
     onSuccess: (story) => {
       if (!story) { toast.error('Could not post story — try again.'); return; }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
@@ -225,32 +295,41 @@ export default function StoriesRow() {
     setPreview(null);
   }, [preview]);
 
-  // File input handler
-  const handleFileChange = useCallback((e) => {
+  const handleFileChange = useCallback(async (e) => {
     const file = e.target.files?.[0];
-    e.target.value = ''; // allow re-selecting same file
+    e.target.value = '';
     if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      toast.error('Please select a photo.');
+
+    const isImage = file.type.startsWith('image/');
+    const isVideo = file.type.startsWith('video/');
+
+    if (!isImage && !isVideo) {
+      toast.error('Please select a photo or video.');
       return;
     }
-    if (file.size > 50 * 1024 * 1024) {
-      toast.error('Photo must be under 50 MB.');
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('File must be under 100 MB.');
       return;
     }
-    setPreview({ file, objectUrl: URL.createObjectURL(file) });
+    if (isVideo) {
+      try {
+        await checkVideoDuration(file);
+      } catch (err) {
+        toast.error(err.message);
+        return;
+      }
+    }
+
+    setPreview({ file, objectUrl: URL.createObjectURL(file), isVideo });
   }, []);
 
-  // Avatar tap handler
   const handleAvatarPress = useCallback((group) => {
     if (group.isOwn && group.stories.length === 0) {
-      // Own avatar, no story → open picker
       fileRef.current?.click();
       return;
     }
-    if (group.stories.length === 0) return; // faded friend — nothing to view
+    if (group.stories.length === 0) return;
 
-    // Find index in storyGroups (only groups with stories)
     const idx = storyGroups.findIndex(g => g.email === group.email);
     setViewerStartIdx(Math.max(0, idx));
     setViewerOpen(true);
@@ -258,39 +337,41 @@ export default function StoriesRow() {
 
   if (!user) return null;
 
+  const showAddButton = ownGroup?.stories.length > 0 && !uploadMutation.isPending;
+
   return (
     <>
       {/* ── Horizontal strip ──────────────────────────────────────────── */}
       <div className="mb-4 -mx-4 md:-mx-6">
-        <div
-          className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 scrollbar-hide"
-        >
+        <div className="flex gap-2 px-4 md:px-6 overflow-x-auto pb-1 scrollbar-hide">
+
+          {/* "Add Story" — always the leftmost item when own story exists */}
+          {showAddButton && (
+            <motion.button
+              whileTap={{ scale: 0.90 }}
+              onClick={() => fileRef.current?.click()}
+              className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
+              style={{ minWidth: 68 }}
+              aria-label="Add a story"
+            >
+              <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-primary/60 flex items-center justify-center">
+                <Plus className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate">
+                Add Story
+              </span>
+            </motion.button>
+          )}
+
           {groups.map(group => (
-            <React.Fragment key={group.email}>
-              <StoryAvatarButton
-                group={group}
-                onPress={() => handleAvatarPress(group)}
-                isUploading={uploadMutation.isPending && group.isOwn}
-              />
-              {/* "+" add-more button — shown right after own avatar when a story exists */}
-              {group.isOwn && group.stories.length > 0 && !uploadMutation.isPending && (
-                <motion.button
-                  whileTap={{ scale: 0.90 }}
-                  onClick={() => fileRef.current?.click()}
-                  className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
-                  style={{ minWidth: 68 }}
-                  aria-label="Add another story"
-                >
-                  <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-primary/60 flex items-center justify-center">
-                    <Plus className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate">Add More</span>
-                </motion.button>
-              )}
-            </React.Fragment>
+            <StoryAvatarButton
+              key={group.email}
+              group={group}
+              onPress={() => handleAvatarPress(group)}
+              isUploading={uploadMutation.isPending && group.isOwn}
+            />
           ))}
 
-          {/* If no follows yet, show a placeholder hint */}
           {groups.length <= 1 && (
             <div className="flex flex-col items-center gap-1 shrink-0 opacity-40" style={{ minWidth: 68 }}>
               <div className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-muted-foreground flex items-center justify-center">
@@ -302,24 +383,24 @@ export default function StoriesRow() {
         </div>
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file input — accepts photos and videos */}
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
-        capture="environment"
+        accept="image/*,video/*"
         className="hidden"
         onChange={handleFileChange}
       />
 
-      {/* Upload preview confirm */}
+      {/* Upload preview + text overlay confirm */}
       <AnimatePresence>
         {preview && (
           <StoryPreviewSheet
             key="preview"
             dataUrl={preview.objectUrl}
+            isVideo={preview.isVideo}
             uploading={uploadMutation.isPending}
-            onConfirm={() => uploadMutation.mutate(preview.file)}
+            onConfirm={(overlayText) => uploadMutation.mutate({ file: preview.file, overlayText })}
             onCancel={cleanupPreview}
           />
         )}
