@@ -27,6 +27,30 @@ import { isVerified } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 
+const TROPHY_LABELS = {
+  '🏆':'Trophy','🥇':'1st Place','🥈':'2nd Place','🥉':'3rd Place','🎯':'Target',
+  '💪':'Strength','🔥':'Fire','⚡':'Lightning','🌟':'Star','⭐':'Star',
+  '🎖️':'Medal','🏅':'Medal','🏋️':'Lifting','🤸':'Gymnastics','🏊':'Swimming',
+  '🚴':'Cycling','🧗':'Climbing','🥊':'Boxing','🥋':'Martial Arts','🎽':'Sports',
+  '💯':'100','👑':'Crown','🦁':'Lion','🐺':'Wolf','🦅':'Eagle','🦊':'Fox',
+  '🐉':'Dragon','⚔️':'Swords','🛡️':'Shield','💎':'Diamond','🌈':'Rainbow',
+  '🌊':'Wave','🎆':'Fireworks','🎇':'Sparkler','🎉':'Party','🎊':'Confetti',
+  '🎁':'Gift','🌙':'Moon','☀️':'Sun','🌸':'Blossom','🍀':'Luck','❄️':'Ice',
+  '🔮':'Crystal','🌀':'Cyclone','🌪️':'Tornado','🏔️':'Mountain','🌋':'Volcano',
+  '🦾':'Strength','🧠':'Brain','💥':'Boom','🎪':'Circus','🎭':'Theater',
+  '🎮':'Gaming','🕹️':'Joystick','🎲':'Dice','♟️':'Chess','🎸':'Guitar',
+  '🥁':'Drums','🎤':'Mic','🎬':'Film','📸':'Photo','🚀':'Rocket',
+  '🛸':'UFO','🌍':'Earth','🌠':'Shooting Star','✨':'Sparkles',
+};
+
+// Converts a 2-letter country code to a Twemoji CDN image URL (works on Windows Chrome)
+function flagUrl(emojiOrCode) {
+  if (!emojiOrCode) return null;
+  const chars = [...emojiOrCode];
+  const points = chars.map(c => c.codePointAt(0).toString(16));
+  return `https://cdn.jsdelivr.net/npm/twemoji@14.0.2/assets/svg/${points.join('-')}.svg`;
+}
+
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -447,30 +471,56 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         className="bg-card border border-border rounded-xl p-5 mb-4"
       >
         <div className="flex items-start gap-4 mb-4">
-          {/* Avatar — clickable for story viewer (non-self), editable for self */}
-          <div className="flex flex-col items-center gap-1 shrink-0">
+          {/* Avatar — tapping opens story viewer when stories exist; ring applied directly */}
+          <div className="flex flex-col items-center shrink-0 relative">
+            {/* Speech bubble note above avatar */}
+            {activeNote && (
+              <div className="absolute z-10" style={{ bottom: '100%', marginBottom: 8, left: '50%', transform: 'translateX(-50%)', width: 140 }}>
+                <div className="bg-card border border-border rounded-xl px-2.5 py-1.5 shadow-sm relative">
+                  {isSelf ? (
+                    <button type="button" onClick={() => setNoteEditorOpen(true)} className="w-full text-left">
+                      <p className="text-[10px] text-foreground leading-snug">{activeNote.text}</p>
+                    </button>
+                  ) : (
+                    <p className="text-[10px] text-foreground leading-snug">{activeNote.text}</p>
+                  )}
+                  {/* Bubble tail pointing down toward avatar */}
+                  <div className="absolute left-1/2 -translate-x-1/2 -bottom-[7px] w-3 h-3 bg-card border-b border-r border-border rotate-45" />
+                </div>
+              </div>
+            )}
+
+            {/* Avatar circle with precise ring */}
             <div
-              className={profileStories.length > 0 ? 'rounded-full ring-2 ring-offset-2' : ''}
-              style={profileStories.length > 0 ? { '--tw-ring-color': 'hsl(var(--primary))', cursor: !isSelf ? 'pointer' : undefined } : {}}
-              onClick={!isSelf && profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
+              className="rounded-full overflow-hidden"
+              style={{
+                width: 64,
+                height: 64,
+                cursor: profileStories.length > 0 ? 'pointer' : undefined,
+                boxShadow: profileStories.length > 0
+                  ? '0 0 0 2.5px hsl(var(--primary)), 0 0 0 5px hsl(var(--background))'
+                  : 'none',
+              }}
+              onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
             >
               <AvatarUploader
                 src={avatarUrl}
                 initials={initials}
-                editable={isSelf}
+                editable={isSelf && profileStories.length === 0}
                 size={64}
                 frameCss={equippedFrame?.css}
                 frameAnimation={equippedFrame?.animation}
               />
             </div>
-            {profileStories.length > 0 && (
+
+            {/* Add status note trigger — own profile, no active note */}
+            {isSelf && !activeNote && (
               <button
                 type="button"
-                onClick={() => setStoryViewerOpen(true)}
-                className="text-[10px] font-bold leading-none"
-                style={{ color: 'hsl(var(--primary))' }}
+                onClick={() => setNoteEditorOpen(true)}
+                className="mt-1.5 text-[9px] font-semibold text-muted-foreground hover:text-primary transition-colors leading-none"
               >
-                {isSelf ? 'My Story' : 'View Story'}
+                + note
               </button>
             )}
           </div>
@@ -510,8 +560,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 shrink-0" />
                 {city && <span>{city}</span>}
-                {city && countryFlag && <span>&nbsp;</span>}
-                {countryFlag && <span>{countryFlag}</span>}
+                {countryFlag && (
+                  <img
+                    src={flagUrl(countryFlag)}
+                    alt="flag"
+                    className="w-4 h-4 object-contain shrink-0"
+                  />
+                )}
               </div>
             )}
 
@@ -546,39 +601,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           )}
         </div>
 
-        {/* Status note */}
-        {isSelf ? (
-          <div className="mb-3">
-            {activeNote ? (
-              <div className="flex items-start gap-2">
-                <div
-                  className="flex-1 bg-card border border-border rounded-2xl px-3 py-2 cursor-pointer hover:bg-secondary/30 transition-colors"
-                  onClick={() => setNoteEditorOpen(true)}
-                >
-                  <p className="text-xs text-foreground leading-snug">{activeNote.text}</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">Tap to edit · expires in 8h</p>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => setNoteEditorOpen(true)}
-                className="w-full flex items-center gap-2 px-3 py-2 rounded-2xl border border-dashed border-border text-xs text-muted-foreground hover:border-primary/40 hover:text-primary/70 transition-colors"
-              >
-                <MessageCircle className="w-3.5 h-3.5 shrink-0" />
-                Add a status note…
-              </button>
-            )}
-          </div>
-        ) : activeNote ? (
-          <div className="flex items-start gap-2 mb-3">
-            <div className="flex-1 bg-card border border-border rounded-2xl px-3 py-2">
-              <p className="text-xs text-foreground leading-snug">{activeNote.text}</p>
-            </div>
+        {/* Note like button — non-own profile, active note (bubble shown above avatar) */}
+        {!isSelf && activeNote && (
+          <div className="flex justify-end mb-2">
             <button
               type="button"
               onClick={handleNoteLike}
-              className="flex flex-col items-center gap-0.5 pt-1 shrink-0"
+              className="flex items-center gap-1 text-muted-foreground"
               aria-label={noteLiked ? 'Unlike note' : 'Like note'}
             >
               <Heart
@@ -589,7 +618,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               )}
             </button>
           </div>
-        ) : null}
+        )}
 
         {/* Edit profile panel */}
         <AnimatePresence>
@@ -614,7 +643,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm shrink-0">{countryFlag || '🌍'}</span>
+                  {countryFlag
+                    ? <img src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
+                    : <span className="text-sm shrink-0">🌍</span>
+                  }
                   <button
                     type="button"
                     onClick={() => setFlagPickerOpen(true)}
@@ -699,29 +731,37 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </button>
               )}
             </div>
-            <div className="flex gap-2">
-              {Array(5).fill(null).map((_, i) => {
-                const slot = trophyCase[i] ?? null;
-                return (
-                  <motion.button
-                    key={i}
-                    type="button"
-                    onClick={isSelf ? () => setTrophyPickerSlot(i) : undefined}
-                    whileTap={isSelf ? { scale: 0.93 } : {}}
-                    className={`flex-1 aspect-square rounded-lg flex items-center justify-center text-xl border-2 border-dashed transition-colors ${
-                      isSelf ? 'hover:border-primary/50 cursor-pointer' : 'cursor-default'
-                    }`}
-                    style={{ borderColor: slot ? 'hsl(var(--primary) / 0.5)' : 'hsl(var(--primary) / 0.25)' }}
-                    aria-label={slot ? `Slot ${i + 1}: ${slot.value}` : `Empty slot ${i + 1}`}
-                  >
-                    {slot ? (
-                      <span>{slot.value}</span>
-                    ) : isSelf ? (
-                      <Plus className="w-4 h-4" style={{ color: 'hsl(var(--primary) / 0.4)' }} />
-                    ) : null}
-                  </motion.button>
-                );
-              })}
+            {/* Unified trophy card */}
+            <div className="rounded-xl border border-border bg-secondary/20 overflow-hidden">
+              <div className="flex divide-x divide-dashed divide-border/50">
+                {Array(5).fill(null).map((_, i) => {
+                  const slot = trophyCase[i] ?? null;
+                  const label = slot ? (TROPHY_LABELS[slot.value] || slot.value) : null;
+                  return (
+                    <motion.button
+                      key={i}
+                      type="button"
+                      onClick={isSelf ? () => setTrophyPickerSlot(i) : undefined}
+                      whileTap={isSelf ? { scale: 0.9 } : {}}
+                      className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 ${
+                        isSelf ? 'cursor-pointer hover:bg-secondary/40 active:bg-secondary/60' : 'cursor-default'
+                      } transition-colors`}
+                      aria-label={slot ? `Slot ${i + 1}: ${slot.value}` : `Empty slot ${i + 1}`}
+                    >
+                      {slot ? (
+                        <>
+                          <span className="text-3xl leading-none">{slot.value}</span>
+                          <span className="text-[9px] text-muted-foreground/60 leading-tight text-center px-0.5 truncate w-full">{label}</span>
+                        </>
+                      ) : isSelf ? (
+                        <Plus className="w-5 h-5" style={{ color: 'hsl(var(--primary) / 0.4)' }} />
+                      ) : (
+                        <span className="text-muted-foreground/25 text-lg">—</span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         )}
@@ -933,7 +973,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <div className="overflow-y-auto flex-1">
                 <div className="grid grid-cols-8 gap-1">
                   {[['AF','Afghanistan'],['AL','Albania'],['DZ','Algeria'],['AD','Andorra'],['AO','Angola'],['AG','Antigua'],['AR','Argentina'],['AM','Armenia'],['AU','Australia'],['AT','Austria'],['AZ','Azerbaijan'],['BS','Bahamas'],['BH','Bahrain'],['BD','Bangladesh'],['BB','Barbados'],['BY','Belarus'],['BE','Belgium'],['BZ','Belize'],['BJ','Benin'],['BT','Bhutan'],['BO','Bolivia'],['BA','Bosnia'],['BW','Botswana'],['BR','Brazil'],['BN','Brunei'],['BG','Bulgaria'],['BF','Burkina Faso'],['BI','Burundi'],['CV','Cape Verde'],['KH','Cambodia'],['CM','Cameroon'],['CA','Canada'],['CF','Cent. Africa'],['TD','Chad'],['CL','Chile'],['CN','China'],['CO','Colombia'],['KM','Comoros'],['CD','Congo DR'],['CG','Congo'],['CR','Costa Rica'],['CI','Côte dIvoire'],['HR','Croatia'],['CU','Cuba'],['CY','Cyprus'],['CZ','Czechia'],['DK','Denmark'],['DJ','Djibouti'],['DM','Dominica'],['DO','Dom. Republic'],['EC','Ecuador'],['EG','Egypt'],['SV','El Salvador'],['GQ','Eq. Guinea'],['ER','Eritrea'],['EE','Estonia'],['SZ','Eswatini'],['ET','Ethiopia'],['FJ','Fiji'],['FI','Finland'],['FR','France'],['GA','Gabon'],['GM','Gambia'],['GE','Georgia'],['DE','Germany'],['GH','Ghana'],['GR','Greece'],['GD','Grenada'],['GT','Guatemala'],['GN','Guinea'],['GW','Guinea-Bissau'],['GY','Guyana'],['HT','Haiti'],['HN','Honduras'],['HU','Hungary'],['IS','Iceland'],['IN','India'],['ID','Indonesia'],['IR','Iran'],['IQ','Iraq'],['IE','Ireland'],['IL','Israel'],['IT','Italy'],['JM','Jamaica'],['JP','Japan'],['JO','Jordan'],['KZ','Kazakhstan'],['KE','Kenya'],['KI','Kiribati'],['KW','Kuwait'],['KG','Kyrgyzstan'],['LA','Laos'],['LV','Latvia'],['LB','Lebanon'],['LS','Lesotho'],['LR','Liberia'],['LY','Libya'],['LI','Liechtenstein'],['LT','Lithuania'],['LU','Luxembourg'],['MG','Madagascar'],['MW','Malawi'],['MY','Malaysia'],['MV','Maldives'],['ML','Mali'],['MT','Malta'],['MH','Marshall Is.'],['MR','Mauritania'],['MU','Mauritius'],['MX','Mexico'],['MD','Moldova'],['MC','Monaco'],['MN','Mongolia'],['ME','Montenegro'],['MA','Morocco'],['MZ','Mozambique'],['MM','Myanmar'],['NA','Namibia'],['NR','Nauru'],['NP','Nepal'],['NL','Netherlands'],['NZ','New Zealand'],['NI','Nicaragua'],['NE','Niger'],['NG','Nigeria'],['NO','Norway'],['OM','Oman'],['PK','Pakistan'],['PW','Palau'],['PA','Panama'],['PG','Papua NG'],['PY','Paraguay'],['PE','Peru'],['PH','Philippines'],['PL','Poland'],['PT','Portugal'],['QA','Qatar'],['RO','Romania'],['RU','Russia'],['RW','Rwanda'],['KN','St Kitts'],['LC','St Lucia'],['VC','St Vincent'],['WS','Samoa'],['SM','San Marino'],['ST','São Tomé'],['SA','Saudi Arabia'],['SN','Senegal'],['RS','Serbia'],['SC','Seychelles'],['SL','Sierra Leone'],['SG','Singapore'],['SK','Slovakia'],['SI','Slovenia'],['SB','Solomon Is.'],['SO','Somalia'],['ZA','South Africa'],['SS','South Sudan'],['ES','Spain'],['LK','Sri Lanka'],['SD','Sudan'],['SR','Suriname'],['SE','Sweden'],['CH','Switzerland'],['SY','Syria'],['TW','Taiwan'],['TJ','Tajikistan'],['TZ','Tanzania'],['TH','Thailand'],['TL','Timor-Leste'],['TG','Togo'],['TO','Tonga'],['TT','Trinidad'],['TN','Tunisia'],['TR','Turkey'],['TM','Turkmenistan'],['TV','Tuvalu'],['UG','Uganda'],['UA','Ukraine'],['AE','UAE'],['GB','UK'],['US','USA'],['UY','Uruguay'],['UZ','Uzbekistan'],['VU','Vanuatu'],['VE','Venezuela'],['VN','Vietnam'],['YE','Yemen'],['ZM','Zambia'],['ZW','Zimbabwe']].map(([code, name]) => {
-                    const flag = [...code.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
+                    const emoji = [...code.toUpperCase()].map(c => String.fromCodePoint(c.charCodeAt(0) + 127397)).join('');
+                    const imgSrc = flagUrl(emoji);
                     return (
                       <motion.button
                         key={code}
@@ -942,16 +983,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                         onClick={async () => {
                           setFlagPickerOpen(false);
                           try {
-                            await me.update({ country_flag: flag });
+                            await me.update({ country_flag: emoji });
                             queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
                           } catch {
                             toast.error('Could not save flag');
                           }
                         }}
-                        className="aspect-square flex items-center justify-center text-2xl rounded hover:bg-secondary transition-colors"
+                        className="aspect-square flex flex-col items-center justify-center gap-0.5 rounded hover:bg-secondary transition-colors p-1"
                         title={name}
                       >
-                        {flag}
+                        <img src={imgSrc} alt={name} className="w-6 h-6 object-contain" />
+                        <span className="text-[7px] text-muted-foreground leading-none">{code}</span>
                       </motion.button>
                     );
                   })}

@@ -449,8 +449,14 @@ export default function StoryViewer({
 
                 {/* Reply bar — hidden if owner disabled DMs */}
                 {!currentGroup.storyDmsDisabled && (
-                  <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
-                    onClick={e => e.stopPropagation()}>
+                  <div className="flex-1 flex items-center gap-2 min-w-0" onClick={e => e.stopPropagation()}>
+                    {/* Faded story thumbnail for reply context */}
+                    {currentStory?.image_url && (
+                      <div className="w-10 h-10 rounded-xl overflow-hidden shrink-0 opacity-55 ring-1 ring-white/20">
+                        <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                      </div>
+                    )}
+                    <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0">
                     <input
                       type="text"
                       value={reply}
@@ -469,6 +475,7 @@ export default function StoryViewer({
                           : <Send className="w-4 h-4" />}
                       </button>
                     )}
+                  </div>
                   </div>
                 )}
               </div>

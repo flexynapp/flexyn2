@@ -259,9 +259,13 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        {/* Story element */}
+        <div className="flex-1 min-w-0">
+          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
+          <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+        </div>
+
+        {/* Story element — right of name */}
         {crewStories.length > 0 ? (
-          /* Has story — tall circle (spans both header text lines) + "+ Story" text beside */
           <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => setStoryViewIdx(0)}
@@ -280,7 +284,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             </button>
           </div>
         ) : (
-          /* No story — circle with + icon and "Story" label */
           <button
             onClick={() => storyFileRef.current?.click()}
             className="flex flex-col items-center justify-center gap-0 shrink-0 rounded-full border-2 border-dashed"
@@ -290,11 +293,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             <span className="text-[8px] font-bold leading-none" style={{ color: 'hsl(var(--primary))' }}>Story</span>
           </button>
         )}
-
-        <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
-          <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
-        </div>
 
         <button
           onClick={() => setMemberPanelOpen(true)}

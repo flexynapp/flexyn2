@@ -339,6 +339,9 @@ function RegimenMessage({ msg, user, senderProfile }) {
 function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
   const [viewed, setViewed] = useState(false);
   const [open,   setOpen]   = useState(false);
+  const lastTapRef = useRef(0);
+  const [reacted, setReacted] = useState(false);
+  const [animating, setAnimating] = useState(false);
 
   const handleView = () => {
     if (viewed) return;
@@ -346,39 +349,75 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
     setViewed(true);
   };
 
+  const handleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      setAnimating(true);
+      setTimeout(() => { setAnimating(false); setReacted(true); }, 500);
+    }
+    lastTapRef.current = now;
+  };
+
   return (
     <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isOwn && <Avatar profile={senderProfile} />}
-      <div>
+      <div className={`${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
-        <button
-          onClick={handleView}
-          className="relative overflow-hidden rounded-2xl w-40 h-40 bg-secondary flex items-center justify-center border border-border"
-        >
-          {!viewed ? (
-            <div className="flex flex-col items-center gap-1 text-muted-foreground">
-              <Eye className="w-6 h-6" />
-              <span className="text-[10px] font-medium">Tap to view once</span>
-            </div>
-          ) : open ? (
-            <>
-              <img src={msg.media_url} className="w-full h-full object-cover" alt="one-time" draggable={false} />
-              <button
-                onClick={e => { e.stopPropagation(); setOpen(false); }}
-                className="absolute inset-0 bg-transparent"
-              />
-            </>
-          ) : (
-            <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
-              <EyeOff className="w-6 h-6" />
-              <span className="text-[10px]">Viewed</span>
-            </div>
+        <div className="relative" onClick={handleTap}>
+          <button
+            onClick={handleView}
+            className="relative overflow-hidden rounded-2xl w-40 h-40 bg-secondary flex items-center justify-center border border-border"
+          >
+            {!viewed ? (
+              <div className="flex flex-col items-center gap-1 text-muted-foreground">
+                <Eye className="w-6 h-6" />
+                <span className="text-[10px] font-medium">Tap to view once</span>
+              </div>
+            ) : open ? (
+              <>
+                <img src={msg.media_url} className="w-full h-full object-cover" alt="one-time" draggable={false} />
+                <button
+                  onClick={e => { e.stopPropagation(); setOpen(false); }}
+                  className="absolute inset-0 bg-transparent"
+                />
+              </>
+            ) : (
+              <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
+                <EyeOff className="w-6 h-6" />
+                <span className="text-[10px]">Viewed</span>
+              </div>
+            )}
+          </button>
+          <AnimatePresence>
+            {animating && (
+              <motion.span
+                key="float"
+                initial={{ opacity: 0, scale: 0.6, y: 0 }}
+                animate={{ opacity: 1, scale: 1.5, y: -20 }}
+                exit={{ opacity: 0, scale: 0.8, y: -36 }}
+                transition={{ duration: 0.45 }}
+                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+              >
+                🔥
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {reacted && !animating && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+              onClick={() => setReacted(false)}
+              title="Tap to remove"
+            >
+              🔥
+            </motion.div>
           )}
-        </button>
+        </div>
       </div>
     </div>
   );
@@ -387,18 +426,58 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
 // ── Timed Image ───────────────────────────────────────────────────────────────
 
 function TimedImageMessage({ msg, senderProfile, isOwn }) {
+  const lastTapRef = useRef(0);
+  const [reacted, setReacted] = useState(false);
+  const [animating, setAnimating] = useState(false);
+
+  const handleTap = () => {
+    const now = Date.now();
+    if (now - lastTapRef.current < 320) {
+      setAnimating(true);
+      setTimeout(() => { setAnimating(false); setReacted(true); }, 500);
+    }
+    lastTapRef.current = now;
+  };
+
   return (
     <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
       {!isOwn && <Avatar profile={senderProfile} />}
-      <div className="relative overflow-hidden rounded-2xl max-w-[200px]">
+      <div className={`max-w-[200px] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
-        <img src={msg.media_url} className="rounded-2xl w-full" alt="" draggable={false} />
-        <div className="absolute top-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white font-semibold">
-          1h
+        <div className="relative" onClick={handleTap}>
+          <img src={msg.media_url} className="rounded-2xl w-full" alt="" draggable={false} />
+          <div className="absolute top-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white font-semibold">
+            1h
+          </div>
+          <AnimatePresence>
+            {animating && (
+              <motion.span
+                key="float"
+                initial={{ opacity: 0, scale: 0.6, y: 0 }}
+                animate={{ opacity: 1, scale: 1.5, y: -20 }}
+                exit={{ opacity: 0, scale: 0.8, y: -36 }}
+                transition={{ duration: 0.45 }}
+                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+              >
+                🔥
+              </motion.span>
+            )}
+          </AnimatePresence>
+          {reacted && !animating && (
+            <motion.div
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+              onClick={() => setReacted(false)}
+              title="Tap to remove"
+            >
+              🔥
+            </motion.div>
+          )}
         </div>
       </div>
     </div>

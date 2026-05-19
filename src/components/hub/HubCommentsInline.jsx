@@ -1,7 +1,8 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2, Check } from 'lucide-react';
+import { isVerified } from '@/lib/verifiedUsers';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -329,7 +330,18 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
             </p>
           )}
           <div className="bg-secondary/50 rounded-2xl px-3 py-2">
-            <p className="text-xs font-bold leading-tight">{author.handle}</p>
+            <div className="flex items-center gap-1 flex-wrap">
+              <p className="text-xs font-bold leading-tight">{author.handle}</p>
+              {isVerified(author.handle?.replace('@', '')) && (
+                <div
+                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full shrink-0"
+                  style={{ background: 'hsl(var(--primary) / 0.65)' }}
+                  title="Verified Admin"
+                >
+                  <Check className="w-2 h-2 text-white stroke-[3]" />
+                </div>
+              )}
+            </div>
             <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{displayBody}</p>
           </div>
 
