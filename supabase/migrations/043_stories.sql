@@ -27,16 +27,23 @@ ALTER TABLE public.stories ENABLE ROW LEVEL SECURITY;
 
 -- Any authenticated user can read stories (follower filtering is done client-side).
 -- This keeps the RLS simple and avoids a join on hub_follows inside the policy.
+-- DROP-THEN-CREATE so the migration is safely re-runnable: Postgres CREATE
+-- POLICY has no IF NOT EXISTS clause, so a second apply on top of a partial
+-- run blows up with 42710 ("policy already exists"). Subsequent migrations
+-- (047, 048) follow the same pattern.
+DROP POLICY IF EXISTS "stories: authenticated can read" ON public.stories;
 CREATE POLICY "stories: authenticated can read"
   ON public.stories FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "stories: insert own" ON public.stories;
 CREATE POLICY "stories: insert own"
   ON public.stories FOR INSERT
   TO authenticated
   WITH CHECK (user_id = auth.uid());
 
+DROP POLICY IF EXISTS "stories: delete own" ON public.stories;
 CREATE POLICY "stories: delete own"
   ON public.stories FOR DELETE
   TO authenticated
@@ -56,11 +63,13 @@ CREATE INDEX IF NOT EXISTS idx_story_views_viewer ON public.story_views(viewer_i
 
 ALTER TABLE public.story_views ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "story_views: authenticated can read" ON public.story_views;
 CREATE POLICY "story_views: authenticated can read"
   ON public.story_views FOR SELECT
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "story_views: insert own" ON public.story_views;
 CREATE POLICY "story_views: insert own"
   ON public.story_views FOR INSERT
   TO authenticated

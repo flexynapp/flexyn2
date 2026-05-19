@@ -69,6 +69,13 @@ SQL Editor**. No CLI required.
 | 039 | `039_notifications_delete_policy.sql` | DELETE RLS policy on `notifications` (unblocks trash/clear-all in UI) | — |
 | 040 | `040_league_resolution_i18n.sql` | `league_resolution_text` + `notify_league_resolution_for` RPC (15 languages × 3 outcomes) | — |
 | 041 | `041_friend_notifications_i18n.sql` | `friend_post_text` + `friend_follow_text` + matching RPCs (per-recipient i18n) | — |
+| 042 | `042_security_hardening.sql` | Real security + dep-fragility fixes (the hardening pass) | — |
+| 043 | `043_stories.sql` | 24-hour Photo Stories: `stories` + `story_views` tables + RLS policies | — |
+| 044 | `044_story_likes.sql` | `story_likes` table (❤️ reactions on stories) + RLS | — |
+| 045 | `045_story_media.sql` | Add `overlay_text` + `media_type` columns to `stories` | — |
+| 046 | `046_story_dms.sql` | `story_dms_disabled` on `user_profiles` + `overlay_style` JSONB on `stories` | — |
+| 047 | `047_story_enhancements.sql` | 25h expiry, privacy, `story_blocks`, `status_notes`, `status_note_likes` | — |
+| 048 | `048_crews.sql` | Crews group chat: 5 tables + 2 SECURITY DEFINER RPCs (`is_crew_member`, `is_crew_admin`) | — |
 
 ---
 
@@ -159,7 +166,28 @@ UNION ALL
 SELECT 'delete-own policy on notifications', count(*), '1'
   FROM pg_policies
  WHERE tablename = 'notifications'
-   AND policyname = 'notifications: delete own';
+   AND policyname = 'notifications: delete own'
+UNION ALL
+SELECT 'stories tables (043-047)', count(*), '6'
+  FROM information_schema.tables
+ WHERE table_schema = 'public'
+   AND table_name IN (
+     'stories','story_views','story_likes',
+     'story_blocks','status_notes','status_note_likes'
+   )
+UNION ALL
+SELECT 'crews tables (048)', count(*), '5'
+  FROM information_schema.tables
+ WHERE table_schema = 'public'
+   AND table_name IN (
+     'crews','crew_members','crew_messages',
+     'roll_call_responses','crew_xp_claims'
+   )
+UNION ALL
+SELECT 'crew RPCs (048)', count(*), '2'
+  FROM pg_proc
+ WHERE pronamespace = 'public'::regnamespace
+   AND proname IN ('is_crew_member','is_crew_admin');
 ```
 
 ---
