@@ -9,7 +9,7 @@
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell, Clock, Eye, Plus, Image } from 'lucide-react';
+import { ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell, Clock, Eye, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
