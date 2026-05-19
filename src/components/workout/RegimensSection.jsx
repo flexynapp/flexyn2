@@ -18,6 +18,7 @@ import RegimenDetailView from '@/components/regimens/RegimenDetailView';
 import TemplatesModal from '@/components/workout/TemplatesModal';
 import RegimenTemplateStore from '@/components/regimens/RegimenTemplateStore';
 import * as hubPosts from '@/lib/data/hubPosts';
+import { reportError } from '@/lib/reportError';
 
 export default function RegimensSection({ onStartRegimen }) {
   const { t } = useLanguage();
@@ -60,7 +61,7 @@ export default function RegimensSection({ onStartRegimen }) {
           action_data: {},
         });
       } catch (xpErr) {
-        console.warn('[RegimensSection] XP update failed (non-blocking):', xpErr);
+        reportError(xpErr, { feature: 'regimens.xp-update', level: 'warning', userEmail: user?.email });
       }
       return regimen;
     },

@@ -24,6 +24,8 @@ import LogMealForm from '@/components/nutrition/LogMealForm';
 import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboardingModal';
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { reportError } from '@/lib/reportError';
 import { lookupBarcode } from '@/lib/foodLookup';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
@@ -186,7 +188,7 @@ export default function Nutrition() {
       if (context?.previousLogs !== undefined) {
         queryClient.setQueryData(['nutritionLogs', user?.email, date], context.previousLogs);
       }
-      console.error('[Nutrition] save failed — code:', err?.code, 'message:', err?.message, 'details:', err?.details, err);
+      reportError(err, { feature: 'nutrition.save', userEmail: user?.email });
       toast.error(t('nutrition.toast.saveError'));
     },
   });
@@ -198,7 +200,7 @@ export default function Nutrition() {
       toast.success(t('nutrition.toast.entryRemoved'));
     },
     onError: (err) => {
-      console.error('[Nutrition] delete failed:', err);
+      reportError(err, { feature: 'nutrition.delete', userEmail: user?.email });
       toast.error(t('nutrition.toast.deleteError'));
     },
   });
@@ -465,24 +467,28 @@ export default function Nutrition() {
 
       {/* Scan result modal */}
       {scannedProduct && (
-        <BarcodeResultModal
-          product={scannedProduct}
-          onCancel={() => setScannedProduct(null)}
-          onLog={handleLogScannedProduct}
-          isLogging={saveMutation.isPending}
-        />
+        <ErrorBoundary label="BarcodeResultModal">
+          <BarcodeResultModal
+            product={scannedProduct}
+            onCancel={() => setScannedProduct(null)}
+            onLog={handleLogScannedProduct}
+            isLogging={saveMutation.isPending}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Not found modal — community submission form */}
       {notFoundBarcode && (
-        <BarcodeNotFoundModal
-          barcode={notFoundBarcode}
-          onCancel={() => setNotFoundBarcode(null)}
-          onSubmit={(product) => {
-            setNotFoundBarcode(null);
-            setScannedProduct(product);  // immediately show the result modal for logging
-          }}
-        />
+        <ErrorBoundary label="BarcodeNotFoundModal">
+          <BarcodeNotFoundModal
+            barcode={notFoundBarcode}
+            onCancel={() => setNotFoundBarcode(null)}
+            onSubmit={(product) => {
+              setNotFoundBarcode(null);
+              setScannedProduct(product);  // immediately show the result modal for logging
+            }}
+          />
+        </ErrorBoundary>
       )}
 
       {/* Nutrition Tabs */}
@@ -507,11 +513,15 @@ export default function Nutrition() {
         <AnimatePresence mode="wait">
           {nutritionTab === 'macros' ? (
             <motion.div key="macros" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8, pointerEvents: 'none' }} transition={{ duration: 0.2 }}>
-              <MacroNutrientBox entries={entries} userProfile={userProfile} />
+              <ErrorBoundary label="MacroNutrientBox">
+                <MacroNutrientBox entries={entries} userProfile={userProfile} />
+              </ErrorBoundary>
             </motion.div>
           ) : (
             <motion.div key="vitamins" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8, pointerEvents: 'none' }} transition={{ duration: 0.2 }}>
-              <MineralsVitaminsBox entries={entries} userProfile={userProfile} />
+              <ErrorBoundary label="MineralsVitaminsBox">
+                <MineralsVitaminsBox entries={entries} userProfile={userProfile} />
+              </ErrorBoundary>
             </motion.div>
           )}
         </AnimatePresence>
@@ -547,15 +557,17 @@ export default function Nutrition() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mb-6 scroll-mt-24"
       >
-        <LogMealForm
-          newEntry={newEntry}
-          setNewEntry={setNewEntry}
-          onScan={startScanner}
-          onLog={addEntry}
-          isScanning={showScanner}
-          isLogging={saveMutation.isPending}
-          defaultOpen={openLogMeal}
-        />
+        <ErrorBoundary label="LogMealForm">
+          <LogMealForm
+            newEntry={newEntry}
+            setNewEntry={setNewEntry}
+            onScan={startScanner}
+            onLog={addEntry}
+            isScanning={showScanner}
+            isLogging={saveMutation.isPending}
+            defaultOpen={openLogMeal}
+          />
+        </ErrorBoundary>
       </motion.div>
 
       {/* Water Tracker */}
@@ -586,7 +598,9 @@ export default function Nutrition() {
             </div>
 
             {/* WATERTRACKER */}
-            <WaterTracker waterOz={waterOz} userProfile={userProfile} waterUnit={waterUnit} ozToDisplay={ozToDisplay} />
+            <ErrorBoundary label="WaterTracker">
+              <WaterTracker waterOz={waterOz} userProfile={userProfile} waterUnit={waterUnit} ozToDisplay={ozToDisplay} />
+            </ErrorBoundary>
 
             {/* BUTTON ROW */}
             <div className="flex flex-wrap gap-2 pt-2">
@@ -769,25 +783,31 @@ export default function Nutrition() {
       </motion.div>
 
       {/* Meal History Modal */}
-      <MealHistoryModal
-        open={showMealHistory}
-        onClose={() => setShowMealHistory(false)}
-        userProfile={userProfile}
-      />
+      <ErrorBoundary label="MealHistoryModal">
+        <MealHistoryModal
+          open={showMealHistory}
+          onClose={() => setShowMealHistory(false)}
+          userProfile={userProfile}
+        />
+      </ErrorBoundary>
 
       {/* Nutrition Goals Onboarding */}
-      <NutritionOnboardingModal
-        open={showGoalsOnboarding}
-        userProfile={userProfile}
-        onComplete={handleOnboardingComplete}
-      />
+      <ErrorBoundary label="NutritionOnboardingModal">
+        <NutritionOnboardingModal
+          open={showGoalsOnboarding}
+          userProfile={userProfile}
+          onComplete={handleOnboardingComplete}
+        />
+      </ErrorBoundary>
 
       {/* Nutrition Plans Modal */}
-      <NutritionPlansModal
-        open={showNutritionPlans}
-        onClose={() => setShowNutritionPlans(false)}
-        userProfile={userProfile}
-      />
+      <ErrorBoundary label="NutritionPlansModal">
+        <NutritionPlansModal
+          open={showNutritionPlans}
+          onClose={() => setShowNutritionPlans(false)}
+          userProfile={userProfile}
+        />
+      </ErrorBoundary>
     </motion.div>
   );
 }

@@ -15,6 +15,7 @@ import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
+import { reportError } from '@/lib/reportError';
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -2170,9 +2171,7 @@ export default function Onboarding() {
       // ever breaks — previously this swallowed errors completely.
       if (user?.id && user?.email) {
         grantWelcomeCapsule(user.id, user.email).catch(err => {
-          console.warn('[Onboarding] welcome capsule grant failed (non-fatal):', {
-            code: err?.code, message: err?.message,
-          });
+          reportError(err, { feature: 'onboarding.welcome-capsule', level: 'warning', userEmail: user?.email });
         });
       }
       // Create the starter regimen we just promised on the Reveal screen.
@@ -2187,18 +2186,14 @@ export default function Onboarding() {
           daysCount: Array.isArray(data.days) ? data.days.length : 0,
         },
       }).catch(err => {
-        console.warn('[Onboarding] starter regimen creation failed (non-fatal):', {
-          code: err?.code, message: err?.message, details: err?.details,
-        });
+        reportError(err, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
       });
       saved = true;
     } catch (err) {
-      console.error('[Onboarding] Full profile save failed, trying minimal save:', {
-        code: err?.code,
-        message: err?.message,
-        details: err?.details,
-        hint: err?.hint,
-      });
+      // Full save failed — try the minimal fallback below. This is a
+      // warning (not error) because we have a documented fallback path;
+      // the real error level is set on minErr below if BOTH fail.
+      reportError(err, { feature: 'onboarding.full-save', level: 'warning', userEmail: user?.email, note: 'attempting minimal-save fallback' });
       // Detect duplicate-username error and route the user back to a step
       // where they can fix it — the old code just toasted a misleading
       // "check your connection" message and stranded them on the reveal
@@ -2232,14 +2227,10 @@ export default function Onboarding() {
         if (checkUserAuth) await checkUserAuth();
         saved = true;
       } catch (minErr) {
-        // Surface the real error in the console for diagnosis. Without this
-        // every failure looks identical and on-call has nothing to grep for.
-        console.error('[Onboarding] Minimal save also failed:', {
-          code: minErr?.code,
-          message: minErr?.message,
-          details: minErr?.details,
-          hint: minErr?.hint,
-        });
+        // Both saves failed — this IS the user-blocking state. Report as
+        // 'error' level so it stands out from the warning-level full-save
+        // attempt above.
+        reportError(minErr, { feature: 'onboarding.minimal-save', userEmail: user?.email, note: 'both full and minimal save failed' });
         // Same duplicate detection on the minimal save.
         const isDupUsernameMin =
           minErr?.code === '23505' ||

@@ -28,6 +28,7 @@ import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
+import { reportError } from '@/lib/reportError';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
@@ -212,7 +213,7 @@ export default function Workout() {
           action_data: { totalVolume: sessionVolume, workout_date: data.date }
         });
       } catch (xpErr) {
-        console.warn('XP/achievement update failed (non-blocking):', xpErr);
+        reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
       }
 
       // Atomic volume accumulation via RPC (migration 023). The previous
@@ -232,12 +233,14 @@ export default function Workout() {
             // RPC missing or denied — fall back to non-atomic update so
             // the count at least advances on this device. Migration 023
             // adds the RPC; this fallback exists for pre-migration users.
-            console.warn('[Workout] volume RPC failed, falling back:', rpcErr);
+            reportError(rpcErr, { feature: 'workout.volume-rpc', level: 'warning', userEmail: user?.email, sessionVolume, note: 'falling back to read-modify-write' });
             const me = await db.auth.me();
             const prev = Number(me?.total_volume_lbs) || 0;
             await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
           }
-        } catch (volErr) { console.warn('[Workout] volume accumulate failed:', volErr); }
+        } catch (volErr) {
+          reportError(volErr, { feature: 'workout.volume-accumulate', level: 'warning', userEmail: user?.email, sessionVolume });
+        }
       }
 
       // Return the CLAMPED data alongside the workoutLog so onSuccess can
@@ -266,7 +269,7 @@ export default function Workout() {
       // wrong — previously this swallowed the failure and the row just
       // disappeared with no toast, which is the worst possible UX.
       queryClient.setQueryData(['workoutLogs', user?.email], ctx.previous);
-      console.error('[Workout] save failed:', err);
+      reportError(err, { feature: 'workout.save', userEmail: user?.email });
       const code = err?.code || err?.status;
       // RLS / permission denied surfaces a clearer hint than a generic message.
       if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
@@ -456,7 +459,7 @@ export default function Workout() {
       queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
       toast.success('Saved to your Regimens!');
     } catch (err) {
-      console.error('[Workout] save regimen failed:', err);
+      reportError(err, { feature: 'workout.save-regimen', userEmail: user?.email });
       toast.error('Could not save regimen. Try again.');
     }
   };
@@ -1042,7 +1045,7 @@ export default function Workout() {
               if (delta !== 0) {
                 try {
                   await supabase.rpc('increment_user_volume', { p_delta: delta });
-                } catch (err) { console.warn('[Workout] edit volume delta failed:', err); }
+                } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta', level: 'warning', userEmail: user?.email, delta }); }
               }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -1056,7 +1059,7 @@ export default function Workout() {
               if (deletedVolume > 0) {
                 try {
                   await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
-                } catch (err) { console.warn('[Workout] delete volume delta failed:', err); }
+                } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta', level: 'warning', userEmail: user?.email, deletedVolume }); }
               }
               queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
