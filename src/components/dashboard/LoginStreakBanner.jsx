@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 export default function LoginStreakBanner() {
   const { user } = useAuth();
@@ -25,11 +26,14 @@ export default function LoginStreakBanner() {
     queryKey: ['loginStreakProfile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('login_streak, last_login_date, longest_login_streak, streak_freezes_available')
-        .eq('id', user.id)
-        .maybeSingle();
+      const { data } = await safeSelect({
+        columns: ['login_streak', 'last_login_date', 'longest_login_streak', 'streak_freezes_available'],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('id', user.id)
+          .maybeSingle(),
+      });
       return data;
     },
     enabled: !!user?.id,

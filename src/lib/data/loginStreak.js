@@ -16,6 +16,7 @@
 //   Day 5: 50
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { format, differenceInCalendarDays } from 'date-fns';
 
 /** Streak day → coin reward. Falls through to a baseline for any day not listed. */
@@ -50,11 +51,14 @@ export async function recordLogin(user) {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: profile, error: readErr } = await supabase
-    .from('user_profiles')
-    .select('login_streak, last_login_date, longest_login_streak, streak_freezes_available, flex_coins')
-    .eq('id', user.id)
-    .maybeSingle();
+  const { data: profile, error: readErr } = await safeSelect({
+    columns: ['login_streak', 'last_login_date', 'longest_login_streak', 'streak_freezes_available', 'flex_coins'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .eq('id', user.id)
+      .maybeSingle(),
+  });
   if (readErr || !profile) {
     return { isNewDay: false, streak: 0, coinsAwarded: 0, eliteCapsuleAwarded: false, freezeUsed: false };
   }

@@ -13,6 +13,7 @@
 // editing SHOP_CATALOG below.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 export const SHOP_CATALOG = {
   capsule_standard: {
@@ -103,11 +104,14 @@ export async function purchaseItem(user, sku) {
   // ── Legacy fallback path — only runs pre-migration-031. ──
   // Retains the original race and cheat surface; kept ONLY so the shop
   // doesn't break during the rollout window.
-  const { data: profile, error: readErr } = await supabase
-    .from('user_profiles')
-    .select('flex_coins, streak_freezes_available')
-    .eq('id', user.id)
-    .maybeSingle();
+  const { data: profile, error: readErr } = await safeSelect({
+    columns: ['flex_coins', 'streak_freezes_available'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .eq('id', user.id)
+      .maybeSingle(),
+  });
   if (readErr) return { success: false, error: 'read_failed' };
   const balance = profile?.flex_coins ?? 0;
   if (balance < item.price) return { success: false, error: 'insufficient_coins', newBalance: balance };

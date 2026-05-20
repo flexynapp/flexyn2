@@ -3,6 +3,7 @@ import { db } from '@/api/db';
 import { notifyFriendFollow } from './notifications';
 import * as users from './users';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 const e = () => db.entities.HubFollow;
 
@@ -97,12 +98,15 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
 
   if (followingEmails.length === 0) {
     // No friends yet — surface recent profiles as a starting point
-    const { data } = await supabase
-      .from('user_profiles')
-      .select('email, username, avatar_url')
-      .neq('email', userEmail)
-      .not('username', 'is', null)
-      .limit(limit);
+    const { data } = await safeSelect({
+      columns: ['email', 'username', 'avatar_url'],
+      build: (cols) => supabase
+        .from('user_profiles')
+        .select(cols)
+        .neq('email', userEmail)
+        .not('username', 'is', null)
+        .limit(limit),
+    });
     return data ?? [];
   }
 
@@ -134,10 +138,13 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const selected = candidates.slice(0, limit);
   if (selected.length === 0) return [];
 
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('email, username, avatar_url')
-    .in('email', selected);
+  const { data } = await safeSelect({
+    columns: ['email', 'username', 'avatar_url'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .in('email', selected),
+  });
   return data ?? [];
 };
 

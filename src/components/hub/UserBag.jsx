@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
 import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
@@ -335,11 +336,14 @@ function FrameList({ items, userId }) {
         resolved = authUser?.id;
       }
       if (!resolved) return null;
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('equipped_frame_id, avatar_url, username')
-        .eq('id', resolved)
-        .maybeSingle();
+      const { data, error } = await safeSelect({
+        columns: ['equipped_frame_id', 'avatar_url', 'username'],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('id', resolved)
+          .maybeSingle(),
+      });
       if (error) {
         console.warn('[FrameList] read equipped_frame_id failed:', error);
         return null;

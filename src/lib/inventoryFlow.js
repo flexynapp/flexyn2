@@ -14,6 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
@@ -49,11 +50,14 @@ export function useBagFlow() {
     queryFn: async () => {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) return null;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('id, flex_coins')
-        .eq('id', authUser.id)
-        .maybeSingle();
+      const { data } = await safeSelect({
+        columns: ['id', 'flex_coins'],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('id', authUser.id)
+          .maybeSingle(),
+      });
       return data;
     },
     enabled: !!user?.email,

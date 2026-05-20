@@ -15,6 +15,7 @@
 // VITE_ANTHROPIC_API_KEY — see that file.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
 import { startOfWeek, subDays, differenceInCalendarDays, format } from 'date-fns';
 import { INTENTS } from './intents';
@@ -63,11 +64,14 @@ async function _fetchRecentCardio(userEmail, days = 14) {
 
 async function _fetchProfile(userId) {
   if (!userId) return null;
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('flex_coins, login_streak, workout_streak, longest_workout_streak, total_xp, league_tier')
-    .eq('id', userId)
-    .maybeSingle();
+  const { data } = await safeSelect({
+    columns: ['flex_coins', 'login_streak', 'workout_streak', 'longest_workout_streak', 'total_xp', 'league_tier'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .eq('id', userId)
+      .maybeSingle(),
+  });
   return data;
 }
 

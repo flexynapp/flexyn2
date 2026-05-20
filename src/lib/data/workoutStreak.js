@@ -15,6 +15,7 @@
 // (workout streaks are harder to maintain).
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { format, differenceInCalendarDays } from 'date-fns';
 
 const STREAK_COIN_TABLE = {
@@ -45,11 +46,14 @@ export async function recordWorkoutDay(user) {
 
   const today = format(new Date(), 'yyyy-MM-dd');
 
-  const { data: profile, error: readErr } = await supabase
-    .from('user_profiles')
-    .select('workout_streak, last_workout_date, longest_workout_streak, flex_coins')
-    .eq('id', user.id)
-    .maybeSingle();
+  const { data: profile, error: readErr } = await safeSelect({
+    columns: ['workout_streak', 'last_workout_date', 'longest_workout_streak', 'flex_coins'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .eq('id', user.id)
+      .maybeSingle(),
+  });
   if (readErr || !profile) return null;
 
   const lastDate = profile.last_workout_date;

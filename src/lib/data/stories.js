@@ -288,10 +288,13 @@ export async function getStoryInsights(storyId) {
 
   let profileMap = {};
   if (allIds.length > 0) {
-    const { data: profiles } = await supabase
-      .from('user_profiles')
-      .select('id, username, avatar_url')
-      .in('id', allIds);
+    const { data: profiles } = await safeSelect({
+      columns: ['id', 'username', 'avatar_url'],
+      build: (cols) => supabase
+        .from('user_profiles')
+        .select(cols)
+        .in('id', allIds),
+    });
     profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
   }
 

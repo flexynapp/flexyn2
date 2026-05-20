@@ -16,6 +16,7 @@ import {
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
@@ -56,11 +57,18 @@ export default function StatsHubModal({ open, onClose }) {
     queryKey: ['statsHubProfile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('total_xp, flex_coins, login_streak, workout_streak, longest_workout_streak, equipped_title_id, equipped_frame_id, avatar_url, username')
-        .eq('id', user.id)
-        .maybeSingle();
+      const { data } = await safeSelect({
+        columns: [
+          'total_xp', 'flex_coins', 'login_streak', 'workout_streak',
+          'longest_workout_streak', 'equipped_title_id', 'equipped_frame_id',
+          'avatar_url', 'username',
+        ],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('id', user.id)
+          .maybeSingle(),
+      });
       return data;
     },
     enabled: !!user?.id && open,

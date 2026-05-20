@@ -11,6 +11,7 @@ import { Dumbbell, Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { differenceInCalendarDays } from 'date-fns';
 
 export default function WorkoutStreakBanner() {
@@ -21,11 +22,14 @@ export default function WorkoutStreakBanner() {
     queryKey: ['workoutStreakProfile', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('workout_streak, last_workout_date, longest_workout_streak')
-        .eq('id', user.id)
-        .maybeSingle();
+      const { data } = await safeSelect({
+        columns: ['workout_streak', 'last_workout_date', 'longest_workout_streak'],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('id', user.id)
+          .maybeSingle(),
+      });
       return data;
     },
     enabled: !!user?.id,
