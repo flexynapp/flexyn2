@@ -11,12 +11,15 @@ import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
-import { format, subDays, eachDayOfInterval, startOfDay } from 'date-fns';
+import { format, subDays, eachDayOfInterval, startOfDay, differenceInDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon, Activity } from 'lucide-react';
+import {
+  TrendingUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon,
+  Activity, Flame, Dumbbell, Camera, Ruler, Star, ChevronRight, Zap,
+} from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -32,6 +35,8 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
 const CHART_STYLE = {
   contentStyle: {
     background: 'hsl(var(--card))',
@@ -40,6 +45,48 @@ const CHART_STYLE = {
     fontSize: '12px',
   },
 };
+
+const MUSCLE_PILL = {
+  chest:       'bg-blue-500/15 text-blue-500 border-blue-500/25',
+  back:        'bg-emerald-500/15 text-emerald-500 border-emerald-500/25',
+  shoulders:   'bg-violet-500/15 text-violet-500 border-violet-500/25',
+  biceps:      'bg-cyan-500/15 text-cyan-500 border-cyan-500/25',
+  triceps:     'bg-indigo-500/15 text-indigo-500 border-indigo-500/25',
+  legs:        'bg-orange-500/15 text-orange-500 border-orange-500/25',
+  glutes:      'bg-pink-500/15 text-pink-500 border-pink-500/25',
+  core:        'bg-yellow-500/15 text-yellow-500 border-yellow-500/25',
+  'full body': 'bg-teal-500/15 text-teal-500 border-teal-500/25',
+  cardio:      'bg-red-500/15 text-red-500 border-red-500/25',
+};
+const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
+
+const TAB_META = [
+  { id: 'trends',       label: 'Trends',       Icon: TrendingUp, iconColor: 'text-primary',     activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
+  { id: 'analytics',    label: 'Analytics',    Icon: BarChart2,  iconColor: 'text-amber-500',    activeBg: 'bg-amber-500',   activeText: 'text-white' },
+  { id: 'body',         label: 'Body',         Icon: Ruler,      iconColor: 'text-emerald-500',  activeBg: 'bg-emerald-500', activeText: 'text-white' },
+  { id: 'photos',       label: 'Photos',       Icon: Camera,     iconColor: 'text-violet-500',   activeBg: 'bg-violet-500',  activeText: 'text-white' },
+  { id: 'achievements', label: 'Achievements', Icon: Trophy,     iconColor: 'text-yellow-500',   activeBg: 'bg-yellow-500',  activeText: 'text-slate-900' },
+];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatBigNumber(n) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000)     return `${(n / 1_000).toFixed(1)}K`;
+  return String(Math.round(n));
+}
+
+function calcVolume(logs) {
+  let v = 0;
+  for (const log of logs) {
+    for (const ex of log.exercises || []) {
+      for (const s of ex.sets || []) {
+        v += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+      }
+    }
+  }
+  return v;
+}
 
 // ─── Personal Bests Tab ───────────────────────────────────────────────────────
 
@@ -55,14 +102,8 @@ function PersonalBestsTab({ logs }) {
         if (!ex.name || !ex.sets?.length) return;
         if (!map[ex.name]) map[ex.name] = { weight: 0, weightDate: null, reps: 0, repsDate: null };
         ex.sets.forEach(s => {
-          if ((s.weight || 0) > map[ex.name].weight) {
-            map[ex.name].weight = s.weight;
-            map[ex.name].weightDate = log.date;
-          }
-          if ((s.reps || 0) > map[ex.name].reps) {
-            map[ex.name].reps = s.reps;
-            map[ex.name].repsDate = log.date;
-          }
+          if ((s.weight || 0) > map[ex.name].weight) { map[ex.name].weight = s.weight; map[ex.name].weightDate = log.date; }
+          if ((s.reps   || 0) > map[ex.name].reps)   { map[ex.name].reps   = s.reps;   map[ex.name].repsDate   = log.date; }
         });
       });
     });
@@ -71,7 +112,7 @@ function PersonalBestsTab({ logs }) {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [logs]);
 
-  if (logs.length === 0) {
+  if (bests.length === 0) {
     return (
       <Card className="p-12 text-center border-dashed">
         <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -81,77 +122,32 @@ function PersonalBestsTab({ logs }) {
     );
   }
 
-  if (bests.length === 0) {
-    return (
-      <Card className="p-12 text-center border-dashed">
-        <Trophy className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">{t('progress.noData')}</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('progress.noSetsRecorded')}</p>
-      </Card>
-    );
-  }
-
   return (
     <div className="space-y-3">
       {bests.map((pb, idx) => (
-        <motion.div
-          key={pb.name}
-          initial={{ opacity: 0, y: 20, scale: 0.96 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 260, damping: 22, delay: idx * 0.05 }}
-        >
+        <motion.div key={pb.name} initial={{ opacity: 0, y: 20, scale: 0.96 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 22, delay: idx * 0.05 }}>
           <Card className="border-none shadow-sm overflow-hidden">
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
-                <motion.div
-                  className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0"
-                  animate={{ scale: [1, 1.15, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}
-                >
+                <motion.div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
                   <Trophy className="w-4 h-4 text-yellow-500" />
                 </motion.div>
                 <span className="font-heading font-bold text-sm">{pb.name}</span>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <motion.div
-                  className="bg-primary/5 rounded-lg p-3"
-                  whileHover={{ scale: 1.03 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                >
+                <motion.div className="bg-primary/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestWeight')}</p>
-                  <motion.p
-                    className="font-heading font-bold text-xl text-primary"
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.1 }}
-                  >
+                  <motion.p className="font-heading font-bold text-xl text-primary" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.1 }}>
                     {pb.weight > 0 ? formatWeight(pb.weight, weightUnit) : '—'}
                   </motion.p>
-                  {pb.weightDate && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {format(new Date(pb.weightDate), 'MMM d, yyyy', { locale: dateLocale })}
-                    </p>
-                  )}
+                  {pb.weightDate && <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(pb.weightDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
-                <motion.div
-                  className="bg-accent/5 rounded-lg p-3"
-                  whileHover={{ scale: 1.03 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                >
+                <motion.div className="bg-accent/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestReps')}</p>
-                  <motion.p
-                    className="font-heading font-bold text-xl text-accent"
-                    initial={{ scale: 0.6, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}
-                  >
+                  <motion.p className="font-heading font-bold text-xl text-accent" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}>
                     {pb.reps > 0 ? `${pb.reps} reps` : '—'}
                   </motion.p>
-                  {pb.repsDate && (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {format(new Date(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}
-                    </p>
-                  )}
+                  {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
               </div>
             </div>
@@ -169,23 +165,18 @@ function AnalyticsTab({ logs }) {
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
 
-  const weightOverTime = useMemo(() => {
-    return logs
-      .filter(l => l.date)
-      .map(log => {
-        const maxWeightLbs = (log.exercises || []).reduce((max, ex) => {
-          const exMax = (ex.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
-          return Math.max(max, exMax);
-        }, 0);
-        return {
-          date: format(new Date(log.date), 'MMM d', { locale: dateLocale }),
-          'Max Weight (lbs)': maxWeightLbs,
-          weightDisplay: fromLbs(maxWeightLbs, weightUnit),
-        };
-      })
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
-      .slice(-20);
-  }, [logs, dateLocale, weightUnit]);
+  const weightOverTime = useMemo(() => logs
+    .filter(l => l.date)
+    .map(log => {
+      const maxWeightLbs = (log.exercises || []).reduce((max, ex) => {
+        const exMax = (ex.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
+        return Math.max(max, exMax);
+      }, 0);
+      return { date: format(new Date(log.date), 'MMM d', { locale: dateLocale }), 'Max Weight (lbs)': maxWeightLbs, weightDisplay: fromLbs(maxWeightLbs, weightUnit) };
+    })
+    .sort((a, b) => new Date(a.date) - new Date(b.date))
+    .slice(-20),
+  [logs, dateLocale, weightUnit]);
 
   const volumeByMuscle = useMemo(() => {
     const map = {};
@@ -197,26 +188,14 @@ function AnalyticsTab({ logs }) {
       });
     });
     return Object.entries(map)
-      .map(([group, volume]) => ({
-        group,
-        displayGroup: t(`muscleGroups.${muscleKey(group)}`),
-        Volume: Math.round(volume),
-      }))
-      .sort((a, b) => b.Volume - a.Volume)
-      .slice(0, 8);
+      .map(([group, volume]) => ({ group, displayGroup: t(`muscleGroups.${muscleKey(group)}`), Volume: Math.round(volume) }))
+      .sort((a, b) => b.Volume - a.Volume).slice(0, 8);
   }, [logs, t]);
 
   const workoutFrequency = useMemo(() => {
     const last30 = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() });
-    const loggedDays = new Set(
-      logs
-        .filter(l => l.date && new Date(l.date) >= subDays(new Date(), 29))
-        .map(l => format(startOfDay(new Date(l.date)), 'yyyy-MM-dd'))
-    );
-    return last30.map(day => ({
-      date: format(day, 'MMM d', { locale: dateLocale }),
-      Workouts: loggedDays.has(format(day, 'yyyy-MM-dd')) ? 1 : 0,
-    }));
+    const loggedDays = new Set(logs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), 29)).map(l => format(startOfDay(new Date(l.date)), 'yyyy-MM-dd')));
+    return last30.map(day => ({ date: format(day, 'MMM d', { locale: dateLocale }), Workouts: loggedDays.has(format(day, 'yyyy-MM-dd')) ? 1 : 0 }));
   }, [logs, dateLocale]);
 
   const trainedDays = workoutFrequency.filter(d => d.Workouts === 1).length;
@@ -233,38 +212,21 @@ function AnalyticsTab({ logs }) {
 
   return (
     <div className="space-y-6">
-      {/* Summary Pills */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-primary', span: '' },
-          { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-accent', span: '' },
-          { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: '', span: 'col-span-2 md:col-span-1', style: { color: 'hsl(var(--chart-4))' } },
+          { value: logs.length, label: t('progress.totalWorkouts'), color: 'text-primary' },
+          { value: trainedDays, label: t('progress.daysTrained30d'), color: 'text-amber-500' },
+          { value: volumeByMuscle[0]?.displayGroup || '—', label: t('progress.topMuscleGroup'), color: 'text-emerald-500', span: 'col-span-2 md:col-span-1' },
         ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 16, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ type: 'spring', stiffness: 280, damping: 20, delay: i * 0.08 }}
-            whileHover={{ scale: 1.04, y: -2 }}
-            className={stat.span}
-          >
+          <motion.div key={stat.label} initial={{ opacity: 0, y: 16, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 280, damping: 20, delay: i * 0.08 }} whileHover={{ scale: 1.04, y: -2 }} className={stat.span || ''}>
             <Card className="p-4 border-none shadow-sm text-center h-full">
-              <motion.p
-                className={`font-heading text-2xl font-bold ${stat.color}`}
-                style={stat.style}
-                initial={{ scale: 0.5, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 18, delay: i * 0.08 + 0.1 }}
-              >
-                {stat.value}
-              </motion.p>
+              <motion.p className={`font-heading text-2xl font-bold ${stat.color}`} initial={{ scale: 0.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, damping: 18, delay: i * 0.08 + 0.1 }}>{stat.value}</motion.p>
               <p className="text-xs text-muted-foreground mt-0.5">{stat.label}</p>
             </Card>
           </motion.div>
         ))}
       </div>
 
-      {/* Weight Over Time */}
       <Card className="p-5 border-none shadow-sm">
         <h2 className="font-heading font-bold mb-1">{t('progress.maxWeightOverTime')}</h2>
         <p className="text-xs text-muted-foreground mb-4">{t('progress.maxWeightSubtitle')}</p>
@@ -283,7 +245,6 @@ function AnalyticsTab({ logs }) {
         )}
       </Card>
 
-      {/* Volume by Muscle Group */}
       <Card className="p-5 border-none shadow-sm">
         <h2 className="font-heading font-bold mb-1">{t('progress.totalVolumeByMuscle')}</h2>
         <p className="text-xs text-muted-foreground mb-4">{t('progress.totalVolumeDesc')}</p>
@@ -302,7 +263,6 @@ function AnalyticsTab({ logs }) {
         )}
       </Card>
 
-      {/* Workout Frequency */}
       <Card className="p-5 border-none shadow-sm">
         <div className="flex items-center justify-between mb-1">
           <h2 className="font-heading font-bold">{t('progress.workoutFrequency')}</h2>
@@ -324,378 +284,494 @@ function AnalyticsTab({ logs }) {
 
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
-function WeeklyStat({ label, value }) {
-  return (
-    <div className="text-center min-w-0">
-      <p className="font-heading font-bold text-base leading-tight">{value}</p>
-      <p className="text-xs text-muted-foreground leading-tight break-words hyphens-auto">{label}</p>
-    </div>
-  );
-}
-
 export default function Progress() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
-  const TABS = [
-    { id: 'trends', label: t('progress.tabs.trends') },
-    { id: 'analytics', label: t('progress.tabs.analytics') },
-    { id: 'body', label: t('progress.tabs.body') },
-    { id: 'photos', label: t('progress.tabs.photos') },
-    { id: 'achievements', label: t('progress.achievements') },
-  ];
+  const dateLocale = getDateLocale(language);
+
   const location = useLocation();
   const navigate = useNavigate();
 
-  // Read ?tab= from the URL — used by StatsHubModal to deep-link the user
-  // straight to the Achievements tab. Strip the param after consuming so a
-  // reload doesn't keep re-applying it.
   const initialTab = (() => {
     const p = new URLSearchParams(location.search);
-    const t = p.get('tab');
-    if (TABS.some(x => x.id === t)) return t;
+    const tab = p.get('tab');
+    if (TAB_META.some(x => x.id === tab)) return tab;
     return 'trends';
   })();
+
   const [activeTab, setActiveTab] = useState(initialTab);
   useEffect(() => {
     const p = new URLSearchParams(location.search);
-    const t = p.get('tab');
-    if (t && TABS.some(x => x.id === t)) {
-      setActiveTab(t);
+    const tab = p.get('tab');
+    if (tab && TAB_META.some(x => x.id === tab)) {
+      setActiveTab(tab);
       p.delete('tab');
       navigate({ pathname: '/progress', search: p.toString() ? '?' + p.toString() : '' }, { replace: true });
     }
-     
   }, [location.search]);
+
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
-  const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen] = useState(false);
-  const [selectedRegimen, setSelectedRegimen] = useState('all');
-  const [timeRange, setTimeRange] = useState('90');
-  const [selectedMuscleGroup, setSelectedMuscleGroup] = useState('all');
-  const [showStickyNav, setShowStickyNav] = useState(false);
-  const exerciseTrendsRef = React.useRef(null);
-  const analyticsRef = React.useRef(null);
-  const analyticsContentRef = React.useRef(null);
-  const bodyMetricsRef = React.useRef(null);
-  const tabsRef = React.useRef(null);
+  const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen]   = useState(false);
+  const [selectedRegimen,       setSelectedRegimen]         = useState('all');
+  const [timeRange,             setTimeRange]               = useState('90');
+  const [selectedMuscleGroup,   setSelectedMuscleGroup]     = useState('all');
+
+  const tabsBarRef = React.useRef(null);
+  const contentRef = React.useRef(null);
   const { user } = useAuth();
 
-  React.useEffect(() => {
-    const handleScroll = () => {
-      if (tabsRef.current) {
-        const tabsBottom = tabsRef.current.getBoundingClientRect().bottom;
-        setShowStickyNav(tabsBottom < 0);
-      }
-    };
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
+  // ── Queries ──────────────────────────────────────────────────────────────
   const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
-
   const { data: rawRegimens = [], isLoading: regimensLoading } = useQuery({
     queryKey: ['regimens', user?.email],
     queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
-
   const { data: rawAchievements = [] } = useQuery({
     queryKey: ['achievements', user?.email],
     queryFn: () => db.entities.Achievement.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
-
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
-
   const { data: cardioLogs = [] } = useQuery({
     queryKey: ['cardioLogs', user?.email],
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
 
-  const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
-  const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
+  const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),    [rawLogs, userProfile]);
+  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const achievements = useMemo(() => rawAchievements ?? [], [rawAchievements]);
+  const isLoading    = logsLoading || regimensLoading;
+
+  // ── Derived stats ─────────────────────────────────────────────────────────
+  const thisWeekLogs = useMemo(() => {
+    const cutoff = subDays(new Date(), 7);
+    return logs.filter(l => l.date && new Date(l.date) >= cutoff);
+  }, [logs]);
+
+  const lastWeekLogs = useMemo(() => {
+    const end   = subDays(new Date(), 7);
+    const start = subDays(new Date(), 14);
+    return logs.filter(l => l.date && new Date(l.date) >= start && new Date(l.date) < end);
+  }, [logs]);
+
+  const thisWeekVolume = useMemo(() => calcVolume(thisWeekLogs), [thisWeekLogs]);
+  const lastWeekVolume = useMemo(() => calcVolume(lastWeekLogs), [lastWeekLogs]);
+  const volumeDelta    = lastWeekVolume > 0 ? ((thisWeekVolume - lastWeekVolume) / lastWeekVolume) * 100 : null;
 
   const weeklyCardio = useMemo(() => {
-    const cutoff = subDays(new Date(), 7);
-    const inWindow = cardioLogs.filter(l => l.date && new Date(l.date) >= cutoff);
+    const inWindow = cardioLogs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), 7));
     return {
-      sessions: inWindow.length,
-      distanceMeters: inWindow.reduce((s, l) => s + (l.distance_meters || 0), 0),
+      sessions:        inWindow.length,
+      distanceMeters:  inWindow.reduce((s, l) => s + (l.distance_meters  || 0), 0),
       durationSeconds: inWindow.reduce((s, l) => s + (l.duration_seconds || 0), 0),
-      calories: inWindow.reduce((s, l) => s + (l.calories || 0), 0),
+      calories:        inWindow.reduce((s, l) => s + (l.calories         || 0), 0),
     };
   }, [cardioLogs]);
 
-  const isLoading = logsLoading || regimensLoading;
-  const regimenNames = useMemo(() => regimens.map(r => r.name).sort(), [regimens]);
-
-  const regimenLogs = useMemo(() => {
-    if (selectedRegimen === 'all') return logs;
-    return logs.filter(l => l.regimen_name === selectedRegimen);
-  }, [logs, selectedRegimen]);
-
-  const exerciseNames = useMemo(() => {
-    const names = new Set();
-    regimenLogs.forEach(log => {
-      log.exercises?.forEach(ex => { if (ex.name) names.add(ex.name); });
+  const muscleGroupsThisWeek = useMemo(() => {
+    const groups = new Set();
+    thisWeekLogs.forEach(log => {
+      (log.exercises || []).forEach(ex => {
+        const arr = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
+        arr.forEach(g => groups.add(g));
+      });
     });
-    return Array.from(names).sort();
-  }, [regimenLogs]);
+    return [...groups].filter(Boolean);
+  }, [thisWeekLogs]);
 
-  const scrollToTab = (tabId) => {
+  const totalVolume = useMemo(() => {
+    const fromProfile = Number(userProfile?.total_volume_lbs);
+    if (fromProfile > 0) return fromProfile;
+    return calcVolume(logs);
+  }, [logs, userProfile]);
+
+  const topPRs = useMemo(() => {
+    const map = {};
+    logs.forEach(log => {
+      (log.exercises || []).forEach(ex => {
+        if (!ex.name) return;
+        if (!map[ex.name]) map[ex.name] = { name: ex.name, weight: 0, reps: 0 };
+        (ex.sets || []).forEach(s => {
+          if ((s.weight || 0) > map[ex.name].weight) map[ex.name].weight = s.weight;
+          if ((s.reps   || 0) > map[ex.name].reps)   map[ex.name].reps   = s.reps;
+        });
+      });
+    });
+    return Object.values(map)
+      .filter(pr => pr.weight > 0)
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 5);
+  }, [logs]);
+
+  const lastWorkout     = logs[0] || null;
+  const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), new Date(lastWorkout.date)) : null;
+  const regimenNames    = useMemo(() => regimens.map(r => r.name).sort(), [regimens]);
+  const regimenLogs     = useMemo(() => selectedRegimen === 'all' ? logs : logs.filter(l => l.regimen_name === selectedRegimen), [logs, selectedRegimen]);
+  const exerciseNames   = useMemo(() => { const n = new Set(); regimenLogs.forEach(log => log.exercises?.forEach(ex => { if (ex.name) n.add(ex.name); })); return [...n].sort(); }, [regimenLogs]);
+
+  const streak = userProfile?.workout_streak ?? 0;
+  const level  = userProfile?.current_level  ?? 1;
+
+  const heroStats = [
+    { icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10' },
+    { icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10' },
+  ];
+
+  // ── Tab switch helper ─────────────────────────────────────────────────────
+  const switchTab = (id) => {
+    setActiveTab(id);
     setTimeout(() => {
-      let contentElement;
-      if (tabId === 'analytics') contentElement = analyticsContentRef.current;
-      else if (tabId === 'body') contentElement = bodyMetricsRef.current;
-      else if (tabId === 'trends') contentElement = exerciseTrendsRef.current;
-
-      if (contentElement) {
-        const contentTop = contentElement.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({ top: contentTop - 80, behavior: 'smooth' });
+      if (contentRef.current) {
+        const top = contentRef.current.getBoundingClientRect().top + window.scrollY;
+        window.scrollTo({ top: top - 80, behavior: 'smooth' });
       }
-    }, 100);
+    }, 80);
   };
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
+      transition={{ duration: 0.45, ease: 'easeOut' }}
       className="p-4 md:p-8 max-w-5xl mx-auto"
     >
       <PageHeader
         kicker={t('pageHeader.kicker.progress')}
         title={t('progress.title')}
         hidePeriod
-        subtitle={t('progress.subtitle')}
       />
-
-      {/* Weekly Cardio Summary */}
-      {!isLoading && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="mb-8"
-        >
-          <Card className="p-4 border-none shadow-sm">
-            <p className="text-sm font-medium mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary" />
-              {t('cardio.weekly.title')}
-            </p>
-            {weeklyCardio.sessions === 0 ? (
-              <p className="text-sm text-muted-foreground">{t('cardio.weekly.noActivity')}</p>
-            ) : (
-              <div className="grid grid-cols-4 gap-2">
-                <WeeklyStat label={t('cardio.weekly.sessions')} value={weeklyCardio.sessions} />
-                <WeeklyStat label={t('cardio.weekly.distance')} value={formatDistance(weeklyCardio.distanceMeters, distanceUnit, 1)} />
-                <WeeklyStat label={t('cardio.weekly.time')} value={formatDuration(weeklyCardio.durationSeconds)} />
-                <WeeklyStat label={t('cardio.weekly.calories')} value={`${Math.round(weeklyCardio.calories)}`} />
-              </div>
-            )}
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Tab Cards */}
-      <motion.div
-        ref={tabsRef}
-        className="grid grid-cols-2 gap-4 mb-8 items-stretch"
-        variants={{ hidden: { opacity: 0 }, visible: { opacity: 1, transition: { staggerChildren: 0.1 } } }}
-        initial="hidden"
-        animate="visible"
-      >
-        {TABS.map((tab) => (
-          <motion.div
-            key={tab.id}
-            variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
-            whileHover={{ y: -4 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 18 }}
-          >
-            <button
-              onClick={() => { setActiveTab(tab.id); setTimeout(() => scrollToTab(tab.id), 450); }}
-              className="w-full h-full"
-            >
-              <Card className={`p-3 md:p-6 border-none cursor-pointer shadow-sm h-full ${activeTab === tab.id ? 'bg-primary text-primary-foreground' : ''}`}>
-                <div className="flex items-center justify-between gap-2 md:gap-3 h-full">
-                  <div className="text-left flex-1 min-w-0">
-                    <p className="font-heading text-sm md:text-lg font-bold break-normal leading-tight">{tab.label}</p>
-                    <p className={`text-[11px] md:text-sm mt-1 break-normal leading-tight ${activeTab === tab.id ? 'opacity-80' : 'text-muted-foreground'}`}>
-                      {tab.id === 'trends' && t('progress.tabs.trendsDesc')}
-                      {tab.id === 'analytics' && t('progress.tabs.analyticsDesc')}
-                      {tab.id === 'body' && t('progress.tabs.bodyDesc')}
-                      {tab.id === 'photos' && t('progress.tabs.photosDesc')}
-                    </p>
-                  </div>
-                  <motion.div
-                    className={`w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center shrink-0 ${activeTab === tab.id ? 'bg-white/20' : 'bg-secondary'}`}
-                    whileHover={{ scale: 1.2, rotate: 15 }}
-                    transition={{ type: 'spring', stiffness: 400 }}
-                  >
-                    <ArrowRight className={`w-3.5 h-3.5 md:w-5 md:h-5 ${activeTab === tab.id ? '' : 'text-muted-foreground'}`} />
-                  </motion.div>
-                </div>
-              </Card>
-            </button>
-          </motion.div>
-        ))}
-      </motion.div>
 
       {isLoading ? (
         <div className="space-y-4">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
       ) : (
-        <AnimatePresence mode="wait">
+        <>
+          {/* ── Hero Stats Strip ──────────────────────────────────────────── */}
           <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20, pointerEvents: 'none' }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
+            className="grid grid-cols-4 gap-2 md:gap-3 mb-6"
+            initial="hidden"
+            animate="visible"
+            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
           >
-            {activeTab === 'analytics' ? (
-              <div className="space-y-6">
-                <div ref={analyticsContentRef} className="flex gap-3 justify-center flex-wrap">
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
-                    <Button
-                      onClick={() => setPersonalBestsModalOpen(true)}
-                      className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 hover:from-yellow-500 hover:via-yellow-600 hover:to-amber-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
-                    >
-                      <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-                      <Trophy className="w-4 h-4 mr-2 relative z-10" /> {t('progress.personalBests')}
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
-                    <Button
-                      onClick={() => setAdvancedAnalyticsOpen(true)}
-                      className="bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:via-teal-600 hover:to-cyan-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
-                    >
-                      <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-                      <SparklesIcon className="w-4 h-4 mr-2 relative z-10" /> {t('progress.advancedAnalytics')}
-                    </Button>
-                  </motion.div>
-                </div>
-                <div ref={analyticsRef}>
-                  <ErrorBoundary label="Analytics">
-                    <AnalyticsTab logs={logs} />
-                  </ErrorBoundary>
-                </div>
-              </div>
-            ) : activeTab === 'body' ? (
-              <div ref={bodyMetricsRef}>
-                <ErrorBoundary label="BodyMetrics">
-                  <BodyMetricsTab />
-                </ErrorBoundary>
-              </div>
-            ) : activeTab === 'photos' ? (
-              <div>
-                <ErrorBoundary label="ProgressPhotos">
-                  <ProgressPhotosTab />
-                </ErrorBoundary>
-              </div>
-            ) : activeTab === 'achievements' ? (
-              <div>
-                <ErrorBoundary label="Achievements">
-                  <AchievementsTab achievements={achievements} />
-                </ErrorBoundary>
-              </div>
-            ) : (
-              /* Exercise Trends Tab */
-              <ErrorBoundary label="ExerciseTrends">
-              <div>
-                <div className="flex justify-start mb-6">
-                  <FilterDropdown
-                    selectedRegimen={selectedRegimen}
-                    onRegimenChange={setSelectedRegimen}
-                    regimenItems={[
-                      { value: 'all', label: t('progress.filterAllRegimens') },
-                      ...regimenNames.map(name => ({ value: name, label: name })),
-                    ]}
-                    selectedTimeRange={timeRange}
-                    onTimeRangeChange={setTimeRange}
-                    timeRangeItems={[
-                      { value: '7', label: t('progress.last7Days') },
-                      { value: '30', label: t('progress.last30Days') },
-                      { value: '90', label: t('progress.last90Days') },
-                      { value: '365', label: t('progress.lastYear') },
-                    ]}
-                    selectedMuscleGroup={selectedMuscleGroup}
-                    onMuscleGroupChange={setSelectedMuscleGroup}
-                    muscleGroupItems={[
-                      { value: 'all', label: t('progress.filterAllMuscleGroups') },
-                      ...Array.from(
-                        new Set(
-                          regimenLogs.flatMap(log =>
-                            log.exercises?.flatMap(ex => ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : [])) || []
-                          )
-                        )
-                      )
-                        .map(group => ({ value: group, label: t(`muscleGroups.${muscleKey(group)}`) }))
-                        .sort((a, b) => a.label.localeCompare(b.label)),
-                    ]}
-                  />
-                </div>
-
-                <div className="space-y-6" ref={exerciseTrendsRef}>
-                  <div>
-                    <h2 className="font-heading font-bold mb-4">{t('progress.exerciseTrends')}</h2>
-                    {exerciseNames.length === 0 ? (
-                      <Card className="p-10 text-center border-dashed">
-                        <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-heading font-semibold">{t('progress.noExerciseData')}</p>
-                        <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
-                          {t('progress.noExerciseDataDesc')}
-                        </p>
-                        <div className="mt-4 p-4 bg-secondary rounded-xl text-left text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
-                          <p className="font-medium text-foreground mb-2">{t('progress.howToLog')}</p>
-                          <p>1.{' '}
-                            {t('progress.howToLog.step1').split('{workout}')[0]}
-                            <span className="text-primary font-medium">{t('nav.workout')}</span>
-                            {t('progress.howToLog.step1').split('{workout}')[1]}
-                          </p>
-                          <p>2. {t('progress.howToLog.step2')}</p>
-                          <p>3. {t('progress.howToLog.step3')}</p>
-                          <p>4.{' '}
-                            {t('progress.howToLog.step4').split('{save}')[0]}
-                            <span className="text-primary font-medium">{t('workout.saveWorkout')}</span>
-                            {t('progress.howToLog.step4').split('{save}')[1]}
-                          </p>
-                        </div>
-                      </Card>
-                    ) : (
-                      <GroupedExerciseTrends
-                        exerciseNames={exerciseNames}
-                        regimenLogs={regimenLogs}
-                        timeRange={timeRange}
-                        selectedMuscleGroup={selectedMuscleGroup}
-                        scrollRef={exerciseTrendsRef}
-                      />
-                    )}
+            {heroStats.map((stat, i) => (
+              <motion.div
+                key={stat.label}
+                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
+                transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+                whileHover={{ y: -2, scale: 1.03 }}
+              >
+                <Card className="p-3 border-none shadow-sm text-center h-full">
+                  <div className={`w-8 h-8 rounded-xl ${stat.bg} flex items-center justify-center mx-auto mb-2`}>
+                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   </div>
+                  <p className={`font-heading font-black text-lg leading-none ${stat.color}`}>{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
+                </Card>
+              </motion.div>
+            ))}
+          </motion.div>
+
+          {/* ── This Week ────────────────────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 22 }}
+            className="mb-4"
+          >
+            <Card className="p-5 border-none shadow-sm overflow-hidden relative">
+              {/* Background gradient accent */}
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
+
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="font-heading font-black text-base">This Week</h2>
+                {volumeDelta !== null && (
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
+                    {volumeDelta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(volumeDelta))}% vs last week
+                  </span>
+                )}
+              </div>
+
+              <div className="grid grid-cols-3 gap-4 mb-4">
+                <div className="text-center">
+                  <p className="font-heading font-black text-2xl text-primary">{thisWeekLogs.length}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Workouts</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-heading font-black text-2xl text-emerald-500">
+                    {thisWeekVolume > 0 ? formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit))) : '—'}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{weightUnit} lifted</p>
+                </div>
+                <div className="text-center">
+                  <p className="font-heading font-black text-2xl text-orange-500">{weeklyCardio.sessions || '—'}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">Cardio</p>
                 </div>
               </div>
-              </ErrorBoundary>
-            )}
+
+              {/* Muscle group pills */}
+              {muscleGroupsThisWeek.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {muscleGroupsThisWeek.map(g => {
+                    const key = g.toLowerCase();
+                    const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
+                    return (
+                      <span key={g} className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
+                        {g}
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No workouts logged this week yet.</p>
+              )}
+            </Card>
           </motion.div>
-        </AnimatePresence>
+
+          {/* ── Last Workout Callout ──────────────────────────────────────── */}
+          {lastWorkout && (
+            <motion.div
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.24, type: 'spring', stiffness: 280, damping: 24 }}
+              className="mb-4"
+            >
+              <Card className="px-4 py-3 border-none shadow-sm">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Dumbbell className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold leading-tight truncate">
+                        {lastWorkout.regimen_name || 'Freestyle Session'}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {daysSinceLast === 0 ? 'Today' : daysSinceLast === 1 ? 'Yesterday' : `${daysSinceLast} days ago`}
+                        {lastWorkout.exercises?.length ? ` · ${lastWorkout.exercises.length} exercises` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0 ml-2">Last workout</span>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {/* ── Top PRs Preview ───────────────────────────────────────────── */}
+          {topPRs.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 22 }}
+              className="mb-6"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">Top PRs</h2>
+                <button
+                  onClick={() => setPersonalBestsModalOpen(true)}
+                  className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5"
+                >
+                  All <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <div className="flex gap-3 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 md:grid md:grid-cols-3 lg:grid-cols-5">
+                {topPRs.map((pr, i) => (
+                  <motion.div
+                    key={pr.name}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 + i * 0.06, type: 'spring', stiffness: 300, damping: 22 }}
+                    whileHover={{ y: -3, scale: 1.03 }}
+                    className="shrink-0 w-36 md:w-auto"
+                  >
+                    <Card className="p-3 border-none shadow-sm bg-gradient-to-br from-yellow-500/8 via-amber-500/5 to-transparent overflow-hidden relative">
+                      <div className="absolute top-1.5 right-1.5">
+                        <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground font-medium leading-tight mb-1 pr-4 line-clamp-1">{pr.name}</p>
+                      <p className="font-heading font-black text-xl text-amber-500 leading-none">
+                        {formatWeight(pr.weight, weightUnit)}
+                      </p>
+                      {pr.reps > 0 && (
+                        <p className="text-[10px] text-muted-foreground mt-1">{pr.reps} reps best</p>
+                      )}
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
+          {/* ── Tab Navigation ────────────────────────────────────────────── */}
+          <div ref={tabsBarRef} className="mb-6">
+            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+              {TAB_META.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <motion.button
+                    key={tab.id}
+                    onClick={() => switchTab(tab.id)}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.96 }}
+                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 border ${
+                      isActive
+                        ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-sm`
+                        : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
+                    }`}
+                  >
+                    <tab.Icon className={`w-3.5 h-3.5 ${isActive ? '' : tab.iconColor}`} />
+                    {tab.label}
+                  </motion.button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Tab Content ───────────────────────────────────────────────── */}
+          <div ref={contentRef}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12, pointerEvents: 'none' }}
+                transition={{ duration: 0.28, ease: 'easeOut' }}
+              >
+                {activeTab === 'analytics' && (
+                  <div className="space-y-6">
+                    <div className="flex gap-3 justify-center flex-wrap">
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
+                        <Button
+                          onClick={() => setPersonalBestsModalOpen(true)}
+                          className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 hover:from-yellow-500 hover:via-yellow-600 hover:to-amber-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
+                        >
+                          <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+                          <Trophy className="w-4 h-4 mr-2 relative z-10" /> {t('progress.personalBests')}
+                        </Button>
+                      </motion.div>
+                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
+                        <Button
+                          onClick={() => setAdvancedAnalyticsOpen(true)}
+                          className="bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:via-teal-600 hover:to-cyan-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
+                        >
+                          <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+                          <SparklesIcon className="w-4 h-4 mr-2 relative z-10" /> {t('progress.advancedAnalytics')}
+                        </Button>
+                      </motion.div>
+                    </div>
+                    <ErrorBoundary label="Analytics">
+                      <AnalyticsTab logs={logs} />
+                    </ErrorBoundary>
+                  </div>
+                )}
+
+                {activeTab === 'body' && (
+                  <ErrorBoundary label="BodyMetrics">
+                    <BodyMetricsTab />
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'photos' && (
+                  <ErrorBoundary label="ProgressPhotos">
+                    <ProgressPhotosTab />
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'achievements' && (
+                  <ErrorBoundary label="Achievements">
+                    <AchievementsTab achievements={achievements} />
+                  </ErrorBoundary>
+                )}
+
+                {activeTab === 'trends' && (
+                  <ErrorBoundary label="ExerciseTrends">
+                    <div>
+                      <div className="flex justify-start mb-6">
+                        <FilterDropdown
+                          selectedRegimen={selectedRegimen}
+                          onRegimenChange={setSelectedRegimen}
+                          regimenItems={[
+                            { value: 'all', label: t('progress.filterAllRegimens') },
+                            ...regimenNames.map(name => ({ value: name, label: name })),
+                          ]}
+                          selectedTimeRange={timeRange}
+                          onTimeRangeChange={setTimeRange}
+                          timeRangeItems={[
+                            { value: '7',   label: t('progress.last7Days') },
+                            { value: '30',  label: t('progress.last30Days') },
+                            { value: '90',  label: t('progress.last90Days') },
+                            { value: '365', label: t('progress.lastYear') },
+                          ]}
+                          selectedMuscleGroup={selectedMuscleGroup}
+                          onMuscleGroupChange={setSelectedMuscleGroup}
+                          muscleGroupItems={[
+                            { value: 'all', label: t('progress.filterAllMuscleGroups') },
+                            ...Array.from(new Set(
+                              regimenLogs.flatMap(log =>
+                                log.exercises?.flatMap(ex => ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : [])) || []
+                              )
+                            ))
+                              .map(group => ({ value: group, label: t(`muscleGroups.${muscleKey(group)}`) }))
+                              .sort((a, b) => a.label.localeCompare(b.label)),
+                          ]}
+                        />
+                      </div>
+
+                      <h2 className="font-heading font-bold mb-4">{t('progress.exerciseTrends')}</h2>
+
+                      {exerciseNames.length === 0 ? (
+                        <Card className="p-10 text-center border-dashed">
+                          <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+                          <p className="font-heading font-semibold">{t('progress.noExerciseData')}</p>
+                          <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">{t('progress.noExerciseDataDesc')}</p>
+                          <div className="mt-4 p-4 bg-secondary rounded-xl text-left text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
+                            <p className="font-medium text-foreground mb-2">{t('progress.howToLog')}</p>
+                            <p>1. {t('progress.howToLog.step1').split('{workout}')[0]}<span className="text-primary font-medium">{t('nav.workout')}</span>{t('progress.howToLog.step1').split('{workout}')[1]}</p>
+                            <p>2. {t('progress.howToLog.step2')}</p>
+                            <p>3. {t('progress.howToLog.step3')}</p>
+                            <p>4. {t('progress.howToLog.step4').split('{save}')[0]}<span className="text-primary font-medium">{t('workout.saveWorkout')}</span>{t('progress.howToLog.step4').split('{save}')[1]}</p>
+                          </div>
+                        </Card>
+                      ) : (
+                        <GroupedExerciseTrends
+                          exerciseNames={exerciseNames}
+                          regimenLogs={regimenLogs}
+                          timeRange={timeRange}
+                          selectedMuscleGroup={selectedMuscleGroup}
+                        />
+                      )}
+                    </div>
+                  </ErrorBoundary>
+                )}
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </>
       )}
 
       {/* Personal Bests Modal */}
       <Dialog open={personalBestsModalOpen} onOpenChange={setPersonalBestsModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="font-heading text-xl">{t('progress.personalBests')}</DialogTitle>
+            <DialogTitle className="font-heading text-xl flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-yellow-500" />
+              {t('progress.personalBests')}
+            </DialogTitle>
           </DialogHeader>
           <PersonalBestsTab logs={logs} />
         </DialogContent>
@@ -703,45 +779,6 @@ export default function Progress() {
 
       {/* Advanced Analytics Modal */}
       <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} />
-
-      {/* Achievements Modal */}
-
-      {/* Sticky Tab Navigation */}
-      {showStickyNav && (
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.25 }}
-          className="fixed top-0 left-0 right-0 bg-background/95 backdrop-blur-md border-b border-border z-40 md:ml-64"
-        >
-          <div className="max-w-5xl mx-auto px-4 md:px-8 py-4">
-            {/*
-              These "tabs" are scroll-to-anchor jump links, NOT WAI-ARIA
-              tabs (no tabpanels, no roving focus). `aria-pressed`
-              correctly communicates the toggle-style selection state to
-              screen readers without falsely promising tab semantics
-              the underlying markup doesn't honor.
-            */}
-            <div role="group" aria-label="Section navigation" className="grid grid-cols-4 gap-3">
-              {TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => { setActiveTab(tab.id); setTimeout(() => scrollToTab(tab.id), 450); }}
-                  aria-pressed={activeTab === tab.id}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    activeTab === tab.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
     </motion.div>
   );
 }
