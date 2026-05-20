@@ -566,13 +566,15 @@ export default function StoriesRow({ onViewProfile } = {}) {
               style={{ minWidth: 68 }}
               aria-label="Add a story"
             >
-              <motion.div
-                className="w-[60px] h-[60px] rounded-full border-2 border-dashed border-primary/60 flex items-center justify-center"
-                animate={{ rotate: 360 }}
-                transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
-              >
-                <Plus className="w-5 h-5 text-primary" style={{ transform: 'rotate(0deg)' }} />
-              </motion.div>
+              {/* Outer ring rotates; inner Plus stays stationary via counter-rotation */}
+              <div className="relative w-[60px] h-[60px] flex items-center justify-center">
+                <motion.div
+                  className="absolute inset-0 rounded-full border-2 border-dashed border-primary/60"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 24, repeat: Infinity, ease: 'linear' }}
+                />
+                <Plus className="w-5 h-5 text-primary relative z-10" />
+              </div>
               <span className="text-[10px] font-medium text-muted-foreground w-[68px] text-center truncate">
                 Add Story
               </span>

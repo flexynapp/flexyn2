@@ -1,8 +1,8 @@
 // src/components/hub/MarketplaceFeed.jsx
 // Marketplace tab — browse listings, buy, trade, and list your own items.
 
-import { useState, useCallback, useRef } from 'react';
-import { motion, AnimatePresence, useAnimationFrame } from 'framer-motion';
+import { useState, useCallback, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap,
@@ -508,12 +508,23 @@ function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
 // ─── Rotating gradient header ─────────────────────────────────────────────────
 function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
   const angleRef = useRef(0);
+  const rafRef = useRef(null);
+  const prevTimeRef = useRef(null);
   const [gradientAngle, setGradientAngle] = useState(0);
 
-  useAnimationFrame((_, delta) => {
-    angleRef.current = (angleRef.current + delta * 0.018) % 360;
-    setGradientAngle(Math.round(angleRef.current));
-  });
+  useEffect(() => {
+    const tick = (time) => {
+      if (prevTimeRef.current !== null) {
+        const delta = time - prevTimeRef.current;
+        angleRef.current = (angleRef.current + delta * 0.018) % 360;
+        setGradientAngle(Math.round(angleRef.current));
+      }
+      prevTimeRef.current = time;
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
 
   return (
     <div
@@ -666,8 +677,11 @@ export default function MarketplaceFeed() {
   });
   const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
 
-  // Feature 20: Admin sandbox — @sean and @kegan see 1,000,000 coins client-side
-  const isAdmin = user?.username === 'sean' || user?.username === 'kegan';
+  // Feature 20: Admin sandbox — identified by username OR email prefix
+  const adminUsernames = ['sean', 'seanj', 'kegan', 'admin'];
+  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || '';
+  const isAdmin = adminUsernames.includes(user?.username?.toLowerCase()) ||
+                  adminUsernames.includes(emailPrefix);
   const flexCoins = isAdmin ? 1_000_000 : (user?.flex_coins ?? 0);
 
   // ── Cancel listing ─────────────────────────────────────────────────────────

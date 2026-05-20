@@ -285,8 +285,8 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
   return (
     <article
-      className={`bg-card border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/60' : 'border-border'}`}
-      style={hasDiamond ? { boxShadow: '0 0 14px rgba(103,232,249,0.30), 0 0 0 1px rgba(103,232,249,0.18)' } : undefined}
+      className={`bg-card border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/80' : 'border-border'}`}
+      style={hasDiamond ? { boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)' } : undefined}
     >
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
@@ -304,7 +304,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             )}
           </div>
           {isVerified(author.username) && (
-            <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center" style={{ lineHeight: 0 }}>
+            <div className="absolute -top-1.5 -left-1.5 flex items-center justify-center" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
               <CrownBadge size={15} />
             </div>
           )}

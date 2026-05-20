@@ -302,6 +302,13 @@ export default function Hub() {
           setProfileTarget(u);
           setSection('profile');
         }}
+        onSelectPost={(post) => {
+          // Navigate to the post author's profile so user can see the post in context
+          if (post?.author_email) {
+            setProfileTarget({ email: post.author_email, username: post.author_name?.replace('@', '') });
+            setSection('profile');
+          }
+        }}
       />
     </div>
   );

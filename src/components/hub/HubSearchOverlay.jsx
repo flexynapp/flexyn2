@@ -120,12 +120,14 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     const timer = setTimeout(async () => {
       try {
         const q = searchQuery.toLowerCase();
-        const feed = await hubPosts.listPublicFeed(100).catch(() => []);
+        // Fetch public feed (large limit to maximize matches)
+        const feed = await hubPosts.listPublicFeed(200).catch(() => []);
         const filtered = feed.filter(p => {
           const body = (p.body || p.content || '').toLowerCase();
-          const author = (p.author_name || '').toLowerCase();
-          return body.includes(q) || author.includes(q);
-        }).slice(0, 20);
+          const author = (p.author_name || p.author_email || '').toLowerCase();
+          const postType = (p.post_type || '').toLowerCase();
+          return body.includes(q) || author.includes(q) || postType.includes(q);
+        }).slice(0, 25);
         setPostResults(filtered);
       } catch {
         setPostResults([]);

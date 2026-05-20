@@ -259,40 +259,43 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        {/* Crew name + member count — strictly left, fills remaining space */}
-        <div className="flex-1 min-w-0">
-          <h2 className="font-heading font-bold text-base truncate">{crew.name}</h2>
-          <p className="text-xs text-muted-foreground">{members.length} member{members.length !== 1 ? 's' : ''}</p>
-        </div>
+        {/* Name + story inline on the left, members button on the far right */}
+        <div className="flex-1 min-w-0 flex items-center gap-2">
+          {/* Crew name / member count */}
+          <div className="min-w-0">
+            <h2 className="font-heading font-bold text-base truncate leading-tight">{crew.name}</h2>
+            <p className="text-xs text-muted-foreground leading-tight">{members.length} member{members.length !== 1 ? 's' : ''}</p>
+          </div>
 
-        {/* Story section — strictly right, never pushes name */}
-        {crewStories.length > 0 ? (
-          <div className="flex items-center gap-1.5 shrink-0">
-            <button
-              onClick={() => setStoryViewIdx(0)}
-              className="rounded-full overflow-hidden shrink-0"
-              style={{ width: 34, height: 34, border: '2.5px solid hsl(var(--primary))' }}
-            >
-              <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
-            </button>
+          {/* Story bubble — sits right next to the name */}
+          {crewStories.length > 0 ? (
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => setStoryViewIdx(0)}
+                className="rounded-full overflow-hidden shrink-0"
+                style={{ width: 30, height: 30, border: '2.5px solid hsl(var(--primary))' }}
+              >
+                <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+              </button>
+              <button
+                onClick={() => storyFileRef.current?.click()}
+                className="flex items-center gap-0.5 text-xs font-semibold shrink-0"
+                style={{ color: 'hsl(var(--primary))' }}
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+          ) : (
             <button
               onClick={() => storyFileRef.current?.click()}
-              className="flex items-center gap-0.5 text-xs font-semibold shrink-0"
-              style={{ color: 'hsl(var(--primary))' }}
+              className="flex items-center justify-center shrink-0 rounded-full border-2 border-dashed"
+              style={{ width: 30, height: 30, borderColor: 'hsl(var(--primary) / 0.6)' }}
+              title="Add crew story"
             >
-              <Plus className="w-3 h-3" />
-              Story
+              <Plus className="w-3 h-3" style={{ color: 'hsl(var(--primary))' }} />
             </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => storyFileRef.current?.click()}
-            className="flex flex-col items-center justify-center shrink-0 rounded-full border-2 border-dashed"
-            style={{ width: 34, height: 34, borderColor: 'hsl(var(--primary) / 0.6)' }}
-          >
-            <Plus className="w-3 h-3" style={{ color: 'hsl(var(--primary))' }} />
-          </button>
-        )}
+          )}
+        </div>
 
         <button
           onClick={() => setMemberPanelOpen(true)}

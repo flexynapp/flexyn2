@@ -93,7 +93,7 @@ function Avatar({ profile }) {
         </div>
       )}
       {verified && (
-        <div className="absolute -top-1.5 -right-1.5" style={{ lineHeight: 0 }}>
+        <div className="absolute -top-1.5 -left-1.5" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
           <CrownBadge size={13} />
         </div>
       )}

@@ -571,10 +571,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 />
               </div>
 
-              {/* Admin crown — absolute badge at top-right of avatar, outside ring system */}
+              {/* Admin crown — top-left, tilted as if resting on the head */}
               {isVerifiedUser && (
-                <div style={{ position: 'absolute', top: -8, right: -8, lineHeight: 0, zIndex: 10 }}>
-                  <CrownBadge size={20} />
+                <div style={{ position: 'absolute', top: -8, left: -8, lineHeight: 0, zIndex: 10, transform: 'rotate(-25deg)' }}>
+                  <CrownBadge size={22} />
                 </div>
               )}
 

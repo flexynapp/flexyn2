@@ -53,8 +53,8 @@ export default function Layout() {
           <div className="w-full mt-1">
             <ProfileMenu />
           </div>
-          {/* Row 2: Action buttons aligned right */}
-          <div className="w-full flex items-center justify-end gap-1 mt-0.5">
+          {/* Row 2: Action buttons centered */}
+          <div className="w-full flex items-center justify-center gap-1 mt-0.5">
             <button
               type="button"
               onClick={() => navigate('/coach')}
