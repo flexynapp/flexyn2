@@ -26,6 +26,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       .from('stories')
       .select('*')
       .in('user_email', allEmails)
+      .is('crew_id', null)   // SECURITY: exclude crew-scoped stories from the personal feed
       .gt('expires_at', now)
       .order('created_at', { ascending: true }),
 

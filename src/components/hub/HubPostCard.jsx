@@ -3,6 +3,14 @@ import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2 } from 'lucide-react';
+
+function CrownBadge({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -181,13 +189,8 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             )}
           </div>
           {isVerified(author.username) && (
-            <div
-              className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-[1.5px] ring-background"
-              style={{ background: 'hsl(var(--primary))' }}
-            >
-              <svg viewBox="0 0 12 12" className="w-2.5 h-2.5" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="2,6 5,9 10,3" />
-              </svg>
+            <div className="absolute -top-1.5 -right-1.5 flex items-center justify-center" style={{ lineHeight: 0 }}>
+              <CrownBadge size={15} />
             </div>
           )}
         </div>

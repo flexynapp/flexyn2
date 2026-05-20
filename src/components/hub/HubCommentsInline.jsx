@@ -1,7 +1,16 @@
 import { useState, useRef, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2, Check } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
+
+// Orange 3-pronged crown badge for verified admins
+function CrownBadge({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 import { isVerified } from '@/lib/verifiedUsers';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
@@ -333,13 +342,9 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
             <div className="flex items-center gap-1 flex-wrap">
               <p className="text-xs font-bold leading-tight">{author.handle}</p>
               {isVerified(author.handle?.replace('@', '')) && (
-                <div
-                  className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full shrink-0"
-                  style={{ background: 'hsl(var(--primary) / 0.65)' }}
-                  title="Verified Admin"
-                >
-                  <Check className="w-2 h-2 text-white stroke-[3]" />
-                </div>
+                <span className="shrink-0 leading-none" style={{ lineHeight: 0 }}>
+                  <CrownBadge size={13} />
+                </span>
               )}
             </div>
             <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{displayBody}</p>

@@ -8,14 +8,48 @@
 //   image_one_time — tap-to-view; local state blocks re-view
 //   image_one_hour — normal photo (filtered by expires_at server-side)
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2, Check } from 'lucide-react';
+import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2 } from 'lucide-react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
+
+// ── Admin crown badge ─────────────────────────────────────────────────────────
+function CrownBadge({ size = 13 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// ── Bubble color palette per sender (soft, non-intrusive tints) ────────────────
+const BUBBLE_PALETTE = [
+  'rgba(13,202,240,0.10)',   // teal
+  'rgba(34,197,94,0.10)',    // green
+  'rgba(168,85,247,0.10)',   // purple
+  'rgba(251,191,36,0.10)',   // amber
+  'rgba(239,68,68,0.08)',    // red
+  'rgba(99,102,241,0.10)',   // indigo
+];
+function senderBubbleColor(senderId) {
+  if (!senderId) return '';
+  let h = 0;
+  for (let i = 0; i < senderId.length; i++) h = (h * 31 + senderId.charCodeAt(i)) >>> 0;
+  return BUBBLE_PALETTE[h % BUBBLE_PALETTE.length];
+}
+
+// ── One-time view localStorage helpers (keyed by msg+user) ───────────────────
+const otKey  = (msgId, userId) => `ot_viewed_${msgId}_${userId}`;
+const isOtViewed = (msgId, userId) => {
+  try { return localStorage.getItem(otKey(msgId, userId)) === '1'; } catch { return false; }
+};
+const markOtViewed = (msgId, userId) => {
+  try { localStorage.setItem(otKey(msgId, userId), '1'); } catch {}
+};
 
 const fireKey = (id) => `fire_${id}`;
 const loadFire = (id) => { try { return localStorage.getItem(fireKey(id)) === '1'; } catch { return false; } };
@@ -34,11 +68,8 @@ function Avatar({ profile }) {
         </div>
       )}
       {verified && (
-        <div
-          className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-background"
-          style={{ background: 'hsl(var(--primary))' }}
-        >
-          <Check className="w-2.5 h-2.5 text-white stroke-[3]" />
+        <div className="absolute -top-1.5 -right-1.5" style={{ lineHeight: 0 }}>
+          <CrownBadge size={13} />
         </div>
       )}
     </div>
@@ -62,6 +93,7 @@ function TextMessage({ msg, senderProfile, isOwn }) {
   const lastTapRef = useRef(0);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
+  const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
 
   const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
 
@@ -83,18 +115,16 @@ function TextMessage({ msg, senderProfile, isOwn }) {
       <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
           <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1">
-            @{senderProfile?.username || 'member'}
+            {senderProfile?.username || 'member'}
           </span>
         )}
         <div className="relative">
           <div
             onClick={handleTap}
             className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
-              isOwn
-                ? 'text-white rounded-br-sm'
-                : 'bg-secondary text-foreground rounded-bl-sm'
+              isOwn ? 'text-white rounded-br-sm' : 'text-foreground rounded-bl-sm bg-secondary/60'
             }`}
-            style={isOwn ? { background: 'hsl(var(--primary))' } : {}}
+            style={isOwn ? { background: 'hsl(var(--primary))' } : { background: tint, border: '1px solid hsl(var(--border) / 0.6)' }}
           >
             {msg.content}
           </div>
@@ -342,19 +372,36 @@ function RegimenMessage({ msg, user, senderProfile }) {
 
 // ── One-Time Image ────────────────────────────────────────────────────────────
 
-function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
-  const [viewed, setViewed] = useState(false);
-  const [open,   setOpen]   = useState(false);
+function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
+  // Viewed state is tracked per-user in localStorage so it survives remounts.
+  const [viewed,   setViewed]   = useState(() => isOtViewed(msg.id, currentUserId));
+  const [open,     setOpen]     = useState(false);
   const lastTapRef = useRef(0);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
 
   const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
 
+  // When the overlay closes (or the component unmounts while open), commit the
+  // viewed state to localStorage immediately so the media URL is blocked forever.
+  useEffect(() => {
+    return () => {
+      if (viewed) markOtViewed(msg.id, currentUserId);
+    };
+  }, [viewed, msg.id, currentUserId]);
+
   const handleView = () => {
     if (viewed) return;
     setOpen(true);
     setViewed(true);
+    markOtViewed(msg.id, currentUserId);
+  };
+
+  // Close the overlay and permanently commit viewed state
+  const handleClose = (e) => {
+    e?.stopPropagation();
+    setOpen(false);
+    markOtViewed(msg.id, currentUserId);
   };
 
   const handleTap = () => {
@@ -389,7 +436,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn }) {
               <>
                 <img src={msg.media_url} className="w-full h-full object-cover" alt="one-time" draggable={false} />
                 <button
-                  onClick={e => { e.stopPropagation(); setOpen(false); }}
+                  onClick={handleClose}
                   className="absolute inset-0 bg-transparent"
                 />
               </>
@@ -507,7 +554,7 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'regimen':
       return <RegimenMessage msg={msg} user={user} senderProfile={senderProfile} />;
     case 'image_one_time':
-      return <OneTimeImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
+      return <OneTimeImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
     case 'image_one_hour':
       return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
     default:

@@ -211,6 +211,7 @@ export default function StoryViewer({
   const timerRef      = useRef(null);
   const mediaRef      = useRef(null);  // container for overlay text positioning
   const slideDir      = useRef(0);     // 0 = same group, 1 = forward, -1 = back
+  const replyInputRef = useRef(null);  // focused on swipe-up gesture
 
   useEffect(() => {
     if (open) {
@@ -320,9 +321,13 @@ export default function StoryViewer({
           transition={{ duration: 0.22 }}
           drag="y"
           dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.35 }}
+          dragElastic={{ top: 0.2, bottom: 0.35 }}
           onDragEnd={(_, info) => {
             if (info.offset.y > 90 || info.velocity.y > 700) onClose();
+            else if (!currentGroup?.isOwn && (info.offset.y < -55 || info.velocity.y < -350)) {
+              // Swipe up → focus reply input so keyboard opens immediately
+              replyInputRef.current?.focus();
+            }
           }}
           className="fixed inset-0 z-[10000] bg-black flex flex-col select-none"
         >
@@ -480,6 +485,7 @@ export default function StoryViewer({
                     <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
                       onClick={e => e.stopPropagation()}>
                       <input
+                        ref={replyInputRef}
                         type="text"
                         value={reply}
                         onChange={e => setReply(e.target.value)}

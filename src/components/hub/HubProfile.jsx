@@ -3,7 +3,27 @@ import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Check, Plus, Pencil, Trophy } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy } from 'lucide-react';
+
+// Orange 3-pronged crown — shown as an absolute badge on the avatar for verified admins
+function CrownBadge({ size = 18 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+// Converts a 2-letter ISO country code to a regional indicator flag emoji.
+// If the value already contains a non-ASCII character (i.e., is already a flag emoji), returns it as-is.
+function codeToFlag(code) {
+  if (!code) return '';
+  if ([...code].some(c => c.codePointAt(0) > 0x7F)) return code; // already emoji
+  const upper = code.toUpperCase().slice(0, 2);
+  if (upper.length < 2 || !/^[A-Z]{2}$/.test(upper)) return code;
+  return String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(0))
+       + String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(1));
+}
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -107,6 +127,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   });
 
   // Profile stories (for clickable avatar → StoryViewer)
+  // Crew stories are scoped to crew_id and must never appear here.
   const { data: profileStories = [] } = useQuery({
     queryKey: ['profileStories', email],
     queryFn: async () => {
@@ -115,6 +136,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         .from('stories')
         .select('*')
         .eq('user_email', email)
+        .is('crew_id', null)  // SECURITY: personal stories only
         .gt('expires_at', now)
         .order('created_at', { ascending: true });
       return data ?? [];
@@ -549,6 +571,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 />
               </div>
 
+              {/* Admin crown — absolute badge at top-right of avatar, outside ring system */}
+              {isVerifiedUser && (
+                <div style={{ position: 'absolute', top: -8, right: -8, lineHeight: 0, zIndex: 10 }}>
+                  <CrownBadge size={20} />
+                </div>
+              )}
+
               {/* Camera badge — own profile: tap to add a story */}
               {isSelf && (
                 <>
@@ -606,19 +635,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
           {/* Identity stack */}
           <div className="flex-1 min-w-0">
-            {/* Handle + verified */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <h2 className="font-heading font-bold text-lg leading-tight truncate">{displayHandle}</h2>
-              {isVerifiedUser && (
-                <div
-                  className="inline-flex items-center justify-center w-4 h-4 rounded-full shrink-0"
-                  style={{ background: 'hsl(var(--primary) / 0.65)' }}
-                  title="Verified Admin"
-                >
-                  <Check className="w-2.5 h-2.5 text-white stroke-[2.5]" />
-                </div>
-              )}
-            </div>
+            {/* Username (main profile name) */}
+            <h2 className="font-heading font-bold text-xl leading-tight truncate">
+              {displayUsername ? displayUsername.charAt(0).toUpperCase() + displayUsername.slice(1) : ''}
+            </h2>
+            {/* @handle row */}
+            <p className="text-sm text-muted-foreground font-medium leading-tight">{displayHandle}</p>
 
             {/* Equipped title */}
             {equippedTitle && (
@@ -634,14 +656,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </div>
             )}
 
-            {/* City + flag */}
+            {/* City + flag (Row 2) */}
             {(city || countryFlag) && (
               <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 shrink-0" />
                 {city && <span>{city}</span>}
                 {countryFlag && (
                   <img
-                    src={flagUrl(countryFlag)}
+                    src={flagUrl(codeToFlag(countryFlag))}
                     alt="flag"
                     className="w-4 h-4 object-contain shrink-0"
                   />
@@ -810,9 +832,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </button>
               )}
             </div>
-            {/* Unified trophy card */}
+            {/* Unified trophy card — 5 slots with orange dashed borders */}
             <div className="rounded-xl border border-border bg-secondary/20 overflow-hidden">
-              <div className="flex divide-x divide-dashed divide-border/50">
+              <div className="flex">
                 {Array(5).fill(null).map((_, i) => {
                   const slot = trophyCase[i] ?? null;
                   const label = slot ? (TROPHY_LABELS[slot.value] || slot.value) : null;
@@ -821,19 +843,22 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                       key={i}
                       type="button"
                       onClick={isSelf ? () => setTrophyPickerSlot(i) : undefined}
-                      whileTap={isSelf ? { scale: 0.9 } : {}}
-                      className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 ${
+                      whileTap={isSelf ? { scale: 0.88 } : {}}
+                      className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-3 px-0.5 relative ${
                         isSelf ? 'cursor-pointer hover:bg-secondary/40 active:bg-secondary/60' : 'cursor-default'
                       } transition-colors`}
+                      style={i < 4 ? { borderRight: '1px dashed rgba(249,115,22,0.35)' } : {}}
                       aria-label={slot ? `Slot ${i + 1}: ${slot.value}` : `Empty slot ${i + 1}`}
                     >
                       {slot ? (
                         <>
-                          <span className="text-3xl leading-none">{slot.value}</span>
-                          <span className="text-[9px] text-muted-foreground/60 leading-tight text-center px-0.5 truncate w-full">{label}</span>
+                          <span className="text-4xl leading-none">{slot.value}</span>
+                          <span className="text-xs text-neutral-500 leading-tight text-center truncate w-full mt-0.5">{label}</span>
                         </>
                       ) : isSelf ? (
-                        <Plus className="w-5 h-5" style={{ color: 'hsl(var(--primary) / 0.4)' }} />
+                        <div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-orange-400/50 w-9 h-9">
+                          <Plus className="w-4 h-4" style={{ color: 'hsl(var(--primary) / 0.5)' }} />
+                        </div>
                       ) : (
                         <span className="text-muted-foreground/25 text-lg">—</span>
                       )}
