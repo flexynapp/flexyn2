@@ -202,6 +202,47 @@ function _defaultStartingWeight(exerciseName, bodyweightLbs, skillLevel) {
  *     ],
  *   }
  */
+/**
+ * Generate a comeback session using exercises the user has done before,
+ * scaled to 65% of their historical average.
+ * Only called from ComebackScreen — not exported to the generator modal.
+ * Signature kept compatible with startFromGeneratedWorkout() in Workout.jsx.
+ */
+export async function generateComebackWorkout({ user, bodyweightLbs = 165 }) {
+  const history = await _historyByExercise(user?.email, 60);
+  if (Object.keys(history).length === 0) return null;
+
+  const SCALE = 0.65;
+  // Top 5 most-frequently-seen exercises (proxy: any that appear in history)
+  const entries = Object.entries(history).slice(0, 5);
+  const exercises = entries.map(([name, top]) => {
+    const scaledWeight = Math.max(0, Math.round((top.weight * SCALE) / 5) * 5);
+    const scaledReps   = Math.max(8, top.reps);
+    const catalogEntry = CATALOG.find(c => c.name.toLowerCase() === name.toLowerCase());
+    const group = catalogEntry?.group || 'full_body';
+    return {
+      name: catalogEntry?.name || name,
+      group,
+      sets: [
+        { weight: scaledWeight, reps: scaledReps },
+        { weight: scaledWeight, reps: scaledReps },
+        { weight: scaledWeight, reps: scaledReps },
+      ],
+      restSec: 90,
+      comeback: true,
+      note: `Last hit: ${top.weight} lb × ${top.reps}. Today: 65%.`,
+    };
+  });
+
+  const weekLabel = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return {
+    title: `Comeback Session — Week of ${weekLabel}`,
+    focus: 'full_body',
+    duration_minutes: 45,
+    exercises,
+  };
+}
+
 export async function generateWorkout({
   user,
   focus = 'full_body',
@@ -209,6 +250,7 @@ export async function generateWorkout({
   equipment = 'gym',
   skillLevel = 'intermediate',
   bodyweightLbs = 165,
+  excludeMuscleGroups = new Set(), // injury exclusions
 }) {
   const groups = FOCUS_TO_GROUPS[focus] || FOCUS_TO_GROUPS.full_body;
   const equipSet = _equipmentFilter(equipment);
@@ -217,9 +259,11 @@ export async function generateWorkout({
   // Pull recent top-set weights for personalization
   const history = await _historyByExercise(user?.email, 60);
 
-  // Filter catalog by equipment + skill
+  // Filter catalog by equipment + skill + injury exclusions
   const eligible = CATALOG.filter(ex =>
-    equipSet.has(ex.equipment) && ex.skillLevel <= maxSkill
+    equipSet.has(ex.equipment) &&
+    ex.skillLevel <= maxSkill &&
+    !excludeMuscleGroups.has(ex.group?.toLowerCase())
   );
 
   // Decide how many exercises based on duration:

@@ -28,6 +28,12 @@ import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
+import GroupBlock from '@/components/workout/GroupBlock';
+import InjuryBanner from '@/components/workout/InjuryBanner';
+import InjuryForm from '@/components/workout/InjuryForm';
+import ComebackScreen from '@/components/workout/ComebackScreen';
+import { useComebackProtocol } from '@/hooks/useComebackProtocol';
+import { listActiveInjuries } from '@/lib/data/injuries';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -93,6 +99,7 @@ export default function Workout() {
   const [implausibleWarning, setImplausibleWarning] = useState(null);
   const [missingDataWarning, setMissingDataWarning] = useState(null);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
+  const [injuryFormOpen, setInjuryFormOpen] = useState(false);
 
   const guard = useMultiProfanityGuard();
   const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions();
@@ -150,10 +157,23 @@ export default function Workout() {
     enabled: !!user?.email,
   });
 
+  const { data: activeInjuries = [] } = useQuery({
+    queryKey: ['activeInjuries', user?.id],
+    queryFn: listActiveInjuries,
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+
+  // Comeback protocol — triggers when the user hasn't worked out in 7+ days
+  const comebackProtocol = useComebackProtocol({
+    workoutLogs: logs,
+    hasActiveSession: sessions.length > 0,
+  });
 
   const saveMutation = useMutation({
     mutationFn: async (data) => {
@@ -320,6 +340,20 @@ export default function Workout() {
       }
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
+
+      // Comeback session bonus — +200 XP if any exercise has the comeback flag
+      if ((clampedData?.exercises || []).some(ex => ex.comeback)) {
+        db.functions.invoke('updateUserXpAndAchievements', {
+          xp_gained: 200,
+          action_type: 'comeback_bonus',
+          action_data: {},
+        })
+          .then(() => {
+            toast.success('Comeback bonus earned. Good to have you back.', { description: '+200 XP' });
+            queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+          })
+          .catch(() => {});
+      }
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] });
       // Refetch achievements so the modal reflects newly unlocked ones immediately
@@ -437,6 +471,23 @@ export default function Workout() {
     setSelectedRegimen(null);
     setExercises([]);
     setStarted(true);
+  };
+
+  const handleComebackStart = (comebackExercises, title) => {
+    comebackProtocol.dismiss();
+    const id = `comeback-${Date.now()}`;
+    setActiveSessionId(id);
+    setSelectedRegimen(null);
+    setExercises((comebackExercises || []).map(ex => ({
+      ...ex,
+      sets: (ex.sets || []).map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null })),
+    })));
+    setNotes(title || '');
+    setStarted(true);
+  };
+
+  const handleComebackSkip = () => {
+    comebackProtocol.dismiss();
   };
 
   // Start an active workout pre-filled from the AI generator. SHARED between
@@ -838,6 +889,9 @@ export default function Workout() {
           </motion.div>
         )}
 
+        {/* Injury banner — always visible in idle state */}
+        <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
+
         {cardioOpen ? (
           <div className="mb-8">
             <CardioSection onBack={() => setCardioOpen(false)} />
@@ -1214,6 +1268,26 @@ export default function Workout() {
             onSaveAsRegimen={saveGeneratedAsRegimen}
           />
         </ErrorBoundary>
+
+        {/* Injury Form overlay */}
+        <AnimatePresence>
+          {injuryFormOpen && (
+            <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
+          )}
+        </AnimatePresence>
+
+        {/* Comeback Screen overlay — shown when user returns after 7+ days */}
+        <AnimatePresence>
+          {comebackProtocol.triggered && (
+            <ComebackScreen
+              daysSince={comebackProtocol.daysSince}
+              workoutLogs={logs}
+              userProfile={userProfile}
+              onStartSession={handleComebackStart}
+              onSkip={handleComebackSkip}
+            />
+          )}
+        </AnimatePresence>
       </motion.div>
     );
   }
@@ -1271,33 +1345,70 @@ export default function Workout() {
         animate="visible"
         variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
       >
-        {exercises.map((ex, i) => (
-          <motion.div
-            key={i}
-            className="relative"
-            variants={{ hidden: { opacity: 0, y: 16, scale: 0.97 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-            transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-          >
-            <ExerciseLogger
-              exercise={ex}
-              onChange={(updated) => updateExercise(i, updated)}
-              userProfile={userProfile}
-            />
-            <div className="absolute top-3 right-3 flex items-center gap-1">
-              {!selectedRegimen && (
-                <button
-                  type="button"
-                  onClick={() => setExercises(exercises.filter((_, idx) => idx !== i))}
-                  className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                  aria-label="Remove exercise"
-                  title="Remove exercise"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
-              )}
-            </div>
-          </motion.div>
-        ))}
+        {/* Grouped render — exercises with a matching group_id render as a
+            GroupBlock (superset/circuit); all others render individually. */}
+        {(() => {
+          const items = [];
+          const seenGroups = new Set();
+          exercises.forEach((ex, globalIdx) => {
+            if (ex.group_id) {
+              if (!seenGroups.has(ex.group_id)) {
+                seenGroups.add(ex.group_id);
+                const groupItems = exercises
+                  .map((e, ii) => ({ exercise: e, globalIdx: ii }))
+                  .filter(({ exercise }) => exercise.group_id === ex.group_id);
+                items.push({ type: 'group', groupId: ex.group_id, groupMeta: ex.group_meta || {}, items: groupItems });
+              }
+            } else {
+              items.push({ type: 'single', exercise: ex, globalIdx });
+            }
+          });
+
+          return items.map((item, renderIdx) => {
+            if (item.type === 'group') {
+              return (
+                <GroupBlock
+                  key={`group-${item.groupId}`}
+                  groupId={item.groupId}
+                  groupMeta={item.groupMeta}
+                  exercises={item.items.map(gi => gi.exercise)}
+                  onChange={(gIdx, updated) => {
+                    if (item.items[gIdx]) updateExercise(item.items[gIdx].globalIdx, updated);
+                  }}
+                  userProfile={userProfile}
+                />
+              );
+            }
+            const { exercise: ex, globalIdx: i } = item;
+            return (
+              <motion.div
+                key={i}
+                className="relative"
+                variants={{ hidden: { opacity: 0, y: 16, scale: 0.97 }, visible: { opacity: 1, y: 0, scale: 1 } }}
+                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+              >
+                <ExerciseLogger
+                  exercise={ex}
+                  onChange={(updated) => updateExercise(i, updated)}
+                  userProfile={userProfile}
+                />
+                <div className="absolute top-3 right-3 flex items-center gap-1">
+                  {!selectedRegimen && (
+                    <button
+                      type="button"
+                      onClick={() => setExercises(exercises.filter((_, idx) => idx !== i))}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                      aria-label="Remove exercise"
+                      title="Remove exercise"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            );
+          });
+        })()}
       </motion.div>
 
       <div className="mb-4">
@@ -1494,6 +1605,13 @@ export default function Workout() {
           }}
         />
       )}
+
+      {/* Injury Form — accessible during active session too */}
+      <AnimatePresence>
+        {injuryFormOpen && (
+          <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

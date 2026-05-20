@@ -1,0 +1,138 @@
+// src/components/workout/InjuryBanner.jsx
+// Shows a compact "Recovery Mode On" banner in the Workout tab when the user
+// has active injuries. Tapping it opens InjuryForm.
+// Also handles client-side recovery date checks (3-day warning + clearance prompt).
+
+import React, { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '@/lib/AuthContext';
+import { ShieldAlert, X, CheckCircle2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { differenceInDays, format, addDays } from 'date-fns';
+import { toast } from 'sonner';
+import * as injuries from '@/lib/data/injuries';
+
+// Clearance prompt shown when an injury's estimated_recovery_date is reached
+function ClearancePrompt({ injury, onClear, onExtend, onDismiss }) {
+  const [extendDate, setExtendDate] = useState('');
+  const [mode, setMode] = useState(null); // null | 'extend'
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-3 mb-2"
+    >
+      <p className="text-sm font-semibold mb-0.5">
+        Recovery check-in — {injury.muscle_group}
+      </p>
+      <p className="text-xs text-muted-foreground mb-3">
+        Your estimated recovery date has arrived. Are you cleared to train?
+      </p>
+      {!mode && (
+        <div className="flex gap-2">
+          <Button size="sm" className="flex-1 h-8 text-xs gap-1" onClick={() => onClear(injury.id)}>
+            <CheckCircle2 className="w-3 h-3" /> Yes, I'm cleared
+          </Button>
+          <Button size="sm" variant="outline" className="flex-1 h-8 text-xs" onClick={() => setMode('extend')}>
+            Not yet
+          </Button>
+        </div>
+      )}
+      {mode === 'extend' && (
+        <div className="flex gap-2">
+          <input
+            type="date"
+            value={extendDate}
+            onChange={e => setExtendDate(e.target.value)}
+            min={format(addDays(new Date(), 1), 'yyyy-MM-dd')}
+            className="flex-1 text-xs h-8 rounded-md border border-border bg-background px-2"
+          />
+          <Button size="sm" className="h-8 text-xs" onClick={() => { if (extendDate) onExtend(injury.id, extendDate); }}>
+            Update
+          </Button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+export default function InjuryBanner({ onOpenForm }) {
+  const { user } = useAuth();
+  const qc = useQueryClient();
+
+  const { data: activeInjuries = [] } = useQuery({
+    queryKey: ['injuries', user?.id],
+    queryFn: injuries.listActiveInjuries,
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['injuries', user?.id] });
+
+  const clearMutation = useMutation({
+    mutationFn: injuries.clearInjury,
+    onSuccess: () => { invalidate(); toast.success('Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'); },
+  });
+
+  const extendMutation = useMutation({
+    mutationFn: ({ id, date }) => injuries.extendRecovery(id, date),
+    onSuccess: () => { invalidate(); toast.success('Recovery date updated.'); },
+  });
+
+  // Injuries whose estimated_recovery_date has arrived (≤ today) — show clearance prompt
+  const today = new Date().toISOString().split('T')[0];
+  const dueForClearance = activeInjuries.filter(
+    i => i.estimated_recovery_date && i.estimated_recovery_date <= today
+  );
+
+  // Injuries 3 days from recovery date — show warning toast once per session
+  useEffect(() => {
+    const upcomingKey = 'fn_injury_warned';
+    const warned = sessionStorage.getItem(upcomingKey) || '';
+    for (const inj of activeInjuries) {
+      if (!inj.estimated_recovery_date) continue;
+      const daysLeft = differenceInDays(new Date(inj.estimated_recovery_date), new Date());
+      if (daysLeft === 3 && !warned.includes(inj.id)) {
+        toast.info(`${inj.muscle_group} recovery date in 3 days. How are you feeling?`);
+        sessionStorage.setItem(upcomingKey, warned + inj.id);
+      }
+    }
+  }, [activeInjuries]);
+
+  if (activeInjuries.length === 0) return null;
+
+  return (
+    <div className="mb-3">
+      <AnimatePresence>
+        {dueForClearance.map(inj => (
+          <ClearancePrompt
+            key={inj.id}
+            injury={inj}
+            onClear={id => clearMutation.mutate(id)}
+            onExtend={(id, date) => extendMutation.mutate({ id, date })}
+          />
+        ))}
+      </AnimatePresence>
+
+      <motion.button
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        onClick={onOpenForm}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/25 hover:bg-orange-500/15 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0" />
+          <span className="text-sm font-medium text-orange-500">
+            {activeInjuries.length === 1
+              ? `Recovery Mode — ${activeInjuries[0].muscle_group}`
+              : `Recovery Mode — ${activeInjuries.length} active injuries`}
+          </span>
+        </div>
+        <span className="text-xs text-muted-foreground">Manage →</span>
+      </motion.button>
+    </div>
+  );
+}
