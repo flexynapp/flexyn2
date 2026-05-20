@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -46,7 +46,8 @@ import { listActiveInjuries } from '@/lib/data/injuries';
 import DuelBanner from '@/components/duels/DuelBanner';
 import { getActiveDuel } from '@/lib/data/duels';
 import BountyBanner from '@/components/bounties/BountyBanner';
-import { getMyActiveClaim } from '@/lib/data/bounties';
+import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
+import NemesisCard from '@/components/nemesis/NemesisCard';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import * as capsules from '@/lib/data/capsules';
@@ -198,6 +199,13 @@ export default function Workout() {
     enabled:   !!user?.id,
     staleTime: 60_000,
     refetchInterval: 120_000,
+  });
+
+  const { data: activeBounties = [] } = useQuery({
+    queryKey:  ['activeBounties'],
+    queryFn:   listActiveBounties,
+    enabled:   !!user?.id,
+    staleTime: 5 * 60_000,
   });
 
   // Comeback protocol — triggers when the user hasn't worked out in 7+ days
@@ -1173,7 +1181,7 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 4: Duels (col-span-2) | Form Coach (col-span-1, beta) */}
+              {/* Row 4: Duels (col-span-2) | Bounties (col-span-2) */}
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
@@ -1199,7 +1207,44 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                <Card
+                  role="button" tabIndex={0} aria-label="Bounties"
+                  className="group p-4 cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/10 transition-colors h-full"
+                  onClick={() => navigate('/bounties')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
+                      <Zap className="w-4 h-4 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                        {activeBountyClaim && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
+                        )}
+                        {!activeBountyClaim && activeBounties.length > 0 && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Row 5: Nemesis — full width */}
+
+              <motion.div variants={itemVariants} className="col-span-full">
+                <ErrorBoundary label="NemesisCard">
+                  <NemesisCard currentUserId={user?.id} />
+                </ErrorBoundary>
+              </motion.div>
+
+              {/* Row 6: Form Coach — last */}
+
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   role="button" tabIndex={0} aria-label="Form Coach"
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
