@@ -1,8 +1,21 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import '@testing-library/jest-dom';
 import ErrorBoundary from '../ErrorBoundary';
+
+// The ErrorBoundary's functional wrapper calls useLocation / useNavigate
+// so it can auto-reset on route change and provide a Go-Home handler.
+// Tests must therefore mount it inside a <MemoryRouter>. This helper
+// keeps each render() call's intent clear without duplicating the wrap.
+function renderInRouter(ui) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
+
+function rerenderInRouter(rerender, ui) {
+  return rerender(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 // A component that always throws during render
 function Bomb({ message = 'test crash' }) {
@@ -18,7 +31,7 @@ function Fine() {
 
 describe('ErrorBoundary — normal rendering', () => {
   it('renders children when there is no error', () => {
-    render(
+    renderInRouter(
       <ErrorBoundary label="Test">
         <Fine />
       </ErrorBoundary>
@@ -31,7 +44,7 @@ describe('ErrorBoundary — normal rendering', () => {
 
 describe('ErrorBoundary — error catching', () => {
   it('shows fallback UI when a child throws', () => {
-    render(
+    renderInRouter(
       <ErrorBoundary label="CrashTest">
         <Bomb />
       </ErrorBoundary>
@@ -40,7 +53,7 @@ describe('ErrorBoundary — error catching', () => {
   });
 
   it('shows "Try again" button in the fallback UI', () => {
-    render(
+    renderInRouter(
       <ErrorBoundary label="CrashTest">
         <Bomb />
       </ErrorBoundary>
@@ -48,8 +61,26 @@ describe('ErrorBoundary — error catching', () => {
     expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
   });
 
+  it('shows "Go to Home" button in the fallback UI', () => {
+    renderInRouter(
+      <ErrorBoundary label="CrashTest">
+        <Bomb />
+      </ErrorBoundary>
+    );
+    expect(screen.getByRole('button', { name: /go to home/i })).toBeInTheDocument();
+  });
+
+  it('shows "Copy details" button in the fallback UI', () => {
+    renderInRouter(
+      <ErrorBoundary label="CrashTest">
+        <Bomb />
+      </ErrorBoundary>
+    );
+    expect(screen.getByRole('button', { name: /copy details/i })).toBeInTheDocument();
+  });
+
   it('does NOT render the crashed child', () => {
-    render(
+    renderInRouter(
       <ErrorBoundary label="CrashTest">
         <Bomb message="intentional test error" />
       </ErrorBoundary>
@@ -72,7 +103,7 @@ describe('ErrorBoundary — Try again', () => {
       return <Fine />;
     }
 
-    const { rerender } = render(
+    const { rerender } = renderInRouter(
       <ErrorBoundary label="Recovery">
         <MaybeThrow />
       </ErrorBoundary>
@@ -85,7 +116,7 @@ describe('ErrorBoundary — Try again', () => {
     shouldThrow = false;
     fireEvent.click(screen.getByRole('button', { name: /try again/i }));
 
-    rerender(
+    rerenderInRouter(rerender,
       <ErrorBoundary label="Recovery">
         <MaybeThrow />
       </ErrorBoundary>
@@ -100,7 +131,7 @@ describe('ErrorBoundary — Try again', () => {
 describe('ErrorBoundary — label prop', () => {
   it('logs the label name to console.error on crash', () => {
     const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
-    render(
+    renderInRouter(
       <ErrorBoundary label="MyWidget">
         <Bomb />
       </ErrorBoundary>
