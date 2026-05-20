@@ -49,16 +49,33 @@ export default function Nutrition() {
 
   const [openLogMeal, setOpenLogMeal] = useState(false);
 
+  // Two ways to land here with "open the meal logger":
+  //   1. router-state — Dashboard.jsx uses navigate('/nutrition', { state: { openLogMeal: true } })
+  //   2. query-string — questCatalog.js routes meal-logging quests to /nutrition?openLogMeal=1
+  // Both are supported. Query-string is friendlier (survives reload, shareable);
+  // router-state is what Dashboard already uses and we don't want to churn it.
   useEffect(() => {
-    if (!location?.state?.openLogMeal) return;
+    const params = new URLSearchParams(location.search);
+    const fromQuery = params.get('openLogMeal') === '1';
+    const fromState = !!location?.state?.openLogMeal;
+    if (!fromQuery && !fromState) return;
     setOpenLogMeal(true);
-    window.history.replaceState({}, document.title);
+    // Clear both. For the query string we strip the param so reload
+    // doesn't re-fire; for state we wipe history.state. replaceState
+    // here keeps the URL stable (no flash of a different route).
+    if (fromQuery) {
+      params.delete('openLogMeal');
+      const search = params.toString();
+      window.history.replaceState({}, document.title, '/nutrition' + (search ? '?' + search : ''));
+    } else {
+      window.history.replaceState({}, document.title);
+    }
     // Scroll to the form after a tick so the animation has started
     setTimeout(() => {
       const el = document.getElementById('log-meal-form');
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
-  }, [location?.state?.openLogMeal]);
+  }, [location?.state?.openLogMeal, location.search]);
   // Date is always today's local date — Nutrition no longer supports past-day viewing.
   const date = format(new Date(), 'yyyy-MM-dd');
   const [showScanner, setShowScanner] = useState(false);

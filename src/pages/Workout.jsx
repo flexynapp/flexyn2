@@ -831,6 +831,33 @@ export default function Workout() {
     if (!cardioOpen) setCardioPageTitle(null);
   }, [cardioOpen]);
 
+  // Deep-link entry points used by daily-quest CTAs:
+  //   /workout?openCardio=1   — CARDIO_COMPLETED / CARDIO_SECONDS quests
+  //   /workout?openGoals=1    — GOAL_COMPLETED quest
+  // The route map lives in src/lib/questCatalog.js. Without this handler
+  // a user tapping a cardio/goals quest from Dashboard or StatsHub
+  // would land on /workout but the corresponding panel wouldn't open
+  // — silent breakage. We strip the param after consuming it so a
+  // page reload doesn't re-fire and so the URL stays clean.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    let consumed = false;
+    if (params.get('openCardio') === '1') {
+      setCardioOpen(true);
+      params.delete('openCardio');
+      consumed = true;
+    }
+    if (params.get('openGoals') === '1') {
+      setGoalsModalOpen(true);
+      params.delete('openGoals');
+      consumed = true;
+    }
+    if (consumed) {
+      const search = params.toString();
+      window.history.replaceState({}, document.title, '/workout' + (search ? '?' + search : ''));
+    }
+  }, [location.search]);
+
   useEffect(() => {
     if (!started) return undefined;
     const handler = (e) => {
