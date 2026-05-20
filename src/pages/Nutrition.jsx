@@ -13,7 +13,7 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -64,6 +64,24 @@ export default function Nutrition() {
   const [scannerError, setScannerError] = useState(null);
   const [scannedProduct, setScannedProduct] = useState(null);
   const [notFoundBarcode, setNotFoundBarcode] = useState(null);
+
+  // Scan history — persisted to localStorage; updated every time a barcode resolves
+  const [scanHistory, setScanHistory] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('flexyn_scan_history') || '[]'); } catch { return []; }
+  });
+  const [showScanHistory, setShowScanHistory] = useState(false);
+
+  const pushToScanHistory = (product) => {
+    setScanHistory(prev => {
+      // Dedupe by name, keep most recent, cap at 20
+      const next = [
+        { ...product, _histId: Date.now(), _scannedAt: new Date().toISOString() },
+        ...prev.filter(h => h.name !== product.name),
+      ].slice(0, 20);
+      try { localStorage.setItem('flexyn_scan_history', JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
   const [showNutritionPlans, setShowNutritionPlans] = useState(false);
   const [showMealHistory, setShowMealHistory] = useState(false);
 
@@ -260,6 +278,7 @@ export default function Nutrition() {
         return;
       }
       stopScanner();
+      pushToScanHistory(product);
       setScannedProduct(product);
     } catch (e) {
       setScannerError(`Lookup failed: ${e.message}. Check your connection and try again.`);
@@ -288,6 +307,32 @@ export default function Nutrition() {
   }, []);
 
   /* ========================================================= */
+
+  const logProduct = (product) => {
+    const n = product.nutrition;
+    const v = product.vitamins || {};
+    saveMutation.mutate({
+      date,
+      food_name: product.name,
+      calories:       n.calories ?? 0,
+      protein_g:      n.protein  ?? 0,
+      carbs_g:        n.carbs    ?? 0,
+      fat_g:          n.fat      ?? 0,
+      fiber_g:        n.fiber    ?? null,
+      sugar_g:        n.sugar    ?? null,
+      sodium_mg:      n.sodium   ?? null,
+      cholesterol_mg: n.cholesterol ?? null,
+      calcium_mg:      v.calcium_mg     ?? null,
+      iron_mg:         v.iron_mg        ?? null,
+      magnesium_mg:    v.magnesium_mg   ?? null,
+      potassium_mg:    v.potassium_mg   ?? null,
+      vitamin_a_iu:    v.vitamin_a_iu   ?? null,
+      vitamin_c_mg:    v.vitamin_c_mg   ?? null,
+      vitamin_d_iu:    v.vitamin_d_iu   ?? null,
+      vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
+      meal_type: 'snack',
+    });
+  };
 
   const handleLogScannedProduct = () => {
     if (!scannedProduct) return;
@@ -396,17 +441,141 @@ export default function Nutrition() {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="p-4 md:p-8 max-w-4xl mx-auto">
 
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="mb-8">
-        <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('nutrition.subtitle')}</p>
+      {/* ── Header row: title left, scanner CTA right ─────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
+        className="flex items-start justify-between gap-4 mb-6"
+      >
+        {/* Left — title + date */}
+        <div className="min-w-0">
+          <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
+          <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
+        </div>
+
+        {/* Right — Scan + History stacked */}
+        <div className="flex flex-col items-end gap-1.5 shrink-0">
+          {/* Primary scan button */}
+          <motion.button
+            whileHover={{ scale: 1.04, y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            onClick={startScanner}
+            className="group relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading font-bold text-sm text-primary-foreground overflow-hidden shadow-lg shadow-primary/30"
+            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))' }}
+          >
+            {/* Shimmer sweep */}
+            <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+              style={{ background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)' }} />
+            <ScanLine className="w-4 h-4 shrink-0" />
+            Scan Food
+          </motion.button>
+
+          {/* Scanner history toggle */}
+          <button
+            onClick={() => setShowScanHistory(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Scanner History
+            {scanHistory.length > 0 && (
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+                {scanHistory.length}
+              </span>
+            )}
+            {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        </div>
       </motion.div>
 
-      <div className="mb-6">
-        <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.date')}</label>
-        <p className="font-heading text-lg font-semibold tracking-tight">
-          {format(new Date(), 'EEEE, MMMM d')}
-        </p>
-      </div>
+      {/* ── Scanner history panel ──────────────────────────────────────────── */}
+      <AnimatePresence>
+        {showScanHistory && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 28 }}
+            className="overflow-hidden mb-5"
+          >
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-primary" />
+                  <span className="font-heading font-bold text-sm">Scanner History</span>
+                </div>
+                {scanHistory.length > 0 && (
+                  <button
+                    onClick={() => {
+                      setScanHistory([]);
+                      try { localStorage.removeItem('flexyn_scan_history'); } catch {}
+                    }}
+                    className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+
+              {scanHistory.length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <ScanLine className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">No scans yet — scan a barcode to get started.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {scanHistory.map((item) => {
+                    const cal = item.nutrition?.calories;
+                    const pro = item.nutrition?.protein;
+                    const carb = item.nutrition?.carbs;
+                    const fat = item.nutrition?.fat;
+                    return (
+                      <motion.div
+                        key={item._histId}
+                        initial={{ opacity: 0, x: -8 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/40 transition-colors"
+                      >
+                        {/* Food info */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold leading-tight truncate">{item.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                            {cal != null && (
+                              <span className="text-[11px] text-orange-500 font-medium">{Math.round(cal)} kcal</span>
+                            )}
+                            {pro != null && (
+                              <span className="text-[11px] text-muted-foreground">P {Math.round(pro)}g</span>
+                            )}
+                            {carb != null && (
+                              <span className="text-[11px] text-muted-foreground">C {Math.round(carb)}g</span>
+                            )}
+                            {fat != null && (
+                              <span className="text-[11px] text-muted-foreground">F {Math.round(fat)}g</span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Log button */}
+                        <motion.button
+                          whileTap={{ scale: 0.88 }}
+                          onClick={() => {
+                            logProduct(item);
+                            toast.success(`Logged ${item.name}!`);
+                          }}
+                          disabled={saveMutation.isPending}
+                          className="shrink-0 w-8 h-8 rounded-full bg-primary/10 hover:bg-primary text-primary hover:text-primary-foreground flex items-center justify-center transition-colors disabled:opacity-50"
+                          title="Log to today"
+                        >
+                          <Plus className="w-4 h-4" />
+                        </motion.button>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Loading skeleton — shown while logs + profile are fetching on first render */}
       {isLoading && (
