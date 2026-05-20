@@ -97,6 +97,17 @@ const missingKeys = {
     'profile.deletingLabel': 'Deleting...',
     'profile.deleteConfirmBtn': 'Yes, delete everything',
     'profile.confirmDeletion': 'Confirm deletion',
+    // ProfileMenu row labels (English only for now — every component
+    // call site uses tFallback so other languages render the English
+    // default until they're translated). Defined explicitly here so a
+    // missing-key fallthrough never displays the raw "profile.*" key
+    // to the user.
+    'profile.account': 'Profile',
+    'profile.achievements': 'Achievements',
+    'profile.myBag': 'My Bag',
+    'profile.myJournal': 'My Journal',
+    'profile.debriefVault': 'Debrief Vault',
+    'profile.myInjuries': 'My Injuries',
 
     // ── TemplatesModal ─────────────────────────────────────────────────────
     'workout.templates.title': 'Workout Templates',

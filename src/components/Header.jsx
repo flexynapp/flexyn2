@@ -91,9 +91,17 @@ export default function Header() {
             <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
           </button>
         )}
+        {/* Title — `min-w-0` is critical: without it, `flex-1` won't
+            actually shrink past the content's intrinsic width when
+            paired with `truncate`, so a long page title (e.g. a
+            translated route name, or a cardio-mode override like
+            "Running 4.2 mi") pushes the AI Coach / DM / bell /
+            level / profile cluster off the right edge. With min-w-0
+            + truncate, the title ellipsizes and the right-side
+            icons stay fully visible. */}
         <button
           onClick={() => navigate('/dashboard')}
-          className="font-heading font-bold text-lg tracking-tight flex-1 text-left hover:opacity-80 transition-opacity px-2 whitespace-nowrap"
+          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-left hover:opacity-80 transition-opacity px-2"
         >
           {isChildRoute ? title : t('app.name')}
         </button>

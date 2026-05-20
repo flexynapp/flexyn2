@@ -166,11 +166,40 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 const lastMsgText = lastMsg?.body || lastMsg?.content;
                 if (lastMsgText) {
                   const isMine = lastMsg.sender_email?.toLowerCase() === user?.email?.toLowerCase();
-                  // Feature 23: clean up trade offer previews
+                  // Strip protocol markers from the conversation-list
+                  // preview. Without this, a user who just sent or
+                  // received a trade offer or a trade response sees the
+                  // raw marker in their inbox — e.g.
+                  //   "[TRADE_RESPONSE_V1]abc-123:accepted"
+                  // — which reads as a SQL-like string instead of a
+                  // human-readable message. Opening the conversation
+                  // looks fine because HubChat parses the markers and
+                  // renders TradeOfferCard / response chips; the inbox
+                  // preview just shows raw body, so we mirror that
+                  // parse here. Two markers to handle:
+                  //   [TRADE_OFFER_V1]{...}\n<friendly fallback>
+                  //   [TRADE_RESPONSE_V1]<id>:<accepted|declined>\n<friendly fallback>
+                  // For TRADE_RESPONSE we keep the friendly fallback
+                  // line (it's already human-readable: "✅ I'd like to
+                  // do this trade…"). For TRADE_OFFER we replace with
+                  // a short summary because the friendly fallback can
+                  // be long and the inbox preview is one line.
                   const isTradeOffer =
                     lastMsg.message_type === 'trade_offer' ||
                     lastMsgText.startsWith('[TRADE_OFFER_V1]');
-                  const displayText = isTradeOffer ? '📦 Trade offer sent.' : lastMsgText;
+                  const isTradeResponse = lastMsgText.startsWith('[TRADE_RESPONSE_V1]');
+                  let displayText = lastMsgText;
+                  if (isTradeOffer) {
+                    displayText = '📦 Trade offer sent.';
+                  } else if (isTradeResponse) {
+                    // Show only the human-readable line that follows
+                    // the marker. Falls back to a generic label if the
+                    // marker is malformed.
+                    const newlineIdx = lastMsgText.indexOf('\n');
+                    displayText = newlineIdx >= 0
+                      ? lastMsgText.slice(newlineIdx + 1).trim() || '📦 Replied to trade offer.'
+                      : '📦 Replied to trade offer.';
+                  }
                   preview = isMine ? `You: ${displayText}` : displayText;
                 }
                 const unread = (c.unreadCount || 0) > 0;

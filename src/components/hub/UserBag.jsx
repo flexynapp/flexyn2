@@ -7,7 +7,7 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sparkles, Palette, ShoppingBag, Coins, Store, Crown, Square } from 'lucide-react';
+import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -484,7 +484,8 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
       return acc;
     }, {})
   );
-  const duplicateCount = stickerGroups.filter(g => g.filter(i => !i.is_listed).length > 1).length;
+  // (duplicateCount was used by the now-removed dupes badge + info bar.
+  //  Per-card ×N display does the same job inline without copy noise.)
 
   const themes     = inventoryItems.filter(i => i.item_type === 'theme');
   const titles     = inventoryItems.filter(i => i.item_type === 'title');
@@ -513,7 +514,10 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
 
   const TABS = [
     { id: 'capsules', label: 'Capsules', icon: Package,  count: capsuleRows.length },
-    { id: 'stickers', label: 'Stickers', icon: Sparkles, count: stickers.length, badge: duplicateCount > 0 ? `${duplicateCount} dupe${duplicateCount > 1 ? 's' : ''}` : null },
+    // "Stickers" tab no longer carries a "N dupes" badge — duplicates
+    // are already visualized by the per-card ×N count, so labeling the
+    // tab with "dupes" was redundant and a bit jargony.
+    { id: 'stickers', label: 'Stickers', icon: Sparkles, count: stickers.length },
     { id: 'titles',   label: 'Titles',   icon: Crown,    count: titles.length    },
     { id: 'frames',   label: 'Frames',   icon: Square,   count: frames.length    },
     { id: 'themes',   label: 'Themes',   icon: Palette,  count: themes.length    },
@@ -609,15 +613,11 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
             })}
           </div>
 
-          {/* Sell-duplicates info bar — shown on stickers tab when dupes exist */}
-          {activeTab === 'stickers' && duplicateCount > 0 && (
-            <div className="flex items-center gap-2 px-5 py-2.5 bg-amber-500/8 border-b border-amber-400/15">
-              <Coins className="w-4 h-4 text-amber-400 shrink-0" />
-              <p className="text-amber-300 text-xs">
-                You have <span className="font-bold">{duplicateCount} duplicate sticker{duplicateCount > 1 ? 's' : ''}</span> — sell the extras for Flex Coins.
-              </p>
-            </div>
-          )}
+          {/* The sell-duplicates info bar was removed because the
+              per-card ×N count + the in-line "Sell duplicate" button
+              on every duplicate card already communicate both the
+              presence of duplicates and the action available. A
+              full-width banner repeating the count read as noise. */}
 
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">

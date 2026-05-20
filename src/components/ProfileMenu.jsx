@@ -137,7 +137,7 @@ function wipeLocalClientState() {
 }
 
 export default function ProfileMenu() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -304,7 +304,7 @@ export default function ProfileMenu() {
                             ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                             : <UserCircle className="w-3.5 h-3.5 text-primary" />}
                         </div>
-                        Profile
+                        {tFallback('profile.account', 'Profile')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -332,7 +332,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4 text-yellow-500" />
-                        Achievements
+                        {tFallback('profile.achievements', 'Achievements')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -346,7 +346,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" />
-                        My Bag
+                        {tFallback('profile.myBag', 'My Bag')}
                       </div>
                       <div className="flex items-center gap-2">
                         {capsuleCount > 0 && (
@@ -366,7 +366,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <Book className="w-4 h-4" />
-                        My Journal
+                        {tFallback('profile.myJournal', 'My Journal')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -379,7 +379,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4" />
-                        Debrief Vault
+                        {tFallback('profile.debriefVault', 'Debrief Vault')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -392,7 +392,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <ShieldAlert className="w-4 h-4 text-orange-500" />
-                        My Injuries
+                        {tFallback('profile.myInjuries', 'My Injuries')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
