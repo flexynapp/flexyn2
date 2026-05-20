@@ -29,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import { reportError } from '@/lib/reportError';
+import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
@@ -288,7 +289,7 @@ export default function Workout() {
         toast.error('Could not save workout', { description: err?.message || 'Try again.' });
       }
     },
-    onSuccess: (result, _origData) => {
+    onSuccess: (result, _origData, ctx) => {
       // Read clamped data + xpGained from the mutation result, NOT recompute
       // from the original payload. Recomputing on the original input ignored
       // the per-group cap clamping inside mutationFn and could overstate the
@@ -301,7 +302,22 @@ export default function Workout() {
       // what was saved (including the date and the user's actual data).
       setShareCardWorkout({ ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') });
       resetWorkout();
-      toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
+
+      // First-workout milestone — detected via the snapshot onMutate
+      // already captures into ctx.previous. Zero previous logs means
+      // this save is the user's first-ever workout, which deserves a
+      // distinct celebration rather than the regular saved toast.
+      // Filter out optimistic placeholders so the cached optimistic
+      // row from a prior attempt doesn't suppress the celebration.
+      const realPrev = (ctx?.previous ?? []).filter(
+        (row) => !(typeof row?.id === 'string' && row.id.startsWith('__optimistic__'))
+      );
+      const isFirstWorkout = realPrev.length === 0;
+      if (isFirstWorkout) {
+        fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email });
+      } else {
+        toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
+      }
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
