@@ -51,33 +51,30 @@ export async function assignNemesis() {
 
   const xpLow  = Math.floor(me.total_xp * 1.10);
   const xpHigh = Math.floor(me.total_xp * 1.20);
-  const cutoff = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  // Candidates: active, not opted out, XP in range
+  // If the user has very low XP (brand new), widen the window so there's
+  // always a candidate pool even on a small user base.
+  const effectiveLow  = xpLow  < 50 ? 0    : xpLow;
+  const effectiveHigh = xpHigh < 50 ? 5000 : xpHigh;
+
+  // Candidates: not opted out, XP in range, not the current user.
+  // We intentionally omit a last_active_at filter — that column doesn't
+  // exist on user_profiles yet. XP range is sufficient to narrow the pool.
   const { data: candidates } = await supabase
     .from('user_profiles')
-    .select('id, total_xp')
-    .gte('total_xp', xpLow)
-    .lte('total_xp', xpHigh)
+    .select('id, total_xp, username, avatar_url, current_level')
+    .gte('total_xp', effectiveLow)
+    .lte('total_xp', effectiveHigh)
     .eq('nemesis_opt_out', false)
     .neq('id', user.id)
-    .gt('last_active_at', cutoff)   // needs last_active_at on user_profiles
     .limit(20);
 
   if (!candidates?.length) return null;
 
-  // Exclude already-followed users
-  const { data: follows } = await supabase
-    .from('hub_follows')
-    .select('followed_id')
-    .eq('follower_id', user.id);
-
-  const followedIds = new Set((follows ?? []).map(f => f.followed_id));
-  const pool = candidates.filter(c => !followedIds.has(c.id));
-
-  if (!pool.length) return null;
-
-  // Pick the closest XP match
+  // Pick the closest XP match from the candidate pool.
+  // (Follow-exclusion omitted — hub_follows is email-based and the
+  // nemesis assignment is private, so overlap with follows is fine.)
+  const pool = candidates;
   pool.sort((a, b) => Math.abs(a.total_xp - me.total_xp) - Math.abs(b.total_xp - me.total_xp));
   const chosen = pool[0];
 
