@@ -47,6 +47,7 @@ import DuelBanner from '@/components/duels/DuelBanner';
 import { getActiveDuel } from '@/lib/data/duels';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
+import * as capsules from '@/lib/data/capsules';
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
@@ -354,6 +355,25 @@ export default function Workout() {
       const isFirstWorkout = realPrev.length === 0;
       if (isFirstWorkout) {
         fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email });
+        // Day-1 loot drop — reinforces the loot economy that the
+        // day-0 welcome capsule introduced. Premium tier signals a
+        // step up from the welcome standard so the reward FEELS
+        // like progress, not a repeat. Fire-and-forget; the toast
+        // is dispatched by LevelUpManager via the global event.
+        // Idempotent — only grants once per user thanks to the
+        // first_workout_capsule_granted profile flag.
+        if (user?.id && user?.email) {
+          capsules
+            .grantForFirstWorkout(user.id, user.email)
+            .then(() => {
+              queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+              queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+              queryClient.invalidateQueries({ queryKey: ['userProfile', user.email] });
+            })
+            .catch((err) =>
+              reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email })
+            );
+        }
       } else {
         toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
       }

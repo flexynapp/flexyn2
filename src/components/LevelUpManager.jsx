@@ -124,6 +124,9 @@ export default function LevelUpManager() {
       } else if (source === 'welcome') {
         title    = `${emoji} Welcome gift — your first capsule!`;
         subtitle = 'Tap your profile → My Bag to open it and see what dropped.';
+      } else if (source === 'first_workout') {
+        title    = `${emoji} First workout reward — Premium Capsule!`;
+        subtitle = 'You showed up. Open this one in your Bag — premium tier drops better loot.';
       }
       toast.success(title, { description: subtitle, duration: 6000 });
       // Refresh the bag's capsule count so the badge updates immediately.

@@ -138,6 +138,67 @@ export async function countCapsules(userEmail) {
 }
 
 /**
+ * Grant a premium capsule + bonus coins when the user logs their FIRST
+ * workout ever. This is the day-1 reinforcement of the loot loop the
+ * welcome capsule established on day-0 — without it, a user who opened
+ * their welcome capsule and then trained has no second hit of the
+ * reward loop until they level up (which could be days away).
+ *
+ * Premium tier (vs the standard welcome) signals a step up — "you
+ * earned something better by actually showing up."
+ *
+ * Idempotent: looks for the boolean profile flag `first_workout_capsule_granted`.
+ * The flag is also missing/false on legacy hosts where the column
+ * doesn't exist — in that case the function still grants (so legacy
+ * users get the new reward on their next first-workout-of-an-era) and
+ * relies on the PGRST204 strip-and-retry in db.js to silently drop the
+ * unknown column from the update payload.
+ *
+ * Returns `true` if a capsule was granted, `false` if skipped.
+ */
+export async function grantForFirstWorkout(userId, userEmail) {
+  if (!userId || !userEmail) return false;
+
+  // Read the flag — if already true, we've granted before. Defensive:
+  // missing column / missing row should be treated as "not yet."
+  const { data: profile } = await supabase
+    .from('user_profiles')
+    .select('first_workout_capsule_granted')
+    .eq('id', userId)
+    .maybeSingle();
+  if (profile?.first_workout_capsule_granted === true) return false;
+
+  await Promise.all([
+    _grantCapsule(userId, userEmail, 'premium'),
+    _addFlexCoins(userId, 75),
+  ]);
+
+  // Mark the flag so this never grants twice. Tolerates the column
+  // being absent — db.js's updateMe equivalent isn't reachable from
+  // here, so we just do a raw update and swallow 42703 / PGRST204.
+  try {
+    await supabase
+      .from('user_profiles')
+      .update({ first_workout_capsule_granted: true })
+      .eq('id', userId);
+  } catch (err) {
+    if (err?.code !== '42703' && err?.code !== 'PGRST204') {
+      console.warn('[capsules] first_workout flag write failed:', err);
+    }
+  }
+
+  try {
+    window.dispatchEvent(
+      new CustomEvent('flexyn:capsule-granted', {
+        detail: { type: 'premium', source: 'first_workout' },
+      })
+    );
+  } catch { /* SSR / no window — non-fatal */ }
+
+  return true;
+}
+
+/**
  * Grant a welcome (standard) capsule to new users who have none.
  * Idempotent — skips the insert if the user already has at least one capsule.
  *
