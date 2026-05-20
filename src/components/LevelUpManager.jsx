@@ -114,13 +114,21 @@ export default function LevelUpManager() {
       if (!type) return;
       const emoji = CAPSULE_EMOJI[type] || '🎁';
       const label = CAPSULE_LABEL[type] || 'Capsule';
-      const subtitle =
-        source === 'achievement_milestone' && threshold
-          ? `${threshold} achievements unlocked — open it in your Bag!`
-          : 'Open it in your Bag to see what dropped.';
-      toast.success(`${emoji} ${label} earned!`, { description: subtitle, duration: 4500 });
+      // Tailor the subtitle by source so the message lands. The
+      // welcome-source case is load-bearing for day-0 retention —
+      // this is the moment a new user learns the loot economy exists.
+      let subtitle = 'Open it in your Bag to see what dropped.';
+      let title    = `${emoji} ${label} earned!`;
+      if (source === 'achievement_milestone' && threshold) {
+        subtitle = `${threshold} achievements unlocked — open it in your Bag!`;
+      } else if (source === 'welcome') {
+        title    = `${emoji} Welcome gift — your first capsule!`;
+        subtitle = 'Tap your profile → My Bag to open it and see what dropped.';
+      }
+      toast.success(title, { description: subtitle, duration: 6000 });
       // Refresh the bag's capsule count so the badge updates immediately.
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user?.email] });
     };
     window.addEventListener('flexyn:capsule-granted', handler);
     return () => window.removeEventListener('flexyn:capsule-granted', handler);

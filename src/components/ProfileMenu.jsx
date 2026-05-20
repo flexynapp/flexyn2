@@ -235,10 +235,14 @@ export default function ProfileMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(v => !v); setView('main'); }}
-        className="flex items-center justify-center gap-2 w-full h-10 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ml-2"
-        aria-label="Profile"
+        className="relative flex items-center justify-center gap-2 w-full h-10 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ml-2"
+        aria-label={
+          capsuleCount > 0
+            ? `Profile — ${capsuleCount} unopened ${capsuleCount === 1 ? 'capsule' : 'capsules'}`
+            : 'Profile'
+        }
       >
-        <div className="w-9 h-9 rounded-full bg-primary/10 border border-border flex items-center justify-center text-sm font-bold text-primary shrink-0 overflow-hidden">
+        <div className="relative w-9 h-9 rounded-full bg-primary/10 border border-border flex items-center justify-center text-sm font-bold text-primary shrink-0 overflow-hidden">
           {user?.avatar_url ? (
             <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
           ) : user?.full_name ? (
@@ -247,6 +251,24 @@ export default function ProfileMenu() {
             <User className="w-4 h-4" />
           )}
         </div>
+        {/* Unopened-capsule badge — the visible-from-every-page
+            anchor for the loot economy. Without this the welcome
+            capsule sits unnoticed in the bag forever and the user
+            never experiences the loot loop. The number is rendered
+            on a purple dot that visually echoes the in-bag capsule
+            tint, so the language "purple = your loot" stays
+            consistent across surfaces. */}
+        {capsuleCount > 0 && (
+          <motion.span
+            key={capsuleCount}
+            initial={{ scale: 0.6, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            aria-hidden="true"
+            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
+          >
+            {capsuleCount > 9 ? '9+' : capsuleCount}
+          </motion.span>
+        )}
         {user?.full_name && (
           <span className="text-sm font-medium">{user.full_name.split(' ')[0]}</span>
         )}

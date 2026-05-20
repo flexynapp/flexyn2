@@ -96,6 +96,12 @@ export function clearAllDismissals() {
 // on typos. Adding a new card? Add the ID here and the consumers stay
 // type-checkable by grep.
 export const DISCOVERY_CARDS = Object.freeze({
+  // Highest-priority new-user card. Surfaces the loot economy the
+  // very first time a user sees the dashboard with an unopened
+  // capsule sitting in their bag. The capsule grant itself is silent
+  // at the DB level — this card is what makes the loot economy
+  // discoverable instead of buried 4+ taps deep.
+  OPEN_CAPSULE: 'openCapsule',   // "Your first capsule is waiting"
   STARTER_PLAN: 'starterPlan',   // "Your starter plan is ready"
   FORM_COACH:   'formCoachIntro',// "Try Form Coach"
   AI_COACH:     'coachIntro',    // "Meet your AI Coach"

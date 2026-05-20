@@ -140,12 +140,30 @@ export async function countCapsules(userEmail) {
 /**
  * Grant a welcome (standard) capsule to new users who have none.
  * Idempotent — skips the insert if the user already has at least one capsule.
+ *
+ * Returns `true` if a capsule was actually granted, `false` if the
+ * idempotency check skipped. Callers (LevelUpManager) use the return
+ * value to decide whether to fire the celebration toast — we don't
+ * want to surprise a returning user with a "you got a capsule!" message
+ * when the grant was a no-op.
  */
 export async function grantWelcomeCapsule(userId, userEmail) {
-  if (!userId || !userEmail) return;
+  if (!userId || !userEmail) return false;
   const existing = await countCapsules(userEmail);
-  if (existing > 0) return; // already has capsules — nothing to do
+  if (existing > 0) return false; // already has capsules — nothing to do
   await _grantCapsule(userId, userEmail, 'standard');
+  // Dispatch the global capsule-granted event so LevelUpManager (or
+  // anything else listening) can surface a toast / badge / celebration.
+  // The 'welcome' source distinguishes this from achievement-milestone
+  // and level-up grants so the toast copy can be tailored.
+  try {
+    window.dispatchEvent(
+      new CustomEvent('flexyn:capsule-granted', {
+        detail: { type: 'standard', source: 'welcome' },
+      })
+    );
+  } catch { /* SSR / no window — non-fatal */ }
+  return true;
 }
 
 // ─── Achievement-milestone capsules ──────────────────────────────────────────

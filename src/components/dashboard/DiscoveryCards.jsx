@@ -27,14 +27,17 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Camera, Dumbbell, Bell, X, ArrowRight } from 'lucide-react';
+import { Sparkles, Camera, Dumbbell, Bell, Package, X, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { filterAfterReset } from '@/lib/accountReset';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { reportError } from '@/lib/reportError';
+import { requestOpenBag } from '@/lib/inventoryFlow';
+import * as capsulesData from '@/lib/data/capsules';
 import {
   isDismissed,
   dismiss as dismissCard,
@@ -71,7 +74,7 @@ function hasCoachHistory(userId) {
  */
 function DiscoveryCard({
   icon: Icon,
-  accent,             // 'orange' | 'violet' | 'amber'
+  accent,             // 'orange' | 'violet' | 'amber' | 'sky' | 'purple'
   kicker,
   title,
   body,
@@ -106,6 +109,16 @@ function DiscoveryCard({
       bg:     'bg-gradient-to-br from-sky-500/10 via-card to-card',
       icon:   'bg-sky-500/15 text-sky-500',
       btn:    'bg-sky-500 hover:bg-sky-500/90 text-white',
+    },
+    // Purple — used for the OPEN_CAPSULE card. Matches the
+    // capsule/loot visual language used elsewhere in UserBag
+    // (purple-400 accents on the capsule cards) so the
+    // discovery-card → bag handoff feels visually continuous.
+    purple: {
+      ring:   'ring-1 ring-purple-500/25',
+      bg:     'bg-gradient-to-br from-purple-500/15 via-fuchsia-500/5 to-card',
+      icon:   'bg-purple-500/15 text-purple-400',
+      btn:    'bg-purple-500 hover:bg-purple-500/90 text-white',
     },
   };
   const a = accents[accent] || accents.orange;
@@ -175,6 +188,20 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
   // the useMemo below to re-evaluate `isDismissed`.
   const [dismissTick, setDismissTick] = useState(0);
 
+  // Unopened-capsule count drives the OPEN_CAPSULE card. Shares the
+  // same query key Layout/ProfileMenu use so React Query dedupes —
+  // single fetch lights up the badge AND the discovery card.
+  const { data: unopenedCapsuleCount = 0 } = useQuery({
+    queryKey: ['userCapsulesCount', user?.email],
+    queryFn: async () => {
+      const list = await capsulesData.listUnopenedCapsules(user.email);
+      return list.length;
+    },
+    enabled: !!user?.email,
+    refetchInterval: 60_000,
+    staleTime: 30_000,
+  });
+
   // filterAfterReset ensures a user who reset their account doesn't see
   // pre-reset workout rows still in cache — matches Dashboard's own
   // hero-card streak logic so the discovery state stays consistent.
@@ -195,6 +222,18 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
 
     const workoutCount = filteredLogs.length;
     const regimenCount = filteredRegimens.length;
+
+    // 0. Open your first capsule — TOP priority for any user who has
+    //    unopened capsules in their bag. This is the day-0 hook: it
+    //    surfaces the loot economy (the thing that makes Flexyn
+    //    different from every other fitness tracker) instead of
+    //    leaving the welcome capsule buried under 4+ taps. Auto-hides
+    //    the instant the user opens it (count drops to 0). The card
+    //    is intentionally NOT manually-dismissable — opening it IS
+    //    the dismissal.
+    if (unopenedCapsuleCount > 0) {
+      return 'openCapsule';
+    }
 
     // 1. Starter plan — only for users who literally have zero logged
     //    workouts AND a regimen waiting. Auto-hides on first workout.
@@ -238,6 +277,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     isLoading, user,
     filteredLogs.length, filteredRegimens.length,
     push.isSupported, push.isSubscribed, push.permission,
+    unopenedCapsuleCount,
     dismissTick,
   ]);
 
@@ -250,6 +290,40 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
 
   return (
     <AnimatePresence mode="wait" initial={false}>
+      {card === 'openCapsule' && (
+        <DiscoveryCard
+          key="openCapsule"
+          icon={Package}
+          accent="purple"
+          kicker={t('discovery.openCapsule.kicker') || 'GIFT WAITING'}
+          title={
+            t('discovery.openCapsule.title') ||
+            (unopenedCapsuleCount === 1
+              ? 'Your first capsule is waiting'
+              : `You have ${unopenedCapsuleCount} unopened capsules`)
+          }
+          body={
+            t('discovery.openCapsule.body') ||
+            "Capsules drop stickers, frames, titles, and Flex Coins. Trade duplicates with friends. Open yours to see what's inside."
+          }
+          ctaLabel={t('discovery.openCapsule.cta') || 'Open it now'}
+          dismissAriaLabel={t('discovery.openCapsule.dismissLabel') || 'Later'}
+          onCta={() => {
+            // Don't persist a dismissal — the card auto-hides the
+            // moment the capsule is opened (count drops to 0). The
+            // user can always come back to this state if they earn
+            // another capsule.
+            requestOpenBag();
+          }}
+          // "Later" still dismisses for THIS session via the local
+          // tick — but doesn't write to localStorage. If the user
+          // refreshes the page, the card returns. Intentional: an
+          // unopened capsule is unfinished onboarding, not banner
+          // spam — we'd rather nudge again than let them forget.
+          onDismiss={() => setDismissTick((n) => n + 1)}
+        />
+      )}
+
       {card === 'starter' && (
         <DiscoveryCard
           key="starter"
