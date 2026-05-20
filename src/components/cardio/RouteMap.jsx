@@ -171,8 +171,27 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
     // log them but don't tear down the canvas — MapLibre keeps
     // rendering whatever it has, and the user at least sees a
     // partial map instead of nothing.
+    //
+    // "Expected value to be of type number, but found null" is a
+    // MapLibre style-validation warning fired when the OpenFreeMap
+    // Liberty tile data contains null values in properties that a
+    // style expression expects to be numeric (e.g. POI rank fields).
+    // We don't own the style JSON so we can't fix the expression;
+    // filtering it here keeps the console clean without hiding real errors.
     map.on('error', (e) => {
+      const msg = e?.error?.message || String(e?.error || e);
+      if (msg.includes('Expected value to be of type number')) return;
       console.warn('[RouteMap] map error:', e?.error || e);
+    });
+
+    // The OpenFreeMap Liberty sprite sheet omits some POI icons that
+    // the style references (swimming_pool, bollard, gate, office, …).
+    // When MapLibre tries to paint those symbols it fires this event.
+    // Registering a 1×1 transparent image stops the repeated warnings
+    // without changing the visual output — those icons were invisible anyway.
+    map.on('styleimagemissing', ({ id }) => {
+      if (map.hasImage(id)) return;
+      map.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
     });
 
     mapRef.current = map;
