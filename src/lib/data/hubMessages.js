@@ -175,6 +175,10 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
       const newlineIdx = previewText.indexOf('\n');
       previewText = newlineIdx >= 0 ? previewText.slice(newlineIdx + 1).trim() : '';
       if (!previewText) previewText = '↩️ Trade reply';
+    } else if (previewText.startsWith('[CREW_INVITE_V1]')) {
+      previewText = '👥 Crew invite';
+    } else if (previewText.startsWith('[DUEL_INVITE_V1]')) {
+      previewText = '⚔️ Duel challenge';
     }
     const preview = previewText ? previewText.slice(0, 80) : '📎 Image';
     await conv().update(conversationId, {

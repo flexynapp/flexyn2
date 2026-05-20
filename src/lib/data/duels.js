@@ -70,29 +70,55 @@ export async function getHeadToHead(userId, opponentId) {
 }
 
 /**
- * Send a DM to the opponent notifying them of the duel challenge.
+ * Send a structured [DUEL_INVITE_V1] DM to the opponent.
+ * Renders as an accept/decline card in HubChat.
  * Fire-and-forget — failure is non-critical.
+ *
+ * @param {string} duelId       - the created duel row ID
+ * @param {string} opponentId   - opponent's user_profiles.id
+ * @param {string} type         - 'open' | 'mirror' | 'exercise'
+ * @param {number} windowHours  - duel window in hours
  */
-export async function sendDuelDM(myEmail, opponentId, myUsername, opponentUsername, windowHours) {
+export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours = 24) {
   try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Fetch challenger's own profile (username, avatar, email)
+    const { data: myProfile } = await supabase
+      .from('user_profiles')
+      .select('username, avatar_url, email')
+      .eq('id', user.id)
+      .single();
+
+    // Fetch opponent's email
     const { data: opProfile } = await supabase
       .from('user_profiles')
       .select('email')
       .eq('id', opponentId)
       .single();
-    if (!opProfile?.email || !myEmail) return;
 
-    const conv = await findOrCreateConversation(myEmail, opProfile.email);
+    if (!myProfile?.email || !opProfile?.email) return;
+
+    const conv = await findOrCreateConversation(myProfile.email, opProfile.email);
     if (!conv?.id) return;
+
+    const payload = JSON.stringify({
+      duelId,
+      challengerUsername: myProfile.username || 'Someone',
+      challengerAvatar:   myProfile.avatar_url || null,
+      type,
+      windowHours,
+    });
 
     await sendMessage({
       conversationId: conv.id,
-      senderEmail:    myEmail,
+      senderEmail:    myProfile.email,
       recipientEmail: opProfile.email,
-      body: `⚔️ @${myUsername} challenged you to a Duel! You have ${windowHours}h to accept. Open the Duels tab to respond.`,
+      body:           `[DUEL_INVITE_V1]${payload}`,
     });
   } catch {
-    // non-critical — duel was still created
+    // non-critical — duel was still created successfully
   }
 }
 

@@ -213,7 +213,7 @@ export default function CreateDuelModal({
         type:        'open',
         windowHours: 24,
       });
-      sendDuelDM(user.email, profile.id, user.user_metadata?.username || 'Someone', profile.username, 24);
+      sendDuelDM(duel.id, profile.id, 'open', 24);
       toast.success(`Open Duel sent to @${profile.username}!`, { description: '24h window · Most volume wins' });
       onCreated?.(duel);
       onClose();
@@ -238,9 +238,9 @@ export default function CreateDuelModal({
         sessionTemplate,
         windowHours,
       });
-      sendDuelDM(user.email, opponent.id, user.user_metadata?.username || 'Someone', opponent.username, windowHours);
+      sendDuelDM(duel.id, opponent.id, selectedType, windowHours);
       toast.success(`Duel challenge sent to @${opponent.username}!`, {
-        description: `${windowHours}h window · They'll see your DM.`,
+        description: `${windowHours}h window · Check their DMs.`,
       });
       onCreated?.(duel);
       onClose();
