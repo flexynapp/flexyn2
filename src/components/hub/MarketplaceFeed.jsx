@@ -677,12 +677,7 @@ export default function MarketplaceFeed() {
   });
   const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
 
-  // Feature 20: Admin sandbox — identified by username OR email prefix
-  const adminUsernames = ['sean', 'seanj', 'kegan', 'admin'];
-  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || '';
-  const isAdmin = adminUsernames.includes(user?.username?.toLowerCase()) ||
-                  adminUsernames.includes(emailPrefix);
-  const flexCoins = isAdmin ? 1_000_000 : (user?.flex_coins ?? 0);
+  const flexCoins = user?.flex_coins ?? 0;
 
   // ── Cancel listing ─────────────────────────────────────────────────────────
   const handleCancel = useCallback(async (listing) => {
@@ -711,24 +706,7 @@ export default function MarketplaceFeed() {
     if (!buyTarget || !user) return;
     setBuyBusy(true);
     try {
-      if (isAdmin) {
-        // Admin sandbox bypass — the server-side RPC validates real coin balances
-        // but admins carry a client-cached 1,000,000 flex coin balance.
-        // Directly mark the listing completed and transfer the inventory row
-        // without touching any coin ledgers.
-        const { error: listErr } = await supabase
-          .from('marketplace_listings')
-          .update({ status: 'completed' })
-          .eq('id', buyTarget.id);
-        if (listErr) throw listErr;
-        const { error: invErr } = await supabase
-          .from('user_inventory')
-          .update({ user_id: user.id, user_email: user.email, is_listed: false })
-          .eq('id', buyTarget.inventory_id);
-        if (invErr) throw invErr;
-      } else {
-        await marketplace.purchaseListing(buyTarget.id);
-      }
+      await marketplace.purchaseListing(buyTarget.id);
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
@@ -755,7 +733,7 @@ export default function MarketplaceFeed() {
     } finally {
       setBuyBusy(false);
     }
-  }, [buyTarget, user, qc, isAdmin]);
+  }, [buyTarget, user, qc]);
 
   return (
     <div className="flex flex-col gap-4">
