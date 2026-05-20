@@ -78,6 +78,9 @@ SQL Editor**. No CLI required.
 | 048 | `048_crews.sql` | Crews group chat: 5 tables + 2 SECURITY DEFINER RPCs (`is_crew_member`, `is_crew_admin`) | — |
 | 049 | `049_profile_extensions.sql` | Add `city`, `country_flag`, `trophy_case` (JSONB), `trophy_case_visible` to `user_profiles` | — |
 | 050 | `050_username_profanity_check.sql` | `is_username_clean()` function + `enforce_username_profanity` trigger on `user_profiles.username` (raises 23514 on banned content) | — |
+| 051 | `051_weekly_debriefs.sql` | `weekly_debriefs` table + RLS policies (auto-populated by a Sunday cron — needs the `generateWeeklyDebriefs` Edge Function + `app.debrief_func_url` + `app.debrief_cron_secret` DB settings to actually generate data) | **Edge Function + DB settings** |
+| 052 | `052_injury_logs.sql` | `injury_logs` table for Recovery Mode + RLS | — |
+| 053 | `053_exercise_groups.sql` | `exercise_groups` table for superset/circuit metadata + RLS | — |
 
 ---
 
@@ -199,7 +202,19 @@ UNION ALL
 SELECT 'username profanity trigger (050)', count(*), '1'
   FROM information_schema.triggers
  WHERE event_object_table = 'user_profiles'
-   AND trigger_name = 'trg_username_profanity';
+   AND trigger_name = 'trg_username_profanity'
+UNION ALL
+SELECT 'weekly_debriefs table (051)', count(*), '1'
+  FROM information_schema.tables
+ WHERE table_schema = 'public' AND table_name = 'weekly_debriefs'
+UNION ALL
+SELECT 'injury_logs table (052)', count(*), '1'
+  FROM information_schema.tables
+ WHERE table_schema = 'public' AND table_name = 'injury_logs'
+UNION ALL
+SELECT 'exercise_groups table (053)', count(*), '1'
+  FROM information_schema.tables
+ WHERE table_schema = 'public' AND table_name = 'exercise_groups';
 ```
 
 ---

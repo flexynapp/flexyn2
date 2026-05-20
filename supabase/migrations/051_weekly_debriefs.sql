@@ -19,13 +19,20 @@ CREATE TABLE IF NOT EXISTS public.weekly_debriefs (
 
 ALTER TABLE public.weekly_debriefs ENABLE ROW LEVEL SECURITY;
 
+-- DROP-THEN-CREATE so the migration is safely re-runnable: Postgres
+-- CREATE POLICY has no IF NOT EXISTS clause, so a second apply on top
+-- of a partial run blows up with 42710 ("policy already exists"). Match
+-- the safe pattern migrations 047 / 048 already use.
+
 -- Users can only read their own debriefs
+DROP POLICY IF EXISTS "weekly_debriefs_select_own" ON public.weekly_debriefs;
 CREATE POLICY "weekly_debriefs_select_own"
   ON public.weekly_debriefs
   FOR SELECT
   USING (auth.uid() = user_id);
 
 -- Service role (edge function) can write on behalf of any user
+DROP POLICY IF EXISTS "weekly_debriefs_service_role_all" ON public.weekly_debriefs;
 CREATE POLICY "weekly_debriefs_service_role_all"
   ON public.weekly_debriefs
   FOR ALL

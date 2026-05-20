@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS public.injury_logs (
 
 ALTER TABLE public.injury_logs ENABLE ROW LEVEL SECURITY;
 
+-- DROP-THEN-CREATE so the migration is safely re-runnable (see note in 051).
+DROP POLICY IF EXISTS "injury_logs_own" ON public.injury_logs;
 CREATE POLICY "injury_logs_own"
   ON public.injury_logs
   FOR ALL

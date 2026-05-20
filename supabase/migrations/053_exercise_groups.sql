@@ -18,6 +18,8 @@ CREATE TABLE IF NOT EXISTS public.exercise_groups (
 
 ALTER TABLE public.exercise_groups ENABLE ROW LEVEL SECURITY;
 
+-- DROP-THEN-CREATE so the migration is safely re-runnable (see note in 051).
+DROP POLICY IF EXISTS "exercise_groups_own" ON public.exercise_groups;
 CREATE POLICY "exercise_groups_own"
   ON public.exercise_groups
   FOR ALL
