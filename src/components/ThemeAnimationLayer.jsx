@@ -265,7 +265,7 @@ function SteelUsaBg() {
   // USA patriotic embers: red, white, blue
   const USA_COLORS = ['#EF4444', '#FFFFFF', '#3B82F6', '#EF4444', '#FFFFFF', '#1D4ED8'];
   const embers = useMemo(() =>
-    Array.from({ length: 28 }, (_, i) => ({
+    Array.from({ length: 196 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       size: Math.random() * 3.5 + 1.5,

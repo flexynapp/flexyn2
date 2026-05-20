@@ -12,7 +12,7 @@ function SteelUsaProfileOverlay() {
   const PIXEL_COLORS = ['#94A3B8', '#CBD5E1', '#64748B', '#BAE6FD', '#E2E8F0'];
 
   const embers = useMemo(() =>
-    Array.from({ length: 26 }, (_, i) => ({
+    Array.from({ length: 182 }, (_, i) => ({
       id: i,
       x: Math.random() * 100,
       size: Math.random() * 3.5 + 1.5,
