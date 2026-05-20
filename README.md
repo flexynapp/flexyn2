@@ -15,7 +15,7 @@ Netlify.
   network-first navigation
 - **Pose detection**: `@tensorflow-models/pose-detection` (lazy-loaded
   for the Form Coach feature only)
-- **Maps**: `react-leaflet` (lazy-loaded for cardio route rendering only)
+- **Maps**: `maplibre-gl` + OpenFreeMap vector tiles (lazy-loaded for cardio route rendering only)
 - **i18n**: 15 languages with per-language code splitting
 
 ## Local development

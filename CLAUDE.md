@@ -131,9 +131,9 @@ without giving it a distinct haptic + confetti signature.**
 - Lazy-loading rule: modals and tabs that only mount on user action
   should be `React.lazy()` + `<Suspense fallback={null}>`. Existing
   examples: `DebriefVault`, `InjuryForm`, the page chunks in `App.jsx`.
-- `html2canvas`, `canvas-confetti`, `@zxing/browser`, and `leaflet` are
-  excluded from the `vendor-misc` chunk so their dynamic imports get
-  their own lazy chunks. Don't break that — see the `manualChunks`
+- `html2canvas`, `canvas-confetti`, `@zxing/browser`, and `maplibre-gl`
+  are excluded from the `vendor-misc` chunk so their dynamic imports
+  get their own lazy chunks. Don't break that — see the `manualChunks`
   function in vite.config.
 
 ## ESLint

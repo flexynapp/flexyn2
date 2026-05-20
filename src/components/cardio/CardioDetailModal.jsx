@@ -18,10 +18,10 @@ import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 
-// RouteMap pulls in leaflet + react-leaflet (~150 KB minified). Most
-// cardio rows have no GPS track, so eager-loading the whole map vendor
-// for every cardio modal is wasteful. Lazy-load it: the map vendor
-// chunk only fetches when a row WITH a track actually renders.
+// RouteMap pulls in maplibre-gl (~200 KB gzipped). Most cardio rows
+// have no GPS track, so eager-loading the whole map vendor for every
+// cardio modal is wasteful. Lazy-load it: the map vendor chunk only
+// fetches when a row WITH a track actually renders.
 const RouteMap = lazy(() => import('./RouteMap'));
 
 function DetailRow({ label, value }) {

@@ -137,8 +137,10 @@ export default defineConfig({
           // in the lazy chunk that imports them, rather than yanking
           // them into the always-loaded vendor-misc bucket below.
           //
-          //   leaflet + react-leaflet  → RouteMap chunk (cardio details
-          //                              + activity feed map renders)
+          //   maplibre-gl              → RouteMap chunk (cardio details
+          //                              + activity feed map renders).
+          //                              Was leaflet + react-leaflet before
+          //                              the vector-tile migration.
           //   @zxing/browser           → barcode-scan handler in
           //                              Nutrition.jsx (dynamic import())
           //   canvas-confetti          → LevelUpOverlay's effect
@@ -148,7 +150,7 @@ export default defineConfig({
           // catch-all below pulls them into the entry bundle even
           // though only one feature ever touches them. ~250 KB saved
           // off vendor-misc.
-          if (id.includes('leaflet')) return undefined;
+          if (id.includes('maplibre-gl')) return undefined;
           if (id.includes('@zxing'))  return undefined;
           if (id.includes('canvas-confetti')) return undefined;
           // html2canvas (~200 KB) is dynamically-imported from

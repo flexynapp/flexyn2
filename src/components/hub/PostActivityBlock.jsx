@@ -30,7 +30,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
 import { db } from '@/api/db';
-// Lazy-load — leaflet + react-leaflet are ~150 KB and most hub posts
+// Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
 // don't render a map. Shared chunk with CardioDetailModal.
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
 
