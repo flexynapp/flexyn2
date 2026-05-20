@@ -19,6 +19,7 @@ import TemplatesModal from '@/components/workout/TemplatesModal';
 import RegimenTemplateStore from '@/components/regimens/RegimenTemplateStore';
 import * as hubPosts from '@/lib/data/hubPosts';
 import { reportError } from '@/lib/reportError';
+import { fireFirstRegimenCelebration } from '@/lib/firstRegimenCelebration';
 
 export default function RegimensSection({ onStartRegimen }) {
   const { t } = useLanguage();
@@ -79,11 +80,28 @@ export default function RegimensSection({ onStartRegimen }) {
       queryClient.setQueryData(['regimens', user?.email], ctx.previous);
       setShowForm(true);
     },
-    onSuccess: () => {
+    onSuccess: (result, _data, ctx) => {
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
-      const regimenCount = queryClient.getQueryData(['regimens', user?.email])?.length ?? 0;
-      toast.success(t('regimens.toast.created'));
+
+      // First-regimen milestone — detected via the ctx.previous
+      // snapshot onMutate already captures. Filter out optimistic
+      // placeholders so a previous attempt's in-flight optimistic
+      // row can't suppress the celebration (same defense as the
+      // first-workout detection in Workout.jsx).
+      const realPrev = (ctx?.previous ?? []).filter(
+        (row) => row?.id !== '__optimistic__'
+      );
+      const isFirstRegimen = realPrev.length === 0;
+      if (isFirstRegimen) {
+        fireFirstRegimenCelebration({
+          regimenName: result?.name,
+          xpGained: 100, // matches the XP grant above
+          userEmail: user?.email,
+        });
+      } else {
+        toast.success(t('regimens.toast.created'));
+      }
     },
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] }),
   });
