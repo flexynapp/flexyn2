@@ -81,6 +81,7 @@ SQL Editor**. No CLI required.
 | 051 | `051_weekly_debriefs.sql` | `weekly_debriefs` table + RLS policies (auto-populated by a Sunday cron — needs the `generateWeeklyDebriefs` Edge Function + `app.debrief_func_url` + `app.debrief_cron_secret` DB settings to actually generate data) | **Edge Function + DB settings** |
 | 052 | `052_injury_logs.sql` | `injury_logs` table for Recovery Mode + RLS | — |
 | 053 | `053_exercise_groups.sql` | `exercise_groups` table for superset/circuit metadata + RLS | — |
+| 054 | `054_bio_profanity_check.sql` | `is_bio_clean()` function + `enforce_bio_profanity` trigger on `user_profiles.bio` (mirrors 050 for the second user-visible free-text field; raises 23514 on banned content) | — |
 
 ---
 
@@ -214,7 +215,12 @@ SELECT 'injury_logs table (052)', count(*), '1'
 UNION ALL
 SELECT 'exercise_groups table (053)', count(*), '1'
   FROM information_schema.tables
- WHERE table_schema = 'public' AND table_name = 'exercise_groups';
+ WHERE table_schema = 'public' AND table_name = 'exercise_groups'
+UNION ALL
+SELECT 'bio profanity trigger (054)', count(*), '1'
+  FROM information_schema.triggers
+ WHERE event_object_table = 'user_profiles'
+   AND trigger_name = 'trg_bio_profanity';
 ```
 
 ---
