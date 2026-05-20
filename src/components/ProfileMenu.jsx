@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft, Trophy } from 'lucide-react';
 import { format, subDays, addDays } from 'date-fns';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
@@ -16,6 +16,7 @@ import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
+import DebriefVault from './debrief/DebriefVault';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
@@ -136,6 +137,7 @@ export default function ProfileMenu() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
   const [journalOpen, setJournalOpen] = useState(false);
+  const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -330,6 +332,19 @@ export default function ProfileMenu() {
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        setDebriefVaultOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4" />
+                        Debrief Vault
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
                     <ThemePicker />
                     <button
                       onClick={() => {
@@ -423,6 +438,13 @@ export default function ProfileMenu() {
             userEmail={user?.email}
             onClose={() => setJournalOpen(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Debrief Vault — global overlay, accessible from any page */}
+      <AnimatePresence>
+        {debriefVaultOpen && (
+          <DebriefVault onClose={() => setDebriefVaultOpen(false)} />
         )}
       </AnimatePresence>
     </div>
