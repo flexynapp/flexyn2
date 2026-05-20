@@ -9,7 +9,6 @@
 // switch to the dark-fixed export theme.
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { Flame, Zap, TrendingUp, TrendingDown, Trophy, Dumbbell, Utensils, Star, Minus } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

@@ -9,7 +9,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { ChevronLeft, X, Share2, Download, Loader2, Trophy, Zap } from 'lucide-react';
+import { ChevronLeft, Share2, Loader2, Trophy, Zap } from 'lucide-react';
 import { listDebriefs } from '@/lib/data/debriefs';
 import WeeklyDebriefCard from './WeeklyDebriefCard';
 import { toast } from 'sonner';
