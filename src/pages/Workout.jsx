@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -27,7 +27,7 @@ import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
 const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPhotoCapture'));
@@ -118,6 +118,7 @@ export default function Workout() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const location = useLocation();
+  const navigate  = useNavigate();
 
   const workoutStateRef = React.useRef({});
   workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes };
@@ -1157,7 +1158,31 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 4: Form Coach (col-span-1, beta) */}
+              {/* Row 4: Duels (col-span-2) | Form Coach (col-span-1, beta) */}
+
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                <Card
+                  role="button" tabIndex={0} aria-label="Duels"
+                  className="group p-4 cursor-pointer border-rose-500/20 bg-gradient-to-br from-rose-500/5 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/10 transition-colors h-full"
+                  onClick={() => navigate('/duels')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
+                      <Swords className="w-4 h-4 text-rose-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-heading font-bold text-sm leading-tight">Duels</p>
+                        {activeDuel && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
