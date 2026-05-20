@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -48,6 +48,8 @@ import { getActiveDuel } from '@/lib/data/duels';
 import BountyBanner from '@/components/bounties/BountyBanner';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
 import NemesisCard from '@/components/nemesis/NemesisCard';
+import { getMyProgress as getGauntletProgress, checkChallenge1 } from '@/lib/data/gauntlet';
+import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import * as capsules from '@/lib/data/capsules';
@@ -111,6 +113,7 @@ export default function Workout() {
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
+  const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
   const [missingDataWarning, setMissingDataWarning] = useState(null);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
@@ -206,6 +209,13 @@ export default function Workout() {
     queryFn:   listActiveBounties,
     enabled:   !!user?.id,
     staleTime: 5 * 60_000,
+  });
+
+  const { data: gauntletProgress } = useQuery({
+    queryKey:  ['gauntlet-progress'],
+    queryFn:   getGauntletProgress,
+    enabled:   !!user?.id,
+    staleTime: 60_000,
   });
 
   // Comeback protocol — triggers when the user hasn't worked out in 7+ days
@@ -452,6 +462,30 @@ export default function Workout() {
           }
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        })
+        .catch(() => {});
+
+      // Gauntlet Challenge 1 check — "First Blood" (4+ exercises, zero skipped sets)
+      // Non-blocking. Shows stats modal on success, never throws.
+      checkChallenge1(clampedData, null)
+        .then((award) => {
+          if (!award) return;
+          queryClient.invalidateQueries({ queryKey: ['gauntlet-progress'] });
+          queryClient.invalidateQueries({ queryKey: ['gauntlet-completions'] });
+          queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+          // Show completion stats modal
+          import('@/lib/data/gauntlet').then(({ getGauntletStats }) =>
+            getGauntletStats(1)
+          ).then((stats) => {
+            setGauntletStatsModal({
+              type: 'path',
+              challengeTitle: award.challenge_title ?? 'First Blood',
+              xpAwarded: award.xp_awarded ?? 150,
+              coinsAwarded: award.coins_awarded ?? 50,
+              stats,
+              pathCompleted: award.path_completed ?? false,
+            });
+          }).catch(() => {});
         })
         .catch(() => {});
     },
@@ -1242,7 +1276,38 @@ export default function Workout() {
                 </ErrorBoundary>
               </motion.div>
 
-              {/* Row 6: Form Coach — last */}
+              {/* Row 6: Gauntlet (col-span-2) */}
+
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                <Card
+                  role="button" tabIndex={0} aria-label="Gauntlet"
+                  className="group p-4 cursor-pointer border-purple-500/20 bg-gradient-to-br from-purple-500/5 via-amber-500/5 to-purple-500/5 hover:border-purple-500/40 hover:from-purple-500/10 transition-colors h-full"
+                  onClick={() => navigate('/gauntlet')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0 group-hover:bg-purple-500/25 transition-colors">
+                      <Trophy className="w-5 h-5 text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
+                        {gauntletProgress?.path_completed && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
+                        )}
+                        {!gauntletProgress?.path_completed && gauntletProgress && (
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400">
+                            #{gauntletProgress.current_challenge_sequence}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Row 7: Form Coach — last */}
 
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
@@ -1736,6 +1801,19 @@ export default function Workout() {
           username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
         />
       </ErrorBoundary>
+
+      {gauntletStatsModal && (
+        <GauntletStatsModal
+          open={!!gauntletStatsModal}
+          onClose={() => setGauntletStatsModal(null)}
+          type={gauntletStatsModal.type}
+          challengeTitle={gauntletStatsModal.challengeTitle}
+          xpAwarded={gauntletStatsModal.xpAwarded}
+          coinsAwarded={gauntletStatsModal.coinsAwarded}
+          stats={gauntletStatsModal.stats}
+          pathCompleted={gauntletStatsModal.pathCompleted}
+        />
+      )}
 
       <ErrorBoundary label="WorkoutGenerator">
         <Suspense fallback={null}>
