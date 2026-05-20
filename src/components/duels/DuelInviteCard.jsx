@@ -136,7 +136,12 @@ export default function DuelInviteCard({ payload, isMine }) {
           </p>
 
           {/* Actions */}
-          {isDone ? (
+          {isMine ? (
+            /* Sender sees a "waiting" state — they can't accept their own challenge */
+            <div className="py-2 rounded-xl text-center text-xs font-semibold bg-secondary text-muted-foreground">
+              ⏳ Waiting for their response…
+            </div>
+          ) : isDone ? (
             <div className={`py-2 rounded-xl text-center text-xs font-bold ${
               state === 'accepted'
                 ? 'bg-emerald-500/10 text-emerald-500'
