@@ -27,15 +27,19 @@
 import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Camera, Dumbbell, X, ArrowRight } from 'lucide-react';
+import { Sparkles, Camera, Dumbbell, Bell, X, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { filterAfterReset } from '@/lib/accountReset';
+import { usePushSubscription } from '@/lib/usePushSubscription';
+import { reportError } from '@/lib/reportError';
 import {
   isDismissed,
   dismiss as dismissCard,
   DISCOVERY_CARDS,
+  COOLDOWN_30_DAYS,
 } from '@/lib/discoveryPrefs';
 
 // localStorage key the CoachChat uses to remember chat history.
@@ -97,6 +101,12 @@ function DiscoveryCard({
       icon:   'bg-amber-500/15 text-amber-500',
       btn:    'bg-amber-500 hover:bg-amber-500/90 text-white',
     },
+    sky: {
+      ring:   'ring-1 ring-sky-500/20',
+      bg:     'bg-gradient-to-br from-sky-500/10 via-card to-card',
+      icon:   'bg-sky-500/15 text-sky-500',
+      btn:    'bg-sky-500 hover:bg-sky-500/90 text-white',
+    },
   };
   const a = accents[accent] || accents.orange;
 
@@ -153,6 +163,13 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
   const { user } = useAuth();
   const navigate = useNavigate();
 
+  // Push subscription state — drives the PUSH_OPTIN pre-prompt card.
+  // We only surface the card when push is supported AND not yet
+  // subscribed AND permission hasn't been denied (a 'denied' state can
+  // only be reversed via browser settings, so showing the card would
+  // produce a broken CTA).
+  const push = usePushSubscription();
+
   // Local re-render trigger after dismissal — discoveryPrefs writes to
   // localStorage which doesn't fire a React update. Bumping this forces
   // the useMemo below to re-evaluate `isDismissed`.
@@ -192,15 +209,37 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
       return 'formCoach';
     }
 
-    // 3. AI Coach — last priority. If the user has chat history on
-    //    this device, the intro is redundant.
+    // 3. AI Coach — last priority among "introduce a feature" cards.
+    //    If the user has chat history on this device, the intro is
+    //    redundant.
     if (workoutCount >= 1 && !hasCoachHistory(user.id) && !isDismissed(DISCOVERY_CARDS.AI_COACH)) {
       return 'coach';
     }
 
+    // 4. Push opt-in pre-prompt — lowest priority. Only for engaged
+    //    users (≥2 workouts) who haven't subscribed AND haven't
+    //    explicitly denied permission at the browser level (denied
+    //    can't be reversed without browser settings, so the CTA would
+    //    be broken). The 30-day cooldown lets the prompt return for
+    //    users who weren't ready the first time.
+    if (
+      push.isSupported &&
+      !push.isSubscribed &&
+      push.permission === 'default' &&
+      workoutCount >= 2 &&
+      !isDismissed(DISCOVERY_CARDS.PUSH_OPTIN, COOLDOWN_30_DAYS)
+    ) {
+      return 'pushOptIn';
+    }
+
     return null;
 
-  }, [isLoading, user, filteredLogs.length, filteredRegimens.length, dismissTick]);
+  }, [
+    isLoading, user,
+    filteredLogs.length, filteredRegimens.length,
+    push.isSupported, push.isSubscribed, push.permission,
+    dismissTick,
+  ]);
 
   const handleDismiss = useCallback((cardId) => {
     dismissCard(cardId);
@@ -278,6 +317,55 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
             navigate('/coach');
           }}
           onDismiss={() => handleDismiss(DISCOVERY_CARDS.AI_COACH)}
+        />
+      )}
+
+      {card === 'pushOptIn' && (
+        <DiscoveryCard
+          key="pushOptIn"
+          icon={Bell}
+          accent="sky"
+          kicker={t('discovery.pushOptIn.kicker') || 'STAY ON TRACK'}
+          title={t('discovery.pushOptIn.title') || 'Want a daily nudge?'}
+          body={
+            t('discovery.pushOptIn.body') ||
+            "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you."
+          }
+          ctaLabel={t('discovery.pushOptIn.cta') || 'Enable reminders'}
+          dismissAriaLabel={t('discovery.pushOptIn.dismissLabel') || 'Not now'}
+          onCta={async () => {
+            // CTA flow: dismiss the card first (so it disappears on
+            // tap regardless of permission outcome), then call
+            // push.subscribe() which triggers the browser's native
+            // Notification.requestPermission(). Sonner toast on
+            // every outcome so the user never wonders what happened.
+            handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
+            try {
+              const res = await push.subscribe();
+              if (res.ok) {
+                toast.success(
+                  t('discovery.pushOptIn.toastEnabled') || 'Reminders enabled — change anytime in Settings.'
+                );
+              } else if (res.reason === 'denied') {
+                toast.error(
+                  t('discovery.pushOptIn.toastDenied') ||
+                  'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.'
+                );
+              } else if (res.reason === 'unsupported') {
+                toast.error(
+                  t('discovery.pushOptIn.toastUnsupported') ||
+                  "This device doesn't support push notifications yet."
+                );
+              }
+              // 'default' (dismissed the native prompt) or 'server_error'
+              // → no toast; we already updated localStorage so the card
+              // won't immediately reappear, and a generic error here would
+              // be confusing.
+            } catch (err) {
+              reportError(err, { feature: 'dashboard.push-optin', userEmail: user?.email });
+            }
+          }}
+          onDismiss={() => handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN)}
         />
       )}
     </AnimatePresence>

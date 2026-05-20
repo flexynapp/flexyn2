@@ -26,6 +26,15 @@ const enKeys = {
   'discovery.coach.title':        'Meet your AI Coach',
   'discovery.coach.body':         'Personal advice tuned to your actual workouts, weight, and goals. Ask anything — programming, plateaus, recovery.',
   'discovery.coach.cta':          'Open Coach',
+
+  'discovery.pushOptIn.kicker':           'STAY ON TRACK',
+  'discovery.pushOptIn.title':            'Want a daily nudge?',
+  'discovery.pushOptIn.body':             "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you.",
+  'discovery.pushOptIn.cta':              'Enable reminders',
+  'discovery.pushOptIn.dismissLabel':     'Not now',
+  'discovery.pushOptIn.toastEnabled':     'Reminders enabled — change anytime in Settings.',
+  'discovery.pushOptIn.toastDenied':      'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.',
+  'discovery.pushOptIn.toastUnsupported': "This device doesn't support push notifications yet.",
 };
 
 const esKeys = {
@@ -45,6 +54,15 @@ const esKeys = {
   'discovery.coach.title':        'Conoce a tu Coach IA',
   'discovery.coach.body':         'Consejos personalizados según tus entrenamientos, peso y objetivos. Pregúntale lo que quieras — programación, mesetas, recuperación.',
   'discovery.coach.cta':          'Abrir Coach',
+
+  'discovery.pushOptIn.kicker':           'NO PIERDAS EL RITMO',
+  'discovery.pushOptIn.title':            '¿Quieres un recordatorio diario?',
+  'discovery.pushOptIn.body':             'Recordatorios silenciosos y opcionales para mantener tu racha. Cámbialo cuando quieras en Ajustes — nunca te haremos spam.',
+  'discovery.pushOptIn.cta':              'Activar recordatorios',
+  'discovery.pushOptIn.dismissLabel':     'Ahora no',
+  'discovery.pushOptIn.toastEnabled':     'Recordatorios activados — cámbialo cuando quieras en Ajustes.',
+  'discovery.pushOptIn.toastDenied':      'Notificaciones bloqueadas en el navegador. Actívalas desde la configuración si cambias de idea.',
+  'discovery.pushOptIn.toastUnsupported': 'Este dispositivo todavía no admite notificaciones push.',
 };
 
 const frKeys = {
@@ -64,6 +82,15 @@ const frKeys = {
   'discovery.coach.title':        'Découvre ton Coach IA',
   'discovery.coach.body':         "Conseils personnalisés selon tes entraînements, ton poids et tes objectifs. Demande-lui n'importe quoi — programmation, paliers, récupération.",
   'discovery.coach.cta':          'Ouvrir Coach',
+
+  'discovery.pushOptIn.kicker':           'GARDE LE RYTHME',
+  'discovery.pushOptIn.title':            'Tu veux un rappel quotidien ?',
+  'discovery.pushOptIn.body':             'Rappels discrets et facultatifs pour entretenir ta série. Modifiable à tout moment dans Paramètres — pas de spam.',
+  'discovery.pushOptIn.cta':              'Activer les rappels',
+  'discovery.pushOptIn.dismissLabel':     'Plus tard',
+  'discovery.pushOptIn.toastEnabled':     'Rappels activés — modifiable à tout moment dans Paramètres.',
+  'discovery.pushOptIn.toastDenied':      "Notifications bloquées au niveau du navigateur. Réactive-les depuis les paramètres si tu changes d'avis.",
+  'discovery.pushOptIn.toastUnsupported': "Cet appareil ne prend pas encore en charge les notifications push.",
 };
 
 const deKeys = {
@@ -83,6 +110,15 @@ const deKeys = {
   'discovery.coach.title':        'Lerne deinen KI-Coach kennen',
   'discovery.coach.body':         'Persönliche Tipps abgestimmt auf deine Trainings, dein Gewicht und deine Ziele. Frag alles — Programmierung, Plateaus, Erholung.',
   'discovery.coach.cta':          'Coach öffnen',
+
+  'discovery.pushOptIn.kicker':           'BLEIB DRAN',
+  'discovery.pushOptIn.title':            'Tägliche Erinnerung?',
+  'discovery.pushOptIn.body':             'Leise, optionale Erinnerungen für deine Streak. Jederzeit in den Einstellungen änderbar — kein Spam.',
+  'discovery.pushOptIn.cta':              'Erinnerungen aktivieren',
+  'discovery.pushOptIn.dismissLabel':     'Später',
+  'discovery.pushOptIn.toastEnabled':     'Erinnerungen aktiviert — jederzeit in den Einstellungen änderbar.',
+  'discovery.pushOptIn.toastDenied':      'Benachrichtigungen sind im Browser blockiert. Aktiviere sie in den Browser-Einstellungen, falls du es dir anders überlegst.',
+  'discovery.pushOptIn.toastUnsupported': 'Dieses Gerät unterstützt Push-Benachrichtigungen noch nicht.',
 };
 
 const ptKeys = {
@@ -102,6 +138,15 @@ const ptKeys = {
   'discovery.coach.title':        'Conheça seu Coach IA',
   'discovery.coach.body':         'Conselhos personalizados conforme seus treinos, peso e metas. Pergunte qualquer coisa — programação, platôs, recuperação.',
   'discovery.coach.cta':          'Abrir Coach',
+
+  'discovery.pushOptIn.kicker':           'MANTENHA O RITMO',
+  'discovery.pushOptIn.title':            'Quer um lembrete diário?',
+  'discovery.pushOptIn.body':             'Lembretes discretos e opcionais para manter sua sequência. Ajustável a qualquer momento em Configurações — sem spam.',
+  'discovery.pushOptIn.cta':              'Ativar lembretes',
+  'discovery.pushOptIn.dismissLabel':     'Agora não',
+  'discovery.pushOptIn.toastEnabled':     'Lembretes ativados — ajustável a qualquer momento em Configurações.',
+  'discovery.pushOptIn.toastDenied':      'Notificações bloqueadas no nível do navegador. Reative pelas configurações do navegador se mudar de ideia.',
+  'discovery.pushOptIn.toastUnsupported': 'Este dispositivo ainda não suporta notificações push.',
 };
 
 const itKeys = {
@@ -121,6 +166,15 @@ const itKeys = {
   'discovery.coach.title':        'Scopri il tuo Coach IA',
   'discovery.coach.body':         'Consigli personalizzati su allenamenti, peso e obiettivi. Chiedi qualunque cosa — programmazione, plateau, recupero.',
   'discovery.coach.cta':          'Apri Coach',
+
+  'discovery.pushOptIn.kicker':           'NON FERMARTI',
+  'discovery.pushOptIn.title':            'Vuoi un promemoria giornaliero?',
+  'discovery.pushOptIn.body':             'Promemoria discreti e opzionali per mantenere la serie. Modificabili in Impostazioni — niente spam.',
+  'discovery.pushOptIn.cta':              'Attiva promemoria',
+  'discovery.pushOptIn.dismissLabel':     'Non ora',
+  'discovery.pushOptIn.toastEnabled':     'Promemoria attivati — modificabili in Impostazioni.',
+  'discovery.pushOptIn.toastDenied':      'Notifiche bloccate a livello di browser. Riattivale dalle impostazioni del browser se cambi idea.',
+  'discovery.pushOptIn.toastUnsupported': 'Questo dispositivo non supporta ancora le notifiche push.',
 };
 
 const jaKeys = {
@@ -140,6 +194,15 @@ const jaKeys = {
   'discovery.coach.title':        'AIコーチに会う',
   'discovery.coach.body':         'ワークアウト・体重・目標に合わせたパーソナルアドバイス。何でも聞いてください — プログラミング、停滞期、回復。',
   'discovery.coach.cta':          'コーチを開く',
+
+  'discovery.pushOptIn.kicker':           '習慣を続ける',
+  'discovery.pushOptIn.title':            '毎日のリマインダーを受け取りますか?',
+  'discovery.pushOptIn.body':             '連続記録を保つための、控えめで任意のリマインダー。設定でいつでも変更できます — スパムは送りません。',
+  'discovery.pushOptIn.cta':              'リマインダーを有効にする',
+  'discovery.pushOptIn.dismissLabel':     '今はしない',
+  'discovery.pushOptIn.toastEnabled':     'リマインダーが有効になりました — 設定でいつでも変更できます。',
+  'discovery.pushOptIn.toastDenied':      '通知がブラウザレベルでブロックされています。気が変わったらブラウザ設定から再有効化してください。',
+  'discovery.pushOptIn.toastUnsupported': 'このデバイスはまだプッシュ通知に対応していません。',
 };
 
 // TODO(i18n): Native-quality translations needed for the languages

@@ -99,4 +99,11 @@ export const DISCOVERY_CARDS = Object.freeze({
   STARTER_PLAN: 'starterPlan',   // "Your starter plan is ready"
   FORM_COACH:   'formCoachIntro',// "Try Form Coach"
   AI_COACH:     'coachIntro',    // "Meet your AI Coach"
+  PUSH_OPTIN:   'pushOptIn',     // "Want a daily nudge to train?" — pre-prompt
 });
+
+// 30 days in milliseconds. Used as a cooldown so the push-opt-in
+// pre-prompt can come back later if the user dismissed it but didn't
+// outright refuse — habits change and a returning user might want
+// reminders after a month.
+export const COOLDOWN_30_DAYS = 30 * 24 * 60 * 60 * 1000;
