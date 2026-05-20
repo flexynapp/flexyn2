@@ -7,6 +7,7 @@ import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 export default function RegimenDetailView({ regimen }) {
   const { t, language } = useLanguage();
   const exercises = regimen.exercises || [];
+  const cloneCount = regimen.clone_count ?? 0;
 
   if (exercises.length === 0) {
     return (
@@ -16,6 +17,11 @@ export default function RegimenDetailView({ regimen }) {
 
   return (
     <div className="mt-3 space-y-2">
+      {cloneCount > 0 && (
+        <p className="text-xs font-semibold text-primary mb-1">
+          Cloned {cloneCount} {cloneCount === 1 ? 'time' : 'times'}
+        </p>
+      )}
       {exercises.map((ex, i) => {
         const muscles = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
         return (

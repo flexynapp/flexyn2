@@ -197,7 +197,36 @@ export async function equipRegimen(regimenId, user) {
     .select()
     .single();
   if (copyError) throw copyError;
+
+  // Increment clone_count on the original — but ONLY if the cloner is NOT the creator.
+  // This prevents creators from inflating their own adoption count.
+  if (user.email !== source.created_by) {
+    await supabase
+      .from('regimens')
+      .update({ clone_count: (source.clone_count ?? 0) + 1 })
+      .eq('id', source.id)
+      .catch(() => {}); // non-fatal
+  }
+
   return copy;
+}
+
+/**
+ * Fetch the clone_count for a single regimen (used by RegimenMessage UI).
+ */
+export async function getRegimenCloneCount(regimenId) {
+  if (!regimenId) return 0;
+  try {
+    const { data, error } = await supabase
+      .from('regimens')
+      .select('clone_count')
+      .eq('id', regimenId)
+      .single();
+    if (error) return 0;
+    return data?.clone_count ?? 0;
+  } catch {
+    return 0;
+  }
 }
 
 /**

@@ -1,9 +1,74 @@
 // src/components/hub/HubProfile.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy } from 'lucide-react';
+
+// ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
+// Fixed to viewport, pointer-events-none, z-0 (behind all UI)
+function SteelUsaProfileOverlay() {
+  const USA_COLORS = ['#EF4444', '#FFFFFF', '#3B82F6', '#EF4444', '#FFFFFF', '#1D4ED8'];
+  const PIXEL_COLORS = ['#94A3B8', '#CBD5E1', '#64748B', '#BAE6FD', '#E2E8F0'];
+
+  const embers = useMemo(() =>
+    Array.from({ length: 26 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      size: Math.random() * 3.5 + 1.5,
+      color: USA_COLORS[i % USA_COLORS.length],
+      duration: Math.random() * 5 + 3,
+      delay: Math.random() * 6,
+      drift: (Math.random() - 0.5) * 50,
+      travel: (Math.random() * 0.45 + 0.35) * (window?.innerHeight || 700),
+    })),
+  []);
+
+  const pixels = useMemo(() =>
+    Array.from({ length: 18 }, (_, i) => ({
+      id: i,
+      x: Math.random() * 100,
+      y: Math.random() * 100,
+      size: Math.random() * 3 + 2,
+      color: PIXEL_COLORS[i % PIXEL_COLORS.length],
+      duration: Math.random() * 6 + 4,
+      delay: Math.random() * 5,
+      dx1: (Math.random() - 0.5) * 24,
+      dy1: (Math.random() - 0.5) * 24,
+    })),
+  []);
+
+  return (
+    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
+      {/* Subtle steel wash */}
+      <div className="absolute inset-0"
+        style={{ background: 'linear-gradient(160deg, rgba(148,163,184,0.06) 0%, rgba(30,41,59,0.09) 100%)' }}
+      />
+
+      {/* Patriotic USA embers */}
+      {embers.map(e => (
+        <motion.div
+          key={`usa-ember-${e.id}`}
+          className="absolute rounded-full"
+          style={{ left: `${e.x}%`, bottom: 0, width: e.size, height: e.size, background: e.color, filter: 'blur(0.4px)', opacity: 0 }}
+          animate={{ y: [0, -e.travel], x: [0, e.drift], opacity: [0, 0.65, 0], scale: [1, 0.35] }}
+          transition={{ duration: e.duration, repeat: Infinity, delay: e.delay, ease: 'easeOut' }}
+        />
+      ))}
+
+      {/* Floating digital pixels */}
+      {pixels.map(p => (
+        <motion.div
+          key={`pixel-${p.id}`}
+          className="absolute"
+          style={{ left: `${p.x}%`, top: `${p.y}%`, width: p.size, height: p.size, background: p.color, borderRadius: 1, opacity: 0 }}
+          animate={{ opacity: [0, 0.42, 0], x: [0, p.dx1, 0], y: [0, p.dy1, 0], scale: [0.8, 1.5, 0.8] }}
+          transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
+        />
+      ))}
+    </div>
+  );
+}
 
 // Orange 3-pronged crown — shown as an absolute badge on the avatar for verified admins
 function CrownBadge({ size = 18 }) {
@@ -488,14 +553,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     );
   }
 
+  // Show steel USA overlay for @sean's profile (visible to any visitor)
+  const isAdminProfile = ownerUsername === 'sean' || ownerUsername === 'seanj';
+
   return (
     <ThemedScope themeId={ownerThemeId} lootThemeId={ownerLootThemeId}>
-      {/* Header card */}
+      {isAdminProfile && <SteelUsaProfileOverlay />}
+
+      {/* Header card — gets a steel tint when viewing @sean's profile */}
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="bg-card border border-border rounded-xl p-5 mb-4"
+        className="bg-card border rounded-xl p-5 mb-4"
+        style={isAdminProfile ? {
+          borderColor: 'rgba(148,163,184,0.5)',
+          background: 'linear-gradient(135deg, rgba(148,163,184,0.08) 0%, rgba(30,41,59,0.12) 100%)',
+          boxShadow: '0 0 24px rgba(148,163,184,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
+        } : { borderColor: 'hsl(var(--border))' }}
       >
         <div className="flex items-start gap-4 mb-4">
           {/* Avatar column */}

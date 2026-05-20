@@ -4,13 +4,14 @@
 import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Lock, Check, Sparkles, Package } from 'lucide-react';
+import { X, Lock, Check, Sparkles, Package, Shield } from 'lucide-react';
 import { useTheme, THEMES } from '@/lib/ThemeContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { LOOT_THEMES } from '@/lib/lootThemes';
 import * as inventory from '@/lib/data/inventory';
+import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from 'sonner';
 
 // Rarity colour tokens
@@ -275,6 +276,62 @@ export default function ThemeSelector({ open, onClose }) {
                   })}
                 </div>
               </div>
+
+              {/* ── Admin-only: Steel USA toggle ── */}
+              {isVerified(user?.username) && (() => {
+                const steelTheme = THEMES.find(t => t.id === 'brushed-steel');
+                const isSteelActive = !lootThemeId && themeId === 'brushed-steel';
+                return (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-semibold text-amber-400 uppercase tracking-wide">Admin Testing</span>
+                    </div>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => {
+                        if (isSteelActive) {
+                          setThemeId('orange-slate');
+                        } else {
+                          setThemeId('brushed-steel');
+                        }
+                        onClose();
+                      }}
+                      className={[
+                        'relative w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200',
+                        isSteelActive
+                          ? 'border-slate-400 shadow-lg'
+                          : 'border-border bg-card hover:border-slate-400/50 hover:shadow-md',
+                      ].join(' ')}
+                      style={isSteelActive ? { background: 'rgba(148,163,184,0.12)', borderColor: '#94a3b8' } : {}}
+                    >
+                      {isSteelActive && (
+                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-slate-500 flex items-center justify-center">
+                          <Check className="w-3.5 h-3.5 text-white" />
+                        </div>
+                      )}
+                      <div className="flex gap-1.5 shrink-0">
+                        {(steelTheme?.preview || ['#94a3b8', '#1e293b']).map((hex, i) => (
+                          <div key={i} className="w-9 h-9 rounded-full shadow-md ring-2 ring-white/20"
+                            style={{ backgroundColor: hex }} />
+                        ))}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm">🇺🇸 Brushed Steel USA</p>
+                        <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                          Metallic steel + patriotic embers &amp; digital pixels
+                        </p>
+                        {isSteelActive && (
+                          <div className="flex items-center gap-1 mt-1.5">
+                            <div className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                            <span className="text-[11px] font-semibold text-slate-400">Active</span>
+                          </div>
+                        )}
+                      </div>
+                    </motion.button>
+                  </div>
+                );
+              })()}
 
               {/* Footer hint */}
               <div className="flex items-center justify-center gap-2 mb-2 py-3 px-4 rounded-2xl bg-secondary/40 border border-border/50">

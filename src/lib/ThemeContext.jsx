@@ -163,6 +163,24 @@ export const THEMES = [
       '--sidebar-ring': '192 91% 42%',
     },
   },
+  {
+    id: 'brushed-steel',
+    name: 'Brushed Steel',
+    description: 'Premium metallic finish · Admin',
+    unlockLevel: 1,
+    adminOnly: true,
+    animation: 'steel_usa',
+    preview: ['#94a3b8', '#1e293b'],
+    vars: {
+      '--primary': '215 20% 55%',
+      '--primary-foreground': '0 0% 100%',
+      '--accent': '215 22% 22%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '215 20% 55%',
+      '--sidebar-primary': '215 20% 55%',
+      '--sidebar-ring': '215 20% 55%',
+    },
+  },
 ];
 
 const ThemeContext = createContext(null);
@@ -207,9 +225,11 @@ export function ThemeProvider({ children }) {
     return false;
   });
 
-  // Derive the active animation id from the current loot theme (null if none)
+  // Derive the active animation id from the current loot theme (null if none).
+  // If a base theme has an animation (e.g. brushed-steel), use that as fallback.
   const lootTheme = lootThemeId ? getLootThemeById(lootThemeId) : null;
-  const activeAnimation = lootTheme?.animation ?? null;
+  const baseThemeAnim = !lootThemeId ? (THEMES.find(t => t.id === themeId)?.animation ?? null) : null;
+  const activeAnimation = lootTheme?.animation ?? baseThemeAnim ?? null;
 
   // Hydrate from server user on mount
   useEffect(() => {

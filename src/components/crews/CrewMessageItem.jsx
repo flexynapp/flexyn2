@@ -355,6 +355,14 @@ function RegimenMessage({ msg, user, senderProfile }) {
   let meta = {};
   try { meta = JSON.parse(msg.content || '{}'); } catch {}
 
+  // Feature: Regimen Adoption Rate — live clone count
+  const { data: cloneCount = 0 } = useQuery({
+    queryKey: ['regimenCloneCount', msg.regimen_id],
+    queryFn: () => crewsData.getRegimenCloneCount(msg.regimen_id),
+    enabled: !!msg.regimen_id,
+    staleTime: 30_000,
+  });
+
   const handleEquip = async () => {
     if (state !== 'idle' || !msg.regimen_id) return;
     setState('checking');
@@ -385,7 +393,14 @@ function RegimenMessage({ msg, user, senderProfile }) {
           <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Shared Regimen</p>
         </div>
         <p className="text-sm font-bold text-foreground mb-0.5">{meta.name || 'Untitled Regimen'}</p>
-        <p className="text-xs text-muted-foreground mb-2">{meta.exercise_count ?? 0} exercises</p>
+        <div className="flex items-center gap-2 mb-2">
+          <p className="text-xs text-muted-foreground">{meta.exercise_count ?? 0} exercises</p>
+          {cloneCount > 0 && (
+            <span className="text-xs font-semibold text-primary flex items-center gap-0.5">
+              · Cloned {cloneCount} {cloneCount === 1 ? 'time' : 'times'}
+            </span>
+          )}
+        </div>
 
         {(meta.preview_exercises || []).slice(0, 3).map((ex, i) => (
           <p key={i} className="text-[11px] text-muted-foreground truncate leading-tight">
