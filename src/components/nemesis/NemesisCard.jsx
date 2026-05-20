@@ -7,7 +7,7 @@ import { Target, TrendingUp, Flame, Dumbbell, ChevronRight, RefreshCw, Loader2 }
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyNemesis, getNemesisProfile, getWeeklyComparison, assignNemesis } from '@/lib/data/nemesis';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/AuthContext';
 
 function CompareBar({ label, myVal, theirVal, unit = '' }) {
   const total  = (myVal + theirVal) || 1;

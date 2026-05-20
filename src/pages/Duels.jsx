@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Swords, Clock, Trophy, CheckCircle2, XCircle, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
 import { listMyDuels, calcDuelVolume } from '@/lib/data/duels';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth } from '@/lib/AuthContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
 import { formatDistanceToNow } from 'date-fns';
