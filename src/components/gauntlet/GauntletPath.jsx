@@ -1,8 +1,43 @@
 // src/components/gauntlet/GauntletPath.jsx
-// Vertical scrolling node path for the 10-challenge Gauntlet progression.
-import { motion } from 'framer-motion';
-import { Trophy, Lock, CheckCircle, Flame, ChevronRight } from 'lucide-react';
+// Duolingo-style winding SVG path — 10 nodes in a zigzag, colored from the
+// start up to wherever the user currently is. Tap any node to see its detail.
 
+// ── Layout constants (SVG user-units, viewBox = "0 0 320 H") ─────────────────
+const W       = 320;   // viewBox width
+const NODE_R  = 27;    // circle radius
+const V_GAP   = 118;   // vertical distance between node centres
+const PAD_TOP = 52;    // space above node 1
+const PAD_BOT = 50;    // space below node 10
+
+// Horizontal positions for each sequence index (0-based)
+// Even = left column, Odd = right column, last = centre
+const nodeX = (i, total) => {
+  if (i === total - 1) return W / 2;   // finale always centred
+  return i % 2 === 0 ? 82 : 238;
+};
+const nodeY = (i) => PAD_TOP + i * V_GAP;
+const totalH = (n) => PAD_TOP + (n - 1) * V_GAP + PAD_BOT;
+
+// Where to anchor the challenge-name label relative to the node
+const labelAnchor = (i, total) => {
+  if (i === total - 1) return 'middle';
+  return i % 2 === 0 ? 'start' : 'end';
+};
+const labelX = (i, total) => {
+  const x = nodeX(i, total);
+  if (i === total - 1) return x;
+  return i % 2 === 0 ? x + NODE_R + 10 : x - NODE_R - 10;
+};
+
+// Cubic-bezier path between two consecutive nodes (smooth S-curve)
+const segD = (i, total) => {
+  const x1 = nodeX(i, total);   const y1 = nodeY(i);
+  const x2 = nodeX(i + 1, total); const y2 = nodeY(i + 1);
+  const cy = (y1 + y2) / 2;
+  return `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`;
+};
+
+// Challenge-type short badge
 const TYPE_LABEL = {
   single_session: 'Session',
   weekly_volume:  'Weekly Vol.',
@@ -12,153 +47,218 @@ const TYPE_LABEL = {
   final:          'Final',
 };
 
-function NodeIcon({ status, size = 28 }) {
-  if (status === 'completed') {
-    return <CheckCircle size={size} className="text-emerald-400" strokeWidth={2} />;
-  }
-  if (status === 'active') {
-    return <Flame size={size} className="text-amber-400" strokeWidth={2} />;
-  }
-  if (status === 'next') {
-    return <Trophy size={size} className="text-muted-foreground/40" strokeWidth={1.5} />;
-  }
-  return <Lock size={size} className="text-muted-foreground/25" strokeWidth={1.5} />;
-}
-
-function ChallengeNode({ challenge, status, isLast, onClick }) {
-  const isClickable = status === 'active' || status === 'completed';
-
-  const ringColor = {
-    completed: 'border-emerald-400/60 bg-emerald-950/30',
-    active:    'border-amber-400/80 bg-amber-950/30',
-    next:      'border-border/40 bg-secondary/40',
-    locked:    'border-border/20 bg-secondary/20',
-  }[status];
-
-  const titleColor = {
-    completed: 'text-foreground',
-    active:    'text-foreground font-bold',
-    next:      'text-muted-foreground',
-    locked:    'text-muted-foreground/40',
-  }[status];
-
-  return (
-    <div className="flex gap-4 items-start">
-      {/* Left: connector line + node circle */}
-      <div className="flex flex-col items-center flex-shrink-0 w-12">
-        <motion.button
-          type="button"
-          disabled={!isClickable}
-          onClick={isClickable ? onClick : undefined}
-          whileTap={isClickable ? { scale: 0.92 } : {}}
-          className={`relative w-12 h-12 rounded-full border-2 flex items-center justify-center transition-colors ${ringColor} ${isClickable ? 'cursor-pointer' : 'cursor-default'}`}
-        >
-          {status === 'active' && (
-            <motion.div
-              className="absolute inset-0 rounded-full border-2 border-amber-400/50"
-              animate={{ scale: [1, 1.35, 1], opacity: [0.8, 0, 0.8] }}
-              transition={{ duration: 2, repeat: Infinity, ease: 'easeOut' }}
-            />
-          )}
-          <NodeIcon status={status} />
-        </motion.button>
-        {/* Connector */}
-        {!isLast && (
-          <div className={`w-0.5 flex-1 mt-1 min-h-[32px] ${
-            status === 'completed' ? 'bg-emerald-400/40' : 'bg-border/20'
-          }`} />
-        )}
-      </div>
-
-      {/* Right: text content */}
-      <div
-        className={`flex-1 pb-8 ${isClickable ? 'cursor-pointer' : ''}`}
-        onClick={isClickable ? onClick : undefined}
-      >
-        <div className="flex items-center gap-2 mb-0.5">
-          <span className={`text-[10px] font-semibold uppercase tracking-widest px-1.5 py-0.5 rounded ${
-            status === 'active'
-              ? 'bg-amber-500/20 text-amber-400'
-              : status === 'completed'
-                ? 'bg-emerald-500/15 text-emerald-400'
-                : 'bg-secondary text-muted-foreground/50'
-          }`}>
-            {TYPE_LABEL[challenge.type] ?? challenge.type}
-          </span>
-          <span className="text-[10px] text-muted-foreground/50">#{challenge.sequence_number}</span>
-        </div>
-
-        <p className={`text-sm leading-snug mb-1 ${titleColor}`}>
-          {challenge.title}
-        </p>
-
-        {(status === 'active' || status === 'completed') && (
-          <>
-            <p className="text-xs text-muted-foreground leading-relaxed mb-2">
-              {status === 'active' ? challenge.description : challenge.flavor_text}
-            </p>
-            <div className="flex items-center gap-3 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1">
-                <span className="text-amber-400">⚡</span> {challenge.xp_reward} XP
-              </span>
-              <span className="flex items-center gap-1">
-                <span className="text-yellow-400">🪙</span> {challenge.coin_reward}
-              </span>
-              {status === 'active' && (
-                <span className="flex items-center gap-0.5 text-amber-400 font-medium ml-auto">
-                  Start <ChevronRight className="w-3 h-3" />
-                </span>
-              )}
-            </div>
-          </>
-        )}
-
-        {status === 'next' && (
-          <p className="text-xs text-muted-foreground/40">Complete the challenge above to unlock.</p>
-        )}
-      </div>
-    </div>
-  );
-}
+// ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Props:
- *  challenges      — array of gauntlet_challenges rows (ordered by sequence_number)
- *  currentSequence — the user's current_challenge_sequence (1 if never started)
- *  completedSeqs   — Set of sequence_numbers the user has completed
- *  onChallengeClick(challenge) — called when user taps an active/completed node
+ *   challenges       — array of gauntlet_challenges rows (ordered by sequence_number)
+ *   currentSequence  — user's current_challenge_sequence (1 if never started)
+ *   completedSeqs    — Set<number> of completed sequence numbers
+ *   selectedId       — challenge.id currently tapped (or null)
+ *   onSelectChallenge(challenge | null) — tap-to-select callback
  */
-export default function GauntletPath({ challenges = [], currentSequence = 1, completedSeqs = new Set(), onChallengeClick }) {
+export default function GauntletPath({
+  challenges = [],
+  currentSequence = 1,
+  completedSeqs = new Set(),
+  selectedId = null,
+  onSelectChallenge,
+}) {
+  const n = challenges.length;
+  if (n === 0) return null;
+  const svgH = totalH(n);
+
+  const getStatus = (seq) => {
+    if (completedSeqs.has(seq)) return 'completed';
+    if (seq === currentSequence)  return 'active';
+    if (seq === currentSequence + 1) return 'next';
+    return 'locked';
+  };
+
+  // Fill / stroke colours per status
+  const fill   = { completed: '#059669', active: '#d97706', next: '#292932', locked: '#18181f' };
+  const stroke = { completed: '#34d399', active: '#fcd34d', next: '#3f3f50', locked: '#2a2a38' };
+  const txtClr = { completed: '#fff',    active: '#fff',    next: '#6b7280', locked: '#374151' };
+
   return (
-    <div className="pt-2">
-      {challenges.map((ch, idx) => {
-        let status;
-        if (completedSeqs.has(ch.sequence_number)) {
-          status = 'completed';
-        } else if (ch.sequence_number === currentSequence) {
-          status = 'active';
-        } else if (ch.sequence_number === currentSequence + 1) {
-          status = 'next';
-        } else {
-          status = 'locked';
-        }
+    <svg
+      viewBox={`0 0 ${W} ${svgH}`}
+      className="w-full select-none"
+      style={{ display: 'block' }}
+    >
+      <defs>
+        {/* Gradient along the completed path — vertical purple → amber */}
+        <linearGradient id="gpath" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%"   stopColor="#7c3aed" />
+          <stop offset="100%" stopColor="#f59e0b" />
+        </linearGradient>
+
+        {/* Radial glow for active node */}
+        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="#fcd34d" stopOpacity="0.35" />
+          <stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
+        </radialGradient>
+
+        {/* Drop shadow filter for completed nodes */}
+        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#059669" floodOpacity="0.45" />
+        </filter>
+        <filter id="shadowAmber" x="-30%" y="-30%" width="160%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#f59e0b" floodOpacity="0.55" />
+        </filter>
+      </defs>
+
+      {/* ── Path segments ──────────────────────────────────────────────────── */}
+      {challenges.slice(0, -1).map((ch, i) => {
+        const status = getStatus(ch.sequence_number);
+        const d = segD(i, n);
+        const done = status === 'completed';
 
         return (
-          <motion.div
-            key={ch.id}
-            initial={{ opacity: 0, x: -12 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: idx * 0.04, duration: 0.25 }}
-          >
-            <ChallengeNode
-              challenge={ch}
-              status={status}
-              isLast={idx === challenges.length - 1}
-              onClick={() => onChallengeClick?.(ch)}
+          <g key={`seg-${i}`}>
+            {/* Base gray track (always visible — forms the "not yet reached" trail) */}
+            <path
+              d={d}
+              fill="none"
+              stroke="#23232f"
+              strokeWidth={10}
+              strokeLinecap="round"
             />
-          </motion.div>
+            {/* Dashed markers on incomplete segments */}
+            {!done && (
+              <path
+                d={d}
+                fill="none"
+                stroke="#2e2e3e"
+                strokeWidth={6}
+                strokeLinecap="round"
+                strokeDasharray="1 14"
+              />
+            )}
+            {/* Coloured overlay on completed segments */}
+            {done && (
+              <path
+                d={d}
+                fill="none"
+                stroke="url(#gpath)"
+                strokeWidth={7}
+                strokeLinecap="round"
+              />
+            )}
+          </g>
         );
       })}
-    </div>
+
+      {/* ── Nodes ──────────────────────────────────────────────────────────── */}
+      {challenges.map((ch, i) => {
+        const seq    = ch.sequence_number;
+        const status = getStatus(seq);
+        const cx     = nodeX(i, n);
+        const cy     = nodeY(i);
+        const isSel  = ch.id === selectedId;
+        const isActive = status === 'active';
+        const isDone   = status === 'completed';
+
+        return (
+          <g
+            key={ch.id}
+            onClick={() => onSelectChallenge?.(isSel ? null : ch)}
+            style={{ cursor: 'pointer' }}
+          >
+            {/* Pulsing glow ring on active node */}
+            {isActive && (
+              <>
+                <circle cx={cx} cy={cy} r={NODE_R + 14} fill="url(#glow)">
+                  <animate
+                    attributeName="r"
+                    values={`${NODE_R + 10};${NODE_R + 20};${NODE_R + 10}`}
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.7;0;0.7"
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+              </>
+            )}
+
+            {/* Selection ring */}
+            {isSel && (
+              <circle
+                cx={cx} cy={cy}
+                r={NODE_R + 6}
+                fill="none"
+                stroke="rgba(255,255,255,0.25)"
+                strokeWidth={2}
+              />
+            )}
+
+            {/* Node circle */}
+            <circle
+              cx={cx} cy={cy}
+              r={NODE_R}
+              fill={fill[status]}
+              stroke={stroke[status]}
+              strokeWidth={isDone ? 2.5 : 2}
+              filter={isDone ? 'url(#shadow)' : isActive ? 'url(#shadowAmber)' : undefined}
+            />
+
+            {/* Centre glyph: ✓ for done, sequence number otherwise */}
+            <text
+              x={cx} y={cy + 1}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={isDone ? 15 : 13}
+              fontWeight="700"
+              fill={txtClr[status]}
+              style={{ fontFamily: 'system-ui, sans-serif', letterSpacing: '-0.5px' }}
+            >
+              {isDone ? '✓' : seq}
+            </text>
+
+            {/* ── Challenge name label ───────────────────────────────────── */}
+            <text
+              x={labelX(i, n)}
+              y={cy}
+              textAnchor={labelAnchor(i, n)}
+              dominantBaseline="middle"
+              fontSize={9.5}
+              fontWeight={isActive ? '700' : '500'}
+              fill={
+                isDone
+                  ? '#34d399'
+                  : isActive
+                    ? '#fcd34d'
+                    : status === 'next'
+                      ? '#4b5563'
+                      : '#2e2e3e'
+              }
+              style={{ fontFamily: 'system-ui, sans-serif' }}
+            >
+              {ch.title.length > 14 ? ch.title.slice(0, 13) + '…' : ch.title}
+            </text>
+
+            {/* Type badge below label on active + next */}
+            {(isActive || status === 'next') && (
+              <text
+                x={labelX(i, n)}
+                y={cy + 13}
+                textAnchor={labelAnchor(i, n)}
+                dominantBaseline="middle"
+                fontSize={8}
+                fontWeight="600"
+                fill={isActive ? '#b45309' : '#374151'}
+                style={{ fontFamily: 'system-ui, sans-serif' }}
+              >
+                {TYPE_LABEL[ch.type] ?? ch.type}
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
   );
 }

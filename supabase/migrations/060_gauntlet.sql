@@ -222,9 +222,9 @@ VALUES
        'Three sessions. No excuses. Just reps.',
        'streak', 'sessions_in_7_days', 3, 200, 75),
 
-  (3,  'Volume Check',
-       'Hit 10,000 lbs of total volume in a single workout session.',
-       'Ten thousand pounds. You''ve moved mountains before.',
+  (3,  'Iron Man',
+       'Move 10,000 lbs of total volume in a single workout session.',
+       'Ten thousand pounds of iron. Built different. Literally.',
        'single_session', 'session_volume', 10000, 275, 100),
 
   (4,  'No Days Off',
@@ -232,9 +232,9 @@ VALUES
        'Four sessions. Five days. Can you hold the pace?',
        'streak', 'sessions_in_5_days', 4, 350, 125),
 
-  (5,  'Ironclad',
+  (5,  'Man of Steel',
        'Complete a session with 5 or more exercises and zero sets skipped.',
-       'Not a single rep left behind.',
+       'Superman didn''t skip sets. Neither do you.',
        'single_session', 'min_exercises_no_skip', 5, 450, 150),
 
   (6,  'Double Shift',
@@ -242,9 +242,9 @@ VALUES
        'Six in seven. The grind doesn''t negotiate.',
        'streak', 'sessions_in_7_days', 6, 550, 200),
 
-  (7,  'The Grind',
+  (7,  'Plate Expectations',
        'Move 50,000 lbs of total volume in a single week.',
-       'Fifty thousand pounds. You''ll feel every one.',
+       'Dickens would be horrified. Do it anyway.',
        'weekly_volume', 'weekly_lbs', 50000, 700, 250),
 
   (8,  'No Excuses',
@@ -252,9 +252,9 @@ VALUES
        'Fourteen days. No gaps. No mercy.',
        'streak', 'consecutive_days', 14, 850, 300),
 
-  (9,  'Last Rep',
+  (9,  'PR or ER',
        'Hit a new personal record on any compound lift in a single session.',
-       'You don''t hit PRs. You take them.',
+       'Two possible outcomes. Only one is acceptable.',
        'pr', 'any_compound_pr', NULL, 1000, 400),
 
   (10, 'The Final Gauntlet',
