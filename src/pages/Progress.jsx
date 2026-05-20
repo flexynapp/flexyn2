@@ -6,7 +6,6 @@ import { muscleKey } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
-import { formatDistance, formatDuration } from '@/lib/distanceUnit';
 import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
@@ -17,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  TrendingUp, BarChart2, Trophy, ArrowRight, Sparkles as SparklesIcon,
-  Activity, Flame, Dumbbell, Camera, Ruler, Star, ChevronRight, Zap,
+  TrendingUp, BarChart2, Trophy, Sparkles as SparklesIcon,
+  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
