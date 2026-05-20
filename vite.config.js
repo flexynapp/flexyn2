@@ -1,10 +1,19 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Toggle the bundle visualizer with ANALYZE=true. Adds rollup-plugin-
+// visualizer to the build so you can inspect chunk composition at
+// dist/bundle-stats.html. Off by default to keep production builds
+// fast and to avoid shipping a 1MB analysis HTML file.
+//
+//   ANALYZE=true npm run build   (or the `analyze` npm script)
+const SHOULD_ANALYZE = process.env.ANALYZE === 'true';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -72,6 +81,21 @@ export default defineConfig({
       // own SW file at src/lib/push-sw.js. The plugin injects the
       // precache manifest into that file at build time.
     }),
+    // Bundle visualizer — only runs when ANALYZE=true. Writes a treemap
+    // to dist/bundle-stats.html showing per-chunk source weight so you
+    // can find unexpected weight (e.g. a "small" feature that drags in
+    // a huge library transitively).
+    ...(SHOULD_ANALYZE
+      ? [
+          visualizer({
+            filename: 'dist/bundle-stats.html',
+            template: 'treemap',
+            gzipSize: true,
+            brotliSize: true,
+            open: false,
+          }),
+        ]
+      : []),
   ],
   resolve: {
     alias: {
@@ -127,6 +151,13 @@ export default defineConfig({
           if (id.includes('leaflet')) return undefined;
           if (id.includes('@zxing'))  return undefined;
           if (id.includes('canvas-confetti')) return undefined;
+          // html2canvas (~200 KB) is dynamically-imported from
+          // DebriefVault only. Without this explicit `undefined`, the
+          // vendor-misc catch-all pulls it into the entry bundle,
+          // defeating the dynamic-import. With it, the library lands in
+          // a lazy chunk that only loads when the user clicks "Share"
+          // inside the Debrief Vault modal.
+          if (id.includes('html2canvas')) return undefined;
 
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
           // pin to its own chunks so it definitely doesn't bleed into entry.

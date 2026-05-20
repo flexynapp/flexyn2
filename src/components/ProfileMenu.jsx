@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
@@ -16,7 +16,13 @@ import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
-import DebriefVault from './debrief/DebriefVault';
+// DebriefVault is a modal that ONLY mounts when the user taps "Journal"
+// in this menu — it has no reason to be in the entry bundle. Lazy-import
+// it so the (~50KB compiled + html2canvas's dynamic import target) cost
+// only lands when the user actually opens it. ProfileMenu is rendered
+// on every authenticated page, so any static dependency here is paid on
+// first paint across the whole app.
+const DebriefVault = lazy(() => import('./debrief/DebriefVault'));
 import InjuryForm from './workout/InjuryForm';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
@@ -456,10 +462,15 @@ export default function ProfileMenu() {
         )}
       </AnimatePresence>
 
-      {/* Debrief Vault — global overlay, accessible from any page */}
+      {/* Debrief Vault — global overlay, accessible from any page.
+          Lazy-loaded (see import above); Suspense fallback is null so
+          there's no flash before the chunk arrives — the AnimatePresence
+          enter animation papers over the brief load. */}
       <AnimatePresence>
         {debriefVaultOpen && (
-          <DebriefVault onClose={() => setDebriefVaultOpen(false)} />
+          <Suspense fallback={null}>
+            <DebriefVault onClose={() => setDebriefVaultOpen(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
 
