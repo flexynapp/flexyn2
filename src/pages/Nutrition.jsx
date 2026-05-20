@@ -26,6 +26,8 @@ import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
+import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
+import { supabase } from '@/api/supabaseClient';
 import { lookupBarcode } from '@/lib/foodLookup';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
@@ -177,7 +179,7 @@ export default function Nutrition() {
       ]);
       return { previousLogs };
     },
-    onSuccess: (_, variables) => {
+    onSuccess: async (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
       if (isWaterEntry(variables)) {
         // XP value comes from XP_REWARDS.waterGlass (single source of truth).
@@ -196,7 +198,38 @@ export default function Nutrition() {
           .catch(() => {});
       } else {
         setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
-        toast.success(t('nutrition.toast.mealLogged'));
+
+        // First-meal milestone — count lifetime non-water entries.
+        // count === 1 means this save is the first MEAL the user has
+        // ever logged on this account. Fire the celebration; otherwise
+        // fall through to the regular toast.
+        //
+        // The count is async (separate HEAD round-trip) so this branch
+        // is async too. Errors here must NOT block the existing quest
+        // credit + toast — a failed first-meal check is a missed
+        // celebration, not a broken save. Reported via reportError.
+        let firedFirst = false;
+        try {
+          const { count, error } = await supabase
+            .from('nutrition_logs')
+            .select('id', { count: 'exact', head: true })
+            .eq('created_by', user?.email)
+            .not('food_name', 'like', 'Water%');
+          if (!error && count === 1) {
+            fireFirstMealCelebration({
+              mealName: variables?.food_name,
+              calories: typeof variables?.calories === 'number' ? variables.calories : null,
+              userEmail: user?.email,
+            });
+            firedFirst = true;
+          }
+        } catch (countErr) {
+          reportError(countErr, { feature: 'nutrition.first-meal-check', level: 'warning', userEmail: user?.email });
+        }
+        if (!firedFirst) {
+          toast.success(t('nutrition.toast.mealLogged'));
+        }
+
         quests.recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1)
           .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
           .catch(() => {});
