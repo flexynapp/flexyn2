@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap,
-  Sparkles, ChevronLeft, RefreshCw, Lock,
+  ChevronLeft, RefreshCw, Lock,
   ArrowUpDown, Gift, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';

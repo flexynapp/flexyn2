@@ -32,19 +32,15 @@ export default function WorkoutStreakBanner() {
     staleTime: 30_000,
   });
 
-  if (!user?.id || !profile) return null;
-  const streak = profile.workout_streak ?? 0;
-  if (streak === 0) return null;
-
-  // If the last workout was >1 day ago, the streak is at risk → show as warning
-  const lastDate = profile.last_workout_date;
+  // Compute everything we need from `profile` BEFORE any early returns
+  // so the hook count stays stable across render passes. Rules of Hooks
+  // forbids calling a hook (useMemo below) after a conditional return.
+  const streak    = profile?.workout_streak ?? 0;
+  const lastDate  = profile?.last_workout_date;
   const daysSince = lastDate ? differenceInCalendarDays(new Date(), new Date(lastDate)) : 0;
-  const atRisk = daysSince === 1; // worked out yesterday but not today
-  const broken = daysSince > 1; // streak technically broken — DB still shows old value until next save resets it
-
-  if (broken) return null; // hide rather than show stale info
-
-  const longest = profile.longest_workout_streak ?? streak;
+  const atRisk    = daysSince === 1; // worked out yesterday but not today
+  const broken    = daysSince > 1;   // streak technically broken — DB still shows old value until next save resets it
+  const longest   = profile?.longest_workout_streak ?? streak;
   const isPersonalBest = streak === longest && streak > 1;
 
   // Pixel particle micro-animation — tiny drifting dots around the streak widget
@@ -61,6 +57,11 @@ export default function WorkoutStreakBanner() {
       color: atRisk ? '#f59e0b' : '#10b981',
     })),
   [atRisk]);
+
+  // Hidden states — banner only renders for an active, non-broken streak.
+  if (!user?.id || !profile) return null;
+  if (streak === 0) return null;
+  if (broken) return null; // hide rather than show stale info
 
   return (
     <motion.div

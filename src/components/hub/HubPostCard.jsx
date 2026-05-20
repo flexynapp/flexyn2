@@ -34,39 +34,47 @@ import { getLootFrameById } from '@/lib/lootFrames';
 const VOTE_KEY = (postId, userEmail) => `poll_vote_${postId}_${userEmail}`;
 
 function PollCard({ post, userEmail }) {
+  // Parse the poll payload from the post body. Failures and shape
+  // mismatches are tracked as `isValid = false` and we render null at
+  // the END — Rules of Hooks forbids early returns before hooks below,
+  // so we have to compute first and gate the render last.
   let pollData = null;
   try {
     const raw = (post.body || '').replace('[POLL_V1]', '');
     pollData = JSON.parse(raw);
-  } catch { return null; }
+  } catch { /* fall through with pollData = null */ }
+  const question = pollData?.question;
+  const options  = Array.isArray(pollData?.options) ? pollData.options : null;
+  const isValid  = !!(question && options && options.length >= 2);
+  const optionCount = options?.length ?? 0;
 
-  const { question, options } = pollData;
-  if (!question || !Array.isArray(options) || options.length < 2) return null;
-
-  // Local voted state (persisted to localStorage + attempted DB write)
+  // Local voted state (persisted to localStorage + attempted DB write).
+  // Hooks unconditional — required by Rules of Hooks — and gated below.
   const [myVote, setMyVote] = useState(() => {
     try { return JSON.parse(localStorage.getItem(VOTE_KEY(post.id, userEmail))); } catch { return null; }
   });
   // vote counts: try to fetch from DB, fall back to local tracking
-  const [counts, setCounts] = useState(() => options.map(() => 0));
+  const [counts, setCounts] = useState(() => Array.from({ length: optionCount }, () => 0));
   const [totalVotes, setTotalVotes] = useState(0);
   const [voting, setVoting] = useState(false);
 
-  // Fetch existing votes from Supabase (graceful fallback if table missing)
+  // Fetch existing votes from Supabase (graceful fallback if table missing).
   useEffect(() => {
-    if (!post.id) return;
+    if (!isValid || !post.id) return;
     supabase
       .from('poll_votes')
       .select('option_index')
       .eq('post_id', post.id)
       .then(({ data, error }) => {
         if (error || !data) return; // table might not exist yet
-        const c = options.map(() => 0);
-        data.forEach(r => { if (r.option_index >= 0 && r.option_index < options.length) c[r.option_index]++; });
+        const c = Array.from({ length: optionCount }, () => 0);
+        data.forEach(r => { if (r.option_index >= 0 && r.option_index < optionCount) c[r.option_index]++; });
         setCounts(c);
         setTotalVotes(data.length);
       });
-  }, [post.id, options.length]);
+  }, [post.id, optionCount, isValid]);
+
+  if (!isValid) return null;
 
   const handleVote = async (idx) => {
     if (myVote !== null || voting || !userEmail) return;

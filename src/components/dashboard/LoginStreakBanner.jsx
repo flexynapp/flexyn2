@@ -36,15 +36,10 @@ export default function LoginStreakBanner() {
     staleTime: 30_000,
   });
 
-  if (!user?.id) return null;
-  const streak = profile?.login_streak ?? 0;
-  if (streak === 0) return null; // hide on day 0; banner appears after first record
-
-  const longest = profile?.longest_login_streak ?? streak;
-  const freezes = profile?.streak_freezes_available ?? 0;
-  const isPersonalBest = streak === longest && streak > 1;
-
-  // High-density ember particle engine — continuous flow across the full banner
+  // High-density ember particle engine — continuous flow across the full banner.
+  // The useMemo must run before any conditional return so the hook order
+  // stays stable between renders where streak === 0 (hidden) and streak > 0
+  // (visible). Rules of Hooks: never call hooks after an early return.
   const embers = useMemo(() =>
     Array.from({ length: 48 }, (_, i) => ({
       id: i,
@@ -58,6 +53,14 @@ export default function LoginStreakBanner() {
       color: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#fed7aa',
     })),
   []);
+
+  if (!user?.id) return null;
+  const streak = profile?.login_streak ?? 0;
+  if (streak === 0) return null; // hide on day 0; banner appears after first record
+
+  const longest = profile?.longest_login_streak ?? streak;
+  const freezes = profile?.streak_freezes_available ?? 0;
+  const isPersonalBest = streak === longest && streak > 1;
 
   return (
     <motion.div
