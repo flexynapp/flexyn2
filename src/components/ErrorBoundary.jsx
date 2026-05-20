@@ -149,7 +149,16 @@ class ErrorBoundaryClass extends React.Component {
 
   render() {
     if (this.state.hasError) {
-      const { onGoHome } = this.props;
+      const { onGoHome, fallback } = this.props;
+      // Custom fallback (e.g. for an inline element like a map tile
+      // inside a feed post) — caller passes a ready-to-render React
+      // node. Bypasses the full "Something went wrong" UI which would
+      // be visually disruptive in those contexts.
+      if (fallback) {
+        return typeof fallback === 'function'
+          ? fallback({ error: this.state.error, reset: this.handleReset })
+          : fallback;
+      }
       return (
         <div
           role="alert"

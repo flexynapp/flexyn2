@@ -77,21 +77,48 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
   // Default false → only the tiny ⓘ button is visible. Tap reveals
   // the OSM + OpenFreeMap credit (legally required).
   const [attribOpen, setAttribOpen] = useState(false);
+  // If MapLibre or the tile fetch fails outright, we set this so the
+  // component still renders SOMETHING (a tinted box) instead of
+  // throwing or showing a broken canvas. The post card around us
+  // doesn't have its own ErrorBoundary, so a thrown error here would
+  // blank the whole post — which is exactly the regression a user
+  // reported. Local error capture is the load-bearing defense.
+  const [mapError, setMapError] = useState(null);
 
   useEffect(() => {
     if (!Array.isArray(track) || track.length < 2) return undefined;
     if (!containerRef.current) return undefined;
 
+    // Defensive: validate every point before passing to maplibre.
+    // A malformed gps_track row (e.g. a legacy point with .latitude
+    // instead of .lat, or null entries) would have produced NaN
+    // bounds and a silently failed map. Sniff and bail to the
+    // error fallback if the data is unusable.
+    const validTrack = track.filter(
+      (p) =>
+        p &&
+        typeof p.lat === 'number' &&
+        Number.isFinite(p.lat) &&
+        typeof p.lng === 'number' &&
+        Number.isFinite(p.lng)
+    );
+    if (validTrack.length < 2) {
+      setMapError('invalid_track');
+      return undefined;
+    }
+
     // Compute geographic bounds for fit-to-track camera. MapLibre uses
     // [west, south, east, north] / [lng, lat] order (opposite of Leaflet).
-    const lats = track.map((p) => p.lat);
-    const lngs = track.map((p) => p.lng);
+    const lats = validTrack.map((p) => p.lat);
+    const lngs = validTrack.map((p) => p.lng);
     const bounds = [
       [Math.min(...lngs), Math.min(...lats)],
       [Math.max(...lngs), Math.max(...lats)],
     ];
 
-    const map = new maplibregl.Map({
+    let map;
+    try {
+      map = new maplibregl.Map({
       container: containerRef.current,
       style: STYLE_URL,
       bounds,
@@ -130,11 +157,28 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
       // Avoid the canvas accumulating focus when embedded in a feed.
       keyboard: interactive,
     });
+    } catch (err) {
+      // maplibregl.Map() can throw synchronously if the container is
+      // detached, WebGL is unavailable, or the env is otherwise hostile.
+      // Catch and degrade so the surrounding post still renders.
+      console.warn('[RouteMap] map init failed:', err);
+      setMapError('init_failed');
+      return undefined;
+    }
+
+    // Listen for runtime errors (e.g. tile fetch 401 from a bad
+    // MapTiler key, network failure, unsupported style spec). We
+    // log them but don't tear down the canvas — MapLibre keeps
+    // rendering whatever it has, and the user at least sees a
+    // partial map instead of nothing.
+    map.on('error', (e) => {
+      console.warn('[RouteMap] map error:', e?.error || e);
+    });
 
     mapRef.current = map;
 
     const polylineColor = getPrimaryColor();
-    const coords = track.map((p) => [p.lng, p.lat]);
+    const coords = validTrack.map((p) => [p.lng, p.lat]);
 
     // Wait for the style to finish loading before adding sources/layers.
     // OpenFreeMap's vector tile schema is loaded on `load`.
@@ -188,21 +232,42 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
     // this, React StrictMode dev double-mounts will leak a second
     // canvas and the OpenFreeMap fetch will run twice on every mount.
     return () => {
-      map.remove();
+      try { map.remove(); } catch { /* swallow — already torn down */ }
       mapRef.current = null;
     };
   }, [track, interactive]);
 
   if (!Array.isArray(track) || track.length < 2) return null;
 
+  // Hard error fallback — map init or track data unusable. Still
+  // render the bordered box so the post card layout doesn't jump,
+  // but show a small label instead of an empty canvas.
+  if (mapError) {
+    return (
+      <div
+        className="rounded-xl overflow-hidden border border-border bg-secondary/30 flex items-center justify-center text-xs text-muted-foreground"
+        style={{ height }}
+      >
+        Map unavailable
+      </div>
+    );
+  }
+
+  // Container layout — `ref={containerRef}` MUST be on the element
+  // that has explicit dimensions (height inline, width via flex
+  // parent). A previous iteration moved the ref onto an inner
+  // absolutely-positioned div, which collapsed to 0×0 in some Hub
+  // feed contexts where the outer parent didn't pass width down to
+  // its absolute children correctly. That made the post card render
+  // as an empty void. The attribution overlay below uses absolute
+  // positioning to sit on top of the canvas — it doesn't need to
+  // share the ref.
   return (
     <div
+      ref={containerRef}
       className="rounded-xl overflow-hidden border border-border relative"
       style={{ height, isolation: 'isolate', zIndex: 0 }}
     >
-      {/* The actual map canvas */}
-      <div ref={containerRef} className="absolute inset-0" />
-
       {/* Custom attribution — a single 18px ⓘ button bottom-right.
           Tap to reveal the credit (legally required but visually
           unobtrusive). The exact links shown depend on which tile

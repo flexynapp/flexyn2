@@ -30,6 +30,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
 import { db } from '@/api/db';
+import ErrorBoundary from '@/components/ErrorBoundary';
 // Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
 // don't render a map. Shared chunk with CardioDetailModal.
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
@@ -208,9 +209,27 @@ function CardioBlock({ snap }) {
     <>
       {hasRoute && (
         <div className="mb-3 -mx-3 -mt-3">
-          <Suspense fallback={<div style={{ height: 220 }} className="bg-secondary/50 animate-pulse" />}>
-            <RouteMap track={snap.gps_track} height={220} interactive={false} />
-          </Suspense>
+          {/* ErrorBoundary is load-bearing — without it, any throw
+              inside RouteMap (WebGL init failure, malformed track,
+              maplibre internal exception, lazy-chunk fetch failure)
+              would propagate up and blank out the entire post card.
+              The fallback shows a neutral box at the same height so
+              the post still renders the stat grid below. */}
+          <ErrorBoundary
+            label="RouteMap"
+            fallback={
+              <div
+                style={{ height: 220 }}
+                className="bg-secondary/30 border border-border flex items-center justify-center text-xs text-muted-foreground"
+              >
+                Map unavailable
+              </div>
+            }
+          >
+            <Suspense fallback={<div style={{ height: 220 }} className="bg-secondary/50 animate-pulse" />}>
+              <RouteMap track={snap.gps_track} height={220} interactive={false} />
+            </Suspense>
+          </ErrorBoundary>
         </div>
       )}
       <h4 className="font-heading font-bold text-base mb-2">

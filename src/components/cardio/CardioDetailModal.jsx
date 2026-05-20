@@ -17,6 +17,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { db } from '@/api/db';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
+import ErrorBoundary from '@/components/ErrorBoundary';
 
 // RouteMap pulls in maplibre-gl (~200 KB gzipped). Most cardio rows
 // have no GPS track, so eager-loading the whole map vendor for every
@@ -150,9 +151,20 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
         {log.gps_track && Array.isArray(log.gps_track) && log.gps_track.length > 1 && (
           <div className="mb-4">
             <p className="text-sm font-medium mb-2">{t('cardio.detail.routeMap')}</p>
-            <Suspense fallback={<div className="w-full h-60 rounded-lg bg-secondary/50 animate-pulse" />}>
-              <RouteMap track={log.gps_track} />
-            </Suspense>
+            {/* ErrorBoundary so a maplibre/WebGL failure can't blank
+                the whole cardio detail modal. */}
+            <ErrorBoundary
+              label="CardioDetailRouteMap"
+              fallback={
+                <div className="w-full h-60 rounded-lg bg-secondary/30 border border-border flex items-center justify-center text-xs text-muted-foreground">
+                  Map unavailable
+                </div>
+              }
+            >
+              <Suspense fallback={<div className="w-full h-60 rounded-lg bg-secondary/50 animate-pulse" />}>
+                <RouteMap track={log.gps_track} />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         )}
 
