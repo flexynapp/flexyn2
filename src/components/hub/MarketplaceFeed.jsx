@@ -553,10 +553,9 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
           </div>
           <button
             onClick={onList}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity"
+            className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity"
           >
-            <Sparkles className="w-4 h-4" />
-            List
+            List Item
           </button>
         </div>
       </div>
@@ -567,17 +566,17 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
           <select
             value={sortBy}
             onChange={(e) => onSortByChange(e.target.value)}
-            className="appearance-none bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+            className="appearance-none bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full pl-3.5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
           >
             <option value="recent">Recent</option>
             <option value="price">Price</option>
           </select>
-          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/60" />
+          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/60" />
         </div>
         <button
           onClick={onSortDirToggle}
           title={sortDir === 'desc' ? 'Descending' : 'Ascending'}
-          className="flex items-center gap-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-lg px-2.5 py-1.5 hover:bg-white/20 transition-colors"
+          className="flex items-center gap-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-white/20 transition-colors"
         >
           <ArrowUpDown className="w-3 h-3" />
           {sortDir === 'desc' ? '↓' : '↑'}
@@ -623,12 +622,12 @@ function DailyChestBlock({ user, onClaimed }) {
         border: '1px solid rgba(139,92,246,0.45)',
       }}
     >
-      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center">
-        <Gift className={`w-6 h-6 ${claimed ? 'text-gray-500' : 'text-purple-300'}`} />
+      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
+        <Gift className={`w-6 h-6 ${claimed ? 'text-white/30' : 'text-white'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-white font-bold text-sm">Daily Chest</p>
-        <p className="text-purple-300/70 text-xs mt-0.5">
+        <p className="text-purple-100 font-medium text-xs mt-0.5">
           {claimed ? 'Come back tomorrow for another reward!' : 'Claim your free daily capsule + coins'}
         </p>
       </div>
