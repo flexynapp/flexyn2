@@ -1,7 +1,7 @@
 // src/components/hub/HubSearchOverlay.jsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2 } from 'lucide-react';
+import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
@@ -9,6 +9,7 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { Skeleton } from '@/components/ui/skeleton';
 import * as hubFollows from '@/lib/data/hubFollows';
+import * as hubPosts from '@/lib/data/hubPosts';
 
 const RECENT_SEARCHES_KEY = 'hubRecentSearches';
 const MAX_RECENT_SEARCHES = 5;
@@ -44,7 +45,7 @@ function removeRecentSearch(email) {
   }
 }
 
-export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
+export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelectPost = null }) {
   const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,6 +54,10 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
   const [recentSearches, setRecentSearches] = useState([]);
   const [followedEmails, setFollowedEmails] = useState(new Set());
   const [localAdded, setLocalAdded] = useState(new Set());
+  // Feature 17: tab toggle
+  const [activeTab, setActiveTab] = useState('people'); // 'people' | 'posts'
+  const [postResults, setPostResults] = useState([]);
+  const [postsLoading, setPostsLoading] = useState(false);
 
   // Load recent searches + following list on open
   useEffect(() => {
@@ -104,6 +109,32 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
 
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // Feature 17: Post search effect
+  useEffect(() => {
+    if (!searchQuery.trim() || activeTab !== 'posts') {
+      setPostResults([]);
+      return;
+    }
+    setPostsLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const q = searchQuery.toLowerCase();
+        const feed = await hubPosts.listPublicFeed(100).catch(() => []);
+        const filtered = feed.filter(p => {
+          const body = (p.body || p.content || '').toLowerCase();
+          const author = (p.author_name || '').toLowerCase();
+          return body.includes(q) || author.includes(q);
+        }).slice(0, 20);
+        setPostResults(filtered);
+      } catch {
+        setPostResults([]);
+      } finally {
+        setPostsLoading(false);
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [searchQuery, activeTab]);
 
   const handleSelectUser = (user) => {
     saveRecentSearch(user);
@@ -184,12 +215,86 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
               </div>
             </motion.div>
 
+            {/* Feature 17: Tab toggle */}
+            <div className="flex items-center gap-1 mb-4 bg-secondary/30 rounded-xl p-1">
+              <button
+                onClick={() => setActiveTab('people')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === 'people' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Users className="w-4 h-4" /> People
+              </button>
+              <button
+                onClick={() => setActiveTab('posts')}
+                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  activeTab === 'posts' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <MessageSquare className="w-4 h-4" /> Posts
+              </button>
+            </div>
+
             {/* Results container */}
             <motion.div
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
             >
+              {/* ── Posts tab ── */}
+              {activeTab === 'posts' && (
+                <>
+                  {!searchQuery && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-4">
+                        <MessageSquare className="w-8 h-8 text-primary/40" />
+                      </div>
+                      <p className="text-muted-foreground text-sm">Search for posts by keyword or author</p>
+                    </div>
+                  )}
+                  {searchQuery && postsLoading && (
+                    <div className="flex justify-center py-12">
+                      <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+                    </div>
+                  )}
+                  {searchQuery && !postsLoading && postResults.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                      <SearchX className="w-10 h-10 text-muted-foreground/40 mb-3" />
+                      <p className="font-semibold text-sm">No posts found for "{searchQuery}"</p>
+                    </div>
+                  )}
+                  {postResults.length > 0 && (
+                    <div className="space-y-2">
+                      {postResults.map((post, i) => (
+                        <motion.button
+                          key={post.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          onClick={() => {
+                            onSelectPost?.(post);
+                            onClose();
+                          }}
+                          className="w-full text-left p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 transition-colors"
+                        >
+                          <p className="text-xs text-muted-foreground font-medium mb-1">
+                            {post.author_name || post.author_email?.split('@')[0] || 'Athlete'}
+                          </p>
+                          <p className="text-sm text-foreground line-clamp-2 break-words">
+                            {(post.body || post.content || '').startsWith('[POLL_V1]')
+                              ? '📊 Poll'
+                              : (post.body || post.content || '').slice(0, 140)}
+                          </p>
+                        </motion.button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* ── People tab ── */}
+              {activeTab === 'people' && (
+              <>
               {/* Empty state with recent searches */}
               {!searchQuery && (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
@@ -278,6 +383,8 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser }) {
                     );
                   })}
                 </div>
+              )}
+              </>
               )}
             </motion.div>
           </div>

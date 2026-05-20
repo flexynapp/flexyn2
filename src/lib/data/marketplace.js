@@ -4,14 +4,19 @@
 import { supabase } from '@/api/supabaseClient';
 
 /**
- * List all active marketplace listings, newest first.
+ * List all active marketplace listings.
+ * @param {number} limit  Max rows to return.
+ * @param {'recent'|'price'} sortBy  Column to sort by.
+ * @param {'asc'|'desc'} sortDir     Sort direction.
  */
-export async function listActive(limit = 50) {
+export async function listActive(limit = 50, sortBy = 'recent', sortDir = 'desc') {
+  const column = sortBy === 'price' ? 'asking_price' : 'created_at';
+  const ascending = sortDir === 'asc';
   const { data, error } = await supabase
     .from('marketplace_listings')
     .select('*')
     .eq('status', 'active')
-    .order('created_at', { ascending: false })
+    .order(column, { ascending })
     .limit(limit);
   if (error) throw error;
   return data ?? [];

@@ -2,7 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3 } from 'lucide-react';
+import { supabase } from '@/api/supabaseClient';
 
 function CrownBadge({ size = 14 }) {
   return (
@@ -28,6 +29,114 @@ import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
+
+// ── Feature 24: Poll Card ────────────────────────────────────────────────────
+const VOTE_KEY = (postId, userEmail) => `poll_vote_${postId}_${userEmail}`;
+
+function PollCard({ post, userEmail }) {
+  let pollData = null;
+  try {
+    const raw = (post.body || '').replace('[POLL_V1]', '');
+    pollData = JSON.parse(raw);
+  } catch { return null; }
+
+  const { question, options } = pollData;
+  if (!question || !Array.isArray(options) || options.length < 2) return null;
+
+  // Local voted state (persisted to localStorage + attempted DB write)
+  const [myVote, setMyVote] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(VOTE_KEY(post.id, userEmail))); } catch { return null; }
+  });
+  // vote counts: try to fetch from DB, fall back to local tracking
+  const [counts, setCounts] = useState(() => options.map(() => 0));
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [voting, setVoting] = useState(false);
+
+  // Fetch existing votes from Supabase (graceful fallback if table missing)
+  useEffect(() => {
+    if (!post.id) return;
+    supabase
+      .from('poll_votes')
+      .select('option_index')
+      .eq('post_id', post.id)
+      .then(({ data, error }) => {
+        if (error || !data) return; // table might not exist yet
+        const c = options.map(() => 0);
+        data.forEach(r => { if (r.option_index >= 0 && r.option_index < options.length) c[r.option_index]++; });
+        setCounts(c);
+        setTotalVotes(data.length);
+      });
+  }, [post.id, options.length]);
+
+  const handleVote = async (idx) => {
+    if (myVote !== null || voting || !userEmail) return;
+    setVoting(true);
+    // Optimistic update
+    setMyVote(idx);
+    setCounts(prev => prev.map((c, i) => i === idx ? c + 1 : c));
+    setTotalVotes(t => t + 1);
+    try {
+      localStorage.setItem(VOTE_KEY(post.id, userEmail), JSON.stringify(idx));
+    } catch {}
+    // Try DB insert (graceful fail if table doesn't exist)
+    try {
+      await supabase.from('poll_votes').insert({
+        post_id: post.id,
+        user_email: userEmail,
+        option_index: idx,
+      });
+    } catch { /* table may not exist — local vote already recorded */ }
+    setVoting(false);
+  };
+
+  return (
+    <div className="px-3 pb-3">
+      <div className="rounded-xl border border-border bg-secondary/20 p-3">
+        <div className="flex items-center gap-1.5 mb-2">
+          <BarChart3 className="w-3.5 h-3.5 text-primary" />
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Poll</p>
+        </div>
+        <p className="text-sm font-semibold text-foreground mb-3">{question}</p>
+        <div className="space-y-2">
+          {options.map((opt, i) => {
+            const pct = totalVotes > 0 ? Math.round((counts[i] / totalVotes) * 100) : 0;
+            const isMyChoice = myVote === i;
+            const voted = myVote !== null;
+            return (
+              <button
+                key={i}
+                onClick={() => handleVote(i)}
+                disabled={voted || voting}
+                className={`w-full text-left rounded-lg overflow-hidden border transition-colors ${
+                  isMyChoice ? 'border-primary' : 'border-border'
+                } ${!voted ? 'hover:border-primary/50 active:bg-secondary/60' : ''}`}
+              >
+                <div className="relative px-3 py-2">
+                  {/* Progress bar bg */}
+                  {voted && (
+                    <div
+                      className={`absolute inset-0 rounded-lg transition-all duration-500 ${isMyChoice ? 'bg-primary/15' : 'bg-secondary/40'}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  )}
+                  <div className="relative flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium text-foreground truncate">{opt}</span>
+                    {voted && (
+                      <span className="text-xs font-bold text-muted-foreground shrink-0">{pct}%</span>
+                    )}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        {myVote !== null && (
+          <p className="text-[11px] text-muted-foreground mt-2 text-right">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function HubPostCard({ post, onAuthorClick = null }) {
   const { t, language } = useLanguage();
@@ -108,6 +217,12 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   });
 
   const hasDiamond = stickerRxns.some(r => r.variant === 'diamond');
+
+  // Feature 25: sort sticker reactions by rarity (rarest first)
+  const RARITY_ORDER = { diamond: 0, legendary: 1, epic: 2, rare: 3, uncommon: 4, common: 5 };
+  const sortedStickerRxns = [...stickerRxns].sort(
+    (a, b) => (RARITY_ORDER[a.variant] ?? 6) - (RARITY_ORDER[b.variant] ?? 6)
+  );
   const isMine = post.author_email === user?.email;
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
@@ -259,8 +374,13 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         )}
       </div>
 
+      {/* Feature 24: Poll rendering */}
+      {postBody.startsWith('[POLL_V1]') && (
+        <PollCard post={post} userEmail={user?.email} />
+      )}
+
       {/* Body */}
-      {postBody && (
+      {postBody && !postBody.startsWith('[POLL_V1]') && (
         <div className="px-3 pb-3 text-sm break-words">
           <div className="whitespace-pre-wrap">
             {translation && !showOriginal ? translation.text : postBody}
@@ -398,7 +518,7 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         >
           {/* Overlapping sticker circles — waterfall effect */}
           <div className="flex items-center" style={{ marginRight: 6 }}>
-            {stickerRxns.slice(0, 6).map((r, i) => (
+            {sortedStickerRxns.slice(0, 6).map((r, i) => (
               <div
                 key={r.id}
                 className="w-7 h-7 rounded-full bg-card border-2 border-background flex items-center justify-center overflow-visible"

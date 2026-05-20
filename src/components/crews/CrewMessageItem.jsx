@@ -10,12 +10,37 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
+import { supabase } from '@/api/supabaseClient';
+
+// Feature 18: Write fire reaction to Supabase (graceful fallback)
+async function writeFireReaction(msgId, userId, active) {
+  if (!msgId || !userId) return;
+  try {
+    if (active) {
+      await supabase
+        .from('crew_message_reactions')
+        .upsert(
+          { message_id: msgId, user_id: userId, reaction: '🔥' },
+          { onConflict: 'message_id,user_id,reaction', ignoreDuplicates: false }
+        );
+    } else {
+      await supabase
+        .from('crew_message_reactions')
+        .delete()
+        .eq('message_id', msgId)
+        .eq('user_id', userId)
+        .eq('reaction', '🔥');
+    }
+  } catch {
+    // Table may not exist — localStorage already covers local state
+  }
+}
 
 // ── Admin crown badge ─────────────────────────────────────────────────────────
 function CrownBadge({ size = 13 }) {
@@ -89,13 +114,18 @@ function Timestamp({ dateStr }) {
 
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
-function TextMessage({ msg, senderProfile, isOwn }) {
+function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
   const lastTapRef = useRef(0);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
 
-  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
+  const setReactedPersisted = (val) => {
+    setReacted(val);
+    saveFire(msg.id, val);
+    // Feature 18: write to Supabase in background
+    writeFireReaction(msg.id, currentUserId, val);
+  };
 
   const handleTap = () => {
     const now = Date.now();
@@ -181,7 +211,6 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
       const wasNew = await crewsData.claimXpFuel(msg.id, currentUserId);
       if (wasNew) {
         // Award XP via existing RPC
-        const { supabase } = await import('@/api/supabaseClient');
         await supabase.rpc('increment_user_xp', { p_user_id: currentUserId, p_amount: xp }).catch(() => {});
         toast.success(`+${xp} XP added to your account!`);
       } else {
@@ -321,14 +350,22 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
 // ── Shared Regimen ────────────────────────────────────────────────────────────
 
 function RegimenMessage({ msg, user, senderProfile }) {
+  // 'idle' | 'checking' | 'equipping' | 'equipped' | 'duplicate'
   const [state, setState] = useState('idle');
   let meta = {};
   try { meta = JSON.parse(msg.content || '{}'); } catch {}
 
   const handleEquip = async () => {
     if (state !== 'idle' || !msg.regimen_id) return;
-    setState('equipping');
+    setState('checking');
     try {
+      // Feature 19: block if the user already cloned this regimen template
+      const alreadyHave = await crewsData.hasClonedRegimen(msg.regimen_id, user?.email);
+      if (alreadyHave) {
+        setState('duplicate');
+        return;
+      }
+      setState('equipping');
       await crewsData.equipRegimen(msg.regimen_id, user);
       setState('equipped');
       toast.success(`"${meta.name || 'Regimen'}" added to your routines!`);
@@ -337,6 +374,8 @@ function RegimenMessage({ msg, user, senderProfile }) {
       setState('idle');
     }
   };
+
+  const isDuplicate = state === 'duplicate';
 
   return (
     <div className="flex justify-center my-2 px-2">
@@ -358,12 +397,18 @@ function RegimenMessage({ msg, user, senderProfile }) {
           whileTap={{ scale: 0.95 }}
           onClick={handleEquip}
           disabled={state !== 'idle'}
-          className="mt-3 w-full py-2 rounded-xl text-sm font-bold text-white disabled:opacity-60 flex items-center justify-center gap-1.5"
-          style={{ background: 'hsl(var(--primary))' }}
+          className={`mt-3 w-full py-2 rounded-xl text-sm font-bold text-white disabled:opacity-60 flex items-center justify-center gap-1.5 ${
+            isDuplicate ? 'bg-muted/60 text-muted-foreground cursor-not-allowed' : ''
+          }`}
+          style={isDuplicate ? {} : { background: 'hsl(var(--primary))' }}
         >
-          {state === 'equipping' && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-          {state === 'equipped'  && <Check   className="w-3.5 h-3.5" />}
-          {state === 'idle' ? 'Equip Regimen' : state === 'equipping' ? 'Equipping…' : 'Equipped!'}
+          {(state === 'checking' || state === 'equipping') && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {state === 'equipped' && <Check className="w-3.5 h-3.5" />}
+          {state === 'idle'      ? 'Equip Regimen'
+            : state === 'checking'  ? 'Checking…'
+            : state === 'equipping' ? 'Equipping…'
+            : state === 'duplicate' ? '✓ Already Copied'
+            : 'Equipped!'}
         </motion.button>
       </div>
     </div>
@@ -558,6 +603,6 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'image_one_hour':
       return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
     default:
-      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
+      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
   }
 }

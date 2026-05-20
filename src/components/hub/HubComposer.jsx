@@ -188,6 +188,7 @@ const ICONS = {
   workout: Dumbbell, cardio: Activity, meal: Apple,
   goal: Target, achievement: Trophy, regimen: ListChecks,
   progressPhoto: ImageIcon, stats: BarChart3,
+  poll: BarChart3,
 };
 
 export default function HubComposer({ onClose }) {
@@ -236,6 +237,30 @@ export default function HubComposer({ onClose }) {
     setMealImagePreview(null);
     if (mealImageInputRef.current) mealImageInputRef.current.value = '';
   };
+
+  // Feature 25: Optional image attachment for status posts
+  const [statusImageFile, setStatusImageFile] = useState(null);
+  const [statusImagePreview, setStatusImagePreview] = useState(null);
+  const statusImageInputRef = useRef(null);
+
+  const handleStatusImagePick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setStatusImageFile(file);
+    const reader = new FileReader();
+    reader.onload = (ev) => setStatusImagePreview(ev.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const clearStatusImage = () => {
+    setStatusImageFile(null);
+    setStatusImagePreview(null);
+    if (statusImageInputRef.current) statusImageInputRef.current.value = '';
+  };
+
+  // Feature 24: Poll compose state
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
 
   // ── Load shareable activities ──
   const { data: recentWorkouts = [] } = useQuery({
@@ -302,6 +327,15 @@ export default function HubComposer({ onClose }) {
       setStep('meal_compose');
       return;
     }
+    // Feature 24: Poll compose
+    if (kind === 'poll') {
+      setSelected({ kind: 'poll', item: null, summary: null });
+      setPollQuestion('');
+      setPollOptions(['', '']);
+      setBody('');
+      setStep('poll_compose');
+      return;
+    }
     setSelected({
       kind,
       item,
@@ -311,6 +345,7 @@ export default function HubComposer({ onClose }) {
     });
     setBody('');
     clearMealImage();
+    clearStatusImage();
     setStep(kind === 'status' ? 'status_compose' : 'compose');
   };
 
@@ -347,6 +382,41 @@ export default function HubComposer({ onClose }) {
       const summary = summarize.meal(item);
       effectiveSelected = { ...selected, item, summary };
       setSelected((prev) => prev ? { ...prev, item, summary } : prev);
+    }
+
+    // Feature 24: Poll posts
+    if (selected.kind === 'poll') {
+      const q = pollQuestion.trim();
+      const opts = pollOptions.map(o => o.trim()).filter(Boolean);
+      if (!q) { toast.error('Please enter a poll question.'); return; }
+      if (opts.length < 2) { toast.error('Please add at least 2 options.'); return; }
+      if (containsProfanity(q) || opts.some(o => containsProfanity(o))) {
+        toast.error(t('hub.composer.profanityError'));
+        return;
+      }
+      setPosting(true);
+      try {
+        const pollBody = '[POLL_V1]' + JSON.stringify({ question: q, options: opts });
+        await hubPosts.create({
+          author_email: user.email,
+          author_name: user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+          author_avatar_url: user.avatar_url || null,
+          post_type: 'poll',
+          body: pollBody,
+          privacy,
+          like_count: 0,
+          dislike_count: 0,
+          comment_count: 0,
+        });
+        queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+        toast.success('Poll posted!');
+        onClose();
+      } catch {
+        toast.error(t('hub.composer.postError'));
+      } finally {
+        setPosting(false);
+      }
+      return;
     }
 
     // Status posts: body is mandatory and is the entire post.
@@ -394,6 +464,17 @@ export default function HubComposer({ onClose }) {
           toast.error(t('hub.composer.postError'));
           setPosting(false);
           return;
+        }
+      }
+
+      // Feature 25: status post image upload
+      if (effectiveSelected.kind === 'status' && statusImageFile) {
+        try {
+          const result = await db.integrations.Core.UploadFile({ file: statusImageFile });
+          imageUrl = result?.file_url || null;
+        } catch (e) {
+          console.error('Status image upload failed', e);
+          // Non-fatal: continue posting without the image
         }
       }
 
@@ -528,6 +609,13 @@ export default function HubComposer({ onClose }) {
             title={t('hub.share.status')}
             subtitle={t('hub.share.statusDesc')}
             highlight
+          />
+          {/* Feature 24: Poll */}
+          <PickCard
+            kind="poll"
+            onClick={() => handlePick('poll')}
+            title="Create a Poll"
+            subtitle="Ask your followers to vote on something"
           />
         </Section>
 
@@ -717,6 +805,89 @@ export default function HubComposer({ onClose }) {
       <div className="text-xs text-muted-foreground text-right mt-1 mb-3">
         {body.length}/500
       </div>
+
+      {/* Feature 25: image attachment for status posts */}
+      <div className="mb-3">
+        {statusImagePreview ? (
+          <div className="relative rounded-xl overflow-hidden border border-border">
+            <img src={statusImagePreview} alt="" className="w-full max-h-48 object-cover" />
+            <button
+              onClick={clearStatusImage}
+              className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80 transition-colors"
+            >
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => statusImageInputRef.current?.click()}
+            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+          >
+            <ImageIcon className="w-4 h-4" /> Add a photo (optional)
+          </button>
+        )}
+        <input
+          ref={statusImageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleStatusImagePick}
+        />
+      </div>
+
+      {renderPrivacyButtons()}
+    </div>
+  );
+
+  // ── Rendering: poll compose step (Feature 24) ──
+  const renderPollCompose = () => (
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-4 gap-3">
+      <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+        <BarChart3 className="w-3.5 h-3.5" />
+        <span>Create a poll — your followers can vote</span>
+      </div>
+      <input
+        value={pollQuestion}
+        onChange={(e) => setPollQuestion(e.target.value)}
+        placeholder="Ask a question…"
+        maxLength={200}
+        autoFocus
+        className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+      />
+      <div className="space-y-2">
+        {pollOptions.map((opt, i) => (
+          <div key={i} className="flex items-center gap-2">
+            <input
+              value={opt}
+              onChange={(e) => {
+                const next = [...pollOptions];
+                next[i] = e.target.value;
+                setPollOptions(next);
+              }}
+              placeholder={`Option ${i + 1}`}
+              maxLength={100}
+              className="flex-1 p-2.5 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+            {pollOptions.length > 2 && (
+              <button
+                onClick={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        ))}
+        {pollOptions.length < 4 && (
+          <button
+            onClick={() => setPollOptions([...pollOptions, ''])}
+            className="w-full py-2 rounded-lg border border-dashed border-border text-xs text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors"
+          >
+            + Add option
+          </button>
+        )}
+      </div>
       {renderPrivacyButtons()}
     </div>
   );
@@ -824,6 +995,7 @@ export default function HubComposer({ onClose }) {
   const onPickStep = step === 'pick';
   const isStatusStep = step === 'status_compose';
   const isMealComposeStep = step === 'meal_compose';
+  const isPollStep = step === 'poll_compose';
 
   return (
     <AnimatePresence>
@@ -885,6 +1057,8 @@ export default function HubComposer({ onClose }) {
             ? renderStatusCompose()
             : isMealComposeStep
             ? renderMealCompose()
+            : isPollStep
+            ? renderPollCompose()
             : renderCompose()}
 
           {!onPickStep && (

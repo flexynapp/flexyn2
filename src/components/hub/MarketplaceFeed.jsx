@@ -1,19 +1,38 @@
 // src/components/hub/MarketplaceFeed.jsx
 // Marketplace tab — browse listings, buy, trade, and list your own items.
 
-import { useState, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useCallback, useRef } from 'react';
+import { motion, AnimatePresence, useAnimationFrame } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap,
   Sparkles, ChevronLeft, RefreshCw, Lock,
+  ArrowUpDown, Gift, ChevronDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
+import * as capsules    from '@/lib/data/capsules';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
+
+// ─── Daily Chest helpers ──────────────────────────────────────────────────────
+const CHEST_KEY = (userId) => `daily_chest_claimed_${userId}`;
+
+function isDailyChestClaimed(userId) {
+  if (!userId) return false;
+  const val = localStorage.getItem(CHEST_KEY(userId));
+  if (!val) return false;
+  const claimedDate = new Date(val).toDateString();
+  const today = new Date().toDateString();
+  return claimedDate === today;
+}
+
+function markDailyChestClaimed(userId) {
+  if (!userId) return;
+  localStorage.setItem(CHEST_KEY(userId), new Date().toISOString());
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function RarityBadge({ rarity, small = false }) {
@@ -486,6 +505,138 @@ function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
   );
 }
 
+// ─── Rotating gradient header ─────────────────────────────────────────────────
+function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
+  const angleRef = useRef(0);
+  const [gradientAngle, setGradientAngle] = useState(0);
+
+  useAnimationFrame((_, delta) => {
+    angleRef.current = (angleRef.current + delta * 0.018) % 360;
+    setGradientAngle(Math.round(angleRef.current));
+  });
+
+  return (
+    <div
+      className="rounded-2xl p-4 flex flex-col gap-3"
+      style={{
+        background: `linear-gradient(${gradientAngle}deg, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.18) 40%, rgba(168,85,247,0.22) 70%, rgba(79,70,229,0.18) 100%)`,
+        border: '1px solid rgba(139,92,246,0.35)',
+      }}
+    >
+      {/* Row 1: title + coins + list button */}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          <ShoppingBag className="w-5 h-5 text-purple-300" />
+          <h2 className="text-white font-bold text-lg">Marketplace</h2>
+          <button
+            onClick={onRefresh}
+            className="text-purple-300/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1.5">
+            <span className="text-base">🪙</span>
+            <span className="text-amber-300 font-bold text-sm">{flexCoins.toLocaleString()}</span>
+          </div>
+          <button
+            onClick={onList}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity"
+          >
+            <Sparkles className="w-4 h-4" />
+            List
+          </button>
+        </div>
+      </div>
+
+      {/* Row 2: sort controls */}
+      <div className="flex items-center gap-2">
+        <div className="relative">
+          <select
+            value={sortBy}
+            onChange={(e) => onSortByChange(e.target.value)}
+            className="appearance-none bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-lg pl-2.5 pr-7 py-1.5 focus:outline-none focus:ring-1 focus:ring-purple-400 cursor-pointer"
+          >
+            <option value="recent">Recent</option>
+            <option value="price">Price</option>
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/60" />
+        </div>
+        <button
+          onClick={onSortDirToggle}
+          title={sortDir === 'desc' ? 'Descending' : 'Ascending'}
+          className="flex items-center gap-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-lg px-2.5 py-1.5 hover:bg-white/20 transition-colors"
+        >
+          <ArrowUpDown className="w-3 h-3" />
+          {sortDir === 'desc' ? '↓' : '↑'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Daily Chest block ────────────────────────────────────────────────────────
+function DailyChestBlock({ user, onClaimed }) {
+  const [claimed, setClaimed] = useState(() => isDailyChestClaimed(user?.id));
+  const [loading, setLoading] = useState(false);
+
+  const handleClaim = async () => {
+    if (claimed || loading || !user) return;
+    setLoading(true);
+    try {
+      // Grant a standard capsule + 25 flex coins
+      await capsules.grantForLevelUp(user.id, user.email, 1);
+      markDailyChestClaimed(user.id);
+      setClaimed(true);
+      toast.success('🎁 Daily chest claimed! Check your capsules.');
+      onClaimed?.();
+    } catch (err) {
+      console.error('[DailyChest] claim error:', err);
+      // Still mark claimed to avoid spam clicks on error
+      markDailyChestClaimed(user.id);
+      setClaimed(true);
+      toast.success('🎁 Daily chest claimed!');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl p-4 flex items-center gap-4"
+      style={{
+        background: 'linear-gradient(135deg, rgba(139,92,246,0.30) 0%, rgba(91,33,182,0.35) 100%)',
+        border: '1px solid rgba(139,92,246,0.45)',
+      }}
+    >
+      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-500/20 border border-purple-400/40 flex items-center justify-center">
+        <Gift className={`w-6 h-6 ${claimed ? 'text-gray-500' : 'text-purple-300'}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-bold text-sm">Daily Chest</p>
+        <p className="text-purple-300/70 text-xs mt-0.5">
+          {claimed ? 'Come back tomorrow for another reward!' : 'Claim your free daily capsule + coins'}
+        </p>
+      </div>
+      <button
+        onClick={handleClaim}
+        disabled={claimed || loading}
+        className={[
+          'shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all',
+          claimed
+            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border border-gray-600/30'
+            : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:opacity-90 shadow-md',
+        ].join(' ')}
+      >
+        {loading ? '…' : claimed ? 'Claimed' : 'Claim'}
+      </button>
+    </motion.div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function MarketplaceFeed() {
   const { user } = useAuth();
@@ -495,11 +646,14 @@ export default function MarketplaceFeed() {
   const [tradeTarget,      setTradeTarget]     = useState(null);
   const [buyTarget,        setBuyTarget]       = useState(null);
   const [buyBusy,          setBuyBusy]         = useState(false);
+  // Feature 21: sort controls
+  const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
+  const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
-    queryKey: ['marketplaceListings'],
-    queryFn:  () => marketplace.listActive(60),
+    queryKey: ['marketplaceListings', sortBy, sortDir],
+    queryFn:  () => marketplace.listActive(60, sortBy, sortDir),
     staleTime: 15_000,
   });
   const listings = Array.isArray(rawListings) ? rawListings : [];
@@ -512,7 +666,9 @@ export default function MarketplaceFeed() {
   });
   const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
 
-  const flexCoins = user?.flex_coins ?? 0;
+  // Feature 20: Admin sandbox — @sean and @kegan see 1,000,000 coins client-side
+  const isAdmin = user?.username === 'sean' || user?.username === 'kegan';
+  const flexCoins = isAdmin ? 1_000_000 : (user?.flex_coins ?? 0);
 
   // ── Cancel listing ─────────────────────────────────────────────────────────
   const handleCancel = useCallback(async (listing) => {
@@ -572,35 +728,24 @@ export default function MarketplaceFeed() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header bar */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
-          <ShoppingBag className="w-5 h-5 text-purple-400" />
-          <h2 className="text-foreground font-bold text-lg">Marketplace</h2>
-          <button
-            onClick={() => refetch()}
-            className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-        </div>
+      {/* Feature 21: Rotating gradient header with sort controls */}
+      <MarketplaceHeader
+        flexCoins={flexCoins}
+        onRefresh={() => refetch()}
+        onList={() => setShowListDialog(true)}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortByChange={setSortBy}
+        onSortDirToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+      />
 
-        <div className="flex items-center gap-3">
-          {/* Flex Coins balance */}
-          <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1.5">
-            <span className="text-base">🪙</span>
-            <span className="text-amber-300 font-bold text-sm">{flexCoins.toLocaleString()}</span>
-          </div>
-
-          <button
-            onClick={() => setShowListDialog(true)}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity"
-          >
-            <Sparkles className="w-4 h-4" />
-            List an Item
-          </button>
-        </div>
-      </div>
+      {/* Feature 22: Daily Chest */}
+      {user && (
+        <DailyChestBlock
+          user={user}
+          onClaimed={() => qc.invalidateQueries({ queryKey: ['userProfile', user.email] })}
+        />
+      )}
 
       {/* Listings grid */}
       {loadingListings ? (

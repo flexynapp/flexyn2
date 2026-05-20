@@ -200,6 +200,27 @@ export async function equipRegimen(regimenId, user) {
   return copy;
 }
 
+/**
+ * Feature 19: Check if the user has already cloned this regimen template.
+ * Returns true if a row with `original_template_id = regimenId` and
+ * `created_by = userEmail` already exists in their library.
+ */
+export async function hasClonedRegimen(regimenId, userEmail) {
+  if (!regimenId || !userEmail) return false;
+  try {
+    const { data, error } = await supabase
+      .from('regimens')
+      .select('id')
+      .eq('original_template_id', regimenId)
+      .eq('created_by', userEmail)
+      .limit(1);
+    if (error) return false;
+    return (data?.length ?? 0) > 0;
+  } catch {
+    return false;
+  }
+}
+
 // ── XP Fuel ───────────────────────────────────────────────────────────────────
 
 export async function fireXpFuel(crewId, senderId, senderName) {

@@ -166,7 +166,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 const lastMsgText = lastMsg?.body || lastMsg?.content;
                 if (lastMsgText) {
                   const isMine = lastMsg.sender_email?.toLowerCase() === user?.email?.toLowerCase();
-                  preview = isMine ? `You: ${lastMsgText}` : lastMsgText;
+                  // Feature 23: clean up trade offer previews
+                  const isTradeOffer =
+                    lastMsg.message_type === 'trade_offer' ||
+                    lastMsgText.startsWith('[TRADE_OFFER_V1]');
+                  const displayText = isTradeOffer ? '📦 Trade offer sent.' : lastMsgText;
+                  preview = isMine ? `You: ${displayText}` : displayText;
                 }
                 const unread = (c.unreadCount || 0) > 0;
                 const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at);
