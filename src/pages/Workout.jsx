@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -14,29 +14,38 @@ import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activ
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
-import FormCoachModal from '@/components/formcoach/FormCoachModal';
-import WorkoutGeneratorModal from '@/components/workout/WorkoutGeneratorModal';
+// Five modals that ONLY mount on user action — lazy-load each so the
+// Workout page chunk doesn't carry their compiled bodies + transitive
+// imports on first paint. FormCoachModal in particular pulls in
+// vendor-pose / vendor-tfjs via its lazy detectorPrewarm chain; the
+// static import was preventing tree-shaking heuristics from confirming
+// "really lazy." Mirrors the DebriefVault / InjuryForm pattern in
+// ProfileMenu.
+const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
+const WorkoutGeneratorModal = lazy(() => import('@/components/workout/WorkoutGeneratorModal'));
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import EditWorkoutModal from '@/components/workout/EditWorkoutModal';
-import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
+const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
+const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPhotoCapture'));
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import GroupBlock from '@/components/workout/GroupBlock';
 import InjuryBanner from '@/components/workout/InjuryBanner';
-import InjuryForm from '@/components/workout/InjuryForm';
+// InjuryForm is lazy in BOTH places it mounts (ProfileMenu + here)
+// so the chunk only loads when the user actually opens the form.
+const InjuryForm = lazy(() => import('@/components/workout/InjuryForm'));
 import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
-import GoalsModal from '@/components/goals/GoalsModal';
+const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
@@ -1179,7 +1188,9 @@ export default function Workout() {
           </div>
         )}
 
-        <GoalsModal open={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} goals={goals} logs={logs} userProfile={userProfile} />
+        <Suspense fallback={null}>
+          <GoalsModal open={goalsModalOpen} onClose={() => setGoalsModalOpen(false)} goals={goals} logs={logs} userProfile={userProfile} />
+        </Suspense>
 
         <Dialog open={savedWorkoutsOpen} onOpenChange={setSavedWorkoutsOpen}>
           <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
@@ -1196,6 +1207,7 @@ export default function Workout() {
         </Dialog>
 
         {editingLog && (
+          <Suspense fallback={null}>
           <EditWorkoutModal
             log={editingLog}
             userProfile={userProfile}
@@ -1236,6 +1248,7 @@ export default function Workout() {
               setEditingLog(null);
             }}
           />
+          </Suspense>
         )}
 
         {/* AI modals — MUST be mounted in the idle view because that's where
@@ -1245,23 +1258,29 @@ export default function Workout() {
             ErrorBoundary so a TF.js load failure or generator crash doesn't
             take down the whole Workout page. */}
         <ErrorBoundary label="FormCoach">
-          <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+          <Suspense fallback={null}>
+            <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+          </Suspense>
         </ErrorBoundary>
 
         <ErrorBoundary label="WorkoutGenerator">
-          <WorkoutGeneratorModal
-            open={generatorOpen}
-            onClose={() => setGeneratorOpen(false)}
-            userProfile={userProfile}
-            onUseWorkout={startFromGeneratedWorkout}
-            onSaveAsRegimen={saveGeneratedAsRegimen}
-          />
+          <Suspense fallback={null}>
+            <WorkoutGeneratorModal
+              open={generatorOpen}
+              onClose={() => setGeneratorOpen(false)}
+              userProfile={userProfile}
+              onUseWorkout={startFromGeneratedWorkout}
+              onSaveAsRegimen={saveGeneratedAsRegimen}
+            />
+          </Suspense>
         </ErrorBoundary>
 
         {/* Injury Form overlay */}
         <AnimatePresence>
           {injuryFormOpen && (
-            <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
+            <Suspense fallback={null}>
+              <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
+            </Suspense>
           )}
         </AnimatePresence>
 
@@ -1405,7 +1424,9 @@ export default function Workout() {
         <Textarea id="workout-notes" value={notes} onChange={e => guard.handleChange(e.target.value, setNotes)} placeholder={t('workout.notesPlaceholder')} className="h-20" maxLength={1000} />
       </div>
 
-      <ProgressPhotoCapture workoutName={selectedRegimen?.name || t('workout.freestyle')} />
+      <Suspense fallback={null}>
+        <ProgressPhotoCapture workoutName={selectedRegimen?.name || t('workout.freestyle')} />
+      </Suspense>
 
       <motion.div whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className="mt-6">
         <Button
@@ -1552,7 +1573,9 @@ export default function Workout() {
       {/* Each AI modal in its own ErrorBoundary so a TF.js load failure or
           generator crash doesn't take down the whole Workout page. */}
       <ErrorBoundary label="FormCoach">
-        <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+        <Suspense fallback={null}>
+          <FormCoachModal open={formCoachOpen} onClose={() => setFormCoachOpen(false)} />
+        </Suspense>
       </ErrorBoundary>
 
       <ErrorBoundary label="WorkoutShareCard">
@@ -1565,16 +1588,19 @@ export default function Workout() {
       </ErrorBoundary>
 
       <ErrorBoundary label="WorkoutGenerator">
-        <WorkoutGeneratorModal
-          open={generatorOpen}
-          onClose={() => setGeneratorOpen(false)}
-          userProfile={userProfile}
-          onUseWorkout={startFromGeneratedWorkout}
-          onSaveAsRegimen={saveGeneratedAsRegimen}
-        />
+        <Suspense fallback={null}>
+          <WorkoutGeneratorModal
+            open={generatorOpen}
+            onClose={() => setGeneratorOpen(false)}
+            userProfile={userProfile}
+            onUseWorkout={startFromGeneratedWorkout}
+            onSaveAsRegimen={saveGeneratedAsRegimen}
+          />
+        </Suspense>
       </ErrorBoundary>
 
       {editingLog && (
+        <Suspense fallback={null}>
         <EditWorkoutModal
           log={editingLog}
           userProfile={userProfile}
@@ -1593,6 +1619,7 @@ export default function Workout() {
             setEditingLog(null);
           }}
         />
+        </Suspense>
       )}
 
       {/* Injury Form — accessible during active session too */}
