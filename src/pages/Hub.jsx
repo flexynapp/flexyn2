@@ -17,6 +17,18 @@ import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import { useStartConversation } from '@/lib/hubMessaging';
 
+// ─── Ember particle data for the marketplace button ───────────────────────────
+const EMBERS = [
+  { x: 15, size: 3, duration: 1.8, delay: 0,   travel: 30 },
+  { x: 30, size: 2, duration: 2.2, delay: 0.4, travel: 25 },
+  { x: 50, size: 4, duration: 1.6, delay: 0.8, travel: 35 },
+  { x: 65, size: 2, duration: 2.0, delay: 0.2, travel: 28 },
+  { x: 80, size: 3, duration: 1.9, delay: 1.0, travel: 32 },
+  { x: 22, size: 2, duration: 2.4, delay: 1.4, travel: 22 },
+  { x: 55, size: 3, duration: 1.7, delay: 0.6, travel: 38 },
+  { x: 70, size: 2, duration: 2.1, delay: 1.8, travel: 26 },
+];
+
 export default function Hub() {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -203,19 +215,40 @@ export default function Hub() {
       {/* Marketplace + New Post row — shown on feed tabs, not crews */}
       {section === 'feed' && feedTab !== 'crews' && (
         <div className="flex gap-2.5 mb-4">
-          {/* Marketplace — 3/4 width */}
-          <motion.button
-            whileTap={{ scale: 0.97 }}
-            onClick={() => navigate('/market')}
-            className="flex-[3] flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
-            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(26,90%,40%))' }}
-          >
-            <Store className="w-5 h-5 shrink-0" />
-            <div className="flex-1 text-left min-w-0">
-              <p className="text-sm font-bold leading-tight">Marketplace</p>
-              <p className="text-[11px] opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
-            </div>
-          </motion.button>
+          {/* Marketplace — 3/4 width, ember animation */}
+          <div className="flex-[3] relative overflow-hidden rounded-2xl">
+            {/* Floating ember particles */}
+            {EMBERS.map((e, i) => (
+              <motion.div
+                key={i}
+                className="absolute pointer-events-none rounded-full"
+                style={{
+                  width: e.size,
+                  height: e.size,
+                  left: `${e.x}%`,
+                  bottom: 2,
+                  background: i % 2 === 0 ? '#FED7AA' : '#FCA5A5',
+                  filter: 'blur(0.5px)',
+                }}
+                animate={{ y: [0, -e.travel], opacity: [0, 0.65, 0] }}
+                transition={{ duration: e.duration, delay: e.delay, repeat: Infinity, ease: 'easeOut' }}
+              />
+            ))}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/market')}
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
+              animate={{ filter: ['hue-rotate(0deg)', 'hue-rotate(-25deg)', 'hue-rotate(0deg)'] }}
+              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+              style={{ background: 'linear-gradient(135deg, #FB923C, #EA580C)' }}
+            >
+              <Store className="w-5 h-5 shrink-0" />
+              <div className="flex-1 text-left min-w-0">
+                <p className="text-sm font-bold leading-tight">Marketplace</p>
+                <p className="text-[11px] opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
+              </div>
+            </motion.button>
+          </div>
 
           {/* New Post — 1/4 width, orange outline + gray fill */}
           <motion.button

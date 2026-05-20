@@ -530,8 +530,8 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
     <div
       className="rounded-2xl p-4 flex flex-col gap-3"
       style={{
-        background: `linear-gradient(${gradientAngle}deg, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.18) 40%, rgba(168,85,247,0.22) 70%, rgba(79,70,229,0.18) 100%)`,
-        border: '1px solid rgba(139,92,246,0.35)',
+        background: `linear-gradient(${gradientAngle}deg, #1a0538 0%, #2d0a5e 40%, #1e0850 70%, #160438 100%)`,
+        border: '1px solid #5b21b6',
       }}
     >
       {/* Row 1: title + coins + list button */}
@@ -541,15 +541,15 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
           <h2 className="text-white font-bold text-lg">Marketplace</h2>
           <button
             onClick={onRefresh}
-            className="text-purple-300/70 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+            className="text-purple-300 hover:text-white transition-colors p-1 rounded-lg hover:bg-purple-800"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1.5">
+          <div className="flex items-center gap-1.5 bg-amber-400 rounded-full px-3 py-1.5">
             <span className="text-base">🪙</span>
-            <span className="text-amber-300 font-bold text-sm">{flexCoins.toLocaleString()}</span>
+            <span className="text-gray-900 font-bold text-sm">{flexCoins.toLocaleString()}</span>
           </div>
           <button
             onClick={onList}
@@ -566,7 +566,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
           <select
             value={sortBy}
             onChange={(e) => onSortByChange(e.target.value)}
-            className="appearance-none bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full pl-3.5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
+            className="appearance-none bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full pl-3.5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
           >
             <option value="recent">Recent</option>
             <option value="price">Price</option>
@@ -576,7 +576,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
         <button
           onClick={onSortDirToggle}
           title={sortDir === 'desc' ? 'Descending' : 'Ascending'}
-          className="flex items-center gap-1 bg-white/10 border border-white/20 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-white/20 transition-colors"
+          className="flex items-center gap-1 bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 transition-colors"
         >
           <ArrowUpDown className="w-3 h-3" />
           {sortDir === 'desc' ? '↓' : '↑'}
@@ -618,12 +618,12 @@ function DailyChestBlock({ user, onClaimed }) {
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl p-4 flex items-center gap-4"
       style={{
-        background: 'linear-gradient(135deg, rgba(139,92,246,0.30) 0%, rgba(91,33,182,0.35) 100%)',
-        border: '1px solid rgba(139,92,246,0.45)',
+        background: 'linear-gradient(135deg, #2d0f5a 0%, #1a0a3e 100%)',
+        border: '1px solid #5b21b6',
       }}
     >
-      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center">
-        <Gift className={`w-6 h-6 ${claimed ? 'text-white/30' : 'text-white'}`} />
+      <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-800 border border-purple-600 flex items-center justify-center">
+        <Gift className={`w-6 h-6 ${claimed ? 'text-yellow-200/50' : 'text-yellow-300'}`} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-white font-bold text-sm">Daily Chest</p>
@@ -637,7 +637,7 @@ function DailyChestBlock({ user, onClaimed }) {
         className={[
           'shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all',
           claimed
-            ? 'bg-gray-700/50 text-gray-500 cursor-not-allowed border border-gray-600/30'
+            ? 'bg-gray-800 text-gray-500 cursor-not-allowed border border-gray-700'
             : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:opacity-90 shadow-md',
         ].join(' ')}
       >

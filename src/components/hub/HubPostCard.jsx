@@ -285,8 +285,11 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
   return (
     <article
-      className={`bg-card border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/80' : 'border-border'}`}
-      style={hasDiamond ? { boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)' } : undefined}
+      className={`border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/80' : 'bg-card border-border'}`}
+      style={hasDiamond ? {
+        background: 'rgba(244,250,255,0.04)',
+        boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)',
+      } : undefined}
     >
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
