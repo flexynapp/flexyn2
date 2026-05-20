@@ -120,7 +120,7 @@ export async function joinWarMatchmaking(crewId) {
     .from('crew_wars')
     .insert({
       crew_a_id: crewId,
-      crew_b_id: crewId, // placeholder — matchmaking cron will pair it
+      crew_b_id: null, // filled in by matchmaking cron when a rival is found
       status:    'matchmaking',
     })
     .select()
@@ -140,8 +140,8 @@ export async function requestRematch(warId, crewId) {
 // ── Scoring helpers ───────────────────────────────────────────────────────────
 
 export function getWarScore(war, crewId) {
-  if (!war) return 0;
-  return war.crew_a_id === crewId ? war.crew_a_score : war.crew_b_score;
+  if (!war || !crewId) return 0;
+  return war.crew_a_id === crewId ? (war.crew_a_score ?? 0) : (war.crew_b_score ?? 0);
 }
 
 export function getOpponentCrewId(war, myCrewId) {
@@ -150,8 +150,8 @@ export function getOpponentCrewId(war, myCrewId) {
 }
 
 export function getOpponentScore(war, myCrewId) {
-  if (!war) return 0;
-  return war.crew_a_id === myCrewId ? war.crew_b_score : war.crew_a_score;
+  if (!war || !myCrewId) return 0;
+  return war.crew_a_id === myCrewId ? (war.crew_b_score ?? 0) : (war.crew_a_score ?? 0);
 }
 
 export function isWarWinner(war, crewId) {
