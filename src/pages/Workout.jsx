@@ -10,7 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -32,6 +32,7 @@ import { reportError } from '@/lib/reportError';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
+import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
@@ -81,6 +82,7 @@ export default function Workout() {
   const [editingLog, setEditingLog] = useState(null);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   const [regimensOpen, setRegimensOpen] = useState(false);
+  const [storeOpen, setStoreOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
   const [generatorOpen, setGeneratorOpen] = useState(false);
@@ -824,6 +826,8 @@ export default function Workout() {
           <div className="mb-8">
             <CardioSection onBack={() => setCardioOpen(false)} />
           </div>
+        ) : storeOpen ? (
+          <RegimenStorePage onBack={() => setStoreOpen(false)} />
         ) : !regimensOpen ? (
           <>
             {/* Primary action */}
@@ -1000,6 +1004,44 @@ export default function Workout() {
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.savedWorkoutsDesc') || 'View your past workouts'}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Explore Regimens — spans 2 columns to stand out as a discovery surface */}
+              <motion.div
+                variants={itemVariants}
+                whileHover={{ y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+                className="md:col-span-2"
+              >
+                <Card
+                  role="button"
+                  tabIndex={0}
+                  aria-label="Explore Regimens"
+                  className="group relative overflow-hidden p-4 cursor-pointer border-primary/25 bg-gradient-to-r from-primary/5 via-violet-500/5 to-primary/5 hover:border-primary/50 hover:from-primary/10 hover:via-violet-500/8 hover:to-primary/10 transition-all h-full"
+                  onClick={() => setStoreOpen(true)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
+                >
+                  {/* Subtle shimmer line */}
+                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-primary/30 group-hover:to-violet-500/30 transition-colors">
+                      <Globe className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                        Browse &amp; adopt top-rated community programs
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
