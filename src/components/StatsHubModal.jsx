@@ -6,7 +6,10 @@
 // LevelBar in the header so users can reach it from any page.
 
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+// useNavigate import removed — all nav tiles now use event-dispatch
+// helpers (requestOpenBag / requestOpenAchievements) or local state
+// (setLeagueOpen, setLeaderboardsOpen, setShopOpen) rather than route
+// navigation.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
@@ -27,6 +30,7 @@ import LeaderboardsModal from '@/components/LeaderboardsModal';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { requestOpenBag } from '@/lib/inventoryFlow';
+import { requestOpenAchievements } from '@/lib/achievementsFlow';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
@@ -35,7 +39,6 @@ import { RARITY } from '@/lib/lootCatalog';
 export default function StatsHubModal({ open, onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
-  const navigate = useNavigate();
   const qc = useQueryClient();
   const [leagueOpen, setLeagueOpen] = useState(false);
   const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
@@ -92,11 +95,6 @@ export default function StatsHubModal({ open, onClose }) {
   const initials = (profile?.username || user?.username || user?.email || '?')
     .slice(0, 2)
     .toUpperCase();
-
-  const handleNavigate = (path) => {
-    onClose();
-    setTimeout(() => navigate(path), 150);
-  };
 
   return (
     <>
@@ -209,8 +207,12 @@ export default function StatsHubModal({ open, onClose }) {
 
             {/* Quick links — destinations handle their own opening:
                   - Leaderboards: in-modal LeaderboardsModal
-                  - Achievements: navigate to /progress?tab=achievements
-                                  (Progress.jsx reads ?tab= and selects it)
+                  - Achievements: fires OPEN_ACHIEVEMENTS_EVENT —
+                                  ProfileMenu opens AchievementsVault
+                                  globally (works from any route).
+                                  Previously navigated to
+                                  /progress?tab=achievements before the
+                                  surface moved off Progress.
                   - Bag: fires OPEN_BAG_EVENT — Layout's useBagFlow opens
                          the bag globally (works from any route)
                   - Coin Shop: in-modal CoinShopModal */}
@@ -226,7 +228,7 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Sparkles}
                 label={tFallback('statsHub.achievements', 'Achievements')}
-                onClick={() => handleNavigate('/progress?tab=achievements')}
+                onClick={() => { onClose(); requestOpenAchievements(); }}
               />
               <NavTile
                 icon={Package}

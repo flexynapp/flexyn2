@@ -30,6 +30,11 @@ import { db } from '@/api/db';
 import { ChevronLeft, Trophy } from 'lucide-react';
 import AchievementsTab from '@/components/progress/AchievementsTab';
 
+// The OPEN_ACHIEVEMENTS_EVENT constant + requestOpenAchievements helper
+// live in src/lib/achievementsFlow.js so callers can import the
+// lightweight event name without pulling in this whole component
+// (which would defeat ProfileMenu's lazy() chunking).
+
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
   const { data: achievements = [] } = useQuery({

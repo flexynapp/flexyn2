@@ -24,6 +24,7 @@ import AccountDeletedScreen from './AccountDeletedScreen';
 const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
 const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
 const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
+import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
@@ -212,6 +213,16 @@ export default function ProfileMenu() {
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Listen for the global "open achievements" event so external
+  // surfaces (e.g. StatsHubModal's Achievements tile) can open the
+  // vault without holding a ref to ProfileMenu. Mirrors the
+  // OPEN_BAG_EVENT pattern in inventoryFlow.js.
+  useEffect(() => {
+    const handler = () => setAchievementsOpen(true);
+    window.addEventListener(OPEN_ACHIEVEMENTS_EVENT, handler);
+    return () => window.removeEventListener(OPEN_ACHIEVEMENTS_EVENT, handler);
   }, []);
 
   const initials = user?.full_name
