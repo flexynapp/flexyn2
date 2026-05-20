@@ -956,7 +956,7 @@ export default function Workout() {
               initial="hidden"
               animate="visible"
             >
-              {/* Row 1: Explore Regimens (1-2), Cardio (3), Generate Workout (4) */}
+              {/* Row 1: Explore Regimens (1-2), Saved Workouts (3), Generate Workout (4) */}
 
               {/* 1-2: Explore Regimens */}
               <motion.div
@@ -995,21 +995,20 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* 3: Cardio */}
+              {/* 3: Saved Workouts */}
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setCardioOpen(true)}
+                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
+                  onClick={() => setSavedWorkoutsOpen(true)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                      <Activity className="w-5 h-5 text-primary" />
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
+                      <History className="w-5 h-5 text-orange-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
+                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.savedWorkouts') || 'Saved Workouts'}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
@@ -1043,7 +1042,7 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 2: Regimens (5-6), Saved Workouts (7), Goals (8) */}
+              {/* Row 2: Regimens (5-6), Cardio (7), Goals (8) */}
 
               {/* 5-6: Regimens */}
               <motion.div
@@ -1070,21 +1069,21 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* 7: Saved Workouts */}
+              {/* 7: Cardio */}
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-accent/40 transition-colors h-full"
-                  onClick={() => setSavedWorkoutsOpen(true)}
+                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
+                  onClick={() => setCardioOpen(true)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/15 transition-colors">
-                      <History className="w-5 h-5 text-accent" />
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                      <Activity className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.savedWorkouts') || 'Saved Workouts'}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.savedWorkoutsDesc') || 'View your past workouts'}</p>
+                      <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
@@ -1092,18 +1091,17 @@ export default function Workout() {
               {/* 8: Goals */}
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-accent/40 transition-colors h-full"
+                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
                   onClick={() => setGoalsModalOpen(true)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0 group-hover:bg-accent/15 transition-colors">
-                      <Target className="w-5 h-5 text-accent" />
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
+                      <Target className="w-5 h-5 text-orange-500" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.goalsDesc')}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-accent group-hover:translate-x-0.5 transition-all shrink-0" />
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
