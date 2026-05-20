@@ -6,6 +6,9 @@
 # Site configuration → Environment variables → Add variables:
 #   VITE_SUPABASE_URL
 #   VITE_SUPABASE_ANON_KEY
+#   VITE_MAPTILER_KEY     (free key from maptiler.com/cloud; drives the
+#                          vector basemap on cardio route maps. If
+#                          unset, the app falls back to OpenFreeMap.)
 # Never hardcode secrets here — this file is committed to version control.
 
 [[redirects]]

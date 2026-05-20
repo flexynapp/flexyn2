@@ -32,16 +32,34 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
-// OpenFreeMap "liberty" — the most visually detailed of the four
-// available styles (positron / bright / liberty / dark). Liberty is
-// the closest match to the classic OSM "Mapnik" raster look: full
-// color, road labels, parks shaded green, water tinted blue, building
-// footprints visible at high zoom. The earlier choice of "positron"
-// was a deliberately minimal grayscale style — it looked nice in
-// isolation but made saved-route posts feel washed out compared to
-// the old Leaflet+raster-OSM rendering. Liberty restores that
-// information density while keeping the vector smoothness wins.
-const OPENFREEMAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/liberty';
+// Tile source resolution — two providers, picked at build time:
+//
+//   1. MapTiler "streets-v2" (preferred)
+//      Highest-quality vector tiles available without enterprise
+//      tooling. Full label hierarchy, multi-stop road styling, POI
+//      icons, terrain shading. Requires a free API key from
+//      maptiler.com/cloud (free tier: 100k tile requests/month —
+//      plenty for a fitness app at this stage).
+//
+//   2. OpenFreeMap "liberty" (fallback, no key)
+//      Community-hosted, MIT-licensed vector tiles. Visually
+//      reasonable but noticeably less detailed than MapTiler.
+//      Used when VITE_MAPTILER_KEY is unset so the app still
+//      renders a map for contributors who haven't pulled the env
+//      var yet.
+//
+// Both render via the same MapLibre GL JS engine — only the style
+// JSON URL changes.
+//
+// To switch to MapTiler:
+//   1. Sign up at https://www.maptiler.com/cloud/ (30 seconds, free).
+//   2. Copy your Default API Key from the Account → Keys page.
+//   3. Add to .env.local:  VITE_MAPTILER_KEY=your_key_here
+//   4. Restart `npm run dev` (or rebuild for prod).
+const MAPTILER_KEY = import.meta.env.VITE_MAPTILER_KEY;
+const STYLE_URL = MAPTILER_KEY
+  ? `https://api.maptiler.com/maps/streets-v2/style.json?key=${MAPTILER_KEY}`
+  : 'https://tiles.openfreemap.org/styles/liberty';
 
 /** Read the app's --primary CSS variable and return a usable hsl() string. */
 function getPrimaryColor() {
@@ -75,7 +93,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: OPENFREEMAP_STYLE_URL,
+      style: STYLE_URL,
       bounds,
       fitBoundsOptions: { padding: 24, animate: false },
       // Disable everything when non-interactive (hub post cards) so
@@ -186,33 +204,57 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
       <div ref={containerRef} className="absolute inset-0" />
 
       {/* Custom attribution — a single 18px ⓘ button bottom-right.
-          Tap to reveal the OSM + OpenFreeMap credit (legally required
-          but visually unobtrusive). This is the smallest compliant
-          form: a clearly-discoverable affordance that reveals the
-          attribution. Default state shows ONLY the icon, no text. */}
+          Tap to reveal the credit (legally required but visually
+          unobtrusive). The exact links shown depend on which tile
+          provider is active: MapTiler swaps in their credit, OFM
+          falls back to OSM-only. Default state shows only the icon. */}
       <div className="absolute bottom-1.5 right-1.5 flex items-end gap-1 pointer-events-none">
         {attribOpen && (
           <div
             className="pointer-events-auto bg-white/85 dark:bg-black/70 backdrop-blur-sm text-[9px] leading-tight px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-200"
             style={{ fontFamily: 'system-ui, sans-serif' }}
           >
-            <a
-              href="https://openfreemap.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              OFM
-            </a>
-            {' · '}
-            <a
-              href="https://openstreetmap.org/copyright"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:underline"
-            >
-              OSM
-            </a>
+            {MAPTILER_KEY ? (
+              <>
+                <a
+                  href="https://www.maptiler.com/copyright/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  MapTiler
+                </a>
+                {' · '}
+                <a
+                  href="https://openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  OSM
+                </a>
+              </>
+            ) : (
+              <>
+                <a
+                  href="https://openfreemap.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  OFM
+                </a>
+                {' · '}
+                <a
+                  href="https://openstreetmap.org/copyright"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  OSM
+                </a>
+              </>
+            )}
           </div>
         )}
         <button
