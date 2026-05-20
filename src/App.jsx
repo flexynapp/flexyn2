@@ -59,6 +59,7 @@ const Workout   = lazy(() => import('./pages/Workout'));
 const Progress  = lazy(() => import('./pages/Progress'));
 const Hub       = lazy(() => import('./pages/Hub'));
 const Duels     = lazy(() => import('./pages/Duels'));
+const Bounties  = lazy(() => import('./pages/Bounties'));
 const Messages  = lazy(() => import('./pages/Messages'));
 const Market    = lazy(() => import('./pages/Market'));
 const Coach     = lazy(() => import('./pages/Coach'));
@@ -179,6 +180,7 @@ const AuthenticatedApp = () => {
           <Route path="/coach"     element={<ErrorBoundary label="Coach"><Suspense fallback={<PageLoader />}><Coach /></Suspense></ErrorBoundary>} />
           <Route path="/progress"  element={<ErrorBoundary label="Progress"><Suspense fallback={<PageLoader />}><Progress /></Suspense></ErrorBoundary>} />
           <Route path="/duels"     element={<ErrorBoundary label="Duels"><Suspense fallback={<PageLoader />}><Duels /></Suspense></ErrorBoundary>} />
+          <Route path="/bounties"  element={<ErrorBoundary label="Bounties"><Suspense fallback={<PageLoader />}><Bounties /></Suspense></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>

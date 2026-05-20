@@ -1,0 +1,262 @@
+// src/lib/data/bounties.js
+// Bounty System — auto-generated social challenges with Flex Coin rewards.
+
+import { supabase } from '@/api/supabaseClient';
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+
+export const DIFFICULTY_CONFIG = {
+  easy:   { entry_fee: 10, reward: 60,  net: 50,  hours: 48, label: 'Easy',   color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+  medium: { entry_fee: 15, reward: 100, net: 85,  hours: 48, label: 'Medium', color: 'text-amber-500',   bg: 'bg-amber-500/10'   },
+  hard:   { entry_fee: 20, reward: 175, net: 155, hours: 72, label: 'Hard',   color: 'text-rose-500',    bg: 'bg-rose-500/10'    },
+};
+
+export const METRIC_LABEL = {
+  single_lift_weight: 'Max weight on',
+  single_lift_reps:   'Max reps on',
+  weekly_volume:      'Weekly volume',
+  session_volume:     'Session volume',
+};
+
+/** Human-readable bounty description for a given row */
+export function bountyDescription(bounty) {
+  const metric = METRIC_LABEL[bounty.metric] || bounty.metric;
+  if (bounty.exercise_name) {
+    return `${metric} ${bounty.exercise_name} — beat ${Math.round(bounty.target_value).toLocaleString()}${bounty.metric === 'single_lift_weight' ? ' lbs' : ' reps'}`;
+  }
+  return `${metric} — beat ${Math.round(bounty.target_value).toLocaleString()} lbs`;
+}
+
+// ── Queries ───────────────────────────────────────────────────────────────────
+
+/**
+ * All active bounties the current user can potentially claim.
+ * Excludes expired, excludes bounties targeting the current user.
+ */
+export async function listActiveBounties() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('bounties')
+    .select('*')
+    .gt('expires_at', new Date().toISOString())
+    .neq('target_user_id', user.id)
+    .order('created_at', { ascending: false })
+    .limit(30);
+
+  return error ? [] : (data ?? []);
+}
+
+/** Current user's active bounty claim (there can be at most one). */
+export async function getMyActiveClaim() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  const { data, error } = await supabase
+    .from('bounty_claims')
+    .select('*, bounties(*)')
+    .eq('claimant_id', user.id)
+    .eq('status', 'active')
+    .order('claimed_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  return error ? null : data;
+}
+
+/** Full claim history for the current user. */
+export async function getMyClaims(limit = 20) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data, error } = await supabase
+    .from('bounty_claims')
+    .select('*, bounties(*)')
+    .eq('claimant_id', user.id)
+    .order('claimed_at', { ascending: false })
+    .limit(limit);
+
+  return error ? [] : (data ?? []);
+}
+
+// ── Mutations ─────────────────────────────────────────────────────────────────
+
+/**
+ * Claim a bounty — calls the claim_bounty RPC.
+ * Throws with structured message on failure.
+ */
+export async function claimBounty(bountyId) {
+  const { data, error } = await supabase.rpc('claim_bounty', { p_bounty_id: bountyId });
+  if (error) throw error;
+  return data; // claim UUID
+}
+
+/**
+ * Complete a bounty claim — calls complete_bounty_claim RPC.
+ * @param {string} claimId
+ * @param {string|null} workoutLogId  — the log that completed it
+ */
+export async function completeBountyClaim(claimId, workoutLogId = null) {
+  const { error } = await supabase.rpc('complete_bounty_claim', {
+    p_claim_id:       claimId,
+    p_workout_log_id: workoutLogId ?? null,
+  });
+  if (error) throw error;
+}
+
+/**
+ * Client-side completion check — call after every workout save.
+ * Compares the log's volume/weight against the active bounty target.
+ * Returns true if the bounty was completed (and the RPC was called).
+ */
+export async function checkAndCompleteBounty(workoutLog) {
+  try {
+    const claim = await getMyActiveClaim();
+    if (!claim || !claim.bounties) return false;
+
+    const bounty = claim.bounties;
+    const { metric, target_value, exercise_name } = bounty;
+
+    let achieved = null;
+
+    if (metric === 'session_volume' || metric === 'weekly_volume') {
+      // Volume = sum of weight × reps across all sets in the log
+      let vol = 0;
+      for (const ex of workoutLog.exercises || []) {
+        for (const s of ex.sets || []) {
+          vol += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+        }
+      }
+      achieved = vol;
+    } else if (metric === 'single_lift_weight' && exercise_name) {
+      // Max weight on a specific exercise
+      for (const ex of workoutLog.exercises || []) {
+        if (ex.name?.toLowerCase() === exercise_name.toLowerCase()) {
+          for (const s of ex.sets || []) {
+            if ((Number(s.weight) || 0) > (achieved ?? 0)) achieved = Number(s.weight);
+          }
+        }
+      }
+    } else if (metric === 'single_lift_reps' && exercise_name) {
+      // Max reps on a specific exercise
+      for (const ex of workoutLog.exercises || []) {
+        if (ex.name?.toLowerCase() === exercise_name.toLowerCase()) {
+          for (const s of ex.sets || []) {
+            if ((Number(s.reps) || 0) > (achieved ?? 0)) achieved = Number(s.reps);
+          }
+        }
+      }
+    }
+
+    if (achieved === null || achieved <= target_value) return false;
+
+    await completeBountyClaim(claim.id, workoutLog?.id ?? null);
+    return true;
+  } catch {
+    return false; // non-critical — don't surface to user
+  }
+}
+
+// ── Generation (beta / client-side) ──────────────────────────────────────────
+
+/**
+ * Generate sample bounties for beta testing.
+ * Production: this logic runs server-side in the daily Edge Function cron.
+ * Here it creates 2-3 bounties based on the user's social graph with
+ * realistic-looking targets so the claim/complete flow can be tested.
+ */
+export async function generateDemoBounties() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  // Fetch own profile to get email for hub_follows lookup
+  const { data: myProfile } = await supabase
+    .from('user_profiles')
+    .select('email, total_xp')
+    .eq('id', user.id)
+    .single();
+
+  if (!myProfile) throw new Error('Profile not found');
+
+  // Get followed users via email column
+  const { data: follows } = await supabase
+    .from('hub_follows')
+    .select('followee_email')
+    .eq('follower_email', myProfile.email)
+    .limit(10);
+
+  let targetProfiles = [];
+
+  if (follows?.length) {
+    const emails = follows.map(f => f.followee_email);
+    const { data: profiles } = await supabase
+      .from('user_profiles')
+      .select('id, username, avatar_url, total_xp')
+      .in('email', emails)
+      .not('username', 'is', null)
+      .limit(5);
+    targetProfiles = profiles ?? [];
+  }
+
+  // Fallback: random users if not following anyone
+  if (!targetProfiles.length) {
+    const { data: randoms } = await supabase
+      .from('user_profiles')
+      .select('id, username, avatar_url, total_xp')
+      .neq('id', user.id)
+      .not('username', 'is', null)
+      .limit(5);
+    targetProfiles = randoms ?? [];
+  }
+
+  if (!targetProfiles.length) throw new Error('No users to target');
+
+  // Templates: mix of volume and lift bounties
+  const templates = [
+    { metric: 'weekly_volume',       exercise_name: null,        difficulty: 'medium', scale: 50000 },
+    { metric: 'session_volume',      exercise_name: null,        difficulty: 'easy',   scale: 15000 },
+    { metric: 'single_lift_weight',  exercise_name: 'Bench Press', difficulty: 'hard', scale: 225   },
+    { metric: 'weekly_volume',       exercise_name: null,        difficulty: 'hard',   scale: 80000 },
+    { metric: 'single_lift_weight',  exercise_name: 'Squat',     difficulty: 'medium', scale: 185   },
+  ];
+
+  const rows = [];
+  const usedTargetIds = new Set();
+
+  for (const tmpl of templates.slice(0, 3)) {
+    // Pick an unused target
+    const available = targetProfiles.filter(p => !usedTargetIds.has(p.id));
+    if (!available.length) break;
+    const target = available[Math.floor(Math.random() * available.length)];
+    usedTargetIds.add(target.id);
+
+    const cfg = DIFFICULTY_CONFIG[tmpl.difficulty];
+    // Add ±10% jitter to target value
+    const jitter = 0.9 + Math.random() * 0.2;
+    const target_value = Math.round(tmpl.scale * jitter);
+
+    rows.push({
+      target_user_id:    target.id,
+      target_username:   target.username,
+      target_avatar_url: target.avatar_url ?? null,
+      metric:            tmpl.metric,
+      exercise_name:     tmpl.exercise_name,
+      target_value,
+      difficulty:        tmpl.difficulty,
+      entry_fee:         cfg.entry_fee,
+      reward:            cfg.reward,
+      expires_at:        new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+    });
+  }
+
+  if (!rows.length) throw new Error('Could not build any bounties');
+
+  const { data, error } = await supabase
+    .from('bounties')
+    .insert(rows)
+    .select();
+
+  if (error) throw error;
+  return data ?? [];
+}

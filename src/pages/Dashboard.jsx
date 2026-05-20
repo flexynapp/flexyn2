@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale, ChevronRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -24,6 +24,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import NemesisCard from '@/components/nemesis/NemesisCard';
 import PrestigePrompt from '@/components/prestige/PrestigePrompt';
 import { isPrestigeEligible } from '@/lib/data/prestige';
+import { listActiveBounties } from '@/lib/data/bounties';
+import BountyCard from '@/components/bounties/BountyCard';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -219,6 +221,60 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0 }) {
 /* ──────────────────────────────────────────────────────────────────
  *  Main Dashboard
  * ────────────────────────────────────────────────────────────────── */
+
+function BountyPreviewCard() {
+  const navigate = useNavigate();
+  const { data: bounties = [], isLoading } = useQuery({
+    queryKey:  ['activeBounties'],
+    queryFn:   listActiveBounties,
+    staleTime: 5 * 60_000,
+  });
+
+  if (isLoading) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-2xl border border-amber-500/20 bg-amber-500/3 overflow-hidden mb-4"
+    >
+      <button
+        onClick={() => navigate('/bounties')}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-amber-500/5 transition-colors"
+      >
+        <div className="w-8 h-8 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0">
+          <Zap className="w-4 h-4 text-amber-500" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-xs font-black uppercase tracking-wider text-amber-600">Bounties</p>
+          <p className="text-xs text-muted-foreground">
+            {bounties.length > 0
+              ? `${bounties.length} active bounty${bounties.length !== 1 ? 's' : ''} available`
+              : 'Daily social challenges for Flex Coins'}
+          </p>
+        </div>
+        <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+      </button>
+
+      {/* Preview up to 2 bounties */}
+      {bounties.length > 0 && (
+        <div className="px-4 pb-4 space-y-2">
+          {bounties.slice(0, 2).map(b => (
+            <BountyCard key={b.id} bounty={b} compact hasActiveClaim={false} />
+          ))}
+          {bounties.length > 2 && (
+            <button
+              onClick={() => navigate('/bounties')}
+              className="w-full text-xs text-amber-600 font-semibold py-1.5 hover:underline"
+            >
+              +{bounties.length - 2} more — View all
+            </button>
+          )}
+        </div>
+      )}
+    </motion.div>
+  );
+}
 
 export default function Dashboard() {
   const { t } = useLanguage();
@@ -520,6 +576,11 @@ export default function Dashboard() {
       {/* ── Nemesis card ───────────────────────────────────────── */}
       <ErrorBoundary label="NemesisCard">
         <NemesisCard currentUserId={user?.id} />
+      </ErrorBoundary>
+
+      {/* ── Bounties preview card ───────────────────────────────── */}
+      <ErrorBoundary label="BountyPreview">
+        <BountyPreviewCard />
       </ErrorBoundary>
 
       {/* ── Login + Workout streak banners ──────────────────────── */}

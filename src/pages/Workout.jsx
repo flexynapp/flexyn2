@@ -45,6 +45,8 @@ import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
 import DuelBanner from '@/components/duels/DuelBanner';
 import { getActiveDuel } from '@/lib/data/duels';
+import BountyBanner from '@/components/bounties/BountyBanner';
+import { getMyActiveClaim } from '@/lib/data/bounties';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import * as capsules from '@/lib/data/capsules';
@@ -185,6 +187,14 @@ export default function Workout() {
   const { data: activeDuel } = useQuery({
     queryKey:  ['activeDuel', user?.id],
     queryFn:   getActiveDuel,
+    enabled:   !!user?.id,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
+
+  const { data: activeBountyClaim } = useQuery({
+    queryKey:  ['myActiveBountyClaim'],
+    queryFn:   getMyActiveClaim,
     enabled:   !!user?.id,
     staleTime: 60_000,
     refetchInterval: 120_000,
@@ -965,6 +975,11 @@ export default function Workout() {
             duel={activeDuel}
             currentUserId={user?.id}
           />
+        )}
+
+        {/* Bounty banner — shown when user has an active bounty claim */}
+        {activeBountyClaim && (
+          <BountyBanner claim={activeBountyClaim} />
         )}
 
         {cardioOpen ? (
