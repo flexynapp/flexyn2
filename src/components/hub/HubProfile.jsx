@@ -97,6 +97,7 @@ import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as me from '@/lib/data/me';
@@ -179,11 +180,26 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryKey: ['hubProfileLookup', email],
     queryFn: async () => {
       if (isSelf) return null;
-      const { data } = await supabase
-        .from('user_profiles')
-        .select('email, username, avatar_url, total_xp, preferred_theme, loot_theme_id, equipped_title_id, equipped_frame_id, city, country_flag, bio, trophy_case, trophy_case_visible')
-        .eq('email', email)
-        .single();
+      // safeSelect strips columns that aren't in the PostgREST schema
+      // cache yet (e.g. country_flag / trophy_case if migration 049
+      // is pending) and retries — so a mid-migration deploy doesn't
+      // crash the Hub. Existing `?.` / `??` fallback patterns on
+      // these fields downstream still render correctly when a
+      // column is absent.
+      const { data } = await safeSelect({
+        columns: [
+          'email', 'username', 'avatar_url', 'total_xp',
+          'preferred_theme', 'loot_theme_id',
+          'equipped_title_id', 'equipped_frame_id',
+          'city', 'country_flag', 'bio',
+          'trophy_case', 'trophy_case_visible',
+        ],
+        build: (cols) => supabase
+          .from('user_profiles')
+          .select(cols)
+          .eq('email', email)
+          .single(),
+      });
       if (!data) return targetUser || null;
       return { ...data, username: data.username || targetUser?.username || null };
     },

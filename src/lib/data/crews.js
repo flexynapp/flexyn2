@@ -1,5 +1,6 @@
 // src/lib/data/crews.js
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
 
 const CREW_XP_FUEL_AMOUNT = 500;
@@ -296,12 +297,18 @@ export async function getUnclaimedXpFuels(crewId, userId) {
 export async function getCrewStories(crewId) {
   if (!crewId) return [];
   const cutoff = new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString();
-  const { data, error } = await supabase
-    .from('stories')
-    .select('id, user_id, image_url, media_type, overlay_style, created_at')
-    .eq('crew_id', crewId)
-    .gt('created_at', cutoff)
-    .order('created_at', { ascending: false });
+  // media_type (045) + overlay_style (046) may be missing in
+  // mid-migration environments; safeSelect strips and retries so the
+  // crew chat header doesn't crash on a partial deploy.
+  const { data, error } = await safeSelect({
+    columns: ['id', 'user_id', 'image_url', 'media_type', 'overlay_style', 'created_at'],
+    build: (cols) => supabase
+      .from('stories')
+      .select(cols)
+      .eq('crew_id', crewId)
+      .gt('created_at', cutoff)
+      .order('created_at', { ascending: false }),
+  });
   return error ? [] : (data ?? []);
 }
 

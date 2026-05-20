@@ -3,6 +3,7 @@
 // 24/25-hour photo stories with likes, view insights, status notes, and privacy.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { findOrCreateConversation, sendMessage } from './hubMessages';
 
 /**
@@ -30,10 +31,14 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       .gt('expires_at', now)
       .order('created_at', { ascending: true }),
 
-    supabase
-      .from('user_profiles')
-      .select('email, username, avatar_url, story_dms_disabled, default_story_privacy')
-      .in('email', allEmails),
+    // story_dms_disabled (migration 046) + default_story_privacy
+    // (migration 047) may be missing in mid-migration environments;
+    // safeSelect strips and retries so the StoriesRow doesn't crash
+    // the Hub when one of those migrations is pending.
+    safeSelect({
+      columns: ['email', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
+      build: (cols) => supabase.from('user_profiles').select(cols).in('email', allEmails),
+    }),
 
     supabase
       .from('story_views')
