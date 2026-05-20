@@ -25,11 +25,19 @@ const SKU_TO_CAMEL = {
   streak_freeze:    'streakFreeze',
 };
 
+// Admin sandbox: same list as MarketplaceFeed
+const ADMIN_USERNAMES = ['sean', 'seanj', 'kegan', 'admin'];
+
 export default function CoinShopModal({ open, onClose }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
   const [busySku, setBusySku] = useState(null);
+
+  // Admin bypass — skip RPC (which validates real DB balance) and directly grant
+  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || '';
+  const isAdmin = ADMIN_USERNAMES.includes(user?.username?.toLowerCase()) ||
+                  ADMIN_USERNAMES.includes(emailPrefix);
 
   // Subscribe to balance so the header updates after each purchase
   const { data: profile } = useQuery({
@@ -53,9 +61,46 @@ export default function CoinShopModal({ open, onClose }) {
     if (busySku) return;
     setBusySku(sku);
     try {
-      const result = await purchaseItem(user, sku);
+      const item = SHOP_CATALOG[sku];
+      let result;
+
+      if (isAdmin) {
+        // Admin sandbox bypass — skip coin validation RPC and directly grant the item.
+        // Admins carry a client-cached 1,000,000 flex coin balance but have low real DB balance.
+        try {
+          if (item.grants.type === 'capsule') {
+            const { error } = await supabase.from('user_capsules').insert({
+              user_id: user.id,
+              user_email: user.email,
+              capsule_type: item.grants.capsuleType,
+            });
+            if (error) throw error;
+            result = { success: true, granted: { type: 'capsule', capsuleType: item.grants.capsuleType } };
+          } else if (item.grants.type === 'streak_freeze') {
+            // Read current count first, then increment
+            const { data: prof } = await supabase
+              .from('user_profiles')
+              .select('streak_freezes_available')
+              .eq('id', user.id)
+              .maybeSingle();
+            const current = prof?.streak_freezes_available ?? 0;
+            const { error } = await supabase
+              .from('user_profiles')
+              .update({ streak_freezes_available: current + item.grants.amount })
+              .eq('id', user.id);
+            if (error) throw error;
+            result = { success: true, granted: { type: 'streak_freeze', amount: item.grants.amount } };
+          } else {
+            result = { success: false, error: 'unknown_grant_type' };
+          }
+        } catch (err) {
+          result = { success: false, error: err?.message || 'admin_grant_failed' };
+        }
+      } else {
+        result = await purchaseItem(user, sku);
+      }
+
       if (result.success) {
-        const item = SHOP_CATALOG[sku];
         // Use translated item name in the success toast
         const camel = SKU_TO_CAMEL[item.sku];
         const itemNameKey = camel ? `shop.${camel}.name` : null;
@@ -121,7 +166,7 @@ export default function CoinShopModal({ open, onClose }) {
               <ShopRow
                 key={item.sku}
                 item={item}
-                balance={balance}
+                balance={isAdmin ? 1_000_000 : balance}
                 busy={busySku === item.sku}
                 onBuy={() => handlePurchase(item.sku)}
                 t={t}

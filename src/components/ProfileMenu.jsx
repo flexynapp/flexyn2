@@ -3,7 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft } from 'lucide-react';
+import { format, subDays, addDays } from 'date-fns';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
@@ -16,6 +17,96 @@ import { useLanguage } from '@/lib/LanguageContext';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
+// ─── My Journal ───────────────────────────────────────────────────────────────
+const JOURNAL_KEY = (email, dateStr) => `journal_${email}_${dateStr}`;
+
+function JournalView({ userEmail, onClose }) {
+  const [activeDate, setActiveDate] = useState(new Date());
+  const dateStr = format(activeDate, 'yyyy-MM-dd');
+  const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
+  const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+
+  const [text, setText] = useState(() => {
+    try { return localStorage.getItem(JOURNAL_KEY(userEmail, format(new Date(), 'yyyy-MM-dd'))) || ''; } catch { return ''; }
+  });
+
+  useEffect(() => {
+    try {
+      setText(localStorage.getItem(JOURNAL_KEY(userEmail, dateStr)) || '');
+    } catch { setText(''); }
+  }, [dateStr, userEmail]);
+
+  const handleChange = (e) => {
+    if (!isToday) return;
+    const val = e.target.value;
+    setText(val);
+    try { localStorage.setItem(JOURNAL_KEY(userEmail, dateStr), val); } catch {}
+  };
+
+  const goBack = () => setActiveDate(d => subDays(d, 1));
+  const goForward = () => {
+    const next = addDays(activeDate, 1);
+    if (next <= new Date()) setActiveDate(next);
+  };
+  const canGoForward = !isToday;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 32 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+      className="fixed inset-0 z-[200] bg-background flex flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="flex items-center gap-1.5">
+          <Book className="w-4 h-4 text-primary" />
+          <span className="font-heading font-bold text-base">My Journal</span>
+        </div>
+        <div className="w-16" />
+      </div>
+
+      {/* Date navigation */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-secondary/20">
+        <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-bold text-foreground">{displayDate}</p>
+          {isToday && <p className="text-[11px] text-primary font-semibold">Today</p>}
+        </div>
+        <button onClick={goForward} disabled={!canGoForward} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Journal text area */}
+      <div className="flex-1 flex flex-col px-4 py-4 overflow-hidden">
+        <textarea
+          value={text}
+          onChange={handleChange}
+          readOnly={!isToday}
+          placeholder={isToday ? "How was your session today? Log your lifts, notes, or how you felt…" : "No entry for this day."}
+          className="flex-1 w-full bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
+          style={{ fontFamily: 'inherit' }}
+        />
+      </div>
+
+      {/* Footer hint */}
+      <div className="px-4 py-2 border-t border-border shrink-0">
+        <p className="text-[11px] text-muted-foreground text-center">
+          {isToday ? 'Auto-saved · Use ← to browse past entries' : 'Read-only · Navigate to today to write'}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
 
 function wipeLocalClientState() {
   clearFirstLaunch();
@@ -44,6 +135,7 @@ export default function ProfileMenu() {
   const [view, setView] = useState('main'); // 'main' | 'settings'
   const [isDeleting, setIsDeleting] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -190,7 +282,7 @@ export default function ProfileMenu() {
                             ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                             : <UserCircle className="w-3.5 h-3.5 text-primary" />}
                         </div>
-                        Account
+                        Profile
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -224,6 +316,19 @@ export default function ProfileMenu() {
                         )}
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        setJournalOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Book className="w-4 h-4" />
+                        My Journal
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
                     <ThemePicker />
                     <button
@@ -308,6 +413,16 @@ export default function ProfileMenu() {
               </button>
             )}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* My Journal — global overlay, accessible from any page */}
+      <AnimatePresence>
+        {journalOpen && user && (
+          <JournalView
+            userEmail={user?.email}
+            onClose={() => setJournalOpen(false)}
+          />
         )}
       </AnimatePresence>
     </div>

@@ -718,7 +718,7 @@ export default function MarketplaceFeed() {
         // without touching any coin ledgers.
         const { error: listErr } = await supabase
           .from('marketplace_listings')
-          .update({ status: 'completed', buyer_user_id: user.id, buyer_email: user.email })
+          .update({ status: 'completed', buyer_user_id: user.id })
           .eq('id', buyTarget.id);
         if (listErr) throw listErr;
         const { error: invErr } = await supabase
