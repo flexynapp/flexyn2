@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Search, Download, ChevronLeft, ChevronDown, ChevronUp,
-  Dumbbell, Users, Star, Flame,
+  Dumbbell, Users, Star, Flame, Plus,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -217,7 +217,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
 
 // ── Main store page ───────────────────────────────────────────────────────────
 
-export default function RegimenStorePage({ onBack }) {
+export default function RegimenStorePage({ onBack, onPublish }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
@@ -379,25 +379,73 @@ export default function RegimenStorePage({ onBack }) {
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-16"
-        >
-          <Dumbbell className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-          <p className="font-heading font-bold text-base mb-1">
-            {search || muscleFilter !== 'All' ? 'No results' : 'No public regimens yet'}
-          </p>
-          <p className="text-sm text-muted-foreground max-w-xs mx-auto">
-            {search
-              ? 'Try different keywords or clear the search.'
-              : muscleFilter !== 'All'
-                ? `No public regimens targeting ${muscleFilter} yet.`
-                : 'Be the first — make a regimen public in your Regimens tab.'}
-          </p>
-        </motion.div>
+        <div className="space-y-3">
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            onClick={onPublish}
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
+              <Plus className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                Publish a Regimen
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Build your own program and share it with the community
+              </p>
+            </div>
+            <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors rotate-180 shrink-0" />
+          </motion.button>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-10"
+          >
+            <Dumbbell className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+            <p className="font-semibold text-sm">
+              {search || muscleFilter !== 'All' ? 'No results' : 'No public regimens yet'}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1 max-w-xs mx-auto">
+              {search
+                ? 'Try different keywords or clear the search.'
+                : muscleFilter !== 'All'
+                  ? `No public regimens targeting ${muscleFilter} yet.`
+                  : 'Be the first to publish one above!'}
+            </p>
+          </motion.div>
+        </div>
       ) : (
         <div className="space-y-3">
+          {/* ── Publish slot — always first ──────────────────────────────── */}
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: 'spring', stiffness: 380, damping: 22 }}
+            onClick={onPublish}
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-left"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
+              <Plus className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-bold text-sm text-foreground group-hover:text-primary transition-colors">
+                Publish a Regimen
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Build your own program and share it with the community
+              </p>
+            </div>
+            <ChevronLeft className="w-4 h-4 text-muted-foreground/40 group-hover:text-primary transition-colors rotate-180 shrink-0" />
+          </motion.button>
+
           <AnimatePresence mode="popLayout">
             {filtered.map((tmpl, i) => (
               <RegimenCard

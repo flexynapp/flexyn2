@@ -827,7 +827,10 @@ export default function Workout() {
             <CardioSection onBack={() => setCardioOpen(false)} />
           </div>
         ) : storeOpen ? (
-          <RegimenStorePage onBack={() => setStoreOpen(false)} />
+          <RegimenStorePage
+            onBack={() => setStoreOpen(false)}
+            onPublish={() => { setStoreOpen(false); setRegimensOpen(true); }}
+          />
         ) : !regimensOpen ? (
           <>
             {/* Primary action */}
