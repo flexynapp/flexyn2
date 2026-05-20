@@ -43,6 +43,8 @@ const InjuryForm = lazy(() => import('@/components/workout/InjuryForm'));
 import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
+import DuelBanner from '@/components/duels/DuelBanner';
+import { getActiveDuel } from '@/lib/data/duels';
 import { reportError } from '@/lib/reportError';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
@@ -177,6 +179,14 @@ export default function Workout() {
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+
+  const { data: activeDuel } = useQuery({
+    queryKey:  ['activeDuel', user?.id],
+    queryFn:   getActiveDuel,
+    enabled:   !!user?.id,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
+  });
 
   // Comeback protocol — triggers when the user hasn't worked out in 7+ days
   const comebackProtocol = useComebackProtocol({
@@ -927,6 +937,14 @@ export default function Workout() {
 
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
+
+        {/* Duel banner — shown when there's a pending or active duel */}
+        {activeDuel && (
+          <DuelBanner
+            duel={activeDuel}
+            currentUserId={user?.id}
+          />
+        )}
 
         {cardioOpen ? (
           <div className="mb-8">

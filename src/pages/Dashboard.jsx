@@ -21,6 +21,9 @@ import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import NemesisCard from '@/components/nemesis/NemesisCard';
+import PrestigePrompt from '@/components/prestige/PrestigePrompt';
+import { isPrestigeEligible } from '@/lib/data/prestige';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -506,6 +509,18 @@ export default function Dashboard() {
       <div className="mb-5 md:mb-6">
         <DailyQuote />
       </div>
+
+      {/* ── Prestige prompt — only when at max level ───────────── */}
+      {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
+        <ErrorBoundary label="PrestigePrompt">
+          <PrestigePrompt currentPrestige={userProfile.prestige_level || 0} />
+        </ErrorBoundary>
+      )}
+
+      {/* ── Nemesis card ───────────────────────────────────────── */}
+      <ErrorBoundary label="NemesisCard">
+        <NemesisCard currentUserId={user?.id} />
+      </ErrorBoundary>
 
       {/* ── Login + Workout streak banners ──────────────────────── */}
       {/* Each widget wrapped in its own ErrorBoundary so a missing migration

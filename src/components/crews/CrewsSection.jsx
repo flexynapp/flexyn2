@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
+import CrewWarPanel from './CrewWarPanel';
 
 function CrewCard({ crew, onClick }) {
   const { data: members = [] } = useQuery({
@@ -175,6 +176,11 @@ export default function CrewsSection({ initialCrewId }) {
           New
         </motion.button>
       </div>
+
+      {/* Crew War panels — one per crew that has an active war */}
+      {myCrews.map(crew => (
+        <CrewWarPanel key={`war-${crew.id}`} crewId={crew.id} currentUserId={user?.id} />
+      ))}
 
       <div className="space-y-2.5">
         {myCrews.map(crew => (
