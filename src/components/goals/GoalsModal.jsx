@@ -14,7 +14,29 @@ import { motion, AnimatePresence } from 'framer-motion';
 import GoalForm from './GoalForm';
 import GoalsList from './GoalsList';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
+import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
+
+// Small inline summary of a goal target for the first-goal celebration
+// copy. Kept inline so the helper stays goal-shape-agnostic.
+function summarizeGoalTarget(g) {
+  if (!g) return '';
+  if (g.goal_type === 'cardio_distance' && g.target_distance_meters) {
+    return `${g.cardio_activity || 'Cardio'} ${Math.round(g.target_distance_meters)}m`;
+  }
+  if (g.goal_type === 'cardio_duration' && g.target_duration_seconds) {
+    return `${g.cardio_activity || 'Cardio'} ${Math.round(g.target_duration_seconds / 60)} min`;
+  }
+  if (g.goal_type === 'cardio_sessions' && g.target_sessions) {
+    return `${g.cardio_activity || 'Cardio'} ${g.target_sessions}× / ${g.period || 'period'}`;
+  }
+  // Strength
+  const name = g.exercise_name || 'lift';
+  if (g.target_weight && g.target_reps) return `${name} ${g.target_weight}×${g.target_reps}`;
+  if (g.target_weight) return `${name} ${g.target_weight}`;
+  if (g.target_reps)   return `${name} ${g.target_reps} reps`;
+  return name;
+}
 
 export default function GoalsModal({ open, onClose, goals = [], logs = [], userProfile = {} }) {
   const [showForm, setShowForm] = useState(false);
@@ -32,10 +54,24 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
 
   const createMutation = useMutation({
     mutationFn: (data) => goalsData.create(data),
-    onSuccess: () => {
+    onSuccess: (created, submittedData) => {
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
       setShowForm(false);
-      toast.success(t('goals.toast.created'));
+
+      // First-goal milestone — `goals` prop reflects the list BEFORE
+      // this insert (parent's re-render lands on the next tick).
+      // Active-only filter ensures a user with all-completed goals
+      // still triggers when they set a fresh one.
+      const activePrev = (goals || []).filter(g => g.status !== 'completed');
+      const isFirstGoal = activePrev.length === 0;
+      if (isFirstGoal) {
+        fireFirstGoalCelebration({
+          targetSummary: summarizeGoalTarget(created || submittedData),
+          userEmail: user?.email,
+        });
+      } else {
+        toast.success(t('goals.toast.created'));
+      }
     },
     onError: (err) => {
       reportError(err, { feature: 'goals.create', userEmail: user?.email });
