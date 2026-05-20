@@ -956,20 +956,11 @@ export default function Workout() {
               initial="hidden"
               animate="visible"
             >
-              {/* Row 1: Explore Regimens (1-2), Saved Workouts (3), Generate Workout (4) */}
+              {/* Row 1: Explore Regimens (col-span-2) | Generate Workout (col-span-2) */}
 
-              {/* 1-2: Explore Regimens */}
-              <motion.div
-                variants={itemVariants}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                className="md:col-span-2"
-              >
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Explore Regimens"
+                  role="button" tabIndex={0} aria-label="Explore Regimens"
                   className="group relative overflow-hidden p-4 cursor-pointer border-primary/25 bg-gradient-to-r from-primary/5 via-violet-500/5 to-primary/5 hover:border-primary/50 hover:from-primary/10 hover:via-violet-500/8 hover:to-primary/10 transition-all h-full"
                   onClick={() => setStoreOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
@@ -986,38 +977,16 @@ export default function Workout() {
                         <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
                         <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        Browse &amp; adopt top-rated community programs
-                      </p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Browse &amp; adopt top-rated community programs</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
                 </Card>
               </motion.div>
 
-              {/* 3: Saved Workouts */}
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
-                  onClick={() => setSavedWorkoutsOpen(true)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
-                      <History className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.savedWorkouts') || 'Saved Workouts'}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* 4: Generate Workout */}
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-                <Card
-                  role="button"
-                  tabIndex={0}
+                  role="button" tabIndex={0}
                   aria-label={t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
                   className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
                   onClick={() => setGeneratorOpen(true)}
@@ -1032,9 +1001,7 @@ export default function Workout() {
                         {t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {t('generator.cardSubtitle') === 'generator.cardSubtitle'
-                          ? 'AI builds a session from your history'
-                          : t('generator.cardSubtitle')}
+                        {t('generator.cardSubtitle') === 'generator.cardSubtitle' ? 'AI builds a session from your history' : t('generator.cardSubtitle')}
                       </p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -1042,16 +1009,9 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 2: Regimens (5-6), Cardio (7), Goals (8) */}
+              {/* Row 2: Regimens (col-span-2) | Saved Workouts (col-span-2) */}
 
-              {/* 5-6: Regimens */}
-              <motion.div
-                variants={itemVariants}
-                whileHover={{ y: -2 }}
-                whileTap={{ scale: 0.98 }}
-                transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-                className="md:col-span-2"
-              >
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                   onClick={() => setRegimensOpen(true)}
@@ -1069,8 +1029,26 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* 7: Cardio */}
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                <Card
+                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
+                  onClick={() => setSavedWorkoutsOpen(true)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
+                      <History className="w-5 h-5 text-orange-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.savedWorkouts') || 'Saved Workouts'}</p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </div>
+                </Card>
+              </motion.div>
+
+              {/* Row 3: Cardio (col-span-2) | Goals (col-span-2) */}
+
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                   onClick={() => setCardioOpen(true)}
@@ -1088,8 +1066,7 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* 8: Goals */}
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
                   onClick={() => setGoalsModalOpen(true)}
@@ -1106,12 +1083,11 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 3 — 9: Form Coach */}
+              {/* Row 4: Form Coach (col-span-1, beta) */}
+
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
                 <Card
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Form Coach"
+                  role="button" tabIndex={0} aria-label="Form Coach"
                   className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                   onClick={() => setFormCoachOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
