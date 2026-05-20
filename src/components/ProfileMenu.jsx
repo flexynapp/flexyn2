@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
@@ -39,6 +39,7 @@ function wipeLocalClientState() {
 export default function ProfileMenu() {
   const { t } = useLanguage();
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [view, setView] = useState('main'); // 'main' | 'settings'
   const [isDeleting, setIsDeleting] = useState(false);
@@ -175,9 +176,27 @@ export default function ProfileMenu() {
                         <LanguagePicker variant="compact" iconOnly />
                       </div>
                     </div>
+                    {/* Account — routes to own public profile */}
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        navigate(`/hub?profile=${encodeURIComponent(user?.email || '')}`);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-primary/10 border border-border flex items-center justify-center overflow-hidden shrink-0">
+                          {user?.avatar_url
+                            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            : <UserCircle className="w-3.5 h-3.5 text-primary" />}
+                        </div>
+                        Account
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
                     <button
                       onClick={() => setView('settings')}
-                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors"
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <Settings className="w-4 h-4" />
@@ -189,12 +208,13 @@ export default function ProfileMenu() {
                       onClick={() => {
                         setOpen(false);
                         requestOpenBag();
+                        navigate('/market');
                       }}
                       className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
                     >
                       <div className="flex items-center gap-2">
                         <ShoppingBag className="w-4 h-4" />
-                        {t('profile.myBag') || 'My Bag'}
+                        My Bag
                       </div>
                       <div className="flex items-center gap-2">
                         {capsuleCount > 0 && (

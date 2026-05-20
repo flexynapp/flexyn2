@@ -3,7 +3,101 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Book, ChevronLeft, ChevronRight } from 'lucide-react';
+import { format, subDays, addDays } from 'date-fns';
+
+// ─── My Journal ───────────────────────────────────────────────────────────────
+// Full-screen overlay journal with per-day localStorage persistence.
+const JOURNAL_KEY = (email, dateStr) => `journal_${email}_${dateStr}`;
+
+function JournalView({ userEmail, onClose }) {
+  const [activeDate, setActiveDate] = useState(new Date());
+  const dateStr = format(activeDate, 'yyyy-MM-dd');
+  const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
+  const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
+
+  const [text, setText] = useState(() => {
+    try { return localStorage.getItem(JOURNAL_KEY(userEmail, format(new Date(), 'yyyy-MM-dd'))) || ''; } catch { return ''; }
+  });
+
+  // Load entry when date changes
+  useEffect(() => {
+    try {
+      setText(localStorage.getItem(JOURNAL_KEY(userEmail, dateStr)) || '');
+    } catch { setText(''); }
+  }, [dateStr, userEmail]);
+
+  // Auto-save on text change (only for today — past entries are read-only)
+  const handleChange = (e) => {
+    if (!isToday) return;
+    const val = e.target.value;
+    setText(val);
+    try { localStorage.setItem(JOURNAL_KEY(userEmail, dateStr), val); } catch {}
+  };
+
+  const goBack = () => setActiveDate(d => subDays(d, 1));
+  const goForward = () => {
+    const next = addDays(activeDate, 1);
+    if (next <= new Date()) setActiveDate(next);
+  };
+  const canGoForward = !isToday;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 32 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+      className="fixed inset-0 z-50 bg-background flex flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="w-4 h-4" /> Back
+        </button>
+        <div className="flex items-center gap-1.5">
+          <Book className="w-4 h-4 text-primary" />
+          <span className="font-heading font-bold text-base">My Journal</span>
+        </div>
+        <div className="w-16" /> {/* spacer */}
+      </div>
+
+      {/* Date navigation */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-secondary/20">
+        <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-bold text-foreground">{displayDate}</p>
+          {isToday && <p className="text-[11px] text-primary font-semibold">Today</p>}
+        </div>
+        <button onClick={goForward} disabled={!canGoForward} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30">
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Journal text area */}
+      <div className="flex-1 flex flex-col px-4 py-4 overflow-hidden">
+        <textarea
+          value={text}
+          onChange={handleChange}
+          readOnly={!isToday}
+          placeholder={isToday ? "How was your session today? Log your lifts, notes, or how you felt…" : "No entry for this day."}
+          className="flex-1 w-full bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
+          style={{ fontFamily: 'inherit' }}
+        />
+      </div>
+
+      {/* Footer hint */}
+      <div className="px-4 py-2 border-t border-border shrink-0">
+        <p className="text-[11px] text-muted-foreground text-center">
+          {isToday ? 'Auto-saved · Use ← to browse past entries' : 'Read-only · Navigate to today to write'}
+        </p>
+      </div>
+    </motion.div>
+  );
+}
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -157,6 +251,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
+  const [journalOpen, setJournalOpen] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
@@ -960,18 +1055,29 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </button>
         </div>
 
-        {/* Themes button — own profile only */}
+        {/* Edit + Themes — inline side-by-side, own profile only */}
         {isSelf && (
-          <motion.button
+          <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18 }}
-            onClick={() => setThemeOpen(true)}
-            className="w-full flex items-center justify-center gap-2 py-2 mb-4 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+            className="flex gap-2 mb-4"
           >
-            <Palette className="w-4 h-4 text-primary" />
-            {t('hub.profile.themes')}
-          </motion.button>
+            <button
+              onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              <Pencil className="w-4 h-4 text-muted-foreground" />
+              Edit
+            </button>
+            <button
+              onClick={() => setThemeOpen(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              <Palette className="w-4 h-4 text-primary" />
+              {t('hub.profile.themes') || 'Themes'}
+            </button>
+          </motion.div>
         )}
 
         {!isSelf && (
@@ -1022,6 +1128,27 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </div>
         )}
       </motion.div>
+
+      {/* My Journal — own profile only */}
+      {isSelf && (
+        <motion.button
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.22 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setJournalOpen(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 mb-4 rounded-xl border border-border bg-card hover:bg-secondary transition-colors"
+        >
+          <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <Book className="w-4 h-4 text-primary" />
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <p className="text-sm font-bold text-foreground">My Journal</p>
+            <p className="text-[11px] text-muted-foreground leading-tight">Log sessions · Browse past entries</p>
+          </div>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </motion.button>
+      )}
 
       {/* Posts */}
       <h3 className="font-heading font-bold text-base mb-2 px-1">{t('hub.profile.recentPosts')}</h3>
@@ -1202,6 +1329,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       {isSelf && (
         <ThemeSelector open={themeOpen} onClose={() => setThemeOpen(false)} />
       )}
+
+      {/* My Journal overlay */}
+      <AnimatePresence>
+        {isSelf && journalOpen && (
+          <JournalView userEmail={user?.email} onClose={() => setJournalOpen(false)} />
+        )}
+      </AnimatePresence>
 
       {/* Unfollow Confirmation Dialog */}
       <AnimatePresence>

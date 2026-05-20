@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users } from 'lucide-react';
+import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users, Gift } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -9,15 +9,31 @@ import ProfileMenu from './ProfileMenu';
 import NotificationBell from './NotificationBell';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
 import { useBagFlow } from '@/lib/inventoryFlow';
 import UserBag from './hub/UserBag';
 import CapsuleOpener from './hub/CapsuleOpener';
 
+// Helper: check if today's daily chest has NOT been claimed yet (ready to claim)
+function useDailyChestReady(userId) {
+  if (!userId) return false;
+  try {
+    const val = localStorage.getItem(`daily_chest_claimed_${userId}`);
+    if (!val) return true; // never claimed
+    const claimedDate = new Date(val).toDateString();
+    return claimedDate !== new Date().toDateString(); // new day → ready
+  } catch {
+    return false;
+  }
+}
+
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const chestReady = useDailyChestReady(user?.id);
 
   // Single source of truth for the DM badge — also read by Header.jsx.
   // No longer attached to the Hub nav item; lives on dedicated Messages
@@ -90,6 +106,22 @@ export default function Layout() {
               )}
             </button>
             <NotificationBell />
+            {/* Gift / Marketplace shortcut + daily chest badge */}
+            <button
+              type="button"
+              onClick={() => navigate('/market')}
+              aria-label="Marketplace"
+              className={`relative p-2 rounded-lg transition-colors ${
+                location.pathname === '/market'
+                  ? 'bg-primary/10 text-primary'
+                  : 'text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              <Gift className="w-5 h-5" />
+              {chestReady && (
+                <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-card" />
+              )}
+            </button>
           </div>
         </div>
         <nav className="flex-1 px-3 space-y-1">
