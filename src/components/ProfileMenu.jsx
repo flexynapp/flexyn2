@@ -16,14 +16,13 @@ import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
-// DebriefVault is a modal that ONLY mounts when the user taps "Journal"
-// in this menu — it has no reason to be in the entry bundle. Lazy-import
-// it so the (~50KB compiled + html2canvas's dynamic import target) cost
-// only lands when the user actually opens it. ProfileMenu is rendered
-// on every authenticated page, so any static dependency here is paid on
-// first paint across the whole app.
+// DebriefVault + InjuryForm are modals that ONLY mount when the user
+// explicitly opens them from this menu — they have no reason to be in
+// the entry bundle. ProfileMenu is rendered on every authenticated
+// page, so any static dependency here is paid on first paint across
+// the whole app. Lazy-import both so the chunk only loads on demand.
 const DebriefVault = lazy(() => import('./debrief/DebriefVault'));
-import InjuryForm from './workout/InjuryForm';
+const InjuryForm   = lazy(() => import('./workout/InjuryForm'));
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
@@ -474,10 +473,14 @@ export default function ProfileMenu() {
         )}
       </AnimatePresence>
 
-      {/* Injury Form — global overlay, accessible from any page */}
+      {/* Injury Form — global overlay, accessible from any page.
+          Lazy-loaded (see import above); Suspense fallback is null so
+          the modal animation papers over the brief chunk load. */}
       <AnimatePresence>
         {injuryFormOpen && (
-          <InjuryForm onClose={() => setInjuryFormOpen(false)} />
+          <Suspense fallback={null}>
+            <InjuryForm onClose={() => setInjuryFormOpen(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
     </div>
