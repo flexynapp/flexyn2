@@ -21,8 +21,9 @@ import AccountDeletedScreen from './AccountDeletedScreen';
 // the entry bundle. ProfileMenu is rendered on every authenticated
 // page, so any static dependency here is paid on first paint across
 // the whole app. Lazy-import both so the chunk only loads on demand.
-const DebriefVault = lazy(() => import('./debrief/DebriefVault'));
-const InjuryForm   = lazy(() => import('./workout/InjuryForm'));
+const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
+const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
+const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export default function ProfileMenu() {
   const [journalOpen, setJournalOpen] = useState(false);
   const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
+  const [achievementsOpen, setAchievementsOpen] = useState(false);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -302,6 +304,24 @@ export default function ProfileMenu() {
                       <div className="flex items-center gap-2">
                         <Settings className="w-4 h-4" />
                         {t('profile.settings')}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    {/* Achievements — relocated from Progress page.
+                        The trophy chip didn't belong with the data /
+                        chart tabs (Trends, Analytics, Body, Photos),
+                        so it now lives next to Debrief Vault as part
+                        of the user's accumulated-milestones surface. */}
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        setAchievementsOpen(true);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Trophy className="w-4 h-4 text-yellow-500" />
+                        Achievements
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
@@ -480,6 +500,16 @@ export default function ProfileMenu() {
         {injuryFormOpen && (
           <Suspense fallback={null}>
             <InjuryForm onClose={() => setInjuryFormOpen(false)} />
+          </Suspense>
+        )}
+      </AnimatePresence>
+
+      {/* Achievements — global overlay, accessible from any page.
+          Lazy-loaded; same pattern as DebriefVault above. */}
+      <AnimatePresence>
+        {achievementsOpen && (
+          <Suspense fallback={null}>
+            <AchievementsVault onClose={() => setAchievementsOpen(false)} />
           </Suspense>
         )}
       </AnimatePresence>

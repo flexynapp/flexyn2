@@ -25,7 +25,9 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterDropdown from '@/components/progress/FilterDropdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
-import AchievementsTab from '@/components/progress/AchievementsTab';
+// Achievements moved to ProfileMenu (above "My Bag") — it didn't fit
+// next to data / chart tabs. AchievementsTab is now imported by
+// src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import PageHeader from '@/components/PageHeader';
 import {
@@ -59,12 +61,13 @@ const MUSCLE_PILL = {
 };
 const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 
+// Achievements removed from this strip — it lives in ProfileMenu now.
+// See src/components/achievements/AchievementsVault.jsx.
 const TAB_META = [
-  { id: 'trends',       label: 'Trends',       Icon: TrendingUp, iconColor: 'text-primary',     activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'analytics',    label: 'Analytics',    Icon: BarChart2,  iconColor: 'text-amber-500',    activeBg: 'bg-amber-500',   activeText: 'text-white' },
-  { id: 'body',         label: 'Body',         Icon: Ruler,      iconColor: 'text-emerald-500',  activeBg: 'bg-emerald-500', activeText: 'text-white' },
-  { id: 'photos',       label: 'Photos',       Icon: Camera,     iconColor: 'text-violet-500',   activeBg: 'bg-violet-500',  activeText: 'text-white' },
-  { id: 'achievements', label: 'Achievements', Icon: Trophy,     iconColor: 'text-yellow-500',   activeBg: 'bg-yellow-500',  activeText: 'text-slate-900' },
+  { id: 'trends',    label: 'Trends',    Icon: TrendingUp, iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2,  iconColor: 'text-amber-500',   activeBg: 'bg-amber-500',   activeText: 'text-white' },
+  { id: 'body',      label: 'Body',      Icon: Ruler,      iconColor: 'text-emerald-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
+  { id: 'photos',    label: 'Photos',    Icon: Camera,     iconColor: 'text-violet-500',  activeBg: 'bg-violet-500',  activeText: 'text-white' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -331,11 +334,9 @@ export default function Progress() {
     queryFn: () => db.entities.Regimen.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
-  const { data: rawAchievements = [] } = useQuery({
-    queryKey: ['achievements', user?.email],
-    queryFn: () => db.entities.Achievement.filter({ created_by: user.email }),
-    enabled: !!user?.email,
-  });
+  // Achievements query removed — the surface is now in
+  // ProfileMenu → Achievements (AchievementsVault), which fetches
+  // its own data lazily.
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
@@ -349,7 +350,6 @@ export default function Progress() {
 
   const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),    [rawLogs, userProfile]);
   const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
-  const achievements = useMemo(() => rawAchievements ?? [], [rawAchievements]);
   const isLoading    = logsLoading || regimensLoading;
 
   // ── Derived stats ─────────────────────────────────────────────────────────
@@ -627,13 +627,13 @@ export default function Progress() {
                     onClick={() => switchTab(tab.id)}
                     whileHover={{ scale: 1.04 }}
                     whileTap={{ scale: 0.96 }}
-                    className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all shrink-0 border ${
+                    className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all shrink-0 border ${
                       isActive
                         ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-sm`
                         : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
                     }`}
                   >
-                    <tab.Icon className={`w-3.5 h-3.5 ${isActive ? '' : tab.iconColor}`} />
+                    <tab.Icon className={`w-4 h-4 ${isActive ? '' : tab.iconColor}`} />
                     {tab.label}
                   </motion.button>
                 );
@@ -688,12 +688,6 @@ export default function Progress() {
                 {activeTab === 'photos' && (
                   <ErrorBoundary label="ProgressPhotos">
                     <ProgressPhotosTab />
-                  </ErrorBoundary>
-                )}
-
-                {activeTab === 'achievements' && (
-                  <ErrorBoundary label="Achievements">
-                    <AchievementsTab achievements={achievements} />
                   </ErrorBoundary>
                 )}
 

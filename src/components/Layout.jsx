@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users, Gift } from 'lucide-react';
+import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users, ShoppingBag } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -106,7 +106,7 @@ export default function Layout() {
               )}
             </button>
             <NotificationBell />
-            {/* Gift / Marketplace shortcut + daily chest badge */}
+            {/* Marketplace shortcut + daily chest badge */}
             <button
               type="button"
               onClick={() => navigate('/market')}
@@ -117,7 +117,7 @@ export default function Layout() {
                   : 'text-muted-foreground hover:bg-secondary'
               }`}
             >
-              <Gift className="w-5 h-5" />
+              <ShoppingBag className="w-5 h-5" />
               {chestReady && (
                 <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-card" />
               )}
