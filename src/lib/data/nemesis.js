@@ -69,14 +69,24 @@ export async function assignNemesis() {
     .neq('id', user.id)
     .limit(20);
 
-  if (!candidates?.length) return null;
+  // If no XP-range candidates (thin user base / brand new user), fall back
+  // to any random user so the card always shows someone during beta.
+  let pool = candidates ?? [];
+  if (!pool.length) {
+    const { data: fallback } = await supabase
+      .from('user_profiles')
+      .select('id, total_xp, username, avatar_url, current_level')
+      .eq('nemesis_opt_out', false)
+      .neq('id', user.id)
+      .not('username', 'is', null)
+      .limit(20);
+    pool = fallback ?? [];
+  }
+  if (!pool.length) return null;
 
-  // Pick the closest XP match from the candidate pool.
-  // (Follow-exclusion omitted — hub_follows is email-based and the
-  // nemesis assignment is private, so overlap with follows is fine.)
-  const pool = candidates;
+  // Pick the closest XP match (or random from fallback pool).
   pool.sort((a, b) => Math.abs(a.total_xp - me.total_xp) - Math.abs(b.total_xp - me.total_xp));
-  const chosen = pool[0];
+  const chosen = pool[Math.floor(Math.random() * Math.min(pool.length, 3))];
 
   // Archive the old active nemesis (if any)
   await supabase

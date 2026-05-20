@@ -2,6 +2,99 @@
 // Workout Duels — challenge, accept, submit results, score.
 
 import { supabase } from '@/api/supabaseClient';
+import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
+
+// ── Social helpers ────────────────────────────────────────────────────────────
+
+/**
+ * Returns opponents the user has dueled, sorted by duel frequency (most first).
+ * Each entry: { id, username, avatar_url, current_level, count, wins, losses }
+ */
+export async function getFrequentOpponents(userId, limit = 8) {
+  if (!userId) return [];
+  const { data: duels } = await supabase
+    .from('duels')
+    .select('challenger_id, opponent_id, winner_id, status')
+    .or(`challenger_id.eq.${userId},opponent_id.eq.${userId}`)
+    .order('created_at', { ascending: false })
+    .limit(100);
+
+  if (!duels?.length) return [];
+
+  const stats = {};
+  for (const d of duels) {
+    const opId = d.challenger_id === userId ? d.opponent_id : d.challenger_id;
+    if (!opId || opId === userId) continue;
+    if (!stats[opId]) stats[opId] = { count: 0, wins: 0, losses: 0 };
+    stats[opId].count++;
+    if (d.status === 'completed') {
+      if (d.winner_id === userId) stats[opId].wins++;
+      else if (d.winner_id) stats[opId].losses++;
+    }
+  }
+
+  const sorted = Object.entries(stats)
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, limit);
+  if (!sorted.length) return [];
+
+  const ids = sorted.map(([id]) => id);
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, username, avatar_url, current_level')
+    .in('id', ids);
+
+  return sorted
+    .map(([id, s]) => ({ id, ...s, ...(profiles?.find(p => p.id === id) || {}) }))
+    .filter(p => p.username);
+}
+
+/**
+ * Get the head-to-head record between two users.
+ * Returns { myWins, theirWins, total }
+ */
+export async function getHeadToHead(userId, opponentId) {
+  if (!userId || !opponentId) return { myWins: 0, theirWins: 0, total: 0 };
+  const { data } = await supabase
+    .from('duels')
+    .select('winner_id, status')
+    .or(
+      `and(challenger_id.eq.${userId},opponent_id.eq.${opponentId}),` +
+      `and(challenger_id.eq.${opponentId},opponent_id.eq.${userId})`
+    )
+    .eq('status', 'completed');
+
+  const myWins    = (data ?? []).filter(d => d.winner_id === userId).length;
+  const theirWins = (data ?? []).filter(d => d.winner_id === opponentId).length;
+  return { myWins, theirWins, total: (data ?? []).length };
+}
+
+/**
+ * Send a DM to the opponent notifying them of the duel challenge.
+ * Fire-and-forget — failure is non-critical.
+ */
+export async function sendDuelDM(myEmail, opponentId, myUsername, opponentUsername, windowHours) {
+  try {
+    const { data: opProfile } = await supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('id', opponentId)
+      .single();
+    if (!opProfile?.email || !myEmail) return;
+
+    const conv = await findOrCreateConversation(myEmail, opProfile.email);
+    if (!conv?.id) return;
+
+    await sendMessage({
+      conversationId: conv.id,
+      senderEmail:    myEmail,
+      recipientEmail: opProfile.email,
+      body: `⚔️ @${myUsername} challenged you to a Duel! You have ${windowHours}h to accept. Open the Duels tab to respond.`,
+    });
+  } catch {
+    // non-critical — duel was still created
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 

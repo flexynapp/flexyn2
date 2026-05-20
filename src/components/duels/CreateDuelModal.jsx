@@ -1,11 +1,17 @@
 // src/components/duels/CreateDuelModal.jsx
-// Challenge flow — search for opponent, pick duel type, send invite.
-// Opponent receives an in-app notification + the duel appears in their /duels page.
+// Two-step challenge flow:
+//   Step 1 — Pick opponent: friends list (quick-send ✈) + search, sorted by duel frequency
+//   Step 2 — Configure: duel type + time window → send (fires DM to opponent)
 
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Swords, Dumbbell, Timer, Trophy, ChevronRight, Loader2, Search, UserCircle2, ArrowLeft } from 'lucide-react';
-import { createDuel } from '@/lib/data/duels';
+import {
+  X, Swords, Dumbbell, Timer, Trophy,
+  ChevronRight, Loader2, Search, UserCircle2,
+  ArrowLeft, SendHorizonal,
+} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { createDuel, getFrequentOpponents, sendDuelDM } from '@/lib/data/duels';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
@@ -42,64 +48,142 @@ const DUEL_TYPES = [
   },
 ];
 
-// ── User search ───────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 async function searchUsers(query, currentUserId) {
   if (!query || query.length < 2) return [];
-  const { data, error } = await supabase
+  const { data } = await supabase
     .from('user_profiles')
     .select('id, username, avatar_url, current_level')
     .ilike('username', `%${query}%`)
     .neq('id', currentUserId)
+    .not('username', 'is', null)
     .limit(8);
-  return error ? [] : (data ?? []);
+  return data ?? [];
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+async function getFriends(userEmail, currentUserId) {
+  if (!userEmail) return [];
+  const { data: follows } = await supabase
+    .from('hub_follows')
+    .select('followee_email')
+    .eq('follower_email', userEmail)
+    .limit(50);
+  if (!follows?.length) return [];
+  const emails = follows.map(f => f.followee_email).filter(Boolean);
+  if (!emails.length) return [];
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, username, avatar_url, current_level')
+    .in('email', emails)
+    .neq('id', currentUserId)
+    .not('username', 'is', null)
+    .limit(20);
+  return profiles ?? [];
+}
 
-function UserRow({ profile, onSelect }) {
+// ── Avatar ────────────────────────────────────────────────────────────────────
+
+function Avatar({ profile, size = 'md' }) {
+  const dim = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
+  return profile.avatar_url ? (
+    <img src={profile.avatar_url} className={`${dim} rounded-full object-cover shrink-0`} alt={profile.username} />
+  ) : (
+    <div className={`${dim} rounded-full bg-primary/15 flex items-center justify-center shrink-0`}>
+      <span className={`font-black text-primary`}>{profile.username?.[0]?.toUpperCase()}</span>
+    </div>
+  );
+}
+
+// ── H2H badge ─────────────────────────────────────────────────────────────────
+
+function H2HBadge({ wins, losses }) {
+  if (wins === 0 && losses === 0) return null;
   return (
-    <button
-      onClick={() => onSelect(profile)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-secondary/60 transition-colors text-left"
-    >
-      {profile.avatar_url ? (
-        <img src={profile.avatar_url} className="w-9 h-9 rounded-full object-cover shrink-0" alt={profile.username} />
-      ) : (
-        <div className="w-9 h-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-          <span className="text-sm font-black text-primary">{profile.username?.[0]?.toUpperCase()}</span>
+    <span className="text-[10px] font-bold tabular-nums text-muted-foreground shrink-0">
+      <span className="text-primary">{wins}W</span>
+      {' · '}
+      <span className="text-rose-500">{losses}L</span>
+    </span>
+  );
+}
+
+// ── Friend row (quick-send) ───────────────────────────────────────────────────
+
+function FriendRow({ profile, stats, onQuickSend, onSelect }) {
+  const wins   = stats?.wins   ?? 0;
+  const losses = stats?.losses ?? 0;
+
+  return (
+    <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-xl hover:bg-secondary/40 transition-colors group">
+      <button onClick={() => onSelect(profile)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+        <Avatar profile={profile} size="sm" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">@{profile.username}</p>
+          <p className="text-[10px] text-muted-foreground">Lv {profile.current_level ?? '—'}</p>
         </div>
-      )}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold truncate">@{profile.username}</p>
-        <p className="text-xs text-muted-foreground">Level {profile.current_level ?? '—'}</p>
-      </div>
-      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-    </button>
+        <H2HBadge wins={wins} losses={losses} />
+      </button>
+      {/* Quick-send paper airplane */}
+      <button
+        onClick={() => onQuickSend(profile)}
+        className="p-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-500 transition-colors shrink-0"
+        title={`Quick challenge @${profile.username}`}
+      >
+        <SendHorizonal className="w-3.5 h-3.5" />
+      </button>
+    </div>
   );
 }
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-export default function CreateDuelModal({ opponentId: initialOpponentId, opponentUsername: initialOpponentUsername, recentSession = null, onClose, onCreated }) {
+export default function CreateDuelModal({
+  opponentId: initialOpponentId,
+  opponentUsername: initialOpponentUsername,
+  recentSession = null,
+  onClose,
+  onCreated,
+}) {
   const { user } = useAuth();
 
-  // Step: 'pick' (choose opponent) or 'configure' (type + window)
-  const [step,           setStep]           = useState(initialOpponentId ? 'configure' : 'pick');
-  const [opponent,       setOpponent]       = useState(
+  const [step,         setStep]         = useState(initialOpponentId ? 'configure' : 'pick');
+  const [opponent,     setOpponent]     = useState(
     initialOpponentId ? { id: initialOpponentId, username: initialOpponentUsername } : null
   );
+  const [query,        setQuery]        = useState('');
+  const [results,      setResults]      = useState([]);
+  const [searching,    setSearching]    = useState(false);
+  const [selectedType, setSelectedType] = useState('open');
+  const [windowHours,  setWindowHours]  = useState(24);
+  const [loading,      setLoading]      = useState(false);
 
-  // Opponent search
-  const [query,          setQuery]          = useState('');
-  const [results,        setResults]        = useState([]);
-  const [searching,      setSearching]      = useState(false);
   const debounceRef = useRef(null);
 
-  // Duel config
-  const [selectedType,   setSelectedType]   = useState('open');
-  const [windowHours,    setWindowHours]    = useState(24);
-  const [loading,        setLoading]        = useState(false);
+  // Friends list
+  const { data: friends = [] } = useQuery({
+    queryKey:  ['duelFriends', user?.email, user?.id],
+    queryFn:   () => getFriends(user.email, user.id),
+    enabled:   !!user?.email && step === 'pick',
+    staleTime: 5 * 60_000,
+  });
+
+  // Frequent opponents (have been dueled before)
+  const { data: frequent = [] } = useQuery({
+    queryKey:  ['frequentOpponents', user?.id],
+    queryFn:   () => getFrequentOpponents(user.id),
+    enabled:   !!user?.id && step === 'pick',
+    staleTime: 5 * 60_000,
+  });
+
+  // Merge friends + frequent, dedup, sort frequents first
+  const frequentIds  = new Set(frequent.map(f => f.id));
+  const frequentMap  = Object.fromEntries(frequent.map(f => [f.id, f]));
+  const friendsOnly  = friends.filter(f => !frequentIds.has(f.id));
+  const suggestedList = [
+    ...frequent,               // most-dueled first (already sorted by count)
+    ...friendsOnly,            // remaining friends alphabetically
+  ];
 
   // Debounced search
   useEffect(() => {
@@ -119,8 +203,29 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
     setStep('configure');
   };
 
+  // Quick-send: select opponent and immediately send with default Open / 24h
+  const handleQuickSend = async (profile) => {
+    setOpponent(profile);
+    setLoading(true);
+    try {
+      const duel = await createDuel({
+        opponentId:  profile.id,
+        type:        'open',
+        windowHours: 24,
+      });
+      sendDuelDM(user.email, profile.id, user.user_metadata?.username || 'Someone', profile.username, 24);
+      toast.success(`Open Duel sent to @${profile.username}!`, { description: '24h window · Most volume wins' });
+      onCreated?.(duel);
+      onClose();
+    } catch (err) {
+      toast.error('Failed to send challenge', { description: err.message });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreate = async () => {
-    if (!opponent?.id) { toast.error('Please select an opponent first.'); return; }
+    if (!opponent?.id) { toast.error('Select an opponent first.'); return; }
     setLoading(true);
     try {
       const sessionTemplate = selectedType === 'mirror' && recentSession
@@ -133,9 +238,9 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
         sessionTemplate,
         windowHours,
       });
-
+      sendDuelDM(user.email, opponent.id, user.user_metadata?.username || 'Someone', opponent.username, windowHours);
       toast.success(`Duel challenge sent to @${opponent.username}!`, {
-        description: `They have ${windowHours}h to accept.`,
+        description: `${windowHours}h window · They'll see your DM.`,
       });
       onCreated?.(duel);
       onClose();
@@ -153,7 +258,6 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
     >
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
       <motion.div
@@ -163,25 +267,25 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
       >
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-0 sm:hidden">
+          <div className="w-10 h-1 rounded-full bg-border" />
+        </div>
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
+          <div className="flex items-center gap-2">
             {step === 'configure' && !initialOpponentId && (
-              <button onClick={() => setStep('pick')} className="p-1.5 rounded-full hover:bg-secondary transition-colors mr-0.5">
+              <button onClick={() => setStep('pick')} className="p-1.5 rounded-full hover:bg-secondary transition-colors">
                 <ArrowLeft className="w-4 h-4 text-muted-foreground" />
               </button>
             )}
             <div className="w-7 h-7 rounded-full bg-rose-500/10 flex items-center justify-center">
               <Swords className="w-3.5 h-3.5 text-rose-500" />
             </div>
-            <div>
-              <p className="text-sm font-bold">
-                {step === 'pick' ? 'Choose Opponent' : `Challenge @${opponent?.username}`}
-              </p>
-              {step === 'configure' && (
-                <p className="text-xs text-muted-foreground">Pick your duel type</p>
-              )}
-            </div>
+            <p className="text-sm font-bold">
+              {step === 'pick' ? 'Challenge Someone' : `Duel @${opponent?.username}`}
+            </p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-full hover:bg-secondary transition-colors">
             <X className="w-4 h-4 text-muted-foreground" />
@@ -189,64 +293,96 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
         </div>
 
         <AnimatePresence mode="wait">
-          {/* ── Step 1: Pick opponent ─────────────────────────────────── */}
+
+          {/* ── STEP 1: Pick opponent ─────────────────────────────────── */}
           {step === 'pick' && (
             <motion.div
               key="pick"
-              initial={{ opacity: 0, x: -16 }}
+              initial={{ opacity: 0, x: -12 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -16 }}
-              className="px-5 py-4 space-y-3"
+              exit={{ opacity: 0, x: -12 }}
+              className="flex flex-col"
             >
-              {/* Search input */}
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input
-                  autoFocus
-                  type="text"
-                  placeholder="Search by @username…"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/50"
-                />
-                {searching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
-                )}
+              {/* Search bar */}
+              <div className="px-4 pt-3 pb-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <input
+                    autoFocus
+                    type="text"
+                    placeholder="Search @username…"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40"
+                  />
+                  {searching && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                  )}
+                </div>
               </div>
 
-              {/* Results */}
-              <div className="min-h-[120px] max-h-[300px] overflow-y-auto -mx-1 px-1">
-                {results.length > 0 ? (
-                  <div className="space-y-0.5">
-                    {results.map(p => (
-                      <UserRow key={p.id} profile={p} onSelect={handleSelectOpponent} />
-                    ))}
-                  </div>
-                ) : query.length >= 2 && !searching ? (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <UserCircle2 className="w-8 h-8 text-muted-foreground/30 mb-2" />
-                    <p className="text-sm text-muted-foreground">No users found for "{query}"</p>
-                  </div>
+              {/* List area */}
+              <div className="px-4 pb-5 overflow-y-auto max-h-[380px]">
+                {query.length >= 2 ? (
+                  // ── Search results ──────────────────────────────────
+                  results.length > 0 ? (
+                    <div className="space-y-0.5">
+                      {results.map(p => (
+                        <FriendRow
+                          key={p.id}
+                          profile={p}
+                          stats={frequentMap[p.id]}
+                          onSelect={handleSelectOpponent}
+                          onQuickSend={handleQuickSend}
+                        />
+                      ))}
+                    </div>
+                  ) : !searching ? (
+                    <div className="py-10 text-center">
+                      <UserCircle2 className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+                      <p className="text-sm text-muted-foreground">No users found for "{query}"</p>
+                    </div>
+                  ) : null
                 ) : (
-                  <div className="flex flex-col items-center justify-center py-10 text-center">
-                    <Search className="w-8 h-8 text-muted-foreground/20 mb-2" />
-                    <p className="text-xs text-muted-foreground">Type at least 2 characters to search</p>
-                  </div>
+                  // ── Suggested: frequent + friends ────────────────────
+                  suggestedList.length > 0 ? (
+                    <div>
+                      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                        {frequent.length > 0 ? 'Recent Rivals & Friends' : 'Friends'}
+                      </p>
+                      <div className="space-y-0.5">
+                        {suggestedList.map(p => (
+                          <FriendRow
+                            key={p.id}
+                            profile={p}
+                            stats={frequentMap[p.id]}
+                            onSelect={handleSelectOpponent}
+                            onQuickSend={handleQuickSend}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-10 text-center">
+                      <Search className="w-8 h-8 text-muted-foreground/20 mx-auto mb-2" />
+                      <p className="text-xs text-muted-foreground">Search for someone to challenge</p>
+                    </div>
+                  )
                 )}
               </div>
             </motion.div>
           )}
 
-          {/* ── Step 2: Configure duel ────────────────────────────────── */}
+          {/* ── STEP 2: Configure duel ────────────────────────────────── */}
           {step === 'configure' && (
             <motion.div
               key="configure"
-              initial={{ opacity: 0, x: 16 }}
+              initial={{ opacity: 0, x: 12 }}
               animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 16 }}
+              exit={{ opacity: 0, x: 12 }}
               className="px-5 py-4 space-y-4"
             >
-              {/* Duel type selection */}
+              {/* Duel type */}
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Duel Type</p>
                 {DUEL_TYPES.map(({ id, label, icon: Icon, activeBg, idleBg, color, description }) => {
@@ -269,14 +405,14 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
                 })}
               </div>
 
-              {/* Mirror — session template info */}
+              {/* Mirror template */}
               {selectedType === 'mirror' && (
                 <div className="rounded-xl bg-secondary/50 border border-border p-3">
                   <p className="text-xs font-semibold text-muted-foreground mb-1">Session Template</p>
                   {recentSession ? (
                     <p className="text-sm font-medium">{recentSession.regimen_name || 'Your last workout'}</p>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">No recent session — opponent sees a blank template.</p>
+                    <p className="text-xs text-muted-foreground italic">No recent session found.</p>
                   )}
                 </div>
               )}
@@ -307,14 +443,10 @@ export default function CreateDuelModal({ opponentId: initialOpponentId, opponen
                 disabled={loading}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-bold text-sm hover:bg-rose-600 disabled:opacity-50 transition-colors"
               >
-                {loading ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Swords className="w-4 h-4" />
-                    Send Challenge to @{opponent?.username}
-                  </>
-                )}
+                {loading
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <><Swords className="w-4 h-4" /> Challenge @{opponent?.username}</>
+                }
               </button>
             </motion.div>
           )}

@@ -1,175 +1,162 @@
 // src/components/nemesis/NemesisCard.jsx
-// Dashboard card showing the user's auto-assigned nemesis + weekly comparison bars.
+// Dashboard nemesis card — shows assigned rival, Challenge CTA, Reroll button.
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Target, TrendingUp, Flame, Dumbbell, ChevronRight, RefreshCw, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Target, RefreshCw, Loader2, Swords } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getMyNemesis, getNemesisProfile, getWeeklyComparison, assignNemesis } from '@/lib/data/nemesis';
-import { useNavigate } from 'react-router-dom';
+import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemesis';
 import { useAuth } from '@/lib/AuthContext';
-
-function CompareBar({ label, myVal, theirVal, unit = '' }) {
-  const total  = (myVal + theirVal) || 1;
-  const myPct  = Math.min((myVal / total) * 100, 100);
-  const winning = myVal >= theirVal;
-
-  return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-[10px] text-muted-foreground">
-        <span>{label}</span>
-        <span className={winning ? 'text-primary font-semibold' : ''}>
-          {myVal.toLocaleString()}{unit} vs {theirVal.toLocaleString()}{unit}
-        </span>
-      </div>
-      <div className="h-1.5 rounded-full bg-secondary overflow-hidden flex">
-        <motion.div
-          className={`h-full rounded-full ${winning ? 'bg-primary' : 'bg-rose-500'}`}
-          initial={{ width: 0 }}
-          animate={{ width: `${myPct}%` }}
-          transition={{ duration: 0.7, ease: 'easeOut' }}
-        />
-      </div>
-    </div>
-  );
-}
+import CreateDuelModal from '@/components/duels/CreateDuelModal';
 
 export default function NemesisCard({ currentUserId }) {
-  const navigate = useNavigate();
-  const qc       = useQueryClient();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [showDuel, setShowDuel] = useState(false);
 
-  const { data: assignment, isLoading: assignLoading } = useQuery({
+  const { data: assignment, isLoading } = useQuery({
     queryKey:  ['myNemesis', currentUserId],
     queryFn:   getMyNemesis,
     enabled:   !!currentUserId,
     staleTime: 5 * 60_000,
   });
 
-  const { data: nemesisProfile } = useQuery({
+  const { data: profile, isLoading: profileLoading } = useQuery({
     queryKey:  ['nemesisProfile', assignment?.nemesis_id],
     queryFn:   () => getNemesisProfile(assignment?.nemesis_id),
     enabled:   !!assignment?.nemesis_id,
     staleTime: 5 * 60_000,
   });
 
-  const { data: comparison } = useQuery({
-    queryKey:  ['weeklyComparison', currentUserId, assignment?.nemesis_id],
-    queryFn:   () => getWeeklyComparison(currentUserId, assignment?.nemesis_id),
-    enabled:   !!currentUserId && !!assignment?.nemesis_id,
-    staleTime: 5 * 60_000,
-  });
-
   const assignMut = useMutation({
     mutationFn: assignNemesis,
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['myNemesis'] });
-      qc.invalidateQueries({ queryKey: ['weeklyComparison'] });
+      qc.invalidateQueries({ queryKey: ['nemesisProfile'] });
     },
   });
 
-  if (assignLoading) return null;
+  if (isLoading) return null;
 
-  // No nemesis yet — show assign prompt
+  // ── No nemesis — prompt to assign ────────────────────────────────────────────
   if (!assignment) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-dashed border-border p-4 mb-4 text-center"
+        className="rounded-2xl border border-dashed border-rose-500/20 bg-rose-500/3 p-5 mb-4 text-center"
       >
-        <Target className="w-8 h-8 text-muted-foreground/40 mx-auto mb-2" />
-        <p className="text-sm font-semibold text-muted-foreground">No Nemesis Assigned</p>
-        <p className="text-xs text-muted-foreground/60 mt-1 mb-3">
-          We'll find a rival slightly above your level
+        <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
+          <Target className="w-5 h-5 text-rose-500" />
+        </div>
+        <p className="text-sm font-bold mb-1">Find Your Nemesis</p>
+        <p className="text-xs text-muted-foreground mb-4">
+          We'll pair you with a rival slightly above your level. Beat their stats, claim their rank.
         </p>
         <button
           onClick={() => assignMut.mutate()}
           disabled={assignMut.isPending}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors disabled:opacity-50"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors"
         >
-          {assignMut.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Target className="w-3.5 h-3.5" />}
-          Find My Nemesis
+          {assignMut.isPending
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <Target className="w-4 h-4" />
+          }
+          {assignMut.isPending ? 'Searching…' : 'Find My Nemesis'}
         </button>
       </motion.div>
     );
   }
 
-  const name    = nemesisProfile?.username || '—';
-  const avatar  = nemesisProfile?.avatar_url;
-  const xpGap   = (nemesisProfile?.total_xp || 0) - 0; // user XP comes from parent
+  const name   = profile?.username;
+  const avatar = profile?.avatar_url;
+  const level  = profile?.current_level;
+
+  // Show skeleton if profile still loading
+  if (profileLoading || !name) {
+    return (
+      <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-secondary shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-24 rounded bg-secondary" />
+            <div className="h-2.5 w-16 rounded bg-secondary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-rose-500/20 bg-rose-500/3 overflow-hidden mb-4"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-rose-500/10">
-        <div className="flex items-center gap-2">
-          <Target className="w-4 h-4 text-rose-500" />
-          <span className="text-xs font-black uppercase tracking-wider text-rose-500">Your Nemesis</span>
-        </div>
-        <button
-          onClick={() => assignMut.mutate()}
-          disabled={assignMut.isPending}
-          className="p-1.5 rounded-full hover:bg-secondary transition-colors"
-          title="Reassign nemesis"
-        >
-          {assignMut.isPending
-            ? <Loader2 className="w-3.5 h-3.5 animate-spin text-muted-foreground" />
-            : <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" />
-          }
-        </button>
-      </div>
-
-      {/* Nemesis identity */}
-      <button
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-secondary/20 transition-colors"
-        onClick={() => navigate(`/profile/${assignment.nemesis_id}`)}
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl border border-rose-500/20 bg-rose-500/3 overflow-hidden mb-4"
       >
-        {avatar ? (
-          <img src={avatar} className="w-10 h-10 rounded-full object-cover" alt={name} />
-        ) : (
-          <div className="w-10 h-10 rounded-full bg-rose-500/20 flex items-center justify-center">
-            <span className="text-sm font-black text-rose-500">{name[0]?.toUpperCase()}</span>
+        {/* Label */}
+        <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
+          <Target className="w-3.5 h-3.5 text-rose-500" />
+          <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Your Nemesis</span>
+        </div>
+
+        {/* Profile */}
+        <div className="flex items-center gap-4 px-4 pb-3 pt-2">
+          {avatar ? (
+            <img src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
+          ) : (
+            <div className="w-14 h-14 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
+              <span className="text-xl font-black text-rose-500">{name[0]?.toUpperCase()}</span>
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-base font-black truncate">@{name}</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Level {level ?? '—'}
+              {profile?.total_xp > 0 && (
+                <span className="ml-1.5 text-rose-500/70">· {profile.total_xp.toLocaleString()} XP</span>
+              )}
+            </p>
           </div>
+        </div>
+
+        {/* Actions */}
+        <div className="px-4 pb-4 space-y-2">
+          {/* Big challenge button */}
+          <button
+            onClick={() => setShowDuel(true)}
+            className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 active:scale-[0.98] transition-all"
+          >
+            <Swords className="w-4 h-4" />
+            Challenge @{name}
+          </button>
+
+          {/* Small reroll */}
+          <button
+            onClick={() => assignMut.mutate()}
+            disabled={assignMut.isPending}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors"
+          >
+            {assignMut.isPending
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <RefreshCw className="w-3.5 h-3.5" />
+            }
+            {assignMut.isPending ? 'Finding someone…' : 'Reroll'}
+          </button>
+        </div>
+      </motion.div>
+
+      {/* Duel modal pre-filled with nemesis */}
+      <AnimatePresence>
+        {showDuel && (
+          <CreateDuelModal
+            opponentId={assignment.nemesis_id}
+            opponentUsername={name}
+            onClose={() => setShowDuel(false)}
+            onCreated={() => setShowDuel(false)}
+          />
         )}
-        <div className="flex-1">
-          <p className="text-sm font-bold">@{name}</p>
-          <p className="text-xs text-muted-foreground">
-            Lv {nemesisProfile?.current_level || '?'} · {(nemesisProfile?.total_xp || 0).toLocaleString()} XP
-          </p>
-        </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground" />
-      </button>
-
-      {/* Weekly comparison bars */}
-      {comparison && (
-        <div className="px-4 pb-4 space-y-3">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">This Week</p>
-          <CompareBar
-            label="Volume"
-            myVal={comparison.user.volume}
-            theirVal={comparison.nemesis.volume}
-            unit=" lbs"
-          />
-          <CompareBar
-            label="Sessions"
-            myVal={comparison.user.sessions}
-            theirVal={comparison.nemesis.sessions}
-          />
-        </div>
-      )}
-
-      {/* Overthrow count */}
-      {(nemesisProfile?.overthrow_count > 0) && (
-        <div className="px-4 pb-3">
-          <p className="text-[10px] text-muted-foreground text-center">
-            You've overthrown <span className="font-bold text-rose-500">{nemesisProfile.overthrow_count}</span> nemeses
-          </p>
-        </div>
-      )}
-    </motion.div>
+      </AnimatePresence>
+    </>
   );
 }
