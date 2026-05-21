@@ -37,6 +37,8 @@ const FRIEND_TYPES = new Set([
   'post_reaction', 'sticker_reaction', 'trade_offer',
   // Trigger-generated social notifications (migration 063)
   'post_like', 'crew_everyone',
+  // Duel notifications (migration 064)
+  'duel_invite', 'duel_result',
 ]);
 
 export default function NotificationPanel({ open, onClose }) {

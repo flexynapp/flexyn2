@@ -204,6 +204,25 @@ export async function createDuel({ opponentId, type = 'open', sessionTemplate = 
     .single();
 
   if (error) throw error;
+
+  // Fan out a notification to the opponent — server-side i18n via
+  // notify_duel_invite_for (migration 065). The 034 trigger turns
+  // this into a Web Push if the opponent has subscribed and hasn't
+  // muted 'duels' in their notification_prefs. Pre-migration hosts
+  // (RPC missing) silently no-op so duel creation still succeeds.
+  try {
+    await supabase.rpc('notify_duel_invite_for', {
+      p_opponent_id: opponentId,
+      p_duel_id:     data.id,
+      p_duel_type:   type,
+    });
+  } catch (e) {
+    // Non-fatal — the duel itself was created. Log but don't throw.
+    if (e?.code !== '42883' && e?.code !== '42P01') {
+      console.warn('[duels] notify_duel_invite_for failed:', e?.message || e);
+    }
+  }
+
   return data;
 }
 
@@ -291,6 +310,32 @@ export async function submitDuelResult(duelId, result, duel) {
     .single();
 
   if (error) throw error;
+
+  // If this submission resolved the duel, notify the OTHER participant
+  // with the result from THEIR perspective. We only notify the opposite
+  // party — the submitter knows the outcome from their own UI without
+  // a separate push. The RPC validates auth.uid() is one of the
+  // participants and 034's trigger handles push fan-out.
+  if (data?.status === 'completed') {
+    try {
+      const recipientId = isChallenger ? data.opponent_id : data.challenger_id;
+      let outcome;
+      if (data.winner_id == null)               outcome = 'tied';
+      else if (data.winner_id === recipientId)  outcome = 'won';
+      else                                      outcome = 'lost';
+
+      await supabase.rpc('notify_duel_result_for', {
+        p_recipient_id: recipientId,
+        p_duel_id:      data.id,
+        p_outcome:      outcome,
+      });
+    } catch (e) {
+      if (e?.code !== '42883' && e?.code !== '42P01') {
+        console.warn('[duels] notify_duel_result_for failed:', e?.message || e);
+      }
+    }
+  }
+
   return data;
 }
 
