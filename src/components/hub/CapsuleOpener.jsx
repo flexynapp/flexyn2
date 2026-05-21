@@ -33,6 +33,38 @@ const CARD_GAP   = 12;  // px
 const CARD_STRIDE = CARD_W + CARD_GAP;
 const WIN_INDEX  = 18;  // 0-based; winning item sits at position 18 in a 22-card reel
 
+// ─── Spin variants ────────────────────────────────────────────────────────────
+// Five distinct "personas" the reel can take on. We pick one at random
+// per spin so the open feels different every time — even when the user
+// is opening their twelfth standard capsule. Each variant tunes:
+//   • duration  — how long the slide takes (seconds)
+//   • easing    — the CSS cubic-bezier driving the velocity curve
+//   • kicker    — the small "Rolling…" caption above the reel
+//   • overshoot — when true, the bezier briefly slides past the winning
+//                 card and settles back, creating a "near miss → snap to
+//                 win" feel. Implemented purely via the easing curve
+//                 (back-out style), no multi-stage transition needed.
+//
+// The animated reveal phase below the reel intentionally stays the same
+// — that's the moneyshot. Variation lives in the build-up.
+const SPIN_VARIANTS = [
+  // Classic — the original feel. Smooth deceleration. Default.
+  { id: 'classic', duration: 3.2, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', kicker: 'Rolling…' },
+  // Tease — slow, drawn-out, builds suspense. Almost no acceleration.
+  { id: 'tease',   duration: 4.6, easing: 'cubic-bezier(0.16, 1, 0.3, 1)',        kicker: 'Building up…' },
+  // Snap — fast and decisive. Quick blur, hard stop.
+  { id: 'snap',    duration: 2.4, easing: 'cubic-bezier(0.5, 0, 0.75, 0.2)',      kicker: 'Cracking…' },
+  // Hype — back-out overshoot. Reel briefly blows past the win then
+  // settles back. Creates a "wait, is that it?" double-take.
+  { id: 'hype',    duration: 3.5, easing: 'cubic-bezier(0.34, 1.32, 0.64, 1)',    kicker: 'Spinning…' },
+  // Crawl — long, even, hypnotic. Sometimes the wait is the point.
+  { id: 'crawl',   duration: 4.2, easing: 'cubic-bezier(0.23, 1, 0.32, 1)',       kicker: 'Locking in…' },
+];
+
+function pickSpinVariant() {
+  return SPIN_VARIANTS[Math.floor(Math.random() * SPIN_VARIANTS.length)];
+}
+
 // ─── Rarity visual config ─────────────────────────────────────────────────────
 const RARITY_CARD = {
   common:    { border: 'border-slate-400',  glow: 'shadow-slate-400/60',  ring: '#94a3b8' },
@@ -136,9 +168,18 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
   const [reel,    setReel]    = useState([]);
+  // Per-spin animation persona — duration, easing, kicker text.
+  // Picked once when the user hits Open so a single spin doesn't
+  // mid-flight switch curves. Initialized to a placeholder so the
+  // very-first render before handleOpen has a safe default.
+  const [spinVariant, setSpinVariant] = useState(SPIN_VARIANTS[0]);
 
   const reelRef      = useRef(null);
   const containerRef = useRef(null);
+  // Ref mirror so the callback ref's RAF closure reads the freshest
+  // variant. State alone would be stale by the time the double-RAF
+  // fires — setReelRef has [] deps to keep its identity stable.
+  const spinVariantRef = useRef(SPIN_VARIANTS[0]);
 
   // ── Callback ref: fires the instant the reel div enters the DOM ─────────────
   // useEffect fires too early — with AnimatePresence mode="wait", the spinning
@@ -165,8 +206,9 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         el.style.transform  = 'translateX(0px)';
         void el.offsetWidth; // synchronous reflow
 
-        // 2. Kick off the slide animation.
-        el.style.transition = 'transform 3.2s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+        // 2. Kick off the slide animation using the per-spin variant.
+        const v = spinVariantRef.current;
+        el.style.transition = `transform ${v.duration}s ${v.easing}`;
         el.style.transform  = `translateX(${-winOffset}px)`;
 
         // 3. Advance to revealing after the transition finishes.
@@ -206,6 +248,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const handleOpen = useCallback(async () => {
     if (openGuardRef.current) return;
     openGuardRef.current = true;
+
+    // Pick the spin persona for THIS open. Stash on both state (drives
+    // the kicker text via React re-render) and the ref (read by the
+    // callback ref's RAF closure, which has no React access). Without
+    // the ref mirror, the reel would always animate with the very-first
+    // variant due to the empty-deps closure on setReelRef.
+    const variant = pickSpinVariant();
+    spinVariantRef.current = variant;
+    setSpinVariant(variant);
 
     const capsuleType = capsule?.capsule_type ?? 'standard';
     const capsuleId   = capsule?.id;
@@ -402,7 +453,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <p className="text-gray-400 text-sm font-medium tracking-widest uppercase">Rolling…</p>
+              <p className="text-gray-400 text-sm font-medium tracking-widest uppercase">{spinVariant.kicker}</p>
 
               {/* Reel container */}
               <div
