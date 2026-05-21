@@ -56,10 +56,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const [pendingNewCount, setPendingNewCount] = useState(0);
 
   useEffect(() => {
-    const ch = supabase.channel('hub_feed_new_posts')
+    if (!user?.email) return;
+    // Per-mount unique channel name. Supabase's channel registry is keyed
+    // by name — re-using the same string across re-mounts (React 18
+    // StrictMode double-mount, fast nav-away-then-back, tab refocus that
+    // re-runs the effect) hands back the ALREADY-subscribed channel
+    // from a prior mount. Calling .on() on a subscribed channel throws
+    // "cannot add `postgres_changes` callbacks after subscribe()" and
+    // takes the whole Hub page down. Unique per-mount channel name
+    // sidesteps the cache so each mount gets a fresh, never-subscribed
+    // channel.
+    const channelName = `hub_feed_new_posts_${user.email}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+    const myEmailLc = user.email.toLowerCase();
+    const ch = supabase.channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_posts' }, (payload) => {
         // Only count if payload is a different user's post (avoid counting own)
-        if (payload.new?.author_email?.toLowerCase() !== user?.email?.toLowerCase()) {
+        if (payload.new?.author_email?.toLowerCase() !== myEmailLc) {
           setPendingNewCount(c => c + 1);
         }
       })
