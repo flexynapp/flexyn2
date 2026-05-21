@@ -10,6 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { formatDistanceToNow } from 'date-fns';
 
 // Static config keyed by status; the visible label is resolved at render
@@ -89,6 +90,7 @@ export default function Duels() {
   const losses    = duels.filter(d => d.status === 'completed' && d.winner_id && d.winner_id !== user?.id).length;
 
   return (
+    <ErrorBoundary label="Duels">
     <div className="min-h-screen bg-background pb-24">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
@@ -180,5 +182,6 @@ export default function Duels() {
         )}
       </AnimatePresence>
     </div>
+    </ErrorBoundary>
   );
 }

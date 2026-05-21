@@ -15,6 +15,7 @@ import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { useStartConversation } from '@/lib/hubMessaging';
 
 // ─── Ember particle data for the marketplace button ───────────────────────────
@@ -94,6 +95,7 @@ export default function Hub() {
   }, []);
 
   return (
+    <ErrorBoundary label="Hub">
     <div className="px-4 md:px-6 pt-[120px] pb-6 max-w-3xl mx-auto">
       {/* Fixed Hub sub-header */}
       <div className="fixed left-0 right-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:left-64">
@@ -344,5 +346,6 @@ export default function Hub() {
         }}
       />
     </div>
+    </ErrorBoundary>
   );
 }

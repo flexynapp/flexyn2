@@ -96,9 +96,14 @@ export default function NotificationPanel({ open, onClose }) {
       navigate(n.link_url);
     }
     if (!n.is_read) {
-      notifications.markRead(n.id).then(() => {
-        queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] });
-      });
+      notifications.markRead(n.id)
+        .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
+        .catch(err => reportError(err, {
+          feature: 'notifications.markRead',
+          level: 'warning',
+          userEmail: user?.email,
+          notificationId: n.id,
+        }));
     }
   };
 

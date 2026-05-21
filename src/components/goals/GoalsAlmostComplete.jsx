@@ -150,11 +150,24 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
         .catch(err => reportError(err, { feature: 'goals.quest-credit', level: 'warning', userEmail: user?.email, goalId: id }));
     },
     onError: (err, id) => {
+      // Reset the optimistic "completing" state regardless of the cause.
+      setCompletingId(null);
+      setDismissedIds(prev => prev.filter(d => d !== id));
+
       if (err?.message === 'not_complete') {
+        // Expected business error — the goal isn't actually at 100%.
         toast.error(t('goals.keepGoing'));
-        setCompletingId(null);
-        setDismissedIds(prev => prev.filter(d => d !== id));
+        return;
       }
+      // Anything else (network, RPC failure, RLS, etc.) was silently
+      // swallowed before. Surface a toast so the user knows to retry,
+      // and ship the underlying error to Sentry with feature context.
+      toast.error(
+        t('goals.completeFailed') === 'goals.completeFailed'
+          ? 'Could not complete goal — try again.'
+          : t('goals.completeFailed')
+      );
+      reportError(err, { feature: 'goals.complete', userEmail: user?.email, goalId: id });
     },
   });
 
