@@ -604,26 +604,27 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
         </div>
       </div>
 
-      {/* Row 2: sort toggle — single tap cycles Recent → Price → Price↑ → Recent */}
+      {/* Row 2: two-button sort — parameter toggle + directional toggle */}
       <div className="flex items-center gap-2">
+        {/* Button 1: Parameter toggle (Recent ↔ Price) */}
         <button
-          onClick={() => {
-            if (sortBy === 'recent') {
-              onSortByChange('price');
-            } else if (sortBy === 'price' && sortDir === 'desc') {
-              onSortDirToggle(); // price desc → price asc
-            } else {
-              onSortByChange('recent'); // price asc → recent
-            }
-          }}
-          className="flex items-center gap-1.5 bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 transition-colors select-none"
+          onClick={() => onSortByChange(sortBy === 'recent' ? 'price' : 'recent')}
+          className="flex items-center gap-1.5 bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 active:scale-95 transition-all select-none"
+        >
+          {sortBy === 'recent' ? '🕐 Recent' : '🏷️ Price'}
+        </button>
+        {/* Button 2: Directional toggle (asc ↔ desc) — only meaningful for Price */}
+        <button
+          onClick={onSortDirToggle}
+          className={`flex items-center gap-1 border text-xs font-semibold rounded-full px-3.5 py-1.5 active:scale-95 transition-all select-none ${
+            sortBy === 'price'
+              ? 'bg-purple-900 border-purple-600 text-white hover:bg-purple-800'
+              : 'bg-purple-950/40 border-purple-800/40 text-purple-400/50 cursor-default'
+          }`}
+          disabled={sortBy !== 'price'}
         >
           <ArrowUpDown className="w-3 h-3" />
-          {sortBy === 'recent'
-            ? 'Recent'
-            : sortDir === 'desc'
-              ? 'Price: High → Low'
-              : 'Price: Low → High'}
+          {sortDir === 'desc' ? 'High → Low' : 'Low → High'}
         </button>
       </div>
     </div>
@@ -819,27 +820,24 @@ export default function MarketplaceFeed() {
         />
       )}
 
-      {/* Buy More Capsules CTA */}
+      {/* Buy More Capsules CTA — dark purple theme matching Marketplace Square / Daily Chest */}
       <motion.button
         whileTap={{ scale: 0.97 }}
         whileHover={{ scale: 1.01 }}
         onClick={() => setShopOpen(true)}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border"
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl"
         style={{
-          background: 'linear-gradient(135deg, rgba(124,58,237,0.18) 0%, rgba(91,33,182,0.25) 100%)',
-          borderColor: 'rgba(139,92,246,0.35)',
+          background: 'linear-gradient(135deg, #2d0f5a 0%, #1a0a3e 100%)',
+          border: '1px solid #5b21b6',
         }}
       >
-        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+        <div className="w-10 h-10 rounded-xl bg-purple-800 border border-purple-600 flex items-center justify-center shrink-0">
           <Package className="w-5 h-5 text-purple-300" />
         </div>
         <div className="flex-1 text-left">
           <p className="text-sm font-bold text-white leading-tight">Buy More Capsules</p>
-          <p className="text-[11px] text-purple-300/70 leading-tight">Spend Flex Coins on Standard, Premium &amp; Elite</p>
+          <p className="text-[11px] text-purple-200/60 leading-tight">Standard · Premium · Elite</p>
         </div>
-        <span className="text-xs font-bold text-amber-300 flex items-center gap-1 shrink-0">
-          🪙 {Number(flexCoins).toLocaleString()}
-        </span>
       </motion.button>
 
       {/* Listings grid */}

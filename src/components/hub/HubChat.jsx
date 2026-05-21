@@ -479,7 +479,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       transition={{ delay: Math.min(i, 8) * 0.02 }}
                       className={`flex mb-0.5 relative ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
-                      {/* Floating fire animation on double-tap */}
+                      {/* Floating fire animation on double-tap — inward-facing:
+                          sent → anchors to left edge; received → anchors to right edge */}
                       {floatingFire && (
                         <motion.span
                           key={floatingFire.id}
@@ -487,7 +488,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           animate={{ opacity: 0, y: -40, scale: 1.4 }}
                           transition={{ duration: 0.85, ease: 'easeOut' }}
                           className="absolute -top-2 pointer-events-none z-10 text-base select-none"
-                          style={isMine ? { right: 8 } : { left: 8 }}
+                          style={isMine ? { left: 0 } : { right: 0 }}
                         >
                           🔥
                         </motion.span>
@@ -504,11 +505,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           onTouchStart={() => !isOptimistic && startLongPress(m)}
                           onTouchEnd={cancelLongPress}
                           onTouchMove={cancelLongPress}
-                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity cursor-pointer select-text ${
+                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm transition-opacity cursor-pointer select-text ${
                             isMine
                               ? 'bg-primary text-primary-foreground rounded-br-sm'
                               : 'bg-secondary text-foreground rounded-bl-sm'
                           } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
+                          style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                         >
                           {(() => {
                             // Strip the [TRADE_RESPONSE_V1] marker line so the
@@ -543,7 +545,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             </button>
                           )}
                         </div>
-                        {/* Persistent fire badge */}
+                        {/* Persistent fire badge — inward-facing center alignment:
+                            sent (right-aligned) → badge on LEFT edge of bubble;
+                            received (left-aligned) → badge on RIGHT edge of bubble */}
                         {hasFire && (
                           <span
                             className={`absolute -bottom-2 text-sm leading-none pointer-events-none select-none ${
@@ -553,7 +557,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             🔥
                           </span>
                         )}
-                        {/* Pin badge */}
+                        {/* Pin badge — same inward-facing logic */}
                         {msgIsPinned && (
                           <span
                             className={`absolute -top-2 text-xs leading-none pointer-events-none select-none ${

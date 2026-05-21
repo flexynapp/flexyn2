@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -10,6 +10,7 @@ import * as users from '@/lib/data/users';
 import * as crewsData from '@/lib/data/crews';
 import HubChat from './HubChat';
 import CrewChat from '@/components/crews/CrewChat';
+import { toast } from 'sonner';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -40,6 +41,86 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const [openOtherUser, setOpenOtherUser] = useState(null);
   const [activeCrew, setActiveCrew] = useState(null); // crew object for crew chat
   const [tab, setTab] = useState('dms'); // 'dms' | 'crews'
+
+  // Desktop three-dot quick-action state
+  const [openMenuId, setOpenMenuId] = useState(null); // conv.id or crew.id
+  const [pinnedConvIds, setPinnedConvIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fn_pinned_convs') || '[]')); } catch { return new Set(); }
+  });
+  const [mutedConvIds, setMutedConvIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fn_muted_convs') || '[]')); } catch { return new Set(); }
+  });
+  const [pinnedCrewIds, setPinnedCrewIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fn_pinned_crews') || '[]')); } catch { return new Set(); }
+  });
+  const [mutedCrewIds, setMutedCrewIds] = useState(() => {
+    try { return new Set(JSON.parse(localStorage.getItem('fn_muted_crews') || '[]')); } catch { return new Set(); }
+  });
+  const menuRef = useRef(null);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = (e) => {
+      if (!menuRef.current?.contains(e.target)) setOpenMenuId(null);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [openMenuId]);
+
+  const togglePinConv = useCallback((id) => {
+    setPinnedConvIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('fn_pinned_convs', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+    setOpenMenuId(null);
+  }, []);
+
+  const toggleMuteConv = useCallback((id) => {
+    setMutedConvIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('fn_muted_convs', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+    setOpenMenuId(null);
+    toast.success(mutedConvIds.has(id) ? 'Chat unmuted' : 'Chat muted');
+  }, [mutedConvIds]);
+
+  const togglePinCrew = useCallback((id) => {
+    setPinnedCrewIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('fn_pinned_crews', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+    setOpenMenuId(null);
+  }, []);
+
+  const toggleMuteCrew = useCallback((id) => {
+    setMutedCrewIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      try { localStorage.setItem('fn_muted_crews', JSON.stringify([...next])); } catch {}
+      return next;
+    });
+    setOpenMenuId(null);
+    toast.success(mutedCrewIds.has(id) ? 'Crew unmuted' : 'Crew muted');
+  }, [mutedCrewIds]);
+
+  const handleLeaveCrew = useCallback(async (crew) => {
+    setOpenMenuId(null);
+    if (!user?.id) return;
+    try {
+      await crewsData.removeMember(crew.id, user.id);
+      queryClient.invalidateQueries({ queryKey: ['myCrews', user.id] });
+      toast.success(`Left ${crew.name}`);
+    } catch {
+      toast.error('Could not leave crew. Try again.');
+    }
+  }, [user?.id, queryClient]);
 
   const { data: conversations = [], isLoading } = useQuery({
     queryKey: ['hubConversations', user?.email],
@@ -232,37 +313,78 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at);
 
                 return (
-                  <motion.button
+                  <motion.div
                     key={c.id}
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    onClick={() => {
-                      setActiveConv(c);
-                      setOpenOtherUser(profile || { email: otherEmail, username });
-                    }}
-                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-left"
+                    className="relative group"
                   >
-                    <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-base overflow-hidden">
-                      {profile?.avatar_url ? (
-                        <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
-                      ) : initials}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className={`font-heading text-sm truncate ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
-                          {handle}
-                        </p>
+                    <button
+                      onClick={() => {
+                        setActiveConv(c);
+                        setOpenOtherUser(profile || { email: otherEmail, username });
+                      }}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-left"
+                    >
+                      <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-base overflow-hidden">
+                        {profile?.avatar_url ? (
+                          <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                        ) : initials}
                       </div>
-                      <div className="flex items-center justify-between gap-2 mt-0.5">
-                        <p className={`text-sm truncate ${unread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                          {preview}
-                          {timeStr && <span className="text-muted-foreground font-normal"> · {timeStr}</span>}
-                        </p>
-                        {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className={`font-heading text-sm truncate ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
+                            {handle}
+                          </p>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 mt-0.5">
+                          <p className={`text-sm truncate ${unread ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                            {preview}
+                            {timeStr && <span className="text-muted-foreground font-normal"> · {timeStr}</span>}
+                          </p>
+                          {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
+                        </div>
                       </div>
+                    </button>
+                    {/* Desktop three-dot menu — lg only */}
+                    <div className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <MoreHorizontal className="w-4 h-4" />
+                      </button>
+                      <AnimatePresence>
+                        {openMenuId === c.id && (
+                          <motion.div
+                            ref={menuRef}
+                            key="dm-menu"
+                            initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute right-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
+                          >
+                            <button
+                              onClick={(e) => { e.stopPropagation(); togglePinConv(c.id); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                            >
+                              <Pin className="w-4 h-4 text-muted-foreground" />
+                              {pinnedConvIds.has(c.id) ? 'Unpin Chat' : 'Pin Chat'}
+                            </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); toggleMuteConv(c.id); }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                            >
+                              <BellOff className="w-4 h-4 text-muted-foreground" />
+                              {mutedConvIds.has(c.id) ? 'Unmute Chat' : 'Mute Chat'}
+                            </button>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                     </div>
-                  </motion.button>
+                  </motion.div>
                 );
               })}
             </div>
@@ -286,37 +408,86 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
           ) : (
             <div className="space-y-2">
               {myCrews.map((crew, i) => (
-                <motion.button
+                <motion.div
                   key={crew.id}
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.04 }}
-                  onClick={() => setActiveCrew(crew)}
-                  className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
+                  className="relative group"
                 >
-                  <div
-                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-                    style={{ background: 'hsl(var(--primary) / 0.12)' }}
+                  <button
+                    onClick={() => setActiveCrew(crew)}
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
                   >
-                    <Shield className="w-5 h-5" style={{ color: 'hsl(var(--primary))' }} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-heading font-bold text-sm text-foreground truncate">{crew.name}</p>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                      <Users className="w-3 h-3" />
-                      {crew.max_capacity ? `up to ${crew.max_capacity} members` : 'Group Chat'}
-                      {crew.is_admin && (
-                        <span
-                          className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
-                          style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
+                    <div
+                      className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
+                      style={{ background: 'hsl(var(--primary) / 0.12)' }}
+                    >
+                      <Shield className="w-5 h-5" style={{ color: 'hsl(var(--primary))' }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-heading font-bold text-sm text-foreground truncate">{crew.name}</p>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                        <Users className="w-3 h-3" />
+                        {crew.max_capacity ? `up to ${crew.max_capacity} members` : 'Group Chat'}
+                        {crew.is_admin && (
+                          <span
+                            className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+                            style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
+                          >
+                            Admin
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                  {/* Desktop three-dot menu — lg only */}
+                  <div className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === crew.id ? null : crew.id); }}
+                      className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <MoreHorizontal className="w-4 h-4" />
+                    </button>
+                    <AnimatePresence>
+                      {openMenuId === crew.id && (
+                        <motion.div
+                          ref={menuRef}
+                          key="crew-menu"
+                          initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                          transition={{ duration: 0.12 }}
+                          className="absolute right-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
                         >
-                          Admin
-                        </span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); togglePinCrew(crew.id); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                          >
+                            <Pin className="w-4 h-4 text-muted-foreground" />
+                            {pinnedCrewIds.has(crew.id) ? 'Unpin Chat' : 'Pin Chat'}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleMuteCrew(crew.id); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                          >
+                            <BellOff className="w-4 h-4 text-muted-foreground" />
+                            {mutedCrewIds.has(crew.id) ? 'Unmute Crew' : 'Mute Crew'}
+                          </button>
+                          <div className="border-t border-border/50 mx-2" />
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleLeaveCrew(crew); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-red-500/10 text-red-500 transition-colors text-left"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            Leave Chat
+                          </button>
+                        </motion.div>
                       )}
-                    </p>
+                    </AnimatePresence>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                </motion.button>
+                </motion.div>
               ))}
             </div>
           )}
