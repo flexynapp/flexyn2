@@ -65,24 +65,41 @@ async function _addFlexCoins(userId, amount) {
  *   - Every level: 1 standard capsule + 50 Flex Coins
  *   - Multiple of 5: +1 premium capsule + 100 bonus Flex Coins
  *   - Multiple of 10: +1 elite capsule (in addition to premium)
+ *
+ * Atomic + idempotent via the grant_level_up_rewards RPC (migration
+ * 070). Returns the RPC payload so callers can read whether the grant
+ * happened or was a no-op (already_granted=true). The previous
+ * implementation was a Promise.all of independent inserts with NO
+ * idempotency check — a profile refetch / two tabs / network retry
+ * could fire grantForLevelUp twice and dupe capsules + coins.
+ *
+ * The RPC tracks the highest level paid via the new column
+ * user_profiles.level_capsules_awarded_through. Even if the user
+ * jumps multiple levels in one earn (rare but possible), the RPC
+ * grants rewards for every intervening level — the old code only
+ * ever processed the SINGLE level passed in.
+ *
+ * Throws if the RPC is missing (pre-070 host). Previously fell back
+ * to the non-atomic path, which is the bug we just fixed — failing
+ * loud is safer than silently re-enabling the race.
  */
 export async function grantForLevelUp(userId, userEmail, newLevel) {
-  if (!userId || !userEmail || !newLevel) return;
+  if (!userId || !userEmail || !newLevel) return null;
 
-  const grants = [_grantCapsule(userId, userEmail, 'standard')];
-  let coins = 50;
-
-  if (newLevel % 5 === 0) {
-    grants.push(_grantCapsule(userId, userEmail, 'premium'));
-    coins += 100;
+  const { data, error } = await supabase.rpc('grant_level_up_rewards', {
+    p_new_level: newLevel,
+  });
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') {
+      // Pre-070 host. We deliberately don't fall back to the legacy
+      // race-prone path; the caller surfaces this as a warn-and-skip.
+      const e = new Error('grant_level_up_rewards RPC missing — apply migration 070');
+      e.code = error.code;
+      throw e;
+    }
+    throw error;
   }
-  if (newLevel % 10 === 0) {
-    grants.push(_grantCapsule(userId, userEmail, 'elite'));
-  }
-
-  grants.push(_addFlexCoins(userId, coins));
-
-  await Promise.all(grants);
+  return data; // { already_granted, awarded_through, standard, premium, elite, coins, new_balance }
 }
 
 /**

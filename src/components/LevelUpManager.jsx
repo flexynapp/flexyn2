@@ -83,20 +83,37 @@ export default function LevelUpManager() {
       setEvent({ fromLevel: lastSeenLevel, toLevel: currentLevel, totalXp });
     }
 
-    // 2. Grant capsule(s) and Flex Coins in the background
+    // 2. Grant capsule(s) and Flex Coins — gate localStorage on
+    //    SUCCESS so a failed grant doesn't permanently advance the
+    //    "last seen level" baseline. The previous version updated
+    //    localStorage immediately; if grantForLevelUp threw, the user
+    //    saw the overlay but no capsule and next mount didn't retry.
+    //    Migration 070's RPC is idempotent (tracks awarded_through
+    //    server-side), so a retry on the next render is safe.
+    //
+    //    Lock the in-session fire flag immediately so we don't double-
+    //    fire WITHIN this session, but only persist to localStorage
+    //    after the server confirms the grant. The flag resets on
+    //    refresh, so a failed grant + page reload will retry the
+    //    grant — the RPC will return already_granted if the previous
+    //    attempt happened to land server-side anyway.
+    lastFiredForRef.current = currentLevel;
     capsules
       .grantForLevelUp(userProfile.id, user.email, currentLevel)
       .then(() => {
-        // Invalidate so UserBag + capsule count badges refresh
+        try { localStorage.setItem(storageKey, String(currentLevel)); } catch {}
         queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
         queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
         queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user.email] });
       })
-      .catch((err) => console.warn('[LevelUpManager] capsule grant failed:', err));
-
-    lastFiredForRef.current = currentLevel;
-    try { localStorage.setItem(storageKey, String(currentLevel)); } catch {}
+      .catch((err) => {
+        console.warn('[LevelUpManager] capsule grant failed:', err);
+        // Roll the in-session flag back so the next render attempts
+        // again. localStorage stays at the OLD level so a refresh
+        // also retries.
+        lastFiredForRef.current = lastSeenLevel;
+      });
   }, [
     user?.email,
     userProfile?.id,

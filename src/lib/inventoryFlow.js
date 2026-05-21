@@ -80,11 +80,39 @@ export function useBagFlow() {
     setOpeningCapsule(null);
     if (!wonItem || !user?.email) return;
     try {
-      const saveOps = [
-        inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule'),
-      ];
-      if (capsuleId) saveOps.push(capsules.openCapsule(capsuleId));
-      await Promise.all(saveOps);
+      // Atomic verify-capsule + insert-inventory via the
+      // finalize_capsule_claim RPC (migration 070). The previous flow
+      // was Promise.all([inventory.addItem, capsules.openCapsule]) —
+      // two independent writes. If addItem failed AFTER
+      // claim_capsule_loot had already rolled + marked the capsule
+      // opened, the loot was destroyed (capsule opened, no inventory
+      // row). The RPC does both writes in one transaction.
+      if (capsuleId) {
+        const { error } = await supabase.rpc('finalize_capsule_claim', {
+          p_capsule_id:  capsuleId,
+          p_item_id:     wonItem.id,
+          p_item_name:   wonItem.name,
+          p_item_emoji:  wonItem.emoji ?? '',
+          p_item_rarity: wonItem.rarity ?? 'common',
+          p_item_type:   wonItem.type   ?? 'sticker',
+          p_variant:     wonItem.variant ?? null,
+        });
+        if (error) {
+          if (error.code === '42883' || error.code === '42P01') {
+            // Pre-070 host. The previous non-atomic path silently
+            // dropped loot on addItem failure; we'd rather the user
+            // know and retry than have it disappear.
+            console.warn('[inventoryFlow] finalize_capsule_claim RPC missing — apply migration 070');
+            throw new Error('rpc_missing');
+          }
+          throw error;
+        }
+      } else {
+        // No capsuleId — caller is granting an inventory item outside
+        // the capsule path (rare). Use the direct insert; no atomicity
+        // concern since there's no capsule to roll back.
+        await inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule');
+      }
 
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
