@@ -100,15 +100,16 @@ export async function recordLogin(user) {
   const coinsAwarded = coinsForStreakDay(newStreak);
   const eliteCapsule = eliteCapsuleOnStreakDay(newStreak);
   const newLongest = Math.max(longest, newStreak);
-  const newCoins = (profile.flex_coins ?? 0) + coinsAwarded;
   const newFreezes = freezeUsed ? Math.max(freezes - 1, 0) : freezes;
 
+  // Streak counters first — single-writer columns, so the direct UPDATE
+  // is race-free for these fields. flex_coins is intentionally NOT in
+  // this update; see the increment_flex_coins call below.
   const updates = {
     login_streak: newStreak,
     last_login_date: today,
     longest_login_streak: newLongest,
     streak_freezes_available: newFreezes,
-    flex_coins: newCoins,
   };
 
   const { error: writeErr } = await supabase
@@ -118,6 +119,31 @@ export async function recordLogin(user) {
   if (writeErr) {
     console.warn('[loginStreak] update failed:', writeErr);
     return { isNewDay: false, streak: currentStreak, coinsAwarded: 0, eliteCapsuleAwarded: false, freezeUsed: false };
+  }
+
+  // Credit coins via the atomic delta RPC (migration 030) so a concurrent
+  // grant from another path (capsule open, quest claim, marketplace credit)
+  // can't be overwritten. Previously this was a read-flex_coins → add →
+  // write-flex_coins dance inside the streak UPDATE above; that lost any
+  // grant that landed between the initial profile read and the write.
+  if (coinsAwarded > 0) {
+    const { error: coinsErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
+    if (coinsErr) {
+      // Pre-030 host or other RPC failure. Fall back to the legacy
+      // read-modify-write — keeps the streak coin grant landing on
+      // pre-migration deployments, at the cost of the documented race
+      // window. The race window only matters on hosts that DO have the
+      // RPC and just had it return an error, which is vanishingly rare.
+      if (coinsErr.code !== '42883' && coinsErr.code !== '42P01') {
+        console.warn('[loginStreak] increment_flex_coins failed, falling back to RMW:', coinsErr);
+      }
+      const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
+      const { error: fallbackErr } = await supabase
+        .from('user_profiles')
+        .update({ flex_coins: fallbackCoins })
+        .eq('id', user.id);
+      if (fallbackErr) console.warn('[loginStreak] fallback flex_coins write failed:', fallbackErr);
+    }
   }
 
   // Grant elite capsule on milestone days. Don't block the return on this.

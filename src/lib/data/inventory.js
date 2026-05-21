@@ -72,7 +72,16 @@ export async function countByType(userEmail, type) {
 /**
  * Sell one inventory item for Flex Coins.
  * Deletes the inventory row and credits the coins to the user's profile.
- * Returns the user's new flex_coins total.
+ * Returns the user's new flex_coins total (or null when only the legacy
+ * fallback ran on a host that's so old the RPC isn't available — the
+ * UserBag caller refetches via TanStack Query invalidation either way,
+ * so the return value is informational).
+ *
+ * Coin credit goes through increment_flex_coins (migration 030) for
+ * atomic delta arithmetic. The previous read-modify-write sequence
+ * raced any concurrent coin grant (capsule open, quest claim, streak
+ * milestone, marketplace credit) — those grants got overwritten by the
+ * stale "newTotal" computed off the original read.
  */
 export async function sellItem(inventoryId, userId, coinsToEarn) {
   if (!inventoryId || !userId) throw new Error('Missing inventoryId or userId');
@@ -80,21 +89,43 @@ export async function sellItem(inventoryId, userId, coinsToEarn) {
   // 1. Remove the item from inventory.
   await removeItem(inventoryId);
 
-  // 2. Add the coins to the user's profile.
+  if (!coinsToEarn || coinsToEarn <= 0) return null;
+
+  // 2. Credit coins atomically via the delta RPC.
+  const { error: rpcErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsToEarn });
+  if (!rpcErr) {
+    // RPC returned void; refetch the new total for the caller. A small
+    // round-trip cost, but the UserBag caller invalidates the userProfile
+    // query anyway so this isn't strictly required — return it for any
+    // future callers that want the post-credit total without a second
+    // network call.
+    const { data: after } = await supabase
+      .from('user_profiles')
+      .select('flex_coins')
+      .eq('id', userId)
+      .maybeSingle();
+    return after?.flex_coins ?? null;
+  }
+
+  // 3. Pre-030 host or transient RPC failure — fall back to legacy RMW
+  // so the user still gets their coins on hosts without migration 030
+  // applied. Race window is the bug we're closing; only deployments
+  // missing the RPC retain it.
+  if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
+    console.warn('[inventory] increment_flex_coins failed, falling back to RMW:', rpcErr);
+  }
   const { data: profile, error: pe } = await supabase
     .from('user_profiles')
     .select('flex_coins')
     .eq('id', userId)
     .maybeSingle();
   if (pe) throw pe;
-
   const newTotal = (profile?.flex_coins ?? 0) + coinsToEarn;
   const { error: ue } = await supabase
     .from('user_profiles')
     .update({ flex_coins: newTotal })
     .eq('id', userId);
   if (ue) throw ue;
-
   return newTotal;
 }
 

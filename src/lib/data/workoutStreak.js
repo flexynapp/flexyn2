@@ -81,20 +81,44 @@ export async function recordWorkoutDay(user) {
   const coinsAwarded = coinsForWorkoutStreakDay(newStreak);
   const eliteCapsule = eliteCapsuleOnWorkoutStreakDay(newStreak);
   const newLongest = Math.max(longest, newStreak);
-  const newCoins = (profile.flex_coins ?? 0) + coinsAwarded;
 
+  // Streak counters first — single-writer columns, race-free as a direct
+  // UPDATE. flex_coins is intentionally NOT in this update; the coin
+  // grant goes through increment_flex_coins below so a concurrent grant
+  // from another path (capsule open, quest claim, marketplace credit)
+  // can't be overwritten. Previously the read-flex_coins → add → write
+  // pattern lost any grant that landed between the read at line ~50
+  // and the write here.
   const { error: writeErr } = await supabase
     .from('user_profiles')
     .update({
       workout_streak:           newStreak,
       last_workout_date:        today,
       longest_workout_streak:   newLongest,
-      flex_coins:               newCoins,
     })
     .eq('id', user.id);
   if (writeErr) {
     console.warn('[workoutStreak] update failed:', writeErr);
     return null;
+  }
+
+  if (coinsAwarded > 0) {
+    const { error: coinsErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
+    if (coinsErr) {
+      // Pre-030 host or transient RPC failure — fall back to the
+      // legacy RMW path so the streak grant still lands. Race window
+      // is the documented bug we're trying to close; the fallback is
+      // strictly for pre-migration deployments.
+      if (coinsErr.code !== '42883' && coinsErr.code !== '42P01') {
+        console.warn('[workoutStreak] increment_flex_coins failed, falling back to RMW:', coinsErr);
+      }
+      const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
+      const { error: fallbackErr } = await supabase
+        .from('user_profiles')
+        .update({ flex_coins: fallbackCoins })
+        .eq('id', user.id);
+      if (fallbackErr) console.warn('[workoutStreak] fallback flex_coins write failed:', fallbackErr);
+    }
   }
 
   // Grant elite capsule on milestone days (best-effort)
