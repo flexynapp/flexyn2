@@ -20,7 +20,6 @@ import {
   TIERS,
   MAX_LEAGUE_SIZE,
   getTier,
-  resolveStanding,
 } from '@/lib/leagueTiers';
 import { notifyLeagueResolution } from './notifications';
 
@@ -286,101 +285,78 @@ async function _resolveLeague(leagueId) {
     league = row;
   }
 
-  const members = await listLeagueMembers(leagueId);
-  const total = members.length;
-
-  // Apply rankings, then transitions in parallel
-  await Promise.all(members.map(async (m, i) => {
-    const rank = i + 1;
-    const { outcome, newTier, coinsAwarded, capsuleAwarded } = resolveStanding(league.tier, rank, total);
-
-    // Persist final rank on the membership row
-    await supabase
-      .from('league_members')
-      .update({ rank })
-      .eq('id', m.id);
-
-    // Apply tier change + reward to the user's profile
-    const updates = {};
-    if (outcome === 'promote' || outcome === 'demote') {
-      updates.league_tier = newTier;
-    }
-
-    if (coinsAwarded > 0) {
-      // Read-modify-write — better than nothing without an RPC
-      const { data: prof } = await supabase
-        .from('user_profiles')
-        .select('flex_coins')
-        .eq('id', m.user_id)
-        .maybeSingle();
-      updates.flex_coins = (prof?.flex_coins || 0) + coinsAwarded;
-    }
-
-    if (Object.keys(updates).length > 0) {
-      await supabase.from('user_profiles').update(updates).eq('id', m.user_id);
-    }
-
-    if (capsuleAwarded) {
-      await supabase.from('user_capsules').insert({
-        user_id:     m.user_id,
-        user_email:  m.user_email,
-        capsule_type: capsuleAwarded,
-      }).then(({ error }) => {
-        if (error) console.warn('[leagues] capsule grant failed:', error);
-      });
-    }
-
-    // In-app notification — only for noteworthy outcomes (promote/demote, or
-    // a coin-paying hold like top 3 in legend). Skip silent middle-of-pack
-    // holds to avoid notification spam.
-    const noteworthy = outcome === 'promote' || outcome === 'demote' || coinsAwarded > 0;
-    if (noteworthy) {
-      const fromTier = getTier(league.tier).label;
-      const toTier   = getTier(newTier).label;
-      // Route through notify_league_resolution_for (migration 040): the
-      // RPC reads each recipient's preferred_language server-side and
-      // renders title/body in their language. This solves the
-      // mixed-language-batch problem the JS-only path couldn't —
-      // calling notifyLeagueResolution from here would have rendered
-      // every recipient's notification in the resolver's language.
-      //
-      // Falls back to English client-rendering on the legacy notify
-      // helper if the RPC is unavailable (e.g. host hasn't applied
-      // migration 040 yet).
-      const { error: rpcError } = await supabase.rpc('notify_league_resolution_for', {
-        p_user_id:   m.user_id,
-        p_outcome:   outcome,
-        p_from_tier: fromTier,
-        p_to_tier:   toTier,
-        p_coins:     coinsAwarded || 0,
-        p_capsule:   capsuleAwarded || null,
-      });
-      if (rpcError && (rpcError.code === '42883' || rpcError.code === '42P01')) {
-        // Pre-migration host — fall back to the legacy client-rendered
-        // English text. Better than dropping the notification.
-        await notifyLeagueResolution({
-          user: { id: m.user_id, email: m.user_email },
-          outcome,
-          fromTier,
-          toTier,
-          coinsAwarded,
-          capsuleAwarded,
-        });
-      } else if (rpcError) {
-        console.warn('[leagues] notify_league_resolution_for failed:', rpcError);
+  // Run the entire reward distribution server-side via the atomic
+  // SECURITY DEFINER RPC (migration 067). The audit caught that the
+  // previous client-side fan-out silently no-op'd on every cross-user
+  // user_profiles / league_members UPDATE because RLS scopes those
+  // tables to auth.uid() = id / user_id. Only the resolver themselves
+  // ever received their tier change / coins / capsule. Other members
+  // got the notification but no payout.
+  //
+  // The RPC streams back (user_id, user_email, outcome, from_tier,
+  // new_tier, coins_awarded, capsule) per member so we can still
+  // dispatch language-aware notifications via
+  // notify_league_resolution_for. Idempotent — second call sees
+  // populated ranks and returns zero rows.
+  let distributions = [];
+  try {
+    const { data, error } = await supabase.rpc('distribute_league_rewards', {
+      p_league_id: leagueId,
+    });
+    if (error) {
+      // 42883 / 42P01 = pre-migration host (067 not yet applied).
+      // No fallback path: the previous client-side distribution silently
+      // no-op'd on RLS for every non-resolver row anyway, so attempting
+      // the same code path here would just confirm the same broken
+      // behavior the RPC was built to replace. Bail loudly instead.
+      if (error.code === '42883' || error.code === '42P01') {
+        console.warn(
+          '[leagues] distribute_league_rewards missing — apply migration 067 to enable league reward payouts.'
+        );
+        return;
       }
+      console.warn('[leagues] distribute_league_rewards failed:', error);
+      return;
+    }
+    distributions = data || [];
+  } catch (err) {
+    console.warn('[leagues] distribute_league_rewards threw:', err);
+    return;
+  }
+
+  // Dispatch per-member notifications using the existing language-aware
+  // RPC. Skip silent middle-of-pack holds (outcome=stay, no coins) to
+  // avoid notification spam.
+  await Promise.all(distributions.map(async (d) => {
+    const noteworthy =
+      d.outcome === 'promote' || d.outcome === 'demote' || d.coins_awarded > 0;
+    if (!noteworthy) return;
+
+    const fromTier = getTier(d.from_tier).label;
+    const toTier   = getTier(d.new_tier).label;
+    const { error: rpcError } = await supabase.rpc('notify_league_resolution_for', {
+      p_user_id:   d.user_id,
+      p_outcome:   d.outcome,
+      p_from_tier: fromTier,
+      p_to_tier:   toTier,
+      p_coins:     d.coins_awarded || 0,
+      p_capsule:   d.capsule || null,
+    });
+    if (rpcError && (rpcError.code === '42883' || rpcError.code === '42P01')) {
+      // Pre-migration host — fall back to the legacy client-rendered
+      // English text. Better than dropping the notification.
+      await notifyLeagueResolution({
+        user: { id: d.user_id, email: d.user_email },
+        outcome: d.outcome,
+        fromTier,
+        toTier,
+        coinsAwarded:  d.coins_awarded,
+        capsuleAwarded: d.capsule,
+      });
+    } else if (rpcError) {
+      console.warn('[leagues] notify_league_resolution_for failed:', rpcError);
     }
   }));
-
-  // Mark resolved — the atomic claim above already flipped this for hosts
-  // that have migration 027 applied. For pre-migration hosts we still need
-  // to flip it explicitly here.
-  if (!league.is_resolved) {
-    await supabase
-      .from('leagues')
-      .update({ is_resolved: true })
-      .eq('id', leagueId);
-  }
 }
 
 /**
