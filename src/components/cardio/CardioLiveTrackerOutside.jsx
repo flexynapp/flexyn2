@@ -87,7 +87,7 @@ function weatherEmoji(code) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, userProfile = {} }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const { cardioVoiceCues, cardioAutoPause } = useSettings();
@@ -378,9 +378,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     // no fix is arriving.
     if (!transientGpsToastRef.current) {
       transientGpsToastRef.current = true;
-      toast.message(t('cardio.live.gpsTransient') === 'cardio.live.gpsTransient'
-        ? 'GPS signal weak — keep moving, it should recover.'
-        : t('cardio.live.gpsTransient'));
+      toast.message(tFallback('cardio.live.gpsTransient', 'GPS signal weak — keep moving, it should recover.'));
       // Allow the toast to fire again after 30s of continued errors.
       setTimeout(() => { transientGpsToastRef.current = false; }, 30000);
     }

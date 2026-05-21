@@ -441,9 +441,7 @@ export default function Workout() {
               // know to retry — the capsule is idempotent so a retry
               // is safe.
               toast.error(
-                t('workout.firstCapsuleFailed') === 'workout.firstCapsuleFailed'
-                  ? "Your first-workout capsule didn't grant — log another workout to retry."
-                  : t('workout.firstCapsuleFailed')
+                tFallback('workout.firstCapsuleFailed', "Your first-workout capsule didn't grant — log another workout to retry.")
               );
               reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email });
             });
@@ -1271,7 +1269,7 @@ export default function Workout() {
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   role="button" tabIndex={0}
-                  aria-label={t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
+                  aria-label={tFallback('generator.title', 'Generate Workout')}
                   className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
                   onClick={() => setGeneratorOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
@@ -1282,10 +1280,10 @@ export default function Workout() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm leading-tight">
-                        {t('generator.title') === 'generator.title' ? 'Generate Workout' : t('generator.title')}
+                        {tFallback('generator.title', 'Generate Workout')}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {t('generator.cardSubtitle') === 'generator.cardSubtitle' ? 'AI builds a session from your history' : t('generator.cardSubtitle')}
+                        {tFallback('generator.cardSubtitle', 'AI builds a session from your history')}
                       </p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />

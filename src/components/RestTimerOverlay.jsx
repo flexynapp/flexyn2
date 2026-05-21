@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext';
  * theme-aware via CSS vars. Tap to expand for settings.
  */
 export default function RestTimerOverlay() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const {
     active, secondsLeft, totalSeconds,
     defaultDuration, setDefaultDuration,
@@ -220,7 +220,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
             ? <Mic className="w-4 h-4 text-primary" />
             : <MicOff className="w-4 h-4 text-muted-foreground" />}
           <span className="font-medium">
-            {t('restTimer.voiceCues') === 'restTimer.voiceCues' ? 'Voice cues' : t('restTimer.voiceCues')}
+            {tFallback('restTimer.voiceCues', 'Voice cues')}
           </span>
         </span>
         <span className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full transition-colors ${
@@ -233,9 +233,7 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
 
       {voiceCuesEnabled && (
         <p className="text-[11px] text-muted-foreground mt-2 px-1 leading-relaxed">
-          {t('restTimer.voiceHint') === 'restTimer.voiceHint'
-            ? 'Hands-free coaching: rest start, 3-2-1 countdown, "time\'s up". Plug in your headphones.'
-            : t('restTimer.voiceHint')}
+          {tFallback('restTimer.voiceHint', `Hands-free coaching: rest start, 3-2-1 countdown, "time's up". Plug in your headphones.`)}
         </p>
       )}
     </motion.div>

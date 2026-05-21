@@ -18,7 +18,7 @@ import { reportError } from '@/lib/reportError';
 import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 
 export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, compact = false, onClick }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const [completingId, setCompletingId] = useState(null);
   const [dismissedIds, setDismissedIds] = useState([]);
@@ -140,9 +140,7 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
       // swallowed before. Surface a toast so the user knows to retry,
       // and ship the underlying error to Sentry with feature context.
       toast.error(
-        t('goals.completeFailed') === 'goals.completeFailed'
-          ? 'Could not complete goal — try again.'
-          : t('goals.completeFailed')
+        tFallback('goals.completeFailed', 'Could not complete goal — try again.')
       );
       reportError(err, { feature: 'goals.complete', userEmail: user?.email, goalId: id });
     },

@@ -44,7 +44,7 @@ function PostSkeleton() {
 const PAGE_SIZE = 8;
 
 export default function HubFeed({ feedTab, onAuthorClick }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -181,11 +181,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     //   - Squad empty (has follows but no posts yet): same CTA as Pump —
     //     posting yourself fills your own Squad feed too.
     const ctaShare = {
-      label: t('hub.empty.cta.share') === 'hub.empty.cta.share' ? 'Share a workout' : t('hub.empty.cta.share'),
+      label: tFallback('hub.empty.cta.share', 'Share a workout'),
       onClick: () => navigate('/workout'),
     };
     const ctaDiscover = {
-      label: t('hub.empty.cta.discover') === 'hub.empty.cta.discover' ? 'Find athletes' : t('hub.empty.cta.discover'),
+      label: tFallback('hub.empty.cta.discover', 'Find athletes'),
       // Squad empty discovery → the search overlay handles it; we route to
       // /hub which is already on /hub, but resetting the section state via
       // a query param tells Hub.jsx to open the search overlay.
@@ -196,17 +196,17 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         icon={feedTab === 'pump' ? Sparkles : Users}
         title={
           feedTab === 'pump'
-            ? (t('hub.empty.pumpTitle') === 'hub.empty.pumpTitle' ? 'No posts yet' : t('hub.empty.pumpTitle'))
+            ? (tFallback('hub.empty.pumpTitle', 'No posts yet'))
             : isSquadWithFollowing
-            ? (t('hub.empty.squadNoPosts') === 'hub.empty.squadNoPosts' ? "Your squad hasn't posted yet" : t('hub.empty.squadNoPosts'))
-            : (t('hub.empty.squadTitle') === 'hub.empty.squadTitle' ? 'Build your squad' : t('hub.empty.squadTitle'))
+            ? (tFallback('hub.empty.squadNoPosts', "Your squad hasn't posted yet"))
+            : (tFallback('hub.empty.squadTitle', 'Build your squad'))
         }
         body={
           feedTab === 'pump'
-            ? (t('hub.empty.pumpDesc') === 'hub.empty.pumpDesc' ? 'Be the first to share — your workouts inspire the rest of the community.' : t('hub.empty.pumpDesc'))
+            ? (tFallback('hub.empty.pumpDesc', 'Be the first to share — your workouts inspire the rest of the community.'))
             : isSquadWithFollowing
-            ? (t('hub.empty.squadNoPostsDesc') === 'hub.empty.squadNoPostsDesc' ? 'Your followed athletes haven\'t shared yet. Share your own session in the meantime!' : t('hub.empty.squadNoPostsDesc'))
-            : (t('hub.empty.squadDesc') === 'hub.empty.squadDesc' ? 'Follow other athletes to see their workouts and progress here.' : t('hub.empty.squadDesc'))
+            ? (tFallback('hub.empty.squadNoPostsDesc', "Your followed athletes haven't shared yet. Share your own session in the meantime!"))
+            : (tFallback('hub.empty.squadDesc', 'Follow other athletes to see their workouts and progress here.'))
         }
         action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
         secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}

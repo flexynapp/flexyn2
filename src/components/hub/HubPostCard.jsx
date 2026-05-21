@@ -147,7 +147,7 @@ function PollCard({ post, userEmail }) {
 }
 
 export default function HubPostCard({ post, onAuthorClick = null }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   // On-demand translation state. Translation is shown alongside (or in place
   // of) the original body when the user taps "Translate".
   const [translation, setTranslation] = useState(null); // { text, sourceLang } | null
@@ -474,13 +474,13 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
                 >
                   <Languages className="w-3 h-3" />
                   {showOriginal
-                    ? (t('hub.post.showTranslation') === 'hub.post.showTranslation' ? 'Show translation' : t('hub.post.showTranslation'))
-                    : (t('hub.post.showOriginal') === 'hub.post.showOriginal' ? 'Show original' : t('hub.post.showOriginal'))}
+                    ? (tFallback('hub.post.showTranslation', 'Show translation'))
+                    : (tFallback('hub.post.showOriginal', 'Show original'))}
                 </button>
               ) : translating ? (
                 <span className="flex items-center gap-1">
                   <Loader2 className="w-3 h-3 animate-spin" />
-                  {t('hub.post.translating') === 'hub.post.translating' ? 'Translating…' : t('hub.post.translating')}
+                  {tFallback('hub.post.translating', 'Translating…')}
                 </span>
               ) : (
                 <button
@@ -511,12 +511,12 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
                   className="flex items-center gap-1 hover:text-primary transition-colors"
                 >
                   <Languages className="w-3 h-3" />
-                  {t('hub.post.translate') === 'hub.post.translate' ? 'Translate' : t('hub.post.translate')}
+                  {tFallback('hub.post.translate', 'Translate')}
                 </button>
               )}
               {translation?.sourceLang && translation.sourceLang !== language && !showOriginal && (
                 <span className="text-muted-foreground/70">
-                  · {t('hub.post.translatedFrom') === 'hub.post.translatedFrom' ? 'translated from' : t('hub.post.translatedFrom')} {translation.sourceLang}
+                  · {tFallback('hub.post.translatedFrom', 'translated from')} {translation.sourceLang}
                 </span>
               )}
             </div>

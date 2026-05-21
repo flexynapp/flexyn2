@@ -683,9 +683,7 @@ function DailyChestBlock({ user, onClaimed }) {
       // the safety check the moment the RPC was added.
       reportError(err, { feature: 'marketplace.daily-chest-claim', level: 'warning', userEmail: user?.email });
       toast.error(
-        t('marketplace.dailyChest.claimFailed') === 'marketplace.dailyChest.claimFailed'
-          ? 'Could not claim — try again in a moment.'
-          : t('marketplace.dailyChest.claimFailed')
+        tFallback('marketplace.dailyChest.claimFailed', 'Could not claim — try again in a moment.')
       );
     } finally {
       setLoading(false);

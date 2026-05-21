@@ -69,7 +69,7 @@ export function deleteProgressPhoto(id) {
 //   Dashboard "Add photo" CTA jump straight into the prompt dialog
 //   without rendering a redundant button on its own surface.
 export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   // When `open` is provided we run in controlled mode and the parent
@@ -223,7 +223,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
                 </p>
                 <button
                   onClick={closeCamera}
-                  aria-label={t('photos.closeCamera') === 'photos.closeCamera' ? 'Close camera' : t('photos.closeCamera')}
+                  aria-label={tFallback('photos.closeCamera', 'Close camera')}
                   className="p-2 hover:bg-white/10 rounded-full transition-colors"
                 >
                   <X className="w-5 h-5 text-white" />
@@ -273,7 +273,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
                     {/* Flip button */}
                     <button
                       onClick={toggleFacingMode}
-                      aria-label={t('photos.flipCamera') === 'photos.flipCamera' ? 'Flip camera' : t('photos.flipCamera')}
+                      aria-label={tFallback('photos.flipCamera', 'Flip camera')}
                       className="p-3 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
                     >
                       <FlipHorizontal className="w-5 h-5 text-white" />
@@ -284,7 +284,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
                         as an unlabeled "button". */}
                     <button
                       onClick={capturePhoto}
-                      aria-label={t('photos.takePhoto') === 'photos.takePhoto' ? 'Take photo' : t('photos.takePhoto')}
+                      aria-label={tFallback('photos.takePhoto', 'Take photo')}
                       className="w-16 h-16 rounded-full bg-white hover:bg-white/90 transition-colors active:scale-95"
                     />
 

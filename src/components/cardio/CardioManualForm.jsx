@@ -31,7 +31,7 @@ function deriveType(mode, env) {
 }
 
 export default function CardioManualForm({ mode, env, initial, onCancel, onSaved, userProfile = {} }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
 
   // Today's existing workout + cardio logs — used by the daily-hour
@@ -143,9 +143,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       const maxDate = new Date(Date.now() + 14 * 60 * 60 * 1000);
       const ceilingYmd = maxDate.toISOString().slice(0, 10);
       if (date > ceilingYmd) {
-        toast.error(t('cardio.error.dateInFuture') === 'cardio.error.dateInFuture'
-          ? "Cardio can't be dated in the future."
-          : t('cardio.error.dateInFuture'));
+        toast.error(tFallback('cardio.error.dateInFuture', "Cardio can't be dated in the future."));
         setSaving(false);
         return;
       }
