@@ -623,15 +623,18 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
         >
           {sortBy === 'recent' ? '🕐 Recent' : '🏷️ Price'}
         </button>
-        {/* Button 2: Directional toggle (asc ↔ desc) — only meaningful for Price */}
+        {/* Button 2: Directional toggle (asc ↔ desc). On Recent mode
+            it auto-switches to Price + flips direction (handled by
+            the parent's onSortDirToggle), so it's ALWAYS clickable —
+            previously it was disabled on Recent and a tap silently
+            no-op'd, which users read as "filter button is broken." */}
         <button
           onClick={onSortDirToggle}
-          className={`flex items-center gap-1 border text-xs font-semibold rounded-full px-3.5 py-1.5 active:scale-95 transition-all select-none ${
+          className={`flex items-center gap-1 border text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 active:scale-95 transition-all select-none ${
             sortBy === 'price'
-              ? 'bg-purple-900 border-purple-600 text-white hover:bg-purple-800'
-              : 'bg-purple-950/40 border-purple-800/40 text-purple-400/50 cursor-default'
+              ? 'bg-purple-900 border-purple-600 text-white'
+              : 'bg-purple-950/60 border-purple-700/60 text-purple-200'
           }`}
-          disabled={sortBy !== 'price'}
         >
           <ArrowUpDown className="w-3 h-3" />
           {sortDir === 'desc' ? 'High → Low' : 'Low → High'}
@@ -843,7 +846,20 @@ export default function MarketplaceFeed() {
         sortBy={sortBy}
         sortDir={sortDir}
         onSortByChange={setSortBy}
-        onSortDirToggle={() => setSortDir(d => d === 'desc' ? 'asc' : 'desc')}
+        onSortDirToggle={() => {
+          // If the user is on Recent and taps the direction toggle, they
+          // expect SOMETHING to happen. Before, the button was disabled
+          // (because direction has no meaning for Recent) and the tap
+          // silently dropped — user reported "filter button doesn't do
+          // anything." Now: auto-switch to Price + apply the requested
+          // direction. One tap, useful outcome.
+          if (sortBy !== 'price') {
+            setSortBy('price');
+            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+          } else {
+            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+          }
+        }}
       />
 
       {/* Feature 22: Daily Chest */}
