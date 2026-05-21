@@ -144,8 +144,18 @@ export async function recordAction(user, actionType, amount = 1) {
 }
 
 /**
- * Claim a completed quest's coin reward. Credits the user's flex_coins and
- * marks the quest row claimed_at. Idempotent — already-claimed quests no-op.
+ * Claim a completed quest's coin reward. Atomically marks the quest
+ * claimed AND credits flex_coins via the claim_quest_atomic RPC
+ * (migration 068). Idempotent — already-claimed quests return
+ * { success: false, newCoinBalance: <current> }.
+ *
+ * Previously this was a read-then-write-coins-then-mark-claimed dance
+ * that lost coin grants when a concurrent flex_coins update landed
+ * between the read and the write (rapid double-tap, two tabs, network
+ * retry). The RPC does the whole flip in one transaction with
+ * delta-arithmetic on flex_coins, so concurrent grants from other
+ * paths (marketplace credit, streak milestone, etc.) compose
+ * correctly.
  *
  * Returns { success, newCoinBalance, coinsAwarded }.
  */
@@ -154,44 +164,20 @@ export async function claimQuest(user, questRowId) {
     return { success: false, newCoinBalance: null, coinsAwarded: 0 };
   }
 
-  // Read the quest row
-  const { data: row, error: readErr } = await supabase
-    .from('user_daily_quests')
-    .select('*')
-    .eq('id', questRowId)
-    .eq('user_id', user.id)
-    .maybeSingle();
-  if (readErr || !row) return { success: false, newCoinBalance: null, coinsAwarded: 0 };
-
-  if (row.claimed_at) return { success: false, newCoinBalance: null, coinsAwarded: 0 };
-  if (!row.completed_at) return { success: false, newCoinBalance: null, coinsAwarded: 0 };
-
-  // Credit coins + mark claimed in parallel — but read coins first to avoid race
-  const { data: profile, error: pErr } = await supabase
-    .from('user_profiles')
-    .select('flex_coins')
-    .eq('id', user.id)
-    .maybeSingle();
-  if (pErr) return { success: false, newCoinBalance: null, coinsAwarded: 0 };
-
-  const newBalance = (profile?.flex_coins ?? 0) + row.coin_reward;
-  const claimedAt = new Date().toISOString();
-
-  const [coinsRes, claimRes] = await Promise.all([
-    supabase
-      .from('user_profiles')
-      .update({ flex_coins: newBalance })
-      .eq('id', user.id),
-    supabase
-      .from('user_daily_quests')
-      .update({ claimed_at: claimedAt })
-      .eq('id', questRowId),
-  ]);
-
-  if (coinsRes.error || claimRes.error) {
+  const { data, error } = await supabase.rpc('claim_quest_atomic', {
+    p_quest_row_id: questRowId,
+  });
+  if (error) {
+    console.warn('[quests] claim_quest_atomic failed:', error);
     return { success: false, newCoinBalance: null, coinsAwarded: 0 };
   }
-  return { success: true, newCoinBalance: newBalance, coinsAwarded: row.coin_reward };
+
+  // RPC shape: { success, already_claimed, coins_awarded, new_balance }
+  return {
+    success:        !!data?.success,
+    newCoinBalance: data?.new_balance ?? null,
+    coinsAwarded:   data?.coins_awarded ?? 0,
+  };
 }
 
 /** Annotate a stored quest row with its full catalog definition for rendering. */

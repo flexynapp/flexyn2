@@ -16,14 +16,22 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
-import * as capsules    from '@/lib/data/capsules';
+import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
 
 // ─── Daily Chest helpers ──────────────────────────────────────────────────────
+// Was: localStorage-only claim gate. That was a coin minter — clear
+// localStorage / use incognito / use a second device → re-claim. The
+// server has no idea. Replaced by the claim_daily_chest RPC (migration
+// 068) which atomically checks user_profiles.last_daily_chest_at and
+// only credits once per UTC day. We KEEP a localStorage hint for the
+// initial UI state so the chest doesn't flicker into the "available"
+// look on every cold load, but the source of truth is the server.
+
 const CHEST_KEY = (userId) => `daily_chest_claimed_${userId}`;
 
-function isDailyChestClaimed(userId) {
+function isDailyChestClaimedLocally(userId) {
   if (!userId) return false;
   const val = localStorage.getItem(CHEST_KEY(userId));
   if (!val) return false;
@@ -32,7 +40,7 @@ function isDailyChestClaimed(userId) {
   return claimedDate === today;
 }
 
-function markDailyChestClaimed(userId) {
+function markDailyChestClaimedLocally(userId) {
   if (!userId) return;
   localStorage.setItem(CHEST_KEY(userId), new Date().toISOString());
 }
@@ -636,25 +644,46 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
 // ─── Daily Chest block ────────────────────────────────────────────────────────
 function DailyChestBlock({ user, onClaimed }) {
   const { t } = useLanguage();
-  const [claimed, setClaimed] = useState(() => isDailyChestClaimed(user?.id));
+  // localStorage hint avoids the "available" flicker on cold loads, but
+  // the server is the source of truth — the claim RPC enforces the
+  // once-per-UTC-day rule even if localStorage is wiped or this is a
+  // different browser / device.
+  const [claimed, setClaimed] = useState(() => isDailyChestClaimedLocally(user?.id));
   const [loading, setLoading] = useState(false);
 
   const handleClaim = async () => {
     if (claimed || loading || !user) return;
     setLoading(true);
     try {
-      // Grant a standard capsule + 25 flex coins
-      await capsules.grantForLevelUp(user.id, user.email, 1);
-      markDailyChestClaimed(user.id);
+      const { data, error } = await supabase.rpc('claim_daily_chest');
+      if (error) throw error;
+
+      if (data?.already_claimed) {
+        // Server says we already claimed today (probably from another
+        // device). Quietly sync local state without celebrating again.
+        markDailyChestClaimedLocally(user.id);
+        setClaimed(true);
+        return;
+      }
+
+      // Real claim landed. Optimistically reflect the new balance / new
+      // capsule in cached queries; the parent's onClaimed fires the
+      // refetch chain.
+      markDailyChestClaimedLocally(user.id);
       setClaimed(true);
       toast.success(t('marketplace.dailyChest.claimSuccess') || '🎁 Daily chest claimed! Check your capsules.');
       onClaimed?.();
     } catch (err) {
+      // Pre-migration host (RPC missing) or network error. Do NOT
+      // mark claimed locally — let the user retry. The previous code
+      // marked claimed-on-failure to avoid spam clicks; that defeated
+      // the safety check the moment the RPC was added.
       reportError(err, { feature: 'marketplace.daily-chest-claim', level: 'warning', userEmail: user?.email });
-      // Still mark claimed to avoid spam clicks on error
-      markDailyChestClaimed(user.id);
-      setClaimed(true);
-      toast.success(t('marketplace.dailyChest.claimSuccess') || '🎁 Daily chest claimed!');
+      toast.error(
+        t('marketplace.dailyChest.claimFailed') === 'marketplace.dailyChest.claimFailed'
+          ? 'Could not claim — try again in a moment.'
+          : t('marketplace.dailyChest.claimFailed')
+      );
     } finally {
       setLoading(false);
     }
