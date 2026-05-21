@@ -83,8 +83,19 @@ export const listMyConversations = async (myEmail, limit = 50) => {
     groups.get(key).push(c);
   }
 
-  // 3. Fetch recent messages in one batch — group locally
-  const allMyMessages = await msg().filter({}, '-created_date', 500).catch(() => []);
+  // 3. Fetch recent messages SCOPED to the user's actual conversations.
+  // Was filter({}, ...) limit 500 — RLS already scoped to readable
+  // messages but the DB still had to read+filter every row in the
+  // window. Pinning conversation_id pushes the scope into the index
+  // (idx_hub_messages_conversation_id_created_at) so the read cost
+  // scales with the user's own activity, not the global message rate.
+  // TODO(scale): replace with a SECURITY DEFINER RPC that returns
+  // (conversation_id, latest_message, unread_count) per row in one
+  // SQL query using DISTINCT ON.
+  const myConvIds = mine.map(c => c.id).filter(Boolean);
+  const allMyMessages = myConvIds.length > 0
+    ? await msg().filter({ conversation_id: myConvIds }, '-created_date', 200).catch(() => [])
+    : [];
   const messagesByConvId = new Map();
   for (const m of allMyMessages) {
     const cid = m.conversation_id;
@@ -226,12 +237,17 @@ export const markRead = async (conversationId, myEmail) => {
  * Total unread message count for inbox badge.
  * Uses read_at (null = unread) and sender_email to exclude own messages.
  * RLS ensures only messages in the user's conversations are returned.
+ *
+ * Limit reduced 500 → 100. Inbox badges over 99+ are capped anyway, so
+ * the only loss is precision past that cap. TODO(scale): replace with
+ * a SECURITY DEFINER `unread_message_count_for(p_email)` RPC that runs
+ * `SELECT COUNT(*) FROM hub_messages WHERE ...` server-side instead of
+ * pulling rows over the wire.
  */
 export const unreadCountFor = async (myEmail) => {
   if (!myEmail) return 0;
   const myEmailLc = myEmail.toLowerCase();
-  // RLS scopes this to only conversations the user participates in
-  const recent = await msg().filter({}, '-created_date', 500).catch(() => []);
+  const recent = await msg().filter({}, '-created_date', 100).catch(() => []);
   return recent.filter(m => _isUnread(m, myEmailLc)).length;
 };
 

@@ -95,7 +95,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       }
     },
     enabled: !!user?.email,
-    staleTime: 0, // always treat data as stale so scroll-to-top always refetches
+    // 30s feels live without hammering the DB on every component mount.
+    // Scroll-to-top refresh below calls refetch() explicitly, so we don't
+    // need staleTime:0 — it was causing a fresh fetch on every Hub re-mount
+    // (every tab switch back from a profile/composer overlay).
+    staleTime: 30_000,
   });
 
   // ── Scroll-to-top refresh ────────────────────────────────────────────────

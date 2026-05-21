@@ -29,27 +29,22 @@ export const listPublicFeed = async (limit = 50) => {
  * List posts visible to the current user from people they follow ("Squad").
  * Includes both public and followers-only posts from followed users.
  *
+ * Single batched query via .in() — used to be one query per follow which
+ * was 50+ round-trips for an active user. The DB layer's filter shim
+ * (src/api/db.js) translates an array value into a `.in()` clause.
+ *
  * @param {string[]} followingEmails — emails the current user follows
  */
 export const listSquadFeed = async (followingEmails = [], limit = 50) => {
   if (!followingEmails || followingEmails.length === 0) return [];
-  // Base44 entity API doesn't support OR-filter on author_email natively, so
-  // we batch by author and merge. Acceptable up to ~100 follows.
-  const results = await Promise.all(
-    followingEmails.slice(0, 100).map(email =>
-      e().filter({ author_email: email }, '-created_date', 30).catch(() => [])
-    )
-  );
-  const merged = results.flat();
-  // Sort newest first and dedupe
-  const seen = new Set();
-  const deduped = [];
-  for (const post of merged.sort((a, b) =>
-    new Date(b.created_date) - new Date(a.created_date)
-  )) {
-    if (!seen.has(post.id)) { seen.add(post.id); deduped.push(post); }
-  }
-  return deduped.slice(0, limit);
+  // Cap at 100 follows to keep the .in() list bounded; power-followers
+  // beyond that lose visibility into the tail (acceptable trade-off vs
+  // letting the IN clause grow unbounded).
+  const emails = followingEmails.slice(0, 100);
+  const rows = await e()
+    .filter({ author_email: emails }, '-created_date', limit)
+    .catch(() => []);
+  return rows;
 };
 
 /**
@@ -144,28 +139,18 @@ export const fetchGlobalWindow = () =>
 
 /**
  * Fetch the Following feed window — posts authored by users in
- * `followingEmails`, both public AND followers-only privacy. The caller
- * paginates client-side.
+ * `followingEmails`, both public AND followers-only privacy.
  *
- * Implementation: we batch by author since Base44 doesn't support OR-filter
- * on author_email. Pull recent posts from each followed user, merge,
- * dedupe, sort, cap.
+ * Single batched query via .in('author_email', emails). Replaces the
+ * old per-author fan-out (1 query per follow = 50+ round-trips for
+ * active users) with a single bounded query. The DB layer shim
+ * (src/api/db.js) translates an array value into a `.in()` clause.
  */
 export const fetchFollowingWindow = async (followingEmails = []) => {
   if (!followingEmails || followingEmails.length === 0) return [];
-  const perAuthor = Math.max(8, Math.ceil(FETCH_WINDOW / Math.min(followingEmails.length, 50)));
-  const batches = await Promise.all(
-    followingEmails.slice(0, 50).map(email =>
-      e().filter({ author_email: email }, '-created_date', perAuthor).catch(() => [])
-    )
-  );
-  const seen = new Set();
-  const merged = [];
-  for (const post of batches.flat().sort((a, b) =>
-    new Date(b.created_date) - new Date(a.created_date)
-  )) {
-    if (!seen.has(post.id)) { seen.add(post.id); merged.push(post); }
-    if (merged.length >= FETCH_WINDOW) break;
-  }
-  return merged;
+  const emails = followingEmails.slice(0, 100);
+  const rows = await e()
+    .filter({ author_email: emails }, '-created_date', FETCH_WINDOW)
+    .catch(() => []);
+  return rows;
 };
