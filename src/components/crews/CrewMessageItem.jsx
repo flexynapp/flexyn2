@@ -17,6 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
 import { supabase } from '@/api/supabaseClient';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Feature 18: Write fire reaction to Supabase (graceful fallback)
 async function writeFireReaction(msgId, userId, active) {
@@ -115,6 +116,7 @@ function Timestamp({ dateStr }) {
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
 function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
+  const { t } = useLanguage();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
@@ -155,7 +157,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
       await supabase.rpc('toggle_pin_crew_message', { p_message_id: msg.id });
     } catch {
       setPinned(p => !p); // revert
-      toast.error('Could not pin message.');
+      toast.error(t('crew.messages.pinError') || 'Could not pin message.');
     }
   };
 
@@ -165,7 +167,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
       {pinned && (
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 px-1">
           <span>📌</span>
-          <span>Pinned</span>
+          <span>{t('crew.messages.pinned') || 'Pinned'}</span>
         </div>
       )}
       <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>

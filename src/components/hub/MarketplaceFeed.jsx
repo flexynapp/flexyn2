@@ -12,6 +12,8 @@ import {
 import CoinShopModal from './CoinShopModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import * as capsules    from '@/lib/data/capsules';
@@ -146,6 +148,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
 
 // ─── List Item Dialog ─────────────────────────────────────────────────────────
 function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
+  const { t } = useLanguage();
   const qc = useQueryClient();
   const [step, setStep]             = useState('pick');   // 'pick' | 'configure'
   const [selectedItem, setSelected] = useState(null);
@@ -632,6 +635,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
 
 // ─── Daily Chest block ────────────────────────────────────────────────────────
 function DailyChestBlock({ user, onClaimed }) {
+  const { t } = useLanguage();
   const [claimed, setClaimed] = useState(() => isDailyChestClaimed(user?.id));
   const [loading, setLoading] = useState(false);
 
@@ -643,14 +647,14 @@ function DailyChestBlock({ user, onClaimed }) {
       await capsules.grantForLevelUp(user.id, user.email, 1);
       markDailyChestClaimed(user.id);
       setClaimed(true);
-      toast.success('🎁 Daily chest claimed! Check your capsules.');
+      toast.success(t('marketplace.dailyChest.claimSuccess') || '🎁 Daily chest claimed! Check your capsules.');
       onClaimed?.();
     } catch (err) {
-      console.error('[DailyChest] claim error:', err);
+      reportError(err, { feature: 'marketplace.daily-chest-claim', level: 'warning', userEmail: user?.email });
       // Still mark claimed to avoid spam clicks on error
       markDailyChestClaimed(user.id);
       setClaimed(true);
-      toast.success('🎁 Daily chest claimed!');
+      toast.success(t('marketplace.dailyChest.claimSuccess') || '🎁 Daily chest claimed!');
     } finally {
       setLoading(false);
     }
@@ -689,9 +693,11 @@ function DailyChestBlock({ user, onClaimed }) {
         <Gift className={`w-6 h-6 ${claimed ? 'text-yellow-200/50' : 'text-yellow-300'}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-white font-bold text-sm">Daily Chest</p>
+        <p className="text-white font-bold text-sm">{t('marketplace.dailyChest.title') || 'Daily Chest'}</p>
         <p className="text-purple-100 font-medium text-xs mt-0.5">
-          {claimed ? 'Come back tomorrow for another reward!' : 'Claim your free daily capsule + coins'}
+          {claimed
+            ? (t('marketplace.dailyChest.comeback') || 'Come back tomorrow for another reward!')
+            : (t('marketplace.dailyChest.cta') || 'Claim your free daily capsule + coins')}
         </p>
       </div>
       <button
@@ -704,7 +710,7 @@ function DailyChestBlock({ user, onClaimed }) {
             : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:opacity-90 shadow-md',
         ].join(' ')}
       >
-        {loading ? '…' : claimed ? 'Claimed' : 'Claim'}
+        {loading ? '…' : claimed ? (t('marketplace.dailyChest.claimed') || 'Claimed') : (t('marketplace.dailyChest.claim') || 'Claim')}
       </button>
     </motion.div>
   );
@@ -776,7 +782,7 @@ export default function MarketplaceFeed() {
       toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
       setBuyTarget(null);
     } catch (err) {
-      console.error('[Marketplace] purchase failed:', err);
+      reportError(err, { feature: 'marketplace.purchase', level: 'warning', userEmail: user?.email });
       // Map server error messages to user-friendly toasts.
       const msg = err?.message || '';
       if (/insufficient_coins/.test(msg)) {

@@ -32,6 +32,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 const JOURNAL_KEY = (email, dateStr) => `journal_${email}_${dateStr}`;
 
 function JournalView({ userEmail, onClose }) {
+  const { t } = useLanguage();
   const [activeDate, setActiveDate] = useState(new Date());
   const dateStr = format(activeDate, 'yyyy-MM-dd');
   const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
@@ -73,11 +74,11 @@ function JournalView({ userEmail, onClose }) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft className="w-4 h-4" /> Back
+          <ChevronLeft className="w-4 h-4" /> {t('profile.journal.back') || 'Back'}
         </button>
         <div className="flex items-center gap-1.5">
           <Book className="w-4 h-4 text-primary" />
-          <span className="font-heading font-bold text-base">My Journal</span>
+          <span className="font-heading font-bold text-base">{t('profile.journal.title') || 'My Journal'}</span>
         </div>
         <div className="w-16" />
       </div>
@@ -89,7 +90,7 @@ function JournalView({ userEmail, onClose }) {
         </button>
         <div className="text-center">
           <p className="text-sm font-bold text-foreground">{displayDate}</p>
-          {isToday && <p className="text-[11px] text-primary font-semibold">Today</p>}
+          {isToday && <p className="text-[11px] text-primary font-semibold">{t('profile.journal.today') || 'Today'}</p>}
         </div>
         <button onClick={goForward} disabled={!canGoForward} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30">
           <ChevronRight className="w-4 h-4" />
@@ -102,7 +103,9 @@ function JournalView({ userEmail, onClose }) {
           value={text}
           onChange={handleChange}
           readOnly={!isToday}
-          placeholder={isToday ? "How was your session today? Log your lifts, notes, or how you felt…" : "No entry for this day."}
+          placeholder={isToday
+            ? (t('profile.journal.placeholderToday') || 'How was your session today? Log your lifts, notes, or how you felt…')
+            : (t('profile.journal.placeholderPast') || 'No entry for this day.')}
           className="flex-1 w-full bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
           style={{ fontFamily: 'inherit' }}
         />
@@ -111,7 +114,9 @@ function JournalView({ userEmail, onClose }) {
       {/* Footer hint */}
       <div className="px-4 py-2 border-t border-border shrink-0">
         <p className="text-[11px] text-muted-foreground text-center">
-          {isToday ? 'Auto-saved · Use ← to browse past entries' : 'Read-only · Navigate to today to write'}
+          {isToday
+            ? (t('profile.journal.footerToday') || 'Auto-saved · Use ← to browse past entries')
+            : (t('profile.journal.footerPast') || 'Read-only · Navigate to today to write')}
         </p>
       </div>
     </motion.div>

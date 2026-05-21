@@ -203,7 +203,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
           }`}
         >
           <MessageCircle className="w-4 h-4" />
-          Messages
+          {t('hub.messages.tab.dms') || 'Messages'}
         </button>
         <button
           onClick={() => setTab('crews')}
@@ -212,7 +212,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
           }`}
         >
           <Shield className="w-4 h-4" />
-          Crews
+          {t('hub.messages.tab.crews') || 'Crews'}
         </button>
       </div>
 
@@ -371,14 +371,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
                             >
                               <Pin className="w-4 h-4 text-muted-foreground" />
-                              {pinnedConvIds.has(c.id) ? 'Unpin Chat' : 'Pin Chat'}
+                              {pinnedConvIds.has(c.id)
+                                ? (t('hub.messages.unpinChat') || 'Unpin Chat')
+                                : (t('hub.messages.pinChat') || 'Pin Chat')}
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleMuteConv(c.id); }}
                               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
                             >
                               <BellOff className="w-4 h-4 text-muted-foreground" />
-                              {mutedConvIds.has(c.id) ? 'Unmute Chat' : 'Mute Chat'}
+                              {mutedConvIds.has(c.id)
+                                ? (t('hub.messages.unmuteChat') || 'Unmute Chat')
+                                : (t('hub.messages.muteChat') || 'Mute Chat')}
                             </button>
                           </motion.div>
                         )}
@@ -402,8 +406,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
           ) : myCrews.length === 0 ? (
             <div className="text-center py-12">
               <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-              <p className="font-heading font-bold text-base">No Crews yet</p>
-              <p className="text-sm text-muted-foreground">Join or create a Crew from the Hub tab.</p>
+              <p className="font-heading font-bold text-base">{t('hub.messages.noCrews.title') || 'No Crews yet'}</p>
+              <p className="text-sm text-muted-foreground">{t('hub.messages.noCrews.desc') || 'Join or create a Crew from the Hub tab.'}</p>
             </div>
           ) : (
             <div className="space-y-2">

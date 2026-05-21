@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Swords, ChevronLeft, X, Zap, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/lib/LanguageContext';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import {
   getGauntletChallenges,
@@ -20,34 +21,38 @@ import GauntletPath from '@/components/gauntlet/GauntletPath';
 import WeeklyGauntletCard from '@/components/gauntlet/WeeklyGauntletCard';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 
-// Challenge-type readable label
+// Challenge-type readable label — stored as i18n keys + fallbacks; resolved
+// at render-time via t() so the same map works for every locale.
 const TYPE_LABEL = {
-  single_session: 'Single Session',
-  weekly_volume:  'Weekly Volume',
-  streak:         'Streak',
-  nutrition:      'Nutrition',
-  pr:             'Personal Record',
-  final:          'Final Boss',
+  single_session: { i18nKey: 'gauntlet.type.singleSession', fallback: 'Single Session' },
+  weekly_volume:  { i18nKey: 'gauntlet.type.weeklyVolume',  fallback: 'Weekly Volume' },
+  streak:         { i18nKey: 'gauntlet.type.streak',        fallback: 'Streak' },
+  nutrition:      { i18nKey: 'gauntlet.type.nutrition',     fallback: 'Nutrition' },
+  pr:             { i18nKey: 'gauntlet.type.pr',            fallback: 'Personal Record' },
+  final:          { i18nKey: 'gauntlet.type.finalBoss',     fallback: 'Final Boss' },
 };
 
-// Metric readable description
-function metricHint(challenge) {
+// Metric readable description. Takes `t` so the strings can localize;
+// templates use {n} for the dynamic value (number formatting still done here).
+function metricHint(challenge, t) {
   const { metric, target_value: tv } = challenge;
   if (!metric) return null;
   const fmtLbs = (v) => v >= 1000 ? `${Math.round(v / 1000)}K` : String(v);
-  if (metric === 'session_volume')         return `${fmtLbs(tv)} lbs in one session`;
-  if (metric === 'weekly_lbs')             return `${fmtLbs(tv)} lbs in one week`;
-  if (metric === 'sessions_in_7_days')     return `${tv} sessions within any 7-day window`;
-  if (metric === 'sessions_in_5_days')     return `${tv} sessions within any 5-day window`;
-  if (metric === 'consecutive_days')       return `${tv}-day consecutive streak`;
-  if (metric === 'min_exercises_no_skip')  return `${tv}+ exercises, zero skipped sets`;
-  if (metric === 'any_compound_pr')        return 'New PR on any compound lift';
+  const fill = (key, fallback, value) => (t?.(key) || fallback).replace('{n}', String(value));
+  if (metric === 'session_volume')         return fill('gauntlet.hint.sessionVolume',      '{n} lbs in one session',                  fmtLbs(tv));
+  if (metric === 'weekly_lbs')             return fill('gauntlet.hint.weeklyLbs',          '{n} lbs in one week',                     fmtLbs(tv));
+  if (metric === 'sessions_in_7_days')     return fill('gauntlet.hint.sessionsIn7Days',    '{n} sessions within any 7-day window',    tv);
+  if (metric === 'sessions_in_5_days')     return fill('gauntlet.hint.sessionsIn5Days',    '{n} sessions within any 5-day window',    tv);
+  if (metric === 'consecutive_days')       return fill('gauntlet.hint.consecutiveDays',    '{n}-day consecutive streak',              tv);
+  if (metric === 'min_exercises_no_skip')  return fill('gauntlet.hint.minExercisesNoSkip', '{n}+ exercises, zero skipped sets',       tv);
+  if (metric === 'any_compound_pr')        return t?.('gauntlet.hint.anyCompoundPr') || 'New PR on any compound lift';
   return null;
 }
 
 // ── Challenge detail card (shown when node is tapped) ────────────────────────
 function ChallengeDetail({ challenge, status, completedAt, onClose }) {
-  const hint = metricHint(challenge);
+  const { t } = useLanguage();
+  const hint = metricHint(challenge, t);
   const isLocked = status === 'locked';
 
   return (
@@ -102,7 +107,10 @@ function ChallengeDetail({ challenge, status, completedAt, onClose }) {
             <span className={`text-[10px] font-bold uppercase tracking-widest block mb-0.5 ${
               isLocked ? 'text-muted-foreground/30' : 'text-muted-foreground'
             }`}>
-              {TYPE_LABEL[challenge.type] ?? challenge.type}
+              {(() => {
+                const cfg = TYPE_LABEL[challenge.type];
+                return cfg ? (t(cfg.i18nKey) || cfg.fallback) : challenge.type;
+              })()}
             </span>
             <h3 className={`font-heading font-bold text-base leading-tight ${
               isLocked ? 'text-muted-foreground/40' : 'text-foreground'

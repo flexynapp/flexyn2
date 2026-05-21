@@ -26,6 +26,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 import * as notifications from '@/lib/data/notifications';
 
 // Notification types that a real human triggered. Used for the
@@ -72,6 +73,8 @@ export default function NotificationPanel({ open, onClose }) {
     notifications.markAllRead(user).then(() => {
       queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notificationsList', user.id] });
+    }).catch((err) => {
+      reportError(err, { feature: 'notifications.markAllRead', level: 'warning', userEmail: user?.email });
     });
      
   }, [open, rows, user?.id, queryClient]);

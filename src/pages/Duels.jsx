@@ -7,21 +7,25 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
 import { listMyDuels } from '@/lib/data/duels';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
 import { formatDistanceToNow } from 'date-fns';
 
+// Static config keyed by status; the visible label is resolved at render
+// time via t() so the same English fallback works for every locale.
 const STATUS_CONFIG = {
-  pending:   { label: 'Pending',   color: 'text-amber-500',  bg: 'bg-amber-500/10 border-amber-500/20' },
-  active:    { label: 'Active',    color: 'text-primary',    bg: 'bg-primary/10 border-primary/20' },
-  completed: { label: 'Complete',  color: 'text-emerald-500',bg: 'bg-emerald-500/10 border-emerald-500/20' },
-  declined:  { label: 'Declined',  color: 'text-rose-500',   bg: 'bg-rose-500/10 border-rose-500/20' },
-  expired:   { label: 'Expired',   color: 'text-muted-foreground', bg: 'bg-secondary' },
+  pending:   { i18nKey: 'duels.status.pending',   fallback: 'Pending',   color: 'text-amber-500',         bg: 'bg-amber-500/10 border-amber-500/20' },
+  active:    { i18nKey: 'duels.status.active',    fallback: 'Active',    color: 'text-primary',           bg: 'bg-primary/10 border-primary/20' },
+  completed: { i18nKey: 'duels.status.completed', fallback: 'Complete',  color: 'text-emerald-500',       bg: 'bg-emerald-500/10 border-emerald-500/20' },
+  declined:  { i18nKey: 'duels.status.declined',  fallback: 'Declined',  color: 'text-rose-500',          bg: 'bg-rose-500/10 border-rose-500/20' },
+  expired:   { i18nKey: 'duels.status.expired',   fallback: 'Expired',   color: 'text-muted-foreground',  bg: 'bg-secondary' },
 };
 
 const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
 function DuelRow({ duel, currentUserId, onClick }) {
+  const { t } = useLanguage();
   const isChallenger = duel.challenger_id === currentUserId;
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
@@ -41,7 +45,9 @@ function DuelRow({ duel, currentUserId, onClick }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">
-          {isChallenger ? 'You challenged' : 'Challenged by'} ·{' '}
+          {isChallenger
+            ? (t('duels.youChallenged') || 'You challenged')
+            : (t('duels.challengedBy') || 'Challenged by')} ·{' '}
           <span className="text-muted-foreground capitalize">{duel.type}</span>
         </p>
         <p className="text-xs text-muted-foreground">
@@ -50,11 +56,15 @@ function DuelRow({ duel, currentUserId, onClick }) {
       </div>
       {duel.status === 'completed' && (
         <span className={`text-xs font-bold ${won ? 'text-primary' : lost ? 'text-rose-500' : 'text-amber-500'}`}>
-          {won ? 'W' : lost ? 'L' : 'TIE'}
+          {won
+            ? (t('duels.resultWin') || 'W')
+            : lost
+              ? (t('duels.resultLoss') || 'L')
+              : (t('duels.resultTie') || 'TIE')}
         </span>
       )}
       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>
-        {cfg.label}
+        {t(cfg.i18nKey) || cfg.fallback}
       </span>
     </button>
   );

@@ -34,19 +34,35 @@ function formatDivider(dateStr) {
 }
 
 // Dedupe optimistic messages once the server echoes them back.
-// The temp loses to a real duplicate so we don't render the same message twice.
+// Two-pass to avoid the prior bug where two rapidly-sent identical TEMP
+// messages would silently drop the second one (same sender+body key).
+//   Pass 1: collect content keys of all REAL (non-temp) messages.
+//   Pass 2: skip a temp ONLY if a real with the same content exists.
+//           Dedupe everything else by id so genuine duplicates can't slip in.
 function dedupeMessages(list) {
   if (!list || list.length === 0) return [];
-  const seen = new Set();
+  const realKeys = new Set();
+  for (const m of list) {
+    const id = m.id;
+    const isTemp = String(id || '').startsWith('temp-');
+    if (!isTemp && id) {
+      const text = (m.body || m.content || '').trim();
+      realKeys.add(`${(m.sender_email || '').toLowerCase()}|${text}`);
+    }
+  }
+  const seenIds = new Set();
   const out = [];
   for (let i = list.length - 1; i >= 0; i--) {
     const m = list[i];
-    // body is the primary column; content is the mirror — check both
-    const text = (m.body || m.content || '').trim();
-    const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
-    const isTemp = String(m.id || '').startsWith('temp-');
-    if (seen.has(key) && isTemp) continue;
-    seen.add(key);
+    const id = m.id;
+    const isTemp = String(id || '').startsWith('temp-');
+    if (id && seenIds.has(id)) continue;
+    if (isTemp) {
+      const text = (m.body || m.content || '').trim();
+      const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
+      if (realKeys.has(key)) continue;
+    }
+    if (id) seenIds.add(id);
     out.unshift(m);
   }
   return out;
@@ -177,7 +193,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   // Revoke object URL when attachment is cleared to avoid memory leaks
   const clearAttachment = useCallback(() => {
-    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    if (attachmentPreview) { try { URL.revokeObjectURL(attachmentPreview); } catch { /* already revoked */ } }
     setAttachmentFile(null);
     setAttachmentPreview(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -190,11 +206,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast.error('Image must be 50 MB or smaller');
+      toast.error(t('hub.chat.attachmentTooLarge') || 'Image must be 50 MB or smaller');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
-    if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+    if (attachmentPreview) { try { URL.revokeObjectURL(attachmentPreview); } catch { /* already revoked */ } }
     setAttachmentFile(file);
     setAttachmentPreview(URL.createObjectURL(file));
   }, [attachmentPreview]);
@@ -241,7 +257,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         if (next.has(id)) next.delete(id); else next.add(id);
         return next;
       });
-      toast.error('Could not pin message. Try again.');
+      // Resync with server in case the failure was a transient that
+      // succeeded server-side — avoids leaving the UI desynced after recovery.
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
+      toast.error(t('hub.chat.pinError') || 'Could not pin message. Try again.');
     }
   }, [conversation?.id, queryClient]);
 
