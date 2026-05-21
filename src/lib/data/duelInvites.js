@@ -111,8 +111,14 @@ export function readPendingToken() {
       }
       return env.token;
     }
-    // Legacy bare-string form — no timestamp. Treat as still valid
-    // for this session; next stash will upgrade it to the envelope.
+    // Legacy bare-string form — no timestamp. Upgrade it to the
+    // envelope shape on read so the 24-hour TTL starts ticking from
+    // now (instead of "session start, whenever that was"). Without
+    // this, a token left in localStorage on a shared browser by a
+    // user who never made it through onboarding stays valid forever,
+    // because nothing else calls stashPendingToken once the user
+    // moves past the landing page.
+    stashPendingToken(raw);
     return raw;
   } catch {
     return null;

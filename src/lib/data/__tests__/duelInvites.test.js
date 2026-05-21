@@ -190,9 +190,35 @@ describe('stashPendingToken / readPendingToken — envelope + TTL', () => {
 
   it('reads legacy bare-string token (pre-envelope users)', () => {
     // Older app version stored the token verbatim. Don't break them
-    // mid-flow — return it as-is, the next stash upgrades the shape.
+    // mid-flow — return it as-is, AND upgrade the storage shape so
+    // the 24-hour TTL starts ticking from this read.
     localStorage.setItem(PENDING_INVITE_LS_KEY, 'legacy-token');
     expect(readPendingToken()).toBe('legacy-token');
+  });
+
+  it('upgrades a legacy bare-string to the envelope shape on first read', () => {
+    // Without this upgrade, a stuck bare-string sits in localStorage
+    // on a shared browser forever (no other call site re-stashes after
+    // the landing page sets it). The first read now writes the envelope
+    // shape back so the TTL kicks in.
+    localStorage.setItem(PENDING_INVITE_LS_KEY, 'legacy-token');
+    readPendingToken();
+    const raw = localStorage.getItem(PENDING_INVITE_LS_KEY);
+    expect(raw.startsWith('{')).toBe(true);
+    const env = JSON.parse(raw);
+    expect(env.token).toBe('legacy-token');
+    expect(typeof env.stashedAt).toBe('number');
+  });
+
+  it('upgraded legacy token then expires 24h later', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    localStorage.setItem(PENDING_INVITE_LS_KEY, 'legacy-token');
+    // First read upgrades and returns the token.
+    expect(readPendingToken()).toBe('legacy-token');
+    // 25h later, the envelope's TTL has elapsed and the read returns null.
+    vi.setSystemTime(new Date('2026-01-02T01:00:00Z'));
+    expect(readPendingToken()).toBeNull();
   });
 
   it('returns null on malformed JSON envelope', () => {

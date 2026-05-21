@@ -94,16 +94,18 @@ export async function sellItem(inventoryId, userId, coinsToEarn) {
   // 2. Credit coins atomically via the delta RPC.
   const { error: rpcErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsToEarn });
   if (!rpcErr) {
-    // RPC returned void; refetch the new total for the caller. A small
-    // round-trip cost, but the UserBag caller invalidates the userProfile
-    // query anyway so this isn't strictly required — return it for any
-    // future callers that want the post-credit total without a second
-    // network call.
-    const { data: after } = await supabase
+    // RPC returned void; refetch the new total for the caller. The
+    // credit already landed — refetch is purely informational, so a
+    // refetch error is non-fatal. Log it so a flaky network doesn't
+    // hide a genuine RLS / connectivity problem from the operator.
+    const { data: after, error: refetchErr } = await supabase
       .from('user_profiles')
       .select('flex_coins')
       .eq('id', userId)
       .maybeSingle();
+    if (refetchErr) {
+      console.warn('[inventory] sellItem post-credit refetch failed (credit DID land):', refetchErr);
+    }
     return after?.flex_coins ?? null;
   }
 

@@ -102,9 +102,16 @@ export async function recordWorkoutDay(user) {
     return null;
   }
 
+  // Track whether the coins actually landed so the return value
+  // doesn't lie to the caller — Workout.jsx pops a "+N coins" toast
+  // off coinsAwarded, so claiming coins when neither path succeeded
+  // would tell the user they got something they didn't.
+  let coinsLanded = coinsAwarded === 0;
   if (coinsAwarded > 0) {
     const { error: coinsErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
-    if (coinsErr) {
+    if (!coinsErr) {
+      coinsLanded = true;
+    } else {
       // Pre-030 host or transient RPC failure — fall back to the
       // legacy RMW path so the streak grant still lands. Race window
       // is the documented bug we're trying to close; the fallback is
@@ -118,6 +125,7 @@ export async function recordWorkoutDay(user) {
         .update({ flex_coins: fallbackCoins })
         .eq('id', user.id);
       if (fallbackErr) console.warn('[workoutStreak] fallback flex_coins write failed:', fallbackErr);
+      else coinsLanded = true;
     }
   }
 
@@ -132,5 +140,10 @@ export async function recordWorkoutDay(user) {
     });
   }
 
-  return { isNewDay: true, streak: newStreak, coinsAwarded, eliteCapsuleAwarded: eliteCapsule };
+  return {
+    isNewDay: true,
+    streak: newStreak,
+    coinsAwarded: coinsLanded ? coinsAwarded : 0,
+    eliteCapsuleAwarded: eliteCapsule,
+  };
 }

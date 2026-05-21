@@ -126,9 +126,16 @@ export async function recordLogin(user) {
   // can't be overwritten. Previously this was a read-flex_coins → add →
   // write-flex_coins dance inside the streak UPDATE above; that lost any
   // grant that landed between the initial profile read and the write.
+  //
+  // Track whether coins actually landed — the caller may surface a
+  // "+N coins" toast off coinsAwarded, so we don't want to claim a
+  // grant that never made it to the DB.
+  let coinsLanded = coinsAwarded === 0;
   if (coinsAwarded > 0) {
     const { error: coinsErr } = await supabase.rpc('increment_flex_coins', { p_delta: coinsAwarded });
-    if (coinsErr) {
+    if (!coinsErr) {
+      coinsLanded = true;
+    } else {
       // Pre-030 host or other RPC failure. Fall back to the legacy
       // read-modify-write — keeps the streak coin grant landing on
       // pre-migration deployments, at the cost of the documented race
@@ -143,6 +150,7 @@ export async function recordLogin(user) {
         .update({ flex_coins: fallbackCoins })
         .eq('id', user.id);
       if (fallbackErr) console.warn('[loginStreak] fallback flex_coins write failed:', fallbackErr);
+      else coinsLanded = true;
     }
   }
 
@@ -165,7 +173,7 @@ export async function recordLogin(user) {
   return {
     isNewDay: true,
     streak: newStreak,
-    coinsAwarded,
+    coinsAwarded: coinsLanded ? coinsAwarded : 0,
     eliteCapsuleAwarded: eliteCapsule,
     freezeUsed,
   };

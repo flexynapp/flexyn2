@@ -156,9 +156,16 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       // Workout.jsx as a follow-up.
       // Only blocks dates that ARE today — past-date entries don't
       // race against today's accumulated logs.
+      // When editing an existing today-log, exclude that log from the
+      // accumulated set or its OLD duration counts toward the cap on
+      // top of the new duration — e.g. editing a 1h log to 1.5h would
+      // check (1h + 1.5h = 2.5h) instead of (1.5h).
       if (date === todayStr) {
+        const otherCardioLogs = initial?.id
+          ? todayCardioLogs.filter(l => l.id !== initial.id)
+          : todayCardioLogs;
         const hoursCheck = checkDailyHours(
-          todayWorkoutLogs, todayCardioLogs,
+          todayWorkoutLogs, otherCardioLogs,
           0,                              // newWorkoutMins (this is a cardio save)
           Number(durationSeconds) || 0,   // newCardioSecs
         );
