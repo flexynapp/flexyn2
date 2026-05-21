@@ -3,6 +3,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
+import { reportError } from '@/lib/reportError';
 
 // ── Social helpers ────────────────────────────────────────────────────────────
 
@@ -117,8 +118,19 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
       recipientEmail: opProfile.email,
       body:           `[DUEL_INVITE_V1]${payload}`,
     });
-  } catch {
-    // non-critical — duel was still created successfully
+  } catch (err) {
+    // Non-critical to the duel itself (the duel row was already
+    // created before this function fires). But the OPPONENT never
+    // sees the challenge if the DM lookup or send fails — they get
+    // no signal a duel exists. Was silent; now surface to Sentry so
+    // we catch the failure pattern instead of users reporting "I
+    // never saw the duel."
+    reportError(err, {
+      feature: 'duels.sendDuelDM',
+      level: 'warning',
+      duelId,
+      opponentId,
+    });
   }
 }
 

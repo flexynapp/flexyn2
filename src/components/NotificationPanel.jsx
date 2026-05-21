@@ -112,16 +112,22 @@ export default function NotificationPanel({ open, onClose }) {
 
   const handleDelete = async (id) => {
     if (!id || deletingIds.has(id)) return;
+    // Pin user.id at the start of the handler. If auth context refreshes
+    // mid-request (token refresh, sign-out, account switch), the closing
+    // setQueryData / invalidateQueries would otherwise target a different
+    // cache key than the optimistic remove above. The deleted-row state
+    // would never reconcile against the canonical list on the new key.
+    const uid = user?.id;
     setDeletingIds(prev => new Set(prev).add(id));
     // Optimistic remove — drop the row from the cache instantly so the
     // exit animation runs even if the network roundtrip is slow.
-    queryClient.setQueryData(['notificationsList', user?.id], (prev) =>
+    queryClient.setQueryData(['notificationsList', uid], (prev) =>
       Array.isArray(prev) ? prev.filter(r => r.id !== id) : prev
     );
     const res = await notifications.deleteNotification(id);
     if (!res.ok) {
       // Revert: refetch the canonical list and surface the error.
-      queryClient.invalidateQueries({ queryKey: ['notificationsList', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['notificationsList', uid] });
       toast.error(tFallback('notifications.deleteFailed', 'Could not delete — try again.'));
     }
     setDeletingIds(prev => {
@@ -129,7 +135,7 @@ export default function NotificationPanel({ open, onClose }) {
       next.delete(id);
       return next;
     });
-    queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] });
+    queryClient.invalidateQueries({ queryKey: ['notificationsUnread', uid] });
   };
 
   const handleClearAll = async () => {

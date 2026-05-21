@@ -12,6 +12,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { format } from 'date-fns';
+import { reportError } from '@/lib/reportError';
 import {
   QUEST_CATALOG,
   QUEST_DIFFICULTY,
@@ -129,6 +130,15 @@ export async function recordAction(user, actionType, amount = 1) {
   if (matching.length === 0) return;
 
   // Bump each matching quest. Use Promise.all — they're independent updates.
+  // Per-update errors are caught + reported so a single failing update
+  // doesn't abort the others, but they're NOT silently swallowed:
+  // previously each failure just console.warn'd and the function returned
+  // success regardless. If a quest update failed (RLS, network, schema
+  // drift), the user's progress silently stalled and they'd never see a
+  // "claim reward" button — the quest's progress < target so it never
+  // showed as complete. Now each failure ships to Sentry with feature
+  // context so we can see the pattern.
+  const failures = [];
   await Promise.all(matching.map(async row => {
     const newProgress = Math.min(row.progress + amount, row.target);
     const updates = { progress: newProgress };
@@ -139,8 +149,19 @@ export async function recordAction(user, actionType, amount = 1) {
       .from('user_daily_quests')
       .update(updates)
       .eq('id', row.id);
-    if (error) console.warn('[quests] progress update failed:', error);
+    if (error) {
+      failures.push({ questRowId: row.id, questId: row.quest_id, error });
+    }
   }));
+  if (failures.length) {
+    reportError(new Error(`[quests] ${failures.length} quest progress update(s) failed`), {
+      feature: 'quests.recordAction',
+      level: 'warning',
+      userEmail: user.email,
+      actionType,
+      failures: failures.map(f => ({ questRowId: f.questRowId, questId: f.questId, code: f.error?.code })),
+    });
+  }
 }
 
 /**

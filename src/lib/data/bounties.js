@@ -2,6 +2,7 @@
 // Bounty System — auto-generated social challenges with Flex Coin rewards.
 
 import { supabase } from '@/api/supabaseClient';
+import { reportError } from '@/lib/reportError';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -180,8 +181,19 @@ export async function checkAndCompleteBounty(workoutLog) {
 
     await completeBountyClaim(claim.id, workoutLog?.id ?? null, bounty?.id ?? null);
     return true;
-  } catch {
-    return false; // non-critical — don't surface to user
+  } catch (err) {
+    // Previously `catch { return false; }` — every failure silently
+    // suppressed. The caller (workout save flow) takes a `true` return
+    // as the cue to fire the celebration toast. A swallowed `false` means
+    // bounties broke silently for users hitting the catch path and we
+    // never knew. Report so the failure pattern is visible; still return
+    // false so the workout save itself doesn't break.
+    reportError(err, {
+      feature: 'bounties.checkAndCompleteBounty',
+      level: 'warning',
+      workoutLogId: workoutLog?.id,
+    });
+    return false;
   }
 }
 

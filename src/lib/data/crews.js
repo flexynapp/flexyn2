@@ -63,16 +63,45 @@ export async function getCrewMembers(crewId) {
 }
 
 export async function joinCrew(crewId, userId) {
-  // Client-side cap check
+  // Atomic join via join_crew_atomic RPC (migration 075). The previous
+  // client-side capacity probe + insert was a TOCTOU race: two parallel
+  // joins both passed the cap check (count < max) and both inserted,
+  // bypassing the 16-member cap. The RPC locks the crew row FOR UPDATE,
+  // recounts under the lock, and inserts only if there's still room.
+  //
+  // Pre-075 fallback: if the RPC isn't deployed yet, fall back to the
+  // legacy non-atomic path so the feature doesn't break on stale hosts.
+  // The race is the documented bug we're closing; only pre-migration
+  // deployments retain it.
+  const { data, error } = await supabase.rpc('join_crew_atomic', { p_crew_id: crewId });
+  if (!error) {
+    return data; // { success, already_member, crew_id }
+  }
+
+  // Distinct error codes:
+  //   23514 = crew_full (RAISE EXCEPTION with that code in the RPC)
+  //   22023 = crew not found
+  //   42501 = unauthenticated
+  //   42883 / 42P01 = RPC not yet deployed → legacy fallback
+  if (/crew_full/i.test(error.message || '') || error.code === '23514') {
+    throw new Error('This Crew is full (max 16 members).');
+  }
+  if (error.code !== '42883' && error.code !== '42P01') {
+    throw error;
+  }
+
+  // Legacy fallback (pre-075). The race is back, but the alternative
+  // is breaking joins entirely on hosts that haven't applied 075 yet.
   const members = await getCrewMembers(crewId);
   const crew    = await getCrew(crewId);
   if (members.length >= (crew?.max_capacity ?? 16)) {
     throw new Error('This Crew is full (max 16 members).');
   }
-  const { error } = await supabase
+  const { error: insertErr } = await supabase
     .from('crew_members')
     .insert({ crew_id: crewId, user_id: userId, is_admin: false });
-  if (error) throw error;
+  if (insertErr) throw insertErr;
+  return { success: true, already_member: false, crew_id: crewId };
 }
 
 export async function removeMember(crewId, userId) {

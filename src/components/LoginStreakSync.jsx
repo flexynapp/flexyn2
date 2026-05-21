@@ -37,12 +37,16 @@ export default function LoginStreakSync() {
   const { user } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
-  const recordedRef = useRef(false);
+  // Track which user.id we've already recorded for. A simple boolean
+  // didn't reset on sign-out → sign-in-as-different-user, so the new
+  // session's streak never recorded. Storing the id makes the gate
+  // user-aware while still preventing per-mount double-fires.
+  const recordedForUserIdRef = useRef(null);
 
   useEffect(() => {
     if (!user?.id) return;
-    if (recordedRef.current) return;
-    recordedRef.current = true;
+    if (recordedForUserIdRef.current === user.id) return;
+    recordedForUserIdRef.current = user.id;
 
     loginStreak.recordLogin(user).then((result) => {
       if (!result?.isNewDay || result.coinsAwarded <= 0) return;
@@ -91,7 +95,11 @@ export default function LoginStreakSync() {
     }).catch((err) => {
       console.warn('[LoginStreakSync] recordLogin failed:', err);
     });
-  }, [user, queryClient, t]);
+    // Dep on user?.id (stable string) instead of the whole user object.
+    // user is a new reference on every AuthContext value change even
+    // when the identity hasn't moved — depending on the whole object
+    // re-ran this effect on unrelated context updates.
+  }, [user?.id, user?.email, queryClient, t]);
 
   return null;
 }

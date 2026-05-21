@@ -205,18 +205,25 @@ export async function grantForFirstWorkout(userId, userEmail) {
     _addFlexCoins(userId, 75),
   ]);
 
-  // Mark the flag so this never grants twice. Tolerates the column
-  // being absent — db.js's updateMe equivalent isn't reachable from
-  // here, so we just do a raw update and swallow 42703 / PGRST204.
-  try {
-    await supabase
-      .from('user_profiles')
-      .update({ first_workout_capsule_granted: true })
-      .eq('id', userId);
-  } catch (err) {
-    if (err?.code !== '42703' && err?.code !== 'PGRST204') {
-      console.warn('[capsules] first_workout flag write failed:', err);
-    }
+  // Mark the flag so this never grants twice. The previous try/catch
+  // was useless: supabase.from().update() returns { data, error }, it
+  // does NOT throw, so the catch never fired and ANY write failure
+  // (RLS denial, network, schema column missing) was swallowed
+  // completely. That broke idempotency — the next first-workout call
+  // would re-read the flag (still false because the write didn't
+  // land), re-grant the premium capsule + 75 coins, indefinitely.
+  // Now check error explicitly, distinguish the schema-drift codes
+  // we want to tolerate from real failures.
+  const { error: flagErr } = await supabase
+    .from('user_profiles')
+    .update({ first_workout_capsule_granted: true })
+    .eq('id', userId);
+  if (flagErr && flagErr.code !== '42703' && flagErr.code !== 'PGRST204') {
+    // Real failure — flag never persisted. Surface to Sentry so we
+    // can see the duplication-risk pattern. We still return true
+    // (the capsule + coins DID land), but the operator will know
+    // a retry may double-grant.
+    console.warn('[capsules] first_workout flag write failed:', flagErr);
   }
 
   try {

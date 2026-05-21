@@ -42,7 +42,22 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
   if (followerEmail === followeeEmail) return null;
   const existing = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
-  const created = await e().create({ follower_email: followerEmail, followee_email: followeeEmail });
+  // TOCTOU compensator: between the probe above and this insert, a
+  // concurrent follow call (rapid double-tap, two tabs) can land first.
+  // If hub_follows has a UNIQUE (follower_email, followee_email)
+  // constraint, the second insert errors with 23505. Catch that and
+  // re-read so both racers return the same canonical row instead of
+  // one throwing a duplicate-key error at the user.
+  let created;
+  try {
+    created = await e().create({ follower_email: followerEmail, followee_email: followeeEmail });
+  } catch (err) {
+    if (err?.code === '23505' || /duplicate key|unique constraint/i.test(err?.message || '')) {
+      const reread = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
+      if (reread.length > 0) return reread[0];
+    }
+    throw err;
+  }
   // Notify the followee — non-blocking, fire and forget
   (async () => {
     try {
