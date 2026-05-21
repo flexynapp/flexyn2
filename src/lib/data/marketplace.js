@@ -77,15 +77,36 @@ export async function purchaseListing(listingId) {
 
 /**
  * Cancel a listing — only the seller can cancel their own listing.
- * RLS enforces ownership; this function is a convenience wrapper.
+ *
+ * Atomic via cancel_marketplace_listing RPC (migration 078). Flips
+ * marketplace_listings.status = 'cancelled' AND user_inventory.is_listed
+ * = false in one transaction. The previous flow ran the listing
+ * update and the inventory release as TWO separate client calls; if
+ * the second one failed (network blip, tab close), the item was
+ * orphaned — invisible in the user's bag AND can't be re-listed.
+ *
+ * Pre-078 hosts fall back to the legacy two-write path so the feature
+ * doesn't break on stale deployments; the orphan-on-failure race is
+ * the documented bug.
  */
 export async function cancelListing(listingId) {
   if (!listingId) return;
-  const { error } = await supabase
+  const { error } = await supabase.rpc('cancel_marketplace_listing', {
+    p_listing_id: listingId,
+  });
+  if (!error) return;
+  if (error.code !== '42883' && error.code !== '42P01') {
+    throw error;
+  }
+
+  // Legacy fallback for pre-078 hosts. The caller (MarketplaceFeed
+  // handleCancel) still runs inventory.setListed(false) after this
+  // returns, so the two-write path is preserved on stale hosts.
+  const { error: updateErr } = await supabase
     .from('marketplace_listings')
     .update({ status: 'cancelled' })
     .eq('id', listingId);
-  if (error) throw error;
+  if (updateErr) throw updateErr;
 }
 
 /**

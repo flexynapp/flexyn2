@@ -8,6 +8,14 @@ const ENTITIES = [
   'ChatSession',
   'NutritionLog',
   'WorkoutTemplate',
+  // Achievement was missing from this list. resetForDeletion clears
+  // user_profiles.achievements_unlocked_count to 0, but pre-reset
+  // Achievement rows persisted forever. When a re-onboarded user
+  // logged their first workout, updateUserXpAndAchievements found
+  // the old "first_workout" row and skipped the re-unlock, so the
+  // user never got the corresponding milestone capsule grant a
+  // second time. Adding it here clears the slate.
+  'Achievement',
 ];
 
 Deno.serve(async (req) => {

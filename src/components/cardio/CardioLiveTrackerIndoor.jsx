@@ -28,6 +28,7 @@ import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
+import { reportError } from '@/lib/reportError';
 
 export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, userProfile = {} }) {
   const { t } = useLanguage();
@@ -229,7 +230,8 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
           }
         } catch (err) { console.warn('[CardioIndoor] distance accumulate failed:', err); }
       }
-      // Fire achievement check (non-blocking)
+      // Fire achievement check (non-blocking). Report on failure so
+      // a broken cardio→achievements pipeline doesn't rot silently.
       db.functions.invoke('updateUserXpAndAchievements', {
         xp_gained: 0,
         action_type: 'cardio_completed',
@@ -238,7 +240,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
           distance_meters: payload.distance_meters,
           calories: payload.calories,
         },
-      }).catch(() => {});
+      }).catch(err => reportError(err, {
+        feature: 'cardio.live-indoor.achievements-invoke',
+        level: 'warning',
+        userEmail: user?.email,
+      }));
       // Check for PRs
       const prior = await db.entities.CardioLog.filter(
         { created_by: user.email }, '-date', 1000
@@ -256,7 +262,8 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
 
-      // Quest progress — non-blocking
+      // Quest progress — non-blocking. Failures used to silently
+      // .catch(() => {}); now reportError so quest breakage is visible.
       const durSec = Number(payload.duration_seconds) || 0;
       const _user = user;
       Promise.all([
@@ -265,7 +272,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         prs.length > 0 ? quests.recordAction(_user, ACTION_TYPES.PR_ACHIEVED, prs.length) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-indoor.quest-progress',
+          level: 'warning',
+          userEmail: _user?.email,
+        }));
 
       // League weekly XP + workout streak — non-blocking
       const cardioXp = calculateCardioXp({
@@ -275,13 +286,22 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       });
       leagues.recordWeeklyXp(_user, cardioXp)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', _user?.id] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-indoor.league-xp',
+          level: 'warning',
+          userEmail: _user?.email,
+          cardioXp,
+        }));
       workoutStreak.recordWorkoutDay(_user)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', _user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', _user?.email] });
         })
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-indoor.workout-streak',
+          level: 'warning',
+          userEmail: _user?.email,
+        }));
 
       onSaved();
     } catch (err) {

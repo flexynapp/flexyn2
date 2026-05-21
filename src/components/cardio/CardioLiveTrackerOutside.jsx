@@ -26,6 +26,7 @@ import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
+import { reportError } from '@/lib/reportError';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
 import {
@@ -537,6 +538,8 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         } catch (err) { console.warn('[CardioOutside] distance accumulate failed:', err); }
       }
       // Fire achievement check (non-blocking)
+      // Achievements check — non-blocking. Report on failure so a
+      // broken cardio→achievements pipeline doesn't rot silently.
       db.functions.invoke('updateUserXpAndAchievements', {
         xp_gained: 0,
         action_type: 'cardio_completed',
@@ -545,7 +548,11 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
           distance_meters: payload.distance_meters,
           calories: payload.calories,
         },
-      }).catch(() => {});
+      }).catch(err => reportError(err, {
+        feature: 'cardio.live-outside.achievements-invoke',
+        level: 'warning',
+        userEmail: user?.email,
+      }));
       // Check for PRs
       const prior = await db.entities.CardioLog.filter(
         { created_by: user.email }, '-date', 1000
@@ -563,7 +570,8 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
 
-      // Quest progress — non-blocking
+      // Quest progress — non-blocking. Failures used to silently
+      // .catch(() => {}); now reportError so quest breakage is visible.
       const durSec = Number(payload.duration_seconds) || 0;
       const _user = user;
       Promise.all([
@@ -572,7 +580,11 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         prs.length > 0 ? quests.recordAction(_user, ACTION_TYPES.PR_ACHIEVED, prs.length) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-outside.quest-progress',
+          level: 'warning',
+          userEmail: _user?.email,
+        }));
 
       // League weekly XP + workout streak — non-blocking
       const cardioXp = calculateCardioXp({
@@ -582,13 +594,22 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       });
       leagues.recordWeeklyXp(_user, cardioXp)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', _user?.id] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-outside.league-xp',
+          level: 'warning',
+          userEmail: _user?.email,
+          cardioXp,
+        }));
       workoutStreak.recordWorkoutDay(_user)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', _user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', _user?.email] });
         })
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.live-outside.workout-streak',
+          level: 'warning',
+          userEmail: _user?.email,
+        }));
 
       onSaved();
     } catch (err) {

@@ -389,7 +389,12 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
           name: listing.item_name,
           emoji: listing.item_emoji,
           rarity: listing.item_rarity,
-          price: listing.price ?? null,
+          // marketplace_listings stores the price as asking_price (see
+          // listingType === 'sale' write at the other end of this file).
+          // The trade offer DM template was reading listing.price which
+          // doesn't exist on the row, so every trade-offer message had
+          // price: null and the recipient saw the listed price as blank.
+          price: listing.asking_price ?? null,
         },
         createdAt: new Date().toISOString(),
       };
