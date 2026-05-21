@@ -13,7 +13,6 @@
 // editing SHOP_CATALOG below.
 
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
 
 export const SHOP_CATALOG = {
   capsule_standard: {
@@ -59,91 +58,41 @@ export const SHOP_CATALOG = {
  * grant happen inside one transaction with a row lock on the buyer's
  * profile; concurrent purchases serialize correctly.
  *
- * Falls back to the legacy client-orchestrated RMW path ONLY when the
- * RPC isn't available (pre-migration hosts). That fallback retains
- * the original race / cheat surface and should never trigger in
- * production once 031 is applied.
+ * Fails CLOSED if the RPC is unavailable. Previously this fell back
+ * to a client-orchestrated read-modify-write path that retained the
+ * original race / cheat surface — kept "for rollout safety" but in
+ * practice it's a footgun (a transient RPC outage would silently
+ * route every purchase through the vulnerable path). Migration 031
+ * has been live since launch; the fallback was dead weight.
  */
 export async function purchaseItem(user, sku) {
   if (!user?.id || !user?.email) return { success: false, error: 'not_authenticated' };
   const item = SHOP_CATALOG[sku];
   if (!item) return { success: false, error: 'unknown_sku' };
 
-  // Atomic RPC path.
   try {
     const { data, error } = await supabase.rpc('purchase_shop_item', { p_sku: sku });
-    if (!error && data) {
-      return {
-        success: true,
-        newBalance: data.new_balance,
-        granted: data.granted_kind === 'capsule'
-          ? { type: 'capsule', capsuleType: data.granted_subtype }
-          : { type: 'streak_freeze', amount: data.granted_amount },
-      };
-    }
     if (error) {
-      // RPC missing pre-migration → fall through to legacy.
+      const msg = error.message || '';
       if (error.code === '42883' || error.code === '42P01') {
-        console.warn('[coinShop] purchase RPC missing, falling back');
-      } else {
-        // RPC exists but rejected — surface the specific error.
-        const msg = error.message || '';
-        if (/insufficient_coins/.test(msg))     return { success: false, error: 'insufficient_coins' };
-        if (/unknown_sku/.test(msg))            return { success: false, error: 'unknown_sku' };
-        if (/unauthenticated/.test(msg))        return { success: false, error: 'not_authenticated' };
-        return { success: false, error: msg || 'rpc_failed' };
+        // RPC missing — fail closed. Caller surfaces a retry toast.
+        return { success: false, error: 'rpc_missing' };
       }
+      if (/insufficient_coins/.test(msg))     return { success: false, error: 'insufficient_coins' };
+      if (/unknown_sku/.test(msg))            return { success: false, error: 'unknown_sku' };
+      if (/unauthenticated/.test(msg))        return { success: false, error: 'not_authenticated' };
+      return { success: false, error: msg || 'rpc_failed' };
     }
+    if (!data) return { success: false, error: 'rpc_no_data' };
+    return {
+      success: true,
+      newBalance: data.new_balance,
+      granted: data.granted_kind === 'capsule'
+        ? { type: 'capsule', capsuleType: data.granted_subtype }
+        : { type: 'streak_freeze', amount: data.granted_amount },
+    };
   } catch (err) {
-    if (err?.code !== '42883' && err?.code !== '42P01') {
-      console.error('[coinShop] purchase RPC threw:', err);
-      return { success: false, error: err?.message || 'rpc_threw' };
-    }
+    console.error('[coinShop] purchase RPC threw:', err);
+    return { success: false, error: err?.message || 'rpc_threw' };
   }
-
-  // ── Legacy fallback path — only runs pre-migration-031. ──
-  // Retains the original race and cheat surface; kept ONLY so the shop
-  // doesn't break during the rollout window.
-  const { data: profile, error: readErr } = await safeSelect({
-    columns: ['flex_coins', 'streak_freezes_available'],
-    build: (cols) => supabase
-      .from('user_profiles')
-      .select(cols)
-      .eq('id', user.id)
-      .maybeSingle(),
-  });
-  if (readErr) return { success: false, error: 'read_failed' };
-  const balance = profile?.flex_coins ?? 0;
-  if (balance < item.price) return { success: false, error: 'insufficient_coins', newBalance: balance };
-
-  const newBalance = balance - item.price;
-  const { error: debitErr } = await supabase
-    .from('user_profiles')
-    .update({ flex_coins: newBalance })
-    .eq('id', user.id);
-  if (debitErr) return { success: false, error: 'debit_failed' };
-
-  let grantOk = false;
-  let granted = null;
-  try {
-    if (item.grants.type === 'capsule') {
-      const { error } = await supabase.from('user_capsules').insert({
-        user_id: user.id, user_email: user.email, capsule_type: item.grants.capsuleType,
-      });
-      if (!error) { grantOk = true; granted = { type: 'capsule', capsuleType: item.grants.capsuleType }; }
-    } else if (item.grants.type === 'streak_freeze') {
-      const current = profile?.streak_freezes_available ?? 0;
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ streak_freezes_available: current + item.grants.amount })
-        .eq('id', user.id);
-      if (!error) { grantOk = true; granted = { type: 'streak_freeze', amount: item.grants.amount }; }
-    }
-  } catch (err) { console.error('[coinShop] grant threw:', err); }
-
-  if (!grantOk) {
-    await supabase.from('user_profiles').update({ flex_coins: balance }).eq('id', user.id);
-    return { success: false, error: 'grant_failed', newBalance: balance };
-  }
-  return { success: true, newBalance, granted };
 }

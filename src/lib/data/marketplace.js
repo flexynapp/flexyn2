@@ -26,72 +26,34 @@ export async function listActive(limit = 50, sortBy = 'recent', sortDir = 'desc'
  * Create a new marketplace listing.
  *
  * data: {
- *   seller_user_id, seller_email, seller_username,
- *   inventory_id, item_id, item_name, item_emoji, item_rarity,
- *   listing_type ('sale'|'trade'),
+ *   inventory_id, listing_type ('sale'|'trade'),
  *   asking_price (integer, required for 'sale'),
  *   trade_for_rarity (string, required for 'trade'),
  * }
  *
- * Atomicity / ownership / price validation are enforced server-side by the
- * create_marketplace_listing RPC (migration 025). Falls back to the legacy
- * direct insert ONLY when the RPC isn't available (pre-migration). The
- * legacy path lets the client list any inventory_id without ownership
- * validation — keep it for migration grace but warn loudly.
+ * Goes through the create_marketplace_listing RPC (migration 025)
+ * which atomically validates ownership, locks the inventory row, sets
+ * is_listed=true, and inserts the listing. Fails CLOSED if the RPC
+ * is unavailable — the previous fallback inserted directly without
+ * ownership validation, letting a malicious client list any
+ * inventory_id including items they don't own. Migration 025 is
+ * deployed; the fallback was dead weight with attack surface.
  */
 export async function createListing(data) {
   if (!data) return null;
-
-  // Server-side RPC path — atomically validates ownership, locks the
-  // inventory row, sets is_listed=true, inserts the listing.
-  try {
-    const { data: listingId, error } = await supabase.rpc('create_marketplace_listing', {
-      p_inventory_id:     data.inventory_id,
-      p_listing_type:     data.listing_type,
-      p_asking_price:     data.asking_price ?? null,
-      p_trade_for_rarity: data.trade_for_rarity ?? null,
-    });
-    if (!error) {
-      // Fetch the freshly-created row for the caller.
-      const { data: row } = await supabase
-        .from('marketplace_listings')
-        .select('*')
-        .eq('id', listingId)
-        .maybeSingle();
-      return row;
-    }
-    if (error.code !== '42883' && error.code !== '42P01') {
-      // RPC exists but rejected — surface the real error (e.g. "item not
-      // owned", "price floor") instead of falling through silently.
-      throw error;
-    }
-    console.warn('[marketplace] create RPC missing, falling back:', error);
-  } catch (err) {
-    // 42883 = function not found. Re-throw anything else.
-    if (err?.code !== '42883' && err?.code !== '42P01') throw err;
-    console.warn('[marketplace] create RPC unavailable, falling back:', err);
-  }
-
-  // Legacy fallback — only runs pre-migration-025.
-  const { data: row, error } = await supabase
-    .from('marketplace_listings')
-    .insert({
-      seller_user_id:  data.seller_user_id,
-      seller_email:    data.seller_email,
-      seller_username: data.seller_username ?? '',
-      inventory_id:    data.inventory_id,
-      item_id:         data.item_id,
-      item_name:       data.item_name,
-      item_emoji:      data.item_emoji ?? '',
-      item_rarity:     data.item_rarity ?? 'common',
-      listing_type:    data.listing_type,
-      asking_price:    data.asking_price ?? null,
-      trade_for_rarity: data.trade_for_rarity ?? null,
-      status:          'active',
-    })
-    .select()
-    .maybeSingle();
+  const { data: listingId, error } = await supabase.rpc('create_marketplace_listing', {
+    p_inventory_id:     data.inventory_id,
+    p_listing_type:     data.listing_type,
+    p_asking_price:     data.asking_price ?? null,
+    p_trade_for_rarity: data.trade_for_rarity ?? null,
+  });
   if (error) throw error;
+  // Fetch the freshly-created row for the caller.
+  const { data: row } = await supabase
+    .from('marketplace_listings')
+    .select('*')
+    .eq('id', listingId)
+    .maybeSingle();
   return row;
 }
 
