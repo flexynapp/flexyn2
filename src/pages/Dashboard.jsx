@@ -16,6 +16,7 @@ import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
+import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
@@ -503,6 +504,18 @@ export default function Dashboard() {
           }
           delay={0.19}
         />
+      </div>
+
+      {/* ── Weekly recap ────────────────────────────────────────
+           "What changed about you this week" — workouts and volume vs
+           last week, best lift, any PRs. Renders null when there were
+           no workouts in the last 7 days (the streak-break / welcome-
+           back pushes own that surface). Wrapped in its own
+           ErrorBoundary so a bad log payload doesn't take the page. */}
+      <div className="mb-5 md:mb-6">
+        <ErrorBoundary label="WeeklyRecap">
+          <WeeklyRecap logs={logs} cardioLogs={cardioLogs} />
+        </ErrorBoundary>
       </div>
 
       {/* ── Daily quote ────────────────────────────────────────── */}
