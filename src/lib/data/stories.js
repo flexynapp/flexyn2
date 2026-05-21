@@ -190,13 +190,65 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
     .select()
     .single();
 
-  if (error) { console.warn('[stories] insert failed:', error); return { ok: false, error }; }
+  if (error) {
+    // Insert failed but the file is already in Supabase Storage.
+    // Without cleanup that orphan persists forever — every retry on a
+    // flaky upload leaks another blob. Best-effort delete; the
+    // .catch swallows secondary failures (rare nested error) because
+    // the user already needs a retry and a stuck-orphan log line is
+    // less important than returning the original insert error.
+    supabase.storage.from('uploads').remove([path]).catch((cleanupErr) => {
+      console.warn('[stories] orphan-upload cleanup failed:', cleanupErr);
+    });
+    console.warn('[stories] insert failed:', error);
+    return { ok: false, error };
+  }
   return { ok: true, data };
 }
 
-/** Send a reply to a story — routes through the existing DM system. */
+// Server-enforced reply gate. If the recipient has story_dms_disabled
+// true on their profile, the reply is rejected before it hits the DM
+// system. Migration 047 stores the flag; SettingsPanel writes it; and
+// the UI hides the reply input — but a malicious client could bypass
+// the UI by calling sendStoryReply directly. This check makes the
+// toggle a real boundary.
+async function _recipientAllowsDmReplies(recipientEmail) {
+  if (!recipientEmail) return false;
+  try {
+    const { data } = await supabase
+      .from('user_profiles')
+      .select('story_dms_disabled')
+      .ilike('email', recipientEmail.toLowerCase())
+      .maybeSingle();
+    // If the column doesn't exist on this host yet, default to allowing
+    // replies (matches the legacy behavior).
+    if (!data) return true;
+    return data.story_dms_disabled !== true;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * Send a reply to a story — routes through the existing DM system.
+ *
+ * Enforces the recipient's story_dms_disabled preference SERVER-SIDE
+ * (well, server-checked-then-server-called). The audit found that the
+ * StoryViewer hid the reply UI when the recipient had DMs off, but
+ * the function itself didn't validate — a direct call could spam.
+ * Now the check is done here, before any DM machinery runs.
+ *
+ * Returns false (with no side-effects) if the recipient has replies
+ * disabled. Callers can treat that the same as a network failure.
+ */
 export async function sendStoryReply(storyOwnerEmail, sender, message) {
   if (!storyOwnerEmail || !sender?.email || !message?.trim()) return false;
+  // Server-checked: do they accept reply DMs at all?
+  const allowed = await _recipientAllowsDmReplies(storyOwnerEmail);
+  if (!allowed) {
+    console.warn('[stories] reply blocked — recipient has story DMs disabled');
+    return false;
+  }
   try {
     const conv = await findOrCreateConversation(sender.email, storyOwnerEmail);
     if (!conv?.id) return false;

@@ -15,6 +15,7 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { reportError } from '@/lib/reportError';
+import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 
 export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, compact = false, onClick }) {
   const { t } = useLanguage();
@@ -25,48 +26,24 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
   const { user } = useAuth();
 
   const almostCompleteGoals = useMemo(() => {
-    const dateToString = (d) => new Date(d).toISOString().split('T')[0];
-
     return goals
       .filter(goal => goal.status !== 'completed')
       .map(goal => {
-        let maxWeight = 0;
-        let totalReps = 0;
-        logs?.forEach(log => {
-          // Only count logs created after this goal was created
-          if (new Date(log.created_date) < new Date(goal.created_date)) return;
-          log.exercises?.forEach(ex => {
-            if (ex.name.toLowerCase() === goal.exercise_name.toLowerCase()) {
-              ex.sets?.forEach(set => {
-                if (set.weight && set.weight > maxWeight) maxWeight = set.weight;
-                if (set.reps) totalReps += set.reps;
-              });
-            }
-          });
-        });
-
         const hasWeightTarget = goal.target_weight != null && goal.target_weight > 0;
-        const hasRepsTarget = goal.target_reps != null && goal.target_reps > 0;
-
+        const hasRepsTarget   = goal.target_reps   != null && goal.target_reps   > 0;
         if (!hasWeightTarget && !hasRepsTarget) return null;
-
-        let progress = 0;
-        if (hasWeightTarget && hasRepsTarget) {
-          const weightProgress = maxWeight >= goal.target_weight ? 100 : (maxWeight / goal.target_weight) * 100;
-          const repsProgress = totalReps >= goal.target_reps ? 100 : (totalReps / goal.target_reps) * 100;
-          progress = Math.max(weightProgress, repsProgress);
-        } else if (hasWeightTarget) {
-          progress = (maxWeight / goal.target_weight) * 100;
-        } else if (hasRepsTarget) {
-          progress = (totalReps / goal.target_reps) * 100;
-        }
-
-        return { ...goal, maxWeight, maxRepsInSet: totalReps, progress: Math.min(Math.max(progress, 0), 100) };
+        // Shared progress logic — single source of truth across this
+        // component AND GoalsList. Previously each had its own
+        // implementation that diverged (this one summed ALL reps
+        // regardless of weight; the modal counted reps only at
+        // EXACTLY target_weight). Both ignored bodyweight sets.
+        const { maxWeight, currentValue, progress } = computeStrengthGoalProgress(goal, logs);
+        return { ...goal, maxWeight, maxRepsInSet: currentValue, progress };
       })
       .filter(goal => goal !== null && goal.progress >= 75 && !dismissedIds.includes(goal.id))
       .sort((a, b) => b.progress - a.progress)
       .slice(0, limit);
-  }, [goals, logs, limit]);
+  }, [goals, logs, limit, dismissedIds]);
 
   const completeMutation = useMutation({
     mutationFn: async (goalId) => {

@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
@@ -54,47 +55,16 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
       let icon = null;
 
       if (!goal.goal_type || goal.goal_type === 'strength') {
-        // Strength goals — weight/reps
-        let maxWeight = 0;
-        let repsAtGoalWeight = 0;
-        logs?.forEach(log => {
-          if (new Date(log.created_date) < new Date(goal.created_date)) return;
-          log.exercises?.forEach(ex => {
-            const targetName = (goal.exercise_canonical || goal.exercise_name || '').toLowerCase();
-            if (ex.name.toLowerCase() === targetName) {
-              ex.sets?.forEach(set => {
-                if (set.weight) {
-                  if (set.weight > maxWeight) maxWeight = set.weight;
-                  // Count reps only at the goal weight
-                  if (goal.target_weight && set.weight === goal.target_weight && set.reps) {
-                    repsAtGoalWeight += set.reps;
-                  }
-                }
-              });
-            }
-          });
-        });
-
-        const hasWeightTarget = goal.target_weight != null && goal.target_weight > 0;
-        const hasRepsTarget = goal.target_reps != null && goal.target_reps > 0;
-
-        if (hasWeightTarget && hasRepsTarget) {
-          // If weight exceeded, goal is complete
-          if (maxWeight > goal.target_weight) {
-            progress = 100;
-          } else {
-            // Otherwise, progress is based on reps at goal weight
-            progress = (repsAtGoalWeight / goal.target_reps) * 100;
-          }
-        } else if (hasWeightTarget) {
-          progress = maxWeight >= goal.target_weight ? 100 : (maxWeight / goal.target_weight) * 100;
-        } else if (hasRepsTarget) {
-          progress = (repsAtGoalWeight / goal.target_reps) * 100;
-        }
-
-        progress = Math.min(Math.max(progress, 0), 100);
-        // Expose for the progress subtitle display below the card title
-        currentValue = maxWeight || repsAtGoalWeight;
+        // Strength goal progress now comes from the shared helper at
+        // src/lib/goalProgress.js — same logic as GoalsAlmostComplete
+        // so the two views can't disagree on progress (the audit
+        // found they did, by quite a lot). Also fixes:
+        //   • bodyweight goals (push-ups, pull-ups, etc.) now count
+        //     reps when weight is null/0
+        //   • reps count at OR ABOVE target weight, not exactly equal
+        const r = computeStrengthGoalProgress(goal, logs);
+        progress     = r.progress;
+        currentValue = r.currentValue;
       } else if (goal.goal_type === 'cardio_distance') {
         // Distance goal
         let totalDistance = 0;

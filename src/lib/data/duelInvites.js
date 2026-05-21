@@ -77,15 +77,46 @@ export function buildInviteUrl(token) {
 // The landing page sets it when an anonymous visitor lands; after
 // they complete onboarding, the App reads it and routes them back
 // to the landing page so they can accept with their new account.
+//
+// The value is now a JSON envelope { token, stashedAt } instead of
+// the bare token string. stashedAt gates a 24-hour TTL on read so
+// a stuck-onboarding flow (user lands, bounces, never signs up) can't
+// inherit the token forever on a shared browser. If the persisted
+// value is the legacy bare-string form (from before this change),
+// readPendingToken returns it as-is and lets it expire next session
+// when the user re-lands.
 export const PENDING_INVITE_LS_KEY = 'fn-pending-duel-invite-token';
+
+const TOKEN_TTL_MS = 24 * 60 * 60 * 1000;
 
 export function stashPendingToken(token) {
   if (!token) return;
-  try { localStorage.setItem(PENDING_INVITE_LS_KEY, token); } catch {}
+  try {
+    const envelope = { token, stashedAt: Date.now() };
+    localStorage.setItem(PENDING_INVITE_LS_KEY, JSON.stringify(envelope));
+  } catch {}
 }
 
 export function readPendingToken() {
-  try { return localStorage.getItem(PENDING_INVITE_LS_KEY) || null; } catch { return null; }
+  try {
+    const raw = localStorage.getItem(PENDING_INVITE_LS_KEY);
+    if (!raw) return null;
+    // Modern envelope form. Verify shape + TTL.
+    if (raw.startsWith('{')) {
+      const env = JSON.parse(raw);
+      if (!env?.token) return null;
+      if (Number.isFinite(env.stashedAt) && (Date.now() - env.stashedAt) > TOKEN_TTL_MS) {
+        clearPendingToken();
+        return null;
+      }
+      return env.token;
+    }
+    // Legacy bare-string form — no timestamp. Treat as still valid
+    // for this session; next stash will upgrade it to the envelope.
+    return raw;
+  } catch {
+    return null;
+  }
 }
 
 export function clearPendingToken() {

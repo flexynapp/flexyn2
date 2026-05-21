@@ -112,6 +112,21 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         setSaving(false);
         return;
       }
+      // Anti-cheat: reject future-dated cardio. Mirrors the Workout
+      // future-date fix (src/pages/Workout.jsx) — uses UTC + 14h as
+      // the ceiling so legitimate logging from UTC+14 timezones at
+      // the local-day rollover isn't blocked, but tomorrow-anywhere
+      // is. Previously cardio had NO future-date check; users in
+      // UTC+14 could log tomorrow's session to game streak/league.
+      const maxDate = new Date(Date.now() + 14 * 60 * 60 * 1000);
+      const ceilingYmd = maxDate.toISOString().slice(0, 10);
+      if (date > ceilingYmd) {
+        toast.error(t('cardio.error.dateInFuture') === 'cardio.error.dateInFuture'
+          ? "Cardio can't be dated in the future."
+          : t('cardio.error.dateInFuture'));
+        setSaving(false);
+        return;
+      }
 
       // ── Speed plausibility check ──
       const cardioType = deriveType(mode, env);
