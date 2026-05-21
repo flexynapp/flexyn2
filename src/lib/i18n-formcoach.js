@@ -15,6 +15,7 @@ const enKeys = {
   // Modal shell
   'formcoach.title':          'Form Coach',
   'formcoach.beta':           'Beta',
+  'formcoach.cardTagline':    'AI form check on your lifts',
 
   // CameraView
   'formcoach.cameraOff':            'Camera is off',

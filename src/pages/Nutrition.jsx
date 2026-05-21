@@ -28,6 +28,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { lookupBarcode } from '@/lib/foodLookup';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
@@ -227,11 +228,14 @@ export default function Nutrition() {
         // celebration, not a broken save. Reported via reportError.
         let firedFirst = false;
         try {
-          const { count, error } = await supabase
-            .from('nutrition_logs')
-            .select('id', { count: 'exact', head: true })
-            .eq('created_by', user?.email)
-            .not('food_name', 'like', 'Water%');
+          const { count, error } = await safeSelect({
+            columns: ['id'],
+            build: (cols) => supabase
+              .from('nutrition_logs')
+              .select(cols, { count: 'exact', head: true })
+              .eq('created_by', user?.email)
+              .not('food_name', 'like', 'Water%'),
+          });
           if (!error && count === 1) {
             fireFirstMealCelebration({
               mealName: variables?.food_name,

@@ -1405,10 +1405,10 @@ export default function Workout() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="font-heading font-bold text-sm leading-tight">Form Coach</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">Beta</span>
+                        <p className="font-heading font-bold text-sm leading-tight">{t('formcoach.title') || 'Form Coach'}</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{t('formcoach.beta') || 'Beta'}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">AI form check on your lifts</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('formcoach.cardTagline') || 'AI form check on your lifts'}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>

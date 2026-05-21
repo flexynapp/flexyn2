@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
@@ -2117,11 +2118,14 @@ export default function Onboarding() {
     const seq = ++usernameCheckSeqRef.current;
     const timer = setTimeout(async () => {
       try {
-        const { data: rows } = await supabase
-          .from('user_profiles')
-          .select('id')
-          .ilike('username', u)
-          .limit(1);
+        const { data: rows } = await safeSelect({
+          columns: ['id'],
+          build: (cols) => supabase
+            .from('user_profiles')
+            .select(cols)
+            .ilike('username', u)
+            .limit(1),
+        });
         if (seq !== usernameCheckSeqRef.current) return; // a newer keystroke superseded us
         if (!rows || rows.length === 0) return;
         // If the only matching row IS the current user, that's fine.

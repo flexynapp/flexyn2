@@ -35,6 +35,12 @@ const enKeys = {
   'discovery.pushOptIn.toastEnabled':     'Reminders enabled — change anytime in Settings.',
   'discovery.pushOptIn.toastDenied':      'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.',
   'discovery.pushOptIn.toastUnsupported': "This device doesn't support push notifications yet.",
+
+  'discovery.openCapsule.kicker':       'GIFT WAITING',
+  'discovery.openCapsule.title':        'You have a capsule to open',
+  'discovery.openCapsule.body':         'A welcome capsule is sitting in your bag. Open it now to claim what\'s inside.',
+  'discovery.openCapsule.cta':          'Open it now',
+  'discovery.openCapsule.dismissLabel': 'Later',
 };
 
 const esKeys = {

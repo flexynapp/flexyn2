@@ -2,6 +2,7 @@ export const hubI18n = {
   en: {
     'nav.hub': 'Hub',
     'hub.title': 'The Hub',
+    'hub.coach.title': 'AI Coach',
     'hub.feed.pump': 'Global',
     'hub.feed.squad': 'Following',
     'hub.messages': 'Messages',
