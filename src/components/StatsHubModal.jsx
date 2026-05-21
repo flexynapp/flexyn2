@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
@@ -39,6 +40,7 @@ import { RARITY } from '@/lib/lootCatalog';
 export default function StatsHubModal({ open, onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const fmtNum = useNumberFormatter();
   const qc = useQueryClient();
   const [leagueOpen, setLeagueOpen] = useState(false);
   const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
@@ -148,7 +150,7 @@ export default function StatsHubModal({ open, onClose }) {
                     </div>
                   ) : (
                     <p className="text-xs opacity-80 mt-1">
-                      {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
+                      {fmtNum(levelInfo.xpInLevel || 0)} / {fmtNum(levelInfo.xpNeeded || 0)} XP
                     </p>
                   )}
                 </div>
@@ -157,7 +159,7 @@ export default function StatsHubModal({ open, onClose }) {
               <div className="text-right shrink-0">
                 <div className="flex items-center gap-1.5 justify-end">
                   <Coins className="w-4 h-4" />
-                  <span className="font-heading font-bold text-2xl tabular-nums">{coins.toLocaleString()}</span>
+                  <span className="font-heading font-bold text-2xl tabular-nums">{fmtNum(coins)}</span>
                 </div>
                 <button
                   onClick={() => setShopOpen(true)}
@@ -172,7 +174,7 @@ export default function StatsHubModal({ open, onClose }) {
             <div className="mt-4">
               {equippedTitle && (
                 <p className="text-[10px] opacity-80 mb-1">
-                  {(levelInfo.xpInLevel || 0).toLocaleString()} / {(levelInfo.xpNeeded || 0).toLocaleString()} XP
+                  {fmtNum(levelInfo.xpInLevel || 0)} / {fmtNum(levelInfo.xpNeeded || 0)} XP
                 </p>
               )}
               <div className="h-2 rounded-full bg-white/20 overflow-hidden">

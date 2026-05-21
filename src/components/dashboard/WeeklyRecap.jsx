@@ -18,17 +18,21 @@ import { Trophy, TrendingUp, TrendingDown, Activity, Flame, Calendar } from 'luc
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import { useNumberFormatter } from '@/lib/intl';
 import { computeWeeklyRecap } from '@/lib/data/weeklyRecap';
-
-function formatVolume(n) {
-  if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
-  if (n >= 1000)  return `${(n / 1000).toFixed(1)}k`;
-  return n.toLocaleString();
-}
 
 export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const fmtNum = useNumberFormatter();
+
+  // Compact display: "8.5k" / "12k" for large values, locale-formatted
+  // otherwise. Built inline because it needs the fmtNum closure.
+  const formatVolume = (n) => {
+    if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
+    if (n >= 1000)  return `${(n / 1000).toFixed(1)}k`;
+    return fmtNum(n);
+  };
 
   const recap = useMemo(
     () => computeWeeklyRecap({ logs, cardioLogs }),

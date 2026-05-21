@@ -15,6 +15,7 @@ import { Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap } from
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
@@ -35,7 +36,9 @@ const PODIUM_STYLE = {
   2: { ring: 'ring-orange-400/60',  glow: 'shadow-orange-400/40',  Icon: Flame,  iconColor: 'text-orange-400'  },
 };
 
-const formatNum = (n) => Math.round(n).toLocaleString();
+// formatNum moved inside the component so it can use the active app
+// locale (was rendering with the browser locale, which defeated i18n
+// for users whose browser locale didn't match their app language).
 
 /**
  * @param {Object} props
@@ -44,6 +47,8 @@ const formatNum = (n) => Math.round(n).toLocaleString();
  */
 export default function LeaderboardsContent({ active = true }) {
   const { t } = useLanguage();
+  const fmtNum = useNumberFormatter();
+  const formatNum = (n) => fmtNum(Math.round(n));
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
