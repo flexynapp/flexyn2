@@ -116,14 +116,16 @@ function Timestamp({ dateStr }) {
 
 function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
   const lastTapRef = useRef(0);
+  const longPressTimer = useRef(null);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
+  const [showContext, setShowContext] = useState(false);
+  const [pinned, setPinned] = useState(!!msg.is_pinned);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
 
   const setReactedPersisted = (val) => {
     setReacted(val);
     saveFire(msg.id, val);
-    // Feature 18: write to Supabase in background
     writeFireReaction(msg.id, currentUserId, val);
   };
 
@@ -139,58 +141,126 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
     lastTapRef.current = now;
   };
 
-  return (
-    <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
-      {!isOwn && <Avatar profile={senderProfile} />}
-      <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
-        {!isOwn && (
-          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1">
-            {senderProfile?.username || 'member'}
-          </span>
-        )}
-        <div className="relative">
-          <div
-            onClick={handleTap}
-            className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
-              isOwn ? 'text-white rounded-br-sm' : 'text-foreground rounded-bl-sm bg-secondary/60'
-            }`}
-            style={isOwn ? { background: 'hsl(var(--primary))' } : { background: tint, border: '1px solid hsl(var(--border) / 0.6)' }}
-          >
-            {msg.content}
-          </div>
+  const startLong = () => {
+    longPressTimer.current = setTimeout(() => setShowContext(true), 500);
+  };
+  const cancelLong = () => {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
+  };
 
-          {/* Fire reaction — floats up on double-tap, then sticks as badge */}
-          <AnimatePresence>
-            {animating && (
-              <motion.span
-                key="float"
-                initial={{ opacity: 0, scale: 0.6, y: 0 }}
-                animate={{ opacity: 1, scale: 1.5, y: -20 }}
-                exit={{ opacity: 0, scale: 0.8, y: -36 }}
-                transition={{ duration: 0.45 }}
-                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+  const handlePinToggle = async () => {
+    setShowContext(false);
+    setPinned(p => !p); // optimistic
+    try {
+      await supabase.rpc('toggle_pin_crew_message', { p_message_id: msg.id });
+    } catch {
+      setPinned(p => !p); // revert
+      toast.error('Could not pin message.');
+    }
+  };
+
+  return (
+    <>
+      {/* Pin banner */}
+      {pinned && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 px-1">
+          <span>📌</span>
+          <span>Pinned</span>
+        </div>
+      )}
+      <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
+        {!isOwn && <Avatar profile={senderProfile} />}
+        <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
+          {!isOwn && (
+            <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1">
+              {senderProfile?.username || 'member'}
+            </span>
+          )}
+          <div className="relative">
+            <div
+              onClick={handleTap}
+              onMouseDown={startLong}
+              onMouseUp={cancelLong}
+              onMouseLeave={cancelLong}
+              onTouchStart={startLong}
+              onTouchEnd={cancelLong}
+              onTouchMove={cancelLong}
+              className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
+                isOwn ? 'text-white rounded-br-sm' : 'text-foreground rounded-bl-sm bg-secondary/60'
+              }`}
+              style={isOwn ? { background: 'hsl(var(--primary))' } : { background: tint, border: '1px solid hsl(var(--border) / 0.6)' }}
+            >
+              {msg.content}
+            </div>
+
+            {/* Fire reaction — floats up on double-tap, then sticks as badge */}
+            <AnimatePresence>
+              {animating && (
+                <motion.span
+                  key="float"
+                  initial={{ opacity: 0, scale: 0.6, y: 0 }}
+                  animate={{ opacity: 1, scale: 1.5, y: -20 }}
+                  exit={{ opacity: 0, scale: 0.8, y: -36 }}
+                  transition={{ duration: 0.45 }}
+                  className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+                >
+                  🔥
+                </motion.span>
+              )}
+            </AnimatePresence>
+
+            {/* Persistent reaction badge */}
+            {reacted && !animating && (
+              <motion.div
+                initial={{ scale: 0, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+                onClick={() => setReactedPersisted(false)}
+                title="Tap to remove"
               >
                 🔥
-              </motion.span>
+              </motion.div>
             )}
-          </AnimatePresence>
-
-          {/* Persistent reaction badge */}
-          {reacted && !animating && (
-            <motion.div
-              initial={{ scale: 0, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
-              onClick={() => setReactedPersisted(false)}
-              title="Tap to remove"
-            >
-              🔥
-            </motion.div>
-          )}
+          </div>
+          <Timestamp dateStr={msg.created_at} />
         </div>
-        <Timestamp dateStr={msg.created_at} />
       </div>
-    </div>
+
+      {/* Long-press context menu */}
+      <AnimatePresence>
+        {showContext && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/40 flex items-end justify-center pb-6"
+            onClick={() => setShowContext(false)}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-border rounded-2xl overflow-hidden w-64 shadow-xl"
+            >
+              <button
+                onClick={handlePinToggle}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                <span className="text-base">📌</span>
+                {pinned ? 'Unpin message' : 'Pin message'}
+              </button>
+              <button
+                onClick={() => setShowContext(false)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
+              >
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 

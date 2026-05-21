@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Lock, Paperclip, X } from 'lucide-react';
 import { format, parseISO, differenceInHours } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
@@ -89,6 +89,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     loadDmFires(conversation?.id)
   );
   const [floatingFires, setFloatingFires] = useState([]); // [{id, msgId}]
+  const [pinnedIds, setPinnedIds] = useState(() => new Set()); // optimistic local pin state
+  const [contextMsg, setContextMsg] = useState(null); // message for context menu
+  const longPressRef = useRef(null); // timer ref for long-press detection
 
   // Reload fires if conversation changes
   useEffect(() => {
@@ -218,6 +221,48 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   }, [conversation?.id, fireReactions]);
 
+  const handlePinToggle = useCallback(async (msg) => {
+    setContextMsg(null);
+    const id = msg.id;
+    if (!id || String(id).startsWith('temp-')) return;
+    // Optimistic toggle
+    setPinnedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+    try {
+      await hubMessages.togglePinDmMessage(id);
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
+    } catch {
+      // Revert optimistic change on failure
+      setPinnedIds(prev => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+      toast.error('Could not pin message. Try again.');
+    }
+  }, [conversation?.id, queryClient]);
+
+  const startLongPress = useCallback((msg) => {
+    longPressRef.current = setTimeout(() => {
+      setContextMsg(msg);
+    }, 500);
+  }, []);
+
+  const cancelLongPress = useCallback(() => {
+    if (longPressRef.current) {
+      clearTimeout(longPressRef.current);
+      longPressRef.current = null;
+    }
+  }, []);
+
+  // Merge server is_pinned with optimistic set
+  const isPinned = useCallback((msg) => {
+    return pinnedIds.has(msg.id) ? !msg.is_pinned : !!msg.is_pinned;
+  }, [pinnedIds]);
+
   const lastSentIndex = messages.reduce((acc, m, i) =>
     m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
 
@@ -314,7 +359,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   return (
     <div
-      className="flex flex-col"
+      className="flex flex-col relative"
       style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}
     >
       {/* Header */}
@@ -426,6 +471,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   }
                   const hasFire = !!fireReactions[m.id];
                   const floatingFire = floatingFires.find(f => f.msgId === m.id);
+                  const msgIsPinned = isPinned(m);
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
@@ -452,6 +498,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           tabIndex={0}
                           onClick={() => !isOptimistic && handleMessageTap(m.id)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleMessageTap(m.id); }}
+                          onMouseDown={() => !isOptimistic && startLongPress(m)}
+                          onMouseUp={cancelLongPress}
+                          onMouseLeave={cancelLongPress}
+                          onTouchStart={() => !isOptimistic && startLongPress(m)}
+                          onTouchEnd={cancelLongPress}
+                          onTouchMove={cancelLongPress}
                           className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity cursor-pointer select-text ${
                             isMine
                               ? 'bg-primary text-primary-foreground rounded-br-sm'
@@ -501,6 +553,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             🔥
                           </span>
                         )}
+                        {/* Pin badge */}
+                        {msgIsPinned && (
+                          <span
+                            className={`absolute -top-2 text-xs leading-none pointer-events-none select-none ${
+                              isMine ? '-left-3' : '-right-3'
+                            }`}
+                            title="Pinned message"
+                          >
+                            📌
+                          </span>
+                        )}
                       </div>
                     </motion.div>
                   );
@@ -522,6 +585,42 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           })
         )}
       </div>
+
+      {/* Long-press context menu */}
+      <AnimatePresence>
+        {contextMsg && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-black/40 flex items-end justify-center pb-6"
+            onClick={() => setContextMsg(null)}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-border rounded-2xl overflow-hidden w-64 shadow-xl"
+            >
+              <button
+                onClick={() => handlePinToggle(contextMsg)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                <span className="text-base">📌</span>
+                {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
+              </button>
+              <button
+                onClick={() => setContextMsg(null)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
+              >
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Attachment preview strip */}
       {attachmentPreview && (

@@ -15,6 +15,7 @@
 //   conversation_id  UUID
 
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 
 const conv = () => db.entities.HubConversation;
 const msg  = () => db.entities.HubMessage;
@@ -232,6 +233,18 @@ export const unreadCountFor = async (myEmail) => {
   const recent = await msg().filter({}, '-created_date', 500).catch(() => []);
   return recent.filter(m => _isUnread(m, myEmailLc)).length;
 };
+
+/**
+ * Toggle the is_pinned flag on a DM message via the SECURITY DEFINER RPC.
+ * Only participants of the conversation may pin.
+ * @param {string} messageId — UUID of the hub_message row
+ * @returns {Promise<boolean>} the new is_pinned value
+ */
+export async function togglePinDmMessage(messageId) {
+  const { data, error } = await supabase.rpc('toggle_pin_dm_message', { p_message_id: messageId });
+  if (error) throw error;
+  return !!data;
+}
 
 /** Cascade-delete all messages and conversations involving a user. */
 export const purgeForUser = async (email) => {

@@ -507,6 +507,29 @@ function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
   );
 }
 
+// ─── Ambient particle data ────────────────────────────────────────────────────
+// Marketplace header — purple/indigo drift particles
+const MKT_PARTICLES = [
+  { x: 8,  size: 3, dur: 5.2, delay: 0,    travel: 38, color: '#a78bfa' },
+  { x: 20, size: 2, dur: 6.8, delay: 1.4,  travel: 28, color: '#818cf8' },
+  { x: 38, size: 4, dur: 4.5, delay: 0.7,  travel: 44, color: '#c4b5fd' },
+  { x: 55, size: 2, dur: 7.1, delay: 2.1,  travel: 32, color: '#a78bfa' },
+  { x: 68, size: 3, dur: 5.6, delay: 0.3,  travel: 40, color: '#818cf8' },
+  { x: 80, size: 2, dur: 6.2, delay: 1.9,  travel: 26, color: '#fde68a' },
+  { x: 90, size: 3, dur: 4.9, delay: 1.1,  travel: 36, color: '#c4b5fd' },
+  { x: 45, size: 2, dur: 7.4, delay: 3.0,  travel: 24, color: '#fde68a' },
+];
+
+// Daily chest — golden/amber drift particles
+const CHEST_PARTICLES = [
+  { x: 12, size: 3, dur: 5.4, delay: 0,    travel: 34, color: '#fde68a' },
+  { x: 28, size: 2, dur: 6.5, delay: 0.8,  travel: 26, color: '#fbbf24' },
+  { x: 50, size: 4, dur: 4.8, delay: 1.6,  travel: 42, color: '#fde68a' },
+  { x: 70, size: 2, dur: 7.0, delay: 0.4,  travel: 30, color: '#a78bfa' },
+  { x: 85, size: 3, dur: 5.8, delay: 2.2,  travel: 38, color: '#fbbf24' },
+  { x: 40, size: 2, dur: 6.8, delay: 3.5,  travel: 22, color: '#fde68a' },
+];
+
 // ─── Rotating gradient header ─────────────────────────────────────────────────
 function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
   const angleRef = useRef(0);
@@ -530,12 +553,31 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
 
   return (
     <div
-      className="rounded-2xl p-4 flex flex-col gap-3"
+      className="rounded-2xl p-4 flex flex-col gap-3 relative overflow-hidden"
       style={{
         background: `linear-gradient(${gradientAngle}deg, #1a0538 0%, #2d0a5e 40%, #1e0850 70%, #160438 100%)`,
         border: '1px solid #5b21b6',
       }}
     >
+      {/* Ambient drift particles */}
+      {MKT_PARTICLES.map((p, i) => (
+        <motion.div
+          key={i}
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.x}%`,
+            bottom: 0,
+            background: p.color,
+            opacity: 0,
+            filter: 'blur(0.5px)',
+          }}
+          animate={{ y: [0, -p.travel], opacity: [0, 0.55, 0] }}
+          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+
       {/* Row 1: title + coins + list button */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
@@ -618,12 +660,31 @@ function DailyChestBlock({ user, onClaimed }) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-4 flex items-center gap-4"
+      className="rounded-2xl p-4 flex items-center gap-4 relative overflow-hidden"
       style={{
         background: 'linear-gradient(135deg, #2d0f5a 0%, #1a0a3e 100%)',
         border: '1px solid #5b21b6',
       }}
     >
+      {/* Ambient golden drift particles */}
+      {CHEST_PARTICLES.map((p, i) => (
+        <motion.div
+          key={i}
+          className="absolute pointer-events-none rounded-full"
+          style={{
+            width: p.size,
+            height: p.size,
+            left: `${p.x}%`,
+            bottom: 0,
+            background: p.color,
+            opacity: 0,
+            filter: 'blur(0.5px)',
+          }}
+          animate={{ y: [0, -p.travel], opacity: [0, 0.6, 0] }}
+          transition={{ duration: p.dur, delay: p.delay, repeat: Infinity, ease: 'easeOut' }}
+        />
+      ))}
+
       <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-purple-800 border border-purple-600 flex items-center justify-center">
         <Gift className={`w-6 h-6 ${claimed ? 'text-yellow-200/50' : 'text-yellow-300'}`} />
       </div>

@@ -34,6 +34,8 @@ import * as notifications from '@/lib/data/notifications';
 const FRIEND_TYPES = new Set([
   'friend_post', 'friend_follow', 'comment_reply',
   'post_reaction', 'sticker_reaction', 'trade_offer',
+  // Trigger-generated social notifications (migration 063)
+  'post_like', 'crew_everyone',
 ]);
 
 export default function NotificationPanel({ open, onClose }) {
