@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords } from 'lucide-react';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
 import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
 import { supabase } from '@/api/supabaseClient';
@@ -196,7 +196,7 @@ export default function SettingsPanel() {
       // Profile loaded but column not yet populated (pre-migration 036
       // back-fill, or freshly-created row before the DEFAULT kicked in).
       // Show all-on so the toggles aren't stuck in an unknown state.
-      setPrefs({ streak: true, quests: true, league: true, social: true, achievements: true, engagement: true });
+      setPrefs({ streak: true, quests: true, league: true, social: true, achievements: true, engagement: true, competitive: true });
     }
    
   }, [profile?.notification_prefs]);
@@ -383,6 +383,7 @@ export default function SettingsPanel() {
             { key: 'streak',       icon: Flame,  label: tFallback('settings.push.streak',       'Streak reminders') },
             { key: 'quests',       icon: Target, label: tFallback('settings.push.quests',       'Quest updates') },
             { key: 'league',       icon: Trophy, label: tFallback('settings.push.league',       'League results') },
+            { key: 'competitive',  icon: Swords, label: tFallback('settings.push.competitive',  'Duels, bounties & crew wars') },
             { key: 'social',       icon: Users,  label: tFallback('settings.push.social',       'Friend activity') },
             { key: 'achievements', icon: Star,   label: tFallback('settings.push.achievements', 'Achievements') },
             { key: 'engagement',   icon: Heart,  label: tFallback('settings.push.engagement',   'Welcome back') },

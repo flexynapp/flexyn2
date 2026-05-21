@@ -1,50 +1,64 @@
 // Unit tests for the achievement-milestone capsule grant logic.
 //
-// We test the milestone SCHEDULE itself (pure data) plus the idempotent
-// grant behavior by mocking the supabase client. The integration paths
-// (db.js _invokeXp + leaderboardStats backfill) are tested separately
-// via the full app — what matters here is that the math is right and
-// repeated calls don't double-grant.
+// As of migration 071, grantForAchievementMilestone is a thin client
+// over the atomic SECURITY DEFINER `grant_achievement_milestones` RPC.
+// All the schedule + idempotency logic lives in SQL now; this test
+// mocks the RPC and verifies the client correctly relays the result.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Mock supabase BEFORE importing the module so the import picks up the mock.
+// ── Mock state — emulates the server-side milestone counter ─────────────
 const _state = {
-  awarded: 0,           // milestone_capsules_awarded
-  insertedCapsules: [], // list of capsule_type values inserted
-  insertError: null,    // optional error to throw on next insert
-  updateError: null,    // optional error to throw on update
+  awarded: 0,           // milestone_capsules_awarded on the server
+  rpcError: null,       // optional error to return from the RPC
 };
+
+// Schedule must match the inline VALUES in 071_atomic_achievement_milestones.
+// Kept in sync manually — single source of truth lives in the migration.
+const SCHEDULE = [
+  { idx: 1, threshold: 5,   type: 'standard' },
+  { idx: 2, threshold: 10,  type: 'standard' },
+  { idx: 3, threshold: 25,  type: 'premium'  },
+  { idx: 4, threshold: 50,  type: 'premium'  },
+  { idx: 5, threshold: 100, type: 'elite'    },
+];
+
+function simulateRpc(p_unlocked_count) {
+  if (_state.rpcError) return { data: null, error: _state.rpcError };
+  const owed = SCHEDULE.filter(
+    m => m.threshold <= p_unlocked_count && m.idx > _state.awarded
+  );
+  if (owed.length === 0) {
+    return {
+      data: { granted_count: 0, granted: [], awarded_total: _state.awarded },
+      error: null,
+    };
+  }
+  _state.awarded += owed.length;
+  return {
+    data: {
+      granted_count: owed.length,
+      granted: owed.map(o => ({ threshold: o.threshold, type: o.type })),
+      awarded_total: _state.awarded,
+    },
+    error: null,
+  };
+}
 
 vi.mock('@/api/supabaseClient', () => ({
   supabase: {
-    from: (table) => ({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => {
-            if (table === 'user_profiles') {
-              return { data: { milestone_capsules_awarded: _state.awarded }, error: null };
-            }
-            return { data: null, error: null };
-          },
-        }),
-      }),
-      insert: async (row) => {
-        if (_state.insertError) return { error: _state.insertError };
-        if (table === 'user_capsules') {
-          _state.insertedCapsules.push(row.capsule_type);
-        }
-        return { error: null };
-      },
-      update: (patch) => ({
-        eq: async () => {
-          if (_state.updateError) return { error: _state.updateError };
-          if (table === 'user_profiles' && Number.isFinite(patch.milestone_capsules_awarded)) {
-            _state.awarded = patch.milestone_capsules_awarded;
-          }
-          return { error: null };
-        },
-      }),
+    rpc: async (fnName, args) => {
+      if (fnName === 'grant_achievement_milestones') {
+        return simulateRpc(args?.p_unlocked_count);
+      }
+      return { data: null, error: { code: '42883', message: `unknown RPC: ${fnName}` } };
+    },
+    // Legacy direct table access still mocked for any other path the
+    // module under test might exercise. The new flow doesn't touch it.
+    from: () => ({
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: null }) }) }),
+      insert: async () => ({ error: null }),
+      update: () => ({ eq: async () => ({ error: null }) }),
     }),
   },
 }));
@@ -54,9 +68,7 @@ const { grantForAchievementMilestone, ACHIEVEMENT_MILESTONES } = await import('.
 
 beforeEach(() => {
   _state.awarded = 0;
-  _state.insertedCapsules = [];
-  _state.insertError = null;
-  _state.updateError = null;
+  _state.rpcError = null;
 });
 
 describe('ACHIEVEMENT_MILESTONES schedule', () => {
@@ -80,13 +92,23 @@ describe('ACHIEVEMENT_MILESTONES schedule', () => {
         .toBeGreaterThanOrEqual(rank[ACHIEVEMENT_MILESTONES[i - 1].type]);
     }
   });
+
+  it('stays in lockstep with the SQL VALUES inlined in migration 071', () => {
+    // If you change one, change the other — they share no source.
+    expect(ACHIEVEMENT_MILESTONES).toHaveLength(SCHEDULE.length);
+    SCHEDULE.forEach((s, i) => {
+      expect(ACHIEVEMENT_MILESTONES[i]).toMatchObject({
+        threshold: s.threshold,
+        type:      s.type,
+      });
+    });
+  });
 });
 
 describe('grantForAchievementMilestone — first-time grants', () => {
   it('grants nothing below the first threshold', async () => {
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 4);
     expect(got).toEqual([]);
-    expect(_state.insertedCapsules).toEqual([]);
     expect(_state.awarded).toBe(0);
   });
 
@@ -94,14 +116,12 @@ describe('grantForAchievementMilestone — first-time grants', () => {
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 5);
     expect(got).toHaveLength(1);
     expect(got[0].type).toBe('standard');
-    expect(_state.insertedCapsules).toEqual(['standard']);
     expect(_state.awarded).toBe(1);
   });
 
   it('grants both standards if user jumps from 0 → 10 directly', async () => {
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 10);
     expect(got.map(m => m.type)).toEqual(['standard', 'standard']);
-    expect(_state.insertedCapsules).toEqual(['standard', 'standard']);
     expect(_state.awarded).toBe(2);
   });
 
@@ -120,7 +140,6 @@ describe('grantForAchievementMilestone — idempotency', () => {
 
     const second = await grantForAchievementMilestone('uid', 'u@e.com', 25);
     expect(second).toEqual([]);
-    expect(_state.insertedCapsules).toHaveLength(3); // unchanged
     expect(_state.awarded).toBe(3); // unchanged
   });
 
@@ -137,7 +156,6 @@ describe('grantForAchievementMilestone — idempotency', () => {
     _state.awarded = 5; // user already received everything
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 200);
     expect(got).toEqual([]);
-    expect(_state.insertedCapsules).toEqual([]);
   });
 });
 
@@ -159,44 +177,20 @@ describe('grantForAchievementMilestone — input validation', () => {
 });
 
 describe('grantForAchievementMilestone — failure safety', () => {
-  it('does NOT bump the counter if no insert succeeded', async () => {
-    _state.insertError = new Error('rls denied');
+  it('returns empty when the RPC errors — atomic SQL rollback handles state', async () => {
+    _state.rpcError = { code: '40001', message: 'serialization failure' };
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 25);
     expect(got).toEqual([]);
-    expect(_state.awarded).toBe(0); // counter not bumped — next call can retry
+    // _state.awarded is unchanged — the simulateRpc never advanced it
+    // because we short-circuited on the error. This mirrors the SQL
+    // transaction rolling back if any step inside the RPC fails.
+    expect(_state.awarded).toBe(0);
   });
 
-  it('only bumps the counter by the number actually inserted on partial failure', async () => {
-    // Allow first insert, fail subsequent ones.
-    let calls = 0;
-    _state.insertError = null;
-    const origMockState = _state;
-    // Override insert behavior just for this test
-    const supabaseModule = await import('@/api/supabaseClient');
-    const origFrom = supabaseModule.supabase.from;
-    supabaseModule.supabase.from = (table) => {
-      const base = origFrom.call(supabaseModule.supabase, table);
-      if (table === 'user_capsules') {
-        return {
-          ...base,
-          insert: async (row) => {
-            calls += 1;
-            if (calls === 1) {
-              origMockState.insertedCapsules.push(row.capsule_type);
-              return { error: null };
-            }
-            return { error: new Error('flaky network') };
-          },
-        };
-      }
-      return base;
-    };
-
+  it('returns empty when the RPC is missing (pre-071 host) — fails closed', async () => {
+    _state.rpcError = { code: '42883', message: 'function does not exist' };
     const got = await grantForAchievementMilestone('uid', 'u@e.com', 25);
-    expect(got).toHaveLength(1);
-    expect(_state.awarded).toBe(1);
-
-    // Restore
-    supabaseModule.supabase.from = origFrom;
+    expect(got).toEqual([]);
+    expect(_state.awarded).toBe(0);
   });
 });

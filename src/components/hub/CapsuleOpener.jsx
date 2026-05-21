@@ -5,10 +5,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { ITEMS, RARITY, rollCapsule, rollVariant, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
-import { LOOT_THEMES, rollLootTheme, getLootThemeById } from '@/lib/lootThemes';
-import { LOOT_TITLES, rollLootTitle } from '@/lib/lootTitles';
-import { LOOT_FRAMES, rollLootFrame } from '@/lib/lootFrames';
+import { ITEMS, RARITY, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
+import { LOOT_FRAMES } from '@/lib/lootFrames';
+// LOOT_TITLES is still used by pickItemForRoll for title items.
+import { LOOT_TITLES } from '@/lib/lootTitles';
 import { supabase } from '@/api/supabaseClient';
 import StickerDisplay from './StickerDisplay';
 
@@ -258,67 +259,60 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
     spinVariantRef.current = variant;
     setSpinVariant(variant);
 
-    const capsuleType = capsule?.capsule_type ?? 'standard';
     const capsuleId   = capsule?.id;
 
     let rolledItem = null;
     let rolledVariant = null;
-    let usedFallback = false;
 
-    if (capsuleId) {
-      try {
-        const { data, error } = await supabase.rpc('claim_capsule_loot', {
-          p_capsule_id: capsuleId,
-        });
-        if (!error && data) {
-          rolledVariant = data.variant || null;
-          rolledItem    = pickItemForRoll(data.category, data.rarity);
-          // If catalog has no match for the server-rolled tuple (e.g. the
-          // server rolled a rarity that no client item supports yet), fall
-          // back to a sticker of the same rarity.
-          if (!rolledItem) {
-            const fallback = getItemsByRarity(data.rarity);
-            rolledItem = fallback.length ? fallback[0] : null;
-          }
-        } else if (error && (error.code === '42883' || error.code === '42P01')) {
-          // RPC missing — fall back to legacy.
-          usedFallback = true;
-        } else if (error) {
+    // Server-authoritative roll only. The previous "fall back to a fully
+    // client-side rollCapsule/rollVariant" path is removed — on any host
+    // that hadn't applied migration 028, the client rolled the rarity
+    // tier with Math.random(). A user could open DevTools and force
+    // legendary on every spin. Failing closed (toast + return) means
+    // an outage temporarily breaks capsule opening rather than silently
+    // re-enabling the cheat surface.
+    if (!capsuleId) {
+      toast.error('Capsule missing — refresh and try again.');
+      openGuardRef.current = false;
+      return;
+    }
+    try {
+      const { data, error } = await supabase.rpc('claim_capsule_loot', {
+        p_capsule_id: capsuleId,
+      });
+      if (error) {
+        if (error.code === '42883' || error.code === '42P01') {
+          // Pre-028 host — fail closed (was "fall back to client roll"
+          // which trusted Math.random()).
+          console.warn('[CapsuleOpener] claim_capsule_loot missing — apply migration 028');
+          toast.error('Capsule system update pending. Try again later.');
+        } else {
           console.error('[CapsuleOpener] RPC error:', error);
           toast.error('Could not open capsule. Try again.');
-          openGuardRef.current = false;
-          return;
         }
-      } catch (err) {
-        console.error('[CapsuleOpener] RPC threw:', err);
-        if (err?.code !== '42883' && err?.code !== '42P01') {
-          toast.error('Could not open capsule. Try again.');
-          openGuardRef.current = false;
-          return;
-        }
-        usedFallback = true;
+        openGuardRef.current = false;
+        return;
       }
-    } else {
-      usedFallback = true;
-    }
-
-    // Legacy fully-client roll — only runs when the RPC isn't available.
-    // Pre-migration hosts retain the old behavior so the capsule UI still
-    // works during the rollout window.
-    if (usedFallback || !rolledItem) {
-      const rollers = [
-        { fn: rollLootTheme, type: 'theme' },
-        { fn: rollLootTitle, type: 'title' },
-        { fn: rollLootFrame, type: 'frame' },
-      ];
-      for (const r of rollers) {
-        const item = r.fn(capsuleType);
-        if (item) { rolledItem = item; break; }
+      if (!data) {
+        toast.error('Capsule already opened.');
+        openGuardRef.current = false;
+        return;
       }
+      rolledVariant = data.variant || null;
+      rolledItem    = pickItemForRoll(data.category, data.rarity);
+      // If the catalog has no match for the server-rolled tuple (server
+      // rolled a rarity that no client item supports yet), fall back to
+      // a sticker of the same rarity. This is a CATALOG-LOOKUP fallback,
+      // not a roll fallback — the server already decided the rarity.
       if (!rolledItem) {
-        rolledItem    = rollCapsule(capsuleType);
-        rolledVariant = rollVariant(capsuleType);
+        const fallback = getItemsByRarity(data.rarity);
+        rolledItem = fallback.length ? fallback[0] : null;
       }
+    } catch (err) {
+      console.error('[CapsuleOpener] RPC threw:', err);
+      toast.error('Could not open capsule. Try again.');
+      openGuardRef.current = false;
+      return;
     }
 
     if (!rolledItem) {

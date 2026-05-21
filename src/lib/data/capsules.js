@@ -7,8 +7,17 @@ import { supabase } from '@/api/supabaseClient';
 // Internal helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Whitelist tier values. A typo or upstream bug switching the tier
+// would otherwise insert as-is and silently grant the wrong loot
+// tier. Throwing forces the caller to fix the bug instead of
+// shipping a corrupted capsule row.
+const VALID_CAPSULE_TYPES = new Set(['standard', 'premium', 'elite']);
+
 /** Insert a single capsule row. */
 async function _grantCapsule(userId, userEmail, capsuleType) {
+  if (!VALID_CAPSULE_TYPES.has(capsuleType)) {
+    throw new Error(`[capsules] invalid capsule_type: "${capsuleType}"`);
+  }
   const { error } = await supabase
     .from('user_capsules')
     .insert({ user_id: userId, user_email: userEmail, capsule_type: capsuleType });
@@ -265,9 +274,13 @@ export const ACHIEVEMENT_MILESTONES = [
  * Compare a user's current unlocked-achievement count against the milestone
  * schedule and grant any capsules they're owed but haven't received.
  *
- * Idempotent: safe to call from multiple paths (the XP grant in _invokeXp
- * AND the backfill in leaderboardStats) without double-granting. Awarded
- * count is persisted on user_profiles.milestone_capsules_awarded.
+ * Atomic + idempotent via the grant_achievement_milestones RPC (migration
+ * 071). The previous client-side implementation read milestone_capsules_
+ * awarded, looped one-at-a-time inserts, then bumped the counter in a
+ * separate statement — if the bump failed between the insert and the
+ * update, the next call re-derived the same "owed" list and re-inserted
+ * the same milestones. The RPC does insert + counter bump in one
+ * transaction; either both happen or neither does.
  *
  * Emits a `flexyn:capsule-granted` window event per capsule so the UI can
  * surface a toast/notification without this function having any UI deps.
@@ -277,60 +290,28 @@ export const ACHIEVEMENT_MILESTONES = [
 export async function grantForAchievementMilestone(userId, userEmail, unlockedCount) {
   if (!userId || !userEmail || !Number.isFinite(unlockedCount)) return [];
 
-  // Read current awarded count from the source of truth (NOT the cached
-  // profile — that can be stale by minutes during a streak of unlocks).
-  const { data: profile, error: readErr } = await supabase
-    .from('user_profiles')
-    .select('milestone_capsules_awarded')
-    .eq('id', userId)
-    .maybeSingle();
-  if (readErr) {
-    console.warn('[capsules] milestone read failed:', readErr);
-    return [];
-  }
-  const alreadyAwarded = Number(profile?.milestone_capsules_awarded) || 0;
-
-  // Milestones the user has now passed (by index), minus what they've
-  // already received. Slice preserves order so we grant low→high.
-  const earnedIndices = ACHIEVEMENT_MILESTONES
-    .map((m, i) => (unlockedCount >= m.threshold ? i : -1))
-    .filter(i => i >= 0);
-  const owedIndices = earnedIndices.slice(alreadyAwarded);
-  if (owedIndices.length === 0) return [];
-
-  const owed = owedIndices.map(i => ACHIEVEMENT_MILESTONES[i]);
-
-  // Insert capsules one at a time so a partial failure still gives the
-  // user whatever portion went through, and only bump the counter by the
-  // number we actually inserted. Stop on first failure.
-  let inserted = 0;
-  for (const m of owed) {
-    try {
-      await _grantCapsule(userId, userEmail, m.type);
-      inserted += 1;
-    } catch (err) {
-      console.warn('[capsules] milestone insert failed:', err);
-      break;
+  const { data, error } = await supabase.rpc('grant_achievement_milestones', {
+    p_unlocked_count: Math.max(0, Math.floor(unlockedCount)),
+  });
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') {
+      // Pre-071 host. Fail closed (was: client-side read-then-write
+      // path with the documented race window). Better to skip the
+      // grant than silently re-enable the bug we just fixed.
+      console.warn('[capsules] grant_achievement_milestones missing — apply migration 071');
+      return [];
     }
-  }
-  if (inserted === 0) return [];
-
-  // Bump the awarded counter to match what actually got inserted.
-  const { error: updErr } = await supabase
-    .from('user_profiles')
-    .update({ milestone_capsules_awarded: alreadyAwarded + inserted })
-    .eq('id', userId);
-  if (updErr) {
-    console.warn('[capsules] milestone counter bump failed:', updErr);
-    // Counter didn't move — next call will try to grant these again, which
-    // would double-grant. Don't return granted list in that case so the
-    // toast doesn't fire either.
+    console.warn('[capsules] grant_achievement_milestones failed:', error);
     return [];
   }
+
+  // RPC payload: { granted_count, granted: [{threshold, type}, ...], awarded_total }
+  const granted = Array.isArray(data?.granted)
+    ? data.granted.map(g => ({ type: g.type, threshold: g.threshold }))
+    : [];
 
   // Fire window events so UI can surface toasts without this module
   // depending on sonner/i18n.
-  const granted = owed.slice(0, inserted);
   try {
     for (const m of granted) {
       window.dispatchEvent(new CustomEvent('flexyn:capsule-granted', {
