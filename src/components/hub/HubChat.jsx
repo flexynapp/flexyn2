@@ -500,6 +500,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     const fileToUpload = attachmentFile;
     clearAttachment();
 
+    // Track the uploaded blob's storage path so we can clean it up if
+    // the message insert fails downstream. Without this, every
+    // upload-then-send-failed path leaked a file in Supabase Storage
+    // forever (same orphan-cleanup pattern stories.js already has).
+    let uploadedPath = null;
+    let uploadedBucket = null;
     try {
       let attachmentUrl = null;
       let uploadFailed = false;
@@ -508,6 +514,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         try {
           const result = await db.integrations.Core.UploadFile({ file: fileToUpload });
           attachmentUrl = result?.file_url || null;
+          uploadedPath = result?.path || null;
+          uploadedBucket = result?.bucket || 'uploads';
           if (!attachmentUrl) uploadFailed = true;
         } catch (uploadErr) {
           console.error('[HubChat] upload threw:', uploadErr);
@@ -539,6 +547,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         queryClient.setQueryData(queryKey, previous);
         setDraft(trimmed);
         toast.error(t('hub.messages.sendError'));
+        // Orphan cleanup: the blob landed but the message didn't, so
+        // there's no DB reference to ever reach it again. Best-effort
+        // remove; failure here is logged but non-fatal.
+        if (uploadedPath) {
+          supabase.storage.from(uploadedBucket).remove([uploadedPath])
+            .catch(err => console.warn('[HubChat] orphan-upload cleanup failed:', err));
+        }
         return;
       }
       queryClient.invalidateQueries({ queryKey });
@@ -546,6 +561,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       queryClient.setQueryData(queryKey, previous);
       setDraft(trimmed);
+      // Same orphan cleanup path on a thrown sendMessage.
+      if (uploadedPath) {
+        supabase.storage.from(uploadedBucket).remove([uploadedPath])
+          .catch(cleanupErr => console.warn('[HubChat] orphan-upload cleanup failed:', cleanupErr));
+      }
       console.error('[HubChat] sendMessage threw:', err);
       toast.error(t('hub.messages.sendError'));
     } finally {

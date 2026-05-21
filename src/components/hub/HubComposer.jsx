@@ -439,6 +439,14 @@ export default function HubComposer({ onClose }) {
     }
 
     setPosting(true);
+    // Track storage path of any uploaded image so we can clean up the
+    // orphan blob if the post insert fails downstream. The previous
+    // flow uploaded the file, then called hubPosts.create — if create
+    // threw, the image stayed in Supabase Storage with no DB reference,
+    // leaking on every retry. Same orphan pattern stories.js already
+    // handles correctly; now HubComposer matches.
+    let uploadedPath = null;
+    let uploadedBucket = null;
     try {
       let imageUrl = null;
 
@@ -448,6 +456,8 @@ export default function HubComposer({ onClose }) {
           const file = new File([blob], `progress-${Date.now()}.jpg`, { type: blob.type || 'image/jpeg' });
           const result = await db.integrations.Core.UploadFile({ file });
           imageUrl = result?.file_url || null;
+          uploadedPath = result?.path || null;
+          uploadedBucket = result?.bucket || 'uploads';
         } catch (e) {
           reportError(e, { feature: 'hub.composer.photo-upload', level: 'warning' });
           toast.error(t('hub.composer.postError'));
@@ -460,6 +470,8 @@ export default function HubComposer({ onClose }) {
         try {
           const result = await db.integrations.Core.UploadFile({ file: mealImageFile });
           imageUrl = result?.file_url || null;
+          uploadedPath = result?.path || null;
+          uploadedBucket = result?.bucket || 'uploads';
         } catch (e) {
           reportError(e, { feature: 'hub.composer.meal-upload', level: 'warning' });
           toast.error(t('hub.composer.postError'));
@@ -473,6 +485,8 @@ export default function HubComposer({ onClose }) {
         try {
           const result = await db.integrations.Core.UploadFile({ file: statusImageFile });
           imageUrl = result?.file_url || null;
+          uploadedPath = result?.path || null;
+          uploadedBucket = result?.bucket || 'uploads';
         } catch (e) {
           reportError(e, { feature: 'hub.composer.status-upload', level: 'warning' });
           // Non-fatal: continue posting without the image
@@ -588,6 +602,15 @@ export default function HubComposer({ onClose }) {
     } catch (err) {
       reportError(err, { feature: 'hub.composer.post', level: 'warning' });
       toast.error(t('hub.composer.postError'));
+      // Orphan cleanup: if we uploaded an image but the post insert
+      // (or any subsequent step in this try block) threw, the blob is
+      // now in Storage with no DB row referencing it. Best-effort
+      // remove; failures here are non-fatal and shouldn't mask the
+      // original post error.
+      if (uploadedPath) {
+        supabase.storage.from(uploadedBucket).remove([uploadedPath])
+          .catch(cleanupErr => console.warn('[HubComposer] orphan-upload cleanup failed:', cleanupErr));
+      }
     } finally {
       setPosting(false);
     }

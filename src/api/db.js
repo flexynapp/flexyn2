@@ -610,7 +610,13 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
     .from(bucket)
     .getPublicUrl(path);
 
-  return { file_url: publicUrl };
+  // Return the storage path alongside the public URL so callers can
+  // clean up orphan blobs if a downstream DB write fails after upload
+  // succeeded. Previously only file_url was returned — callers couldn't
+  // call .remove([path]) because they didn't have the path, so every
+  // failed-after-upload flow leaked a blob. stories.js works around
+  // this by computing its own path; HubChat / HubComposer didn't.
+  return { file_url: publicUrl, path, bucket };
 }
 
 const integrations = {

@@ -3,6 +3,7 @@
 // Privacy is enforced here (and should be re-enforced server-side on migration).
 
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 
 const e = () => db.entities.HubPost;
@@ -86,11 +87,31 @@ export const update = (id, data) => {
 export const remove = (id) => e().delete(id);
 
 /**
- * Atomically bump a counter. Reads the post, increments the field locally,
- * writes back. NOT race-safe — flagged in BACKEND_CONTRACT as needing
- * atomic increment on migration target.
+ * Bump a denormalized counter (like_count / dislike_count / comment_count)
+ * on a hub_post.
+ *
+ * Atomic via the increment_hub_post_counter RPC (migration 077). The
+ * previous client-side path was read-then-write — two simultaneous
+ * likes on a hot post both read like_count, both wrote current+1, so
+ * one like was silently dropped. The RPC does delta arithmetic
+ * server-side with a whitelist on the field name.
+ *
+ * Pre-077 hosts fall back to the legacy RMW path so the feature
+ * doesn't break on stale deployments; the race is the documented bug.
  */
 export const incrementCounter = async (postId, field, delta = 1) => {
+  const { data, error } = await supabase.rpc('increment_hub_post_counter', {
+    p_post_id: postId,
+    p_field:   field,
+    p_delta:   delta,
+  });
+  if (!error) return data;
+  if (error.code !== '42883' && error.code !== '42P01') {
+    console.warn('[hubPosts] increment_hub_post_counter failed:', error);
+    return null;
+  }
+
+  // Legacy fallback for pre-077 hosts. Race window is the documented bug.
   const post = await get(postId);
   if (!post) return null;
   const current = Number(post[field] || 0);

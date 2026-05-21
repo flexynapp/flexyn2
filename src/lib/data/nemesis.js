@@ -138,8 +138,20 @@ export async function assignNemesis() {
 export async function getWeeklyComparison(userId, nemesisId) {
   if (!userId || !nemesisId) return null;
 
-  const weekStart = new Date();
-  weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // Sunday
+  // ISO week (Monday start) — must match the league system's
+  // startOfWeek(..., { weekStartsOn: 1 }) anchor in
+  // src/lib/data/leagues.js. The previous Sunday-anchored math was
+  // out of sync with leagues by 1 day, so on Mondays the nemesis
+  // page showed stats from a different window than the league
+  // standings the user was actually competing in. A user could
+  // overtake their nemesis per leagues' Monday-Sunday window while
+  // the nemesis page still showed them as behind for the old
+  // Sunday-Saturday window.
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + diffToMonday);
   weekStart.setHours(0, 0, 0, 0);
   const since = weekStart.toISOString();
 

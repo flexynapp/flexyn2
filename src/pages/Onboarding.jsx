@@ -2233,11 +2233,30 @@ export default function Onboarding() {
         return;
       }
 
-      // Fallback: save only the columns guaranteed to exist (username is in migration 001).
-      // Saving username lets App.jsx unlock the dashboard even without onboarding_complete.
+      // Fallback: save the user's actual answers, not just username +
+      // the completion flag. Previously this only persisted username
+      // and onboarding_completed, so a user who filled all six steps
+      // and hit a transient network blip on the full save landed on
+      // the Dashboard with an empty profile (no fitness goals, no
+      // level, no demographics). The starter regimen grant also
+      // skipped because it needs goals + level. db.js's strip-and-retry
+      // (42703 / PGRST204) handles any column the running schema
+      // doesn't have, so passing every field is safe on legacy hosts.
       try {
         await db.auth.updateMe({
           username:                data.username.trim(),
+          fitness_goals:           Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
+          fitness_goals_arr:       Array.isArray(data.goal) ? data.goal : [],
+          fitness_level:           data.level,
+          training_days:           data.days,
+          preferred_workout_time:  data.preferredTime,
+          age:                     data.stats?.age,
+          height_cm:    data.stats?.heightUnit === 'cm' ? String(data.stats?.heightCm) : String(Math.round((data.stats?.heightIn || 0) * 2.54)),
+          height_inches: data.stats?.heightUnit === 'in' ? String(data.stats?.heightIn) : String(Math.round((data.stats?.heightCm || 0) / 2.54)),
+          height_unit:  data.stats?.heightUnit === 'cm' ? 'metric' : 'imperial',
+          weight_kg:    data.stats?.weightUnit === 'kg' ? String(data.stats?.weightKg) : String(Math.round((data.stats?.weightLb || 0) * 0.453592)),
+          weight_lbs:   data.stats?.weightUnit === 'lb' ? String(data.stats?.weightLb) : String(Math.round((data.stats?.weightKg || 0) / 0.453592)),
+          weight_unit:  data.stats?.weightUnit === 'kg' ? 'kg' : 'lbs',
           onboarding_completed:    true,
           onboarding_completed_at: new Date().toISOString(),
         });
