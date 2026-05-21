@@ -31,7 +31,7 @@ function useDailyChestReady(userId) {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const chestReady = useDailyChestReady(user?.id);
 
@@ -74,7 +74,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/coach')}
-              aria-label={t('hub.coach.title') || 'AI Coach'}
+              aria-label={tFallback('hub.coach.title', 'AI Coach')}
               className={`p-2 rounded-lg transition-colors ${
                 location.pathname === '/coach'
                   ? 'bg-primary/10 text-primary'
@@ -86,7 +86,7 @@ export default function Layout() {
             <button
               type="button"
               onClick={() => navigate('/messages')}
-              aria-label={t('hub.messages.title') || 'Messages'}
+              aria-label={tFallback('hub.messages.title', 'Messages')}
               className={`relative p-2 rounded-lg transition-colors ${
                 location.pathname === '/messages'
                   ? 'bg-primary/10 text-primary'

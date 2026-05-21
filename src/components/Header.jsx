@@ -21,7 +21,7 @@ export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [titleOverride, setTitleOverride] = useState(null);
 
   // Listen for cardio-mode title overrides dispatched by CardioSection
@@ -40,9 +40,14 @@ export default function Header() {
     '/workout': t('nav.workout'),
     '/progress': t('nav.progress'),
     '/nutrition': t('nav.nutrition'),
-    '/messages': t('hub.messages.title') || 'Messages',
-    '/market': t('hub.market.title') || 'Marketplace',
-    '/coach': t('hub.coach.title') || 'AI Coach',
+    // tFallback (not `t(k) || fallback`) — when a key is missing, t()
+    // returns the KEY ITSELF, which is truthy, so `|| 'Marketplace'`
+    // never fired. Users saw "hub.market.title" literally in the
+    // header on non-English locales. tFallback correctly detects the
+    // key-as-result case and returns the English fallback.
+    '/messages': tFallback('hub.messages.title', 'Messages'),
+    '/market':   tFallback('hub.market.title',   'Marketplace'),
+    '/coach':    tFallback('hub.coach.title',    'AI Coach'),
   };
 
   const unreadDM = useUnreadDMCount();
@@ -109,7 +114,7 @@ export default function Header() {
           <button
             type="button"
             onClick={() => navigate('/coach')}
-            aria-label={t('hub.coach.title') || 'AI Coach'}
+            aria-label={tFallback('hub.coach.title', 'AI Coach')}
             className={`p-2 rounded-lg transition-colors ${
               onCoach
                 ? 'bg-primary/10 text-primary'
@@ -121,7 +126,7 @@ export default function Header() {
           <button
             type="button"
             onClick={() => navigate('/messages')}
-            aria-label={t('hub.messages.title') || 'Messages'}
+            aria-label={tFallback('hub.messages.title', 'Messages')}
             className={`relative p-2 rounded-lg transition-colors ${
               onMessages
                 ? 'bg-primary/10 text-primary'
