@@ -452,10 +452,18 @@ export default function StoriesRow({ onViewProfile } = {}) {
     },
   });
 
+  // cleanupPreview must NOT depend on `preview` directly — that would
+  // re-create the callback every render, and an in-flight upload that
+  // captured the old reference might revoke the *new* preview's URL
+  // if the user re-uploaded after a failed attempt. We resolve the
+  // url from the latest state via the setter callback so the URL we
+  // revoke is always the one we're discarding.
   const cleanupPreview = useCallback(() => {
-    if (preview?.objectUrl) URL.revokeObjectURL(preview.objectUrl);
-    setPreview(null);
-  }, [preview]);
+    setPreview(prev => {
+      if (prev?.objectUrl) URL.revokeObjectURL(prev.objectUrl);
+      return null;
+    });
+  }, []);
 
   const handleFileChange = useCallback(async (e) => {
     const file = e.target.files?.[0];

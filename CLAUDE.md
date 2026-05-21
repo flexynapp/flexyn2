@@ -240,6 +240,24 @@ without giving it a distinct haptic + confetti signature.**
   `recap.*` keys used by `src/components/dashboard/WeeklyRecap.jsx`
   are English-only via `tFallback(key, 'English')`; safe to ship, but
   worth a translation pass.
+- i18n translation gap: an audit pass found ~128 keys missing in
+  Arabic, Chinese, and Russian relative to English. Many are toast
+  messages and validation copy. Needs a native-speaker review pass
+  per the "Don't ship machine-translated copy" rule. Affected files:
+  `i18n-bug-report.js`, `i18n-hub.js`, `i18n-goals.js` and others —
+  search for non-`en` blocks with fewer keys than the `en` block.
+- RTL polish: `dir="rtl"` is already wired on `<html>` for Arabic in
+  LanguageContext, but ~20 components still use hardcoded `text-left`/
+  `text-right`/`ml-`/`mr-` Tailwind classes that don't flip. Listed
+  in the audit. Each needs testing in both directions, so it's a
+  per-file cleanup as developers touch those files. Use logical
+  properties (`text-start`/`ms-`/`me-`) or `rtl:` modifier overrides.
+- `.toLocaleString()` migration: `src/lib/intl.js` is the new util
+  (`useNumberFormatter` / `useDateFormatter` / `formatNumber` /
+  `formatDate`). 3 highest-traffic sites already swapped in
+  (WeeklyRecap, StatsHubModal, LeaderboardsContent). The remaining
+  `.toLocaleString()` calls across the app are mechanical one-line
+  swaps when developers next touch those files.
 - Push pipeline (migrations 033-039 + the `send-push` Edge Function)
   is built but not deployed. VAPID secrets + `ALTER DATABASE postgres
   SET app.send_push_url/_secret` haven't been set. See the "Push

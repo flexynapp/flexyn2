@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { ChevronLeft, Share2, Loader2, Trophy, Zap, RefreshCw } from 'lucide-react';
 import { listDebriefs, generateWeeklyDebrief, currentWeekStart, prevWeekStart } from '@/lib/data/debriefs';
 import WeeklyDebriefCard from './WeeklyDebriefCard';
+import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
 
 // ── Mini preview card ─────────────────────────────────────────────────────────
@@ -215,9 +216,20 @@ export default function DebriefVault({ onClose }) {
               d.week_number === expanded.week_number && d.year === expanded.year
             );
             if (refreshed) setExpanded(refreshed);
-          }).catch(() => {});
+          })
+          .catch(err => reportError(err, {
+            feature: 'debrief.refresh-fetch',
+            level: 'warning',
+            userEmail: user?.email,
+          }));
       }
       toast.success('Weekly summary refreshed!');
+    },
+    onError: (err) => {
+      // Was: silent failure. The refresh button spun forever and the
+      // user thought nothing happened. Now surface it.
+      toast.error('Could not refresh — try again.');
+      reportError(err, { feature: 'debrief.refresh', userEmail: user?.email });
     },
     onError: () => toast.error('Could not refresh summary.'),
   });

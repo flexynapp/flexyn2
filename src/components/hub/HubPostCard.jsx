@@ -364,7 +364,15 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             style={author.equippedFrameId ? (getLootFrameById(author.equippedFrameId)?.css || {}) : {}}
           >
             {author.avatarUrl ? (
-              <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+              <img
+                src={author.avatarUrl}
+                alt=""
+                width="36"
+                height="36"
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover"
+              />
             ) : (
               author.initials
             )}
@@ -676,7 +684,15 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
               <div className="flex items-center gap-4 mb-5">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-xl overflow-hidden shrink-0">
                   {author.avatarUrl
-                    ? <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    ? <img
+                        src={author.avatarUrl}
+                        alt=""
+                        width="64"
+                        height="64"
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover"
+                      />
                     : author.initials}
                 </div>
                 <div className="flex-1 min-w-0">

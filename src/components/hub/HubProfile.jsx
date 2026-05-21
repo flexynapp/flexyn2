@@ -1399,7 +1399,15 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {u.avatar_url ? (
-                      <img src={u.avatar_url} alt="" className="w-full h-full object-cover" />
+                      <img
+                        src={u.avatar_url}
+                        alt=""
+                        width="40"
+                        height="40"
+                        loading="lazy"
+                        decoding="async"
+                        className="w-full h-full object-cover"
+                      />
                     ) : (
                       <span className="font-heading font-bold text-sm text-primary">
                         {(u.username || u.email)?.slice(0, 2).toUpperCase()}
