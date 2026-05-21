@@ -117,6 +117,25 @@ export function LanguageProvider({ children }) {
 
   const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
 
+  // Memoize the context value — see ThemeContext for the rationale.
+  // Every t() / tFallback() lookup goes through this context, so an
+  // unmemoized value would re-render every t-consumer on every parent
+  // render (effectively the whole app).
+  //
+  // CRITICAL: this useMemo MUST sit before any conditional early
+  // return, otherwise React's hook count changes between the first
+  // render (loading spinner branch, hook NOT called) and subsequent
+  // renders (full provider, hook called) — React throws "Rendered
+  // more hooks than during the previous render" and the entire
+  // provider crashes. When that happens consumers fall back to the
+  // null context default and every t() returns undefined, which makes
+  // tons of UI text appear "missing." This was the bug behind the
+  // round-4 ghost-feature regression.
+  const value = useMemo(
+    () => ({ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }),
+    [language, setLanguage, t, tFallback, currentLanguage]
+  );
+
   // First render gate: until English + active language are loaded, return
   // a minimal loading shell instead of `children`. Without this, every
   // t() call would return the raw key (e.g. "nav.dashboard") and the UI
@@ -129,15 +148,6 @@ export function LanguageProvider({ children }) {
       </div>
     );
   }
-
-  // Memoize the context value — see ThemeContext for the rationale.
-  // Every t() / tFallback() lookup goes through this context, so an
-  // unmemoized value would re-render every t-consumer on every parent
-  // render (effectively the whole app).
-  const value = useMemo(
-    () => ({ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }),
-    [language, setLanguage, t, tFallback, currentLanguage]
-  );
 
   return (
     <LanguageContext.Provider value={value}>
