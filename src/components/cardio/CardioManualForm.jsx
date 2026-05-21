@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Save, Calculator } from 'lucide-react';
+import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
@@ -235,7 +236,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
 
       onSaved();
     } catch (err) {
-      console.error(err);
+      reportError(err, { feature: 'cardio.manual.save', level: 'warning' });
       toast.error(t('cardio.saveFailed'));
     } finally {
       setSaving(false);

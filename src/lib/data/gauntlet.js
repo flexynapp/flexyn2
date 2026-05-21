@@ -175,14 +175,24 @@ export async function completeCommunityGauntletAttempt(gauntletId, score, workou
     .single();
   if (ae) throw ae;
 
-  // Increment counts on the parent gauntlet
-  await supabase
+  // Increment counts on the parent gauntlet. Non-blocking: an RLS deny or
+  // network blip on the counter bump shouldn't drop the attempt row that
+  // just succeeded — but silent failures will skew the leaderboard, so
+  // surface them via the reportError pipeline rather than swallowing.
+  const { error: counterErr } = await supabase
     .from('weekly_gauntlets')
     .update({
       attempt_count:    (gauntlet.attempt_count ?? 0) + 1,
       completion_count: passed ? (gauntlet.completion_count ?? 0) + 1 : gauntlet.completion_count,
     })
     .eq('id', gauntletId);
+  if (counterErr) {
+    // Lazy import to avoid a circular dep — reportError pulls Sentry which
+    // pulls things that pull this module on hot reload in dev.
+    import('@/lib/reportError').then(({ reportError }) => {
+      reportError(counterErr, { feature: 'gauntlet.weekly-counter-bump', level: 'warning' });
+    }).catch(() => { /* reporter unavailable — best-effort */ });
+  }
 
   return attempt;
 }

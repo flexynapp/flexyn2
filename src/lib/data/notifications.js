@@ -80,20 +80,32 @@ export async function unreadCount(user) {
 /** Mark a single notification read. */
 export async function markRead(notificationId) {
   if (!notificationId) return;
-  await supabase
+  const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('id', notificationId);
+  if (error) {
+    // Don't throw — callers fire-and-forget. Report so we notice
+    // RLS denies or schema drift instead of seeing stale unread badges.
+    import('@/lib/reportError').then(({ reportError }) => {
+      reportError(error, { feature: 'notifications.markRead', level: 'warning' });
+    }).catch(() => { /* reporter unavailable — best-effort */ });
+  }
 }
 
 /** Mark all of the user's notifications as read. */
 export async function markAllRead(user) {
   if (!user?.id) return;
-  await supabase
+  const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
     .eq('user_id', user.id)
     .eq('is_read', false);
+  if (error) {
+    import('@/lib/reportError').then(({ reportError }) => {
+      reportError(error, { feature: 'notifications.markAllRead', level: 'warning', userEmail: user.email });
+    }).catch(() => { /* reporter unavailable — best-effort */ });
+  }
 }
 
 /**

@@ -12,7 +12,9 @@ import { ACTION_TYPES } from '@/lib/questCatalog';
 
 const STORAGE_KEY = 'flexyn_progress_photos';
 
-// Storage helpers
+// Storage helpers. localStorage writes are wrapped because Safari private
+// mode + iOS storage quota both throw on setItem — without the guard, a
+// failed save would crash the whole save flow and lose the photo dataURL.
 export function saveProgressPhoto(dataUrl, workoutName) {
   const photos = loadProgressPhotos();
   const newEntry = {
@@ -22,7 +24,13 @@ export function saveProgressPhoto(dataUrl, workoutName) {
     workoutName,
   };
   photos.unshift(newEntry);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+  } catch {
+    // Quota exceeded or storage unavailable. Caller can detect by re-reading
+    // and not finding the entry; we still return the in-memory entry so the
+    // current session can show it.
+  }
   return newEntry;
 }
 
@@ -38,7 +46,12 @@ export function loadProgressPhotos() {
 export function deleteProgressPhoto(id) {
   const photos = loadProgressPhotos();
   const updated = photos.filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  } catch {
+    // Same as save — best-effort; the returned `updated` reflects intent
+    // even if persistence failed.
+  }
   return updated;
 }
 

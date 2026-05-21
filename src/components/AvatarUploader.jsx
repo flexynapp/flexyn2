@@ -8,6 +8,7 @@ import { supabase } from '@/api/supabaseClient';
 import { update as updateMe } from '@/lib/data/me';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
 
 /**
@@ -73,7 +74,7 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
       if (onChange) onChange(file_url);
       toast.success(t('avatar.uploaded'));
     } catch (err) {
-      console.error(err);
+      reportError(err, { feature: 'avatar.upload', level: 'warning' });
       toast.error(t('avatar.error.uploadFailed'));
     } finally {
       setUploading(false);

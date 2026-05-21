@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
 import { useProfanityGuard } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -448,7 +449,7 @@ export default function HubComposer({ onClose }) {
           const result = await db.integrations.Core.UploadFile({ file });
           imageUrl = result?.file_url || null;
         } catch (e) {
-          console.error('Photo upload failed', e);
+          reportError(e, { feature: 'hub.composer.photo-upload', level: 'warning' });
           toast.error(t('hub.composer.postError'));
           setPosting(false);
           return;
@@ -460,7 +461,7 @@ export default function HubComposer({ onClose }) {
           const result = await db.integrations.Core.UploadFile({ file: mealImageFile });
           imageUrl = result?.file_url || null;
         } catch (e) {
-          console.error('Meal photo upload failed', e);
+          reportError(e, { feature: 'hub.composer.meal-upload', level: 'warning' });
           toast.error(t('hub.composer.postError'));
           setPosting(false);
           return;
@@ -473,7 +474,7 @@ export default function HubComposer({ onClose }) {
           const result = await db.integrations.Core.UploadFile({ file: statusImageFile });
           imageUrl = result?.file_url || null;
         } catch (e) {
-          console.error('Status image upload failed', e);
+          reportError(e, { feature: 'hub.composer.status-upload', level: 'warning' });
           // Non-fatal: continue posting without the image
         }
       }
@@ -585,7 +586,7 @@ export default function HubComposer({ onClose }) {
 
       onClose();
     } catch (err) {
-      console.error(err);
+      reportError(err, { feature: 'hub.composer.post', level: 'warning' });
       toast.error(t('hub.composer.postError'));
     } finally {
       setPosting(false);
