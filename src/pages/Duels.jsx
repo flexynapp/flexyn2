@@ -28,7 +28,7 @@ const STATUS_CONFIG = {
 const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
 function DuelRow({ duel, currentUserId, onClick }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const isChallenger = duel.challenger_id === currentUserId;
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
@@ -49,8 +49,8 @@ function DuelRow({ duel, currentUserId, onClick }) {
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold truncate">
           {isChallenger
-            ? (t('duels.youChallenged') || 'You challenged')
-            : (t('duels.challengedBy') || 'Challenged by')} ·{' '}
+            ? (tFallback('duels.youChallenged', 'You challenged'))
+            : (tFallback('duels.challengedBy', 'Challenged by'))} ·{' '}
           <span className="text-muted-foreground capitalize">{duel.type}</span>
         </p>
         <p className="text-xs text-muted-foreground">
@@ -60,10 +60,10 @@ function DuelRow({ duel, currentUserId, onClick }) {
       {duel.status === 'completed' && (
         <span className={`text-xs font-bold ${won ? 'text-primary' : lost ? 'text-rose-500' : 'text-amber-500'}`}>
           {won
-            ? (t('duels.resultWin') || 'W')
+            ? (tFallback('duels.resultWin', 'W'))
             : lost
-              ? (t('duels.resultLoss') || 'L')
-              : (t('duels.resultTie') || 'TIE')}
+              ? (tFallback('duels.resultLoss', 'L'))
+              : (tFallback('duels.resultTie', 'TIE'))}
         </span>
       )}
       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color}`}>

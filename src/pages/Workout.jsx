@@ -85,7 +85,7 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs'
 
 
 export default function Workout() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
   const [selectedRegimen, setSelectedRegimen] = useState(null);
@@ -1185,16 +1185,16 @@ export default function Workout() {
               if (!exCount) return null;
               const setCount = (last.exercises || [])
                 .reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
-              const title = last.regimen_name || t('workout.lastWorkout') || 'Last workout';
+              const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
               const subtitleParts = [
                 last.date ? format(parseISO(last.date), 'MMM d') : null,
                 exCount === 1
-                  ? `1 ${t('workout.exerciseSingular') || 'exercise'}`
-                  : `${exCount} ${(t('workout.exercises') || 'exercises').toLowerCase()}`,
+                  ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
+                  : `${exCount} ${(tFallback('workout.exercises', 'exercises')).toLowerCase()}`,
                 setCount > 0
                   ? (setCount === 1
-                      ? `1 ${t('workout.setSingular') || 'set'}`
-                      : `${setCount} ${(t('common.sets') || 'sets').toLowerCase()}`)
+                      ? `1 ${tFallback('workout.setSingular', 'set')}`
+                      : `${setCount} ${(tFallback('common.sets', 'sets')).toLowerCase()}`)
                   : null,
               ].filter(Boolean);
               return (
@@ -1206,7 +1206,7 @@ export default function Workout() {
                   whileTap={{ scale: 0.99 }}
                   onClick={startFromLastWorkout}
                   className="group w-full mb-4 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/8 via-primary/5 to-transparent hover:border-primary/45 transition-colors p-4 md:p-5 text-left"
-                  aria-label={t('workout.repeatLast') || 'Repeat last workout'}
+                  aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/25 transition-colors">
@@ -1215,7 +1215,7 @@ export default function Workout() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-primary">
-                          {t('workout.repeatLast') || 'Repeat last workout'}
+                          {tFallback('workout.repeatLast', 'Repeat last workout')}
                         </span>
                       </div>
                       <p className="font-heading font-bold text-base md:text-lg leading-tight truncate mt-0.5">
@@ -1323,7 +1323,7 @@ export default function Workout() {
                       <History className="w-5 h-5 text-orange-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.savedWorkouts') || 'Saved Workouts'}</p>
+                      <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
@@ -1474,10 +1474,10 @@ export default function Workout() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
-                        <p className="font-heading font-bold text-sm leading-tight">{t('formcoach.title') || 'Form Coach'}</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{t('formcoach.beta') || 'Beta'}</span>
+                        <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
+                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('formcoach.cardTagline') || 'AI form check on your lifts'}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
                     </div>
                     <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                   </div>
@@ -1564,7 +1564,7 @@ export default function Workout() {
             <DialogHeader>
               <DialogTitle className="font-heading flex items-center gap-2">
                 <History className="w-5 h-5 text-accent" />
-                {t('workout.savedWorkouts') || 'Saved Workouts'}
+                {tFallback('workout.savedWorkouts', 'Saved Workouts')}
               </DialogTitle>
             </DialogHeader>
             <div className="mt-2">

@@ -23,7 +23,7 @@ const itemVariants = {
 };
 
 export default function WorkoutSavedList({ onSelectLog }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
@@ -49,7 +49,7 @@ export default function WorkoutSavedList({ onSelectLog }) {
       <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
         <Dumbbell className="w-8 h-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {t('workout.noSavedWorkouts') || 'No saved workouts yet'}
+          {tFallback('workout.noSavedWorkouts', 'No saved workouts yet')}
         </p>
       </Card>
     );
@@ -73,12 +73,12 @@ export default function WorkoutSavedList({ onSelectLog }) {
           : '';
 
         const exLabel = exercises.length === 1
-          ? `1 ${t('workout.exerciseSingular') || 'exercise'}`
+          ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
           : exercises.length > 1
             ? `${exercises.length} ${t('workout.exercises').toLowerCase()}`
             : '';
         const setLabel = totalSets === 1
-          ? `1 ${t('workout.setSingular') || 'set'}`
+          ? `1 ${tFallback('workout.setSingular', 'set')}`
           : totalSets > 1
             ? `${totalSets} ${t('common.sets').toLowerCase()}`
             : '';

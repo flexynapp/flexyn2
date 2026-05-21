@@ -94,7 +94,7 @@ function saveDmFires(convId, map) {
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
 
 export default function HubChat({ conversation, otherUser = null, onBack }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
@@ -310,7 +310,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_ATTACHMENT_BYTES) {
-      toast.error(t('hub.chat.attachmentTooLarge') || 'Image must be 50 MB or smaller');
+      toast.error(tFallback('hub.chat.attachmentTooLarge', 'Image must be 50 MB or smaller'));
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -408,7 +408,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       // Resync with server in case the failure was a transient that
       // succeeded server-side — avoids leaving the UI desynced after recovery.
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
-      toast.error(t('hub.chat.pinError') || 'Could not pin message. Try again.');
+      toast.error(tFallback('hub.chat.pinError', 'Could not pin message. Try again.'));
     }
   }, [conversation?.id, queryClient]);
 
@@ -557,7 +557,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       <div className="flex items-center gap-3 pb-3 border-b border-border mb-3 shrink-0">
         <button
           onClick={onBack}
-          aria-label={t('hub.backToHub') || 'Back'}
+          aria-label={tFallback('hub.backToHub', 'Back')}
           className="p-1.5 rounded-md hover:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

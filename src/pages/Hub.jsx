@@ -31,7 +31,7 @@ const EMBERS = [
 ];
 
 export default function Hub() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [section, setSection] = useState('feed');
   const [feedTab, setFeedTab] = useState('pump');
@@ -130,7 +130,7 @@ export default function Hub() {
               <button
                 type="button"
                 onClick={() => setSearchOpen(true)}
-                aria-label={t('hub.search.label') || 'Search'}
+                aria-label={tFallback('hub.search.label', 'Search')}
                 className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
               >
                 <Search className="w-5 h-5" />

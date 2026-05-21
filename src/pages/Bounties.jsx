@@ -10,7 +10,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 
 export default function Bounties() {
   const navigate = useNavigate();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
 
   return (
     <div className="px-4 md:px-8 pb-8 max-w-2xl mx-auto">
@@ -34,8 +34,8 @@ export default function Bounties() {
             <Zap className="w-4 h-4 text-amber-500" />
           </div>
           <div>
-            <h1 className="font-heading font-bold text-lg leading-tight">{t('bounties.title') || 'Bounties'}</h1>
-            <p className="text-[10px] text-muted-foreground">{t('bounties.subtitle') || 'Daily social challenges · Pay to claim · Earn on completion'}</p>
+            <h1 className="font-heading font-bold text-lg leading-tight">{tFallback('bounties.title', 'Bounties')}</h1>
+            <p className="text-[10px] text-muted-foreground">{tFallback('bounties.subtitle', 'Daily social challenges · Pay to claim · Earn on completion')}</p>
           </div>
         </div>
       </div>

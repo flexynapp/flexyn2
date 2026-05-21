@@ -222,7 +222,7 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0 }) {
 
 
 export default function Dashboard() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
   const location = useLocation();
@@ -630,13 +630,13 @@ export default function Dashboard() {
           />
           <QuickAction
             icon={Scale}
-            label={t('dashboard.logWeight') || 'Log weight'}
+            label={tFallback('dashboard.logWeight', 'Log weight')}
             onClick={() => setLogWeightOpen(true)}
             delay={0.42}
           />
           <QuickAction
             icon={Camera}
-            label={t('dashboard.addPhoto') || 'Add progress photo'}
+            label={tFallback('dashboard.addPhoto', 'Add progress photo')}
             onClick={() => setPhotoCaptureOpen(true)}
             delay={0.48}
           />

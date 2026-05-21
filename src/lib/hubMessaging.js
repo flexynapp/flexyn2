@@ -33,12 +33,12 @@ export function useUnreadDMCount() {
 // Messages.jsx reads `location.state.pendingChatTarget` to open it.
 export function useStartConversation() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const navigate = useNavigate();
 
   return useCallback(async (targetUserObj) => {
     if (!user?.email) {
-      toast.error(t('hub.messages.authNotReady') || 'Still signing you in — try again in a moment.');
+      toast.error(tFallback('hub.messages.authNotReady', 'Still signing you in — try again in a moment.'));
       return;
     }
     if (!targetUserObj?.email) {
@@ -48,7 +48,7 @@ export function useStartConversation() {
     try {
       const conv = await hubMessages.findOrCreateConversation(user.email, targetUserObj.email);
       if (!conv) {
-        toast.error(t('hub.messages.startError') || 'Could not start conversation. Try again.');
+        toast.error(tFallback('hub.messages.startError', 'Could not start conversation. Try again.'));
         throw new Error('no-conversation');
       }
       navigate('/messages', {
@@ -57,7 +57,7 @@ export function useStartConversation() {
     } catch (e) {
       if (e?.message !== 'no-conversation') {
         console.error('[hubMessaging] startConversation failed:', e);
-        toast.error(t('hub.messages.startError') || 'Could not start conversation. Try again.');
+        toast.error(tFallback('hub.messages.startError', 'Could not start conversation. Try again.'));
       }
       throw e;
     }

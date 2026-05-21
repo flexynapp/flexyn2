@@ -55,7 +55,7 @@ function computeStrengthProgress(goal, logs) {
 }
 
 export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
 
   const view = useMemo(() => {
     const active = goals.filter(g => g.status !== 'completed');
@@ -84,7 +84,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
   const pct = Math.round(view.top.progress);
   const goal = view.top.goal;
   const countLabel = view.activeCount === 1
-    ? (t('goals.strip.oneActive') || '1 active goal')
+    ? (tFallback('goals.strip.oneActive', '1 active goal'))
     : (t('goals.strip.nActive') || `${view.activeCount} active goals`).replace('{n}', view.activeCount);
   const detailLabel = goal.exercise_name
     ? `${goal.exercise_name} · ${pct}%`

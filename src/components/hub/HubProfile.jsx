@@ -142,7 +142,7 @@ function flagUrl(emoji) {
 }
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
   // instead of useAuth().user, which only loads once at bootstrap and doesn't
@@ -1061,7 +1061,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
             >
               <Palette className="w-4 h-4 text-primary" />
-              {t('hub.profile.themes') || 'Themes'}
+              {tFallback('hub.profile.themes', 'Themes')}
             </button>
           </motion.div>
         )}

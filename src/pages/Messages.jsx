@@ -10,7 +10,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function Messages() {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
   const [pendingChatTarget, setPendingChatTarget] = useState(
@@ -28,7 +28,7 @@ export default function Messages() {
   return (
     <div className="p-4 md:p-8 max-w-3xl mx-auto">
       <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight mb-4 hidden lg:block">
-        {t('hub.messages.title') || 'Messages'}
+        {tFallback('hub.messages.title', 'Messages')}
       </h1>
       <ErrorBoundary label="Messages">
         <HubMessages

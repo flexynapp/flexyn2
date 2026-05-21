@@ -172,7 +172,7 @@ function DiscoveryCard({
 }
 
 export default function DiscoveryCards({ logs = [], regimens = [], isLoading = false }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -295,7 +295,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="openCapsule"
           icon={Package}
           accent="purple"
-          kicker={t('discovery.openCapsule.kicker') || 'GIFT WAITING'}
+          kicker={tFallback('discovery.openCapsule.kicker', 'GIFT WAITING')}
           title={
             t('discovery.openCapsule.title') ||
             (unopenedCapsuleCount === 1
@@ -306,8 +306,8 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
             t('discovery.openCapsule.body') ||
             "Capsules drop stickers, frames, titles, and Flex Coins. Trade duplicates with friends. Open yours to see what's inside."
           }
-          ctaLabel={t('discovery.openCapsule.cta') || 'Open it now'}
-          dismissAriaLabel={t('discovery.openCapsule.dismissLabel') || 'Later'}
+          ctaLabel={tFallback('discovery.openCapsule.cta', 'Open it now')}
+          dismissAriaLabel={tFallback('discovery.openCapsule.dismissLabel', 'Later')}
           onCta={() => {
             // Don't persist a dismissal — the card auto-hides the
             // moment the capsule is opened (count drops to 0). The
@@ -329,14 +329,13 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="starter"
           icon={Dumbbell}
           accent="orange"
-          kicker={t('discovery.starter.kicker') || 'YOUR PLAN'}
-          title={t('discovery.starter.title') || 'Your starter plan is ready'}
+          kicker={tFallback('discovery.starter.kicker', 'YOUR PLAN')}
+          title={tFallback('discovery.starter.title', 'Your starter plan is ready')}
           body={
-            t('discovery.starter.body') ||
-            'We built a regimen from your onboarding answers. Open it in Workout to start your first session.'
+            tFallback('discovery.starter.body', 'We built a regimen from your onboarding answers. Open it in Workout to start your first session.')
           }
-          ctaLabel={t('discovery.starter.cta') || 'Start your first workout'}
-          dismissAriaLabel={t('discovery.dismiss') || 'Dismiss'}
+          ctaLabel={tFallback('discovery.starter.cta', 'Start your first workout')}
+          dismissAriaLabel={tFallback('discovery.dismiss', 'Dismiss')}
           onCta={() => {
             handleDismiss(DISCOVERY_CARDS.STARTER_PLAN);
             navigate('/workout', { state: { openRegimens: true } });
@@ -350,14 +349,13 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="formCoach"
           icon={Camera}
           accent="violet"
-          kicker={t('discovery.formCoach.kicker') || 'BETA'}
-          title={t('discovery.formCoach.title') || 'Try Form Coach'}
+          kicker={tFallback('discovery.formCoach.kicker', 'BETA')}
+          title={tFallback('discovery.formCoach.title', 'Try Form Coach')}
           body={
-            t('discovery.formCoach.body') ||
-            'On-device AI checks your lift form from a quick photo. No video, no upload — runs right on your phone.'
+            tFallback('discovery.formCoach.body', 'On-device AI checks your lift form from a quick photo. No video, no upload — runs right on your phone.')
           }
-          ctaLabel={t('discovery.formCoach.cta') || 'Try Form Coach'}
-          dismissAriaLabel={t('discovery.dismiss') || 'Dismiss'}
+          ctaLabel={tFallback('discovery.formCoach.cta', 'Try Form Coach')}
+          dismissAriaLabel={tFallback('discovery.dismiss', 'Dismiss')}
           onCta={() => {
             // Dismiss-on-launch: the user has now seen it; don't pester
             // them again. If they want it back they can find it on the
@@ -378,14 +376,13 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="coach"
           icon={Sparkles}
           accent="amber"
-          kicker={t('discovery.coach.kicker') || 'YOUR COACH'}
-          title={t('discovery.coach.title') || 'Meet your AI Coach'}
+          kicker={tFallback('discovery.coach.kicker', 'YOUR COACH')}
+          title={tFallback('discovery.coach.title', 'Meet your AI Coach')}
           body={
-            t('discovery.coach.body') ||
-            'Personal advice tuned to your actual workouts, weight, and goals. Ask anything — programming, plateaus, recovery.'
+            tFallback('discovery.coach.body', 'Personal advice tuned to your actual workouts, weight, and goals. Ask anything — programming, plateaus, recovery.')
           }
-          ctaLabel={t('discovery.coach.cta') || 'Open Coach'}
-          dismissAriaLabel={t('discovery.dismiss') || 'Dismiss'}
+          ctaLabel={tFallback('discovery.coach.cta', 'Open Coach')}
+          dismissAriaLabel={tFallback('discovery.dismiss', 'Dismiss')}
           onCta={() => {
             handleDismiss(DISCOVERY_CARDS.AI_COACH);
             navigate('/coach');
@@ -399,14 +396,14 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           key="pushOptIn"
           icon={Bell}
           accent="sky"
-          kicker={t('discovery.pushOptIn.kicker') || 'STAY ON TRACK'}
-          title={t('discovery.pushOptIn.title') || 'Want a daily nudge?'}
+          kicker={tFallback('discovery.pushOptIn.kicker', 'STAY ON TRACK')}
+          title={tFallback('discovery.pushOptIn.title', 'Want a daily nudge?')}
           body={
             t('discovery.pushOptIn.body') ||
             "Quiet, optional reminders to keep your streak alive. Manage them anytime in Settings — we'll never spam you."
           }
-          ctaLabel={t('discovery.pushOptIn.cta') || 'Enable reminders'}
-          dismissAriaLabel={t('discovery.pushOptIn.dismissLabel') || 'Not now'}
+          ctaLabel={tFallback('discovery.pushOptIn.cta', 'Enable reminders')}
+          dismissAriaLabel={tFallback('discovery.pushOptIn.dismissLabel', 'Not now')}
           onCta={async () => {
             // CTA flow: dismiss the card first (so it disappears on
             // tap regardless of permission outcome), then call
@@ -418,12 +415,11 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
               const res = await push.subscribe();
               if (res.ok) {
                 toast.success(
-                  t('discovery.pushOptIn.toastEnabled') || 'Reminders enabled — change anytime in Settings.'
+                  tFallback('discovery.pushOptIn.toastEnabled', 'Reminders enabled — change anytime in Settings.')
                 );
               } else if (res.reason === 'denied') {
                 toast.error(
-                  t('discovery.pushOptIn.toastDenied') ||
-                  'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.'
+                  tFallback('discovery.pushOptIn.toastDenied', 'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.')
                 );
               } else if (res.reason === 'unsupported') {
                 toast.error(

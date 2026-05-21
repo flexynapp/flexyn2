@@ -34,7 +34,7 @@ import { toLbs, fromLbs } from '@/lib/weightUnit';
 import { reportError } from '@/lib/reportError';
 
 export default function LogWeightModal({ open, onOpenChange, profile }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const queryClient = useQueryClient();
@@ -86,20 +86,20 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      toast.success(t('bodyMetrics.toast.saved') || 'Weight saved');
+      toast.success(tFallback('bodyMetrics.toast.saved', 'Weight saved'));
       onOpenChange?.(false);
     },
     onError: (err) => {
       if (err?.message === 'invalid_number') {
-        toast.error(t('bodyMetrics.errors.invalidNumber') || 'Enter a valid number.');
+        toast.error(tFallback('bodyMetrics.errors.invalidNumber', 'Enter a valid number.'));
         return;
       }
       if (err?.message === 'out_of_range') {
-        toast.error(t('bodyMetrics.errors.outOfRange') || 'That value looks off — double-check it.');
+        toast.error(tFallback('bodyMetrics.errors.outOfRange', 'That value looks off — double-check it.'));
         return;
       }
       reportError(err, { feature: 'dashboard.logWeight', userEmail: user?.email, value, date });
-      toast.error(t('bodyMetrics.errors.saveFailed') || 'Could not save — try again.');
+      toast.error(tFallback('bodyMetrics.errors.saveFailed', 'Could not save — try again.'));
     },
   });
 
@@ -116,13 +116,13 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 font-heading">
             <Scale className="w-5 h-5 text-primary" />
-            {t('dashboard.logWeight.title') || 'Log weight'}
+            {tFallback('dashboard.logWeight.title', 'Log weight')}
           </DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              {t('dashboard.logWeight.weightLabel') || 'Weight'} ({weightUnit})
+              {tFallback('dashboard.logWeight.weightLabel', 'Weight')} ({weightUnit})
             </label>
             <Input
               ref={inputRef}
@@ -138,7 +138,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              {t('workout.date') || 'Date'}
+              {tFallback('workout.date', 'Date')}
             </label>
             <Input
               type="date"
@@ -155,7 +155,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               className="flex-1"
               disabled={saveMutation.isPending}
             >
-              {t('common.cancel') || 'Cancel'}
+              {tFallback('common.cancel', 'Cancel')}
             </Button>
             <Button
               type="submit"
@@ -163,7 +163,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               disabled={!value || !date || saveMutation.isPending}
             >
               {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {t('common.save') || 'Save'}
+              {tFallback('common.save', 'Save')}
             </Button>
           </div>
         </form>

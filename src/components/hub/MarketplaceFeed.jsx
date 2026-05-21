@@ -156,7 +156,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
 
 // ─── List Item Dialog ─────────────────────────────────────────────────────────
 function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const qc = useQueryClient();
   const [step, setStep]             = useState('pick');   // 'pick' | 'configure'
   const [selectedItem, setSelected] = useState(null);
@@ -671,7 +671,7 @@ function DailyChestBlock({ user, onClaimed }) {
       // refetch chain.
       markDailyChestClaimedLocally(user.id);
       setClaimed(true);
-      toast.success(t('marketplace.dailyChest.claimSuccess') || '🎁 Daily chest claimed! Check your capsules.');
+      toast.success(tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'));
       onClaimed?.();
     } catch (err) {
       // Pre-migration host (RPC missing) or network error. Do NOT
@@ -722,11 +722,11 @@ function DailyChestBlock({ user, onClaimed }) {
         <Gift className={`w-6 h-6 ${claimed ? 'text-yellow-200/50' : 'text-yellow-300'}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-white font-bold text-sm">{t('marketplace.dailyChest.title') || 'Daily Chest'}</p>
+        <p className="text-white font-bold text-sm">{tFallback('marketplace.dailyChest.title', 'Daily Chest')}</p>
         <p className="text-purple-100 font-medium text-xs mt-0.5">
           {claimed
-            ? (t('marketplace.dailyChest.comeback') || 'Come back tomorrow for another reward!')
-            : (t('marketplace.dailyChest.cta') || 'Claim your free daily capsule + coins')}
+            ? (tFallback('marketplace.dailyChest.comeback', 'Come back tomorrow for another reward!'))
+            : (tFallback('marketplace.dailyChest.cta', 'Claim your free daily capsule + coins'))}
         </p>
       </div>
       <button
@@ -739,7 +739,7 @@ function DailyChestBlock({ user, onClaimed }) {
             : 'bg-gradient-to-r from-purple-500 to-violet-600 text-white hover:opacity-90 shadow-md',
         ].join(' ')}
       >
-        {loading ? '…' : claimed ? (t('marketplace.dailyChest.claimed') || 'Claimed') : (t('marketplace.dailyChest.claim') || 'Claim')}
+        {loading ? '…' : claimed ? (tFallback('marketplace.dailyChest.claimed', 'Claimed')) : (tFallback('marketplace.dailyChest.claim', 'Claim'))}
       </button>
     </motion.div>
   );
