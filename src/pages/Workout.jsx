@@ -228,12 +228,17 @@ export default function Workout() {
     mutationFn: async (data) => {
       // Anti-cheat: never accept future-dated workouts. Users could otherwise
       // front-load tomorrow's session today to game streaks or weekly leagues.
-      // We allow today's date in any timezone (with a small clock-drift buffer)
-      // but reject anything dated >1 day ahead of the user's current local date.
+      //
+      // The check uses the FURTHEST-EAST date (UTC + 14h) as the ceiling
+      // so we don't block legitimate logging from Kiribati or other UTC+14
+      // timezones at the same instant the server's UTC date is one day
+      // behind. Previously the check was local-format, which let users in
+      // UTC+14 timezones save workouts dated 1 day ahead of UTC.
       try {
         if (data?.date) {
-          const today = format(new Date(), 'yyyy-MM-dd');
-          if (data.date > today) {
+          const maxDate = new Date(Date.now() + 14 * 60 * 60 * 1000);
+          const ceilingYmd = maxDate.toISOString().slice(0, 10);
+          if (data.date > ceilingYmd) {
             throw new Error('Workouts cannot be dated in the future.');
           }
         }
@@ -241,6 +246,36 @@ export default function Workout() {
         if (e.message === 'Workouts cannot be dated in the future.') throw e;
         // Date parsing failed — fall through (existing behavior)
       }
+
+      // Empty-set filter — drop sets where neither weight nor reps carries
+      // any real value. The missing-data dialog warns the user but allows
+      // "Save anyway"; without this filter, those empty sets persisted and
+      // counted toward set-count gates (Gauntlet 1, achievements) while
+      // contributing 0 XP. Cardio sets are duration-based so we keep them
+      // even when weight is null. A "meaningful" set must have reps > 0
+      // (real work) AND either weight > 0 OR be in a cardio-style group.
+      data = {
+        ...data,
+        exercises: (data.exercises || []).map((ex) => {
+          const groups = ex.muscle_groups?.length
+            ? ex.muscle_groups
+            : (ex.muscle_group ? [ex.muscle_group] : []);
+          const isCardioStyle = groups.some(
+            (g) => typeof g === 'string' && g.toLowerCase() === 'cardio'
+          );
+          const cleanedSets = (ex.sets || []).filter((s) => {
+            const reps = Number(s.reps);
+            const weight = Number(s.weight);
+            const hasReps = Number.isFinite(reps) && reps > 0;
+            const hasWeight = Number.isFinite(weight) && weight > 0;
+            if (!hasReps) return false;
+            return hasWeight || isCardioStyle;
+          });
+          return { ...ex, sets: cleanedSets };
+        // After filtering, drop exercises that lost all their sets — they
+        // were noise that the missing-data dialog already flagged.
+        }).filter((ex) => (ex.sets?.length || 0) > 0),
+      };
 
       // Per-exercise set cap (defense-in-depth, trim before XP calc)
       const perExerciseCap = getMaxSetsPerExercise(userProfile);
@@ -399,9 +434,19 @@ export default function Workout() {
               queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
               queryClient.invalidateQueries({ queryKey: ['userProfile', user.email] });
             })
-            .catch((err) =>
-              reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email })
-            );
+            .catch((err) => {
+              // Before: silent + Sentry. The user celebrated their
+              // first-workout capsule but never received it, then later
+              // wondered why their Bag was empty. Now surface it so they
+              // know to retry — the capsule is idempotent so a retry
+              // is safe.
+              toast.error(
+                t('workout.firstCapsuleFailed') === 'workout.firstCapsuleFailed'
+                  ? "Your first-workout capsule didn't grant — log another workout to retry."
+                  : t('workout.firstCapsuleFailed')
+              );
+              reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email });
+            });
         }
       } else {
         toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
@@ -614,21 +659,45 @@ export default function Workout() {
     const id = `generated-${Date.now()}`;
     setActiveSessionId(id);
     setSelectedRegimen(null);
-    setExercises((workout?.exercises || []).map(ex => ({
-      name: ex.name,
-      muscle_group: ex.group || '',
-      muscle_groups: ex.group ? [ex.group] : [],
-      sets: (ex.sets || []).map(s => ({
-        weight: s.weight != null ? s.weight : null,
-        reps:   s.reps   != null ? s.reps   : null,
-      })),
-    })));
+    // Apply realistic-limit clamps at LOAD time so the user never sees
+    // a prescription that the save layer will silently trim. Previously
+    // the generator could suggest 200-rep sets that the saveMutation
+    // clamping (per-muscle-group + per-exercise caps) would chop down
+    // without telling the user, leaving them confused about XP.
+    let clampedSomething = false;
+    const clampedExercises = (workout?.exercises || []).map((ex) => {
+      const maxWeight = getMaxRealisticWeight(ex.name, userProfile);
+      return {
+        name: ex.name,
+        muscle_group: ex.group || '',
+        muscle_groups: ex.group ? [ex.group] : [],
+        sets: (ex.sets || []).map((s) => {
+          let weight = s.weight != null ? Number(s.weight) : null;
+          if (Number.isFinite(weight) && weight > maxWeight) {
+            weight = maxWeight;
+            clampedSomething = true;
+          }
+          const maxReps = getMaxRealisticReps(ex.name, weight, userProfile);
+          let reps = s.reps != null ? Number(s.reps) : null;
+          if (Number.isFinite(reps) && reps > maxReps) {
+            reps = maxReps;
+            clampedSomething = true;
+          }
+          return { weight, reps };
+        }),
+      };
+    });
+    setExercises(clampedExercises);
     setDuration(String(workout?.duration_minutes || ''));
     setNotes(workout?.title || '');
     setStarted(true);
     setGeneratorOpen(false);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-    toast.success('Workout loaded — log your sets!');
+    if (clampedSomething) {
+      toast.success('Workout loaded — some sets were trimmed to realistic limits.');
+    } else {
+      toast.success('Workout loaded — log your sets!');
+    }
   };
 
   // SHARED save-as-regimen handler for the AI generator modal — used at

@@ -251,10 +251,29 @@ export async function checkChallenge1(workoutLog, workoutLogId) {
     const exercises = workoutLog?.exercises ?? [];
     if (exercises.length < 4) return null;
 
-    // Zero skipped sets = every set has reps > 0 and weight > 0 (or bodyweight)
-    const anySkipped = exercises.some(ex =>
-      (ex.sets ?? []).some(s => !s.reps || s.reps <= 0)
-    );
+    // "Zero skipped sets" = every set must have reps > 0 AND
+    // either a real weight > 0 OR the exercise is cardio-style.
+    // The previous version only checked reps and accepted weight=0,
+    // letting a user clear the gauntlet with 4 air-squat sets (weight
+    // 0 × N reps). Cardio remains exempt to match the convention in
+    // src/pages/Workout.jsx — cardio sets are duration-based, not
+    // weight-based, so they're already "complete" without a weight.
+    const isCardioGroup = (g) =>
+      typeof g === 'string' && g.toLowerCase() === 'cardio';
+    const exerciseIsCardio = (ex) => {
+      const groups = ex?.muscle_groups?.length
+        ? ex.muscle_groups
+        : (ex?.muscle_group ? [ex.muscle_group] : []);
+      return groups.some(isCardioGroup);
+    };
+    const anySkipped = exercises.some((ex) => {
+      const allowZeroWeight = exerciseIsCardio(ex);
+      return (ex.sets ?? []).some((s) => {
+        if (!s.reps || s.reps <= 0) return true;
+        if (allowZeroWeight) return false;
+        return !s.weight || Number(s.weight) <= 0;
+      });
+    });
     if (anySkipped) return null;
 
     // All clear — award it
