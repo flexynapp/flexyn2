@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/lib/questCatalog';
+import { reportError } from '@/lib/reportError';
 
 export default function DailyQuestsCard({ onNavigated }) {
   const { user } = useAuth();
@@ -74,7 +75,11 @@ export default function DailyQuestsCard({ onNavigated }) {
         t,
       })
         .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'dashboard.quest-claim-notification',
+          level: 'warning',
+          userEmail: user?.email,
+        }));
     } else {
       toast.error(t('dashboard.claimError'));
     }

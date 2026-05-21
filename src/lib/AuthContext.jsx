@@ -76,6 +76,20 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           // Defer so Supabase's internal auth state settles first
           setTimeout(() => loadProfile(session.user), 0);
+          // Magic-link / OAuth callbacks land at /something#access_token=…&refresh_token=…
+          // After Supabase parses + stores the session, the tokens linger in
+          // window.location.hash — visible in the browser address bar, kept
+          // in the back/forward history stack, and captured in any
+          // screenshot/screen-share. Strip the hash on SIGNED_IN so the
+          // tokens stop being a leak surface. Guard against typeof window
+          // for SSR safety, and only strip if the hash actually looks like
+          // an auth payload so we don't disturb legitimate page anchors.
+          try {
+            if (typeof window !== 'undefined' && /[#&](access_token|refresh_token|provider_token|expires_in)=/.test(window.location.hash)) {
+              const clean = window.location.pathname + window.location.search;
+              window.history.replaceState({}, document.title, clean);
+            }
+          } catch { /* non-fatal */ }
         }
       } else if (event === 'SIGNED_OUT') {
         setTimeout(() => {

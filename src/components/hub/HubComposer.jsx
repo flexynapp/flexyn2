@@ -1048,6 +1048,14 @@ export default function HubComposer({ onClose }) {
                   setBody('');
                   setCustomMeal({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
                   clearMealImage();
+                  // Status-post attached image was also clearable here but
+                  // got missed. Without this, attaching an image to a status
+                  // draft → tapping back to pick a different post type
+                  // leaves the statusImageFile / statusImagePreview in
+                  // state. Re-selecting status shows the stale image as if
+                  // it were still attached, and the eventual upload posts
+                  // an image the user thinks they discarded.
+                  clearStatusImage();
                 }}
                 className="p-1.5 rounded-md hover:bg-secondary"
               >

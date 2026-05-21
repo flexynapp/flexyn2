@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
+import { reportError } from '@/lib/reportError';
 
 const STORAGE_KEY = 'flexyn_progress_photos';
 
@@ -149,10 +150,17 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
     toast.success(t('photos.savedToast'), {
       description: t('photos.savedToastDesc'),
     });
-    // Quest progress — non-blocking
+    // Quest progress — non-blocking. Was silently swallowed via
+    // .catch(() => {}); now reportError so quest-progress breakage
+    // (e.g. user's "log a progress photo" quest never advances) is
+    // visible in Sentry instead of dying quietly.
     quests.recordAction(user, ACTION_TYPES.PROGRESS_PHOTO, 1)
       .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-      .catch(() => {});
+      .catch(err => reportError(err, {
+        feature: 'progressPhoto.quest-progress',
+        level: 'warning',
+        userEmail: user?.email,
+      }));
     closeCamera();
   };
 

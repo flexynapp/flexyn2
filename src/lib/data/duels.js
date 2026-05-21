@@ -300,6 +300,60 @@ export async function submitDuelResult(duelId, result, duel) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
+  // Atomic via submit_duel_result_atomic RPC (migration 079). The
+  // previous client flow had a race: concurrent challenger+opponent
+  // submissions could both read otherResult=null and both write only
+  // their own result, leaving the duel stuck at status='active' with
+  // both results filled in but no winner. The RPC locks the duel row
+  // FOR UPDATE, writes the caller's result, and if both sides are
+  // now in, resolves the winner inline under the same lock.
+  //
+  // Pre-079 hosts fall back to the legacy two-write path so the
+  // feature doesn't break on stale deployments; the race is the
+  // documented bug.
+  const { data: rpcData, error: rpcError } = await supabase.rpc('submit_duel_result_atomic', {
+    p_duel_id: duelId,
+    p_result:  result,
+  });
+  if (!rpcError) {
+    // Re-fetch the full duel row for the caller's downstream logic
+    // (notification dispatch reads winner_id + opponent_id from this).
+    const { data: full } = await supabase
+      .from('duels')
+      .select('*')
+      .eq('id', duelId)
+      .single();
+    const data = full;
+    const isChallenger = duel.challenger_id === user.id;
+    // Fall through to the notification block below — preserve the
+    // existing post-completion fanout path.
+    if (data?.status === 'completed') {
+      try {
+        const recipientId = isChallenger ? data.opponent_id : data.challenger_id;
+        let outcome;
+        if (data.winner_id == null)               outcome = 'tied';
+        else if (data.winner_id === recipientId)  outcome = 'won';
+        else                                      outcome = 'lost';
+
+        await supabase.rpc('notify_duel_result_for', {
+          p_recipient_id: recipientId,
+          p_duel_id:      data.id,
+          p_outcome:      outcome,
+        });
+      } catch (e) {
+        if (e?.code !== '42883' && e?.code !== '42P01') {
+          console.warn('[duels] notify_duel_result_for failed:', e?.message || e);
+        }
+      }
+    }
+    return data;
+  }
+
+  // Legacy fallback for pre-079 hosts (RPC missing).
+  if (rpcError.code !== '42883' && rpcError.code !== '42P01') {
+    throw rpcError;
+  }
+
   const isChallenger = duel.challenger_id === user.id;
   const resultField  = isChallenger ? 'challenger_result' : 'opponent_result';
   const otherResult  = isChallenger ? duel.opponent_result : duel.challenger_result;

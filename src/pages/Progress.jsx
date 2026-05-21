@@ -838,6 +838,7 @@ export default function Progress() {
                           regimenLogs={regimenLogs}
                           timeRange={timeRange}
                           selectedMuscleGroup={selectedMuscleGroup}
+                          scrollRef={contentRef}
                         />
                       )}
                     </div>
