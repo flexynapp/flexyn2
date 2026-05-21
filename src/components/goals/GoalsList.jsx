@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +20,26 @@ function matchesActivity(logType, activity) {
 }
 
 export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDelete, onComplete, isViewingCompleted = false }) {
+  // Track which goal IDs have an in-flight delete/complete action so the
+  // user can't double-tap. Parent owns the mutation; we just guard the
+  // trigger here without requiring isPending to be plumbed through props.
+  const [pendingIds, setPendingIds] = useState(() => ({ delete: new Set(), complete: new Set() }));
+  const guardedAction = useCallback(async (kind, id, handler) => {
+    setPendingIds(prev => {
+      if (prev[kind].has(id)) return prev;
+      const next = { ...prev, [kind]: new Set([...prev[kind], id]) };
+      return next;
+    });
+    try {
+      await handler(id);
+    } finally {
+      setPendingIds(prev => {
+        const nextSet = new Set(prev[kind]);
+        nextSet.delete(id);
+        return { ...prev, [kind]: nextSet };
+      });
+    }
+  }, []);
   const { allowDeleteCompletedGoals } = useSettings();
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -220,7 +240,12 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => onDelete(goal.id)}>{t('common.delete')}</AlertDialogAction>
+                      <AlertDialogAction
+                        disabled={pendingIds.delete.has(goal.id)}
+                        onClick={() => guardedAction('delete', goal.id, onDelete)}
+                      >
+                        {t('common.delete')}
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -242,8 +267,9 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
             {goal.status !== 'completed' && goal.progress >= 100 && onComplete && (
               <Button
                 size="sm"
+                disabled={pendingIds.complete.has(goal.id)}
                 className="mt-3 w-full bg-green-600 hover:bg-green-700 text-white gap-2"
-                onClick={() => onComplete(goal.id)}
+                onClick={() => guardedAction('complete', goal.id, onComplete)}
               >
                 <Trophy className="w-4 h-4" /> {t('goals.complete')}
               </Button>

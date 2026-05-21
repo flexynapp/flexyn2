@@ -242,7 +242,12 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.date')}</label>
-              <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              <Input
+                type="date"
+                value={date}
+                onChange={e => setDate(e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
+              />
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.duration')}</label>

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { db } from '@/api/db';
 import { markReturningUser } from '@/lib/firstLaunch';
+import { reportError } from '@/lib/reportError';
 
 export default function Splash() {
   const navigate = useNavigate();
@@ -33,7 +34,17 @@ export default function Splash() {
         navigate('/dashboard', { replace: true, state: { fromSplash: true } });
       }
     };
-    check();
+    // Critical: if isAuthenticated() throws (Supabase slow, JWT decode
+    // error, network blip mid-bootstrap), the user would otherwise be
+    // stuck on the splash screen forever with no recovery short of a
+    // hard refresh. Catch and fall back to onboarding — worst case they
+    // re-sign-in. The splash IS the first screen every visitor sees;
+    // having no error handling here is a single point of failure for
+    // the whole app.
+    check().catch((err) => {
+      reportError(err, { feature: 'splash.bootstrap', level: 'error' });
+      navigate('/onboarding', { replace: true });
+    });
   }, [navigate]);
 
   return (

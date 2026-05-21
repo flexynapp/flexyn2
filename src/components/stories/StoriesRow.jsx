@@ -444,6 +444,10 @@ export default function StoriesRow({ onViewProfile } = {}) {
       toast.success('Story posted!');
     },
     onError: () => {
+      // Revoke the preview's object URL before clearing — previously this
+      // path left the URL dangling, so each retry on a flaky network would
+      // leak another blob into memory.
+      cleanupPreview();
       toast.error('Upload failed — try again.');
     },
   });
@@ -599,7 +603,13 @@ export default function StoriesRow({ onViewProfile } = {}) {
                   <div className="w-full h-full rounded-full overflow-hidden bg-background p-[2px]">
                     <div className="w-full h-full rounded-full overflow-hidden">
                       {latest?.image_url ? (
-                        <img src={latest.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                        <img
+                          src={latest.image_url}
+                          className="w-full h-full object-cover"
+                          alt=""
+                          draggable={false}
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
                       ) : (
                         <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
                           <Shield className="w-5 h-5 text-primary" />
@@ -721,6 +731,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
               alt=""
               draggable={false}
               onClick={e => e.stopPropagation()}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
             <div className="absolute top-4 left-0 right-0 px-4 flex items-center justify-between">
               <span className="text-white text-sm font-bold drop-shadow">{crewStoryViewerOpen.crew.name}</span>

@@ -10,6 +10,7 @@ import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubFollows from '@/lib/data/hubFollows';
 import HubPostCard from './HubPostCard';
 import EmptyState from '@/components/EmptyState';
+import { reportError } from '@/lib/reportError';
 
 const PAGE_SIZE = 8;
 
@@ -27,9 +28,16 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   }, [feedTab]);
 
   // Load following list once for Squad/Following filtering.
+  // Without the .catch(), a network blip leaves `following` permanently
+  // empty and the Squad tab silently shows nothing — the user has no
+  // idea their follow list didn't load.
   useEffect(() => {
     if (!user?.email) return;
-    hubFollows.listFollowing(user.email).then(setFollowing);
+    hubFollows.listFollowing(user.email)
+      .then(setFollowing)
+      .catch((err) => {
+        reportError(err, { feature: 'hub.feed.list-following', level: 'warning', userEmail: user.email });
+      });
   }, [user?.email]);
 
   const { data: allPosts = [], isLoading, isFetching, refetch } = useQuery({

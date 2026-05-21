@@ -323,7 +323,13 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
             </div>
           </>
         ) : (
-          <GoalForm initial={editing} onSubmit={handleSubmit} onCancel={closeForm} userProfile={userProfile} />
+          <GoalForm
+            initial={editing}
+            onSubmit={handleSubmit}
+            onCancel={closeForm}
+            userProfile={userProfile}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+          />
         )}
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { db } from '@/api/db';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 
@@ -315,16 +315,23 @@ export function ThemeProvider({ children }) {
     try { db.auth.updateMe({ dark_mode: val }).catch(() => {}); } catch {}
   }, []);
 
+  // Memoize the context value so every consumer (useTheme) doesn't re-render
+  // on every parent re-render. Without this, the object literal in `value={{...}}`
+  // gets a new reference every render → all useContext(ThemeContext) call sites
+  // re-render. Hundreds of components touch this in Flexyn; the difference is
+  // measurable in CPU profiles on slower phones.
+  const value = useMemo(() => ({
+    themeId,
+    setThemeId,
+    lootThemeId,
+    setLootThemeId,
+    activeAnimation,
+    darkMode,
+    setDarkMode,
+  }), [themeId, setThemeId, lootThemeId, setLootThemeId, activeAnimation, darkMode, setDarkMode]);
+
   return (
-    <ThemeContext.Provider value={{
-      themeId,
-      setThemeId,
-      lootThemeId,
-      setLootThemeId,
-      activeAnimation,
-      darkMode,
-      setDarkMode,
-    }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );

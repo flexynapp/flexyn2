@@ -1,5 +1,5 @@
 // src/lib/AuthContext.jsx — Supabase auth
-import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
@@ -136,20 +136,26 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
+  // Memoize the context value — see ThemeContext for the rationale.
+  // useAuth() is consumed by ~every authenticated component in the app;
+  // an unmemoized value here re-renders the whole UI on any AuthProvider
+  // re-render (which happens on every Supabase auth-event tick).
+  const value = useMemo(() => ({
+    user,
+    isAuthenticated,
+    isLoadingAuth,
+    isLoadingPublicSettings: false,
+    authError: (!isLoadingAuth && !isAuthenticated) ? { type: 'auth_required' } : null,
+    appPublicSettings: null,
+    authChecked: !isLoadingAuth,
+    logout,
+    navigateToLogin,
+    checkUserAuth,
+    checkAppState: checkUserAuth,
+  }), [user, isAuthenticated, isLoadingAuth, logout, navigateToLogin, checkUserAuth]);
+
   return (
-    <AuthContext.Provider value={{
-      user,
-      isAuthenticated,
-      isLoadingAuth,
-      isLoadingPublicSettings: false,
-      authError: (!isLoadingAuth && !isAuthenticated) ? { type: 'auth_required' } : null,
-      appPublicSettings: null,
-      authChecked: !isLoadingAuth,
-      logout,
-      navigateToLogin,
-      checkUserAuth,
-      checkAppState: checkUserAuth,
-    }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

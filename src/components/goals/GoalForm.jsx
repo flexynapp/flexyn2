@@ -41,7 +41,7 @@ function toDurationSeconds(hours, minutes, seconds) {
   return h * 3600 + m * 60 + s;
 }
 
-export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {} }) {
+export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}, isSubmitting = false }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
@@ -320,8 +320,8 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
       </div>
 
       <div className="flex gap-2 pt-2">
-        <Button type="button" variant="outline" className="flex-1" onClick={onCancel}>{t('common.cancel')}</Button>
-        <Button type="submit" className="flex-1">{initial ? t('goals.save') : t('goals.create')}</Button>
+        <Button type="button" variant="outline" className="flex-1" onClick={onCancel} disabled={isSubmitting}>{t('common.cancel')}</Button>
+        <Button type="submit" className="flex-1" disabled={isSubmitting}>{initial ? t('goals.save') : t('goals.create')}</Button>
       </div>
 
       <ProfanityWarningDialog open={guard.open} onContinue={guard.onContinue} />

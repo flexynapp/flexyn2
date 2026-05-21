@@ -346,6 +346,7 @@ export default function StoryViewer({
                   className="absolute inset-0 w-full h-full object-contain" />
               ) : (
                 <motion.img key={currentStory.id} src={currentStory.image_url} alt=""
+                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
                   initial={{ opacity: 0, x: slideDir.current === 1 ? '60%' : slideDir.current === -1 ? '-60%' : 0 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: slideDir.current === 1 ? '-20%' : slideDir.current === -1 ? '20%' : 0 }}
@@ -465,7 +466,13 @@ export default function StoryViewer({
                       className="rounded-xl overflow-hidden shrink-0"
                       style={{ width: 52, height: 52, opacity: 0.75, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.25)' }}
                     >
-                      <img src={currentStory.image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                      <img
+                        src={currentStory.image_url}
+                        className="w-full h-full object-cover"
+                        alt=""
+                        draggable={false}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                      />
                     </div>
                     <div>
                       <p className="text-white/80 text-xs font-semibold leading-tight drop-shadow">Replying to story</p>

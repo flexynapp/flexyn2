@@ -250,7 +250,13 @@ export default function Gauntlet() {
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3 flex items-center gap-3">
           <button
             type="button"
-            onClick={() => navigate(-1)}
+            onClick={() => {
+              // Deep-linked users (push notification, shared URL) have
+              // empty history and would otherwise see a back button that
+              // does nothing.
+              if (window.history.length > 1) navigate(-1);
+              else navigate('/dashboard');
+            }}
             className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors lg:hidden"
           >
             <ChevronLeft className="w-5 h-5" />

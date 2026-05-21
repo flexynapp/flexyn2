@@ -9,7 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { differenceInDays, format, addDays } from 'date-fns';
+import { differenceInCalendarDays, format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import * as injuries from '@/lib/data/injuries';
 
@@ -94,7 +94,10 @@ export default function InjuryBanner({ onOpenForm }) {
     const warned = sessionStorage.getItem(upcomingKey) || '';
     for (const inj of activeInjuries) {
       if (!inj.estimated_recovery_date) continue;
-      const daysLeft = differenceInDays(new Date(inj.estimated_recovery_date), new Date());
+      // Use calendar-day comparison rather than 24-hour rounding so users
+      // in negative UTC offsets don't see an off-by-one countdown when
+      // the recovery date is stored as UTC midnight (e.g., '2026-05-21').
+      const daysLeft = differenceInCalendarDays(new Date(inj.estimated_recovery_date), new Date());
       if (daysLeft === 3 && !warned.includes(inj.id)) {
         toast.info(`${inj.muscle_group} recovery date in 3 days. How are you feeling?`);
         sessionStorage.setItem(upcomingKey, warned + inj.id);

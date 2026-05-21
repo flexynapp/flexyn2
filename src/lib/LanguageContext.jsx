@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { getTranslation, loadLanguage, isLanguageLoaded, SUPPORTED_LANGUAGES } from './i18n';
 import { db } from '@/api/db';
 import { clearTranslationCache } from './translate';
@@ -130,8 +130,17 @@ export function LanguageProvider({ children }) {
     );
   }
 
+  // Memoize the context value — see ThemeContext for the rationale.
+  // Every t() / tFallback() lookup goes through this context, so an
+  // unmemoized value would re-render every t-consumer on every parent
+  // render (effectively the whole app).
+  const value = useMemo(
+    () => ({ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }),
+    [language, setLanguage, t, tFallback, currentLanguage]
+  );
+
   return (
-    <LanguageContext.Provider value={{ language, setLanguage, t, tFallback, currentLanguage, SUPPORTED_LANGUAGES }}>
+    <LanguageContext.Provider value={value}>
       {children}
     </LanguageContext.Provider>
   );

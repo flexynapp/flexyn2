@@ -17,7 +17,14 @@ export default function Bounties() {
       {/* Header */}
       <div className="flex items-center gap-3 pt-4 pb-5 sticky top-0 bg-background/95 backdrop-blur z-10">
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            // A user who deep-linked here (push notification, shared URL)
+            // has empty history → `navigate(-1)` silently no-ops. Fall back
+            // to a safe parent route so the back button always does
+            // something.
+            if (window.history.length > 1) navigate(-1);
+            else navigate('/dashboard');
+          }}
           className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />

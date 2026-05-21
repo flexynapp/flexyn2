@@ -470,6 +470,12 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             alt=""
             className="w-full max-h-[600px] object-contain"
             loading="lazy"
+            onError={(e) => {
+              // Storage URL went stale (deleted, expired) — hide the
+              // broken image icon rather than leave it forever.
+              const wrap = e.currentTarget.parentElement;
+              if (wrap) wrap.style.display = 'none';
+            }}
           />
         </div>
       )}
