@@ -57,14 +57,40 @@ export async function getActiveWars(limit = 20) {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 /**
- * Upsert (add or update) XP contribution for the current user in an active war.
- * Called after every workout completion — pass the XP the user earned.
+ * Add XP contribution for the current user in an active war.
+ *
+ * Atomic via contribute_crew_war_xp RPC (migration 076). The previous
+ * client-side implementation was a four-step read-modify-write dance:
+ * read existing contribution → add delta → write back, then read war
+ * row → add delta to crew_*_score → write back. Two simultaneous
+ * crew members finishing workouts both read the same aggregate score
+ * and the last writer's delta overwrote the first's. Now the RPC
+ * does both writes via server-side delta arithmetic under a
+ * FOR UPDATE lock on the war row.
+ *
+ * Pre-076 hosts fall through to the legacy RMW path so the feature
+ * doesn't break on stale deployments; the race is the documented bug.
  */
 export async function contributeWarXp(warId, crewId, xpToAdd) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !warId || !crewId || !xpToAdd) return;
+  if (!user || !warId || !crewId || !xpToAdd || xpToAdd <= 0) return;
 
-  // Fetch existing contribution
+  const { error: rpcErr } = await supabase.rpc('contribute_crew_war_xp', {
+    p_war_id:  warId,
+    p_crew_id: crewId,
+    p_xp:      Math.floor(xpToAdd),
+  });
+  if (!rpcErr) return;
+  if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
+    // Real RPC failure (RLS, validation, network). Surface to caller
+    // via console at minimum; previously every failure mode landed
+    // silently because the entire function was no-await fire-and-forget
+    // for both legs of the dance.
+    console.warn('[crewWars] contribute_crew_war_xp failed:', rpcErr);
+    return;
+  }
+
+  // Pre-076 host fallback — legacy RMW. Race window is the documented bug.
   const { data: existing } = await supabase
     .from('crew_war_contributions')
     .select('id, xp_contributed')
@@ -91,8 +117,6 @@ export async function contributeWarXp(warId, crewId, xpToAdd) {
       });
   }
 
-  // Update the crew's aggregate score on the war row
-  // (determine which side — crew_a or crew_b)
   const { data: war } = await supabase
     .from('crew_wars')
     .select('crew_a_id, crew_a_score, crew_b_score')
