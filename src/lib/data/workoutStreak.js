@@ -129,21 +129,29 @@ export async function recordWorkoutDay(user) {
     }
   }
 
-  // Grant elite capsule on milestone days (best-effort)
+  // Grant elite capsule on milestone days. Track success so the
+  // return value reflects reality — LoginStreakSync surfaces an
+  // "Elite capsule earned!" toast and writes a notification row off
+  // eliteCapsuleAwarded; claiming success when the insert errored
+  // would lie to the user the same way coinsAwarded did.
+  let capsuleLanded = false;
   if (eliteCapsule) {
-    await supabase.from('user_capsules').insert({
+    const { error: capsuleErr } = await supabase.from('user_capsules').insert({
       user_id:    user.id,
       user_email: user.email,
       capsule_type: 'elite',
-    }).then(({ error }) => {
-      if (error) console.warn('[workoutStreak] capsule grant failed:', error);
     });
+    if (capsuleErr) {
+      console.warn('[workoutStreak] elite capsule grant failed:', capsuleErr);
+    } else {
+      capsuleLanded = true;
+    }
   }
 
   return {
     isNewDay: true,
     streak: newStreak,
     coinsAwarded: coinsLanded ? coinsAwarded : 0,
-    eliteCapsuleAwarded: eliteCapsule,
+    eliteCapsuleAwarded: eliteCapsule && capsuleLanded,
   };
 }

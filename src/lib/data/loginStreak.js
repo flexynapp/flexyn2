@@ -154,27 +154,35 @@ export async function recordLogin(user) {
     }
   }
 
-  // Grant elite capsule on milestone days. Don't block the return on this.
+  // Grant elite capsule on milestone days. Track success so the
+  // return value reflects reality — LoginStreakSync surfaces an
+  // "Elite capsule earned!" toast + notification row off
+  // eliteCapsuleAwarded; claiming success when the insert errored
+  // would lie to the user the same way coinsAwarded did.
+  //
+  // The previous block tried to import a `_grantCapsuleNoExport` name
+  // that has never existed in capsules.js (the actual private helper
+  // is `_grantCapsule` and isn't exported); the unused destructure
+  // sat as dead code for the entire life of this function.
+  let capsuleLanded = false;
   if (eliteCapsule) {
-    try {
-      const { _grantCapsuleNoExport } = await import('@/lib/data/capsules');
-      // Fall through to direct insert if helper isn't exposed
-    } catch { /* ignore */ }
-    // Direct insert (we don't expose the private _grantCapsule)
-    await supabase.from('user_capsules').insert({
-      user_id: user.id,
+    const { error: capsuleErr } = await supabase.from('user_capsules').insert({
+      user_id:    user.id,
       user_email: user.email,
       capsule_type: 'elite',
-    }).then(({ error }) => {
-      if (error) console.warn('[loginStreak] elite capsule grant failed:', error);
     });
+    if (capsuleErr) {
+      console.warn('[loginStreak] elite capsule grant failed:', capsuleErr);
+    } else {
+      capsuleLanded = true;
+    }
   }
 
   return {
     isNewDay: true,
     streak: newStreak,
     coinsAwarded: coinsLanded ? coinsAwarded : 0,
-    eliteCapsuleAwarded: eliteCapsule,
+    eliteCapsuleAwarded: eliteCapsule && capsuleLanded,
     freezeUsed,
   };
 }
