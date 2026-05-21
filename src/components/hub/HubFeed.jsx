@@ -1,16 +1,45 @@
 // src/components/hub/HubFeed.jsx
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Users, RefreshCw, Sparkles } from 'lucide-react';
+import { Loader2, Users, RefreshCw, Sparkles, ArrowUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubFollows from '@/lib/data/hubFollows';
+import { supabase } from '@/api/supabaseClient';
 import HubPostCard from './HubPostCard';
 import EmptyState from '@/components/EmptyState';
 import { reportError } from '@/lib/reportError';
+
+// ── Post skeleton (shimmer placeholder while loading) ────────────────────────
+function PostSkeleton() {
+  return (
+    <div className="border border-border rounded-xl overflow-hidden bg-card animate-pulse">
+      {/* Header */}
+      <div className="flex items-center gap-3 p-3">
+        <div className="w-9 h-9 rounded-full bg-muted shrink-0" />
+        <div className="flex-1 space-y-1.5">
+          <div className="h-3 bg-muted rounded w-28" />
+          <div className="h-2.5 bg-muted rounded w-16" />
+        </div>
+      </div>
+      {/* Body lines */}
+      <div className="px-3 pb-3 space-y-2">
+        <div className="h-3 bg-muted rounded w-full" />
+        <div className="h-3 bg-muted rounded w-4/5" />
+        <div className="h-3 bg-muted rounded w-2/3" />
+      </div>
+      {/* Stats row */}
+      <div className="flex items-center gap-3 px-3 pb-3">
+        <div className="h-6 bg-muted rounded w-16" />
+        <div className="h-6 bg-muted rounded w-16" />
+        <div className="h-6 bg-muted rounded w-16" />
+      </div>
+    </div>
+  );
+}
 
 const PAGE_SIZE = 8;
 
@@ -18,9 +47,25 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [following, setFollowing] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
+
+  // ── "X new posts" Realtime pill ────────────────────────────────────────────
+  const [pendingNewCount, setPendingNewCount] = useState(0);
+
+  useEffect(() => {
+    const ch = supabase.channel('hub_feed_new_posts')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_posts' }, (payload) => {
+        // Only count if payload is a different user's post (avoid counting own)
+        if (payload.new?.author_email?.toLowerCase() !== user?.email?.toLowerCase()) {
+          setPendingNewCount(c => c + 1);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch).catch(() => {}); };
+  }, [user?.email]);
 
   // Reset visible count when switching tabs — start fresh at 8.
   useEffect(() => {
@@ -68,8 +113,10 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       const y = window.scrollY;
       if (prevY > 60 && y === 0) {
         refetchRef.current();
+        setPendingNewCount(0);
         setShowRefreshBadge(true);
         setTimeout(() => setShowRefreshBadge(false), 1800);
+        try { navigator.vibrate(10); } catch {}
       }
       prevY = y;
     };
@@ -102,8 +149,8 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-12">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="space-y-3">
+        {Array.from({ length: 3 }).map((_, i) => <PostSkeleton key={i} />)}
       </div>
     );
   }
@@ -153,6 +200,28 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
+      {/* New posts pill — tap to load them in */}
+      <AnimatePresence>
+        {pendingNewCount > 0 && (
+          <motion.button
+            key="new-posts-pill"
+            initial={{ opacity: 0, y: -8, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -8, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            onClick={() => {
+              queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+              setPendingNewCount(0);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="sticky top-2 z-10 flex items-center justify-center gap-2 mx-auto px-4 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold shadow-lg w-fit"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+            {pendingNewCount} new {pendingNewCount === 1 ? 'post' : 'posts'}
+          </motion.button>
+        )}
+      </AnimatePresence>
+
       {/* Scroll-to-top refresh indicator */}
       <AnimatePresence>
         {(isFetching && !isLoading) || showRefreshBadge ? (

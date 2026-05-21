@@ -153,7 +153,7 @@ export const listMessages = async (conversationId, limit = 200) => {
  * and new queries work. Updates conversation's last_message_at and preview.
  * Pass `attachmentUrl` to include an image attachment (migration 012).
  */
-export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl }) => {
+export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl, repliedToMessageId, repliedToSnippet }) => {
   if (!conversationId || !senderEmail || (!body && !attachmentUrl)) return null;
   const created = await msg().create({
     conversation_id: conversationId,
@@ -162,6 +162,7 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
     body: body || '',
     content: body || '', // keep content in sync for queries that use either column
     ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
+    ...(repliedToMessageId ? { replied_to_message_id: repliedToMessageId, replied_to_snippet: repliedToSnippet || '' } : {}),
   });
   try {
     // Trade offers / responses embed a marker at the start of the body —

@@ -176,6 +176,44 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     window.scrollTo({ top: 0, behavior: 'auto' });
   }, [email]);
 
+  // ── last_active_at: update on own profile open, display on others' ────────
+  useEffect(() => {
+    if (!isSelf || !user?.email) return;
+    supabase
+      .from('user_profiles')
+      .update({ last_active_at: new Date().toISOString() })
+      .eq('email', user.email)
+      .then(() => {})
+      .catch(() => {});
+  }, [isSelf, user?.email]);
+
+  // Fetch target user's last_active_at (only when viewing someone else)
+  const { data: targetLastActive } = useQuery({
+    queryKey: ['lastActive', email],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('last_active_at')
+        .eq('email', email)
+        .single();
+      return data?.last_active_at || null;
+    },
+    enabled: !isSelf && !!email,
+    staleTime: 60_000,
+  });
+
+  const activeLabel = (() => {
+    if (isSelf || !targetLastActive) return null;
+    const diff = Date.now() - new Date(targetLastActive).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 5) return { text: 'Active now', color: 'text-emerald-500' };
+    if (diff < 86400000) {
+      const h = Math.floor(diff / 3600000);
+      return { text: `Active ${h || 1}h ago`, color: 'text-muted-foreground' };
+    }
+    return null;
+  })();
+
   const { data: targetProfile } = useQuery({
     queryKey: ['hubProfileLookup', email],
     queryFn: async () => {
@@ -733,6 +771,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </h2>
             {/* @handle row */}
             <p className="text-sm text-muted-foreground font-medium leading-tight">{displayHandle}</p>
+            {activeLabel && (
+              <p className={`text-[11px] font-medium leading-tight mt-0.5 flex items-center gap-1 ${activeLabel.color}`}>
+                {activeLabel.text === 'Active now' && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+                )}
+                {activeLabel.text}
+              </p>
+            )}
 
             {/* Equipped title */}
             {equippedTitle && (
@@ -965,16 +1011,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-2 mb-4">
           <Stat icon={FileText}  label={t('hub.profile.posts')}     value={posts.length} />
-          <button onClick={() => setOpenModal('followers')} className="bg-secondary/40 rounded-lg p-2 text-center hover:bg-secondary/60 transition-colors">
-            <UsersIcon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-            <p className="font-heading font-bold text-base">{followers.length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('hub.profile.followers')}</p>
-          </button>
-          <button onClick={() => setOpenModal('following')} className="bg-secondary/40 rounded-lg p-2 text-center hover:bg-secondary/60 transition-colors">
-            <UserIcon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-            <p className="font-heading font-bold text-base">{following.length}</p>
-            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('hub.profile.following')}</p>
-          </button>
+          <AnimatedStatButton onClick={() => setOpenModal('followers')} icon={UsersIcon} value={followers.length} label={t('hub.profile.followers')} />
+          <AnimatedStatButton onClick={() => setOpenModal('following')} icon={UserIcon} value={following.length} label={t('hub.profile.following')} />
         </div>
 
         {/* Edit + Themes — inline side-by-side, own profile only */}
@@ -1394,11 +1432,49 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
   );
 }
 
+function AnimatedStatButton({ onClick, icon: Icon, value, label }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!value) { setDisplay(0); return; }
+    let start = 0;
+    const duration = 600;
+    const step = 16;
+    const increment = value / (duration / step);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= value) { setDisplay(value); clearInterval(timer); }
+      else setDisplay(Math.floor(start));
+    }, step);
+    return () => clearInterval(timer);
+  }, [value]);
+  return (
+    <button onClick={onClick} className="bg-secondary/40 rounded-lg p-2 text-center hover:bg-secondary/60 transition-colors">
+      <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
+      <p className="font-heading font-bold text-base">{display}</p>
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
+    </button>
+  );
+}
+
 function Stat({ icon: Icon, label, value }) {
+  const [display, setDisplay] = useState(0);
+  useEffect(() => {
+    if (!value) { setDisplay(0); return; }
+    let start = 0;
+    const duration = 600;
+    const step = 16;
+    const increment = value / (duration / step);
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= value) { setDisplay(value); clearInterval(timer); }
+      else setDisplay(Math.floor(start));
+    }, step);
+    return () => clearInterval(timer);
+  }, [value]);
   return (
     <div className="bg-secondary/40 rounded-lg p-2 text-center">
       <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-      <p className="font-heading font-bold text-base">{value}</p>
+      <p className="font-heading font-bold text-base">{display}</p>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
     </div>
   );

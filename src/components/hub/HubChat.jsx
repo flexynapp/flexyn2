@@ -1,13 +1,15 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X } from 'lucide-react';
-import { format, parseISO, differenceInHours } from 'date-fns';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft } from 'lucide-react';
+import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
+import * as dmRxns from '@/lib/data/dmMessageReactions';
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { toast } from 'sonner';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
@@ -31,6 +33,17 @@ function formatDivider(dateStr) {
   if (diffH < 24) return format(date, "'Today at' h:mm a");
   if (diffH < 48) return format(date, "'Yesterday at' h:mm a");
   return format(date, "MMM d 'at' h:mm a");
+}
+
+function formatRelativeShort(dateStr) {
+  if (!dateStr) return '';
+  try {
+    return formatDistanceToNowStrict(parseISO(dateStr), { addSuffix: false })
+      .replace(' seconds', 's').replace(' second', 's')
+      .replace(' minutes', 'm').replace(' minute', 'm')
+      .replace(' hours', 'h').replace(' hour', 'h')
+      .replace(' days', 'd').replace(' day', 'd');
+  } catch { return ''; }
 }
 
 // Dedupe optimistic messages once the server echoes them back.
@@ -72,17 +85,13 @@ function dedupeMessages(list) {
 const DM_FIRE_KEY = (convId) => `dm_fire_reactions_${convId}`;
 
 function loadDmFires(convId) {
-  try {
-    return JSON.parse(localStorage.getItem(DM_FIRE_KEY(convId)) || '{}');
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(DM_FIRE_KEY(convId)) || '{}'); } catch { return {}; }
 }
 function saveDmFires(convId, map) {
-  try {
-    localStorage.setItem(DM_FIRE_KEY(convId), JSON.stringify(map));
-  } catch {}
+  try { localStorage.setItem(DM_FIRE_KEY(convId), JSON.stringify(map)); } catch {}
 }
+
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
 
 export default function HubChat({ conversation, otherUser = null, onBack }) {
   const { t } = useLanguage();
@@ -90,29 +99,43 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
   const [sending, setSending] = useState(false);
-  const [attachmentFile, setAttachmentFile] = useState(null);   // File object
-  const [attachmentPreview, setAttachmentPreview] = useState(null); // object URL
+  const [attachmentFile, setAttachmentFile] = useState(null);
+  const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
 
-  const scrollerRef = useRef(null);
-  const textareaRef = useRef(null);
-  const fileInputRef = useRef(null);
+  const scrollerRef    = useRef(null);
+  const textareaRef    = useRef(null);
+  const fileInputRef   = useRef(null);
   const stickToBottomRef = useRef(true);
 
-  // Double-tap fire reactions — persisted in localStorage per conversation
+  // ── Double-tap fire reactions ──────────────────────────────────────────────
   const lastTapRef = useRef({ id: null, time: 0 });
-  const [fireReactions, setFireReactions] = useState(() =>
-    loadDmFires(conversation?.id)
-  );
-  const [floatingFires, setFloatingFires] = useState([]); // [{id, msgId}]
-  const [pinnedIds, setPinnedIds] = useState(() => new Set()); // optimistic local pin state
-  const [contextMsg, setContextMsg] = useState(null); // message for context menu
-  const longPressRef = useRef(null); // timer ref for long-press detection
+  const [fireReactions, setFireReactions] = useState(() => loadDmFires(conversation?.id));
+  const [floatingFires, setFloatingFires] = useState([]);
+  useEffect(() => { setFireReactions(loadDmFires(conversation?.id)); }, [conversation?.id]);
 
-  // Reload fires if conversation changes
-  useEffect(() => {
-    setFireReactions(loadDmFires(conversation?.id));
-  }, [conversation?.id]);
+  // ── Pinning ────────────────────────────────────────────────────────────────
+  const [pinnedIds, setPinnedIds] = useState(() => new Set());
+  const [contextMsg, setContextMsg] = useState(null);
+  const longPressRef = useRef(null);
+
+  // ── Emoji reactions (migration 064) ───────────────────────────────────────
+  const [reactions, setReactions] = useState({}); // { [msgId]: [{ user_id, emoji }] }
+
+  // ── Inline reply ──────────────────────────────────────────────────────────
+  const [replyTo, setReplyTo] = useState(null); // { id, snippet }
+
+  // ── Typing indicator ──────────────────────────────────────────────────────
+  const [peerIsTyping, setPeerIsTyping] = useState(false);
+  const channelRef            = useRef(null);
+  const typingTimeoutRef      = useRef(null);
+  const lastTypingBroadcastRef = useRef(0);
+
+  // ── Scroll-to-bottom pill ─────────────────────────────────────────────────
+  const [newMsgCount, setNewMsgCount] = useState(0);
+
+  // ── Read receipt fade ─────────────────────────────────────────────────────
+  const [readReceiptFaded, setReadReceiptFaded] = useState(false);
 
   const myEmailLc = (user?.email || '').toLowerCase();
   const otherEmail = (conversation?.participant_emails || [])
@@ -129,11 +152,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     staleTime: 60_000,
   });
 
-  const otherProfile = otherUser || resolvedOther;
-  const otherUsername = otherProfile?.username || (otherEmail ? otherEmail.split('@')[0] : null);
-  const otherHandle = otherUsername ? `@${otherUsername}` : t('hub.profile.anonymousAthlete');
-  const otherInitials = (otherUsername || '?').slice(0, 2).toUpperCase();
-  const otherAvatarUrl = otherProfile?.avatar_url || null;
+  const otherProfile    = otherUser || resolvedOther;
+  const otherUsername   = otherProfile?.username || (otherEmail ? otherEmail.split('@')[0] : null);
+  const otherHandle     = otherUsername ? `@${otherUsername}` : t('hub.profile.anonymousAthlete');
+  const otherInitials   = (otherUsername || '?').slice(0, 2).toUpperCase();
+  const otherAvatarUrl  = otherProfile?.avatar_url || null;
 
   const { data: rawMessages = [] } = useQuery({
     queryKey: ['hubChat', conversation?.id],
@@ -144,20 +167,65 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   const messages = dedupeMessages(rawMessages);
 
+  // Fetch emoji reactions for visible messages
+  useEffect(() => {
+    if (!messages.length) return;
+    const ids = messages.map(m => m.id).filter(id => !String(id).startsWith('temp-'));
+    if (!ids.length) return;
+    dmRxns.getReactionsForMessages(ids).then(setReactions).catch(() => {});
+  }, [messages.length]);
+
+  // ── Realtime channel for typing indicator ─────────────────────────────────
+  useEffect(() => {
+    if (!conversation?.id || !user?.id) return;
+    const ch = supabase.channel(`dm_typing_${conversation.id}`, {
+      config: { broadcast: { self: false } },
+    });
+    ch.on('broadcast', { event: 'typing' }, ({ payload }) => {
+      if (payload?.user_id === user.id) return;
+      setPeerIsTyping(true);
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = setTimeout(() => setPeerIsTyping(false), 3000);
+    }).subscribe();
+    channelRef.current = ch;
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      supabase.removeChannel(ch).catch(() => {});
+      channelRef.current = null;
+    };
+  }, [conversation?.id, user?.id]);
+
+  // ── Mark read + invalidate badge ──────────────────────────────────────────
   useEffect(() => {
     if (conversation?.id && user?.email) {
       hubMessages.markRead(conversation.id, user.email).then(() => {
-        // Immediately clear the nav badge so the unread count reflects reality.
         queryClient.invalidateQueries({ queryKey: ['hubUnreadCount', user.email] });
       }).catch(() => {});
     }
   }, [conversation?.id, user?.email, messages.length]);
 
+  // ── Read receipt fade (4 s after read_at appears) ─────────────────────────
+  const lastSentIndex = messages.reduce((acc, m, i) =>
+    m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
+  const lastSentMsg = lastSentIndex >= 0 ? messages[lastSentIndex] : null;
+
+  useEffect(() => {
+    if (lastSentMsg?.read_at && !readReceiptFaded) {
+      const t = setTimeout(() => setReadReceiptFaded(true), 4000);
+      return () => clearTimeout(t);
+    }
+  }, [lastSentMsg?.read_at, readReceiptFaded]);
+
+  // Reset fade state when conversation changes
+  useEffect(() => { setReadReceiptFaded(false); }, [conversation?.id]);
+
+  // ── Scroll management ─────────────────────────────────────────────────────
   const handleScroll = useCallback(() => {
     const el = scrollerRef.current;
     if (!el) return;
     const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
     stickToBottomRef.current = distanceFromBottom < 80;
+    if (stickToBottomRef.current) setNewMsgCount(0);
   }, []);
 
   const scrollToBottom = useCallback((smooth = true) => {
@@ -173,25 +241,27 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   useLayoutEffect(() => {
     scrollToBottom(false);
     stickToBottomRef.current = true;
-     
   }, [conversation?.id]);
 
   useEffect(() => {
     if (stickToBottomRef.current) {
       scrollToBottom(true);
+      setNewMsgCount(0);
+    } else {
+      setNewMsgCount(c => c + 1);
     }
   }, [messages.length, scrollToBottom]);
 
+  // ── Textarea auto-resize ──────────────────────────────────────────────────
   const resizeTextarea = useCallback(() => {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
     ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
   }, []);
-
   useEffect(() => { resizeTextarea(); }, [draft, resizeTextarea]);
 
-  // Revoke object URL when attachment is cleared to avoid memory leaks
+  // ── Attachment handling ───────────────────────────────────────────────────
   const clearAttachment = useCallback(() => {
     if (attachmentPreview) { try { URL.revokeObjectURL(attachmentPreview); } catch { /* already revoked */ } }
     setAttachmentFile(null);
@@ -199,9 +269,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [attachmentPreview]);
 
-  // DMs are private, so we can be generous. 50 MB easily covers Live Photos,
-  // 4K screenshots, screen recordings, and large camera-roll exports.
-  const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024; // 50 MB
+  const MAX_ATTACHMENT_BYTES = 50 * 1024 * 1024;
+
   const handleFilePick = useCallback((e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -215,11 +284,46 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     setAttachmentPreview(URL.createObjectURL(file));
   }, [attachmentPreview]);
 
+  // ── Image paste from clipboard ────────────────────────────────────────────
+  const handlePaste = useCallback((e) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault();
+        const file = item.getAsFile();
+        if (!file) continue;
+        if (file.size > MAX_ATTACHMENT_BYTES) {
+          toast.error('Image must be 50 MB or smaller');
+          return;
+        }
+        if (attachmentPreview) URL.revokeObjectURL(attachmentPreview);
+        setAttachmentFile(file);
+        setAttachmentPreview(URL.createObjectURL(file));
+        return;
+      }
+    }
+  }, [attachmentPreview]);
+
+  // ── Typing broadcast (throttled 2 s) ─────────────────────────────────────
+  const handleDraftChange = useCallback((e) => {
+    setDraft(e.target.value);
+    const now = Date.now();
+    if (channelRef.current && now - lastTypingBroadcastRef.current > 2000) {
+      lastTypingBroadcastRef.current = now;
+      channelRef.current.send({
+        type: 'broadcast',
+        event: 'typing',
+        payload: { user_id: user?.id, timestamp: now },
+      }).catch(() => {});
+    }
+  }, [user?.id]);
+
+  // ── Double-tap fire ───────────────────────────────────────────────────────
   const handleMessageTap = useCallback((msgId) => {
     const now = Date.now();
     const last = lastTapRef.current;
     if (last.id === msgId && now - last.time < 320) {
-      // Double-tap detected — toggle fire reaction
       lastTapRef.current = { id: null, time: 0 };
       setFireReactions(prev => {
         const next = { ...prev, [msgId]: !prev[msgId] };
@@ -227,7 +331,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         return next;
       });
       if (!fireReactions[msgId]) {
-        // Spawn a floating fire emoji
         const floatId = `${msgId}-${now}`;
         setFloatingFires(f => [...f, { id: floatId, msgId }]);
         setTimeout(() => setFloatingFires(f => f.filter(x => x.id !== floatId)), 900);
@@ -237,11 +340,22 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   }, [conversation?.id, fireReactions]);
 
+  // ── Long-press for context menu ───────────────────────────────────────────
+  const startLongPress = useCallback((msg) => {
+    longPressRef.current = setTimeout(() => setContextMsg(msg), 500);
+  }, []);
+  const cancelLongPress = useCallback(() => {
+    if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+  }, []);
+
+  // ── Pin toggle ────────────────────────────────────────────────────────────
+  const isPinned = useCallback((msg) =>
+    pinnedIds.has(msg.id) ? !msg.is_pinned : !!msg.is_pinned, [pinnedIds]);
+
   const handlePinToggle = useCallback(async (msg) => {
     setContextMsg(null);
     const id = msg.id;
     if (!id || String(id).startsWith('temp-')) return;
-    // Optimistic toggle
     setPinnedIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
@@ -251,7 +365,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       await hubMessages.togglePinDmMessage(id);
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
     } catch {
-      // Revert optimistic change on failure
       setPinnedIds(prev => {
         const next = new Set(prev);
         if (next.has(id)) next.delete(id); else next.add(id);
@@ -264,35 +377,49 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   }, [conversation?.id, queryClient]);
 
-  const startLongPress = useCallback((msg) => {
-    longPressRef.current = setTimeout(() => {
-      setContextMsg(msg);
-    }, 500);
-  }, []);
-
-  const cancelLongPress = useCallback(() => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
+  // ── Emoji reaction ────────────────────────────────────────────────────────
+  const handleEmojiReact = useCallback(async (msg, emoji) => {
+    setContextMsg(null);
+    if (!msg?.id || !user?.id || String(msg.id).startsWith('temp-')) return;
+    // Optimistic toggle
+    setReactions(prev => {
+      const arr = prev[msg.id] || [];
+      const exists = arr.some(r => r.user_id === user.id && r.emoji === emoji);
+      const next = exists
+        ? arr.filter(r => !(r.user_id === user.id && r.emoji === emoji))
+        : [...arr, { user_id: user.id, emoji }];
+      return { ...prev, [msg.id]: next };
+    });
+    try {
+      await dmRxns.toggleReaction(msg.id, user.id, emoji);
+    } catch {
+      // Revert optimistic on failure
+      dmRxns.getReactionsForMessages([msg.id]).then(map => {
+        setReactions(prev => ({ ...prev, [msg.id]: map[msg.id] || [] }));
+      }).catch(() => {});
     }
+  }, [user?.id]);
+
+  // ── Inline reply ──────────────────────────────────────────────────────────
+  const handleReply = useCallback((msg) => {
+    setContextMsg(null);
+    const snippet = (msg.body || msg.content || '').slice(0, 120);
+    setReplyTo({ id: msg.id, snippet });
+    setTimeout(() => textareaRef.current?.focus(), 50);
   }, []);
 
-  // Merge server is_pinned with optimistic set
-  const isPinned = useCallback((msg) => {
-    return pinnedIds.has(msg.id) ? !msg.is_pinned : !!msg.is_pinned;
-  }, [pinnedIds]);
+  // ── Scroll-to-quoted message ──────────────────────────────────────────────
+  const scrollToMessage = useCallback((msgId) => {
+    const el = document.getElementById(`dm-msg-${msgId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, []);
 
-  const lastSentIndex = messages.reduce((acc, m, i) =>
-    m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
-
+  // ── Send ──────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed && !attachmentFile) return;
     if (sending || uploading) return;
-    if (!conversation?.id) {
-      toast.error(t('hub.messages.sendError'));
-      return;
-    }
+    if (!conversation?.id) { toast.error(t('hub.messages.sendError')); return; }
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic = {
@@ -304,7 +431,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       created_date: new Date().toISOString(),
       read_at: null,
       _optimistic: true,
-      // Show blob preview URL immediately so image is visible while uploading
+      ...(replyTo ? { replied_to_message_id: replyTo.id, replied_to_snippet: replyTo.snippet } : {}),
       ...(attachmentPreview ? { attachment_url: attachmentPreview } : {}),
     };
 
@@ -313,10 +440,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     queryClient.setQueryData(queryKey, [...previous, optimistic]);
 
     setDraft('');
+    const capturedReplyTo = replyTo;
+    setReplyTo(null);
     stickToBottomRef.current = true;
     setSending(true);
 
-    // Capture & clear attachment state before async work
     const fileToUpload = attachmentFile;
     clearAttachment();
 
@@ -337,16 +465,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         }
       }
 
-      // If upload failed AND there's no text, the message is empty — abort
-      // cleanly rather than silently dropping the optimistic bubble on refetch.
       if (uploadFailed && !trimmed) {
         queryClient.setQueryData(queryKey, previous);
         toast.error('Image upload failed — try again');
         return;
       }
-      if (uploadFailed) {
-        toast.error('Image upload failed — message sent without attachment');
-      }
+      if (uploadFailed) toast.error('Image upload failed — message sent without attachment');
 
       const sent = await hubMessages.sendMessage({
         conversationId: conversation.id,
@@ -354,10 +478,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         recipientEmail: otherEmail,
         body: trimmed,
         ...(attachmentUrl ? { attachmentUrl } : {}),
+        ...(capturedReplyTo ? {
+          repliedToMessageId: capturedReplyTo.id,
+          repliedToSnippet: capturedReplyTo.snippet,
+        } : {}),
       });
-      // sendMessage returns null on validation failure rather than throwing.
-      // Treat that as an error so the optimistic bubble is rolled back instead
-      // of being silently replaced by stale server data on refetch.
       if (!sent) {
         queryClient.setQueryData(queryKey, previous);
         setDraft(trimmed);
@@ -376,6 +501,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   };
 
+  // ── Reaction group display ────────────────────────────────────────────────
+  const getReactionGroups = (msgId) => {
+    const rxns = reactions[msgId] || [];
+    const groups = {};
+    for (const r of rxns) {
+      if (!groups[r.emoji]) groups[r.emoji] = { count: 0, myReacted: false };
+      groups[r.emoji].count++;
+      if (r.user_id === user?.id) groups[r.emoji].myReacted = true;
+    }
+    return Object.entries(groups).map(([emoji, g]) => ({ emoji, ...g }));
+  };
+
   return (
     <div
       className="flex flex-col relative"
@@ -391,7 +528,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm overflow-hidden shrink-0">
-          {otherAvatarUrl ? <img src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" /> : otherInitials}
+          {otherAvatarUrl
+            ? <img src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" />
+            : otherInitials}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-heading font-bold text-sm truncate">{otherHandle}</p>
@@ -418,24 +557,16 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             const showDivider = shouldShowDivider(messages, i);
             const isOptimistic = !!m._optimistic;
             const ts = msgTime(m);
-            // read_at is the timestamptz set when the recipient reads the message
             const isRead = !!m.read_at;
+            const rxnGroups = getReactionGroups(m.id);
             return (
-              <div key={m.id}>
+              <div key={m.id} id={`dm-msg-${m.id}`}>
                 {showDivider && ts && (
                   <div className="flex justify-center my-4">
-                    <span className="text-[11px] text-muted-foreground">
-                      {formatDivider(ts)}
-                    </span>
+                    <span className="text-[11px] text-muted-foreground">{formatDivider(ts)}</span>
                   </div>
                 )}
                 {(() => {
-                  // Body parsing routes:
-                  //  1. [TRADE_OFFER_V1] → render interactive offer card.
-                  //  2. [TRADE_RESPONSE_V1] → render as a regular plain
-                  //     bubble showing only the human-readable second line
-                  //     (the marker is hidden — its job is server-side
-                  //     state recovery for the original offer card).
                   const body = m.body || m.content || '';
                   const duelInvitePayload = parseDuelInvite(body);
                   if (duelInvitePayload) {
@@ -451,7 +582,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       </motion.div>
                     );
                   }
-
                   const crewInvitePayload = parseCrewInvite(body);
                   if (crewInvitePayload) {
                     return (
@@ -461,11 +591,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         transition={{ delay: Math.min(i, 8) * 0.02 }}
                         className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}
                       >
-                        <CrewDMInviteCard
-                          payload={crewInvitePayload}
-                          userId={user?.id}
-                          isMine={isMine}
-                        />
+                        <CrewDMInviteCard payload={crewInvitePayload} userId={user?.id} isMine={isMine} />
                       </motion.div>
                     );
                   }
@@ -488,9 +614,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       </motion.div>
                     );
                   }
+
                   const hasFire = !!fireReactions[m.id];
                   const floatingFire = floatingFires.find(f => f.msgId === m.id);
                   const msgIsPinned = isPinned(m);
+
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
@@ -498,8 +626,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       transition={{ delay: Math.min(i, 8) * 0.02 }}
                       className={`flex mb-0.5 relative ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
-                      {/* Floating fire animation on double-tap — inward-facing:
-                          sent → anchors to left edge; received → anchors to right edge */}
                       {floatingFire && (
                         <motion.span
                           key={floatingFire.id}
@@ -512,7 +638,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           🔥
                         </motion.span>
                       )}
-                      <div className="relative">
+                      <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                        {/* Reply quote block */}
+                        {m.replied_to_snippet && (
+                          <button
+                            type="button"
+                            onClick={() => m.replied_to_message_id && scrollToMessage(m.replied_to_message_id)}
+                            className={`max-w-[75%] mb-0.5 px-2.5 py-1.5 rounded-xl border-l-2 border-primary bg-secondary/40 text-left text-xs text-muted-foreground line-clamp-2 cursor-pointer hover:bg-secondary/60 transition-colors`}
+                          >
+                            {m.replied_to_snippet}
+                          </button>
+                        )}
                         <div
                           role="button"
                           tabIndex={0}
@@ -532,10 +668,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                         >
                           {(() => {
-                            // Strip the [TRADE_RESPONSE_V1] marker line so the
-                            // bubble shows only the human-readable reply text.
-                            // The marker exists for offer-card state recovery,
-                            // not for the message bubble to display.
                             const raw = m.body || m.content || '';
                             if (parseTradeResponse(raw)) {
                               const newline = raw.indexOf('\n');
@@ -545,57 +677,82 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             return raw ? <span>{raw}</span> : null;
                           })()}
                           {m.attachment_url && (
-                            // Attachment opens full-res in a new tab. Wrapped in
-                            // a real <button> (not an <img onClick>) so it's
-                            // tabbable, keyboard-actionable (Enter/Space), and
-                            // announced by screen readers as an interactive
-                            // element instead of an image.
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
                               aria-label="Open attachment in new tab"
-                              className={`block rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-white/60 ${(m.body || m.content) ? 'mt-1.5' : ''}`}
+                              className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
                             >
-                              <img
-                                src={m.attachment_url}
-                                alt="Message attachment"
-                                className="rounded-lg max-h-64 object-cover max-w-full"
-                              />
+                              <img src={m.attachment_url} alt="Message attachment" className="rounded-lg max-h-64 object-cover max-w-full" />
                             </button>
                           )}
                         </div>
-                        {/* Persistent fire badge — inward-facing center alignment:
-                            sent (right-aligned) → badge on LEFT edge of bubble;
-                            received (left-aligned) → badge on RIGHT edge of bubble */}
+
+                        {/* Emoji reaction bubbles below message */}
+                        {rxnGroups.length > 0 && (
+                          <div className={`flex flex-wrap gap-1 mt-1 ${isMine ? 'justify-end' : 'justify-start'}`}>
+                            {rxnGroups.map(({ emoji, count, myReacted }) => (
+                              <button
+                                key={emoji}
+                                onClick={() => !isOptimistic && handleEmojiReact(m, emoji)}
+                                className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                                  myReacted
+                                    ? 'bg-primary/20 border-primary/40 text-foreground'
+                                    : 'bg-secondary border-border text-muted-foreground hover:bg-secondary/70'
+                                }`}
+                              >
+                                <span>{emoji}</span>
+                                {count > 1 && <span className="font-medium">{count}</span>}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Persistent fire badge — inward-facing */}
                         {hasFire && (
                           <span
                             className={`absolute -bottom-2 text-sm leading-none pointer-events-none select-none ${
                               isMine ? '-left-3' : '-right-3'
                             }`}
-                          >
-                            🔥
-                          </span>
+                          >🔥</span>
                         )}
-                        {/* Pin badge — same inward-facing logic */}
+                        {/* Pin badge — inward-facing */}
                         {msgIsPinned && (
                           <span
                             className={`absolute -top-2 text-xs leading-none pointer-events-none select-none ${
                               isMine ? '-left-3' : '-right-3'
                             }`}
                             title="Pinned message"
-                          >
-                            📌
-                          </span>
+                          >📌</span>
                         )}
                       </div>
                     </motion.div>
                   );
                 })()}
+
+                {/* Read receipt — last sent message only */}
                 {isLastSent && !isOptimistic && (
                   <div className="flex justify-end mb-2 pr-1">
-                    <span className="text-[10px] text-muted-foreground">
-                      {isRead ? 'Read' : 'Sent'}
-                    </span>
+                    {isRead && !readReceiptFaded ? (
+                      <motion.span
+                        initial={{ opacity: 1 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="text-[10px] text-primary font-medium transition-opacity duration-1000"
+                      >
+                        Read
+                        {lastSentMsg?.read_at && (
+                          <span className="text-muted-foreground font-normal">
+                            {' · '}{formatRelativeShort(lastSentMsg.read_at) || 'just now'}
+                          </span>
+                        )}
+                      </motion.span>
+                    ) : !isRead ? (
+                      <span className="text-[10px] text-muted-foreground">
+                        Sent
+                        {ts && <span> · {formatRelativeShort(ts)}</span>}
+                      </span>
+                    ) : null}
                   </div>
                 )}
                 {isLastSent && isOptimistic && (
@@ -607,7 +764,41 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             );
           })
         )}
+
+        {/* Typing indicator bubble */}
+        <AnimatePresence>
+          {peerIsTyping && (
+            <motion.div
+              initial={{ opacity: 0, y: 6, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 6, scale: 0.9 }}
+              transition={{ duration: 0.18 }}
+              className="flex justify-start mb-2"
+            >
+              <div className="bg-secondary rounded-2xl rounded-bl-sm px-4 py-2.5 flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
+
+      {/* Scroll-to-bottom pill */}
+      <AnimatePresence>
+        {newMsgCount > 0 && (
+          <motion.button
+            initial={{ opacity: 0, y: 8, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.9 }}
+            onClick={() => { scrollToBottom(true); setNewMsgCount(0); }}
+            className="absolute bottom-[76px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg"
+          >
+            ↓ {newMsgCount} new
+          </motion.button>
+        )}
+      </AnimatePresence>
 
       {/* Long-press context menu */}
       <AnimatePresence>
@@ -624,15 +815,43 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border rounded-2xl overflow-hidden w-64 shadow-xl"
+              className="bg-card border border-border rounded-2xl overflow-hidden w-72 shadow-xl"
             >
+              {/* Quick emoji reaction strip */}
+              <div className="flex items-center justify-around px-3 py-3 border-b border-border">
+                {QUICK_EMOJIS.map(emoji => {
+                  const myReacted = (reactions[contextMsg?.id] || []).some(r => r.user_id === user?.id && r.emoji === emoji);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => handleEmojiReact(contextMsg, emoji)}
+                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary hover:scale-110'}`}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Reply */}
+              <button
+                onClick={() => handleReply(contextMsg)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                <CornerUpLeft className="w-4 h-4 text-muted-foreground" />
+                Reply
+              </button>
+
+              {/* Pin/Unpin */}
               <button
                 onClick={() => handlePinToggle(contextMsg)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors border-t border-border"
               >
                 <span className="text-base">📌</span>
                 {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
               </button>
+
+              {/* Cancel */}
               <button
                 onClick={() => setContextMsg(null)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
@@ -645,15 +864,30 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         )}
       </AnimatePresence>
 
+      {/* Reply quote bar */}
+      <AnimatePresence>
+        {replyTo && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex items-center gap-2 px-3 py-2 border-t border-l-2 border-l-primary bg-primary/5 shrink-0"
+          >
+            <CornerUpLeft className="w-3.5 h-3.5 text-primary shrink-0" />
+            <p className="flex-1 text-xs text-muted-foreground truncate">{replyTo.snippet}</p>
+            <button onClick={() => setReplyTo(null)} className="p-0.5 rounded text-muted-foreground hover:text-foreground">
+              <X className="w-3 h-3" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Attachment preview strip */}
       {attachmentPreview && (
         <div className="flex items-center gap-2 px-1 py-1.5 border-t border-border shrink-0">
           <div className="relative w-14 h-14 shrink-0">
-            <img
-              src={attachmentPreview}
-              alt="Attachment preview"
-              className="w-full h-full object-cover rounded-lg"
-            />
+            <img src={attachmentPreview} alt="Attachment preview" className="w-full h-full object-cover rounded-lg" />
             <button
               onClick={clearAttachment}
               aria-label="Remove attachment"
@@ -662,23 +896,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               <X className="w-3 h-3" />
             </button>
           </div>
-          <p className="text-xs text-muted-foreground truncate flex-1">
-            {attachmentFile?.name}
-          </p>
+          <p className="text-xs text-muted-foreground truncate flex-1">{attachmentFile?.name}</p>
         </div>
       )}
 
       {/* Composer */}
       <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
-        {/* Hidden file input */}
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={handleFilePick}
-        />
-        {/* Paperclip button */}
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
         <button
           onClick={() => fileInputRef.current?.click()}
           aria-label="Attach image"
@@ -689,7 +913,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <textarea
           ref={textareaRef}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={handleDraftChange}
+          onPaste={handlePaste}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();

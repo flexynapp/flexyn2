@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,13 @@ import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '../../lib/weightUnit';
 
+// Epley 1RM formula
+const epley1RM = (weight, reps) => {
+  if (!weight || !reps || reps <= 0) return 0;
+  if (reps === 1) return weight;
+  return weight * (1 + reps / 30);
+};
+
 export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {} }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -22,6 +29,21 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
   const atSetLimit = sets.length >= maxSetsPerExercise;
+
+  // Session-best 1RM tracking — fires haptic [50,30,100] when a new intra-session PR is hit
+  const sessionBest1RMRef = useRef(0);
+
+  const checkPR = (updatedSets) => {
+    let best = 0;
+    for (const s of updatedSets) {
+      const rm = epley1RM(s.weight || 0, s.reps || 0);
+      if (rm > best) best = rm;
+    }
+    if (best > 0 && best > sessionBest1RMRef.current) {
+      sessionBest1RMRef.current = best;
+      try { if (navigator.vibrate) navigator.vibrate([50, 30, 100]); } catch {}
+    }
+  };
 
   const addSet = () => {
     if (atSetLimit) {
@@ -42,6 +64,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   const updateSet = (index, updated) => {
     const newSets = [...sets];
     newSets[index] = updated;
+    checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
   };
 

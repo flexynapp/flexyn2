@@ -1,8 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 
 function CrownBadge({ size = 14 }) {
@@ -231,6 +231,22 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
   const sortedStickerRxns = [...stickerRxns].sort(
     (a, b) => (RARITY_ORDER[a.variant] ?? 6) - (RARITY_ORDER[b.variant] ?? 6)
   );
+  // ── Double-tap to like (refs/state only — callback defined after handleReact)
+  const lastTapRef = useRef({ time: 0, x: 0, y: 0 });
+  const [heartAnim, setHeartAnim] = useState(null); // { x, y, id }
+  const doubleTapGuardRef = useRef(false);
+
+  // ── Long-press avatar preview ─────────────────────────────────────────────
+  const [avatarPreviewOpen, setAvatarPreviewOpen] = useState(false);
+  const avatarLongPressRef = useRef(null);
+
+  const startAvatarLongPress = useCallback(() => {
+    avatarLongPressRef.current = setTimeout(() => setAvatarPreviewOpen(true), 500);
+  }, []);
+  const cancelAvatarLongPress = useCallback(() => {
+    if (avatarLongPressRef.current) { clearTimeout(avatarLongPressRef.current); avatarLongPressRef.current = null; }
+  }, []);
+
   const isMine = post.author_email === user?.email;
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
@@ -277,6 +293,27 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     if (!inFlightRef.current) runWorker();
   };
 
+  // ── Double-tap callback (defined after displayedReaction + handleReact) ────
+  const handleDoubleTap = useCallback((e) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (now - last.time < 300) {
+      doubleTapGuardRef.current = true;
+      if (displayedReaction !== 'like') handleReact('like');
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left;
+      const y = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top;
+      const id = Date.now();
+      setHeartAnim({ x, y, id });
+      setTimeout(() => setHeartAnim(a => a?.id === id ? null : a), 700);
+      lastTapRef.current = { time: 0, x: 0, y: 0 };
+      return true;
+    }
+    lastTapRef.current = { time: now, x: e.touches?.[0]?.clientX ?? e.clientX, y: e.touches?.[0]?.clientY ?? e.clientY };
+    doubleTapGuardRef.current = false;
+    return false;
+  }, [displayedReaction, handleReact]);
+
   const handleDelete = async () => {
     if (!isMine) return;
     if (!window.confirm(t('hub.confirmDelete'))) return;
@@ -293,12 +330,30 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
   return (
     <article
-      className={`border rounded-xl overflow-hidden ${hasDiamond ? 'border-cyan-300/80' : 'bg-card border-border'}`}
+      className={`border rounded-xl overflow-hidden relative ${hasDiamond ? 'border-cyan-300/80' : 'bg-card border-border'}`}
       style={hasDiamond ? {
         background: 'rgba(244,250,255,0.04)',
         boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)',
       } : undefined}
+      onClick={(e) => handleDoubleTap(e)}
+      onTouchStart={(e) => handleDoubleTap(e)}
     >
+      {/* Double-tap heart animation */}
+      <AnimatePresence>
+        {heartAnim && (
+          <motion.div
+            key={heartAnim.id}
+            initial={{ opacity: 0.9, scale: 1, y: 0 }}
+            animate={{ opacity: 0, scale: 2, y: -40 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="absolute z-30 pointer-events-none"
+            style={{ left: heartAnim.x - 16, top: heartAnim.y - 16 }}
+          >
+            <Heart className="w-8 h-8 fill-red-500 text-red-500 drop-shadow-lg" />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
         <div
@@ -356,11 +411,16 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         {onAuthorClick && post.author_email && (
           <button
             type="button"
-            onClick={() => onAuthorClick({
-              email: post.author_email,
-              username: author.username,
-              avatar_url: author.avatarUrl,
-            })}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!doubleTapGuardRef.current) onAuthorClick({ email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+            }}
+            onMouseDown={(e) => { e.stopPropagation(); startAvatarLongPress(); }}
+            onMouseUp={cancelAvatarLongPress}
+            onMouseLeave={cancelAvatarLongPress}
+            onTouchStart={(e) => { e.stopPropagation(); startAvatarLongPress(); }}
+            onTouchEnd={cancelAvatarLongPress}
+            onTouchMove={cancelAvatarLongPress}
             aria-label={`Open ${author.handle}'s profile`}
             className={`absolute inset-0 ${isMine ? 'right-12' : 'right-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
@@ -593,6 +653,60 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           reportedAuthorEmail={post.author_email}
         />
       )}
+
+      {/* Long-press avatar preview sheet */}
+      <AnimatePresence>
+        {avatarPreviewOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
+            onClick={(e) => { e.stopPropagation(); setAvatarPreviewOpen(false); }}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-card border border-border rounded-t-2xl w-full max-w-md p-5"
+              style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
+            >
+              <div className="flex items-center gap-4 mb-5">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-xl overflow-hidden shrink-0">
+                  {author.avatarUrl
+                    ? <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+                    : author.initials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading font-bold text-base truncate">{author.handle}</p>
+                  {author.username && <p className="text-sm text-muted-foreground">@{author.username}</p>}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {!isMine && onAuthorClick && (
+                  <button
+                    onClick={() => {
+                      setAvatarPreviewOpen(false);
+                      onAuthorClick({ email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+                    }}
+                    className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
+                  >
+                    View Profile
+                  </button>
+                )}
+                <button
+                  onClick={() => setAvatarPreviewOpen(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </article>
   );
 }
