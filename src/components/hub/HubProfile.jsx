@@ -694,11 +694,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <AvatarUploader
                   src={avatarUrl}
                   initials={initials}
-                  editable={isSelf && profileStories.length === 0}
+                  editable={false}
                   size={64}
                   frameCss={equippedFrame?.css}
                   frameAnimation={equippedFrame?.animation}
                 />
+                {/*
+                  editable is intentionally false: the profile edit pencil
+                  at the top-right of the card handles avatar swaps. Before,
+                  AvatarUploader's own edit-camera + the "Add to story"
+                  camera below collided on own-profile views with no
+                  stories — two near-identical green camera badges
+                  overlapping the avatar.
+                */}
               </div>
 
               {/* Admin crown — top-left, tilted as if resting on the head */}
@@ -763,16 +771,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             )}
           </div>
 
-          {/* Identity stack */}
+          {/* Identity stack — vertical rhythm tuned for breathing room.
+              Each row gets its own dedicated top margin so the card
+              doesn't collapse into one dense block. The username +
+              handle stay tight (they're one logical unit), then meta
+              rows (status / title / location / bio) each get mt-1.5
+              for clear separation. */}
           <div className="flex-1 min-w-0">
             {/* Username (main profile name) */}
             <h2 className="font-heading font-bold text-xl leading-tight truncate">
               {displayUsername ? displayUsername.charAt(0).toUpperCase() + displayUsername.slice(1) : ''}
             </h2>
-            {/* @handle row */}
-            <p className="text-sm text-muted-foreground font-medium leading-tight">{displayHandle}</p>
+            {/* @handle row — visually paired with the username, no extra mt */}
+            <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
             {activeLabel && (
-              <p className={`text-[11px] font-medium leading-tight mt-0.5 flex items-center gap-1 ${activeLabel.color}`}>
+              <p className={`text-[11px] font-medium leading-tight mt-1.5 flex items-center gap-1 ${activeLabel.color}`}>
                 {activeLabel.text === 'Active now' && (
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
                 )}
@@ -782,7 +795,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
             {/* Equipped title */}
             {equippedTitle && (
-              <div className="flex items-center gap-1 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-1.5">
                 <span className="text-sm leading-none">{equippedTitle.emoji}</span>
                 <span
                   className="text-xs font-bold uppercase tracking-wider"
@@ -796,7 +809,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
             {/* City + flag (Row 2) */}
             {(city || countryFlag) && (
-              <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
                 <MapPin className="w-3 h-3 shrink-0" />
                 {city && <span>{city}</span>}
                 {countryFlag && (
@@ -811,7 +824,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
             {/* Bio */}
             {bio && (
-              <p className="text-xs text-muted-foreground mt-1 line-clamp-3 leading-relaxed">{bio}</p>
+              <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{bio}</p>
             )}
 
             {/* Edit profile (own, no city/flag yet) */}
@@ -870,8 +883,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               style={{ overflow: 'hidden' }}
               className="mb-3"
             >
-              <div className="bg-secondary/30 rounded-xl p-3 space-y-2">
-                <div className="flex items-center gap-2">
+              <div className="bg-secondary/30 rounded-xl p-3 space-y-3">
+                {/* Avatar upload — moved here from the inline avatar
+                    badge so it doesn't visually collide with the
+                    "Add to story" camera. The pencil is now the
+                    single edit-profile entry point. */}
+                <div className="flex items-center gap-3">
+                  <AvatarUploader
+                    src={avatarUrl}
+                    initials={initials}
+                    editable
+                    size={44}
+                  />
+                  <span className="text-xs text-muted-foreground">Tap to change avatar</span>
+                </div>
+                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                   <input
                     type="text"
