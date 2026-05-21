@@ -83,26 +83,53 @@ export async function getMyClaims(limit = 20) {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 /**
- * Claim a bounty — calls the claim_bounty RPC.
+ * Claim a bounty — calls the claim_bounty RPC, then fires a
+ * notification to the target user so they know their record is
+ * under attack. Notification fan-out is fire-and-forget — the claim
+ * itself is the canonical event, the notification is supplementary.
+ *
  * Throws with structured message on failure.
  */
 export async function claimBounty(bountyId) {
   const { data, error } = await supabase.rpc('claim_bounty', { p_bounty_id: bountyId });
   if (error) throw error;
+  // Notify the target user. notify_bounty_claim_for validates we are
+  // the actual claimant on the bounty row; if the migration 069 RPC
+  // isn't deployed yet, the claim itself still succeeded.
+  try {
+    await supabase.rpc('notify_bounty_claim_for', { p_bounty_id: bountyId });
+  } catch (e) {
+    if (e?.code !== '42883' && e?.code !== '42P01') {
+      console.warn('[bounties] notify_bounty_claim_for failed:', e?.message || e);
+    }
+  }
   return data; // claim UUID
 }
 
 /**
- * Complete a bounty claim — calls complete_bounty_claim RPC.
+ * Complete a bounty claim — calls complete_bounty_claim RPC, then
+ * fires a notification to the target user so they know their record
+ * fell.
  * @param {string} claimId
  * @param {string|null} workoutLogId  — the log that completed it
+ * @param {string|null} bountyId      — for the post-completion notify
  */
-export async function completeBountyClaim(claimId, workoutLogId = null) {
+export async function completeBountyClaim(claimId, workoutLogId = null, bountyId = null) {
   const { error } = await supabase.rpc('complete_bounty_claim', {
     p_claim_id:       claimId,
     p_workout_log_id: workoutLogId ?? null,
   });
   if (error) throw error;
+  // Notify the target user. The RPC validates we were the claimant.
+  if (bountyId) {
+    try {
+      await supabase.rpc('notify_bounty_beaten_for', { p_bounty_id: bountyId });
+    } catch (e) {
+      if (e?.code !== '42883' && e?.code !== '42P01') {
+        console.warn('[bounties] notify_bounty_beaten_for failed:', e?.message || e);
+      }
+    }
+  }
 }
 
 /**
@@ -151,7 +178,7 @@ export async function checkAndCompleteBounty(workoutLog) {
 
     if (achieved === null || achieved <= target_value) return false;
 
-    await completeBountyClaim(claim.id, workoutLog?.id ?? null);
+    await completeBountyClaim(claim.id, workoutLog?.id ?? null, bounty?.id ?? null);
     return true;
   } catch {
     return false; // non-critical — don't surface to user

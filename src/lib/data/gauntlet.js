@@ -58,6 +58,31 @@ export async function completeGauntletChallenge(sequenceNumber, workoutLogId = n
     p_score:           score,
   });
   if (error) throw error;
+
+  // Self-targeted notification on PATH completion (the milestone moment).
+  // Individual challenges already get a stats modal client-side; the
+  // notification is for the broader "you finished the whole Gauntlet"
+  // event so the user sees it in the bell tray later too.
+  if (data?.path_completed) {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('notifications').insert({
+          user_id:    user.id,
+          user_email: user.email,
+          type:       'gauntlet_path_completed',
+          title:      '🏆 Gauntlet complete!',
+          body:       'You finished the 10-challenge path. New season begins next week.',
+          icon:       '🏆',
+          link_url:   '/gauntlet',
+          metadata:   { final_challenge_id: data.challenge_id, xp_awarded: data.xp_awarded },
+        });
+      }
+    } catch (e) {
+      console.warn('[gauntlet] path-complete notification failed:', e?.message || e);
+    }
+  }
+
   return data;
 }
 

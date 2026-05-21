@@ -106,7 +106,29 @@ export async function assignNemesis() {
     .select()
     .single();
 
-  return error ? null : data;
+  if (error) return null;
+
+  // Self-targeted in-app notification so the matchup also lands in the
+  // bell tray (not just the Dashboard card). RLS allows users to insert
+  // their own notifications, so no SECURITY DEFINER RPC needed. Fire-
+  // and-forget — the assignment itself already succeeded.
+  try {
+    await supabase.from('notifications').insert({
+      user_id:    user.id,
+      user_email: user.email,
+      type:       'nemesis_assigned',
+      title:      `🎯 Meet your nemesis: ${chosen.username || 'a rival'}`,
+      body:       'They\'re a step above you. Beat their stats, claim their rank.',
+      icon:       '🎯',
+      link_url:   '/dashboard',
+      metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+    });
+  } catch (e) {
+    // Non-critical — the assignment is the canonical event.
+    console.warn('[nemesis] notification insert failed:', e?.message || e);
+  }
+
+  return data;
 }
 
 /**
