@@ -140,16 +140,39 @@ export default function HubCommentsInline({ post, open, onClose }) {
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
     } catch (err) {
       // Surface the actual cause so we can diagnose RLS / schema issues.
-      // The previous swallow-everything catch made every cause look identical.
-      console.error('[HubCommentsInline] post failed:', err);
+      // The previous swallow-everything catch made every cause look
+      // identical. The toast now shows the error code so users can
+      // report it without opening DevTools, and the full error +
+      // payload echo to console for deeper diagnostics.
+      console.error('[HubCommentsInline] post failed:', err, {
+        post_id: post?.id,
+        author_email: user?.email,
+        has_username: !!user?.username,
+        body_length: trimmed.length,
+        is_reply: !!replyTarget?.id,
+      });
       const code = err?.code || err?.status;
+      const msg = err?.message || '';
       if (code === 'PROFANITY') {
         toast.error(t('hub.composer.profanityError'));
-      } else if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
-        // RLS rejection — surfaces a useful hint instead of a generic error
+      } else if (code === '42501' || /policy|permission|rls/i.test(msg)) {
         toast.error(t('hub.comments.postError') + ' (permission denied)');
+      } else if (code === '23502' || /not[- ]null/i.test(msg)) {
+        toast.error(t('hub.comments.postError') + ' (missing required field)');
+      } else if (code === '23503' || /foreign key|fkey/i.test(msg)) {
+        toast.error(t('hub.comments.postError') + ' (post no longer exists)');
+      } else if (code === '23514' || /check constraint|too long/i.test(msg)) {
+        toast.error(t('hub.comments.postError') + ' (too long)');
+      } else if (code === 'PGRST204' || code === '42703') {
+        toast.error(t('hub.comments.postError') + ' (schema mismatch — pending migration)');
+      } else if (/network|fetch|timeout/i.test(msg)) {
+        toast.error(t('hub.comments.postError') + ' (network — try again)');
       } else {
-        toast.error(t('hub.comments.postError'));
+        // Last-resort: include the code in the toast so the user can
+        // tell us what they hit. Truncated so a verbose message
+        // doesn't blow out the toast width.
+        const codeHint = code ? ` (${code})` : msg ? ` (${msg.slice(0, 40)})` : '';
+        toast.error(t('hub.comments.postError') + codeHint);
       }
     } finally {
       setPosting(false);
