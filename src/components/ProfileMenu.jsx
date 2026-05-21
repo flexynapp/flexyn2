@@ -401,7 +401,7 @@ export default function ProfileMenu() {
                     >
                       <div className="flex items-center gap-2">
                         <Trophy className="w-4 h-4" />
-                        {tFallback('profile.debriefVault', 'Debrief Vault')}
+                        {tFallback('profile.debriefVault', 'Weekly Summary')}
                       </div>
                       <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>

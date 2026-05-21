@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, BarChart2, Trophy, Sparkles as SparklesIcon,
-  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap,
+  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
@@ -30,6 +30,7 @@ import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 // src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import PageHeader from '@/components/PageHeader';
+import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
   LineChart, Line, BarChart, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip,
@@ -351,6 +352,17 @@ export default function Progress() {
   const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),    [rawLogs, userProfile]);
   const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const isLoading    = logsLoading || regimensLoading;
+
+  // Weekly summary — auto-generate on first load, then cache for 5 min
+  const { data: latestDebriefData, refetch: refetchDebrief } = useQuery({
+    queryKey: ['latestDebrief', user?.id],
+    queryFn:  async () => {
+      await generateWeeklyDebrief(currentWeekStart());
+      return latestDebrief();
+    },
+    enabled:   !!user?.id,
+    staleTime: 5 * 60_000,
+  });
 
   // ── Derived stats ─────────────────────────────────────────────────────────
   const thisWeekLogs = useMemo(() => {
@@ -694,6 +706,79 @@ export default function Progress() {
                 {activeTab === 'trends' && (
                   <ErrorBoundary label="ExerciseTrends">
                     <div>
+                      {/* ── Weekly Summary Card ───────────────────────────── */}
+                      {latestDebriefData && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          className="rounded-2xl overflow-hidden border border-border mb-5"
+                          style={{ background: 'linear-gradient(135deg, #0f0f14 0%, #141824 100%)' }}
+                        >
+                          {/* Header */}
+                          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-white/10">
+                            <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-purple-400">Weekly Summary</p>
+                              <p className="text-sm font-bold text-white">{latestDebriefData.week_label}</p>
+                            </div>
+                            <button
+                              onClick={() => refetchDebrief()}
+                              className="text-white/30 hover:text-white/60 transition-colors"
+                              title="Refresh summary"
+                            >
+                              <RefreshCw className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+
+                          {/* Stats row */}
+                          {(() => {
+                            const d = latestDebriefData.data || {};
+                            const vol    = d.volume_lbs    ?? 0;
+                            const chg    = d.volume_change_pct;
+                            const wks    = d.workouts_count ?? 0;
+                            const streak = d.workout_streak ?? 0;
+                            const isPr   = !!d.top_lift_is_pr;
+                            const insight = d.ai_insight || '';
+                            return (
+                              <>
+                                <div className="flex divide-x divide-white/10">
+                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
+                                    <span className="text-xs text-white/40">Volume</span>
+                                    <span className="text-base font-black text-white tabular-nums">
+                                      {Number(vol) >= 1000 ? `${Math.round(vol/1000)}K` : Math.round(vol)}
+                                      <span className="text-[10px] font-normal text-white/40 ml-0.5">lbs</span>
+                                    </span>
+                                    {chg != null && (
+                                      <span className={`text-[10px] font-semibold ${Number(chg) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {Number(chg) >= 0 ? '+' : ''}{chg}%
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
+                                    <span className="text-xs text-white/40">Sessions</span>
+                                    <span className="text-base font-black text-white">{wks}</span>
+                                  </div>
+                                  <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
+                                    <span className="text-xs text-white/40">Streak</span>
+                                    <span className="text-base font-black text-orange-400">{streak}d 🔥</span>
+                                  </div>
+                                  {isPr && (
+                                    <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
+                                      <span className="text-xs text-white/40">PR</span>
+                                      <Trophy className="w-4 h-4 text-yellow-400" />
+                                    </div>
+                                  )}
+                                </div>
+                                {insight && (
+                                  <div className="px-4 py-2.5 border-t border-white/10">
+                                    <p className="text-xs text-white/60 italic leading-relaxed">"{insight}"</p>
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </motion.div>
+                      )}
+
                       <div className="flex justify-start mb-6">
                         <FilterDropdown
                           selectedRegimen={selectedRegimen}
