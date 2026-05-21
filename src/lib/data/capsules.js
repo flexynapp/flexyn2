@@ -71,9 +71,15 @@ async function _addFlexCoins(userId, amount) {
  * Grant capsules and Flex Coins when a user levels up.
  *
  * Rules:
- *   - Every level: 1 standard capsule + 50 Flex Coins
+ *   - Levels 2+: 1 standard capsule + 50 Flex Coins per level
  *   - Multiple of 5: +1 premium capsule + 100 bonus Flex Coins
- *   - Multiple of 10: +1 elite capsule (in addition to premium)
+ *   - Multiple of 10: +1 elite capsule
+ *
+ * Level 1 is owned by grantWelcomeCapsule (fired on first device
+ * baseline by LevelUpManager). A fresh user hitting level 2 thus
+ * receives exactly: welcome (1 standard) + level-up (1 standard).
+ * Pre-074 hosts double-granted on first level-up; the RPC now floors
+ * the loop at level 2. (in addition to premium)
  *
  * Atomic + idempotent via the grant_level_up_rewards RPC (migration
  * 070). Returns the RPC payload so callers can read whether the grant

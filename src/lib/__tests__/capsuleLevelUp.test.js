@@ -21,17 +21,22 @@ const _state = {
   rpcError: null,
 };
 
-// Mirrors the per-level reward schedule defined inline in migration
-// 070. Kept in lockstep manually — the SQL has the canonical version.
+// Mirrors the per-level reward schedule defined inline in migrations
+// 070 + 074. Kept in lockstep manually — the SQL has the canonical
+// version.
 //
-// The SQL loops `FOR v_lvl IN (v_prev_through + 1) .. p_new_level`, so
-// a fresh user (level_capsules_awarded_through=0) hitting level 2 gets
-// rewards for levels 1 AND 2. The "+50 coins per level" is paid for
-// every iteration, multiples of 5 add a premium + bonus coins,
-// multiples of 10 add an elite.
+// The SQL loops `FOR v_lvl IN GREATEST(v_prev_through + 1, 2) .. p_new_level`.
+// Level 1 is intentionally skipped: every user starts at current_level=1
+// and the welcome capsule (grantWelcomeCapsule, fired on first device
+// baseline) is the level-1 acknowledgment. Without that floor, a fresh
+// user hitting level 2 received 2 standards from this RPC, double the
+// intended single level-up grant.
+//
+// The "+50 coins per level" is paid for every iteration, multiples of
+// 5 add a premium + 100 bonus coins, multiples of 10 add an elite.
 function computeOwed(fromLevel, toLevel) {
   let standard = 0, premium = 0, elite = 0, coins = 0;
-  for (let l = fromLevel + 1; l <= toLevel; l++) {
+  for (let l = Math.max(fromLevel + 1, 2); l <= toLevel; l++) {
     standard += 1;
     coins += 50;
     if (l % 5 === 0) {
@@ -105,31 +110,46 @@ describe('grantForLevelUp — first-time grants', () => {
     expect(got).toBeNull();
   });
 
-  it('grants two standards + 100 coins at level 2 (fresh user — levels 1+2)', async () => {
+  it('grants one standard + 50 coins at level 2 (fresh user — level 1 skipped)', async () => {
+    // Level 1 grant lives elsewhere (the welcome capsule). The
+    // grant_level_up_rewards floor at level 2 prevents this RPC from
+    // doubling that grant on the first level-up.
     const got = await grantForLevelUp('uid', 'u@e.com', 2);
     expect(got.already_granted).toBe(false);
-    expect(got.standard).toBe(2);
+    expect(got.standard).toBe(1);
     expect(got.premium).toBe(0);
     expect(got.elite).toBe(0);
-    expect(got.coins).toBe(100);
-    expect(got.new_balance).toBe(100);
+    expect(got.coins).toBe(50);
+    expect(got.new_balance).toBe(50);
   });
 
-  it('grants standards + premium + bonus at level 5 (levels 1..5)', async () => {
+  it('grants standards + premium + bonus at level 5 (levels 2..5)', async () => {
     const got = await grantForLevelUp('uid', 'u@e.com', 5);
     expect(got.already_granted).toBe(false);
-    expect(got.standard).toBe(5);   // one per level 1..5
+    expect(got.standard).toBe(4);   // levels 2,3,4,5
     expect(got.premium).toBe(1);    // level 5
     expect(got.elite).toBe(0);
-    expect(got.coins).toBe(5 * 50 + 100);
+    expect(got.coins).toBe(4 * 50 + 100);
   });
 
-  it('grants elite at level 10 (covers levels 1..10)', async () => {
+  it('grants elite at level 10 (covers levels 2..10)', async () => {
     const got = await grantForLevelUp('uid', 'u@e.com', 10);
-    expect(got.standard).toBe(10);  // levels 1..10
+    expect(got.standard).toBe(9);   // levels 2..10
     expect(got.premium).toBe(2);    // 5, 10
     expect(got.elite).toBe(1);      // 10
-    expect(got.coins).toBe(10 * 50 + 2 * 100);
+    expect(got.coins).toBe(9 * 50 + 2 * 100);
+  });
+
+  it('grants nothing when invoked at level 1 (welcome capsule covers it)', async () => {
+    // A fresh user who somehow lands here with newLevel=1 should get
+    // zero rewards from this RPC — level 1 is owned by the welcome
+    // capsule path. This guards against future code that calls
+    // grantForLevelUp(currentLevel) without level-up gating.
+    const got = await grantForLevelUp('uid', 'u@e.com', 1);
+    expect(got.standard).toBe(0);
+    expect(got.premium).toBe(0);
+    expect(got.elite).toBe(0);
+    expect(got.coins).toBe(0);
   });
 });
 
@@ -154,9 +174,10 @@ describe('grantForLevelUp — idempotency', () => {
   it('handles a multi-tier jump in one earn (rare race compensator)', async () => {
     // User somehow jumps 0 → 11 in one earn (e.g. backlog of XP that
     // crossed multiple level lines). The RPC pays out every intervening
-    // level — the bug we closed was the old client only paying one.
+    // level (except 1) — the bug we closed was the old client only
+    // paying one level.
     const got = await grantForLevelUp('uid', 'u@e.com', 11);
-    expect(got.standard).toBe(11);
+    expect(got.standard).toBe(10);  // levels 2..11
     expect(got.premium).toBe(2);    // 5, 10
     expect(got.elite).toBe(1);      // 10
   });

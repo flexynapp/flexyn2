@@ -31,9 +31,16 @@ ALTER TABLE public.user_profiles
 -- for via the new level_capsules_awarded_through column.
 --
 -- Grant rules (mirror src/lib/data/capsules.js grantForLevelUp):
---   • Every level:        1 standard capsule + 50 flex_coins
+--   • Levels 2+:          1 standard capsule + 50 flex_coins per level
 --   • Multiple of 5:      +1 premium capsule + 100 bonus flex_coins
 --   • Multiple of 10:     +1 elite capsule
+--
+-- Level 1 is intentionally NOT rewarded here — every user starts at
+-- current_level=1, and the welcome capsule (grantWelcomeCapsule,
+-- fired on first device baseline) is the level-1 acknowledgment.
+-- Without the floor, a fresh user hitting level 2 would receive the
+-- welcome capsule PLUS a level-up grant covering levels 1 AND 2 =
+-- 3 standards instead of the intended 2 (welcome + level-up).
 --
 -- Handles level skips correctly — if the user jumps from level 3 to
 -- level 7 in one call, they get standard×4 + premium×1 + coins for
@@ -109,8 +116,14 @@ BEGIN
     );
   END IF;
 
-  -- Grant the gap (prev_through+1 .. p_new_level).
-  FOR v_lvl IN (v_prev_through + 1) .. p_new_level LOOP
+  -- Grant the gap (max(prev_through+1, 2) .. p_new_level).
+  -- Level 1 is intentionally skipped: every user starts at current_level=1
+  -- and the welcome capsule (grantWelcomeCapsule, fired on first device
+  -- baseline by LevelUpManager) is the level-1 acknowledgment. Without
+  -- this floor, a fresh user hitting level 2 would receive the welcome
+  -- capsule + 2 level-up standards = 3 standards, instead of the
+  -- intended 1 welcome + 1 level-up = 2.
+  FOR v_lvl IN GREATEST(v_prev_through + 1, 2) .. p_new_level LOOP
     INSERT INTO public.user_capsules (user_id, user_email, capsule_type)
       VALUES (v_uid, v_email, 'standard');
     v_standard_count := v_standard_count + 1;
@@ -215,7 +228,7 @@ BEGIN
 
   INSERT INTO public.user_inventory
     (user_id, user_email, item_id, item_name, item_emoji, item_rarity,
-     item_type, variant, source)
+     item_type, variant, acquired_via)
   VALUES
     (v_uid, v_email, p_item_id, p_item_name, p_item_emoji, p_item_rarity,
      p_item_type, p_variant, 'capsule')
