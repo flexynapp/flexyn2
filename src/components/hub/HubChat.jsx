@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft } from 'lucide-react';
@@ -167,13 +167,30 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   const messages = dedupeMessages(rawMessages);
 
-  // Fetch emoji reactions for visible messages
+  // Fetch emoji reactions for visible messages.
+  //
+  // Memoize the persisted (non-temp) message-id list as a stable string
+  // key. Two fixes the previous implementation needed:
+  //   1. Depending on messages.length alone meant a delete + insert
+  //      (length unchanged) skipped the refetch, so reactions on the
+  //      new message never showed.
+  //   2. The .then(setReactions) had no cancellation — if the user
+  //      switched conversations or the component unmounted before the
+  //      fetch resolved, the previous conversation's reactions could
+  //      land in the new view (or warn about state-after-unmount).
+  const persistedIdsKey = useMemo(
+    () => messages.map(m => m.id).filter(id => !String(id).startsWith('temp-')).join(','),
+    [messages]
+  );
   useEffect(() => {
-    if (!messages.length) return;
-    const ids = messages.map(m => m.id).filter(id => !String(id).startsWith('temp-'));
-    if (!ids.length) return;
-    dmRxns.getReactionsForMessages(ids).then(setReactions).catch(() => {});
-  }, [messages.length]);
+    if (!persistedIdsKey) return;
+    const ids = persistedIdsKey.split(',');
+    let cancelled = false;
+    dmRxns.getReactionsForMessages(ids)
+      .then((r) => { if (!cancelled) setReactions(r); })
+      .catch((err) => console.warn('[HubChat] reactions fetch failed:', err));
+    return () => { cancelled = true; };
+  }, [persistedIdsKey]);
 
   // ── Realtime channel for typing indicator ─────────────────────────────────
   useEffect(() => {

@@ -22,6 +22,7 @@ import {
   getTier,
 } from '@/lib/leagueTiers';
 import { notifyLeagueResolution } from './notifications';
+import { reportError } from '@/lib/reportError';
 
 /** ISO week boundaries: Mon 00:00:00 → Sun 23:59:59 in the local timezone. */
 function currentWeekRange() {
@@ -163,26 +164,49 @@ export async function recordWeeklyXp(user, amount) {
     });
     if (!error) return;
     if (error.code === '42883' || error.code === '42P01') {
-      // RPC missing — fall through.
+      // RPC missing — fall through to legacy path.
       console.warn('[leagues] xp RPC missing, falling back');
     } else {
-      console.warn('[leagues] xp RPC failed:', error);
+      // Real RPC failure (RLS, network, etc). Previously silently
+      // returned with only a console.warn; now also surface to Sentry
+      // so we can see the failure pattern. User's weekly XP didn't
+      // land but they got no UI signal — at least the operator sees it.
+      reportError(error, {
+        feature: 'leagues.recordWeeklyXp.rpc',
+        level: 'warning',
+        userEmail: user.email,
+        amount,
+      });
       return;
     }
   } catch (err) {
     if (err?.code !== '42883' && err?.code !== '42P01') {
-      console.warn('[leagues] xp RPC threw:', err);
+      reportError(err, {
+        feature: 'leagues.recordWeeklyXp.rpc-throw',
+        level: 'warning',
+        userEmail: user.email,
+        amount,
+      });
       return;
     }
   }
 
-  // Legacy fallback — non-atomic.
+  // Legacy fallback — non-atomic. Reach this on pre-migration hosts
+  // missing increment_league_xp. The race is documented; only stale
+  // deployments retain it.
   const newXp = (ctx.member.weekly_xp || 0) + amount;
   const { error } = await supabase
     .from('league_members')
     .update({ weekly_xp: newXp })
     .eq('id', ctx.member.id);
-  if (error) console.warn('[leagues] recordWeeklyXp fallback failed:', error);
+  if (error) {
+    reportError(error, {
+      feature: 'leagues.recordWeeklyXp.fallback',
+      level: 'warning',
+      userEmail: user.email,
+      amount,
+    });
+  }
 }
 
 /**

@@ -244,7 +244,10 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
             }
           } catch (err) { console.warn('[Cardio] distance accumulate failed:', err); }
         }
-        // Fire achievement check (non-blocking)
+        // Fire achievement check (non-blocking). Report on failure so a
+        // broken cardio→achievements pipeline doesn't silently rot — the
+        // user can save cardio forever without an XP/achievement update
+        // ever landing and no one would know.
         db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 0,
           action_type: 'cardio_completed',
@@ -253,7 +256,11 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
             distance_meters: payload.distance_meters,
             calories: payload.calories,
           },
-        }).catch(() => {});
+        }).catch(err => reportError(err, {
+          feature: 'cardio.achievements-invoke',
+          level: 'warning',
+          userEmail: user?.email,
+        }));
         // Check for PRs
         const prior = await db.entities.CardioLog.filter(
           { created_by: user.email }, '-date', 1000
@@ -274,7 +281,9 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
 
-      // Quest progress — non-blocking
+      // Quest progress — non-blocking. Failures used to silently
+      // .catch(() => {}); now reportError so quest progression
+      // breakage is visible rather than silently lost.
       const durSec = Number(payload.duration_seconds) || 0;
       Promise.all([
         quests.recordAction(user, ACTION_TYPES.CARDIO_COMPLETED, 1),
@@ -282,7 +291,11 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         prCount > 0 ? quests.recordAction(user, ACTION_TYPES.PR_ACHIEVED, prCount) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.quest-progress',
+          level: 'warning',
+          userEmail: user?.email,
+        }));
 
       // League weekly XP + workout streak — non-blocking
       const cardioXp = calculateCardioXp({
@@ -292,13 +305,22 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       });
       leagues.recordWeeklyXp(user, cardioXp)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.league-xp',
+          level: 'warning',
+          userEmail: user?.email,
+          cardioXp,
+        }));
       workoutStreak.recordWorkoutDay(user)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         })
-        .catch(() => {});
+        .catch(err => reportError(err, {
+          feature: 'cardio.workout-streak',
+          level: 'warning',
+          userEmail: user?.email,
+        }));
 
       onSaved();
     } catch (err) {
