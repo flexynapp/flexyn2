@@ -7,10 +7,12 @@ import { Target, RefreshCw, Loader2, Swords } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemesis';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 
 export default function NemesisCard({ currentUserId }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [showDuel, setShowDuel] = useState(false);
 
@@ -36,7 +38,21 @@ export default function NemesisCard({ currentUserId }) {
     },
   });
 
-  if (isLoading) return null;
+  // Initial load — render a skeleton (was: return null which left the
+  // dashboard area blank during the few hundred ms of fetch).
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
+        <div className="flex items-center gap-3">
+          <div className="w-14 h-14 rounded-full bg-secondary shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 w-32 rounded bg-secondary" />
+            <div className="h-2.5 w-20 rounded bg-secondary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ── No nemesis — prompt to assign ────────────────────────────────────────────
   if (!assignment) {
@@ -49,9 +65,14 @@ export default function NemesisCard({ currentUserId }) {
         <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
           <Target className="w-5 h-5 text-rose-500" />
         </div>
-        <p className="text-sm font-bold mb-1">Find Your Nemesis</p>
+        <p className="text-sm font-bold mb-1">
+          {tFallback('nemesis.findTitle', 'Find Your Nemesis')}
+        </p>
         <p className="text-xs text-muted-foreground mb-4">
-          We'll pair you with a rival slightly above your level. Beat their stats, claim their rank.
+          {tFallback(
+            'nemesis.findDesc',
+            "We'll pair you with a rival slightly above your level. Beat their stats, claim their rank."
+          )}
         </p>
         <button
           onClick={() => assignMut.mutate()}
@@ -62,7 +83,9 @@ export default function NemesisCard({ currentUserId }) {
             ? <Loader2 className="w-4 h-4 animate-spin" />
             : <Target className="w-4 h-4" />
           }
-          {assignMut.isPending ? 'Searching…' : 'Find My Nemesis'}
+          {assignMut.isPending
+            ? tFallback('nemesis.searching', 'Searching…')
+            : tFallback('nemesis.findButton', 'Find My Nemesis')}
         </button>
       </motion.div>
     );

@@ -20,7 +20,7 @@ import { analyzeForm, prewarmDetector } from '@/lib/formCoach/analyzeForm';
 // portal/focus-trap issues where the click handler fires but the dialog
 // content never visibly appears.
 export default function FormCoachModal({ open, onClose }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [exercise, setExercise] = useState('');
   const [exerciseDisplay, setExerciseDisplay] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
@@ -122,7 +122,7 @@ export default function FormCoachModal({ open, onClose }) {
           >
             <button
               onClick={onClose}
-              aria-label="Close"
+              aria-label={tFallback('common.close', 'Close')}
               className="absolute top-3 right-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
             >
               <X className="w-4 h-4" />

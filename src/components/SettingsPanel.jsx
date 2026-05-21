@@ -62,27 +62,27 @@ export default function SettingsPanel() {
         // Reject future dates AND impossible ages.
         const d = new Date(statValue);
         if (isNaN(d.getTime())) {
-          toast.error('Invalid date.');
+          toast.error(tFallback('settings.validation.invalidDate', 'Invalid date.'));
           return;
         }
         if (d > new Date()) {
-          toast.error("Birthday can't be in the future.");
+          toast.error(tFallback('settings.validation.birthdayFuture', "Birthday can't be in the future."));
           return;
         }
         const yearsAgo = (Date.now() - d.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
         if (yearsAgo > 120) {
-          toast.error('Please enter a realistic birthday.');
+          toast.error(tFallback('settings.validation.birthdayUnrealistic', 'Please enter a realistic birthday.'));
           return;
         }
         if (yearsAgo < 13) {
-          toast.error('You must be 13 or older to use Flexyn.');
+          toast.error(tFallback('settings.validation.under13', 'You must be 13 or older to use Flexyn.'));
           return;
         }
         await db.auth.updateMe({ birthday: statValue });
       } else {
         const parsed = parseFloat(statValue);
         if (isNaN(parsed) || parsed <= 0) {
-          toast.error('Please enter a number greater than zero.');
+          toast.error(tFallback('settings.validation.positiveNumber', 'Please enter a number greater than zero.'));
           return;
         }
         // Range validation per stat so a fat-finger entry doesn't corrupt
@@ -91,13 +91,13 @@ export default function SettingsPanel() {
         if (editingStat === 'weight_lbs') {
           const lbs = toLbs(parsed, weightUnit);
           if (lbs < 50 || lbs > 800) {
-            toast.error('Weight must be between 50 and 800 lb (23–363 kg).');
+            toast.error(tFallback('settings.validation.weightRange', 'Weight must be between 50 and 800 lb (23–363 kg).'));
             return;
           }
           await db.auth.updateMe({ weight_lbs: lbs });
         } else if (editingStat === 'height_inches') {
           if (parsed < 24 || parsed > 96) {
-            toast.error('Height must be between 24 and 96 inches (61–244 cm).');
+            toast.error(tFallback('settings.validation.heightRange', 'Height must be between 24 and 96 inches (61–244 cm).'));
             return;
           }
           await db.auth.updateMe({ height_inches: parsed });
@@ -114,7 +114,7 @@ export default function SettingsPanel() {
       // caught that the previous `console.error` left users with no signal
       // the save failed.
       console.error('Stat update failed:', err);
-      toast.error('Could not save — try again.');
+      toast.error(tFallback('settings.validation.saveFailed', 'Could not save — try again.'));
     } finally {
       setStatSaving(false);
     }
@@ -171,9 +171,9 @@ export default function SettingsPanel() {
       setBlockEmail('');
       await loadStoryBlocks();
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-      toast.success(`Blocked ${email}`);
+      toast.success(tFallback('settings.block.added', 'Blocked {email}', { email }));
     } else {
-      toast.error('Could not add block — try again.');
+      toast.error(tFallback('settings.block.addFailed', 'Could not add block — try again.'));
     }
   };
 
@@ -183,9 +183,9 @@ export default function SettingsPanel() {
     if (ok) {
       setStoryBlocks(prev => prev.filter(b => b.blocked_email !== email));
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
-      toast.success(`Unblocked ${email}`);
+      toast.success(tFallback('settings.block.removed', 'Unblocked {email}', { email }));
     } else {
-      toast.error('Could not remove block.');
+      toast.error(tFallback('settings.block.removeFailed', 'Could not remove block.'));
     }
   };
 
@@ -214,7 +214,7 @@ export default function SettingsPanel() {
     if (error) {
       // Revert.
       setPrefs(prev);
-      toast.error('Could not save preference — try again.');
+      toast.error(tFallback('settings.prefs.saveFailed', 'Could not save preference — try again.'));
       return;
     }
     queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -226,23 +226,21 @@ export default function SettingsPanel() {
     if (push.isSubscribed) {
       const res = await push.unsubscribe();
       if (res.ok) {
-        toast.success(t('settings.push.disabled') === 'settings.push.disabled'
-          ? 'Push notifications disabled.' : t('settings.push.disabled'));
+        toast.success(tFallback('settings.push.disabled', 'Push notifications disabled.'));
       } else {
-        toast.error('Could not disable push notifications.');
+        toast.error(tFallback('settings.push.disableFailed', 'Could not disable push notifications.'));
       }
       return;
     }
     const res = await push.subscribe();
     if (res.ok) {
-      toast.success(t('settings.push.enabled') === 'settings.push.enabled'
-        ? 'Push notifications enabled!' : t('settings.push.enabled'));
+      toast.success(tFallback('settings.push.enabled', 'Push notifications enabled!'));
     } else if (res.reason === 'denied') {
-      toast.error('Permission denied — enable notifications in your browser settings.');
+      toast.error(tFallback('settings.push.denied', 'Permission denied — enable notifications in your browser settings.'));
     } else if (res.reason === 'unsupported') {
-      toast.error('Push notifications not supported on this device.');
+      toast.error(tFallback('settings.push.unsupported', 'Push notifications not supported on this device.'));
     } else if (res.reason === 'server_error') {
-      toast.error('Could not save your subscription. Try again.');
+      toast.error(tFallback('settings.push.subscriptionFailed', 'Could not save your subscription. Try again.'));
     }
     // 'default' (user dismissed without choosing) → no toast, they'll try again.
   };
@@ -485,12 +483,14 @@ export default function SettingsPanel() {
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <MessageCircle className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-            <p className="text-xs text-foreground leading-tight">Allow DM replies to my stories</p>
+            <p className="text-xs text-foreground leading-tight">
+              {tFallback('settings.story.dmRepliesLabel', 'Allow DM replies to my stories')}
+            </p>
           </div>
           <button
             role="switch"
             aria-checked={!storyDmsDisabled}
-            aria-label="Allow DM replies to my stories"
+            aria-label={tFallback('settings.story.dmRepliesLabel', 'Allow DM replies to my stories')}
             onClick={async () => {
               const next = !storyDmsDisabled;
               setStoryDmsDisabled(next);

@@ -24,7 +24,7 @@ const RARITY_COLORS = {
 };
 
 export default function ThemeSelector({ open, onClose }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { themeId, setThemeId, lootThemeId, setLootThemeId } = useTheme();
   const { user } = useAuth();
 
@@ -104,7 +104,7 @@ export default function ThemeSelector({ open, onClose }) {
               <button
                 onClick={onClose}
                 className="p-2 rounded-xl hover:bg-secondary transition-colors -mt-0.5"
-                aria-label="Close"
+                aria-label={tFallback('common.close', 'Close')}
               >
                 <X className="w-4 h-4" />
               </button>
