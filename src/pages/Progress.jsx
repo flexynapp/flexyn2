@@ -628,24 +628,31 @@ export default function Progress() {
             </motion.div>
           )}
 
-          {/* ── Tab Navigation ────────────────────────────────────────────── */}
+          {/* ── Tab Navigation ──────────────────────────────────────────────
+              Sized for proper touch targets (min-h ~48px, the Apple HIG
+              floor + Material baseline). On md+ each tab takes equal
+              width (flex-1) so the row reads as a tab bar instead of
+              a left-aligned chip cluster — the empty right-side gap
+              the previous layout had felt unfinished. On mobile they
+              keep their natural width and overflow-scroll so the row
+              doesn't squeeze each one into an unreadable nub. */}
           <div ref={tabsBarRef} className="mb-6">
-            <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
               {TAB_META.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
                   <motion.button
                     key={tab.id}
                     onClick={() => switchTab(tab.id)}
-                    whileHover={{ scale: 1.04 }}
-                    whileTap={{ scale: 0.96 }}
-                    className={`flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all shrink-0 border ${
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] min-w-[120px] md:flex-1 rounded-xl text-[15px] font-bold whitespace-nowrap transition-all border ${
                       isActive
-                        ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-sm`
+                        ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-md`
                         : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
                     }`}
                   >
-                    <tab.Icon className={`w-4 h-4 ${isActive ? '' : tab.iconColor}`} />
+                    <tab.Icon className={`w-[18px] h-[18px] shrink-0 ${isActive ? '' : tab.iconColor}`} />
                     {tab.label}
                   </motion.button>
                 );
