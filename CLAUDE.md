@@ -39,6 +39,61 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
   `CREATE TRIGGER`). Other idempotent constructs (`CREATE TABLE IF NOT
   EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE
   FUNCTION`, `INSERT ... ON CONFLICT DO UPDATE`) already self-guard.
+- **Numbering with parallel engineers**: pick the next free `NNN` when
+  you start. If two branches independently pick the same number, the
+  branch that lands second renames its file to `NNN+1_*.sql` before
+  pushing. Files at the same `NNN` are tolerated if their bodies are
+  independent (current examples: `054_bio_profanity_check.sql` +
+  `054_duels.sql`, and `055_crew_wars.sql` +
+  `055_first_workout_capsule_flag.sql` — both pairs touch disjoint
+  tables, so the alphabetical execution order is harmless). Don't add
+  a third file at the same number — renumber instead.
+
+## Push notifications
+
+The pipeline is built; it just needs secrets to deploy. The full chain:
+
+| Migration / file | Role |
+|---|---|
+| `033_push_subscriptions.sql` | Table + `upsert_push_subscription` RPC. Client opt-in lives in `src/lib/usePushSubscription.js`. |
+| `034_notification_push_trigger.sql` | AFTER INSERT trigger on `notifications` → `pg_net.http_post` to the Edge Function. Trigger is a no-op when `app.send_push_url` / `app.send_push_secret` are unset, so the in-app row still lands. |
+| `035_streak_break_reminders.sql` | Hourly cron, 15-language text helpers, pushes when a ≥2-day streak is about to break in user's local 18-21h. |
+| `036_notification_prefs_and_language.sql` | Per-category opt-in JSONB on `user_profiles`. The 034 trigger reads it; muted categories skip push fanout (in-app row still inserts). |
+| `037_welcome_back_and_quest_crons.sql` | Two more crons — welcome-back (3-30 day churned, hourly) and quest-expiry (incomplete dailies, every 15min). |
+| `038_push_secrets_via_vault.sql` | Stores `app.send_push_secret` in the Vault rather than the postgres role. |
+| `supabase/functions/send-push/index.ts` | Edge Function — VAPID delivery, 410-Gone cleanup, dual auth (Bearer JWT or X-Send-Push-Secret). |
+
+**To actually start delivering pushes** (this is what's still missing):
+
+1. `npx web-push generate-vapid-keys` on a dev machine.
+2. `supabase secrets set VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=…
+   VAPID_SUBJECT="mailto:ops@flexyn.app"
+   SEND_PUSH_TRIGGER_SECRET="$(openssl rand -hex 32)"`.
+3. Add `VITE_VAPID_PUBLIC_KEY=…` to the client build env so
+   `usePushSubscription.js` exposes the opt-in toggle.
+4. `supabase functions deploy send-push`.
+5. In SQL Editor: `ALTER DATABASE postgres SET app.send_push_url =
+   'https://<ref>.functions.supabase.co/send-push'` and
+   `ALTER DATABASE postgres SET app.send_push_secret = '<step-2 value>'`,
+   then `SELECT pg_reload_conf()`.
+6. Verify with a self-targeted test push from the Settings panel.
+
+**Patterns for adding new push types:**
+
+- Self-targeted (notifying yourself, e.g. quest reset) → call
+  `notifications.create({ userId, type, title, body, ... })` from the
+  client. RLS lets you insert your own row; the trigger handles fanout.
+- Cross-user (notifying someone else, e.g. friend follow, league win,
+  duel result) → write a `notify_X_for(p_user_id, …)` SECURITY DEFINER
+  RPC in a new migration following the pattern in
+  `041_friend_notifications_i18n.sql`. Server-side text helpers go in
+  the same migration with branches for all 15 languages, mirroring
+  `streak_break_text`. The RPC inserts into `notifications`, the
+  trigger does the rest.
+- Cron-driven (time-window pushes like welcome-back) → mirror the
+  atomic `UPDATE…RETURNING last_X_nudge_at` claim pattern in
+  `037_welcome_back_and_quest_crons.sql` so concurrent cron firings
+  can't double-send.
 
 ## Resilience layers
 
@@ -181,4 +236,17 @@ without giving it a distinct haptic + confetti signature.**
   `app.debrief_func_url` + `app.debrief_cron_secret` to actually
   populate. Teammate owns that follow-up.
 - i18n: discovery cards + ~21 Hub fallback keys still default to English
-  on 8 of 15 languages. Needs a native-speaker pass.
+  on 8 of 15 languages. Needs a native-speaker pass. Also: the new
+  `recap.*` keys used by `src/components/dashboard/WeeklyRecap.jsx`
+  are English-only via `tFallback(key, 'English')`; safe to ship, but
+  worth a translation pass.
+- Push pipeline (migrations 033-039 + the `send-push` Edge Function)
+  is built but not deployed. VAPID secrets + `ALTER DATABASE postgres
+  SET app.send_push_url/_secret` haven't been set. See the "Push
+  notifications" section above for the deploy checklist.
+- New competitive features (Duels, Nemesis, Crew Wars, Bounties,
+  Gauntlet) don't yet emit push-eligible `notifications` rows. The
+  pipeline is ready for them — a single `notify_duel_invite_for` /
+  `notify_duel_result_for` migration following the
+  `041_friend_notifications_i18n.sql` pattern would wire each.
+  This is the highest-leverage retention work currently undone.
