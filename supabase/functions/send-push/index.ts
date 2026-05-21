@@ -116,7 +116,16 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+// Guard against an empty VAPID key pair. Without this, setVapidDetails
+// accepts the empty strings, then every sendNotification call later
+// throws a cryptic error from the web-push library. A clear 503 at
+// the entry point makes a misconfigured deploy obvious from logs.
+const VAPID_OK = VAPID_PUBLIC_KEY.length > 0 && VAPID_PRIVATE_KEY.length > 0;
+if (VAPID_OK) {
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY);
+} else {
+  console.error('[send-push] VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY not set — push delivery disabled.');
+}
 
 interface PushPayload {
   user_id: string;
@@ -157,6 +166,16 @@ serve(async (req) => {
   if (!hasBearer && !hasTrigger) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // If VAPID isn't configured, fail loud with 503 instead of letting
+  // each sendNotification throw deep in the loop with a cryptic
+  // message. Operators see this in function logs immediately.
+  if (!VAPID_OK) {
+    return new Response(JSON.stringify({ error: 'vapid_not_configured' }), {
+      status: 503,
       headers: { 'Content-Type': 'application/json' },
     });
   }
