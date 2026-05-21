@@ -10,7 +10,9 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
+import CreateInviteLinkModal from '@/components/duels/CreateInviteLinkModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { Link as LinkIcon } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 // Static config keyed by status; the visible label is resolved at render
@@ -75,6 +77,7 @@ export default function Duels() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const [showCreate,    setShowCreate]    = useState(false);
+  const [showInviteLink, setShowInviteLink] = useState(false);
   const [selectedDuel,  setSelectedDuel]  = useState(null);
 
   const { data: duels = [], isLoading } = useQuery({
@@ -99,13 +102,23 @@ export default function Duels() {
             <Swords className="w-5 h-5 text-primary" />
             <h1 className="text-xl font-black">Duels</h1>
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            Challenge
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowInviteLink(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-foreground text-xs font-bold border border-border hover:bg-secondary/70 transition-colors"
+              aria-label="Challenge someone by link"
+            >
+              <LinkIcon className="w-3.5 h-3.5" />
+              Invite link
+            </button>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Challenge
+            </button>
+          </div>
         </div>
         <p className="text-sm text-muted-foreground">Head-to-head workout battles</p>
       </div>
@@ -165,6 +178,11 @@ export default function Duels() {
 
       {/* Modals */}
       <AnimatePresence>
+        <CreateInviteLinkModal
+          open={showInviteLink}
+          onOpenChange={setShowInviteLink}
+        />
+
         {showCreate && (
           <CreateDuelModal
             opponentId={null}

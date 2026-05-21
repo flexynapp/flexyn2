@@ -52,6 +52,13 @@ const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
 import SignInToContinue from './pages/SignInToContinue';
+// DuelInviteLanding is rendered OUTSIDE the auth gate so anonymous
+// recipients of a shareable invite URL can see the challenger's name
+// + avatar without being bounced to the sign-in screen first. Eager
+// because it's the destination of a viral acquisition link — any
+// loading delay here is conversion lost.
+import DuelInviteLanding from './pages/DuelInviteLanding';
+import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
@@ -79,6 +86,28 @@ function PageLoader() {
 
 const AuthenticatedApp = () => {
   const { user, isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin, checkUserAuth } = useAuth();
+
+  // Public route bypass: anyone landing on /duel-invite/<token> skips
+  // the auth gate entirely. The landing component handles both signed-in
+  // and signed-out states itself. This is the viral acquisition surface —
+  // an unauthenticated recipient must see the challenger info BEFORE
+  // we ask them to sign up, or conversion craters.
+  //
+  // We read window.location.pathname directly (rather than via
+  // useLocation) because <Router> isn't above us in the tree — we're
+  // still in the auth-bootstrap region. The pathname is stable for
+  // the lifetime of this component instance (any in-app nav would
+  // re-mount through the Router which lives below).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/duel-invite/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/duel-invite/:token" element={<DuelInviteLanding />} />
+          <Route path="*" element={<DuelInviteLanding />} />
+        </Routes>
+      </Router>
+    );
+  }
 
   // Auto-heal: if the user has a fully-populated profile but the onboarding
   // flags are false, silently set the flags so they land on dashboard.
@@ -162,6 +191,23 @@ const AuthenticatedApp = () => {
     (user?.onboarding_complete || user?.onboarding_completed || hasRealUsername);
   if (user && !onboardingDone && !isLoadingAuth) {
     return <Onboarding />;
+  }
+
+  // Post-auth resume for the viral duel-invite flow: if the user just
+  // finished onboarding and there's a stashed invite token, route them
+  // back to the landing page so they can accept with their fresh
+  // account. Done via a hard redirect (not a Router push) because we
+  // haven't reached the Router yet — we're still in the auth bootstrap
+  // region. clearPendingToken happens on the landing page itself once
+  // the claim succeeds, so a redirect failure won't loop.
+  if (user && onboardingDone && typeof window !== 'undefined') {
+    const stashedToken = readPendingToken();
+    if (stashedToken && !window.location.pathname.startsWith('/duel-invite/')) {
+      // Clear FIRST so an interrupted redirect doesn't loop.
+      clearPendingToken();
+      window.location.replace(`/duel-invite/${stashedToken}`);
+      return null;
+    }
   }
 
   // Render the main app — each lazy page is wrapped in Suspense so the
