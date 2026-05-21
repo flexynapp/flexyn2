@@ -6,8 +6,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Swords, Dumbbell, Timer, Trophy,
-  ChevronRight, Loader2, Search, UserCircle2,
+  X, Swords, Dumbbell, Timer, Trophy, Loader2, Search, UserCircle2,
   ArrowLeft, SendHorizonal,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';

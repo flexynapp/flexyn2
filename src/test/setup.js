@@ -10,6 +10,19 @@
 import '@testing-library/jest-dom';
 import { vi } from 'vitest';
 
+// ── Supabase env stubs ─────────────────────────────────────────────────────
+// The Supabase client throws at import time if VITE_SUPABASE_URL or
+// VITE_SUPABASE_ANON_KEY are missing. Fresh containers / CI runners that
+// don't have a local .env would otherwise fail every test file that
+// transitively imports `@/api/supabaseClient`. The values are stubs — no
+// network calls happen in tests (data fns use vi.mock chains).
+if (!import.meta.env.VITE_SUPABASE_URL) {
+  import.meta.env.VITE_SUPABASE_URL = 'https://stub.supabase.co';
+}
+if (!import.meta.env.VITE_SUPABASE_ANON_KEY) {
+  import.meta.env.VITE_SUPABASE_ANON_KEY = 'stub-anon-key';
+}
+
 // ── Browser API stubs ──────────────────────────────────────────────────────
 
 // navigator.vibrate is used in drag handlers — stub so tests don't throw

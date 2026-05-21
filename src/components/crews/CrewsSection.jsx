@@ -6,12 +6,12 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Flame, Clock, Trophy, Crown, History } from 'lucide-react';
+import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Trophy, Crown, History } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
-import { getActiveWarForCrew, getWarContributions, getCrewWarHistory, getWarScore, getOpponentScore, joinWarMatchmaking } from '@/lib/data/crewWars';
-import { formatDistanceToNow, differenceInHours } from 'date-fns';
+import { getActiveWarForCrew, getCrewWarHistory, getWarScore, getOpponentScore, joinWarMatchmaking } from '@/lib/data/crewWars';
+import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';

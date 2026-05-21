@@ -3,7 +3,7 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Clock, Loader2, Check, Lock } from 'lucide-react';
+import { Zap, Clock, Loader2, Lock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { claimBounty, DIFFICULTY_CONFIG, bountyDescription } from '@/lib/data/bounties';
 import { useQueryClient } from '@tanstack/react-query';

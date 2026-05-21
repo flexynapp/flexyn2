@@ -12,7 +12,6 @@ import {
 import CoinShopModal from './CoinShopModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/api/supabaseClient';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import * as capsules    from '@/lib/data/capsules';

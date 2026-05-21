@@ -2,10 +2,10 @@
 // Full duels hub — active duels, history, challenge someone.
 
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Swords, Clock, Trophy, CheckCircle2, XCircle, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
-import { listMyDuels, calcDuelVolume } from '@/lib/data/duels';
+import { AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Swords, Trophy, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
+import { listMyDuels } from '@/lib/data/duels';
 import { useAuth } from '@/lib/AuthContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 import DuelDetailSheet from '@/components/duels/DuelDetailSheet';

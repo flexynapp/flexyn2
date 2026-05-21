@@ -5,7 +5,6 @@
 // Mirrors the CrewDMInviteCard pattern exactly.
 
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
 import { Swords, Dumbbell, Timer, Trophy, Check, X, Loader2 } from 'lucide-react';
 import { acceptDuel, declineDuel } from '@/lib/data/duels';
 import { useQueryClient } from '@tanstack/react-query';

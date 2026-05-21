@@ -3,9 +3,9 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Shield, Clock, Crown, Trophy, ChevronRight } from 'lucide-react';
+import { Flame, Shield, Clock, Crown, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore, getOpponentCrewId } from '@/lib/data/crewWars';
+import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore } from '@/lib/data/crewWars';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
 
 function ScoreBar({ myScore, theirScore }) {

@@ -4,7 +4,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X, Swords, Dumbbell, Timer, Trophy, Crown } from 'lucide-react';
-import { PRESTIGE_ROMAN } from '@/lib/data/prestige';
 
 const TYPE_ICON  = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 const TYPE_LABEL = { mirror: 'Mirror Duel', open: 'Open Duel', exercise: 'Exercise Duel' };

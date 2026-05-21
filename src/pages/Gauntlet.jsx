@@ -15,8 +15,6 @@ import {
   getActiveCommunityGauntlet,
   getCommunityGauntletAttempt,
   startCommunityGauntletAttempt,
-  getGauntletStats,
-  getWeeklyGauntletStats,
 } from '@/lib/data/gauntlet';
 import GauntletPath from '@/components/gauntlet/GauntletPath';
 import WeeklyGauntletCard from '@/components/gauntlet/WeeklyGauntletCard';
