@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { toast } from 'sonner';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,7 +21,7 @@ import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import { calculateCardioXp } from '@/lib/xpSystem';
 import { estimateCalories, userWeightKg } from '@/lib/cardioCalories';
-import { checkCardioSpeed, getMaxRealisticCalories } from '@/lib/cardioLimits';
+import { checkCardioSpeed, getMaxRealisticCalories, checkDailyHours } from '@/lib/cardioLimits';
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -33,6 +33,28 @@ function deriveType(mode, env) {
 export default function CardioManualForm({ mode, env, initial, onCancel, onSaved, userProfile = {} }) {
   const { t } = useLanguage();
   const { user } = useAuth();
+
+  // Today's existing workout + cardio logs — used by the daily-hour
+  // plausibility gate below. Scoped to TODAY only (the gate is a
+  // per-day combined-volume sanity check). Cached for 60s so a
+  // double-tap save doesn't double-fetch.
+  const todayStr = format(new Date(), 'yyyy-MM-dd');
+  const { data: todayWorkoutLogs = [] } = useQuery({
+    queryKey: ['workoutLogs.today', user?.email, todayStr],
+    queryFn: () => db.entities.WorkoutLog.filter(
+      { created_by: user.email, date: todayStr }, '-date', 50
+    ).catch(() => []),
+    enabled: !!user?.email,
+    staleTime: 60_000,
+  });
+  const { data: todayCardioLogs = [] } = useQuery({
+    queryKey: ['cardioLogs.today', user?.email, todayStr],
+    queryFn: () => db.entities.CardioLog.filter(
+      { created_by: user.email, date: todayStr }, '-date', 50
+    ).catch(() => []),
+    enabled: !!user?.email,
+    staleTime: 60_000,
+  });
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
 
@@ -126,6 +148,30 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
           : t('cardio.error.dateInFuture'));
         setSaving(false);
         return;
+      }
+
+      // ── Daily-hour plausibility check ──
+      // The checkDailyHours util existed in src/lib/cardioLimits.js
+      // but no caller wired it in — users could log 12h cardio + 4h
+      // workout on the same day with no gate. Now applied here AND
+      // (by symmetry) to be applied at the equivalent point in
+      // Workout.jsx as a follow-up.
+      // Only blocks dates that ARE today — past-date entries don't
+      // race against today's accumulated logs.
+      if (date === todayStr) {
+        const hoursCheck = checkDailyHours(
+          todayWorkoutLogs, todayCardioLogs,
+          0,                              // newWorkoutMins (this is a cardio save)
+          Number(durationSeconds) || 0,   // newCardioSecs
+        );
+        if (hoursCheck.implausible) {
+          toast.error(
+            `That would put you over the daily ${hoursCheck.reason.replace('_', ' ')} cap ` +
+            `(${hoursCheck.hours}h / ${hoursCheck.maxHours}h limit). Take a rest day.`
+          );
+          setSaving(false);
+          return;
+        }
       }
 
       // ── Speed plausibility check ──
