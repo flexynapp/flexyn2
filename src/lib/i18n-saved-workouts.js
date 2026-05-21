@@ -6,6 +6,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'No saved workouts yet',
     'workout.exerciseSingular': 'exercise',
     'workout.setSingular': 'set',
+    'workout.repeatLast': 'Repeat last workout',
+    'workout.lastWorkout': 'Last workout',
   },
   es: {
     'workout.savedWorkouts': 'Entrenamientos guardados',
@@ -13,6 +15,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Aún no hay entrenamientos guardados',
     'workout.exerciseSingular': 'ejercicio',
     'workout.setSingular': 'serie',
+    'workout.repeatLast': 'Repetir último entrenamiento',
+    'workout.lastWorkout': 'Último entrenamiento',
   },
   fr: {
     'workout.savedWorkouts': 'Séances sauvegardées',
@@ -20,6 +24,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Aucune séance sauvegardée',
     'workout.exerciseSingular': 'exercice',
     'workout.setSingular': 'série',
+    'workout.repeatLast': 'Répéter la dernière séance',
+    'workout.lastWorkout': 'Dernière séance',
   },
   de: {
     'workout.savedWorkouts': 'Gespeicherte Trainings',
@@ -27,6 +33,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Noch keine gespeicherten Trainings',
     'workout.exerciseSingular': 'Übung',
     'workout.setSingular': 'Satz',
+    'workout.repeatLast': 'Letztes Training wiederholen',
+    'workout.lastWorkout': 'Letztes Training',
   },
   pt: {
     'workout.savedWorkouts': 'Treinos salvos',
@@ -34,6 +42,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Ainda não há treinos salvos',
     'workout.exerciseSingular': 'exercício',
     'workout.setSingular': 'série',
+    'workout.repeatLast': 'Repetir último treino',
+    'workout.lastWorkout': 'Último treino',
   },
   it: {
     'workout.savedWorkouts': 'Allenamenti salvati',
@@ -41,6 +51,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Nessun allenamento salvato',
     'workout.exerciseSingular': 'esercizio',
     'workout.setSingular': 'serie',
+    'workout.repeatLast': 'Ripeti l\'ultimo allenamento',
+    'workout.lastWorkout': 'Ultimo allenamento',
   },
   ja: {
     'workout.savedWorkouts': '保存済みワークアウト',
@@ -48,6 +60,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': '保存されたワークアウトはありません',
     'workout.exerciseSingular': '種目',
     'workout.setSingular': 'セット',
+    'workout.repeatLast': '前回のワークアウトを繰り返す',
+    'workout.lastWorkout': '前回のワークアウト',
   },
   ko: {
     'workout.savedWorkouts': '저장된 운동',
@@ -55,6 +69,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': '저장된 운동이 없습니다',
     'workout.exerciseSingular': '운동',
     'workout.setSingular': '세트',
+    'workout.repeatLast': '지난 운동 반복',
+    'workout.lastWorkout': '지난 운동',
   },
   zh: {
     'workout.savedWorkouts': '已保存的锻炼',
@@ -62,6 +78,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': '暂无保存的锻炼',
     'workout.exerciseSingular': '动作',
     'workout.setSingular': '组',
+    'workout.repeatLast': '重复上次锻炼',
+    'workout.lastWorkout': '上次锻炼',
   },
   ar: {
     'workout.savedWorkouts': 'التدريبات المحفوظة',
@@ -69,6 +87,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'لا توجد تدريبات محفوظة بعد',
     'workout.exerciseSingular': 'تمرين',
     'workout.setSingular': 'مجموعة',
+    'workout.repeatLast': 'كرر آخر تمرين',
+    'workout.lastWorkout': 'آخر تمرين',
   },
   hi: {
     'workout.savedWorkouts': 'सहेजे गए वर्कआउट',
@@ -76,6 +96,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'अभी तक कोई सहेजा हुआ वर्कआउट नहीं',
     'workout.exerciseSingular': 'एक्सरसाइज',
     'workout.setSingular': 'सेट',
+    'workout.repeatLast': 'पिछला वर्कआउट दोहराएं',
+    'workout.lastWorkout': 'पिछला वर्कआउट',
   },
   ru: {
     'workout.savedWorkouts': 'Сохранённые тренировки',
@@ -83,6 +105,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Пока нет сохранённых тренировок',
     'workout.exerciseSingular': 'упражнение',
     'workout.setSingular': 'подход',
+    'workout.repeatLast': 'Повторить последнюю тренировку',
+    'workout.lastWorkout': 'Последняя тренировка',
   },
   tr: {
     'workout.savedWorkouts': 'Kaydedilen antrenmanlar',
@@ -90,6 +114,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Henüz kaydedilmiş antrenman yok',
     'workout.exerciseSingular': 'egzersiz',
     'workout.setSingular': 'set',
+    'workout.repeatLast': 'Son antrenmanı tekrarla',
+    'workout.lastWorkout': 'Son antrenman',
   },
   pl: {
     'workout.savedWorkouts': 'Zapisane treningi',
@@ -97,6 +123,8 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Brak zapisanych treningów',
     'workout.exerciseSingular': 'ćwiczenie',
     'workout.setSingular': 'seria',
+    'workout.repeatLast': 'Powtórz ostatni trening',
+    'workout.lastWorkout': 'Ostatni trening',
   },
   nl: {
     'workout.savedWorkouts': 'Opgeslagen workouts',
@@ -104,5 +132,7 @@ export const savedWorkoutsI18n = {
     'workout.noSavedWorkouts': 'Nog geen opgeslagen workouts',
     'workout.exerciseSingular': 'oefening',
     'workout.setSingular': 'set',
+    'workout.repeatLast': 'Vorige workout herhalen',
+    'workout.lastWorkout': 'Vorige workout',
   },
 };

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
-import { format, subDays } from 'date-fns';
+import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -565,6 +565,30 @@ export default function Workout() {
     setStarted(true);
   };
 
+  // Repeat-last-workout: the single biggest friction-reducer for daily users.
+  // Pre-fills the same exercises with last session's weights and reps as
+  // suggestions — if the user hits the same numbers they can save with one
+  // tap; if they bumped up, they edit one cell. Same shape transform as
+  // startFreestyle so the active-workout view doesn't notice it.
+  const startFromLastWorkout = () => {
+    const last = logs[0];
+    if (!last) return;
+    const id = `repeat-${last.id}-${Date.now()}`;
+    setActiveSessionId(id);
+    setSelectedRegimen(null);
+    setExercises((last.exercises || []).map(ex => ({
+      name: ex.name,
+      muscle_group: ex.muscle_group || '',
+      muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
+      sets: (ex.sets || []).map(s => ({
+        weight: s.weight ?? null,
+        reps:   s.reps   ?? null,
+      })),
+    })));
+    setNotes('');
+    setStarted(true);
+  };
+
   const handleComebackStart = (comebackExercises, title) => {
     comebackProtocol.dismiss();
     const id = `comeback-${Date.now()}`;
@@ -1080,6 +1104,65 @@ export default function Workout() {
                 </motion.div>
               </div>
             </motion.button>
+
+            {/* Repeat last workout — fastest path to logging for returning
+                users. Pre-fills the most recent session's exercises with the
+                same weights/reps as suggestions; identical numbers → one-tap
+                save, harder numbers → bump one cell. Hidden when there's no
+                history (new users get the freestyle CTA only). */}
+            {logs.length > 0 && (() => {
+              const last = logs[0];
+              const exCount = (last.exercises || []).length;
+              if (!exCount) return null;
+              const setCount = (last.exercises || [])
+                .reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
+              const title = last.regimen_name || t('workout.lastWorkout') || 'Last workout';
+              const subtitleParts = [
+                last.date ? format(parseISO(last.date), 'MMM d') : null,
+                exCount === 1
+                  ? `1 ${t('workout.exerciseSingular') || 'exercise'}`
+                  : `${exCount} ${(t('workout.exercises') || 'exercises').toLowerCase()}`,
+                setCount > 0
+                  ? (setCount === 1
+                      ? `1 ${t('workout.setSingular') || 'set'}`
+                      : `${setCount} ${(t('common.sets') || 'sets').toLowerCase()}`)
+                  : null,
+              ].filter(Boolean);
+              return (
+                <motion.button
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.45, delay: 0.05, ease: [0.22, 1, 0.36, 1] }}
+                  whileHover={{ y: -1 }}
+                  whileTap={{ scale: 0.99 }}
+                  onClick={startFromLastWorkout}
+                  className="group w-full mb-4 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/8 via-primary/5 to-transparent hover:border-primary/45 transition-colors p-4 md:p-5 text-left"
+                  aria-label={t('workout.repeatLast') || 'Repeat last workout'}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/25 transition-colors">
+                      <History className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-primary">
+                          {t('workout.repeatLast') || 'Repeat last workout'}
+                        </span>
+                      </div>
+                      <p className="font-heading font-bold text-base md:text-lg leading-tight truncate mt-0.5">
+                        {title}
+                      </p>
+                      {subtitleParts.length > 0 && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">
+                          {subtitleParts.join(' • ')}
+                        </p>
+                      )}
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                  </div>
+                </motion.button>
+              );
+            })()}
 
             {/* Secondary actions */}
             <motion.div
