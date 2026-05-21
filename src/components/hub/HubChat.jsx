@@ -178,19 +178,54 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // ── Realtime channel for typing indicator ─────────────────────────────────
   useEffect(() => {
     if (!conversation?.id || !user?.id) return;
-    const ch = supabase.channel(`dm_typing_${conversation.id}`, {
+    // Channel name MUST match across both peers for broadcast routing
+    // to work — adding a random per-mount suffix (the fix used in
+    // HubFeed) would silo each user. Instead we wrap subscribe in a
+    // try/catch: if Supabase's channel registry hands back a stale
+    // already-subscribed channel from a prior mount whose cleanup is
+    // still in flight (React 18 double-mount, rapid conversation
+    // switch back-and-forth), .on() throws "cannot add callbacks
+    // after subscribe()". In that case we forcibly remove + recreate
+    // once. If the retry still fails we log and continue without the
+    // typing indicator — degrading the feature is acceptable;
+    // crashing the chat is not.
+    let ch;
+    const buildChannel = () => supabase.channel(`dm_typing_${conversation.id}`, {
       config: { broadcast: { self: false } },
     });
-    ch.on('broadcast', { event: 'typing' }, ({ payload }) => {
-      if (payload?.user_id === user.id) return;
-      setPeerIsTyping(true);
-      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      typingTimeoutRef.current = setTimeout(() => setPeerIsTyping(false), 3000);
-    }).subscribe();
+    const attachAndSubscribe = (channel) => {
+      channel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload?.user_id === user.id) return;
+        setPeerIsTyping(true);
+        if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setPeerIsTyping(false), 3000);
+      }).subscribe();
+    };
+    try {
+      ch = buildChannel();
+      attachAndSubscribe(ch);
+    } catch (e) {
+      const isStaleChannel = /cannot add.*callbacks.*subscribe/i.test(e?.message || '');
+      if (isStaleChannel && ch) {
+        // Remove the zombie + retry with a fresh acquisition.
+        try { supabase.removeChannel(ch).catch(() => {}); } catch {}
+        try {
+          ch = buildChannel();
+          attachAndSubscribe(ch);
+        } catch (retryErr) {
+          // Give up — chat keeps working, typing indicator just won't fire.
+          console.warn('[HubChat] typing channel setup failed:', retryErr);
+          ch = null;
+        }
+      } else {
+        console.warn('[HubChat] typing channel setup failed:', e);
+        ch = null;
+      }
+    }
     channelRef.current = ch;
     return () => {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-      supabase.removeChannel(ch).catch(() => {});
+      if (ch) supabase.removeChannel(ch).catch(() => {});
       channelRef.current = null;
     };
   }, [conversation?.id, user?.id]);
