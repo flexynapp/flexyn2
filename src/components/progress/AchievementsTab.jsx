@@ -8,7 +8,7 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Lock, Star } from 'lucide-react';
+import { Trophy, Lock, Star, LockKeyhole } from 'lucide-react';
 import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -136,8 +136,23 @@ export default function AchievementsTab({ achievements = [] }) {
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`text-3xl flex-shrink-0 ${!ach.unlocked && 'opacity-30'}`}>
-                            {ach.unlocked ? ach.icon : <Lock className="w-8 h-8" />}
+                          <div className="relative flex-shrink-0 w-10 h-10 flex items-center justify-center">
+                            {/* Always show the actual icon; grey + desaturate when locked */}
+                            <span
+                              className="text-3xl leading-none"
+                              style={!ach.unlocked ? {
+                                filter: 'grayscale(1) brightness(0.45)',
+                                opacity: 0.7,
+                              } : {}}
+                            >
+                              {ach.icon}
+                            </span>
+                            {/* Small lock badge pinned to bottom-right corner */}
+                            {!ach.unlocked && (
+                              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-muted border border-border flex items-center justify-center shadow-sm">
+                                <LockKeyhole className="w-2.5 h-2.5 text-muted-foreground" />
+                              </span>
+                            )}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">

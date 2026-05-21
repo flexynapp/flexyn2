@@ -25,6 +25,7 @@ const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
 const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
 const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
+import { isVerified } from '@/lib/verifiedUsers';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
@@ -228,6 +229,7 @@ export default function ProfileMenu() {
   const initials = user?.full_name
     ? user.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
     : '?';
+  const isVerifiedUser = isVerified(user?.username);
 
   if (accountDeleted) return <AccountDeletedScreen />;
 
@@ -242,13 +244,28 @@ export default function ProfileMenu() {
             : 'Profile'
         }
       >
-        <div className="relative w-9 h-9 rounded-full bg-primary/10 border border-border flex items-center justify-center text-sm font-bold text-primary shrink-0 overflow-hidden">
-          {user?.avatar_url ? (
-            <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
-          ) : user?.full_name ? (
-            initials
-          ) : (
-            <User className="w-4 h-4" />
+        <div className="relative w-9 h-9 shrink-0">
+          <div className="w-9 h-9 rounded-full bg-primary/10 border border-border flex items-center justify-center text-sm font-bold text-primary overflow-hidden">
+            {user?.avatar_url ? (
+              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : user?.full_name ? (
+              initials
+            ) : (
+              <User className="w-4 h-4" />
+            )}
+          </div>
+          {/* Admin crown — only for verified users */}
+          {isVerifiedUser && (
+            <svg
+              width="14" height="11"
+              viewBox="0 0 14 11"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              style={{ position: 'absolute', top: -7, left: '50%', transform: 'translateX(-50%) rotate(-10deg)', filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.5))' }}
+            >
+              <path d="M1 9.5L2.5 4L5.5 7L7 1.5L8.5 7L11.5 4L13 9.5H1Z" fill="#F59E0B" stroke="#D97706" strokeWidth="0.75" strokeLinejoin="round" />
+              <rect x="1" y="9.5" width="12" height="1.5" rx="0.75" fill="#D97706" />
+            </svg>
           )}
         </div>
         {/* Unopened-capsule badge — the visible-from-every-page

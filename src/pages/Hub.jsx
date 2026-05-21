@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Zap } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -15,7 +15,6 @@ import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
-import BountyBoard from '@/components/bounties/BountyBoard';
 import { useStartConversation } from '@/lib/hubMessaging';
 
 // ─── Ember particle data for the marketplace button ───────────────────────────
@@ -158,7 +157,7 @@ export default function Hub() {
             </div>
           </div>
 
-          {/* Feed sub-tabs — Pump | Squad | Crews | Bounties */}
+          {/* Feed sub-tabs — Pump | Squad | Crews */}
           {section === 'feed' && (
             <div className="flex gap-1 p-1 bg-secondary rounded-lg border border-border">
               <button
@@ -198,25 +197,13 @@ export default function Hub() {
                 <Shield className="w-3.5 h-3.5" />
                 Crews
               </button>
-              <button
-                type="button"
-                onClick={() => setFeedTab('bounties')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
-                  feedTab === 'bounties'
-                    ? 'bg-amber-500 text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <Zap className="w-3.5 h-3.5" />
-                Bounties
-              </button>
             </div>
           )}
         </div>
       </div>
 
       {/* Stories tray — hidden on Crews tab */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'bounties' && (
+      {section === 'feed' && feedTab !== 'crews' && (
         <StoriesRow
           onViewProfile={(u) => {
             setProfileTarget(u);
@@ -226,7 +213,7 @@ export default function Hub() {
       )}
 
       {/* Marketplace + New Post row — shown on feed tabs, not crews */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'bounties' && (
+      {section === 'feed' && feedTab !== 'crews' && (
         <div className="flex gap-2.5 mb-4">
           {/* Marketplace — 3/4 width, ember animation */}
           <div className="flex-[3] relative overflow-hidden rounded-2xl">
@@ -302,12 +289,6 @@ export default function Hub() {
             />
           )}
 
-          {section === 'feed' && feedTab === 'bounties' && (
-            <div className="pt-2 pb-6">
-              <BountyBoard />
-            </div>
-          )}
-
           {section === 'profile' && (
             <HubProfile
               targetUser={profileTarget}
@@ -319,7 +300,7 @@ export default function Hub() {
       </AnimatePresence>
 
       {/* Mobile FAB — only on the feed, not on Crews tab */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'bounties' && (
+      {section === 'feed' && feedTab !== 'crews' && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
           style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}

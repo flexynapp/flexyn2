@@ -188,6 +188,8 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     lastMsg.message_type === 'trade_offer' ||
                     lastMsgText.startsWith('[TRADE_OFFER_V1]');
                   const isTradeResponse = lastMsgText.startsWith('[TRADE_RESPONSE_V1]');
+                  const isDuelInvite   = lastMsgText.startsWith('[DUEL_INVITE_V1]');
+                  const isCrewInvite   = lastMsgText.startsWith('[CREW_INVITE_V1]');
                   let displayText = lastMsgText;
                   if (isTradeOffer) {
                     displayText = '📦 Trade offer sent.';
@@ -199,8 +201,32 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     displayText = newlineIdx >= 0
                       ? lastMsgText.slice(newlineIdx + 1).trim() || '📦 Replied to trade offer.'
                       : '📦 Replied to trade offer.';
+                  } else if (isDuelInvite) {
+                    // Parse sender name from JSON payload if available
+                    try {
+                      const json = JSON.parse(lastMsgText.replace('[DUEL_INVITE_V1]', ''));
+                      const senderName = json.senderName || json.sender_name || (isMine ? 'You' : handle);
+                      displayText = isMine
+                        ? '⚔️ You sent a Duel Challenge.'
+                        : `⚔️ Duel Challenge from ${senderName}.`;
+                    } catch {
+                      displayText = isMine ? '⚔️ You sent a Duel Challenge.' : '⚔️ Duel Challenge received.';
+                    }
+                  } else if (isCrewInvite) {
+                    try {
+                      const json = JSON.parse(lastMsgText.replace('[CREW_INVITE_V1]', ''));
+                      const crewName = json.crewName || json.crew_name || 'a Crew';
+                      displayText = isMine
+                        ? `🛡️ You sent an invite to ${crewName}.`
+                        : `🛡️ Crew invite: ${crewName}.`;
+                    } catch {
+                      displayText = isMine ? '🛡️ You sent a Crew invite.' : '🛡️ Crew invite received.';
+                    }
                   }
-                  preview = isMine ? `You: ${displayText}` : displayText;
+                  // For duel/crew invites the friendly text already includes
+                  // direction context, so skip the "You:" prefix.
+                  const skipYouPrefix = isDuelInvite || isCrewInvite;
+                  preview = (isMine && !skipYouPrefix) ? `You: ${displayText}` : displayText;
                 }
                 const unread = (c.unreadCount || 0) > 0;
                 const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at);

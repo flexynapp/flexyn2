@@ -569,8 +569,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     );
   }
 
-  // Show steel USA overlay for @sean's profile (visible to any visitor)
-  const isAdminProfile = ownerUsername === 'sean' || ownerUsername === 'seanj';
+  // Show steel USA overlay for @sean's and @keganbergeron's profiles (visible to any visitor)
+  const isAdminProfile = ownerUsername === 'sean' || ownerUsername === 'seanj'
+    || ownerUsername === 'kegan' || ownerUsername === 'keganbergeron';
 
   return (
     <ThemedScope themeId={ownerThemeId} lootThemeId={ownerLootThemeId}>

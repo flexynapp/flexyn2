@@ -52,6 +52,22 @@ function dedupeMessages(list) {
   return out;
 }
 
+// ── DM fire-reaction helpers ──────────────────────────────────────────────────
+const DM_FIRE_KEY = (convId) => `dm_fire_reactions_${convId}`;
+
+function loadDmFires(convId) {
+  try {
+    return JSON.parse(localStorage.getItem(DM_FIRE_KEY(convId)) || '{}');
+  } catch {
+    return {};
+  }
+}
+function saveDmFires(convId, map) {
+  try {
+    localStorage.setItem(DM_FIRE_KEY(convId), JSON.stringify(map));
+  } catch {}
+}
+
 export default function HubChat({ conversation, otherUser = null, onBack }) {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -66,6 +82,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const textareaRef = useRef(null);
   const fileInputRef = useRef(null);
   const stickToBottomRef = useRef(true);
+
+  // Double-tap fire reactions — persisted in localStorage per conversation
+  const lastTapRef = useRef({ id: null, time: 0 });
+  const [fireReactions, setFireReactions] = useState(() =>
+    loadDmFires(conversation?.id)
+  );
+  const [floatingFires, setFloatingFires] = useState([]); // [{id, msgId}]
+
+  // Reload fires if conversation changes
+  useEffect(() => {
+    setFireReactions(loadDmFires(conversation?.id));
+  }, [conversation?.id]);
 
   const myEmailLc = (user?.email || '').toLowerCase();
   const otherEmail = (conversation?.participant_emails || [])
@@ -167,6 +195,28 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     setAttachmentFile(file);
     setAttachmentPreview(URL.createObjectURL(file));
   }, [attachmentPreview]);
+
+  const handleMessageTap = useCallback((msgId) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last.id === msgId && now - last.time < 320) {
+      // Double-tap detected — toggle fire reaction
+      lastTapRef.current = { id: null, time: 0 };
+      setFireReactions(prev => {
+        const next = { ...prev, [msgId]: !prev[msgId] };
+        saveDmFires(conversation?.id, next);
+        return next;
+      });
+      if (!fireReactions[msgId]) {
+        // Spawn a floating fire emoji
+        const floatId = `${msgId}-${now}`;
+        setFloatingFires(f => [...f, { id: floatId, msgId }]);
+        setTimeout(() => setFloatingFires(f => f.filter(x => x.id !== floatId)), 900);
+      }
+    } else {
+      lastTapRef.current = { id: msgId, time: now };
+    }
+  }, [conversation?.id, fireReactions]);
 
   const lastSentIndex = messages.reduce((acc, m, i) =>
     m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
@@ -374,51 +424,82 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       </motion.div>
                     );
                   }
+                  const hasFire = !!fireReactions[m.id];
+                  const floatingFire = floatingFires.find(f => f.msgId === m.id);
                   return (
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: Math.min(i, 8) * 0.02 }}
-                      className={`flex mb-0.5 ${isMine ? 'justify-end' : 'justify-start'}`}
+                      className={`flex mb-0.5 relative ${isMine ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div
-                        className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity ${
-                          isMine
-                            ? 'bg-primary text-primary-foreground rounded-br-sm'
-                            : 'bg-secondary text-foreground rounded-bl-sm'
-                        } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
-                      >
-                        {(() => {
-                          // Strip the [TRADE_RESPONSE_V1] marker line so the
-                          // bubble shows only the human-readable reply text.
-                          // The marker exists for offer-card state recovery,
-                          // not for the message bubble to display.
-                          const raw = m.body || m.content || '';
-                          if (parseTradeResponse(raw)) {
-                            const newline = raw.indexOf('\n');
-                            const visible = newline >= 0 ? raw.slice(newline + 1) : '';
-                            return visible ? <span>{visible}</span> : null;
-                          }
-                          return raw ? <span>{raw}</span> : null;
-                        })()}
-                        {m.attachment_url && (
-                          // Attachment opens full-res in a new tab. Wrapped in
-                          // a real <button> (not an <img onClick>) so it's
-                          // tabbable, keyboard-actionable (Enter/Space), and
-                          // announced by screen readers as an interactive
-                          // element instead of an image.
-                          <button
-                            type="button"
-                            onClick={() => window.open(m.attachment_url, '_blank', 'noopener,noreferrer')}
-                            aria-label="Open attachment in new tab"
-                            className={`block rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-white/60 ${(m.body || m.content) ? 'mt-1.5' : ''}`}
+                      {/* Floating fire animation on double-tap */}
+                      {floatingFire && (
+                        <motion.span
+                          key={floatingFire.id}
+                          initial={{ opacity: 1, y: 0, scale: 1 }}
+                          animate={{ opacity: 0, y: -40, scale: 1.4 }}
+                          transition={{ duration: 0.85, ease: 'easeOut' }}
+                          className="absolute -top-2 pointer-events-none z-10 text-base select-none"
+                          style={isMine ? { right: 8 } : { left: 8 }}
+                        >
+                          🔥
+                        </motion.span>
+                      )}
+                      <div className="relative">
+                        <div
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => !isOptimistic && handleMessageTap(m.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleMessageTap(m.id); }}
+                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm whitespace-pre-wrap break-words transition-opacity cursor-pointer select-text ${
+                            isMine
+                              ? 'bg-primary text-primary-foreground rounded-br-sm'
+                              : 'bg-secondary text-foreground rounded-bl-sm'
+                          } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
+                        >
+                          {(() => {
+                            // Strip the [TRADE_RESPONSE_V1] marker line so the
+                            // bubble shows only the human-readable reply text.
+                            // The marker exists for offer-card state recovery,
+                            // not for the message bubble to display.
+                            const raw = m.body || m.content || '';
+                            if (parseTradeResponse(raw)) {
+                              const newline = raw.indexOf('\n');
+                              const visible = newline >= 0 ? raw.slice(newline + 1) : '';
+                              return visible ? <span>{visible}</span> : null;
+                            }
+                            return raw ? <span>{raw}</span> : null;
+                          })()}
+                          {m.attachment_url && (
+                            // Attachment opens full-res in a new tab. Wrapped in
+                            // a real <button> (not an <img onClick>) so it's
+                            // tabbable, keyboard-actionable (Enter/Space), and
+                            // announced by screen readers as an interactive
+                            // element instead of an image.
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
+                              aria-label="Open attachment in new tab"
+                              className={`block rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-transparent focus:ring-white/60 ${(m.body || m.content) ? 'mt-1.5' : ''}`}
+                            >
+                              <img
+                                src={m.attachment_url}
+                                alt="Message attachment"
+                                className="rounded-lg max-h-64 object-cover max-w-full"
+                              />
+                            </button>
+                          )}
+                        </div>
+                        {/* Persistent fire badge */}
+                        {hasFire && (
+                          <span
+                            className={`absolute -bottom-2 text-sm leading-none pointer-events-none select-none ${
+                              isMine ? '-left-3' : '-right-3'
+                            }`}
                           >
-                            <img
-                              src={m.attachment_url}
-                              alt="Message attachment"
-                              className="rounded-lg max-h-64 object-cover max-w-full"
-                            />
-                          </button>
+                            🔥
+                          </span>
                         )}
                       </div>
                     </motion.div>

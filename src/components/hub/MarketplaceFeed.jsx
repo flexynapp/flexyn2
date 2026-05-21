@@ -7,8 +7,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap,
   ChevronLeft, RefreshCw, Lock,
-  ArrowUpDown, Gift, ChevronDown,
+  ArrowUpDown, Gift, Package,
 } from 'lucide-react';
+import CoinShopModal from './CoinShopModal';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
@@ -561,26 +562,26 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
         </div>
       </div>
 
-      {/* Row 2: sort controls */}
+      {/* Row 2: sort toggle — single tap cycles Recent → Price → Price↑ → Recent */}
       <div className="flex items-center gap-2">
-        <div className="relative">
-          <select
-            value={sortBy}
-            onChange={(e) => onSortByChange(e.target.value)}
-            className="appearance-none bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full pl-3.5 pr-8 py-1.5 focus:outline-none focus:ring-2 focus:ring-purple-400 cursor-pointer"
-          >
-            <option value="recent">Recent</option>
-            <option value="price">Price</option>
-          </select>
-          <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 w-3 h-3 text-white/60" />
-        </div>
         <button
-          onClick={onSortDirToggle}
-          title={sortDir === 'desc' ? 'Descending' : 'Ascending'}
-          className="flex items-center gap-1 bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 transition-colors"
+          onClick={() => {
+            if (sortBy === 'recent') {
+              onSortByChange('price');
+            } else if (sortBy === 'price' && sortDir === 'desc') {
+              onSortDirToggle(); // price desc → price asc
+            } else {
+              onSortByChange('recent'); // price asc → recent
+            }
+          }}
+          className="flex items-center gap-1.5 bg-purple-900 border border-purple-600 text-white text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-purple-800 transition-colors select-none"
         >
           <ArrowUpDown className="w-3 h-3" />
-          {sortDir === 'desc' ? '↓' : '↑'}
+          {sortBy === 'recent'
+            ? 'Recent'
+            : sortDir === 'desc'
+              ? 'Price: High → Low'
+              : 'Price: Low → High'}
         </button>
       </div>
     </div>
@@ -657,6 +658,7 @@ export default function MarketplaceFeed() {
   const [tradeTarget,      setTradeTarget]     = useState(null);
   const [buyTarget,        setBuyTarget]       = useState(null);
   const [buyBusy,          setBuyBusy]         = useState(false);
+  const [shopOpen,         setShopOpen]        = useState(false);
   // Feature 21: sort controls
   const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
   const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
@@ -756,6 +758,29 @@ export default function MarketplaceFeed() {
         />
       )}
 
+      {/* Buy More Capsules CTA */}
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.01 }}
+        onClick={() => setShopOpen(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border"
+        style={{
+          background: 'linear-gradient(135deg, rgba(124,58,237,0.18) 0%, rgba(91,33,182,0.25) 100%)',
+          borderColor: 'rgba(139,92,246,0.35)',
+        }}
+      >
+        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0">
+          <Package className="w-5 h-5 text-purple-300" />
+        </div>
+        <div className="flex-1 text-left">
+          <p className="text-sm font-bold text-white leading-tight">Buy More Capsules</p>
+          <p className="text-[11px] text-purple-300/70 leading-tight">Spend Flex Coins on Standard, Premium &amp; Elite</p>
+        </div>
+        <span className="text-xs font-bold text-amber-300 flex items-center gap-1 shrink-0">
+          🪙 {Number(flexCoins).toLocaleString()}
+        </span>
+      </motion.button>
+
       {/* Listings grid */}
       {loadingListings ? (
         <div className="flex items-center justify-center py-20">
@@ -821,6 +846,9 @@ export default function MarketplaceFeed() {
           />
         )}
       </AnimatePresence>
+
+      {/* Coin Shop — opened via Buy More Capsules CTA */}
+      <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
     </div>
   );
 }
