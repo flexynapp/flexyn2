@@ -21,6 +21,7 @@ import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
+import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
@@ -550,12 +551,18 @@ export default function Dashboard() {
         </ErrorBoundary>
       )}
 
-      {/* ── Login + Workout streak banners ──────────────────────── */}
+      {/* ── Login + Workout streak banners + push opt-in ──────────── */}
       {/* Each widget wrapped in its own ErrorBoundary so a missing migration
-          or DB error in one doesn't take down the whole Dashboard. */}
+          or DB error in one doesn't take down the whole Dashboard.
+          PushOptInBanner self-gates: only renders for engaged users
+          (hasWorkouts) on supported devices who haven't subscribed or
+          dismissed. */}
       <div className="mb-3 space-y-2">
         <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
         <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
+        <ErrorBoundary label="PushOptInBanner">
+          <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
+        </ErrorBoundary>
       </div>
 
       {/* ── Weekly League card ──────────────────────────────────── */}
