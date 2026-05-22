@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Coins, Sparkles, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as quests from '@/lib/data/quests';
@@ -58,6 +59,7 @@ export default function DailyQuestsCard({ onNavigated }) {
   const handleClaim = async (questRow) => {
     if (questRow.claimed_at) return;
     if (!questRow.completed_at) return;
+    triggerHaptic('primary');
     const result = await quests.claimQuest(user, questRow.id);
     if (result.success) {
       toast.success(t('dashboard.coinsClaimedToast').replace('{coins}', result.coinsAwarded), { icon: '🪙' });

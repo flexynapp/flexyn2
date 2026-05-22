@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/lib/haptic';
 import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy } from 'lucide-react';
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
@@ -465,15 +466,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     if (!user?.email) return;
     if (!followStatusReady) return;          // server hasn't told us yet
     if (isFollowingNow) {
+      // Unfollow path is destructive — defer haptic until the confirm
+      // dialog's actual unfollow action, where it matches "this is
+      // happening" semantics.
       setUnfollowConfirmOpen(true);
       return;
     }
+    triggerHaptic('primary');
     followMutation.mutate();
   };
 
   const handleConfirmUnfollow = () => {
     setUnfollowConfirmOpen(false);
     if (!user?.email) return;
+    triggerHaptic('warning');
     unfollowMutation.mutate();
   };
 

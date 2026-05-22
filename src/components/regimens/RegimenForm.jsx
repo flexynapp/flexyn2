@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,22 @@ const TYPE_BADGE  = { superset: 'text-violet-500 bg-violet-500/10 border-violet-
 export default function RegimenForm({ initial, onSubmit, onCancel, userProfile = {}, isSubmitting = false }) {
   const { t } = useLanguage();
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
+
+  // Auto-focus the name field on open so users can start typing right
+  // away. New regimen → focus + caret at start; edit existing → focus
+  // + caret at end so they can append/correct without re-selecting.
+  const nameInputRef = useRef(null);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const el = nameInputRef.current;
+      if (!el) return;
+      el.focus();
+      if (initial?.name) {
+        try { el.setSelectionRange(el.value.length, el.value.length); } catch { /* ignore */ }
+      }
+    }, 80);
+    return () => clearTimeout(t);
+  }, [initial?.name]);
 
   const [name, setName] = useState(initial?.name || '');
   const [description, setDescription] = useState(initial?.description || '');
@@ -213,6 +229,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
         <div>
           <label className="text-sm font-medium text-foreground mb-1.5 block">{t('regimens.name')}</label>
           <Input
+            ref={nameInputRef}
             value={name}
             onChange={e => guard.handleChange(e.target.value, setName)}
             placeholder={t('regimens.namePlaceholder')}

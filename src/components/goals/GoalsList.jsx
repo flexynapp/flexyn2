@@ -8,6 +8,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { triggerHaptic } from '@/lib/haptic';
 import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
@@ -31,6 +32,11 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
       const next = { ...prev, [kind]: new Set([...prev[kind], id]) };
       return next;
     });
+    // Primary action — completing a goal is a high-intent moment; the
+    // celebration helper fires its own distinct pattern after success.
+    // Delete is destructive but the AlertDialog already confirms, so
+    // the haptic on the second tap is the right "this is happening" cue.
+    triggerHaptic(kind === 'complete' ? 'primary' : 'warning');
     try {
       await handler(id);
     } finally {

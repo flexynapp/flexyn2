@@ -16,6 +16,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
@@ -58,11 +59,14 @@ export default function LeaderboardsContent({ active = true }) {
     if (active && user?.email) backfillLeaderboardStatsOnce(user.email);
   }, [active, user?.email]);
 
-  const { data: allUsers = [], isLoading } = useQuery({
+  const { data: allUsers = [], isLoading: isLoadingRaw } = useQuery({
     queryKey: ['allUsersLeaderboards'],
     queryFn: () => db.entities.User.list(),
     enabled: active,
   });
+  // 250ms gate so a cached re-open of leaderboards doesn't flash
+  // a loading spinner that disappears the same frame.
+  const isLoading = useDelayedLoading(isLoadingRaw);
 
   const board = BOARDS.find(b => b.id === activeBoard);
 

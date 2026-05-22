@@ -20,6 +20,7 @@ import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import UnitPill from '@/components/UnitPill';
 import { fromLbs, toLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
 
 
@@ -364,13 +365,19 @@ export default function BodyMetricsTab() {
            </div>
            ) : (
         <Card className="p-4 border-primary/30 border-2">
-          <label className="text-xs font-medium text-muted-foreground mb-1 block">
-            {editingProfile === 'height_inches'
-              ? t('bodyMetrics.editHeightLabel')
-              : editingProfile === 'birthday'
-              ? 'Date of birth'
-              : t('bodyMetrics.editWeightLabel').replace('{unit}', weightUnit)}
-          </label>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium text-muted-foreground">
+              {editingProfile === 'height_inches'
+                ? t('bodyMetrics.editHeightLabel')
+                : editingProfile === 'birthday'
+                ? 'Date of birth'
+                : t('bodyMetrics.editWeightLabel').replace('{unit}', '').trim()}
+            </label>
+            {/* Inline unit-swap pill for the weight edit field — same
+                component used in LogWeightModal + GoalForm. One tap to
+                flip lb ↔ kg without leaving the form. */}
+            {editingProfile === 'weight_lbs' && <UnitPill />}
+          </div>
           <div className="flex gap-2">
             <Input
               type={editingProfile === 'birthday' ? 'date' : 'number'}

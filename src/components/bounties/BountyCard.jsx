@@ -8,6 +8,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { claimBounty, DIFFICULTY_CONFIG, bountyDescription } from '@/lib/data/bounties';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/lib/haptic';
 
 export default function BountyCard({ bounty, hasActiveClaim = false, compact = false }) {
   const qc = useQueryClient();
@@ -29,6 +30,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
 
   const handleClaim = async () => {
     if (!canClaim || busy) return;
+    triggerHaptic('primary');
     setBusy(true);
     try {
       await claimBounty(bounty.id);

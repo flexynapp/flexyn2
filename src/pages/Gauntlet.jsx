@@ -8,6 +8,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Swords, ChevronLeft, X, Zap, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
+import { reportError } from '@/lib/reportError';
+import { toast } from 'sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import {
   getGauntletChallenges,
@@ -227,6 +229,10 @@ export default function Gauntlet() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weekly-gauntlet-attempt', weeklyGauntlet?.id] });
       qc.invalidateQueries({ queryKey: ['weekly-gauntlet-active'] });
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'gauntlet.weekly-start', level: 'warning' });
+      toast.error('Could not start the gauntlet. Try again.');
     },
   });
 
