@@ -36,6 +36,9 @@ const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPh
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
+import LiveVolumePill from '@/components/workout/LiveVolumePill';
+import { buildPRIndex } from '@/lib/data/personalRecords';
+import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import GroupBlock from '@/components/workout/GroupBlock';
 import InjuryBanner from '@/components/workout/InjuryBanner';
@@ -216,6 +219,10 @@ export default function Workout() {
 
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
+  // Build PR index ONCE per logs change so set-row PR comparison
+  // is O(1) per render. Powers the PR proximity bar + the in-set
+  // trophy stamp visible during the workout.
+  const prIndex = useMemo(() => buildPRIndex(logs), [logs]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
 
@@ -431,6 +438,10 @@ export default function Workout() {
       // XP by ~30% on workouts that had sets trimmed.
       const clampedData = result?.clampedData || _origData;
       const xpGained = result?.xpGained ?? calculateWorkoutXp(clampedData);
+      // Record exercise usage for autocomplete-ranking. Recently-
+      // used exercises rise to the top of the autocomplete next
+      // time the user starts a workout. Fire-and-forget — local.
+      recordWorkoutExercises(user?.email, clampedData?.exercises);
       if (activeSessionId) removeSession(activeSessionId);
       // Snapshot the workout for the share card *before* resetting state.
       // Capturing here means the share card preview is built from exactly
@@ -1734,7 +1745,7 @@ export default function Workout() {
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       className="p-4 md:p-8 max-w-3xl mx-auto"
     >
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-2">
         <div>
           <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight">
             {selectedRegimen?.name || t('workout.freestyle')}
@@ -1742,6 +1753,13 @@ export default function Workout() {
           <p className="text-muted-foreground text-sm mt-0.5">{t('workout.logSetsReps')}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => resetWorkout(activeSessionId)}>{t('common.cancel')}</Button>
+      </div>
+
+      {/* Live volume pill — ticks up as the user types each set.
+          Cheap dopamine — every great fitness app has a live number
+          somewhere the user watches. */}
+      <div className="mb-6">
+        <LiveVolumePill exercises={exercises} />
       </div>
 
       <div className="mb-6">
@@ -1760,6 +1778,7 @@ export default function Workout() {
             <ExerciseAutocomplete
               value={newExName}
               onChange={setNewExName}
+              userEmail={user?.email}
               onSelect={(exercise) => {
                 setNewExName(exercise.displayName || exercise.name);
                 setNewExCanonical(exercise.name);
@@ -1826,6 +1845,7 @@ export default function Workout() {
                   exercise={ex}
                   onChange={(updated) => updateExercise(i, updated)}
                   userProfile={userProfile}
+                  prIndex={prIndex}
                 />
                 <div className="absolute top-3 right-3 flex items-center gap-1">
                   {!selectedRegimen && (

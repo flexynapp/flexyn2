@@ -1,8 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
 import { searchExercises, muscleKey } from '@/lib/exerciseTranslations';
 import { titleCase } from '@/lib/textCase';
+import { getUsageScores } from '@/lib/recentExerciseUsage';
 
 const EXERCISE_LIBRARY = [
   // Chest
@@ -428,21 +429,36 @@ const EXERCISE_LIBRARY = [
 
 export { EXERCISE_LIBRARY };
 
-export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder }) {
+export default function ExerciseAutocomplete({ value, onChange, onSelect, placeholder, userEmail }) {
   const { t, language } = useLanguage();
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
+  // Recently-used exercise ranking — boost exercises the user has
+  // logged recently/frequently above alphabetical baseline. After a
+  // week of training, typing "b" surfaces "Bench Press" first
+  // because the user logs it 3× a week. Scores from localStorage
+  // (no server round-trip).
+  const usageScores = useMemo(() => getUsageScores(userEmail), [userEmail]);
+
   const suggestions = query.length >= 1
-    ? searchExercises(query, language).map(r => {
-        const lib = EXERCISE_LIBRARY.find(ex => ex.name === r.canonical);
-        return {
-          name: r.canonical,
-          displayName: r.displayName,
-          muscles: lib?.muscles || []
-        };
-      }).slice(0, 10)
+    ? searchExercises(query, language)
+        .map(r => {
+          const lib = EXERCISE_LIBRARY.find(ex => ex.name === r.canonical);
+          const usageScore = usageScores[r.canonical.toLowerCase()] || 0;
+          return {
+            name: r.canonical,
+            displayName: r.displayName,
+            muscles: lib?.muscles || [],
+            usageScore,
+            isRecent: usageScore > 0.25, // mark visually for top recents
+          };
+        })
+        // Stable-sort by usage score desc; preserves alphabetical
+        // order within equal scores (search results already alpha).
+        .sort((a, b) => (b.usageScore || 0) - (a.usageScore || 0))
+        .slice(0, 10)
     : [];
 
   useEffect(() => {

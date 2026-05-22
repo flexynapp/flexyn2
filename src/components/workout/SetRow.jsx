@@ -1,13 +1,16 @@
 import React from 'react';
+import { motion } from 'framer-motion';
+import { Trophy, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
 import { toast } from 'sonner';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '../../lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
+import { epleyOneRepMax } from '@/lib/oneRepMax';
+import PRProximityBar from './PRProximityBar';
 
 const BAR_LBS = 45; // standard barbell; TODO: make configurable per settings
 
@@ -26,7 +29,7 @@ function plateCalc(weightLbs, barLbs = BAR_LBS) {
   return result.length > 0 ? result : null;
 }
 
-export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {} }) {
+export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {} }) {
   const { weightUnit } = useWeightUnit();
   const { t } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
@@ -36,6 +39,14 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // set.weight is always stored internally in lbs
   const plates = plateCalc(set.weight);
   const showPlates = plates && exerciseName && /barbell|squat|deadlift|bench|press|row|clean|snatch/i.test(exerciseName);
+
+  // PR auto-tag — render a trophy when THIS set's estimated 1RM
+  // beats the user's all-time best for this exercise. Visible during
+  // the workout, BEFORE save — so the user gets the receipt in the
+  // moment, not 30 seconds later when the celebration toast fires.
+  const priorBest = prIndex[(exerciseName || '').trim().toLowerCase()] || 0;
+  const liveEstimate = epleyOneRepMax(set.weight, set.reps);
+  const isPRSet = priorBest > 0 && liveEstimate > priorBest;
 
   return (
     <div>
@@ -105,10 +116,32 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           className="h-9 text-center"
         />
       </div>
+      {/* PR auto-tag — inline trophy between reps and delete. Springs
+          in when the set crosses the all-time PR threshold. */}
+      {isPRSet && (
+        <motion.span
+          initial={{ scale: 0.4, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: 'spring', stiffness: 480, damping: 20 }}
+          className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-400/15 text-amber-400 shrink-0"
+          aria-label="New PR pace"
+          title="New PR pace"
+        >
+          <Trophy className="w-3.5 h-3.5" />
+        </motion.span>
+      )}
       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRemove}>
         <X className="w-3.5 h-3.5 text-muted-foreground" />
       </Button>
     </div>
+    {/* PR proximity bar — visible at >=70% of PR. Renders nothing
+        below that threshold so warmup sets stay quiet. */}
+    <PRProximityBar
+      exerciseName={exerciseName}
+      weight={set.weight}
+      reps={set.reps}
+      prIndex={prIndex}
+    />
     {showPlates && (
       <p className="text-[10px] text-muted-foreground pl-8 mt-0.5 leading-none">
         {plates.map(({ count, plate }) => `${count}×${plate}`).join(' + ')} per side
