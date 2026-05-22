@@ -1,6 +1,7 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
 import { LOGO_URL } from '@/lib/constants';
-import { Apple, LayoutDashboard, MessageCircle, Play, Sparkles, TrendingUp, Users, ShoppingBag } from 'lucide-react';
+import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
 import AnimatedRoutes from './AnimatedRoutes';
@@ -16,6 +17,81 @@ import { useBagFlow } from '@/lib/inventoryFlow';
 import UserBag from './hub/UserBag';
 import CapsuleOpener from './hub/CapsuleOpener';
 import BackToTopButton from './BackToTopButton';
+import TabQuickActionMenu from './TabQuickActionMenu';
+import { useLongPress } from '@/hooks/useLongPress';
+import { triggerHaptic } from '@/lib/haptic';
+import { useRef } from 'react';
+
+// Per-tab subcomponent. Extracts the bottom-nav tile render so each
+// tab can attach its own useLongPress instance — hooks can't go
+// inside `.map(...)` callbacks. Owns:
+//   • Tap behavior (consumed by parent via onTap)
+//   • Long-press detection (consumed via onLongPress with the DOM ref
+//     so the menu popover can anchor above this exact tab)
+//   • Hub-tab special-case styling + the unread dot
+function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap }) {
+  const ref = useRef(null);
+  const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
+
+  return (
+    <motion.div
+      whileTap={{ scale: 0.88 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+    >
+      <Link
+        ref={ref}
+        to={item.path}
+        onClick={(e) => {
+          // If a long-press just fired, the consumed click suppresses
+          // the navigation (the menu is now open instead).
+          if (!longPress.consumeClick(e)) {
+            e.preventDefault();
+            return;
+          }
+          onTap();
+        }}
+        {...longPress.bind}
+        className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
+          ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
+      >
+        <motion.div
+          animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+          className={[
+            'relative',
+            isHubItem
+              ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
+                    : 'border-2 border-primary text-primary bg-primary/5'
+                }`
+              : '',
+          ].join(' ')}
+        >
+          <item.icon className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`} />
+          {/* Unread dot for the Hub tab — appears when a followed user
+              has posted something new since the viewer last visited Hub.
+              Hidden when they're on the Hub route (being there clears it). */}
+          {isHubItem && hubHasNewFollowingPost && !isActive && (
+            <span
+              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
+              aria-label="New posts in Hub"
+            />
+          )}
+        </motion.div>
+        <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
+          {item.label}
+        </motion.span>
+        {hasQuickActions && (
+          // Subtle dots under the label so users know the long-press
+          // affordance exists. iOS uses this convention on Dock
+          // shortcuts. Invisible to anyone who'd find them noisy.
+          <span aria-hidden="true" className="text-[6px] tracking-[0.3em] -mt-0.5 opacity-50">···</span>
+        )}
+      </Link>
+    </motion.div>
+  );
+}
 
 // Helper: check if today's daily chest has NOT been claimed yet (ready to claim)
 function useDailyChestReady(userId) {
@@ -61,6 +137,47 @@ export default function Layout() {
     { path: '/progress',  label: t('nav.progress'),  icon: TrendingUp },
     { path: '/nutrition', label: t('nav.nutrition'), icon: Apple },
   ];
+
+  // Long-press quick-action menus per tab. Each entry is a list of
+  // 1-3 actions surfaced when the user holds the tab for 400ms.
+  // Actions dispatch to existing deep-link routes / page state via
+  // custom events the destination page already listens for (e.g.,
+  // ?openCardio=1 query param flows). Empty list = no menu (Dashboard
+  // is the home; nothing to add via shortcut).
+  const TAB_ACTIONS = {
+    '/dashboard': [],
+    '/workout': [
+      { id: 'quicklog', label: 'Quick log', icon: Plus, onClick: () => navigate('/workout') },
+      { id: 'cardio',   label: 'Open cardio', icon: Play, onClick: () => navigate('/workout?openCardio=1') },
+      { id: 'goals',    label: 'Open goals', icon: Sparkles, onClick: () => navigate('/workout?openGoals=1') },
+    ],
+    '/hub': [
+      { id: 'newpost', label: 'New post',  icon: Plus, onClick: () => navigate('/hub?compose=1') },
+      { id: 'search',  label: 'Search users', icon: Users, onClick: () => navigate('/hub?search=open') },
+    ],
+    '/progress': [
+      { id: 'logweight', label: 'Log weight', icon: Scale, onClick: () => navigate('/dashboard?logWeight=1') },
+      { id: 'addphoto',  label: 'Add photo',  icon: Camera, onClick: () => navigate('/dashboard?addPhoto=1') },
+    ],
+    '/nutrition': [
+      { id: 'logmeal', label: 'Log meal',     icon: Plus, onClick: () => navigate('/nutrition?openLogMeal=1') },
+      { id: 'barcode', label: 'Scan barcode', icon: ScanLine, onClick: () => navigate('/nutrition?openLogMeal=1') },
+      { id: 'water',   label: 'Add water',    icon: Droplet, onClick: () => navigate('/nutrition') },
+    ],
+  };
+
+  // Open menu state: which tab path is active + the anchor rect to
+  // position the popover above.
+  const [menuOpen, setMenuOpen] = useState(null); // { path, rect } | null
+
+  const closeQuickMenu = () => setMenuOpen(null);
+  const openQuickMenu = (path, target) => {
+    const actions = TAB_ACTIONS[path] || [];
+    if (actions.length === 0) return;
+    triggerHaptic('primary');
+    const rect = target?.getBoundingClientRect();
+    if (rect) setMenuOpen({ path, rect });
+  };
 
   return (
     <div className="min-h-[100dvh] bg-background font-body overscroll-y-none">
@@ -189,75 +306,50 @@ export default function Layout() {
           {navItems.map(item => {
             const isActive = location.pathname === item.path;
             const isHubItem = item.isHub;
+            const hasQuickActions = (TAB_ACTIONS[item.path] || []).length > 0;
 
             return (
-              <motion.div
+              <NavTab
                 key={item.path}
-                whileTap={{ scale: 0.88 }}
-                transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-              >
-                <Link
-                  to={item.path}
-                  onClick={() => {
-                    // Three behaviors stacked on one tap:
-                    //   1. Navigating to a different tab → just scroll to top.
-                    //   2. Tapping the active tab when scrolled down → scroll
-                    //      to top (the universal Twitter/IG pattern).
-                    //   3. Tapping the active tab when already AT top → broadcast
-                    //      a refresh event the active page can opt into. Apps
-                    //      with feeds (Hub, Dashboard) treat this as a manual
-                    //      refresh; pages without one ignore it.
-                    if (isActive && window.scrollY < 50) {
-                      try {
-                        window.dispatchEvent(new CustomEvent('flexyn:active-tab-retap', {
-                          detail: { path: item.path },
-                        }));
-                      } catch { /* ignore */ }
-                    } else {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }}
-                  className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
-                    ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
-                >
-                  {/* Icon container — Hub gets a theme-colored ring/circle to draw attention */}
-                  <motion.div
-                    animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
-                    transition={{ type: 'spring', stiffness: 400, damping: 18 }}
-                    className={[
-                      'relative',
-                      isHubItem
-                        ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                            isActive
-                              ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                              : 'border-2 border-primary text-primary bg-primary/5'
-                          }`
-                        : '',
-                    ].join(' ')}
-                  >
-                    <item.icon
-                      className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`}
-                    />
-                    {/* Unread dot for the Hub tab — appears when a
-                        followed user has posted something new since the
-                        viewer last visited Hub. Hidden when they're on
-                        the Hub route (the act of being there clears it). */}
-                    {isHubItem && hubHasNewFollowingPost && !isActive && (
-                      <span
-                        className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
-                        aria-label="New posts in Hub"
-                      />
-                    )}
-                  </motion.div>
-                  <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
-                    {item.label}
-                  </motion.span>
-                </Link>
-              </motion.div>
+                item={item}
+                isActive={isActive}
+                isHubItem={isHubItem}
+                hubHasNewFollowingPost={hubHasNewFollowingPost}
+                hasQuickActions={hasQuickActions}
+                onLongPress={(el) => openQuickMenu(item.path, el)}
+                onTap={() => {
+                  // Three behaviors stacked on one tap:
+                  //   1. Navigating to a different tab → just scroll to top.
+                  //   2. Tapping the active tab when scrolled down → scroll
+                  //      to top (the universal Twitter/IG pattern).
+                  //   3. Tapping the active tab when already AT top → broadcast
+                  //      a refresh event the active page can opt into. Apps
+                  //      with feeds (Hub, Dashboard) treat this as a manual
+                  //      refresh; pages without one ignore it.
+                  if (isActive && window.scrollY < 50) {
+                    try {
+                      window.dispatchEvent(new CustomEvent('flexyn:active-tab-retap', {
+                        detail: { path: item.path },
+                      }));
+                    } catch { /* ignore */ }
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}
+              />
             );
           })}
         </div>
       </nav>
+
+      {/* Long-press tab quick-action menu. Mounts globally; the tab
+          that fired the gesture sets menuOpen.path + anchorRect. */}
+      <TabQuickActionMenu
+        open={!!menuOpen}
+        anchorRect={menuOpen?.rect}
+        actions={menuOpen ? (TAB_ACTIONS[menuOpen.path] || []) : []}
+        onClose={closeQuickMenu}
+      />
 
       {/* Floating back-to-top — visible after scrolling past 2 screen-heights
           on any route. Pairs with the Link onClick scrollTo above (which

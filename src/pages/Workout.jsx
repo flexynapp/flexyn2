@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
+import { playSound, SOUND } from '@/lib/playSound';
 import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -447,6 +448,10 @@ export default function Workout() {
         (row) => !(typeof row?.id === 'string' && row.id.startsWith('__optimistic__'))
       );
       const isFirstWorkout = realPrev.length === 0;
+      // Sound effect — no-op unless the user has explicitly enabled
+      // sounds in Settings. The celebration helper handles its own
+      // haptic; the sound is layered for users who want both.
+      playSound(SOUND.workoutSaved);
       if (isFirstWorkout) {
         fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email });
         // Day-1 loot drop — reinforces the loot economy that the

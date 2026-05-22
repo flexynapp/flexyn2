@@ -13,6 +13,7 @@ import HubFeed from '@/components/hub/HubFeed';
 import HubProfile from '@/components/hub/HubProfile';
 import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
+import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -213,6 +214,12 @@ export default function Hub() {
           )}
         </div>
       </div>
+
+      {/* Live activity banner — ephemeral "X just posted" tickers
+          for new posts from followed users. Self-mounted via fixed
+          positioning so it overlays the feed without affecting scroll.
+          Only renders on the feed surface (not profile / search). */}
+      {section === 'feed' && <FollowerActivityBanner />}
 
       {/* Stories tray — hidden on Crews tab */}
       {section === 'feed' && feedTab !== 'crews' && (

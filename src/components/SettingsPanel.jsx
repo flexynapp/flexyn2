@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2 } from 'lucide-react';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
 import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
 import { supabase } from '@/api/supabaseClient';
@@ -9,6 +9,8 @@ import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
+import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
+import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
@@ -35,6 +37,13 @@ export default function SettingsPanel() {
   const [storyBlocks,         setStoryBlocks]         = useState([]);
   const [blockEmail,          setBlockEmail]          = useState('');
   const [blockSaving,         setBlockSaving]         = useState(false);
+
+  // Local mirrors of the per-device tactile preferences. Both are
+  // backed by localStorage (not server) — a user who silenced one
+  // phone shouldn't silence another. Initialized from the helper so
+  // the toggles reflect persisted state on every mount.
+  const [hapticsEnabled, setHapticsEnabledLocal] = useState(() => !getHapticsDisabled());
+  const [soundsEnabled,  setSoundsEnabledLocal]  = useState(() => getSoundsEnabled());
 
   const { data: profile } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -369,6 +378,48 @@ export default function SettingsPanel() {
           )}
         </div>
       )}
+
+      {/* Haptic feedback — per-device. When on, primary actions fire a
+          short tick. The toggle itself fires a sample haptic when
+          enabled so the user immediately feels what it's controlling. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Vibrate className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+          <p id="settings-haptics-label" className="text-xs text-foreground leading-tight">
+            {tFallback('settings.haptics', 'Haptic feedback')}
+          </p>
+        </div>
+        <ToggleSwitch
+          checked={hapticsEnabled}
+          onChange={(next) => {
+            setHapticsEnabledLocal(next);
+            setHapticsDisabled(!next);
+            if (next) triggerHaptic('primary'); // sample feel
+          }}
+          labelledBy="settings-haptics-label"
+        />
+      </div>
+
+      {/* Sound effects — opt-in, default off. When on, primary actions
+          play very short chimes (save, PR, capsule open). Most users
+          leave this off, but a small audience loves it. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Volume2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+          <p id="settings-sounds-label" className="text-xs text-foreground leading-tight">
+            {tFallback('settings.sounds', 'Sound effects')}
+          </p>
+        </div>
+        <ToggleSwitch
+          checked={soundsEnabled}
+          onChange={(next) => {
+            setSoundsEnabledLocal(next);
+            setSoundsEnabled(next);
+            if (next) playSound(SOUND.click); // sample on enable
+          }}
+          labelledBy="settings-sounds-label"
+        />
+      </div>
 
       {/* Per-category push preferences. Render only when push is supported —
           if push isn't an option the toggles are meaningless. The user can
