@@ -1,9 +1,10 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation } from '@/lib/data/conversationRequests';
+import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
 import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -126,6 +127,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [uploading, setUploading] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduleAt, setScheduleAt] = useState('');
 
   const scrollerRef    = useRef(null);
   const textareaRef    = useRef(null);
@@ -468,6 +471,77 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       toast.error(tFallback('hub.chat.pinError', 'Could not pin message. Try again.'));
     }
   }, [conversation?.id, queryClient]);
+
+  // ── Scheduled send (mig 114) ────────────────────────────────────────────
+  // Currently-pending scheduled messages for this conversation. Refetch
+  // on send and on schedule.
+  const { data: scheduledHere = [] } = useQuery({
+    queryKey: ['hubChatScheduled', conversation?.id, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const all = await listMyScheduled(user.id);
+      return all.filter(m => m.conversation_id === conversation?.id);
+    },
+    enabled: !!user?.id && !!conversation?.id,
+    refetchInterval: 30_000,
+  });
+
+  const handleSchedule = useCallback(async () => {
+    if (!draft.trim()) return;
+    if (!scheduleAt) { toast.error('Pick a date and time.'); return; }
+    const sendAt = new Date(scheduleAt);
+    if (Number.isNaN(sendAt.getTime()) || sendAt <= new Date()) {
+      toast.error('Pick a future date.');
+      return;
+    }
+    try {
+      await scheduleMyMessage({
+        conversationId:  conversation.id,
+        recipientEmail:  otherUser?.email || null,
+        content:         draft.trim(),
+        sendAt,
+      });
+      setDraft('');
+      setScheduleAt('');
+      setScheduleOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['hubChatScheduled', conversation.id, user?.id] });
+      toast.success(`Scheduled for ${sendAt.toLocaleString()}`);
+    } catch (err) {
+      toast.error(`Could not schedule: ${err?.message || 'try again'}`);
+    }
+  }, [draft, scheduleAt, conversation?.id, otherUser?.email, queryClient, user?.id]);
+
+  const handleCancelScheduled = useCallback(async (id) => {
+    try {
+      await cancelMyScheduledMessage(id);
+      queryClient.invalidateQueries({ queryKey: ['hubChatScheduled', conversation?.id, user?.id] });
+      toast.success('Scheduled message cancelled.');
+    } catch (err) {
+      toast.error(`Could not cancel: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, queryClient, user?.id]);
+
+  // ── Sender-side message deletion (mig 114) ───────────────────────────────
+  // Soft-delete via the delete_my_message RPC. Optimistic — flag the
+  // local row immediately so the bubble swaps to "This message was
+  // deleted" without waiting for the round-trip. Rollback on error.
+  const handleDeleteMessage = useCallback(async (msg) => {
+    setContextMsg(null);
+    if (!msg?.id || msg.sender_email?.toLowerCase() !== myEmailLc) return;
+    const prev = msg.deleted_at;
+    queryClient.setQueryData(['hubChat', conversation?.id], (rows) =>
+      (rows || []).map(r => r.id === msg.id ? { ...r, deleted_at: new Date().toISOString() } : r)
+    );
+    try {
+      await deleteMyMessage(msg.id);
+      toast.success('Message deleted.');
+    } catch (err) {
+      queryClient.setQueryData(['hubChat', conversation?.id], (rows) =>
+        (rows || []).map(r => r.id === msg.id ? { ...r, deleted_at: prev || null } : r)
+      );
+      toast.error(`Could not delete: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, myEmailLc, queryClient]);
 
   // ── Emoji reaction ────────────────────────────────────────────────────────
   const handleEmojiReact = useCallback(async (msg, emoji) => {
@@ -855,6 +929,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                         >
                           {(() => {
+                            // Soft-deleted by sender → swap the body for a
+                            // muted "This message was deleted" pill so the
+                            // recipient sees that something used to be here
+                            // (iMessage / IG pattern).
+                            if (m.deleted_at) {
+                              return <span className="italic opacity-70">This message was deleted</span>;
+                            }
                             const raw = m.body || m.content || '';
                             if (parseTradeResponse(raw)) {
                               const newline = raw.indexOf('\n');
@@ -1038,6 +1119,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                 {isPinned(contextMsg) ? 'Unpin message' : 'Pin message'}
               </button>
 
+              {/* Delete — only for the sender's own messages (mig 114) */}
+              {contextMsg?.sender_email?.toLowerCase() === myEmailLc && (
+                <button
+                  onClick={() => handleDeleteMessage(contextMsg)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors border-t border-border text-destructive"
+                >
+                  <span className="text-base">🗑️</span>
+                  Delete message
+                </button>
+              )}
+
               {/* Cancel */}
               <button
                 onClick={() => setContextMsg(null)}
@@ -1087,6 +1179,31 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         </div>
       )}
 
+      {/* Scheduled message queue — small banner above the composer
+          listing my pending scheduled sends in THIS conversation.
+          Each row has Cancel; no edit (cancel + recompose is cleaner). */}
+      {scheduledHere.length > 0 && (
+        <div className="mb-2 shrink-0 space-y-1">
+          {scheduledHere.map(s => (
+            <div key={s.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <Clock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-amber-500 uppercase tracking-wide">
+                  Scheduled · {new Date(s.scheduled_at).toLocaleString()}
+                </p>
+                <p className="text-xs text-foreground truncate">{s.content}</p>
+              </div>
+              <button
+                onClick={() => handleCancelScheduled(s.id)}
+                className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-destructive"
+              >
+                Cancel
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Composer */}
       <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
@@ -1114,6 +1231,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-snug"
           style={{ maxHeight: 140 }}
         />
+        {/* Schedule send — opens an inline picker. Only shown when the
+            user has typed something to send. */}
+        {draft.trim() && (
+          <button
+            onClick={() => setScheduleOpen(v => !v)}
+            aria-label="Schedule message"
+            title="Schedule send"
+            className={`p-2 rounded-lg transition-colors shrink-0 ${scheduleOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+          >
+            <Clock className="w-4 h-4" />
+          </button>
+        )}
         <button
           onClick={handleSend}
           disabled={sending || uploading || (!draft.trim() && !attachmentFile)}
@@ -1123,6 +1252,45 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <Send className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Schedule send overlay — dropdown above the composer. Uses
+          datetime-local since the native control is mobile-friendly. */}
+      <AnimatePresence>
+        {scheduleOpen && draft.trim() && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            className="absolute bottom-16 right-0 left-0 z-40 mx-2 p-3 rounded-xl bg-card border border-border shadow-lg"
+          >
+            <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5" /> Schedule send
+            </p>
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+              className="w-full px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:border-primary/50"
+            />
+            <div className="flex items-center justify-end gap-2 mt-2">
+              <button
+                onClick={() => { setScheduleOpen(false); setScheduleAt(''); }}
+                className="px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSchedule}
+                disabled={!scheduleAt}
+                className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50"
+              >
+                Schedule
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
