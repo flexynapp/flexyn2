@@ -234,6 +234,28 @@ export async function performOverthrow(assignmentId) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
+  // Look up the dethroned nemesis's name BEFORE archiving the row — used
+  // in the celebration push body. Best-effort; if the lookup fails the
+  // push falls back to a generic body.
+  let dethronedUsername = null;
+  try {
+    const { data: assignment } = await supabase
+      .from('nemesis_assignments')
+      .select('nemesis_id')
+      .eq('id', assignmentId)
+      .maybeSingle();
+    if (assignment?.nemesis_id) {
+      const { data: prof } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('id', assignment.nemesis_id)
+        .maybeSingle();
+      dethronedUsername = prof?.username || null;
+    }
+  } catch {
+    // Non-critical; the overthrow itself proceeds regardless.
+  }
+
   await supabase
     .from('nemesis_assignments')
     .update({ status: 'overthrown', overthrown_at: new Date().toISOString() })
@@ -248,6 +270,34 @@ export async function performOverthrow(assignmentId) {
   await supabase.rpc('increment_overthrow_count', { p_user_id: user.id }).catch(() => {
     // fallback if RPC not deployed yet — no-op
   });
+
+  // Self-targeted celebration push. Overthrowing your nemesis is the
+  // emotional peak of the feature — push delivery makes it land even
+  // if the user closed the app right after the qualifying workout.
+  // The 034 trigger handles fanout; the in-app row is the source of
+  // truth for the bell tray either way. Fire-and-forget — the
+  // overthrow itself is the canonical event, this is just decoration.
+  try {
+    const body = dethronedUsername
+      ? `You overthrew ${dethronedUsername}. A new rival awaits.`
+      : 'You overthrew your nemesis. A new rival awaits.';
+    await supabase.from('notifications').insert({
+      user_id:    user.id,
+      user_email: user.email,
+      type:       'nemesis_overthrown',
+      title:      'Nemesis overthrown',
+      body,
+      icon:       '👑',
+      link_url:   '/dashboard',
+      metadata: {
+        assignment_id: assignmentId,
+        dethroned_username: dethronedUsername,
+      },
+    });
+  } catch (e) {
+    // Non-critical; in-app celebration still fires from the caller.
+    console.warn('[nemesis] overthrow notification failed:', e?.message || e);
+  }
 
   return assignNemesis();
 }
