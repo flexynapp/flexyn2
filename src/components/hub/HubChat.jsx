@@ -11,6 +11,7 @@ import * as dmRxns from '@/lib/data/dmMessageReactions';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/lib/haptic';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
 import DuelInviteCard, { parseDuelInvite } from '@/components/duels/DuelInviteCard';
@@ -472,6 +473,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (!trimmed && !attachmentFile) return;
     if (sending || uploading) return;
     if (!conversation?.id) { toast.error(t('hub.messages.sendError')); return; }
+    // Primary-action haptic — sending a DM is the most frequent
+    // primary action in the messaging surface. The centralized util
+    // honors the user's haptics-off setting + rate-limiting + the
+    // reduced-motion preference.
+    triggerHaptic('primary');
 
     const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const optimistic = {

@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
+import { triggerHaptic } from '@/lib/haptic';
 import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -937,6 +938,12 @@ export default function Workout() {
       setCheatWarningData({ pendingPayload, flaggedSets });
       return;
     }
+
+    // Primary-action haptic — saving a workout is THE highest-intent
+    // moment in the app. Fires once at the tap; the celebration helpers
+    // fire their own distinct patterns afterward if a PR or first-
+    // workout milestone lands.
+    triggerHaptic('primary');
 
     const maxSetsPerEx = getMaxSetsPerExercise(userProfile);
     for (const ex of pendingPayload.exercises) {

@@ -20,6 +20,7 @@ import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
+import { triggerHaptic } from '@/lib/haptic';
 import { useProfanityGuard } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -355,6 +356,10 @@ export default function HubComposer({ onClose }) {
   // was bypassed (paste, autofill, programmatic injection), this catches it.
   const handlePost = async () => {
     if (!selected) return;
+    // Primary-action haptic — posting to Hub is one of the highest-
+    // intent moments in the social surface. The centralized util
+    // honors haptics-off + reduced-motion + rate-limit.
+    triggerHaptic('primary');
 
     // Custom meal post: food_name is required.
     // The previous implementation did `selected.item = {...}` — directly

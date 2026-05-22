@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
+import { useDelayedLoading } from '@/hooks/useDelayedLoading';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
@@ -122,19 +123,26 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     }
   }, [user?.id, queryClient]);
 
-  const { data: conversations = [], isLoading } = useQuery({
+  const { data: conversations = [], isLoading: convsLoading } = useQuery({
     queryKey: ['hubConversations', user?.email],
     queryFn: () => hubMessages.listMyConversations(user.email),
     enabled: !!user?.email,
     refetchInterval: 15000,
   });
 
-  const { data: myCrews = [], isLoading: crewsLoading } = useQuery({
+  const { data: myCrews = [], isLoading: crewsLoadingRaw } = useQuery({
     queryKey: ['myCrews', user?.id],
     queryFn: () => crewsData.getMyCrews(user.id),
     enabled: !!user?.id && tab === 'crews',
     staleTime: 30_000,
   });
+
+  // Gate the spinners through useDelayedLoading so fast fetches (cache
+  // hit, sub-250ms response) don't flash a loading affordance that
+  // immediately disappears. Users perceive sub-300ms as "instant" —
+  // the flicker actually makes the app feel slower than no spinner.
+  const isLoading = useDelayedLoading(convsLoading);
+  const crewsLoading = useDelayedLoading(crewsLoadingRaw);
 
   const otherEmails = (conversations || [])
     .map(c => (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()))
