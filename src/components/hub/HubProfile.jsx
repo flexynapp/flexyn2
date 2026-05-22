@@ -317,6 +317,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     enabled: !isSelf && !!user?.email,
   });
 
+  // Mutual-follow query: does the TARGET also follow ME? Combined with
+  // amFollowing this lets us render a small "Friends" / "Mutuals" badge
+  // next to the follow button — the classic Twitter/IG signal that the
+  // relationship is reciprocal. Knowing the social graph is symmetric
+  // changes how openly users interact (less audience-feel, more
+  // friends-feel).
+  const { data: theyFollowMe } = useQuery({
+    queryKey: ['hubTheyFollowMe', email, user?.email],
+    queryFn: () => hubFollows.isFollowing(email, user.email),
+    enabled: !isSelf && !!user?.email && !!email,
+  });
+  const isMutualFollow = amFollowing === true && theyFollowMe === true;
+
   // True only when we have a definitive answer from the server. While the
   // query is still in-flight (or hasn't started because user.email isn't
   // loaded yet), we DON'T know whether the user follows the target — so
@@ -1067,7 +1080,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         )}
 
         {!isSelf && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Mutual-follow indicator — small "Friends" pill renders only
+                when both sides follow each other. Subtle reassurance that
+                the relationship is reciprocal. */}
+            {isMutualFollow && (
+              <span
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-primary/12 text-primary border border-primary/25"
+                title={tFallback('hub.profile.mutualTooltip', 'You follow each other')}
+              >
+                <span aria-hidden="true">↔</span>
+                {tFallback('hub.profile.mutual', 'Friends')}
+              </span>
+            )}
             <button
               onClick={handleFollow}
               disabled={!followStatusReady || followBusy}
