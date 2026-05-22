@@ -4,11 +4,11 @@ getWasFirstLaunchThisSession();
 
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "sonner"
-import React, { useEffect, lazy, Suspense } from 'react';
+import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { MotionConfig } from 'framer-motion';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useParams, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
@@ -59,6 +59,32 @@ import SignInToContinue from './pages/SignInToContinue';
 // loading delay here is conversion lost.
 import DuelInviteLanding from './pages/DuelInviteLanding';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
+import { supabase } from '@/api/supabaseClient';
+
+// ── @username profile redirect ────────────────────────────────────────────────
+// Resolves a username to an email, then redirects to /hub?profile=EMAIL.
+// This is the shareable profile link surface: flexyn.app/@sean opens Sean's
+// profile without exposing the email in the shareable URL.
+function ProfileRedirect() {
+  const { username } = useParams();
+  const [target, setTarget] = React.useState(null); // null=loading, false=not found
+  useEffect(() => {
+    if (!username) { setTarget(false); return; }
+    supabase
+      .from('user_profiles')
+      .select('email')
+      .eq('username', username.replace(/^@/, ''))
+      .maybeSingle()
+      .then(({ data }) => setTarget(data?.email || false));
+  }, [username]);
+  if (target === null) {
+    return <div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" /></div>;
+  }
+  if (!target) {
+    return <Navigate to="/hub" replace />;
+  }
+  return <Navigate to={`/hub?profile=${encodeURIComponent(target)}`} replace />;
+}
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Nutrition = lazy(() => import('./pages/Nutrition'));
@@ -234,6 +260,8 @@ const AuthenticatedApp = () => {
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
         </Route>
+        {/* Shareable profile link: flexyn.app/@username → resolves username to email → /hub?profile=EMAIL */}
+        <Route path="/@:username" element={<ProfileRedirect />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>
       {/*

@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink } from 'lucide-react';
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -120,6 +120,92 @@ import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 
+// ── QR Code generator ─────────────────────────────────────────────────────────
+// Uses the public qrserver.com API — no package needed, no CORS issues.
+// Returns a URL to a PNG image of the QR code.
+function generateQrUrl(text) {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${encodeURIComponent(text)}&margin=10`;
+}
+
+// ── QR Code modal ─────────────────────────────────────────────────────────────
+function QRModal({ url, username, onClose }) {
+  const [copied, setCopied] = useState(false);
+  const [imgLoaded, setImgLoaded] = useState(false);
+  const qrImgUrl = generateQrUrl(url);
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore */ }
+  };
+
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `@${username} on Flexyn`, url });
+        return;
+      }
+    } catch (e) {
+      if (e?.name === 'AbortError') return;
+    }
+    handleCopy();
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/50"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        onClick={e => e.stopPropagation()}
+        className="bg-card border border-border rounded-t-2xl w-full max-w-sm p-6 flex flex-col items-center gap-4"
+        style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+      >
+        <div className="flex items-center justify-between w-full">
+          <h3 className="font-heading font-bold text-base">@{username}'s QR Code</h3>
+          <button type="button" onClick={onClose} className="p-1 rounded text-muted-foreground hover:bg-secondary">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="relative w-52 h-52 rounded-xl border border-border overflow-hidden bg-white">
+          {!imgLoaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
+          <img
+            src={qrImgUrl}
+            alt="Profile QR code"
+            className="w-full h-full object-contain"
+            onLoad={() => setImgLoaded(true)}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground text-center break-all px-2">{url}</p>
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={handleCopy}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-semibold hover:bg-secondary transition-colors"
+          >
+            <Copy className="w-4 h-4" />
+            {copied ? 'Copied!' : 'Copy link'}
+          </button>
+          <button
+            onClick={handleShare}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold hover:opacity-90 transition-opacity"
+          >
+            Share
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 const TROPHY_LABELS = {
   '🏆':'Trophy','🥇':'1st Place','🥈':'2nd Place','🥉':'3rd Place','🎯':'Target',
   '💪':'Strength','🔥':'Fire','⚡':'Lightning','🌟':'Star','⭐':'Star',
@@ -169,7 +255,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [cityDraft, setCityDraft] = useState('');
+  const [websiteUrlDraft, setWebsiteUrlDraft] = useState('');
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const storyFileRef = useRef(null);
@@ -237,6 +325,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
           'trophy_case', 'trophy_case_visible',
+          'website_url',
         ],
         build: (cols) => supabase
           .from('user_profiles')
@@ -542,7 +631,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      await me.update({ city: cityDraft.trim() });
+      const updates = { city: cityDraft.trim() };
+      // website_url: normalise — prepend https:// if the user omitted a scheme
+      const rawUrl = websiteUrlDraft.trim();
+      if (rawUrl) {
+        updates.website_url = /^https?:\/\//i.test(rawUrl) ? rawUrl : `https://${rawUrl}`;
+      } else {
+        updates.website_url = null;
+      }
+      await me.update(updates);
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
       setEditProfileOpen(false);
       toast.success('Saved. Looking sharp.');
@@ -612,6 +709,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const city         = isSelf ? (user?.city ?? '')          : (targetProfile?.city ?? '');
   const countryFlag  = isSelf ? (user?.country_flag ?? '')  : (targetProfile?.country_flag ?? '');
   const bio          = isSelf ? (user?.bio ?? '')           : (targetProfile?.bio ?? '');
+  const websiteUrl   = isSelf ? (user?.website_url ?? '')   : (targetProfile?.website_url ?? '');
   const rawTrophy    = isSelf ? (user?.trophy_case ?? [])   : (targetProfile?.trophy_case ?? []);
   const trophyCase   = Array.isArray(rawTrophy) ? rawTrophy : [];
   const trophyVisible = isSelf ? (user?.trophy_case_visible ?? true) : (targetProfile?.trophy_case_visible ?? true);
@@ -862,6 +960,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{bio}</p>
             )}
 
+            {/* Link in bio */}
+            {websiteUrl && (
+              <a
+                href={websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline break-all"
+              >
+                <Link2 className="w-3 h-3 shrink-0" />
+                <span className="truncate max-w-[180px]">{websiteUrl.replace(/^https?:\/\//i, '')}</span>
+                <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-60" />
+              </a>
+            )}
+
             {/* Training-together anniversary — only renders for mutual
                 follows where the friendship is at least 30 days old. On
                 the actual anniversary day each year, gets a small 🎂.
@@ -888,7 +1001,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             {isSelf && !city && !countryFlag && (
               <button
                 type="button"
-                onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+                onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
                 className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
               >
                 <MapPin className="w-3 h-3" />
@@ -901,7 +1014,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           {isSelf && (city || countryFlag) && (
             <button
               type="button"
-              onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+              onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
               className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors shrink-0"
               aria-label="Edit location"
             >
@@ -962,6 +1075,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     onChange={e => setCityDraft(e.target.value.slice(0, 40))}
                     placeholder="Your city (e.g. Miami, FL)"
                     className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                  />
+                </div>
+                {/* Link in bio */}
+                <div className="flex items-center gap-2 border-t border-border/40 pt-1">
+                  <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                  <input
+                    type="url"
+                    value={websiteUrlDraft}
+                    onChange={e => setWebsiteUrlDraft(e.target.value.slice(0, 200))}
+                    placeholder="yourwebsite.com"
+                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                   />
                 </div>
                 <div className="flex items-center gap-2">
@@ -1117,7 +1243,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             className="flex gap-2 mb-4"
           >
             <button
-              onClick={() => { setCityDraft(city); setEditProfileOpen(v => !v); }}
+              onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
               className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
             >
               <Pencil className="w-4 h-4 text-muted-foreground" />
@@ -1130,6 +1256,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               <Palette className="w-4 h-4 text-primary" />
               {tFallback('hub.profile.themes', 'Themes')}
             </button>
+            {/* QR code button — own profile, shares /@username URL */}
+            {displayUsername && (
+              <button
+                onClick={() => setQrOpen(true)}
+                className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
+                title={tFallback('hub.profile.qrCode', 'Profile QR code')}
+              >
+                <QrCode className="w-4 h-4 text-muted-foreground" />
+              </button>
+            )}
           </motion.div>
         )}
 
@@ -1416,6 +1552,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       {isSelf && (
         <ThemeSelector open={themeOpen} onClose={() => setThemeOpen(false)} />
       )}
+
+      {/* Profile QR code modal */}
+      <AnimatePresence>
+        {qrOpen && displayUsername && (
+          <QRModal
+            url={`${typeof window !== 'undefined' ? window.location.origin : 'https://flexyn.netlify.app'}/@${displayUsername}`}
+            username={displayUsername}
+            onClose={() => setQrOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
 
       {/* Unfollow Confirmation Dialog */}

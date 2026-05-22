@@ -1,7 +1,7 @@
 // src/components/hub/HubSearchOverlay.jsx
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare } from 'lucide-react';
+import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare, Hash } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
@@ -110,7 +110,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  // Feature 17: Post search effect
+  // Feature 17: Post search effect — searches body, author, post_type, and hashtags
   useEffect(() => {
     if (!searchQuery.trim() || activeTab !== 'posts') {
       setPostResults([]);
@@ -119,13 +119,18 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     setPostsLoading(true);
     const timer = setTimeout(async () => {
       try {
-        const q = searchQuery.toLowerCase();
+        const q = searchQuery.toLowerCase().trim();
         // Fetch public feed (large limit to maximize matches)
         const feed = await hubPosts.listPublicFeed(200).catch(() => []);
         const filtered = feed.filter(p => {
           const body = (p.body || p.content || '').toLowerCase();
           const author = (p.author_name || p.author_email || '').toLowerCase();
           const postType = (p.post_type || '').toLowerCase();
+          // Hashtag search: if query starts with '#' match exact tag, else partial body match
+          if (q.startsWith('#')) {
+            const tags = body.match(/#\w+/g) || [];
+            return tags.some(tag => tag.toLowerCase().includes(q));
+          }
           return body.includes(q) || author.includes(q) || postType.includes(q);
         }).slice(0, 25);
         setPostResults(filtered);
@@ -191,7 +196,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                   <input
                     autoFocus
                     type="text"
-                    placeholder={t('hub.search.placeholder')}
+                    placeholder={activeTab === 'posts' ? 'Search posts or #hashtag…' : t('hub.search.placeholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full h-14 pl-12 pr-12 rounded-2xl border-2 border-border bg-card focus:border-primary/30 focus:outline-none transition-colors text-sm"
@@ -287,6 +292,21 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                               ? '📊 Poll'
                               : (post.body || post.content || '').slice(0, 140)}
                           </p>
+                          {/* Show matched hashtags as chips */}
+                          {(() => {
+                            const body = (post.body || post.content || '').toLowerCase();
+                            const tags = (body.match(/#\w+/g) || []).slice(0, 4);
+                            if (!tags.length) return null;
+                            return (
+                              <div className="flex flex-wrap gap-1 mt-1.5">
+                                {tags.map(tag => (
+                                  <span key={tag} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] bg-primary/10 text-primary font-medium">
+                                    <Hash className="w-2 h-2" />{tag.replace('#','')}
+                                  </span>
+                                ))}
+                              </div>
+                            );
+                          })()}
                         </motion.button>
                       ))}
                     </div>

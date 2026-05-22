@@ -267,6 +267,10 @@ export default function HubComposer({ onClose }) {
   const [cwLabel, setCwLabel] = useState('');
   const [cwPickerOpen, setCwPickerOpen] = useState(false);
 
+  // ── Post scheduling ──────────────────────────────────────────────────────────
+  const [scheduleEnabled, setScheduleEnabled] = useState(false);
+  const [scheduledAt, setScheduledAt] = useState(''); // ISO datetime-local string
+
   // Crew list for crew-private posts
   const { data: myCrews = [] } = useQuery({
     queryKey: ['myCrews', user?.id],
@@ -472,6 +476,7 @@ export default function HubComposer({ onClose }) {
           dislike_count: 0,
           comment_count: 0,
           ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
+          ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
         toast.success("Poll's live.");
@@ -616,6 +621,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_snapshot: snapshot,
         ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
         ...(cwType ? { content_warning: cwType, content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null } : {}),
+        ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
@@ -1152,6 +1158,38 @@ export default function HubComposer({ onClose }) {
                 className="w-full mt-1 px-2 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:border-primary/50"
                 maxLength={60}
               />
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Post scheduling ── */}
+      <div className="mt-3 border-t border-border/40 pt-3">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <span>🕐</span> Schedule post
+          </label>
+          <button
+            type="button"
+            onClick={() => setScheduleEnabled(v => !v)}
+            className={`relative w-9 h-5 rounded-full transition-colors ${scheduleEnabled ? 'bg-primary' : 'bg-muted'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${scheduleEnabled ? 'translate-x-4' : ''}`} />
+          </button>
+        </div>
+        {scheduleEnabled && (
+          <div className="mt-2">
+            <input
+              type="datetime-local"
+              value={scheduledAt}
+              min={new Date(Date.now() + 5 * 60_000).toISOString().slice(0, 16)}
+              onChange={e => setScheduledAt(e.target.value)}
+              className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+            />
+            {scheduledAt && (
+              <p className="text-[10px] text-primary mt-1">
+                Will publish: {new Date(scheduledAt).toLocaleString()}
+              </p>
             )}
           </div>
         )}

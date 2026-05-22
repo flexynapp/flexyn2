@@ -2,11 +2,88 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
+
+// ── Hashtag renderer ──────────────────────────────────────────────────────────
+// Splits post body on #word tokens and renders each as a tappable chip.
+// Called in the body section only when onHashtagClick is provided.
+function renderBodyWithHashtags(text, onHashtagClick) {
+  if (!onHashtagClick) {
+    return <>{text}</>;
+  }
+  const parts = text.split(/(#\w+)/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (/^#\w+$/.test(part)) {
+          return (
+            <button
+              key={i}
+              type="button"
+              onClick={(e) => { e.stopPropagation(); onHashtagClick(part.toLowerCase()); }}
+              className="text-primary font-medium hover:underline focus:outline-none"
+            >
+              {part}
+            </button>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+// ── Repost card — fetches the original post and renders a compact preview ─────
+function RepostCard({ originalPostId, onAuthorClick }) {
+  const { tFallback } = useLanguage();
+  const [original, setOriginal] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!originalPostId) return;
+    import('@/lib/data/hubPosts').then(({ get }) =>
+      get(originalPostId)
+        .then(setOriginal)
+        .catch(() => setOriginal(null))
+        .finally(() => setLoading(false))
+    );
+  }, [originalPostId]);
+
+  if (loading) {
+    return (
+      <div className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 animate-pulse">
+        <div className="h-3 bg-muted rounded w-20 mb-2" />
+        <div className="h-3 bg-muted rounded w-full" />
+      </div>
+    );
+  }
+  if (!original) return null;
+
+  const body = original.body || original.content || '';
+  const displayName = original.author_name || original.author_email?.split('@')[0] || 'Athlete';
+
+  return (
+    <div
+      className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 transition-colors"
+      onClick={(e) => {
+        e.stopPropagation();
+        onAuthorClick?.({ email: original.author_email });
+      }}
+    >
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Repeat2 className="w-3 h-3 text-primary shrink-0" />
+        <span className="text-xs font-semibold text-muted-foreground">{displayName}</span>
+      </div>
+      <p className="text-sm text-foreground line-clamp-3 leading-relaxed">
+        {body.startsWith('[POLL_V1]') ? '📊 Poll' : body || tFallback('hub.post.noBody', 'Shared a post')}
+      </p>
+    </div>
+  );
+}
 
 function CrownBadge({ size = 14 }) {
   return (
@@ -149,8 +226,10 @@ function PollCard({ post, userEmail }) {
   );
 }
 
-export default function HubPostCard({ post, onAuthorClick = null }) {
+export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   const { t, tFallback, language } = useLanguage();
+  // onHashtagClick: optional prop to filter feed by a hashtag
+  // (passed in by HubFeed when hashtag system is active)
   // On-demand translation state. Translation is shown alongside (or in place
   // of) the original body when the user taps "Translate".
   const [translation, setTranslation] = useState(null); // { text, sourceLang } | null
@@ -329,6 +408,68 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
     }
   };
 
+  // ── Inline post edit ─────────────────────────────────────────────────────────
+  const [editMode, setEditMode] = useState(false);
+  const [editDraft, setEditDraft] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  const handleEditStart = (e) => {
+    e.stopPropagation();
+    setEditDraft(postBody);
+    setEditMode(true);
+  };
+
+  const handleEditSave = async (e) => {
+    e.stopPropagation();
+    const trimmed = editDraft.trim();
+    if (!trimmed || trimmed === postBody) { setEditMode(false); return; }
+    setEditSaving(true);
+    try {
+      await hubPosts.update(post.id, { body: trimmed, edited_at: new Date().toISOString() });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['hubProfilePosts'] });
+      toast.success(tFallback('hub.post.editSaved', 'Post updated'));
+      setEditMode(false);
+    } catch (err) {
+      if (err?.code === 'PROFANITY') {
+        toast.error(tFallback('hub.post.profanity', 'Post contains flagged language'));
+      } else {
+        toast.error(tFallback('hub.post.editError', 'Could not save edit'));
+      }
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleEditCancel = (e) => {
+    e.stopPropagation();
+    setEditMode(false);
+  };
+
+  // ── Repost ───────────────────────────────────────────────────────────────────
+  const [reposting, setReposting] = useState(false);
+  const handleRepost = async (e) => {
+    e.stopPropagation();
+    if (!user?.email || reposting) return;
+    setReposting(true);
+    try {
+      await hubPosts.create({
+        author_email: user.email,
+        author_name: user.username || user.email.split('@')[0],
+        body: '', // repost body empty — original shown via original_post_id
+        privacy: 'public',
+        post_type: 'repost',
+        original_post_id: post.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      toast.success(tFallback('hub.post.reposted', 'Reposted to your feed'));
+    } catch {
+      toast.error(tFallback('hub.post.repostError', 'Could not repost'));
+    } finally {
+      setReposting(false);
+    }
+  };
+
   const timeLabel = post.created_date ? format(parseISO(post.created_date), 'MMM d, h:mma') : '';
 
   return (
@@ -433,17 +574,30 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             onTouchEnd={cancelAvatarLongPress}
             onTouchMove={cancelAvatarLongPress}
             aria-label={`Open ${author.handle}'s profile`}
-            className={`absolute inset-0 ${isMine ? 'right-12' : 'right-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
+            className={`absolute inset-0 ${isMine ? 'right-16' : 'right-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
         )}
         {isMine ? (
-          <button
-            onClick={handleDelete}
-            className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
-            aria-label={t('hub.delete')}
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          <div className="relative flex items-center gap-0.5">
+            {/* Don't allow editing polls or reposts — their content is structural */}
+            {!postBody.startsWith('[POLL_V1]') && post.post_type !== 'repost' && (
+              <button
+                onClick={handleEditStart}
+                className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-primary transition-colors"
+                aria-label={tFallback('hub.edit', 'Edit post')}
+                title={tFallback('hub.edit', 'Edit post')}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+            <button
+              onClick={handleDelete}
+              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              aria-label={t('hub.delete')}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
         ) : (
           <>
             <button
@@ -498,12 +652,62 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
         <PollCard post={post} userEmail={user?.email} />
       )}
 
+      {/* Repost card — show original post inline */}
+      {post.post_type === 'repost' && post.original_post_id && (
+        <RepostCard originalPostId={post.original_post_id} onAuthorClick={onAuthorClick} />
+      )}
+
+      {/* Scheduled badge — only shown when publish_at is in the future */}
+      {post.publish_at && new Date(post.publish_at) > new Date() && (
+        <div className="px-3 pb-1 flex items-center gap-1.5 text-xs text-amber-500/80">
+          <Clock className="w-3 h-3" />
+          <span>{tFallback('hub.post.scheduledFor', 'Scheduled')}: {new Date(post.publish_at).toLocaleString()}</span>
+        </div>
+      )}
+
+      {/* Inline edit mode */}
+      {editMode ? (
+        <div className="px-3 pb-3" onClick={e => e.stopPropagation()}>
+          <textarea
+            autoFocus
+            value={editDraft}
+            onChange={e => setEditDraft(e.target.value.slice(0, 2000))}
+            className="w-full bg-secondary/30 border border-border rounded-lg p-2.5 text-sm resize-none focus:outline-none focus:border-primary/40 min-h-[80px]"
+            rows={3}
+          />
+          <div className="flex gap-2 mt-2">
+            <button
+              onClick={handleEditSave}
+              disabled={editSaving || !editDraft.trim()}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold disabled:opacity-50"
+            >
+              {editSaving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              {tFallback('hub.post.save', 'Save')}
+            </button>
+            <button
+              onClick={handleEditCancel}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:bg-secondary transition-colors"
+            >
+              <X className="w-3 h-3" />
+              {tFallback('hub.post.cancel', 'Cancel')}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Body */}
-      {postBody && !postBody.startsWith('[POLL_V1]') && (
+      {postBody && !postBody.startsWith('[POLL_V1]') && !editMode && (
         <div className="px-3 pb-3 text-sm break-words">
+          {/* Edited badge */}
+          {post.edited_at && (
+            <div className="flex items-center gap-1 mb-1 text-[10px] text-muted-foreground/70">
+              <Pencil className="w-2.5 h-2.5" />
+              <span>{tFallback('hub.post.edited', 'edited')}</span>
+            </div>
+          )}
           <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
             <div className="whitespace-pre-wrap">
-              {translation && !showOriginal ? translation.text : postBody}
+              {translation && !showOriginal ? translation.text : renderBodyWithHashtags(postBody, onHashtagClick)}
             </div>
           </ContentWarningGate>
           {/* Translate / Show original — hide once we know the post is already in the user's language */}
@@ -635,6 +839,20 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             aria-label={mealSaved ? 'Remove from saved meals' : 'Save meal'}
           >
             <Bookmark className={`w-4 h-4 ${mealSaved ? 'fill-current' : ''}`} />
+          </motion.button>
+        )}
+
+        {/* Repost — only for other people's posts (don't repost your own) */}
+        {!isMine && post.post_type !== 'repost' && (
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={handleRepost}
+            disabled={reposting}
+            className="p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-primary transition-colors disabled:opacity-50"
+            aria-label={tFallback('hub.post.repost', 'Repost')}
+            title={tFallback('hub.post.repost', 'Repost')}
+          >
+            {reposting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Repeat2 className="w-4 h-4" />}
           </motion.button>
         )}
 

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw, ArrowUp } from 'lucide-react';
+import { Loader2, RefreshCw, ArrowUp, Hash, X, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -16,6 +16,25 @@ import { reportError } from '@/lib/reportError';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import * as userMutes from '@/lib/data/userMutes';
 import * as userBlocks from '@/lib/data/userBlocks';
+import PeopleYouMayKnow from './PeopleYouMayKnow';
+
+// ── Trending hashtags helper ──────────────────────────────────────────────────
+// Extracts #tags from all loaded posts and returns top N sorted by frequency.
+function computeTrending(posts, limit = 8) {
+  const counts = {};
+  for (const p of posts) {
+    const body = p.body || p.content || '';
+    const tags = body.match(/#\w+/g) || [];
+    for (const tag of tags) {
+      const lc = tag.toLowerCase();
+      counts[lc] = (counts[lc] || 0) + 1;
+    }
+  }
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([tag, count]) => ({ tag, count }));
+}
 
 // ── Post skeleton (shimmer placeholder while loading) ────────────────────────
 function PostSkeleton() {
@@ -55,6 +74,10 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const [following, setFollowing] = useState([]);
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
+
+  // ── Hashtag filter state ──────────────────────────────────────────────────
+  const [activeHashtag, setActiveHashtag] = useState(null); // e.g. '#legday'
+  const [showTrending, setShowTrending] = useState(false);
 
   // ── "X new posts" Realtime pill ────────────────────────────────────────────
   const [pendingNewCount, setPendingNewCount] = useState(0);
@@ -150,20 +173,33 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   });
 
   // Filter out crew-private posts the current user doesn't belong to,
-  // posts from muted users, and posts from blocked users.
+  // posts from muted/blocked users, scheduled posts not yet published,
+  // and apply hashtag filter when active.
   const filteredPosts = useMemo(() => {
     if (!allPosts.length) return allPosts;
     const crewSet  = new Set(myCrewIds);
     const muteSet  = new Set(mutedEmails);
     const blockSet = new Set(blockedEmails);
-    return allPosts.filter(p => {
+    let result = allPosts.filter(p => {
       const authorLc = p.author_email?.toLowerCase();
       if (authorLc && blockSet.has(authorLc)) return false;
       if (authorLc && muteSet.has(authorLc))  return false;
       if (p.privacy !== 'crew') return true;
       return p.crew_id && crewSet.has(p.crew_id);
     });
-  }, [allPosts, myCrewIds, mutedEmails, blockedEmails]);
+    // Filter out scheduled posts that aren't published yet
+    result = result.filter(p => !p.publish_at || new Date(p.publish_at) <= new Date());
+    if (activeHashtag) {
+      result = result.filter(p => {
+        const body = (p.body || p.content || '').toLowerCase();
+        return body.includes(activeHashtag);
+      });
+    }
+    return result;
+  }, [allPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag]);
+
+  // Trending hashtags derived from current feed window
+  const trendingTags = useMemo(() => computeTrending(allPosts), [allPosts]);
 
   // ── Scroll-to-top refresh ────────────────────────────────────────────────
   // When the user scrolls back to the very top of the page (after having
@@ -259,30 +295,95 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       onClick: () => navigate('/hub?search=open'),
     };
     return (
-      <EmptyState
-        illustration={feedTab === 'pump' ? <NoFeedIllustration /> : <NoFriendsIllustration />}
-        title={
-          feedTab === 'pump'
-            ? (tFallback('hub.empty.pumpTitle', 'No posts yet'))
-            : isSquadWithFollowing
-            ? (tFallback('hub.empty.squadNoPosts', "Your squad hasn't posted yet"))
-            : (tFallback('hub.empty.squadTitle', 'Build your squad'))
-        }
-        body={
-          feedTab === 'pump'
-            ? (tFallback('hub.empty.pumpDesc', 'Be the first to share — your workouts inspire the rest of the community.'))
-            : isSquadWithFollowing
-            ? (tFallback('hub.empty.squadNoPostsDesc', "Your followed athletes haven't shared yet. Share your own session in the meantime!"))
-            : (tFallback('hub.empty.squadDesc', 'Follow other athletes to see their workouts and progress here.'))
-        }
-        action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
-        secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}
-      />
+      <div className="space-y-4">
+        <EmptyState
+          illustration={feedTab === 'pump' ? <NoFeedIllustration /> : <NoFriendsIllustration />}
+          title={
+            feedTab === 'pump'
+              ? (tFallback('hub.empty.pumpTitle', 'No posts yet'))
+              : isSquadWithFollowing
+              ? (tFallback('hub.empty.squadNoPosts', "Your squad hasn't posted yet"))
+              : (tFallback('hub.empty.squadTitle', 'Build your squad'))
+          }
+          body={
+            feedTab === 'pump'
+              ? (tFallback('hub.empty.pumpDesc', 'Be the first to share — your workouts inspire the rest of the community.'))
+              : isSquadWithFollowing
+              ? (tFallback('hub.empty.squadNoPostsDesc', "Your followed athletes haven't shared yet. Share your own session in the meantime!"))
+              : (tFallback('hub.empty.squadDesc', 'Follow other athletes to see their workouts and progress here.'))
+          }
+          action={feedTab === 'pump' || isSquadWithFollowing ? ctaShare : ctaDiscover}
+          secondaryAction={feedTab === 'pump' ? undefined : (isSquadWithFollowing ? ctaDiscover : ctaShare)}
+        />
+        {/* PYMK suggestion rail — shown on Squad empty state to help new users build their network */}
+        {feedTab === 'squad' && (
+          <PeopleYouMayKnow onSelectUser={(u) => navigate(`/hub?profile=${encodeURIComponent(u.email)}`)} />
+        )}
+      </div>
     );
   }
 
   return (
     <div className="space-y-3">
+      {/* ── Trending hashtags rail ──────────────────────────────────────── */}
+      {trendingTags.length > 0 && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={() => setShowTrending(v => !v)}
+            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
+          >
+            <TrendingUp className="w-3.5 h-3.5" />
+            {tFallback('hub.trending', 'Trending')}
+          </button>
+          <AnimatePresence>
+            {showTrending && trendingTags.map((item, i) => (
+              <motion.button
+                key={item.tag}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
+                transition={{ delay: i * 0.03 }}
+                onClick={() => {
+                  setActiveHashtag(h => h === item.tag ? null : item.tag);
+                  setVisibleCount(PAGE_SIZE);
+                }}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${
+                  activeHashtag === item.tag
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground'
+                }`}
+              >
+                <Hash className="w-2.5 h-2.5" />
+                {item.tag.replace('#', '')}
+                <span className="opacity-60 text-[10px]">{item.count}</span>
+              </motion.button>
+            ))}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Active hashtag filter banner */}
+      <AnimatePresence>
+        {activeHashtag && (
+          <motion.div
+            key="hashtag-filter"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary/10 border border-primary/20"
+          >
+            <Hash className="w-3.5 h-3.5 text-primary" />
+            <span className="text-sm font-semibold text-primary flex-1">{activeHashtag}</span>
+            <button
+              onClick={() => { setActiveHashtag(null); setVisibleCount(PAGE_SIZE); }}
+              className="p-0.5 rounded text-primary/60 hover:text-primary transition-colors"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* New posts pill — tap to load them in */}
       <AnimatePresence>
         {pendingNewCount > 0 && (
@@ -329,7 +430,16 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: Math.min(idx % PAGE_SIZE, 6) * 0.04 }}
         >
-          <HubPostCard post={post} onAuthorClick={onAuthorClick} />
+          <HubPostCard
+            post={post}
+            onAuthorClick={onAuthorClick}
+            onHashtagClick={(tag) => {
+              setActiveHashtag(h => h === tag ? null : tag);
+              setShowTrending(true);
+              setVisibleCount(PAGE_SIZE);
+              window.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+          />
         </motion.div>
       ))}
 
