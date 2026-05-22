@@ -48,7 +48,7 @@ RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
-AS $$
+AS $grant_flex_coins$
 BEGIN
   IF p_user_id IS NULL THEN
     RAISE EXCEPTION 'no user_id' USING ERRCODE = '22023';
@@ -60,7 +60,7 @@ BEGIN
      SET flex_coins = GREATEST(0, COALESCE(flex_coins, 0) + p_delta)
    WHERE id = p_user_id;
 END;
-$$;
+$grant_flex_coins$;
 
 REVOKE ALL ON FUNCTION public.grant_flex_coins(UUID, INTEGER) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.grant_flex_coins(UUID, INTEGER) TO authenticated;
@@ -92,7 +92,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 STABLE
-AS $$
+AS $get_friend_leaderboard$
 DECLARE
   v_uid        UUID := auth.uid();
   v_email      TEXT;
@@ -177,7 +177,7 @@ BEGIN
       r.username ASC
     LIMIT v_limit;
 END;
-$$;
+$get_friend_leaderboard$;
 
 REVOKE ALL ON FUNCTION public.get_friend_leaderboard(TEXT, INT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_friend_leaderboard(TEXT, INT) TO authenticated;
@@ -203,7 +203,7 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 STABLE
-AS $$
+AS $get_suggested_followees$
 DECLARE
   v_uid    UUID := auth.uid();
   v_email  TEXT;
@@ -242,7 +242,7 @@ BEGIN
       p.created_at ASC
     LIMIT v_limit;
 END;
-$$;
+$get_suggested_followees$;
 
 REVOKE ALL ON FUNCTION public.get_suggested_followees(INT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_suggested_followees(INT) TO authenticated;
