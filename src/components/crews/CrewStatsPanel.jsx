@@ -40,8 +40,8 @@ export default function CrewStatsPanel({ crewId, onClose }) {
   });
 
   const fmtVolume = (lbs) => {
-    if (!lbs) return '0 lbs';
-    if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k lbs`;
+    if (!lbs) return `${fmt(0)} lbs`;
+    if (lbs >= 1000) return `${fmt(lbs / 1000, { maximumFractionDigits: 1 })}k lbs`;
     return `${fmt(Math.round(lbs))} lbs`;
   };
 
