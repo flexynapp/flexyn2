@@ -5,6 +5,7 @@
  */
 
 import { checkDailyHours, DAILY_HOUR_LIMITS } from './cardioLimits';
+import { formatNumber } from './intl';
 
 export function getMaxRealisticSetsPerWorkout(userProfile) {
   const birthYear = userProfile?.birthday
@@ -187,7 +188,10 @@ export function detectImplausibleWorkout(
   workout,
   userProfile,
   recentWorkoutLogs,
-  recentCardioLogs = []   // ← new param; defaults to [] for backward compat
+  recentCardioLogs = [],  // ← new param; defaults to [] for backward compat
+  language               // ← optional: pass useLanguage().language so volume/budget
+                         //   render in the user's locale instead of the browser's.
+                         //   Falls back to 'en' when omitted (legacy callers).
 ) {
   const exercises = workout.exercises || [];
   const maxSets = getMaxRealisticSetsPerWorkout(userProfile);
@@ -264,8 +268,8 @@ export function detectImplausibleWorkout(
       implausible: true,
       i18nKey: 'workout.warn.dailyVolumeBudget',
       i18nParams: {
-        volume: Math.round(totalDailyVolume).toLocaleString(),
-        budget: Math.round(dailyBudget).toLocaleString(),
+        volume: formatNumber(Math.round(totalDailyVolume), language),
+        budget: formatNumber(Math.round(dailyBudget), language),
       },
     };
   }

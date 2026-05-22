@@ -23,6 +23,7 @@
 // resurface a 3-rep warmup from a year ago.
 
 import { differenceInCalendarDays } from 'date-fns';
+import { formatNumber } from '@/lib/intl';
 
 /**
  * Returns the best memory match for `now`, or null. Output shape:
@@ -100,7 +101,7 @@ export function findWorkoutMemory(logs, now = new Date()) {
  * Falls back to volume-only when no single set has a recorded weight
  * (cardio-style entries, rep-bodyweight logs).
  */
-export function summarizeMemoryLog(log) {
+export function summarizeMemoryLog(log, language) {
   if (!log || !Array.isArray(log.exercises)) return '';
   let topLift = null;
   let volume = 0;
@@ -121,7 +122,7 @@ export function summarizeMemoryLog(log) {
     return `${topLift.name}: ${Math.round(topLift.weight)} × ${topLift.reps}`;
   }
   if (volume > 0) {
-    return `${exerciseCount} exercises, ${Math.round(volume).toLocaleString()} lb volume`;
+    return `${exerciseCount} exercises, ${formatNumber(Math.round(volume), language)} lb volume`;
   }
   return `${exerciseCount} exercises`;
 }

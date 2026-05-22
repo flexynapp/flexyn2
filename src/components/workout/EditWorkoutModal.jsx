@@ -162,7 +162,8 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
         { date, exercises: normalizedExercises },
         userProfile,
         otherLogs,
-        (cardioLogs || []).filter(l => l.id !== log?.id)
+        (cardioLogs || []).filter(l => l.id !== log?.id),
+        language,
       );
       if (fatigueCheck.implausible) {
         let msg = t(fatigueCheck.i18nKey);

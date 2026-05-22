@@ -101,7 +101,7 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs'
 
 
 export default function Workout() {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
@@ -1176,7 +1176,8 @@ export default function Workout() {
       { date, exercises: pendingPayload.exercises, duration_minutes: pendingPayload.duration_minutes },
       userProfile,
       logs,
-      cardioLogs
+      cardioLogs,
+      language,
     );
     if (fatigueCheck.implausible) {
       let msg = t(fatigueCheck.i18nKey);

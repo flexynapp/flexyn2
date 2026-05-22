@@ -19,6 +19,7 @@ import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
 import { startOfWeek, subDays, differenceInCalendarDays, format } from 'date-fns';
 import { INTENTS } from './intents';
+import { formatNumber } from '../intl';
 
 // ── Internal helpers ─────────────────────────────────────────────────────────
 
@@ -157,7 +158,10 @@ async function progressCheck({ user }) {
   const lines = [`**Last 7 days:**`];
   lines.push(`• ${thisWeek.length} workout${thisWeek.length === 1 ? '' : 's'} (${sessionDelta >= 0 ? '+' : ''}${sessionDelta} vs prev week)`);
   if (v1 > 0) {
-    lines.push(`• ${v1.toLocaleString()} lb total volume (${delta >= 0 ? '+' : ''}${delta}%)`);
+    // formatNumber with no language defaults to en-US — deterministic
+    // across all users. The surrounding "lb total volume" copy is
+    // English-only too, so mixing locales here would look broken.
+    lines.push(`• ${formatNumber(v1)} lb total volume (${delta >= 0 ? '+' : ''}${delta}%)`);
   }
   if (profile?.workout_streak > 0) {
     lines.push(`• ${profile.workout_streak}-day workout streak (best: ${profile.longest_workout_streak || profile.workout_streak})`);

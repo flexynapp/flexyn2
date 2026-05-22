@@ -33,7 +33,7 @@ function writeDismissedToday(userId) {
 
 export default function WorkoutMemoryCard({ logs = [] }) {
   const { user } = useAuth();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const navigate = useNavigate();
   const [dismissed, setDismissed] = useState(() => readDismissedToday(user?.id));
 
@@ -41,7 +41,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
 
   if (!user?.id || !memory || dismissed) return null;
 
-  const summary = summarizeMemoryLog(memory.log);
+  const summary = summarizeMemoryLog(memory.log, language);
   const dateStr = (() => {
     try {
       const d = new Date(memory.log?.date || memory.log?.created_at || memory.log?.created_date);
