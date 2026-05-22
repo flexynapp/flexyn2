@@ -58,6 +58,10 @@ import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
+import { firePRCelebration } from '@/lib/prCelebration';
+import { detectPRsInWorkout } from '@/lib/data/personalRecords';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
 import * as activity from '@/lib/data/activity';
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
@@ -93,6 +97,7 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs'
 
 export default function Workout() {
   const { t, tFallback } = useLanguage();
+  const { weightUnit } = useWeightUnit();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
 
@@ -524,6 +529,49 @@ export default function Workout() {
       } else {
         toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
       }
+
+      // PR detection — fires the 6th-family 🏋️ celebration when this
+      // workout beat the user's historical best 1RM on any exercise.
+      // Runs ONLY on non-first workouts; the first ever workout already
+      // has its own louder celebration and "first attempt" of an
+      // exercise can't be a "PR" by definition.
+      //
+      // realPrev is the workout-logs cache state BEFORE this save —
+      // exactly the comparison window we want for "is this a PR?".
+      // Filter out optimistic placeholders so a duplicate optimistic
+      // entry from a retry doesn't inflate the historical PR index.
+      if (!isFirstWorkout) {
+        try {
+          const prsLbs = detectPRsInWorkout(clampedData, realPrev);
+          if (prsLbs.length > 0) {
+            // Convert lb-stored values to the user's preferred unit so
+            // the toast reads in their own currency (a kg user shouldn't
+            // see "100 lb" in the celebration). fromLbs is a no-op when
+            // weightUnit === 'lbs'.
+            const unitLabel = weightUnit === 'kg' ? 'kg' : weightUnit === 'stone' ? 'st' : 'lb';
+            const prs = prsLbs.map(p => ({
+              ...p,
+              oldPR: fromLbs(p.oldPR, weightUnit),
+              newPR: fromLbs(p.newPR, weightUnit),
+              delta: fromLbs(p.delta, weightUnit),
+            }));
+            firePRCelebration({
+              prs,
+              unit: unitLabel,
+              userEmail: user?.email,
+            });
+          }
+        } catch (err) {
+          // Non-critical — workout save already succeeded. Log to
+          // Sentry but don't surface to the user.
+          reportError(err, {
+            feature: 'workout.pr-detection',
+            level: 'warning',
+            userEmail: user?.email,
+          });
+        }
+      }
+
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
 

@@ -64,3 +64,40 @@ export function buildPRIndex(workoutLogs = []) {
   }
   return index;
 }
+
+/**
+ * Detect personal records hit in a JUST-SAVED workout. Compares each
+ * exercise's new best Epley 1RM against the user's historical best
+ * (from logs BEFORE the save).
+ *
+ * REQUIRES at least one historical log of the same exercise — we don't
+ * call a first-ever-attempt a "PR" because there's nothing to beat.
+ *
+ * @param {object} justSavedLog        the workout that was just saved
+ * @param {Array}  historicalLogs       all previous workout logs (excludes this one)
+ * @returns {Array<{name, displayName, oldPR, newPR, delta}>}  empty array when no PRs
+ */
+export function detectPRsInWorkout(justSavedLog, historicalLogs = []) {
+  if (!justSavedLog || !Array.isArray(justSavedLog.exercises)) return [];
+  const historicIndex = buildPRIndex(historicalLogs);
+  const prs = [];
+
+  for (const ex of justSavedLog.exercises) {
+    const lowerName = (ex.name || ex.displayName || '').trim().toLowerCase();
+    if (!lowerName) continue;
+    const newRM = bestOneRepMax(ex.sets);
+    if (newRM <= 0) continue;
+    const oldRM = historicIndex[lowerName] || 0;
+    if (oldRM === 0) continue; // no prior attempt — not a "PR"
+    if (newRM > oldRM) {
+      prs.push({
+        name:        lowerName,
+        displayName: ex.displayName || ex.name || lowerName,
+        oldPR:       oldRM,
+        newPR:       newRM,
+        delta:       Math.round((newRM - oldRM) * 10) / 10,
+      });
+    }
+  }
+  return prs;
+}
