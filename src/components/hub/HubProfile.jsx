@@ -107,6 +107,7 @@ import * as statusNotesData from '@/lib/data/statusNotes';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
+import ProfileLiftStats from './ProfileLiftStats';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
@@ -1130,6 +1131,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </button>
           </motion.div>
         )}
+
+        {/* Lift stats — top 3 1RM lifts + total tonnage + longest
+            streak. Read-only on friends' profiles, full-resolution
+            on own. Self-hides on cold accounts (zero workouts logged). */}
+        <ProfileLiftStats
+          userEmail={isSelf ? user?.email : targetUser?.email}
+          longestStreak={isSelf
+            ? user?.longest_workout_streak
+            : targetUser?.longest_workout_streak}
+        />
 
         {/* Recent badges showcase — visible on both own profile and
             friends' profiles (read-only when viewing someone else's).

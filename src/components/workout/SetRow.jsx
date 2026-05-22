@@ -11,22 +11,16 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
 import PRProximityBar from './PRProximityBar';
+import { getActiveBarLbs, platesPerSide } from '@/lib/barInventory';
 
-const BAR_LBS = 45; // standard barbell; TODO: make configurable per settings
-
-function plateCalc(weightLbs, barLbs = BAR_LBS) {
-  if (!weightLbs || weightLbs < barLbs) return null;
-  const PLATES = [45, 35, 25, 10, 5, 2.5];
-  let perSide = (weightLbs - barLbs) / 2;
-  const result = [];
-  for (const plate of PLATES) {
-    if (perSide >= plate) {
-      const count = Math.floor(perSide / plate);
-      result.push({ count, plate });
-      perSide = Math.round((perSide - count * plate) * 100) / 100;
-    }
-  }
-  return result.length > 0 ? result : null;
+// Plate calculator reads the user's active bar from barInventory.js
+// (configurable per device — defaults to 45lb Olympic). Replaces the
+// previous hardcoded 45lb assumption; gym women's bars, EZ-curl,
+// trap bars, training bars all need different math.
+function plateCalc(weightLbs) {
+  const result = platesPerSide(weightLbs, getActiveBarLbs());
+  if (!result || result.length === 0) return null;
+  return result;
 }
 
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {} }) {

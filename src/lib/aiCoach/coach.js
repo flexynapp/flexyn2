@@ -83,10 +83,26 @@ async function _enhanceWithClaude({ apiKey, message, baseReply, intent }) {
         'anthropic-version': '2023-06-01',
         'anthropic-dangerous-direct-browser-access': 'true',
       },
+      // Prompt caching (B12): the system prompt is stable across
+      // every Coach turn, so we attach cache_control:'ephemeral' to
+      // make Anthropic cache the prefix for ~5 minutes. Subsequent
+      // turns within that window hit the cache → ~90% prompt-token
+      // cost reduction + lower latency. Cache-miss writes are
+      // automatic; the SDK contract is: same content + same
+      // ephemeral marker = cache hit on the second-onward call.
       body: JSON.stringify({
         model:       'claude-sonnet-4-5-20250929',
         max_tokens:  600,
-        system:      systemPrompt,
+        // Multi-block system with cache_control on the stable prefix.
+        // Anthropic requires the cached block(s) to be >= 1024 tokens
+        // for the smaller models or >= 2048 for some others; our
+        // systemPrompt is ~80 tokens so caching may not kick in until
+        // we extend it with structured persona/memory in a follow-up.
+        // The marker is forward-compatible — adding it now means the
+        // cache hit lands automatically when the prefix grows.
+        system: [
+          { type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } },
+        ],
         messages: [{ role: 'user', content: userPrompt }],
       }),
       signal: controller.signal,

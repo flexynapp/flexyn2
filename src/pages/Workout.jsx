@@ -565,7 +565,34 @@ export default function Workout() {
             });
         }
       } else {
-        toast.success(t('workout.saved'), { description: t('workout.savedXp').replace('{xp}', xpGained) });
+        // "Save as template" action — pre-fills WorkoutTemplates with
+        // this session so the user can repeat it later. We snapshot
+        // clampedData up front because resetWorkout() clears the
+        // editor state on the next tick.
+        const sessionSnapshot = clampedData;
+        toast.success(t('workout.saved'), {
+          description: t('workout.savedXp').replace('{xp}', xpGained),
+          duration: 6000,
+          action: {
+            label: tFallback('workout.saveTemplate', 'Save as template'),
+            onClick: async () => {
+              const { saveTemplate } = await import('@/lib/data/workoutTemplates');
+              const name = (sessionSnapshot?.regimen_name || '').trim()
+                || tFallback('workout.templateDefaultName', 'My workout');
+              const res = await saveTemplate({
+                name: name.slice(0, 80),
+                exercises: sessionSnapshot?.exercises || [],
+              });
+              if (res?.ok) {
+                toast.success(tFallback('workout.templateSaved', 'Template saved — find it in the regimen list.'));
+              } else if (res?.reason === 'no_exercises') {
+                toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
+              } else {
+                toast.error(tFallback('workout.templateFailed', 'Could not save template — try again.'));
+              }
+            },
+          },
+        });
       }
 
       // PR detection — fires the 6th-family 🏋️ celebration when this

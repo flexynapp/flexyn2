@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw } from 'lucide-react';
+import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw, ExternalLink } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -203,6 +203,18 @@ export default function NotificationPanel({ open, onClose }) {
               </h2>
             </div>
             <div className="flex items-center gap-1">
+              {/* "Open full page" — navigates to /notifications for the
+                  full history + tab filtering UX. Closes the dropdown
+                  on the way so the back gesture from the route returns
+                  the user to wherever they were. */}
+              <button
+                onClick={() => { onClose(); navigate('/notifications'); }}
+                aria-label={tFallback('notifications.openFull', 'Open full notifications page')}
+                title={tFallback('notifications.openFull', 'Open full notifications page')}
+                className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
+              >
+                <ExternalLink className="w-4 h-4" aria-hidden="true" />
+              </button>
               {hasUnread && (
                 <button
                   onClick={handleMarkAllRead}

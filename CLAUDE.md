@@ -14,6 +14,72 @@ on iOS / Android / desktop. 15 supported languages.
 The README has the production overview; this file is for working
 conventions a contributor needs day-to-day.
 
+## Session journal — May 2026 batch
+
+A single long session shipped migrations 080–099 plus ~17,000 lines of
+new product code. Conventions/patterns introduced here that future
+contributors should match:
+
+- **Migration order matters and we DON'T renumber retroactively.** When
+  numbering parallel commits, pick the next free `NNN` at branch start.
+  If two branches independently claim the same number, the second-to-
+  land renames its file. Files at the same NNN are tolerated when
+  bodies are disjoint (e.g. `054_duels.sql` + `054_bio_profanity_check.sql`).
+- **The push pipeline is live and gated by `app.send_push_url` /
+  `app.send_push_secret` via Supabase Vault** (not `ALTER DATABASE` —
+  managed Supabase blocks that). The `notify_push_fanout` trigger short-
+  circuits when secrets are missing, so new RLS tables don't break
+  push delivery during partial-deploy windows. As of mig 098 the trigger
+  also short-circuits during the user's quiet hours.
+- **Per-category notification preferences use SINGULAR keys** (streak,
+  quests, league, social, achievements, engagement, competitive). The
+  category mapping was unified in migration 083 after migration 065
+  silently regressed it to plural names — see the migration head comment
+  for the full story.
+- **Three share cards follow the same Canvas 2D pattern** (no
+  html2canvas dep): WorkoutShareCard (purple/fuchsia), WeeklyRecapShareCard
+  (emerald/cyan), PRShareCard (gold/crimson). Color rotation gives each
+  moment its own identity; the share API + download fallback chain is
+  identical.
+- **Six celebration helpers each have a distinct vibration + confetti
+  signature** (goal / first-workout / first-regimen / first-goal /
+  first-meal / pr). When adding a 7th, give it its own signature —
+  see `src/lib/prCelebration.js` for the pattern. Multi-celebration
+  events should route through `src/lib/rewardQueue.js` to avoid
+  overlapping toasts.
+- **`tFallback('key', 'English fallback')`** is the standard i18n call.
+  English fallbacks ship inline; native translators fill non-English
+  locales via `src/lib/i18n-*.js` part files (the splitter aggregates).
+  Don't ship machine-translated copy.
+- **localStorage flags for per-device UX state** follow the
+  `flexyn.<feature>.<userId>` namespace pattern. Examples:
+  `flexyn.celebratedCrewWars.<userId>`, `flexyn.pendingReferralCode`,
+  `flexyn.pushOptInDismissed.<userId>`, `flexyn.iosInstallDismissed.<userId>`,
+  `flexyn.onboardingState.<userId>`.
+- **Schema drift audit lives at `supabase/migrations/_audit_schema_drift.sql`**
+  (leading underscore keeps it out of auto-runners). Paste it into the
+  SQL Editor to surface column-type drift, missing FKs, missing
+  service_role grants, and orphan rows. Migration 085's ALTER DEFAULT
+  PRIVILEGES auto-grants service_role on new public tables, so new
+  drift in that dimension shouldn't accumulate.
+
+The biggest user-facing additions this session:
+
+- Push fanout for nemesis, gauntlet, comments+replies, memories,
+  referrals (mig 081–089)
+- Streak rescue (mig 087) — one-tap save on a missed day, once/month
+- Onboarding 7-day nudge sequence + iOS install banner + push opt-in
+- Live activity rail + follow suggestions + crew suggestions + friend
+  leaderboards on Hub
+- Workout calendar grid + workout memory card + workout suggestion +
+  PR celebration + repeat-from-log on Dashboard/Workout
+- Hydration ring + mood log + sleep log + recovery score + readiness
+  card (mig 094–097)
+- Voice input (set logging + Coach dictation)
+- Built-in program templates + workout templates + bar inventory
+- User-created bounties + crew challenges + quiet hours + dedicated
+  notification page + story emoji reactions + story highlights schema
+
 ## Two engineers, parallel sessions
 
 Two Claude sessions edit this repo concurrently — yours and a teammate's.

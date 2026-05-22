@@ -26,6 +26,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Heart, Eye, Camera, Loader2, Send } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import StoryReactionPicker from './StoryReactionPicker';
 import * as storiesData from '@/lib/data/stories';
 
 const STORY_DURATION_MS = 8000;
@@ -480,6 +481,12 @@ export default function StoryViewer({
                     </div>
                   </div>
                 )}
+
+                {/* Emoji reactions (migration 097). Picker row above
+                    the like + reply row — taps fire reactToStory(). */}
+                <div className="mb-2">
+                  <StoryReactionPicker storyId={currentStory?.id} />
+                </div>
 
                 {/* Like + reply row */}
                 <div className="flex items-center gap-2">
