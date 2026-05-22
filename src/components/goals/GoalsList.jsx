@@ -3,7 +3,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2, Target, Trophy, Activity, Footprints, PersonStanding, Bike, MoreVertical } from 'lucide-react';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+// AlertDialog removed — replaced by optimistic-delete-with-undo at
+// the parent (GoalsModal). The undo toast IS the safety net now.
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import GoalProgressBar from './GoalProgressBar';
 import { useSettings } from '@/lib/SettingsContext';
@@ -34,8 +35,9 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
     });
     // Primary action — completing a goal is a high-intent moment; the
     // celebration helper fires its own distinct pattern after success.
-    // Delete is destructive but the AlertDialog already confirms, so
-    // the haptic on the second tap is the right "this is happening" cue.
+    // Delete fires a warning haptic; the optimistic-delete toast at
+    // the parent surfaces with Undo so this is forgiving rather than
+    // destructive.
     triggerHaptic(kind === 'complete' ? 'primary' : 'warning');
     try {
       await handler(id);
@@ -188,43 +190,31 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
               </div>
               {/* Single ⋮ menu replaces separate Edit / Delete buttons */}
               {(!isViewingCompleted || (isViewingCompleted && allowDeleteCompletedGoals)) && (
-                <AlertDialog>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      {!isViewingCompleted && onEdit && (
-                        <DropdownMenuItem onClick={() => onEdit(goal)}>
-                          <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
-                        </DropdownMenuItem>
-                      )}
-                      {!isViewingCompleted && onEdit && <DropdownMenuSeparator />}
-                      <AlertDialogTrigger asChild>
-                        <DropdownMenuItem className="text-destructive focus:text-destructive">
-                          <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
-                        </DropdownMenuItem>
-                      </AlertDialogTrigger>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>{t('goals.deleteConfirm')}</AlertDialogTitle>
-                      <AlertDialogDescription>{t('goals.deleteConfirmDesc')}</AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                      <AlertDialogAction
-                        disabled={pendingIds.delete.has(goal.id)}
-                        onClick={() => guardedAction('delete', goal.id, onDelete)}
-                      >
-                        {t('common.delete')}
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon">
+                      <MoreVertical className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {!isViewingCompleted && onEdit && (
+                      <DropdownMenuItem onClick={() => onEdit(goal)}>
+                        <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                      </DropdownMenuItem>
+                    )}
+                    {!isViewingCompleted && onEdit && <DropdownMenuSeparator />}
+                    {/* No confirmation dialog — the optimistic-delete
+                        toast with Undo (parent) IS the safety net.
+                        Faster than a confirm, safer than a confirm. */}
+                    <DropdownMenuItem
+                      className="text-destructive focus:text-destructive"
+                      disabled={pendingIds.delete.has(goal.id)}
+                      onClick={() => guardedAction('delete', goal.id, onDelete)}
+                    >
+                      <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               )}
             </div>
 

@@ -93,6 +93,7 @@ function codeToFlag(code) {
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { pluralize } from '@/lib/pluralize';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
@@ -143,7 +144,7 @@ function flagUrl(emoji) {
 }
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
   // instead of useAuth().user, which only loads once at bootstrap and doesn't
@@ -1088,9 +1089,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <Stat icon={FileText}  label={t('hub.profile.posts')}     value={posts.length} />
-          <AnimatedStatButton onClick={() => setOpenModal('followers')} icon={UsersIcon} value={followers.length} label={t('hub.profile.followers')} />
-          <AnimatedStatButton onClick={() => setOpenModal('following')} icon={UserIcon} value={following.length} label={t('hub.profile.following')} />
+          <Stat icon={FileText}  label={pluralize(posts.length, { one: t('hub.profile.post') || 'post', other: t('hub.profile.posts') || 'posts' }, language)} value={posts.length} />
+          <AnimatedStatButton
+            onClick={() => setOpenModal('followers')}
+            icon={UsersIcon}
+            value={followers.length}
+            label={pluralize(followers.length, { one: t('hub.profile.follower') || 'follower', other: t('hub.profile.followers') || 'followers' }, language)}
+          />
+          <AnimatedStatButton
+            onClick={() => setOpenModal('following')}
+            icon={UserIcon}
+            value={following.length}
+            label={t('hub.profile.following') || 'following'}
+          />
         </div>
 
         {/* Edit + Themes — inline side-by-side, own profile only */}

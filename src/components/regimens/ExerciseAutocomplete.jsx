@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
 import { searchExercises, muscleKey } from '@/lib/exerciseTranslations';
+import { titleCase } from '@/lib/textCase';
 
 const EXERCISE_LIBRARY = [
   // Chest
@@ -475,6 +476,17 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
         value={query}
         onChange={handleChange}
         onFocus={() => query.length >= 1 && setOpen(true)}
+        // Smart title-case on blur — turns "bench press" into "Bench
+        // Press" so a user's exercise library looks intentional
+        // instead of scruffy. Preserves acronyms (RDL, OHP, BCAA,
+        // etc.) and respects mostly-uppercase input.
+        onBlur={() => {
+          const cleaned = titleCase(query);
+          if (cleaned !== query) {
+            setQuery(cleaned);
+            onChange(cleaned);
+          }
+        }}
         placeholder={placeholder || 'Search exercise...'}
         autoComplete="off"
       />

@@ -13,6 +13,8 @@ import { supabase } from '@/api/supabaseClient';
 import * as crewsData from '@/lib/data/crews';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as users from '@/lib/data/users';
+import { containsProfanity } from '@/lib/profanityFilter';
+import { titleCase } from '@/lib/textCase';
 import * as hubMessages from '@/lib/data/hubMessages';
 import { buildCrewInviteBody } from './CrewDMInviteCard';
 
@@ -252,9 +254,26 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
               placeholder="e.g. Morning Grind, Leg Day Legends…"
               value={crewName}
               onChange={e => setCrewName(e.target.value)}
+              onBlur={() => {
+                // Smart title-case on blur — crew names like "morning
+                // grind" become "Morning Grind". Stop words and
+                // acronyms preserved per the standard rules.
+                const cleaned = titleCase(crewName);
+                if (cleaned !== crewName) setCrewName(cleaned);
+              }}
               maxLength={40}
-              className="w-full bg-secondary rounded-2xl px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 text-center font-semibold"
+              className={`w-full bg-secondary rounded-2xl px-4 py-3.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30 text-center font-semibold ${
+                crewName && containsProfanity(crewName) ? 'ring-2 ring-destructive' : ''
+              }`}
             />
+            {/* Live profanity check — catches at creation rather than
+                after the fact, saving the team moderation work. The
+                Create button below is also disabled in this state. */}
+            {crewName && containsProfanity(crewName) && (
+              <p className="text-[11px] text-destructive mt-1.5 px-1 text-center">
+                Please choose a different name.
+              </p>
+            )}
             <p className="text-right text-[10px] text-muted-foreground mt-1 pr-1">
               {crewName.length}/40
             </p>
@@ -265,7 +284,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
               <motion.button
                 whileTap={{ scale: 0.97 }}
                 onClick={handleCreate}
-                disabled={!crewName.trim() || submitting}
+                disabled={!crewName.trim() || submitting || containsProfanity(crewName)}
                 className="w-full py-3 rounded-2xl text-sm font-bold text-white flex items-center justify-center gap-2 disabled:opacity-50"
                 style={{ background: 'hsl(var(--primary))' }}
               >

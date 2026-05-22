@@ -16,6 +16,7 @@ import GoalsList from './GoalsList';
 import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
+import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
 
 // Small inline summary of a goal target for the first-goal celebration
 // copy. Kept inline so the helper stays goal-shape-agnostic.
@@ -93,16 +94,16 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
     },
   });
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => goalsData.remove(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['goals', user?.email] });
-      toast.success(t('goals.toast.deleted'));
-    },
-    onError: (err) => {
-      reportError(err, { feature: 'goals.delete', userEmail: user?.email });
-      toast.error(t('goals.toast.deleteError'));
-    },
+  // Optimistic delete with undo — replaces the old confirm-dialog
+  // pattern with the Gmail-style flow: goal disappears instantly, a
+  // toast with Undo shows for 6s, then the real server delete fires.
+  // Faster (no confirm tap) AND safer (instant rollback).
+  const optDelete = useOptimisticDelete({
+    queryKey: ['goals', user?.email],
+    identify: (g) => g.id,
+    deleteFn: (id) => goalsData.remove(id),
+    label: t('goals.toast.deleted') || 'Goal deleted',
+    feature: 'goals.delete',
   });
 
   const completeMutation = useMutation({
@@ -288,7 +289,13 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                         logs={logs}
                         isViewingCompleted={false}
                         onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
-                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onDelete={(id) => {
+                          // Resolve the full goal object from cache so
+                          // the optimistic-delete hook can restore by
+                          // index if the user taps Undo.
+                          const goal = (goals || []).find(g => g.id === id);
+                          if (goal) optDelete.deleteWithUndo(goal);
+                        }}
                         onComplete={(id) => completeMutation.mutate(id)}
                       />
                     )}
@@ -314,7 +321,13 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                         logs={logs}
                         isViewingCompleted={true}
                         onEdit={(goal) => { setEditing(goal); setShowForm(true); }}
-                        onDelete={(id) => deleteMutation.mutate(id)}
+                        onDelete={(id) => {
+                          // Resolve the full goal object from cache so
+                          // the optimistic-delete hook can restore by
+                          // index if the user taps Undo.
+                          const goal = (goals || []).find(g => g.id === id);
+                          if (goal) optDelete.deleteWithUndo(goal);
+                        }}
                       />
                     )}
                   </motion.div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useFormDraft } from '@/hooks/useFormDraft';
+import { titleCase } from '@/lib/textCase';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -259,6 +260,10 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
             ref={nameInputRef}
             value={name}
             onChange={e => guard.handleChange(e.target.value, setName)}
+            onBlur={() => {
+              const cleaned = titleCase(name);
+              if (cleaned !== name) setName(cleaned);
+            }}
             placeholder={t('regimens.namePlaceholder')}
             required
           />
