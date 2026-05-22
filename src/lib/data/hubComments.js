@@ -1,5 +1,6 @@
 // src/lib/data/hubComments.js
 import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubPosts from './hubPosts';
 import * as hubCommentLikes from './hubCommentLikes';
@@ -54,6 +55,34 @@ export const create = async (data) => {
   if (data.post_id) {
     await hubPosts.incrementCounter(data.post_id, 'comment_count', +1);
   }
+
+  // Fan out a notification to the recipient. Server-side i18n + recipient
+  // resolution via notify_comment_reply_for (migration 086):
+  //   • top-level comment → post author gets "alice commented on your post"
+  //   • reply              → parent comment author gets "alice replied to
+  //                          your comment"
+  // The RPC computes the recipient itself so the client doesn't have to
+  // know which case it's in. The 034 trigger on notifications turns this
+  // into a Web Push if the recipient is subscribed and hasn't muted the
+  // 'social' category in their notification_prefs. Pre-086 hosts (RPC
+  // missing) silently no-op so comment creation still succeeds.
+  if (created?.id) {
+    try {
+      const { error: rpcErr } = await supabase.rpc('notify_comment_reply_for', {
+        p_comment_id: created.id,
+      });
+      if (rpcErr && rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
+        // Real RPC failure — the comment itself was already written
+        // which is the canonical event. Log without throwing so the
+        // caller's optimistic UI doesn't roll back.
+        console.warn('[hubComments] notify_comment_reply_for failed:', rpcErr);
+      }
+    } catch (e) {
+      // Network/unexpected throw. Non-critical to the comment itself.
+      console.warn('[hubComments] notify_comment_reply_for threw:', e?.message || e);
+    }
+  }
+
   return created;
 };
 
