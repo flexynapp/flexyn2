@@ -17,6 +17,7 @@ import RegimenForm from '@/components/regimens/RegimenForm';
 import RegimenDetailView from '@/components/regimens/RegimenDetailView';
 import TemplatesModal from '@/components/workout/TemplatesModal';
 import RegimenTemplateStore from '@/components/regimens/RegimenTemplateStore';
+import ProgramTemplatePicker from '@/components/workout/ProgramTemplatePicker';
 import * as hubPosts from '@/lib/data/hubPosts';
 import { reportError } from '@/lib/reportError';
 import { fireFirstRegimenCelebration } from '@/lib/firstRegimenCelebration';
@@ -236,11 +237,17 @@ export default function RegimensSection({ onStartRegimen }) {
           {[1,2].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
         </div>
       ) : regimens.length === 0 ? (
-        <Card className="p-8 text-center border-dashed">
-          <Dumbbell className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <p className="font-heading font-semibold">{t('regimens.empty')}</p>
-          <p className="text-sm text-muted-foreground mt-1">{t('regimens.emptyDesc')}</p>
-        </Card>
+        <div className="space-y-3">
+          <Card className="p-6 text-center border-dashed">
+            <Dumbbell className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+            <p className="font-heading font-semibold">{t('regimens.empty')}</p>
+            <p className="text-sm text-muted-foreground mt-1">{t('regimens.emptyDesc')}</p>
+          </Card>
+          {/* Built-in programs (A1) — surfaces the 6 canonical
+              programs as one-tap starter cards when the user has no
+              regimens yet. Removes the blank-slate friction. */}
+          <ProgramTemplatePicker />
+        </div>
       ) : (
         <motion.div
           className="space-y-3"

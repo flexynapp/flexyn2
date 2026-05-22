@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2 } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon } from 'lucide-react';
+import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
 import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
 import { supabase } from '@/api/supabaseClient';
@@ -156,6 +157,26 @@ export default function SettingsPanel() {
   // UI feedback; the RPC update_notification_pref is fire-and-forget on
   // toggle. We revert + toast on failure rather than blocking the UI.
   const [prefs, setPrefs] = useState(null);
+  // Quiet hours — null means "always on". When the user enables
+  // quiet hours we default the window to 22 → 7 (overnight).
+  const [quietHours, setQuietHours] = useState({ start: null, end: null });
+  useEffect(() => {
+    let cancelled = false;
+    getMyQuietHours().then((qh) => {
+      if (!cancelled) setQuietHours(qh);
+    }).catch(() => { /* non-critical */ });
+    return () => { cancelled = true; };
+  }, []);
+  const quietEnabled = quietHours.start != null && quietHours.end != null;
+  const updateQuietHours = async (next) => {
+    const prev = quietHours;
+    setQuietHours(next); // optimistic
+    const res = await setMyQuietHours(next);
+    if (!res?.ok) {
+      setQuietHours(prev); // revert
+      toast.error(tFallback('settings.quiet.saveFailed', 'Could not save quiet hours.'));
+    }
+  };
   useEffect(() => {
     if (profile?.story_dms_disabled !== undefined) {
       setStoryDmsDisabled(!!profile.story_dms_disabled);
@@ -455,6 +476,55 @@ export default function SettingsPanel() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Quiet hours — do-not-disturb window. NULL = always-on. When
+          set, the push trigger (mig 098) short-circuits push delivery
+          inside the window; in-app rows still insert. Window wraps
+          midnight (e.g. 22 → 7). */}
+      {push.isSupported && (
+        <div className="pl-5 -mt-1 space-y-2 border-l border-border/60 ml-1.5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Moon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
+              <p id="settings-quiet-label" className="text-[11px] text-muted-foreground leading-tight">
+                {tFallback('settings.quiet.title', 'Quiet hours')}
+              </p>
+            </div>
+            <ToggleSwitch
+              checked={quietEnabled}
+              onChange={(next) =>
+                updateQuietHours(next ? { start: 22, end: 7 } : { start: null, end: null })
+              }
+              labelledBy="settings-quiet-label"
+            />
+          </div>
+          {quietEnabled && (
+            <div className="flex items-center gap-2 pl-5">
+              <select
+                value={quietHours.start ?? 22}
+                onChange={(e) => updateQuietHours({ ...quietHours, start: Number(e.target.value) })}
+                className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
+                aria-label="Quiet hours start"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{formatHour12(h)}</option>
+                ))}
+              </select>
+              <span className="text-[11px] text-muted-foreground">→</span>
+              <select
+                value={quietHours.end ?? 7}
+                onChange={(e) => updateQuietHours({ ...quietHours, end: Number(e.target.value) })}
+                className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
+                aria-label="Quiet hours end"
+              >
+                {Array.from({ length: 24 }, (_, h) => (
+                  <option key={h} value={h}>{formatHour12(h)}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
       )}
 

@@ -16,6 +16,7 @@ import * as crewsData from '@/lib/data/crews';
 import * as usersData from '@/lib/data/users';
 import CrewMessageItem from './CrewMessageItem';
 import CrewMemberDirectory from './CrewMemberDirectory';
+import CrewChallengeCard from './CrewChallengeCard';
 
 // ── Roll Call composer ────────────────────────────────────────────────────────
 
@@ -353,6 +354,12 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         onScroll={handleScroll}
         className="flex-1 overflow-y-auto px-3 py-3 space-y-2"
       >
+        {/* Active crew challenges (A13) — admin can post a new
+            challenge from the inline + button. All members see live
+            progress bars. Self-hides when no challenges exist + the
+            viewer is not an admin. */}
+        <CrewChallengeCard crewId={crew?.id} isAdmin={!!crew?.is_admin} />
+
         {messages.length === 0 && (
           <div className="text-center py-12 text-muted-foreground">
             <p className="text-sm font-semibold">No messages yet.</p>
