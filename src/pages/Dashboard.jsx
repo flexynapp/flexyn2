@@ -21,6 +21,7 @@ import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
+import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
@@ -550,6 +551,15 @@ export default function Dashboard() {
       <div className="mb-5 md:mb-6">
         <ErrorBoundary label="WorkoutSuggestionCard">
           <WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} />
+        </ErrorBoundary>
+      </div>
+
+      {/* "This day last year" memory — evergreen delight for users with
+          historical data. Self-hides when no past-year match for today
+          or already dismissed for this date. */}
+      <div className="mb-5 md:mb-6">
+        <ErrorBoundary label="WorkoutMemoryCard">
+          <WorkoutMemoryCard logs={logs} />
         </ErrorBoundary>
       </div>
 
