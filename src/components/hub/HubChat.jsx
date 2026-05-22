@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search } from 'lucide-react';
+import { highlightMatches, countMatches } from '@/lib/highlightMatches';
+import { acceptConversation } from '@/lib/data/conversationRequests';
 import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -95,6 +97,24 @@ function saveDmFires(convId, map) {
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
 
+// Render a message body with optional in-thread search highlights.
+// Returns <span> children so it slots into the existing message bubble
+// without disturbing the wordBreak / whiteSpace styling. Falls back to
+// a plain <span> when no query is active.
+function renderBodyWithHighlights(text, query) {
+  if (!query || !query.trim()) return <span>{text}</span>;
+  const segments = highlightMatches(text, query);
+  return (
+    <span>
+      {segments.map((seg, idx) =>
+        seg.match
+          ? <mark key={idx} className="bg-amber-300/40 text-foreground rounded-sm px-0.5">{seg.text}</mark>
+          : <span key={idx}>{seg.text}</span>
+      )}
+    </span>
+  );
+}
+
 export default function HubChat({ conversation, otherUser = null, onBack }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
@@ -104,6 +124,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [attachmentFile, setAttachmentFile] = useState(null);
   const [attachmentPreview, setAttachmentPreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const scrollerRef    = useRef(null);
   const textareaRef    = useRef(null);
@@ -168,6 +190,22 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   });
 
   const messages = dedupeMessages(rawMessages);
+
+  // In-thread search filter (G1). Skipped to all-messages when the
+  // search bar is closed; once a query exists, only matching messages
+  // (case-insensitive substring) render.
+  const visibleMessages = (() => {
+    const q = searchQuery.trim();
+    if (!searchOpen || !q) return messages;
+    const ql = q.toLowerCase();
+    return messages.filter(m => {
+      const body = (m.body || m.content || '').toLowerCase();
+      return body.includes(ql);
+    });
+  })();
+  const totalMatches = searchOpen && searchQuery.trim()
+    ? messages.reduce((s, m) => s + countMatches(m.body || m.content || '', searchQuery), 0)
+    : 0;
 
   // Fetch emoji reactions for visible messages.
   //
@@ -618,7 +656,65 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             <Lock className="w-2.5 h-2.5" /> {t('hub.messages.privateNote.short')}
           </p>
         </div>
+        {/* Search this thread — opens an inline filter pill. Closing
+            the search clears the query so the next open starts fresh. */}
+        <button
+          onClick={() => { setSearchOpen(v => { if (v) setSearchQuery(''); return !v; }); }}
+          aria-label="Search this conversation"
+          className={`p-1.5 rounded-md transition-colors ${searchOpen ? 'bg-primary/15 text-primary' : 'hover:bg-secondary'}`}
+        >
+          <Search className="w-4 h-4" />
+        </button>
       </div>
+
+      {/* Message Request banner — shows when the viewer is a participant
+          but hasn't accepted yet. Tap Accept to move the conversation
+          from Requests to the main inbox. Sending a reply implicitly
+          accepts too (via mig 113's trg_auto_accept_on_send). */}
+      {(() => {
+        const accepted = Array.isArray(conversation?.accepted_emails) ? conversation.accepted_emails : [];
+        const myLc = String(user?.email || '').toLowerCase();
+        const acceptedByMe = accepted.some(e => String(e).toLowerCase() === myLc);
+        if (acceptedByMe || !conversation?.id) return null;
+        return (
+          <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-amber-500 uppercase tracking-wide">Message request</p>
+              <p className="text-[11px] text-muted-foreground">Accept to move this conversation to your inbox.</p>
+            </div>
+            <button
+              onClick={async () => {
+                try {
+                  await acceptConversation(conversation.id);
+                  queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+                } catch { /* swallow — silent retry on send */ }
+              }}
+              className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-bold"
+            >
+              Accept
+            </button>
+          </div>
+        );
+      })()}
+
+      {/* Inline search pill — only mounts when the toolbar button toggles it. */}
+      {searchOpen && (
+        <div className="mb-2 shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg bg-secondary/40 border border-border">
+          <Search className="w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search this conversation…"
+            className="flex-1 bg-transparent text-sm outline-none placeholder-muted-foreground/60"
+          />
+          {searchQuery && (
+            <button onClick={() => setSearchQuery('')} className="text-muted-foreground hover:text-foreground" aria-label="Clear">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Messages */}
       <div
@@ -626,15 +722,26 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         onScroll={handleScroll}
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1"
       >
-        {messages.length === 0 ? (
+        {searchOpen && searchQuery.trim() && (
+          <p className="text-[11px] text-muted-foreground text-center mb-2 tabular-nums">
+            {totalMatches === 0
+              ? 'No matches'
+              : `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${visibleMessages.length} message${visibleMessages.length === 1 ? '' : 's'}`}
+          </p>
+        )}
+        {visibleMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
-            <p className="text-center text-sm text-muted-foreground">{t('hub.chat.empty')}</p>
+            <p className="text-center text-sm text-muted-foreground">
+              {searchOpen && searchQuery.trim()
+                ? 'No messages match.'
+                : t('hub.chat.empty')}
+            </p>
           </div>
         ) : (
-          messages.map((m, i) => {
+          visibleMessages.map((m, i) => {
             const isMine = m.sender_email?.toLowerCase() === myEmailLc;
             const isLastSent = isMine && i === lastSentIndex;
-            const showDivider = shouldShowDivider(messages, i);
+            const showDivider = shouldShowDivider(visibleMessages, i);
             const isOptimistic = !!m._optimistic;
             const ts = msgTime(m);
             const isRead = !!m.read_at;
@@ -752,9 +859,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             if (parseTradeResponse(raw)) {
                               const newline = raw.indexOf('\n');
                               const visible = newline >= 0 ? raw.slice(newline + 1) : '';
-                              return visible ? <span>{visible}</span> : null;
+                              return visible ? renderBodyWithHighlights(visible, searchOpen ? searchQuery : '') : null;
                             }
-                            return raw ? <span>{raw}</span> : null;
+                            return raw ? renderBodyWithHighlights(raw, searchOpen ? searchQuery : '') : null;
                           })()}
                           {m.attachment_url && (
                             <button

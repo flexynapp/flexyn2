@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -9,9 +9,12 @@ import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import * as users from '@/lib/data/users';
 import * as crewsData from '@/lib/data/crews';
+import * as hubFollows from '@/lib/data/hubFollows';
 import HubChat from './HubChat';
 import CrewChat from '@/components/crews/CrewChat';
 import { toast } from 'sonner';
+import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
+import { partitionConversations } from '@/lib/data/conversationRequests';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -42,6 +45,9 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const [openOtherUser, setOpenOtherUser] = useState(null);
   const [activeCrew, setActiveCrew] = useState(null); // crew object for crew chat
   const [tab, setTab] = useState('dms'); // 'dms' | 'crews'
+  // DM-tab sub-view: 'inbox' (accepted + follow), 'requests' (strangers),
+  // 'archived' (user-archived). Defaults to inbox.
+  const [dmView, setDmView] = useState('inbox');
 
   // Desktop three-dot quick-action state
   const [openMenuId, setOpenMenuId] = useState(null); // conv.id or crew.id
@@ -129,6 +135,39 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     enabled: !!user?.email,
     refetchInterval: 15000,
   });
+
+  // Follow graph — needed to partition strangers into Message Requests.
+  // Stale-time generous; new follows refresh on next mount.
+  const { data: followingEmails = [] } = useQuery({
+    queryKey: ['myFollowsForDMs', user?.email],
+    queryFn: async () => {
+      const list = await hubFollows.listFollowing(user.email).catch(() => []);
+      return (list || []).map(f => f?.followee_email || f?.followed_email || f?.email).filter(Boolean);
+    },
+    enabled: !!user?.email,
+    staleTime: 5 * 60_000,
+  });
+
+  // Three-way split of conversations:
+  //   • archived  → archived view (per-device localStorage)
+  //   • requests  → strangers (not followed, not accepted)
+  //   • inbox     → everything else (accepted OR followed)
+  // The archive partition runs first so an archived conversation stays
+  // archived even if it lives in Requests semantically — the user
+  // explicitly told us to bury it.
+  const { archivedConvs, inboxConvs, requestConvs } = useMemo(() => {
+    const { active, archived } = partitionByArchive(conversations);
+    const { inbox, requests } = partitionConversations(active, user?.email, followingEmails);
+    return { archivedConvs: archived, inboxConvs: inbox, requestConvs: requests };
+  }, [conversations, user?.email, followingEmails]);
+
+  // The list rendered in the current dmView. Single source of truth for
+  // the conversations rail below — keeps the existing render JSX
+  // unchanged.
+  const visibleConvs =
+    dmView === 'requests' ? requestConvs :
+    dmView === 'archived' ? archivedConvs :
+    inboxConvs;
 
   // Auto-select a conversation from a `?conv=<id>` query param. Used by
   // the story-reply "Open" toast action to land the user directly in
@@ -252,19 +291,65 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             <p className="text-xs text-muted-foreground">{t('hub.messages.privateNote')}</p>
           </div>
 
+          {/* Inbox / Requests / Archived view switcher — only renders
+              when there's actually content to switch between, so a
+              user with zero messages doesn't see clutter. */}
+          {(conversations.length > 0) && (
+            <div className="flex items-center gap-1 mb-3 text-xs">
+              <button
+                onClick={() => setDmView('inbox')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                  dmView === 'inbox' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                <Inbox className="w-3.5 h-3.5" /> Inbox
+                {inboxConvs.length > 0 && <span className="opacity-70">({inboxConvs.length})</span>}
+              </button>
+              {requestConvs.length > 0 && (
+                <button
+                  onClick={() => setDmView('requests')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    dmView === 'requests' ? 'bg-primary text-primary-foreground' : 'text-amber-500 hover:bg-secondary'
+                  }`}
+                >
+                  <Mail className="w-3.5 h-3.5" /> Requests
+                  <span className="opacity-90">({requestConvs.length})</span>
+                </button>
+              )}
+              {archivedConvs.length > 0 && (
+                <button
+                  onClick={() => setDmView('archived')}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                    dmView === 'archived' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                  }`}
+                >
+                  <Archive className="w-3.5 h-3.5" /> Archived
+                </button>
+              )}
+            </div>
+          )}
+
           {isLoading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
-          ) : conversations.length === 0 ? (
+          ) : visibleConvs.length === 0 ? (
             <div className="text-center py-12">
               <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-              <p className="font-heading font-bold text-base">{t('hub.messages.empty.title')}</p>
-              <p className="text-sm text-muted-foreground">{t('hub.messages.empty.desc')}</p>
+              <p className="font-heading font-bold text-base">
+                {dmView === 'requests'
+                  ? 'No requests'
+                  : dmView === 'archived'
+                  ? 'No archived conversations'
+                  : t('hub.messages.empty.title')}
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {dmView === 'inbox' ? t('hub.messages.empty.desc') : ''}
+              </p>
             </div>
           ) : (
             <div className="space-y-1">
-              {conversations.map((c, i) => {
+              {visibleConvs.map((c, i) => {
                 const otherEmail = (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()) || '';
                 const profile = profilesByEmail[otherEmail?.toLowerCase()];
                 const username = profile?.username || emailToHandle(otherEmail);
@@ -411,6 +496,25 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                               {mutedConvIds.has(c.id)
                                 ? (tFallback('hub.messages.unmuteChat', 'Unmute Chat'))
                                 : (tFallback('hub.messages.muteChat', 'Mute Chat'))}
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (isArchived(c.id)) {
+                                  unarchiveConv(c.id);
+                                  toast.success('Conversation unarchived.');
+                                } else {
+                                  archiveConv(c.id);
+                                  toast.success('Conversation archived.');
+                                }
+                                setOpenMenuId(null);
+                                queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                            >
+                              {isArchived(c.id)
+                                ? <><ArchiveRestore className="w-4 h-4 text-muted-foreground" /> Unarchive</>
+                                : <><Archive className="w-4 h-4 text-muted-foreground" /> Archive</>}
                             </button>
                           </motion.div>
                         )}
