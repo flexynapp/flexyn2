@@ -21,14 +21,17 @@
 
 import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star } from 'lucide-react';
+import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star, Download, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import StoryReactionPicker from './StoryReactionPicker';
 import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
+import { formatTimeUntil } from '@/lib/timeUntil';
+import { downloadMedia } from '@/lib/downloadMedia';
 
 const STORY_DURATION_MS = 8000;
 
@@ -200,6 +203,15 @@ export default function StoryViewer({
   onClose, onStoriesChange, onAddStory,
 }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const [downloading, setDownloading] = useState(false);
+  // Re-render every 60s so the expiration countdown ticks down.
+  const [, setCountdownTick] = useState(0);
+  useEffect(() => {
+    if (!open) return undefined;
+    const id = setInterval(() => setCountdownTick(t => t + 1), 60_000);
+    return () => clearInterval(id);
+  }, [open]);
 
   const [groupIdx,      setGroupIdx]      = useState(0);
   const [storyIdx,      setStoryIdx]      = useState(0);
@@ -299,10 +311,27 @@ export default function StoryViewer({
   const handleSendReply = async () => {
     if (!reply.trim() || !currentGroup || replySending) return;
     setReplySending(true);
-    const ok = await storiesData.sendStoryReply(currentGroup.email, user, reply.trim());
+    const res = await storiesData.sendStoryReply(currentGroup.email, user, reply.trim());
     setReplySending(false);
-    if (ok) { toast.success('Reply sent!'); setReply(''); }
-    else    { toast.error('Could not send reply — try again.'); }
+    if (res?.ok) {
+      setReply('');
+      // Show an "Open" action on the success toast so the user can
+      // jump straight into the new (or existing) DM thread. The
+      // conversation already exists server-side; this just navigates.
+      toast.success('Reply sent!', res.conversationId ? {
+        action: {
+          label: 'Open',
+          onClick: () => {
+            onClose?.();
+            navigate(`/messages?conv=${encodeURIComponent(res.conversationId)}`);
+          },
+        },
+      } : undefined);
+    } else if (res?.reason === 'dms_disabled') {
+      toast.error("They don't accept story replies.");
+    } else {
+      toast.error('Could not send reply — try again.');
+    }
   };
 
   const timeAgo = (() => {
@@ -407,7 +436,22 @@ export default function StoryViewer({
                   <p className="text-white font-semibold text-sm leading-tight drop-shadow-md">
                     {currentGroup.isOwn ? 'Your Story' : currentGroup.username}
                   </p>
-                  <p className="text-white/70 text-[10px] leading-tight">{timeAgo}</p>
+                  <div className="flex items-center gap-1.5">
+                    <p className="text-white/70 text-[10px] leading-tight">{timeAgo}</p>
+                    {/* Expiration countdown — rendered when expires_at is
+                        within the next 24h and not yet elapsed. The 60s
+                        re-render interval above keeps this fresh. */}
+                    {(() => {
+                      const left = formatTimeUntil(currentStory.expires_at);
+                      if (!left) return null;
+                      return (
+                        <span className="flex items-center gap-0.5 text-white/70 text-[10px] leading-tight tabular-nums">
+                          <Clock className="w-3 h-3" aria-hidden="true" />
+                          {left}
+                        </span>
+                      );
+                    })()}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -455,6 +499,33 @@ export default function StoryViewer({
                 <button onClick={(e) => { e.stopPropagation(); setHighlightPickerOpen(true); }}
                   className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add to highlight">
                   <Star className="w-4 h-4" />
+                </button>
+
+                {/* Download — save my own story to the device. iOS
+                    Safari opens the URL in a new tab so the user can
+                    long-press → Save Image (the platform-native flow);
+                    other browsers get a real <a download> blob save. */}
+                <button
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    if (downloading) return;
+                    setDownloading(true);
+                    const ext = currentStory.image_url?.match(/\.(mp4|mov|webm)(\?|$)/i) ? 'mp4' : 'jpg';
+                    const res = await downloadMedia(
+                      currentStory.image_url,
+                      `flexyn-story-${currentStory.id}.${ext}`
+                    );
+                    setDownloading(false);
+                    if (res.ok && !res.opened) toast.success('Saved to your device.');
+                    else if (!res.ok)          toast.error('Could not download — try again.');
+                  }}
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white disabled:opacity-50"
+                  aria-label="Download story"
+                  disabled={downloading}
+                >
+                  {downloading
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <Download className="w-4 h-4" />}
                 </button>
 
                 {/* Delete */}

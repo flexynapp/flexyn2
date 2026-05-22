@@ -238,30 +238,36 @@ async function _recipientAllowsDmReplies(recipientEmail) {
  * the function itself didn't validate — a direct call could spam.
  * Now the check is done here, before any DM machinery runs.
  *
- * Returns false (with no side-effects) if the recipient has replies
- * disabled. Callers can treat that the same as a network failure.
+ * Returns:
+ *   { ok: true,  conversationId } — message sent
+ *   { ok: false, reason: 'dms_disabled' | 'network' | 'invalid' }
+ *
+ * The conversationId lets the caller surface a one-tap "Open" CTA in
+ * the success toast so the user can jump straight into the thread.
  */
 export async function sendStoryReply(storyOwnerEmail, sender, message) {
-  if (!storyOwnerEmail || !sender?.email || !message?.trim()) return false;
+  if (!storyOwnerEmail || !sender?.email || !message?.trim()) {
+    return { ok: false, reason: 'invalid' };
+  }
   // Server-checked: do they accept reply DMs at all?
   const allowed = await _recipientAllowsDmReplies(storyOwnerEmail);
   if (!allowed) {
     console.warn('[stories] reply blocked — recipient has story DMs disabled');
-    return false;
+    return { ok: false, reason: 'dms_disabled' };
   }
   try {
     const conv = await findOrCreateConversation(sender.email, storyOwnerEmail);
-    if (!conv?.id) return false;
+    if (!conv?.id) return { ok: false, reason: 'network' };
     await sendMessage({
       conversationId: conv.id,
       senderEmail:    sender.email,
       recipientEmail: storyOwnerEmail,
       body:           message.trim(),
     });
-    return true;
+    return { ok: true, conversationId: conv.id };
   } catch (err) {
     console.warn('[stories] reply failed:', err);
-    return false;
+    return { ok: false, reason: 'network' };
   }
 }
 

@@ -130,6 +130,26 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     refetchInterval: 15000,
   });
 
+  // Auto-select a conversation from a `?conv=<id>` query param. Used by
+  // the story-reply "Open" toast action to land the user directly in
+  // the new (or existing) thread. Runs once per conversations-list
+  // change so it survives the initial async load.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const wantedId = params.get('conv');
+    if (!wantedId || activeConv?.id === wantedId) return;
+    const target = conversations.find(c => c.id === wantedId);
+    if (target) {
+      setActiveConv(target);
+      // Strip the param so a refresh doesn't re-trigger the select.
+      params.delete('conv');
+      const next = params.toString();
+      const url = window.location.pathname + (next ? `?${next}` : '');
+      window.history.replaceState({}, '', url);
+    }
+  }, [conversations, activeConv?.id]);
+
   const { data: myCrews = [], isLoading: crewsLoadingRaw } = useQuery({
     queryKey: ['myCrews', user?.id],
     queryFn: () => crewsData.getMyCrews(user.id),
