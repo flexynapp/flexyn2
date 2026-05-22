@@ -164,8 +164,8 @@ export const listMessages = async (conversationId, limit = 200) => {
  * and new queries work. Updates conversation's last_message_at and preview.
  * Pass `attachmentUrl` to include an image attachment (migration 012).
  */
-export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl, repliedToMessageId, repliedToSnippet }) => {
-  if (!conversationId || !senderEmail || (!body && !attachmentUrl)) return null;
+export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl, repliedToMessageId, repliedToSnippet, messageType, stickerId, durationMs }) => {
+  if (!conversationId || !senderEmail || (!body && !attachmentUrl && !stickerId)) return null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
@@ -174,6 +174,12 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
     content: body || '', // keep content in sync for queries that use either column
     ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
     ...(repliedToMessageId ? { replied_to_message_id: repliedToMessageId, replied_to_snippet: repliedToSnippet || '' } : {}),
+    // Rich-media fields (mig 115). The db-layer's strip-and-retry
+    // handles pre-115 hosts by dropping unknown columns and saving the
+    // base row, so these add no risk to deployment ordering.
+    ...(messageType ? { message_type: messageType } : {}),
+    ...(stickerId   ? { sticker_id: stickerId } : {}),
+    ...(durationMs != null ? { duration_ms: Math.round(durationMs) } : {}),
   });
   try {
     // Trade offers / responses embed a marker at the start of the body —

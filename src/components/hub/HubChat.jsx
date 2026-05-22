@@ -1,10 +1,14 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation } from '@/lib/data/conversationRequests';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
+import DMStickerPicker from './DMStickerPicker';
+import GifPicker from './GifPicker';
+import VoiceMemoRecorder, { formatDuration as formatVoiceDuration } from './VoiceMemoRecorder';
+import { ITEMS as LOOT_ITEMS } from '@/lib/lootCatalog';
 import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -129,6 +133,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [scheduleAt, setScheduleAt] = useState('');
+  const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
 
   const scrollerRef    = useRef(null);
   const textareaRef    = useRef(null);
@@ -471,6 +477,69 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       toast.error(tFallback('hub.chat.pinError', 'Could not pin message. Try again.'));
     }
   }, [conversation?.id, queryClient]);
+
+  // ── Rich-media sends (stickers / GIFs / voice — mig 115) ────────────────
+  // Each shares the existing sendMessage path; only message_type and the
+  // companion fields (sticker_id / attachment_url / duration_ms) vary.
+  // No optimistic UI to keep this contained — the message appears on
+  // next refetch (already 5s polling).
+  const handleSendSticker = useCallback(async (stickerId) => {
+    if (!stickerId || !conversation?.id) return;
+    try {
+      await hubMessages.sendMessage({
+        conversationId: conversation.id,
+        senderEmail:    user?.email || '',
+        recipientEmail: otherUser?.email || null,
+        body:           '',
+        messageType:    'sticker',
+        stickerId,
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
+    } catch (err) {
+      toast.error(`Could not send sticker: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+
+  const handleSendGif = useCallback(async ({ url, alt }) => {
+    if (!url || !conversation?.id) return;
+    try {
+      await hubMessages.sendMessage({
+        conversationId: conversation.id,
+        senderEmail:    user?.email || '',
+        recipientEmail: otherUser?.email || null,
+        body:           '',
+        attachmentUrl:  url,
+        messageType:    'gif',
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
+    } catch (err) {
+      toast.error(`Could not send GIF: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+
+  const handleSendVoice = useCallback(async ({ blob, durationMs }) => {
+    if (!blob || !conversation?.id) return;
+    try {
+      // Upload via the existing Core.UploadFile (same path image
+      // attachments take in handleSend above).
+      const file = new File([blob], `voice-${Date.now()}.webm`, { type: blob.type || 'audio/webm' });
+      const upload = await db.integrations.Core.UploadFile({ file });
+      const url = upload?.file_url;
+      if (!url) throw new Error('upload failed');
+      await hubMessages.sendMessage({
+        conversationId: conversation.id,
+        senderEmail:    user?.email || '',
+        recipientEmail: otherUser?.email || null,
+        body:           '',
+        attachmentUrl:  url,
+        messageType:    'voice',
+        durationMs,
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
+    } catch (err) {
+      toast.error(`Could not send voice memo: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
 
   // ── Scheduled send (mig 114) ────────────────────────────────────────────
   // Currently-pending scheduled messages for this conversation. Refetch
@@ -936,6 +1005,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             if (m.deleted_at) {
                               return <span className="italic opacity-70">This message was deleted</span>;
                             }
+                            // Sticker message (mig 115) — render the emoji
+                            // glyph from the loot catalog at large size with
+                            // no chat-bubble background. The outer bubble
+                            // styling is overridden below; here we just
+                            // produce the glyph.
+                            if (m.message_type === 'sticker' && m.sticker_id) {
+                              const meta = LOOT_ITEMS.find(it => it.id === m.sticker_id);
+                              return <span className="text-5xl leading-none">{meta?.emoji || '✨'}</span>;
+                            }
                             const raw = m.body || m.content || '';
                             if (parseTradeResponse(raw)) {
                               const newline = raw.indexOf('\n');
@@ -944,7 +1022,34 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                             }
                             return raw ? renderBodyWithHighlights(raw, searchOpen ? searchQuery : '') : null;
                           })()}
-                          {m.attachment_url && (
+                          {/* Voice memo — render an inline audio player
+                              with duration. Native controls are mobile-
+                              friendly and don't need a custom skin. */}
+                          {m.message_type === 'voice' && m.attachment_url && (
+                            <div className={`flex items-center gap-2 ${(m.body || m.content) ? 'mt-1.5' : ''}`}>
+                              <audio src={m.attachment_url} controls className="max-w-[220px]" preload="metadata" />
+                              {Number.isFinite(m.duration_ms) && (
+                                <span className="text-[11px] tabular-nums opacity-80">
+                                  {formatVoiceDuration(m.duration_ms)}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          {/* GIF — same shape as a regular image attachment
+                              but tagged so future analytics can split them
+                              from photos. */}
+                          {m.message_type === 'gif' && m.attachment_url && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
+                              aria-label="Open GIF in new tab"
+                              className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
+                            >
+                              <img src={m.attachment_url} alt="GIF" className="rounded-lg max-h-64 object-cover max-w-full" />
+                            </button>
+                          )}
+                          {/* Fallback image attachment (text + photo) */}
+                          {m.message_type !== 'voice' && m.message_type !== 'gif' && m.attachment_url && (
                             <button
                               type="button"
                               onClick={(e) => { e.stopPropagation(); window.open(m.attachment_url, '_blank', 'noopener,noreferrer'); }}
@@ -1205,7 +1310,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       )}
 
       {/* Composer */}
-      <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
+      <div className="flex items-end gap-1 pt-2 border-t border-border shrink-0">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -1213,6 +1318,22 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
         >
           <Paperclip className="w-4 h-4" />
+        </button>
+        {/* Sticker picker — uses inventory stickers (mig 115). */}
+        <button
+          onClick={() => setStickerPickerOpen(true)}
+          aria-label="Send sticker"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+        >
+          <Smile className="w-4 h-4" />
+        </button>
+        {/* GIF picker — Tenor-backed. */}
+        <button
+          onClick={() => setGifPickerOpen(true)}
+          aria-label="Send GIF"
+          className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border"
+        >
+          GIF
         </button>
         <textarea
           ref={textareaRef}
@@ -1231,6 +1352,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-snug"
           style={{ maxHeight: 140 }}
         />
+        {/* Voice memo — hold-to-record. Hidden when there's already a
+            draft so the send-button doesn't fight for the same space. */}
+        {!draft.trim() && !attachmentFile && (
+          <VoiceMemoRecorder
+            onComplete={handleSendVoice}
+            onError={(msg) => toast.error(msg || 'Recording failed.')}
+          />
+        )}
         {/* Schedule send — opens an inline picker. Only shown when the
             user has typed something to send. */}
         {draft.trim() && (
@@ -1252,6 +1381,29 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <Send className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Sticker / GIF pickers — slide up from the bottom. Mounted as
+          siblings to the composer so the drawer naturally overlaps the
+          input rail when open. */}
+      <AnimatePresence>
+        {stickerPickerOpen && (
+          <DMStickerPicker
+            open
+            userId={user?.id}
+            onPick={handleSendSticker}
+            onClose={() => setStickerPickerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {gifPickerOpen && (
+          <GifPicker
+            open
+            onPick={handleSendGif}
+            onClose={() => setGifPickerOpen(false)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Schedule send overlay — dropdown above the composer. Uses
           datetime-local since the native control is mobile-friendly. */}
