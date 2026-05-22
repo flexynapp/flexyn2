@@ -155,39 +155,42 @@ public_tables_no_rls AS (
 --
 -- (Run separately below — UNION ALL'd into the main output)
 orphan_counts AS (
-  -- post_sticker_reactions → hub_posts
+  -- post_sticker_reactions → hub_posts.
+  -- Explicit ::text casts and AS aliases on the first SELECT — they
+  -- become the column names of the CTE. Subsequent UNION ALL branches
+  -- inherit those names, so a previous version of this audit (without
+  -- the aliases) errored with "column detail does not exist" when the
+  -- outer query tried to filter on it.
   SELECT
-    'orphan_rows' AS category,
-    'post_sticker_reactions' AS table_name,
-    'rows referencing deleted hub_posts: ' || COUNT(*)::text AS detail,
-    CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END AS severity,
-    'DELETE FROM public.post_sticker_reactions WHERE post_id NOT IN (SELECT id FROM public.hub_posts)' AS suggestion
+    'orphan_rows'::text                                                            AS category,
+    'post_sticker_reactions'::text                                                 AS table_name,
+    ('rows referencing deleted hub_posts: ' || COUNT(*)::text)::text               AS detail,
+    (CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END)::text                       AS severity,
+    'DELETE FROM public.post_sticker_reactions WHERE post_id NOT IN (SELECT id FROM public.hub_posts)'::text AS suggestion
   FROM public.post_sticker_reactions p
   LEFT JOIN public.hub_posts hp ON hp.id = p.post_id
   WHERE hp.id IS NULL
 
   UNION ALL
 
-  -- hub_reactions → hub_posts
   SELECT
-    'orphan_rows',
-    'hub_reactions',
-    'rows referencing deleted hub_posts: ' || COUNT(*)::text,
-    CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END,
-    'DELETE FROM public.hub_reactions WHERE post_id NOT IN (SELECT id FROM public.hub_posts)'
+    'orphan_rows'::text,
+    'hub_reactions'::text,
+    ('rows referencing deleted hub_posts: ' || COUNT(*)::text)::text,
+    (CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END)::text,
+    'DELETE FROM public.hub_reactions WHERE post_id NOT IN (SELECT id FROM public.hub_posts)'::text
   FROM public.hub_reactions hr
   LEFT JOIN public.hub_posts hp ON hp.id = hr.post_id
   WHERE hp.id IS NULL
 
   UNION ALL
 
-  -- notifications → auth.users
   SELECT
-    'orphan_rows',
-    'notifications',
-    'rows referencing deleted auth.users: ' || COUNT(*)::text,
-    CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END,
-    'DELETE FROM public.notifications WHERE user_id NOT IN (SELECT id FROM auth.users)'
+    'orphan_rows'::text,
+    'notifications'::text,
+    ('rows referencing deleted auth.users: ' || COUNT(*)::text)::text,
+    (CASE WHEN COUNT(*) > 0 THEN 'med' ELSE 'low' END)::text,
+    'DELETE FROM public.notifications WHERE user_id NOT IN (SELECT id FROM auth.users)'::text
   FROM public.notifications n
   LEFT JOIN auth.users u ON u.id = n.user_id
   WHERE u.id IS NULL
