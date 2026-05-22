@@ -61,6 +61,7 @@ import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import { firePRCelebration, OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
 import { detectDeloadOpportunity } from '@/lib/deloadDetector';
+import { enqueueReveal } from '@/lib/rewardQueue';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
@@ -536,7 +537,11 @@ export default function Workout() {
       // haptic; the sound is layered for users who want both.
       playSound(SOUND.workoutSaved);
       if (isFirstWorkout) {
-        fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email });
+        // Enqueue through rewardQueue (B6) so the first-workout
+        // celebration can't collide with the day-1 capsule grant
+        // notification fired by LevelUpManager below — they get
+        // serialized with ~700ms spacing instead of stacking.
+        enqueueReveal(() => fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email }));
         // Day-1 loot drop — reinforces the loot economy that the
         // day-0 welcome capsule introduced. Premium tier signals a
         // step up from the welcome standard so the reward FEELS
@@ -620,11 +625,16 @@ export default function Workout() {
               newPR: fromLbs(p.newPR, weightUnit),
               delta: fromLbs(p.delta, weightUnit),
             }));
-            firePRCelebration({
+            // Route through rewardQueue (B6). A workout that hits a
+            // PR + crosses a streak milestone + completes a daily
+            // quest would otherwise fire three overlapping toasts
+            // and three colliding confetti bursts. With the queue,
+            // each gets ~700ms to land before the next fires.
+            enqueueReveal(() => firePRCelebration({
               prs,
               unit: unitLabel,
               userEmail: user?.email,
-            });
+            }));
           }
 
           // Deload signal — soft suggestion when 3 consecutive weeks

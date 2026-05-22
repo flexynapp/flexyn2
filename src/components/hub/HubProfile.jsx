@@ -108,6 +108,7 @@ import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
+import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
@@ -1131,6 +1132,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </button>
           </motion.div>
         )}
+
+        {/* Story highlights rail (mig 099). Own profile shows a
+            "+ New" tile + their albums; non-own only shows albums
+            (hides entirely if empty). Tap → opens the album viewer
+            (TODO: wire to existing StoryViewer with a custom story
+            list). Long-press / right-click an own album = delete. */}
+        <StoryHighlightsRail
+          userEmail={isSelf ? user?.email : targetUser?.email}
+          isOwn={isSelf}
+          onOpenAlbum={(_h) => {
+            // TODO: open StoryViewer with this album's items.
+            // For V1, surface the album exists; viewer wiring is the
+            // next tap-tier follow-up.
+          }}
+        />
 
         {/* Lift stats — top 3 1RM lifts + total tonnage + longest
             streak. Read-only on friends' profiles, full-resolution

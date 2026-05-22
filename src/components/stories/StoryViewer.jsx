@@ -23,10 +23,11 @@ import React, { useState, useEffect, useRef, useCallback, useLayoutEffect } from
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Eye, Camera, Loader2, Send } from 'lucide-react';
+import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import StoryReactionPicker from './StoryReactionPicker';
+import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
 
 const STORY_DURATION_MS = 8000;
@@ -205,6 +206,7 @@ export default function StoryViewer({
   const [tick,          setTick]          = useState(0);
   const [insightsOpen,  setInsightsOpen]  = useState(false);
   const [deletePrompt,  setDeletePrompt]  = useState(false);
+  const [highlightPickerOpen, setHighlightPickerOpen] = useState(false);
   const [localLiked,    setLocalLiked]    = useState(new Set());
   const [reply,         setReply]         = useState('');
   const [replyFocused,  setReplyFocused]  = useState(false);
@@ -447,6 +449,14 @@ export default function StoryViewer({
                   <span className="text-[10px] font-medium">View Insights</span>
                 </button>
 
+                {/* Add to highlight (mig 099). Tap → modal to pick
+                    an existing album or create a new one. Pinned
+                    stories survive the 24-hour TTL. */}
+                <button onClick={(e) => { e.stopPropagation(); setHighlightPickerOpen(true); }}
+                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add to highlight">
+                  <Star className="w-4 h-4" />
+                </button>
+
                 {/* Delete */}
                 <button onClick={(e) => { e.stopPropagation(); setDeletePrompt(true); }}
                   className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Delete story">
@@ -543,6 +553,15 @@ export default function StoryViewer({
                 <InsightsPanel storyId={currentStory.id} onClose={() => setInsightsOpen(false)} />
               )}
             </AnimatePresence>
+
+            {/* ── Add-to-highlight modal (mig 099) ─────────────────────── */}
+            {highlightPickerOpen && currentGroup.isOwn && (
+              <AddToHighlightModal
+                open={highlightPickerOpen}
+                onClose={() => setHighlightPickerOpen(false)}
+                storyId={currentStory?.id}
+              />
+            )}
           </div>
         </motion.div>
       )}
