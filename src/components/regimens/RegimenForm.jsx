@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +51,27 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
       muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
     }))
   );
+
+  // Auto-save draft of the regimen-in-progress. Only enabled for the
+  // CREATE flow (no `initial`) — editing existing regimens uses the
+  // server's source-of-truth and shouldn't have a stale localStorage
+  // draft layered on top. Restores on remount with "Draft restored"
+  // toast + Discard action.
+  const { user } = useAuth();
+  const draftEnabled = !initial && !!user?.email;
+  const draftValue = { name, description, exercises, isPublic };
+  const draft = useFormDraft({
+    key: draftEnabled ? `flexyn.draft.regimenCreate.${user.email}` : null,
+    value: draftValue,
+    enabled: draftEnabled,
+    onRestore: (saved) => {
+      if (!saved) return;
+      if (typeof saved.name === 'string') setName(saved.name);
+      if (typeof saved.description === 'string') setDescription(saved.description);
+      if (Array.isArray(saved.exercises) && saved.exercises.length > 0) setExercises(saved.exercises);
+      if (typeof saved.isPublic === 'boolean') setIsPublic(saved.isPublic);
+    },
+  });
 
   // ── Group selection mode ────────────────────────────────────────────────────
   const [selecting, setSelecting] = useState(false);
@@ -197,6 +220,10 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
       target_sets: Math.min(maxSetsPerExercise, Math.max(1, Number(ex.target_sets))),
       target_reps: Math.min(getMaxRealisticReps(ex.name, 0, userProfile), Math.max(1, Number(ex.target_reps))),
     }));
+    // Successful submit → clear the auto-save draft so it doesn't
+    // re-fire "Draft restored" the next time the create-regimen form
+    // opens. No-op in edit mode (the draft hook was disabled there).
+    draft.clear();
     onSubmit({ name, description, exercises: normalised, is_public: isPublic });
   };
 

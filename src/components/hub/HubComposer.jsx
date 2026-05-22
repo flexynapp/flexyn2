@@ -21,6 +21,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
+import { useFormDraft } from '@/hooks/useFormDraft';
 import { useProfanityGuard } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -213,6 +214,34 @@ export default function HubComposer({ onClose }) {
   // and activity-tied posts (as an optional caption). Profanity-guarded.
   const [body, setBody] = useState('');
   const bodyGuard = useProfanityGuard(setBody);
+
+  // Auto-save draft of the body text + which kind of post the user
+  // chose. Restores on remount with a "Draft restored · Discard" toast.
+  // Storing kind so a user who picked "status" or "poll" lands back in
+  // the same step on return; we only persist the lightweight selection
+  // (NOT linked workouts/meals etc) because those snapshots can go stale.
+  const draftValue = { body, kind: selected?.kind ?? null };
+  const draft = useFormDraft({
+    key: user?.email ? `flexyn.draft.hubComposer.${user.email}` : null,
+    value: draftValue,
+    enabled: !!user?.email,
+    onRestore: (saved) => {
+      if (!saved) return;
+      if (typeof saved.body === 'string' && saved.body.length > 0) {
+        setBody(saved.body);
+      }
+      // Only auto-resume a step we can hydrate without external data
+      // (status posts are pure text; meal/workout posts need a fresh
+      // server snapshot, so we don't restore those step picks).
+      if (saved.kind === 'status') {
+        setSelected({ kind: 'status', item: null, summary: null });
+        setStep('status_compose');
+      } else if (saved.kind === 'poll') {
+        setSelected({ kind: 'poll', item: null, summary: null });
+        setStep('poll_compose');
+      }
+    },
+  });
 
   const [privacy, setPrivacy] = useState('public');
   const [posting, setPosting] = useState(false);
@@ -416,6 +445,7 @@ export default function HubComposer({ onClose }) {
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
         toast.success("Poll's live.");
+        draft.clear();
         onClose();
       } catch {
         toast.error(t('hub.composer.postError'));
@@ -603,6 +633,7 @@ export default function HubComposer({ onClose }) {
         }
       })();
 
+      draft.clear();
       onClose();
     } catch (err) {
       reportError(err, { feature: 'hub.composer.post', level: 'warning' });

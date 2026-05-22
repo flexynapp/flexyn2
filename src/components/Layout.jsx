@@ -198,7 +198,25 @@ export default function Layout() {
               >
                 <Link
                   to={item.path}
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  onClick={() => {
+                    // Three behaviors stacked on one tap:
+                    //   1. Navigating to a different tab → just scroll to top.
+                    //   2. Tapping the active tab when scrolled down → scroll
+                    //      to top (the universal Twitter/IG pattern).
+                    //   3. Tapping the active tab when already AT top → broadcast
+                    //      a refresh event the active page can opt into. Apps
+                    //      with feeds (Hub, Dashboard) treat this as a manual
+                    //      refresh; pages without one ignore it.
+                    if (isActive && window.scrollY < 50) {
+                      try {
+                        window.dispatchEvent(new CustomEvent('flexyn:active-tab-retap', {
+                          detail: { path: item.path },
+                        }));
+                      } catch { /* ignore */ }
+                    } else {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
                   className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
                     ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
                 >

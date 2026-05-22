@@ -140,6 +140,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []); // intentionally empty — refetch is always up-to-date via refetchRef
 
+  // Listen for the "active-tab retap" event from Layout — when the
+  // user taps the Hub tab while already on Hub + at the top, treat it
+  // as a manual refresh request (same outcome as the scroll-to-top
+  // gesture). Standard Twitter/IG behavior.
+  useEffect(() => {
+    const onRetap = (e) => {
+      if (e.detail?.path !== '/hub') return;
+      refetchRef.current();
+      setShowRefreshBadge(true);
+      setTimeout(() => setShowRefreshBadge(false), 1800);
+      try { navigator.vibrate?.(10); } catch { /* ignore */ }
+    };
+    window.addEventListener('flexyn:active-tab-retap', onRetap);
+    return () => window.removeEventListener('flexyn:active-tab-retap', onRetap);
+  }, []);
+
   // Slice the fetched window to the visible page.
   const visiblePosts = useMemo(
     () => allPosts.slice(0, visibleCount),
