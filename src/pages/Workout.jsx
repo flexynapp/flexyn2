@@ -59,6 +59,7 @@ import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import * as capsules from '@/lib/data/capsules';
+import * as activity from '@/lib/data/activity';
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
@@ -94,6 +95,22 @@ export default function Workout() {
   const { t, tFallback } = useLanguage();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
+
+  // Live-activity presence (migration 088). When the user starts a
+  // workout, mark them active for 90 min so followers see a green dot
+  // in the Hub list and (eventually) a "X is working out right now"
+  // badge on the feed. The TTL caps the damage if clearActive ever
+  // fails to land — we don't want users stuck as "active" indefinitely.
+  useEffect(() => {
+    if (started) {
+      activity.markActive(90);
+    }
+    // We intentionally do NOT call clearActive() in the cleanup here —
+    // resetWorkout already handles the explicit clear, and a cleanup
+    // would also fire on every dependency change which would prematurely
+    // clear the flag mid-session. The TTL is the safety net for the
+    // edge case where the tab closes without saving.
+  }, [started]);
   const [selectedRegimen, setSelectedRegimen] = useState(null);
   const [exercises, setExercises] = useState([]);
   // Date defaults to today. Can be rolled back to yesterday for late-night sessions
@@ -1008,6 +1025,11 @@ export default function Workout() {
 
   const resetWorkout = (clearSessionId = null) => {
     if (clearSessionId) removeSession(clearSessionId);
+    // Clear the live-activity presence flag (migration 088). Fire-and-
+    // forget — a failed clear isn't catastrophic; the TTL on
+    // active_until (set by markActive at workout start) caps the
+    // damage to 90 minutes even if this clear never lands.
+    activity.clearActive();
     setStarted(false);
     setActiveSessionId(null);
     setSelectedRegimen(null);

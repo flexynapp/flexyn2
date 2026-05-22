@@ -20,8 +20,10 @@ import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
+import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
+import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
@@ -539,6 +541,15 @@ export default function Dashboard() {
         </ErrorBoundary>
       </div>
 
+      {/* Tomorrow's focus suggestion — deterministic heuristic against
+          this week's logs. Self-hides when there's less than 2 workouts
+          of data so we don't surface a guess based on noise. */}
+      <div className="mb-5 md:mb-6">
+        <ErrorBoundary label="WorkoutSuggestionCard">
+          <WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} />
+        </ErrorBoundary>
+      </div>
+
       {/* ── Daily quote ────────────────────────────────────────── */}
       <div className="mb-5 md:mb-6">
         <DailyQuote />
@@ -562,6 +573,9 @@ export default function Dashboard() {
         <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
         <ErrorBoundary label="PushOptInBanner">
           <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
+        </ErrorBoundary>
+        <ErrorBoundary label="IosInstallBanner">
+          <IosInstallBanner />
         </ErrorBoundary>
       </div>
 

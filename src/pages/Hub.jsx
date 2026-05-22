@@ -14,6 +14,7 @@ import HubProfile from '@/components/hub/HubProfile';
 import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
+import LiveActivityRail from '@/components/hub/LiveActivityRail';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -220,6 +221,13 @@ export default function Hub() {
           positioning so it overlays the feed without affecting scroll.
           Only renders on the feed surface (not profile / search). */}
       {section === 'feed' && <FollowerActivityBanner />}
+
+      {/* Live-now rail (migration 088). Horizontal scroll of friends
+          who are actively working out RIGHT NOW. Self-hides when
+          nobody's training. Drives FOMO + copy-cat workouts — a strong
+          social mechanic that compounds with the crew wars / nemesis
+          stack. */}
+      {section === 'feed' && feedTab !== 'crews' && <LiveActivityRail />}
 
       {/* Stories tray — hidden on Crews tab */}
       {section === 'feed' && feedTab !== 'crews' && (
