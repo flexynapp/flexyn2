@@ -40,6 +40,23 @@ export async function getMyCrews(userId) {
   }));
 }
 
+/**
+ * Returns up to N popular non-full crews the caller is not yet a member
+ * of. Backs the Hub Crews "Suggested" rail. Server-side ordering is
+ * member count DESC, then created_at ASC.
+ *
+ * Returns [] on pre-090 host (RPC missing) so the rail gracefully
+ * hides instead of erroring.
+ */
+export async function getSuggestedCrews(limit = 5) {
+  const { data, error } = await supabase.rpc('get_suggested_crews', { p_limit: limit });
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') return [];
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+}
+
 export async function getCrew(crewId) {
   if (!crewId) return null;
   const { data, error } = await supabase

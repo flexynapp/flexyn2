@@ -18,6 +18,7 @@ import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewWarPanel from './CrewWarPanel';
 import CrewMemberDots from './CrewMemberDots';
+import CrewSuggestionRail from './CrewSuggestionRail';
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
@@ -370,6 +371,13 @@ export default function CrewsSection({ initialCrewId }) {
             exit={{ opacity: 0, x: -8 }}
             transition={{ duration: 0.15 }}
           >
+            {/* Suggested crews rail — surfaces popular non-full crews
+                the user isn't yet in. Self-hides when no suggestions
+                are available or when the user dismissed it. Activates
+                the crew_war notification surface for users who'd
+                otherwise never join a crew. */}
+            <CrewSuggestionRail />
+
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-bold text-base">My Crews</h3>
               <motion.button
