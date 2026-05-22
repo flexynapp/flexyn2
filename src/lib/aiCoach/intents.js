@@ -23,6 +23,8 @@ export const INTENTS = {
   GOAL_STATUS:      'goal_status',
   STREAK_STATUS:    'streak_status',
   PLATEAU:          'plateau',
+  RECOVERY_CHECK:   'recovery_check', // NEW — combines sleep + soreness + recency
+  SLEEP_LOG:        'sleep_log',      // NEW — user wants to log/check sleep
   GREETING:         'greeting',
   HELP:             'help',
   UNKNOWN:          'unknown',
@@ -155,6 +157,25 @@ export function detectIntent(message) {
     /\bwhat (do|can) you (do|know|help|answer)\b/,
     /^\s*\?+\s*$/,
   ]) if (re.test(m)) candidates.push({ id: INTENTS.HELP, score: 5 });
+
+  // Recovery check — "should I lift today" / "am I recovered" / "how am I"
+  // overlap with PROGRESS_CHECK; we score this slightly lower so progress
+  // check wins on broad "how is my training going" phrasings.
+  for (const re of [
+    /\b(am i|should i be)\s*(recovered|rested|fresh|ready)\b/,
+    /\b(recovery|recovered)\s*(score|status|level)\b/,
+    /\bhow recovered\b/,
+    /\b(should|can) i\s*(lift|train|workout)\s*(today|now)\b/,
+    /\bready to (lift|train|workout)\b/,
+  ]) if (re.test(m)) candidates.push({ id: INTENTS.RECOVERY_CHECK, score: 8 });
+
+  // Sleep — log or check
+  for (const re of [
+    /\b(log|track|record|enter)\s*(my)?\s*sleep\b/,
+    /\b(how much|how many hours)\s*(did i|i)?\s*(sleep|slept)\b/,
+    /\bsleep (log|hours|quality)\b/,
+    /\bi slept\b/,
+  ]) if (re.test(m)) candidates.push({ id: INTENTS.SLEEP_LOG, score: 8 });
 
   if (candidates.length === 0) {
     return { id: INTENTS.UNKNOWN, score: 0, params: { raw: message } };

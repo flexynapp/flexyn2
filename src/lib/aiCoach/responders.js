@@ -483,6 +483,74 @@ async function unknown({ params }) {
   ].join('\n');
 }
 
+// ── Recovery / Sleep responders (migration 095 — sleep_logs) ─────────────────
+
+import { computeRecoveryScore } from '../recoveryScore';
+import { listRecentSleepLogs, getTodaySleepLog } from '../data/sleepLogs';
+
+async function recoveryCheck({ user }) {
+  // Pull last 7 days of sleep + the most recent workout to compute
+  // a recovery score on the same heuristic the Dashboard surfaces use.
+  const [recent, latestWorkout] = await Promise.all([
+    listRecentSleepLogs(7).catch(() => []),
+    _fetchRecentWorkouts(user?.email, 14).then(arr => arr?.[0]).catch(() => null),
+  ]);
+
+  const todays = recent[recent.length - 1] || null;
+  const { score, label } = computeRecoveryScore({
+    sleepHours:    todays?.hours,
+    sleepQuality:  todays?.quality,
+    soreness:      todays?.soreness,
+    lastWorkoutAt: latestWorkout?.date,
+  });
+
+  const lines = [];
+  lines.push(`Recovery: ${score}/100 — ${label}`);
+  if (todays?.hours) {
+    lines.push(`Last night: ${todays.hours}h${todays.quality ? ` (quality ${todays.quality}/5)` : ''}`);
+  } else {
+    lines.push("No sleep log yet today — log it to sharpen this score.");
+  }
+  if (latestWorkout?.date) {
+    const days = differenceInCalendarDays(new Date(), new Date(latestWorkout.date));
+    lines.push(days === 0
+      ? "You trained today — light recovery work is the right move."
+      : days === 1
+        ? "1 day since last workout."
+        : `${days} days since last workout.`);
+  }
+  // Action prompt — ties recovery score to a training decision.
+  if (score >= 80) {
+    lines.push("Hit it hard. Take a PR shot today.");
+  } else if (score >= 65) {
+    lines.push("Train as planned. Save the heaviest lift for later in the session.");
+  } else if (score >= 50) {
+    lines.push("Train, but cap intensity — leave 1-2 reps in reserve.");
+  } else {
+    lines.push("Consider a mobility day or a light cardio session.");
+  }
+  return lines.join('\n');
+}
+
+async function sleepLog({ user }) {
+  const todays = await getTodaySleepLog().catch(() => null);
+  if (!todays) {
+    return "I don't have a sleep log for you today yet. Tap the sleep card on the Dashboard to record last night.";
+  }
+  const lines = [
+    `Logged: ${todays.hours}h${todays.quality ? ` (quality ${todays.quality}/5)` : ''}`,
+  ];
+  if (todays.soreness) lines.push(`Soreness: ${todays.soreness}/5`);
+  if (todays.hours >= 8) {
+    lines.push("Solid duration. You're set up for a good session.");
+  } else if (todays.hours >= 6.5) {
+    lines.push("Decent. Caffeine + protein early helps.");
+  } else {
+    lines.push("Short night — favor technique over loading today.");
+  }
+  return lines.join('\n');
+}
+
 // ── Router ───────────────────────────────────────────────────────────────────
 
 const RESPONDERS = {
@@ -500,6 +568,8 @@ const RESPONDERS = {
   [INTENTS.GOAL_STATUS]:     goalStatus,
   [INTENTS.STREAK_STATUS]:   streakStatus,
   [INTENTS.PLATEAU]:         plateau,
+  [INTENTS.RECOVERY_CHECK]:  recoveryCheck,
+  [INTENTS.SLEEP_LOG]:       sleepLog,
   [INTENTS.GREETING]:        greeting,
   [INTENTS.HELP]:            help,
   [INTENTS.UNKNOWN]:         unknown,
