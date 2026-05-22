@@ -7,6 +7,23 @@ import { safeSelect } from '@/api/safeSelect';
 
 const e = () => db.entities.HubFollow;
 
+/**
+ * Returns up to N popular active users the caller isn't following.
+ * Backs the Hub feed "Suggested follows" rail. Server-side ranking
+ * is follower_count DESC, total_posts DESC, created_at ASC.
+ *
+ * Returns [] on pre-091 host (RPC missing) so the rail gracefully
+ * hides instead of erroring.
+ */
+export const getSuggestedFollowees = async (limit = 8) => {
+  const { data, error } = await supabase.rpc('get_suggested_followees', { p_limit: limit });
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') return [];
+    return [];
+  }
+  return Array.isArray(data) ? data : [];
+};
+
 /** List emails the given user is following. */
 export const listFollowing = async (email) => {
   if (!email) return [];

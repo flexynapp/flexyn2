@@ -15,6 +15,7 @@ import HubComposer from '@/components/hub/HubComposer';
 import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
 import LiveActivityRail from '@/components/hub/LiveActivityRail';
+import FollowSuggestionRail from '@/components/hub/FollowSuggestionRail';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -228,6 +229,12 @@ export default function Hub() {
           social mechanic that compounds with the crew wars / nemesis
           stack. */}
       {section === 'feed' && feedTab !== 'crews' && <LiveActivityRail />}
+
+      {/* Follow suggestions rail (migration 091). Visible when the user
+          has <3 followees (empty-feed trap) or hasn't dismissed in 30d.
+          Each card is one-tap follow. The biggest single-feature lift
+          to first-week retention because an empty feed = bounce. */}
+      {section === 'feed' && feedTab !== 'crews' && <FollowSuggestionRail />}
 
       {/* Stories tray — hidden on Crews tab */}
       {section === 'feed' && feedTab !== 'crews' && (
