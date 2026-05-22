@@ -19,6 +19,8 @@ import * as inventory   from '@/lib/data/inventory';
 import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
+import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
+import RecentlyViewedRail from './RecentlyViewedRail';
 
 // ─── Daily Chest helpers ──────────────────────────────────────────────────────
 // Was: localStorage-only claim gate. That was a coin minter — clear
@@ -59,7 +61,7 @@ function RarityBadge({ rarity, small = false }) {
 }
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
-function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade }) {
+function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false }) {
   const isMine      = listing.seller_email === currentUser?.email;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
@@ -72,8 +74,9 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       className={[
-        'flex flex-col rounded-xl border-2 bg-[#0f0f2a] p-3 gap-2 relative overflow-hidden',
+        'flex flex-col rounded-xl border-2 bg-[#0f0f2a] p-3 gap-2 relative overflow-hidden transition-opacity',
         rc.borderClass,
+        recentlySold ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}
     >
       {/* Subtle rarity glow */}
@@ -81,6 +84,25 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
         className="absolute inset-0 pointer-events-none rounded-xl"
         style={{ background: `radial-gradient(ellipse 80% 50% at 50% 0%, ${rc.color}12, transparent)` }}
       />
+
+      {/* Sold stamp — when a listing transitions to sold (via realtime
+          or polled refresh) we keep the card visible for ~5s with a
+          diagonal SOLD overlay before it collapses out of the grid.
+          Communicates marketplace activity + creates urgency for the
+          listings still active. Self-buy gets the warmer YOURS! variant. */}
+      {recentlySold && (
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none z-20"
+          aria-hidden="true"
+        >
+          <span
+            className="font-black text-2xl tracking-widest text-rose-400 drop-shadow-[0_2px_6px_rgba(0,0,0,0.6)] rotate-[-12deg] select-none"
+            style={{ textShadow: '0 0 8px rgba(0,0,0,0.4)' }}
+          >
+            {boughtByMe ? 'YOURS!' : 'SOLD'}
+          </span>
+        </div>
+      )}
 
       {/* Item */}
       <div className="flex flex-col items-center gap-1 relative z-10">
@@ -765,6 +787,16 @@ export default function MarketplaceFeed() {
   const [buyTarget,        setBuyTarget]       = useState(null);
   const [buyBusy,          setBuyBusy]         = useState(false);
   const [shopOpen,         setShopOpen]        = useState(false);
+
+  // Sold-fade tracking — set of listing IDs that just disappeared
+  // from the active feed. We render the SOLD overlay for ~5s before
+  // the listing actually collapses out of the grid. boughtByMe is a
+  // separate set so we can show the warmer YOURS! variant for buys
+  // the current user just made.
+  const [recentlySold,  setRecentlySold]  = useState(() => new Set());
+  const [boughtByMeIds, setBoughtByMeIds] = useState(() => new Set());
+  const previousListingsRef = useRef([]);
+
   // Feature 21: sort controls
   const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
   const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
@@ -776,6 +808,43 @@ export default function MarketplaceFeed() {
     staleTime: 15_000,
   });
   const listings = Array.isArray(rawListings) ? rawListings : [];
+
+  // Detect listings that disappeared between the previous render and
+  // this one — those are the just-sold (or cancelled) ones. Mark them
+  // for a 5s "sold-fade" overlay, then clean them up. boughtByMe is
+  // tracked separately so the buy handler can flag a self-buy for the
+  // YOURS! variant just before the listing leaves the feed.
+  useEffect(() => {
+    const prevIds = new Set(previousListingsRef.current.map(l => l.id));
+    const currIds = new Set(listings.map(l => l.id));
+    const disappeared = [...prevIds].filter(id => !currIds.has(id));
+    if (disappeared.length === 0) {
+      previousListingsRef.current = listings;
+      return;
+    }
+    // Stitch the just-gone listings back into a local copy so the
+    // SOLD card stays visible while the fade plays.
+    setRecentlySold(prev => {
+      const next = new Set(prev);
+      disappeared.forEach(id => next.add(id));
+      return next;
+    });
+    const timer = setTimeout(() => {
+      setRecentlySold(prev => {
+        const next = new Set(prev);
+        disappeared.forEach(id => next.delete(id));
+        return next;
+      });
+      setBoughtByMeIds(prev => {
+        const next = new Set(prev);
+        disappeared.forEach(id => next.delete(id));
+        return next;
+      });
+    }, 5000);
+    previousListingsRef.current = listings;
+    return () => clearTimeout(timer);
+
+  }, [listings]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: rawMyItems } = useQuery({
     queryKey: ['userInventory', user?.email],
@@ -815,6 +884,15 @@ export default function MarketplaceFeed() {
     setBuyBusy(true);
     try {
       await marketplace.purchaseListing(buyTarget.id);
+      // Flag this listing for the warmer YOURS! sold-fade variant
+      // BEFORE the next refetch removes it from the feed. The disappear
+      // detector picks it up on the next render.
+      const justBoughtId = buyTarget.id;
+      setBoughtByMeIds(prev => {
+        const next = new Set(prev);
+        next.add(justBoughtId);
+        return next;
+      });
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
       await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
@@ -898,6 +976,27 @@ export default function MarketplaceFeed() {
         </div>
       </motion.button>
 
+      {/* Recently viewed rail — small thumbnails of the last 5 listings
+          this user tapped into but didn't buy. Empty history renders
+          nothing. Tapping a thumbnail re-opens the listing's BuyConfirm
+          flow. */}
+      {user?.email && (
+        <RecentlyViewedRail
+          userEmail={user.email}
+          listings={listings}
+          onSelect={(listing) => {
+            // Only re-open the buy dialog for listings the viewer can
+            // actually buy (their own listings or sold items just
+            // dim/disable in the rail).
+            if (listing.seller_email !== user.email && listing.listing_type === 'sale') {
+              setBuyTarget(listing);
+            } else if (listing.listing_type === 'trade') {
+              setTradeTarget(listing);
+            }
+          }}
+        />
+      )}
+
       {/* Listings grid */}
       {loadingListings ? (
         <div className="flex items-center justify-center py-20">
@@ -909,7 +1008,7 @@ export default function MarketplaceFeed() {
           <p className="text-gray-500 font-medium">Could not load listings</p>
           <button onClick={() => refetch()} className="text-purple-400 text-sm hover:underline">Try again</button>
         </div>
-      ) : listings.length === 0 ? (
+      ) : listings.length === 0 && recentlySold.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-gray-700" />
           <p className="text-gray-500 font-medium">No listings yet</p>
@@ -918,17 +1017,41 @@ export default function MarketplaceFeed() {
       ) : (
         <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <AnimatePresence>
+            {/* Live listings — wrap onBuy/onOfferTrade to record the
+                tap in the recently-viewed log so the rail can show
+                them next time. */}
             {listings.map(listing => (
               <ListingCard
                 key={listing.id}
                 listing={listing}
                 currentUser={user}
                 flexCoins={flexCoins}
-                onBuy={setBuyTarget}
+                onBuy={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setBuyTarget(l); }}
                 onCancel={handleCancel}
-                onOfferTrade={setTradeTarget}
+                onOfferTrade={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); }}
               />
             ))}
+            {/* Sold-fade cards — re-render the just-removed listings
+                from the previous snapshot with the SOLD overlay for
+                ~5s before they collapse out. previousListingsRef is
+                always one render behind, so it still contains the
+                pre-sale data even when the live listings array no
+                longer does. */}
+            {previousListingsRef.current
+              .filter(l => recentlySold.has(l.id) && !listings.find(x => x.id === l.id))
+              .map(listing => (
+                <ListingCard
+                  key={`sold-${listing.id}`}
+                  listing={listing}
+                  currentUser={user}
+                  flexCoins={flexCoins}
+                  onBuy={() => {}}
+                  onCancel={() => {}}
+                  onOfferTrade={() => {}}
+                  recentlySold
+                  boughtByMe={boughtByMeIds.has(listing.id)}
+                />
+              ))}
           </AnimatePresence>
         </motion.div>
       )}

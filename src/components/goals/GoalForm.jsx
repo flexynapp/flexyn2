@@ -8,6 +8,7 @@ import MobileSelect from '@/components/MobileSelect';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import UnitPill from '@/components/UnitPill';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { toLbs, fromLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
 import { format, startOfMonth } from 'date-fns';
@@ -192,7 +193,12 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-sm font-medium mb-1.5 block">{t('goals.targetWeight')}</label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-medium">{t('goals.targetWeight')}</label>
+                {/* Inline unit swap — same component used in LogWeightModal.
+                    One-tap lb ↔ kg without leaving the form. */}
+                <UnitPill />
+              </div>
               <Input
                 type="number"
                 min={fromLbs(10, weightUnit)}
