@@ -988,7 +988,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     className="flex-1 py-1.5 text-xs rounded-lg text-white font-semibold disabled:opacity-60"
                     style={{ background: 'hsl(var(--primary))' }}
                   >
-                    {savingProfile ? 'Saving…' : 'Save'}
+                    {savingProfile ? 'Saving…' : 'Save profile'}
                   </button>
                 </div>
               </div>

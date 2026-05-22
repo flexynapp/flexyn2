@@ -2,6 +2,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
+import { compressImage } from '@/lib/imageCompress';
 
 const CREW_XP_FUEL_AMOUNT = 500;
 
@@ -376,7 +377,8 @@ export async function getCrewStoriesFeed(userId) {
 // ── Image upload helper (reuses Base44 Core uploader) ─────────────────────────
 
 export async function uploadCrewMedia(file) {
-  const result = await db.integrations.Core.UploadFile({ file });
+  const compressed = await compressImage(file);
+  const result = await db.integrations.Core.UploadFile({ file: compressed });
   if (!result?.file_url) throw new Error('Upload failed');
   return result.file_url;
 }

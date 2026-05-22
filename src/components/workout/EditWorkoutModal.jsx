@@ -283,7 +283,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
               </Button>
               <Button variant="outline" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>
-                {saving ? t('workout.saving') : t('common.save')}
+                {saving ? t('workout.saving') : (t('workout.saveChanges') || 'Save changes')}
               </Button>
             </>
           )}

@@ -56,6 +56,7 @@ import NemesisCard from '@/components/nemesis/NemesisCard';
 import { getMyProgress as getGauntletProgress, checkChallenge1 } from '@/lib/data/gauntlet';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
+import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import * as capsules from '@/lib/data/capsules';
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
@@ -424,11 +425,22 @@ export default function Workout() {
       const code = err?.code || err?.status;
       // RLS / permission denied surfaces a clearer hint than a generic message.
       if (code === '42501' || /policy|permission/i.test(err?.message || '')) {
-        toast.error('Could not save — permission denied. Try signing in again.');
+        errorToast({
+          title: 'Could not save',
+          description: 'Permission denied. Try signing in again.',
+        });
       } else if (/network|fetch|failed to fetch/i.test(err?.message || '')) {
-        toast.error('Could not save — check your connection and try again.');
+        errorToast({
+          title: 'Could not save',
+          description: 'Check your connection and try again.',
+          retry: () => saveMutation.mutate(_data),
+        });
       } else {
-        toast.error('Could not save workout', { description: err?.message || 'Try again.' });
+        errorToast({
+          title: 'Could not save workout',
+          description: err?.message || 'Try again.',
+          retry: () => saveMutation.mutate(_data),
+        });
       }
     },
     onSuccess: (result, _origData, ctx) => {

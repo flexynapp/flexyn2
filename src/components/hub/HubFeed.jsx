@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Users, RefreshCw, Sparkles, ArrowUp } from 'lucide-react';
+import { Loader2, RefreshCw, ArrowUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -11,6 +11,7 @@ import * as hubFollows from '@/lib/data/hubFollows';
 import { supabase } from '@/api/supabaseClient';
 import HubPostCard from './HubPostCard';
 import EmptyState from '@/components/EmptyState';
+import { NoFeedIllustration, NoFriendsIllustration } from '@/components/emptyStateIllustrations';
 import { reportError } from '@/lib/reportError';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
@@ -216,7 +217,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     };
     return (
       <EmptyState
-        icon={feedTab === 'pump' ? Sparkles : Users}
+        illustration={feedTab === 'pump' ? <NoFeedIllustration /> : <NoFriendsIllustration />}
         title={
           feedTab === 'pump'
             ? (tFallback('hub.empty.pumpTitle', 'No posts yet'))

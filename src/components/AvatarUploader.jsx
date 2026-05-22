@@ -9,6 +9,7 @@ import { update as updateMe } from '@/lib/data/me';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
+import { compressImage } from '@/lib/imageCompress';
 import { toast } from 'sonner';
 
 /**
@@ -49,8 +50,13 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
     }
     setUploading(true);
     try {
+      // Downscale + re-encode before upload — a 12MP iPhone photo
+      // shouldn't burn through 4 MB of mobile data when the rendered
+      // avatar is 96px on screen.
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 });
+
       // 1. Upload to Supabase Storage
-      const { file_url } = await db.integrations.Core.UploadFile({ file });
+      const { file_url } = await db.integrations.Core.UploadFile({ file: compressed });
       if (!file_url) throw new Error('No URL returned');
 
       // 2. Save to profile

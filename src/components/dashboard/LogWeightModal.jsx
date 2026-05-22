@@ -170,7 +170,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               disabled={!value || !date || saveMutation.isPending}
             >
               {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              {tFallback('common.save', 'Save')}
+              {tFallback('dashboard.logWeight.cta', 'Log weight')}
             </Button>
           </div>
         </form>

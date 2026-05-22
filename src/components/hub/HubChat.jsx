@@ -12,6 +12,7 @@ import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
+import { compressImage } from '@/lib/imageCompress';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
 import DuelInviteCard, { parseDuelInvite } from '@/components/duels/DuelInviteCard';
@@ -518,7 +519,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       if (fileToUpload) {
         setUploading(true);
         try {
-          const result = await db.integrations.Core.UploadFile({ file: fileToUpload });
+          const compressed = await compressImage(fileToUpload);
+          const result = await db.integrations.Core.UploadFile({ file: compressed });
           attachmentUrl = result?.file_url || null;
           uploadedPath = result?.path || null;
           uploadedBucket = result?.bucket || 'uploads';

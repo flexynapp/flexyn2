@@ -16,6 +16,7 @@ import { motion } from 'framer-motion';
 
 export default function EmptyState({
   icon: Icon,
+  illustration,   // optional ReactNode — preferred over icon for warmth
   title,
   body,
   action,         // { label, onClick }  or undefined
@@ -29,11 +30,17 @@ export default function EmptyState({
       transition={{ duration: 0.25, ease: 'easeOut' }}
       className={`flex flex-col items-center justify-center text-center py-12 px-6 ${className}`}
     >
-      {Icon && (
+      {/* Prefer the larger illustration when one is provided; fall
+          back to the small circle-icon for legacy call sites. */}
+      {illustration ? (
+        <div className="mb-4 text-primary/70" aria-hidden="true">
+          {illustration}
+        </div>
+      ) : Icon ? (
         <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
           <Icon className="w-7 h-7" strokeWidth={1.75} />
         </div>
-      )}
+      ) : null}
       {title && (
         <h3 className="font-heading font-bold text-base mb-1.5 max-w-xs">{title}</h3>
       )}

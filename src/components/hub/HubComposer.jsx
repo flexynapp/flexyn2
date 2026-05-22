@@ -41,6 +41,9 @@ import * as regimens from '@/lib/data/regimens';
 import { loadProgressPhotos } from '@/components/progress/ProgressPhotoCapture';
 import { db } from '@/api/db';
 import { toast } from 'sonner';
+import { NoWorkoutsIllustration } from '@/components/emptyStateIllustrations';
+import CharCountIndicator from '@/components/ui/CharCountIndicator';
+import { compressImage } from '@/lib/imageCompress';
 
 // Trim a GPS track down to ~250 points so the map render stays fast
 // and the post payload stays under reasonable size limits. Preserves
@@ -503,7 +506,8 @@ export default function HubComposer({ onClose }) {
 
       if (effectiveSelected.kind === 'meal' && mealImageFile) {
         try {
-          const result = await db.integrations.Core.UploadFile({ file: mealImageFile });
+          const compressed = await compressImage(mealImageFile);
+          const result = await db.integrations.Core.UploadFile({ file: compressed });
           imageUrl = result?.file_url || null;
           uploadedPath = result?.path || null;
           uploadedBucket = result?.bucket || 'uploads';
@@ -518,7 +522,8 @@ export default function HubComposer({ onClose }) {
       // Feature 25: status post image upload
       if (effectiveSelected.kind === 'status' && statusImageFile) {
         try {
-          const result = await db.integrations.Core.UploadFile({ file: statusImageFile });
+          const compressed = await compressImage(statusImageFile);
+          const result = await db.integrations.Core.UploadFile({ file: compressed });
           imageUrl = result?.file_url || null;
           uploadedPath = result?.path || null;
           uploadedBucket = result?.bucket || 'uploads';
@@ -862,8 +867,8 @@ export default function HubComposer({ onClose }) {
         autoFocus
         className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
-      <div className="text-xs text-muted-foreground text-right mt-1 mb-3">
-        {body.length}/500
+      <div className="text-right mt-1 mb-3">
+        <CharCountIndicator value={body} max={500} />
       </div>
 
       {/* Feature 25: image attachment for status posts */}
@@ -986,8 +991,8 @@ export default function HubComposer({ onClose }) {
         rows={3}
         className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40"
       />
-      <div className="text-xs text-muted-foreground text-right mt-1 mb-3">
-        {body.length}/500
+      <div className="text-right mt-1 mb-3">
+        <CharCountIndicator value={body} max={500} />
       </div>
 
       {/* Optional photo for meal posts */}
@@ -1236,8 +1241,8 @@ function PickCard({ kind, title, subtitle, onClick, highlight = false }) {
 function EmptyState({ title, desc }) {
   return (
     <div className="text-center py-8 px-2">
-      <div className="w-14 h-14 rounded-full bg-secondary mx-auto flex items-center justify-center mb-3">
-        <BarChart3 className="w-6 h-6 text-muted-foreground" />
+      <div className="text-primary/70 inline-flex mb-2">
+        <NoWorkoutsIllustration />
       </div>
       <p className="font-heading font-bold text-base">{title}</p>
       <p className="text-sm text-muted-foreground mt-1">{desc}</p>
