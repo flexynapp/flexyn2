@@ -681,7 +681,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
 
 // ─── Daily Chest block ────────────────────────────────────────────────────────
 function DailyChestBlock({ user, onClaimed }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   // localStorage hint avoids the "available" flicker on cold loads, but
   // the server is the source of truth — the claim RPC enforces the
   // once-per-UTC-day rule even if localStorage is wiped or this is a
