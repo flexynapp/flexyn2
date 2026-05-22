@@ -243,14 +243,20 @@ export async function performOverthrow(assignmentId) {
     .update({ status: 'overthrown', overthrown_at: new Date().toISOString() })
     .eq('id', assignmentId);
 
-  await supabase
-    .from('user_profiles')
-    .update({ overthrow_count: supabase.rpc('coalesce_increment', { row_id: user.id, col: 'overthrow_count' }) })
-    .eq('id', user.id);
-
-  // Simpler: raw increment
-  await supabase.rpc('increment_overthrow_count', { p_user_id: user.id }).catch(() => {
-    // fallback if RPC not deployed yet — no-op
+  // Atomic increment of the user's overthrow_count via mig 112's
+  // SECURITY DEFINER RPC. (The previous code in this spot had two
+  // calls: a broken .update() that passed an un-executed RPC builder
+  // as the column value — which PostgREST serialized to garbage and
+  // silently rejected — followed by a .rpc(...).catch(() => {}) that
+  // swallowed 42883 because the function had never been defined. Net
+  // effect: every user's overthrow_count had been 0 since the
+  // feature shipped. Mig 112 defines the RPC; this call now actually
+  // increments. We still .catch the call so a pre-112 host degrades
+  // gracefully — the overthrow itself is the canonical event.)
+  await supabase.rpc('increment_overthrow_count', { p_user_id: user.id }).catch((e) => {
+    if (e?.code !== '42883' && e?.code !== '42P01') {
+      console.warn('[nemesis] increment_overthrow_count failed:', e?.message || e);
+    }
   });
 
   // Self-targeted celebration push. Mig 111 RPC renders the title +

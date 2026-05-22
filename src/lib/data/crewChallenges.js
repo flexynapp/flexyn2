@@ -72,12 +72,20 @@ export async function createChallenge({ crewId, title, metric, targetValue, ends
   // Fan out per-member notifications. Best-effort — the challenge
   // itself is already persisted, this is just delivery decoration.
   // Mig 104 RPC handles auth + dedup + i18n server-side.
-  try {
-    await supabase.rpc('notify_crew_challenge_created_for', {
-      p_challenge_id: data?.id,
-    });
-  } catch (e) {
-    console.warn('[crewChallenges] notify_crew_challenge_created_for failed:', e?.message || e);
+  //
+  // Defensive guard: .single() typically guarantees data is non-null
+  // when error is falsy, but the optional-chained data?.id below
+  // could pass undefined to the RPC if anything ever changes that
+  // invariant. The RPC RAISES on null p_challenge_id; cheaper to
+  // skip the call entirely than catch the server error.
+  if (data?.id) {
+    try {
+      await supabase.rpc('notify_crew_challenge_created_for', {
+        p_challenge_id: data.id,
+      });
+    } catch (e) {
+      console.warn('[crewChallenges] notify_crew_challenge_created_for failed:', e?.message || e);
+    }
   }
 
   return { ok: true, id: data?.id };
