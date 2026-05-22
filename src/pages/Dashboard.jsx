@@ -24,6 +24,7 @@ import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard'
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
+import OnboardingNudgeCard from '@/components/dashboard/OnboardingNudgeCard';
 import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
@@ -535,7 +536,9 @@ export default function Dashboard() {
            no workouts in the last 7 days (the streak-break / welcome-
            back pushes own that surface). Wrapped in its own
            ErrorBoundary so a bad log payload doesn't take the page. */}
-      <div className="mb-5 md:mb-6">
+      {/* data-recap-card lets the OnboardingNudgeCard "share your week"
+          nudge scrollIntoView this section without a route change. */}
+      <div className="mb-5 md:mb-6" data-recap-card>
         <ErrorBoundary label="WeeklyRecap">
           <WeeklyRecap logs={logs} cardioLogs={cardioLogs} />
         </ErrorBoundary>
@@ -576,6 +579,12 @@ export default function Dashboard() {
         </ErrorBoundary>
         <ErrorBoundary label="IosInstallBanner">
           <IosInstallBanner />
+        </ErrorBoundary>
+        {/* Onboarding nudge — at most one card per day for the first
+            5-7 days. Self-hides once all relevant nudges are completed
+            (or were never relevant to begin with for veterans). */}
+        <ErrorBoundary label="OnboardingNudgeCard">
+          <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
         </ErrorBoundary>
       </div>
 
