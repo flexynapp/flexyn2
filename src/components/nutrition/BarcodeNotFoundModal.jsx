@@ -230,7 +230,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                       />
                       <label className="text-sm font-medium flex-1">
                         {field.label}
-                        {field.required && <span className="text-destructive ml-0.5">*</span>}
+                        {field.required && <span className="text-destructive ms-0.5">*</span>}
                       </label>
                       <div className="flex items-center gap-1">
                         <Input
@@ -240,7 +240,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                           onChange={e => setN(field.key, e.target.value)}
                           onKeyDown={e => ['-','e','E','+'].includes(e.key) && e.preventDefault()}
                           placeholder="—"
-                          className="h-8 w-24 text-right text-sm"
+                          className="h-8 w-24 text-end text-sm"
                         />
                         <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
                       </div>
@@ -271,7 +271,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                           onChange={e => setV(field.key, e.target.value)}
                           onKeyDown={e => ['-','e','E','+'].includes(e.key) && e.preventDefault()}
                           placeholder="—"
-                          className="h-8 w-24 text-right text-sm"
+                          className="h-8 w-24 text-end text-sm"
                         />
                         <span className="text-xs text-muted-foreground w-8">{field.unit}</span>
                       </div>

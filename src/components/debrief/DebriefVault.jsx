@@ -33,7 +33,7 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
       onClick={onClick}
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.97 }}
-      className="w-full text-left rounded-xl overflow-hidden border flex flex-col"
+      className="w-full text-start rounded-xl overflow-hidden border flex flex-col"
       style={{
         background: 'linear-gradient(160deg, #0f0f14, #141824)',
         borderColor: isCurrentWeek ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.08)',

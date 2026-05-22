@@ -126,7 +126,7 @@ export default function WeeklyDebriefCard({ debrief, forExport = false, exportRe
             <span className="text-[10px] text-primary/60 font-medium">{epochLabel}</span>
           )}
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <p className="text-sm font-bold text-white">{weekLabel}</p>
           {d.week_start && d.week_end && (
             <p className="text-[10px] text-white/40">

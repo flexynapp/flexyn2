@@ -39,7 +39,7 @@ function PlanCard({ plan, scaled, onSelect, colors }) {
       whileHover={{ scale: 1.015, y: -2 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      className="w-full text-left"
+      className="w-full text-start"
     >
       <Card className="overflow-hidden border border-border/60 shadow-sm">
         {/* Gradient header */}
@@ -52,7 +52,7 @@ function PlanCard({ plan, scaled, onSelect, colors }) {
                 <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{plan.tagline}</p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 ml-2" />
+            <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 ms-2 rtl:scale-x-[-1]" />
           </div>
 
           {/* Goal badges */}
@@ -95,7 +95,7 @@ function MealRow({ meal, colors }) {
     <div className="border border-border/50 rounded-xl overflow-hidden">
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-secondary/30 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-start hover:bg-secondary/30 transition-colors"
       >
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">

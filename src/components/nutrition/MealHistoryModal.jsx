@@ -104,7 +104,7 @@ function DaySection({ dateStr, entries }) {
                       )}
                     </div>
                   </div>
-                  <div className="ml-3 text-right shrink-0">
+                  <div className="ms-3 text-end shrink-0">
                     <p className="text-sm font-heading font-bold">{Math.round(entry.calories || 0)}</p>
                     <p className="text-[10px] text-muted-foreground">kcal</p>
                   </div>
