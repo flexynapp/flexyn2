@@ -108,24 +108,42 @@ export async function assignNemesis() {
 
   if (error) return null;
 
-  // Self-targeted in-app notification so the matchup also lands in the
-  // bell tray (not just the Dashboard card). RLS allows users to insert
-  // their own notifications, so no SECURITY DEFINER RPC needed. Fire-
-  // and-forget — the assignment itself already succeeded.
+  // Self-targeted in-app notification + push fanout. Migration 081 exposes
+  // notify_nemesis_assigned_for(p_nemesis_id) which:
+  //   • Renders title + body in the recipient's preferred_language
+  //     across all 15 supported languages
+  //   • Looks up the nemesis's username server-side (no client trust)
+  //   • Inserts a row into public.notifications — the AFTER INSERT
+  //     trigger from migrations 034/080 then fans out a Web Push via
+  //     send-push automatically
+  //
+  // Pre-081 host fallback: if the RPC isn't deployed (42883 / 42P01)
+  // we fall back to the previous client-side English INSERT so the
+  // bell tray still gets a row. Push fanout still works in either
+  // path — the trigger fires on any notifications INSERT.
   try {
-    await supabase.from('notifications').insert({
-      user_id:    user.id,
-      user_email: user.email,
-      type:       'nemesis_assigned',
-      title:      `🎯 Meet your nemesis: ${chosen.username || 'a rival'}`,
-      body:       'They\'re a step above you. Beat their stats, claim their rank.',
-      icon:       '🎯',
-      link_url:   '/dashboard',
-      metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+    const { error: rpcErr } = await supabase.rpc('notify_nemesis_assigned_for', {
+      p_nemesis_id: chosen.id,
     });
+    if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
+      await supabase.from('notifications').insert({
+        user_id:    user.id,
+        user_email: user.email,
+        type:       'nemesis_assigned',
+        title:      `🎯 Meet your nemesis: ${chosen.username || 'a rival'}`,
+        body:       'They\'re a step above you. Beat their stats, claim their rank.',
+        icon:       '🎯',
+        link_url:   '/dashboard',
+        metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+      });
+    } else if (rpcErr) {
+      // Real RPC failure — log but don't surface; the assignment itself
+      // succeeded which is the canonical event.
+      console.warn('[nemesis] notify_nemesis_assigned_for failed:', rpcErr);
+    }
   } catch (e) {
-    // Non-critical — the assignment is the canonical event.
-    console.warn('[nemesis] notification insert failed:', e?.message || e);
+    // Network / unexpected throw. Non-critical.
+    console.warn('[nemesis] notification dispatch threw:', e?.message || e);
   }
 
   return data;
