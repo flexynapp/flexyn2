@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import { X, BarChart3, Trophy, Dumbbell, Loader2, Users } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getCrewStats } from '@/lib/data/crews';
+import { useNumberFormatter } from '@/lib/intl';
 
 function StatCard({ icon, label, value, sub }) {
   return (
@@ -30,6 +31,7 @@ function StatCard({ icon, label, value, sub }) {
 }
 
 export default function CrewStatsPanel({ crewId, onClose }) {
+  const fmt = useNumberFormatter();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['crewStats', crewId],
     queryFn:  () => getCrewStats(crewId),
@@ -40,7 +42,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
   const fmtVolume = (lbs) => {
     if (!lbs) return '0 lbs';
     if (lbs >= 1000) return `${(lbs / 1000).toFixed(1)}k lbs`;
-    return `${Math.round(lbs).toLocaleString()} lbs`;
+    return `${fmt(Math.round(lbs))} lbs`;
   };
 
   const topName = stats?.topPerformer?.profile?.username

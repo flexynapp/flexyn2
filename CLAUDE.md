@@ -320,10 +320,14 @@ without giving it a distinct haptic + confetti signature.**
   properties (`text-start`/`ms-`/`me-`) or `rtl:` modifier overrides.
 - `.toLocaleString()` migration: `src/lib/intl.js` is the new util
   (`useNumberFormatter` / `useDateFormatter` / `formatNumber` /
-  `formatDate`). 3 highest-traffic sites already swapped in
-  (WeeklyRecap, StatsHubModal, LeaderboardsContent). The remaining
-  `.toLocaleString()` calls across the app are mechanical one-line
-  swaps when developers next touch those files.
+  `formatDate`). Sites swapped so far: WeeklyRecap, StatsHubModal,
+  LeaderboardsContent, WorkoutCalendarGrid, ReferralCard,
+  CrewStatsPanel, AchievementsTab, AchievementsModal,
+  CreateInviteLinkModal, Gauntlet (ChallengeDetail), ui/chart.jsx
+  (tooltip values). Remaining hardcoded-`'en-US'` sites that are
+  intentionally English (buildInfo.js, workoutGenerator.js AI
+  prompts, HubProfile.jsx joined-month, WeeklyDebriefCard helper)
+  stay as-is.
 - Push pipeline (migrations 033-039 + the `send-push` Edge Function)
   is built but not deployed. VAPID secrets + `ALTER DATABASE postgres
   SET app.send_push_url/_secret` haven't been set. See the "Push

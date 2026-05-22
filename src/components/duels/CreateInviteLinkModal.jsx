@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Swords, Copy, Share2, Loader2, Check, Link as LinkIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { createInviteLink, buildInviteUrl } from '@/lib/data/duelInvites';
+import { useDateFormatter } from '@/lib/intl';
 
 const TYPE_OPTIONS = [
   { id: 'open',     label: 'Open',     desc: 'Most total volume wins' },
@@ -20,6 +21,7 @@ const TYPE_OPTIONS = [
 ];
 
 export default function CreateInviteLinkModal({ open, onOpenChange }) {
+  const fmtDate = useDateFormatter();
   const [duelType, setDuelType] = useState('open');
   const [windowHours, setWindowHours] = useState(24);
   const [creating, setCreating] = useState(false);
@@ -200,7 +202,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                 </button>
               </div>
               <p className="text-[11px] text-muted-foreground text-center">
-                Expires {new Date(generated.expires_at).toLocaleDateString()} ·
+                Expires {fmtDate(generated.expires_at)} ·
                 {' '}{generated.window_hours}h window after accept
               </p>
             </motion.div>

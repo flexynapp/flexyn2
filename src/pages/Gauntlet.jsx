@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Swords, ChevronLeft, X, Zap, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter } from '@/lib/intl';
 import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -54,6 +55,7 @@ function metricHint(challenge, t) {
 // ── Challenge detail card (shown when node is tapped) ────────────────────────
 function ChallengeDetail({ challenge, status, completedAt, onClose }) {
   const { t } = useLanguage();
+  const fmtDate = useDateFormatter();
   const hint = metricHint(challenge, t);
   const isLocked = status === 'locked';
 
@@ -82,7 +84,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose }) {
           )}
           {completedAt && status === 'completed' && (
             <span className="text-xs text-muted-foreground">
-              · {new Date(completedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}
+              · {fmtDate(completedAt, { month: 'short', day: 'numeric' })}
             </span>
           )}
         </div>

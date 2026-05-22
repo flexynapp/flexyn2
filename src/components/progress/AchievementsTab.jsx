@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Trophy, Lock, Star, LockKeyhole } from 'lucide-react';
 import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useDateFormatter } from '@/lib/intl';
 
 const CATEGORY_COLORS = {
   workout:    'bg-primary/10 text-primary',
@@ -23,6 +24,7 @@ const CATEGORY_COLORS = {
 
 export default function AchievementsTab({ achievements = [] }) {
   const { t } = useLanguage();
+  const fmtDate = useDateFormatter();
   const [activeSubTab, setActiveSubTab] = useState('active');
 
   const achievementMap = useMemo(() => {
@@ -193,7 +195,7 @@ export default function AchievementsTab({ achievements = [] }) {
                             {ach.unlocked && ach.unlockedDate && (
                               <p className="text-xs text-muted-foreground mt-2">
                                 {t('progress.unlockedOn')}{' '}
-                                {new Date(ach.unlockedDate).toLocaleDateString()}
+                                {fmtDate(ach.unlockedDate)}
                               </p>
                             )}
                           </div>

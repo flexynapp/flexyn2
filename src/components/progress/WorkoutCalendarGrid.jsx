@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { format, subDays, startOfDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 
@@ -79,6 +80,7 @@ function buildVolumeMap(logs) {
 export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const fmt = useNumberFormatter();
   const [tooltip, setTooltip] = useState(null);
 
   // Build a date → first matching log map so we can hand the parent
@@ -193,7 +195,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                       day.isFuture
                         ? `${format(day.date, 'MMM d, yyyy')}: ${tFallback('calendar.future', 'future')}`
                         : day.volume > 0
-                          ? `${format(day.date, 'MMM d, yyyy')}: ${day.volume.toLocaleString()} ${unitSuffix}`
+                          ? `${format(day.date, 'MMM d, yyyy')}: ${fmt(day.volume)} ${unitSuffix}`
                           : `${format(day.date, 'MMM d, yyyy')}: ${tFallback('calendar.noWorkout', 'no workout')}`
                     }
                     className={[
@@ -219,7 +221,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                 </span>
                 {' · '}
                 {tooltip.volume > 0
-                  ? `${tooltip.volume.toLocaleString()} ${unitSuffix}`
+                  ? `${fmt(tooltip.volume)} ${unitSuffix}`
                   : tFallback('calendar.noWorkout', 'no workout')}
               </span>
             )}

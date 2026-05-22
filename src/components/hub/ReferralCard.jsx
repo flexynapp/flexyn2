@@ -18,6 +18,7 @@ import { Gift, Copy, Share2, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { getMyReferralStats } from '@/lib/data/referrals';
 
 function shareUrlForCode(code) {
@@ -32,6 +33,7 @@ function shareUrlForCode(code) {
 export default function ReferralCard() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   const [copied, setCopied] = useState(false);
 
   const { data: stats } = useQuery({
@@ -144,7 +146,7 @@ export default function ReferralCard() {
           <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
             <span>{tFallback('referral.lifetime', 'Lifetime')}</span>
             <span className="tabular-nums font-semibold text-amber-500">
-              {coins.toLocaleString()} {tFallback('referral.coins', 'coins')}
+              {fmt(coins)} {tFallback('referral.coins', 'coins')}
               <span className="text-muted-foreground"> · </span>
               {count} {count === 1 ? tFallback('referral.capsule', 'capsule') : tFallback('referral.capsules', 'capsules')}
             </span>

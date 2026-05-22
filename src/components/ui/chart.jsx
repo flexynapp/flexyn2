@@ -3,6 +3,7 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
 import { cn } from "@/lib/utils"
+import { useNumberFormatter } from "@/lib/intl"
 
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = {
@@ -98,6 +99,7 @@ const ChartTooltipContent = React.forwardRef((
   ref
 ) => {
   const { config } = useChart()
+  const fmt = useNumberFormatter()
 
   const tooltipLabel = React.useMemo(() => {
     if (hideLabel || !payload?.length) {
@@ -199,7 +201,7 @@ const ChartTooltipContent = React.forwardRef((
                     </div>
                     {item.value && (
                       <span className="font-mono font-medium tabular-nums text-foreground">
-                        {item.value.toLocaleString()}
+                        {fmt(item.value)}
                       </span>
                     )}
                   </div>
