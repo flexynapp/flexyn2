@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -15,6 +15,7 @@ import CrewChat from '@/components/crews/CrewChat';
 import { toast } from 'sonner';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
 import { partitionConversations } from '@/lib/data/conversationRequests';
+import NewGroupDMModal from './NewGroupDMModal';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -48,6 +49,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // DM-tab sub-view: 'inbox' (accepted + follow), 'requests' (strangers),
   // 'archived' (user-archived). Defaults to inbox.
   const [dmView, setDmView] = useState('inbox');
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
 
   // Desktop three-dot quick-action state
   const [openMenuId, setOpenMenuId] = useState(null); // conv.id or crew.id
@@ -326,6 +328,13 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   <Archive className="w-3.5 h-3.5" /> Archived
                 </button>
               )}
+              <button
+                onClick={() => setNewGroupOpen(true)}
+                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary"
+                aria-label="Start a new group conversation"
+              >
+                <UserPlus className="w-3.5 h-3.5" /> New group
+              </button>
             </div>
           )}
 
@@ -346,6 +355,14 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               <p className="text-sm text-muted-foreground">
                 {dmView === 'inbox' ? t('hub.messages.empty.desc') : ''}
               </p>
+              {dmView === 'inbox' && (
+                <button
+                  onClick={() => setNewGroupOpen(true)}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Start a group
+                </button>
+              )}
             </div>
           ) : (
             <div className="space-y-1">
@@ -525,6 +542,22 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               })}
             </div>
           )}
+
+          {/* New group modal — anchored to the DMs tab so closing it
+              doesn't yank focus out of the conversations rail. */}
+          <NewGroupDMModal
+            open={newGroupOpen}
+            onClose={() => setNewGroupOpen(false)}
+            onCreated={(convId) => {
+              queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+              // Open the new thread immediately. Brief delay lets the
+              // refetch land so activeConv has the latest row shape.
+              setTimeout(() => {
+                const target = conversations.find(c => c.id === convId);
+                if (target) setActiveConv(target);
+              }, 250);
+            }}
+          />
         </>
       )}
 

@@ -171,8 +171,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [readReceiptFaded, setReadReceiptFaded] = useState(false);
 
   const myEmailLc = (user?.email || '').toLowerCase();
-  const otherEmail = (conversation?.participant_emails || [])
-    .find(e => e?.toLowerCase() !== myEmailLc) || '';
+  // Is this a group conversation? (3+ participants OR the explicit
+  // is_group flag from mig 116.) Group threads show all-vs-one rendering:
+  // sender name above each non-own message, participant-list header.
+  const isGroup = !!conversation?.is_group
+    || (Array.isArray(conversation?.participant_emails)
+      && conversation.participant_emails.length > 2);
+  const otherEmails = (conversation?.participant_emails || [])
+    .filter(e => e?.toLowerCase() !== myEmailLc);
+  const otherEmail = otherEmails[0] || '';
 
   const { data: resolvedOther } = useQuery({
     queryKey: ['hubChatProfile', otherEmail],
@@ -789,14 +796,26 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <ArrowLeft className="w-4 h-4" />
         </button>
         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm overflow-hidden shrink-0">
-          {otherAvatarUrl
+          {isGroup ? (
+            // Group avatar: stack of initials. With real avatars per
+            // participant we'd composite three small circles, but
+            // initials inside a single tile is simpler and still reads
+            // as "group" because of the count label below.
+            <span className="text-xs">{(conversation?.title || 'Group').slice(0, 2).toUpperCase()}</span>
+          ) : otherAvatarUrl
             ? <img src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" />
             : otherInitials}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-heading font-bold text-sm truncate">{otherHandle}</p>
+          <p className="font-heading font-bold text-sm truncate">
+            {isGroup
+              ? (conversation?.title || otherEmails.map(e => e.split('@')[0]).slice(0, 3).join(', '))
+              : otherHandle}
+          </p>
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-            <Lock className="w-2.5 h-2.5" /> {t('hub.messages.privateNote.short')}
+            {isGroup
+              ? <>{(conversation?.participant_emails?.length || 0)} people · group chat</>
+              : <><Lock className="w-2.5 h-2.5" /> {t('hub.messages.privateNote.short')}</>}
           </p>
         </div>
         {/* Search this thread — opens an inline filter pill. Closing
@@ -970,6 +989,21 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                       )}
                       <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
                         {/* Reply quote block */}
+                        {/* Sender name — only in groups, only above
+                            the other person's messages, only at the
+                            start of a run (current sender different
+                            from previous). */}
+                        {isGroup && !isMine && (() => {
+                          const prev = visibleMessages[i - 1];
+                          const sameSenderAsPrev = prev?.sender_email?.toLowerCase() === m.sender_email?.toLowerCase();
+                          if (sameSenderAsPrev) return null;
+                          const handle = m.sender_email ? m.sender_email.split('@')[0] : 'Athlete';
+                          return (
+                            <p className="text-[10px] font-bold text-muted-foreground mb-0.5 px-1">
+                              @{handle}
+                            </p>
+                          );
+                        })()}
                         {m.replied_to_snippet && (
                           <button
                             type="button"

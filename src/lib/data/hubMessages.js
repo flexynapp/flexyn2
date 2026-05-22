@@ -43,6 +43,28 @@ function _isUnread(m, myEmailLc) {
 const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
 
 /**
+ * Create a group DM with the caller + the supplied participant emails.
+ * Backed by mig 116's create_group_conversation RPC, which validates
+ * the 3-10 participant range, de-dupes, and auto-accepts the creator
+ * so the group lands in their main inbox.
+ *
+ * @param {string[]} emails  participant emails (caller excluded)
+ * @param {string}   [title]   optional display name; empty string → NULL
+ * @returns {Promise<string>}  the new conversation's id
+ */
+export const createGroupConversation = async (emails, title = null) => {
+  if (!Array.isArray(emails) || emails.length < 2) {
+    throw new Error('group_min_participants');
+  }
+  const { data, error } = await supabase.rpc('create_group_conversation', {
+    p_emails: emails,
+    p_title:  title,
+  });
+  if (error) throw error;
+  return data;
+};
+
+/**
  * Find or create a 1:1 conversation between two users.
  * Idempotent — returns the existing conversation if one exists.
  */
