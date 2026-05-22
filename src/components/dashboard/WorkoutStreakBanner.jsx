@@ -197,7 +197,7 @@ export default function WorkoutStreakBanner() {
           {/* Flame badge scales visually with the streak (Duolingo pattern).
               Tiered: subtle glow at 7d, gold ring at 30d, pulsing sparkles at
               100d, rainbow ring at 365d. The flame ITSELF is the status. */}
-          <StreakFlame days={streak} size={14} className="ml-1" />
+          <StreakFlame days={streak} size={14} className="ms-1" />
           <span className="text-muted-foreground">
             {' '}
             {streak === 1
@@ -205,7 +205,7 @@ export default function WorkoutStreakBanner() {
               : tFallback('dashboard.workoutDaysStreak', 'day workout streak')}
           </span>
           {isPersonalBest && (
-            <span className={`ml-2 text-[10px] font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
+            <span className={`ms-2 text-[10px] font-bold uppercase tracking-wider ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`}>
               {tFallback('dashboard.best', 'Best')}
             </span>
           )}

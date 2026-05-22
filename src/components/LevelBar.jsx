@@ -167,7 +167,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
                       <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 via-fuchsia-500 to-cyan-500 flex items-center justify-center shrink-0 shadow-md">
                         <Trophy className="w-4 h-4 text-white drop-shadow" />
                       </div>
-                      <div className="flex-1 text-left">
+                      <div className="flex-1 text-start">
                         <p className="text-sm font-heading font-bold leading-tight">{t('leaderboards.title')}</p>
                         <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{t('leaderboards.subtitle')}</p>
                       </div>
@@ -193,7 +193,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
                       <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-400 via-blue-500 to-indigo-600 flex items-center justify-center shrink-0 shadow-md">
                         <Map className="w-4 h-4 text-white drop-shadow" />
                       </div>
-                      <div className="flex-1 text-left">
+                      <div className="flex-1 text-start">
                         <p className="text-sm font-heading font-bold leading-tight">{t('leaderboards.regional.title')}</p>
                         <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">{t('leaderboards.regional.subtitle')}</p>
                       </div>
@@ -276,7 +276,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
       </div>
 
       {level === 100 && (
-        <div className="flex-shrink-0 text-xs font-bold text-yellow-500 ml-1">MAX</div>
+        <div className="flex-shrink-0 text-xs font-bold text-yellow-500 ms-1">MAX</div>
       )}
     </div>
   );

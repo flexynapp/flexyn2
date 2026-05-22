@@ -223,7 +223,7 @@ export default function LeaderboardsContent({ active = true }) {
                   <p className="font-heading font-bold text-sm">{t('progress.you')}</p>
                   <p className="text-xs text-muted-foreground truncate">{myRow.full_name}</p>
                 </div>
-                <div className="text-right">
+                <div className="text-end">
                   <p className="font-heading font-bold text-base text-primary">{myRow._display}</p>
                 </div>
               </div>
@@ -306,7 +306,7 @@ export default function LeaderboardsContent({ active = true }) {
                         <div className="flex-1 min-w-0">
                           <p className="font-heading font-bold text-sm truncate">{row.full_name}</p>
                         </div>
-                        <div className="flex-shrink-0 text-right">
+                        <div className="flex-shrink-0 text-end">
                           <p className="font-heading font-bold text-sm">{row._display}</p>
                         </div>
                       </div>

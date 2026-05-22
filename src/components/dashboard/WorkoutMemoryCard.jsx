@@ -73,7 +73,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
         <Card className="relative overflow-hidden border-border/60 bg-gradient-to-br from-purple-500/5 via-transparent to-rose-500/5">
           <button
             onClick={handleTap}
-            className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors"
+            className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/30 transition-colors"
           >
             <div className="shrink-0 w-9 h-9 rounded-full bg-purple-500/12 text-purple-500 flex items-center justify-center">
               <Calendar className="w-4 h-4" aria-hidden="true" />
@@ -100,7 +100,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
           </button>
           <button
             onClick={handleDismiss}
-            className="absolute top-2 right-2 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="absolute top-2 end-2 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             aria-label={tFallback('memory.dismiss', 'Dismiss for today')}
           >
             <X className="w-3.5 h-3.5" />
