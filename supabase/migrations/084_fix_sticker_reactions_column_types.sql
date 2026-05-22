@@ -81,17 +81,6 @@ BEGIN
     ALTER TABLE public.post_sticker_reactions
       ALTER COLUMN user_id TYPE uuid USING user_id::uuid;
 
-    -- Attach the FK to auth.users(id) that the original CREATE TABLE
-    -- declared but the seed script never installed.
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_constraint
-       WHERE conname = 'post_sticker_reactions_user_id_fkey'
-    ) THEN
-      ALTER TABLE public.post_sticker_reactions
-        ADD CONSTRAINT post_sticker_reactions_user_id_fkey
-        FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
-    END IF;
-
     RAISE NOTICE '[084] converted post_sticker_reactions.user_id text → uuid';
   END IF;
 
@@ -103,19 +92,39 @@ BEGIN
     ALTER TABLE public.post_sticker_reactions
       ALTER COLUMN post_id TYPE uuid USING post_id::uuid;
 
-    -- post_id should FK to hub_posts(id). The original migration 010
-    -- didn't declare it (only user_id had a REFERENCES) but we add it
-    -- now to prevent orphan reactions on deleted posts.
-    IF NOT EXISTS (
-      SELECT 1 FROM pg_constraint
-       WHERE conname = 'post_sticker_reactions_post_id_fkey'
-    ) THEN
-      ALTER TABLE public.post_sticker_reactions
-        ADD CONSTRAINT post_sticker_reactions_post_id_fkey
-        FOREIGN KEY (post_id) REFERENCES public.hub_posts(id) ON DELETE CASCADE;
-    END IF;
-
     RAISE NOTICE '[084] converted post_sticker_reactions.post_id text → uuid';
+  END IF;
+
+  -- ── Clean up orphan rows before attaching FKs ──────────────────────────
+  -- Before this migration there was no FK from post_sticker_reactions to
+  -- hub_posts / auth.users, so deletions on the parent tables left
+  -- dangling reactions behind. Attempting to ADD the FK on a table with
+  -- orphans fails with 23503. These reactions are already unreachable in
+  -- the UI (the parent post / user is gone) so deleting them is the
+  -- correct cleanup. The CASCADE on the new FK prevents future orphans.
+  DELETE FROM public.post_sticker_reactions
+   WHERE post_id NOT IN (SELECT id FROM public.hub_posts);
+
+  DELETE FROM public.post_sticker_reactions
+   WHERE user_id NOT IN (SELECT id FROM auth.users);
+
+  -- ── Attach the FKs (idempotent) ────────────────────────────────────────
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'post_sticker_reactions_user_id_fkey'
+  ) THEN
+    ALTER TABLE public.post_sticker_reactions
+      ADD CONSTRAINT post_sticker_reactions_user_id_fkey
+      FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+     WHERE conname = 'post_sticker_reactions_post_id_fkey'
+  ) THEN
+    ALTER TABLE public.post_sticker_reactions
+      ADD CONSTRAINT post_sticker_reactions_post_id_fkey
+      FOREIGN KEY (post_id) REFERENCES public.hub_posts(id) ON DELETE CASCADE;
   END IF;
 
   -- ── Restore the (post_id, user_id) UNIQUE constraint ───────────────────
