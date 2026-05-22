@@ -21,9 +21,25 @@
 // Unlike the "first-X" celebrations, PRs can fire multiple times per
 // session if multiple exercises hit PRs in the same workout. We
 // collapse them into one toast with a count, not N separate toasts.
+//
+// SHARE ACTION
+// ────────────
+// The toast includes a "Share" action button that fires an
+// `OPEN_PR_SHARE_EVENT` window event. Workout.jsx (or any other
+// listener) opens the PRShareCard dialog in response. This event-based
+// indirection lets the React-free celebration helper hand off to a
+// React component without coupling them at the import level.
 
 import { toast } from 'sonner';
 import * as Sentry from '@sentry/react';
+
+/**
+ * Window event fired when the user taps "Share" on the PR celebration
+ * toast. Detail shape: { pr: { displayName, oldPR, newPR, delta }, unit }
+ *
+ * Workout.jsx listens for this and pops the PRShareCard dialog.
+ */
+export const OPEN_PR_SHARE_EVENT = 'flexyn-open-pr-share';
 
 // Gold / crimson / amber — strength colors. Distinct from:
 //   goal:           green/yellow
@@ -67,7 +83,21 @@ export function firePRCelebration({ prs = [], unit = 'lb', userEmail } = {}) {
     description: deltaRounded > 0
       ? `Up +${deltaRounded} ${unit} from your previous best.`
       : 'You just topped your previous best.',
-    duration: 6500, // longer than the regular workout-saved toast
+    duration: 8000, // longer than the regular workout-saved toast — the
+                    // share action needs a bigger window to be tappable
+    action: {
+      label: 'Share',
+      onClick: () => {
+        // Dispatch the open-share event with the top PR. Workout.jsx
+        // listens for this and opens PRShareCard. Don't couple this
+        // helper to React state by importing the modal here.
+        try {
+          window.dispatchEvent(new CustomEvent(OPEN_PR_SHARE_EVENT, {
+            detail: { pr: top, unit },
+          }));
+        } catch { /* SSR / no DOM — skip */ }
+      },
+    },
   });
 
   // Confetti — single big top-center burst symbolizing "peak hit".

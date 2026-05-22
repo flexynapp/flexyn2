@@ -106,6 +106,7 @@ import * as me from '@/lib/data/me';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
+import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
@@ -1129,6 +1130,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </button>
           </motion.div>
         )}
+
+        {/* Recent badges showcase — visible on both own profile and
+            friends' profiles (read-only when viewing someone else's).
+            Self-hides when there's nothing to flex yet. Drives the
+            "earn one more badge" identity investment loop. */}
+        <ProfileBadgeShowcase
+          userEmail={isSelf ? user?.email : targetUser?.email}
+          isOwn={isSelf}
+        />
 
         {/* Referral card — own profile only. Renders the user's
             shareable code + invite link + earnings strip. Acquisition

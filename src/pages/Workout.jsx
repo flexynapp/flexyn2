@@ -58,12 +58,13 @@ import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
-import { firePRCelebration } from '@/lib/prCelebration';
+import { firePRCelebration, OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
 import * as activity from '@/lib/data/activity';
+const PRShareCard = lazy(() => import('@/components/workout/PRShareCard'));
 const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
@@ -116,6 +117,17 @@ export default function Workout() {
     // clear the flag mid-session. The TTL is the safety net for the
     // edge case where the tab closes without saving.
   }, [started]);
+
+  // PR share-card listener. firePRCelebration's toast includes a
+  // "Share" action that dispatches OPEN_PR_SHARE_EVENT on the window.
+  // We pop the lazy-loaded PRShareCard dialog in response. The event
+  // detail carries { pr, unit } so the dialog renders the right card.
+  const [prShare, setPrShare] = useState(null);
+  useEffect(() => {
+    const onOpen = (e) => setPrShare(e.detail || null);
+    window.addEventListener(OPEN_PR_SHARE_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_PR_SHARE_EVENT, onOpen);
+  }, []);
   const [selectedRegimen, setSelectedRegimen] = useState(null);
   const [exercises, setExercises] = useState([]);
   // Date defaults to today. Can be rolled back to yesterday for late-night sessions
@@ -2115,6 +2127,23 @@ export default function Workout() {
           username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
         />
       </ErrorBoundary>
+
+      {/* PR share card — opened from the firePRCelebration toast's
+          "Share" action via the OPEN_PR_SHARE_EVENT window event.
+          Lazy-loaded since most workout saves don't hit a PR. */}
+      {prShare && (
+        <ErrorBoundary label="PRShareCard">
+          <Suspense fallback={null}>
+            <PRShareCard
+              open={!!prShare}
+              onClose={() => setPrShare(null)}
+              pr={prShare.pr}
+              unit={prShare.unit}
+              username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+            />
+          </Suspense>
+        </ErrorBoundary>
+      )}
 
       {gauntletStatsModal && (
         <GauntletStatsModal
