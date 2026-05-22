@@ -1,15 +1,21 @@
 // src/components/crews/CrewChat.jsx
 //
 // Full crew chat interface:
-//   - Crew stories tray (pinned top)
+//   - Pinned announcement banner (if a message is pinned)
+//   - Assigned regimen panel (crew shared workout plan)
+//   - Crew stories tray
 //   - Message stream (CrewMessageItem)
-//   - Composer: text + image attach (one-time / 1-hour) + roll call + regimen
+//   - Composer: text + image attach + roll call + regimen
 //   - Member directory slide-out panel
+//   - Crew stats slide-out panel
 
 import React, { useState, useRef, useEffect, useCallback, useLayoutEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell, Clock, Eye, Plus } from 'lucide-react';
+import {
+  ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell,
+  Clock, Eye, Plus, BarChart3, PinOff, Megaphone,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
@@ -17,6 +23,7 @@ import * as usersData from '@/lib/data/users';
 import CrewMessageItem from './CrewMessageItem';
 import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewChallengeCard from './CrewChallengeCard';
+import CrewStatsPanel from './CrewStatsPanel';
 
 // ── Roll Call composer ────────────────────────────────────────────────────────
 
@@ -52,12 +59,18 @@ function RollCallComposer({ onSubmit, onCancel }) {
 
 // ── Regimen picker ────────────────────────────────────────────────────────────
 
-function RegimenPicker({ userEmail, onShare, onCancel }) {
+function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
+  const [tab, setTab] = useState('share'); // 'share' | 'assign'
   const { data: regimenList = [] } = useQuery({
     queryKey: ['regimenPicker', userEmail],
     queryFn:  async () => {
       const { supabase } = await import('@/api/supabaseClient');
-      const { data } = await supabase.from('regimens').select('id, name, exercises').eq('created_by', userEmail).order('created_date', { ascending: false }).limit(20);
+      const { data } = await supabase
+        .from('regimens')
+        .select('id, name, exercises')
+        .eq('created_by', userEmail)
+        .order('created_date', { ascending: false })
+        .limit(20);
       return data ?? [];
     },
     enabled: !!userEmail,
@@ -65,9 +78,29 @@ function RegimenPicker({ userEmail, onShare, onCancel }) {
   });
 
   return (
-    <div className="absolute inset-x-0 bottom-0 z-10 bg-card border-t border-border max-h-64 overflow-y-auto">
+    <div className="absolute inset-x-0 bottom-0 z-10 bg-card border-t border-border max-h-72 overflow-y-auto">
       <div className="px-4 pt-3 pb-1 flex items-center justify-between sticky top-0 bg-card border-b border-border/50">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Share a Regimen</p>
+        <div className="flex items-center gap-2">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+            {tab === 'assign' ? 'Assign to Crew' : 'Share a Regimen'}
+          </p>
+          {canAssign && (
+            <div className="flex gap-1">
+              <button
+                onClick={() => setTab('share')}
+                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors ${
+                  tab === 'share' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
+                }`}
+              >Share</button>
+              <button
+                onClick={() => setTab('assign')}
+                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors ${
+                  tab === 'assign' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
+                }`}
+              >Assign</button>
+            </div>
+          )}
+        </div>
         <button onClick={onCancel} className="text-muted-foreground"><X className="w-4 h-4" /></button>
       </div>
       {regimenList.length === 0 ? (
@@ -77,14 +110,105 @@ function RegimenPicker({ userEmail, onShare, onCancel }) {
           {regimenList.map(r => (
             <button
               key={r.id}
-              onClick={() => onShare(r)}
+              onClick={() => tab === 'assign' ? onAssign?.(r) : onShare(r)}
               className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors"
             >
               <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
-              <p className="text-xs text-muted-foreground">{(r.exercises || []).length} exercises</p>
+              <p className="text-xs text-muted-foreground">{(r.exercises || []).length} exercises
+                {tab === 'assign' && <span className="ml-1 text-primary font-medium">· assign to crew</span>}
+              </p>
             </button>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+// ── Assigned Regimen Banner ───────────────────────────────────────────────────
+
+function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
+  const qc = useQueryClient();
+  const { data: assigned = [] } = useQuery({
+    queryKey: ['crewAssignedRegimens', crewId],
+    queryFn:  () => crewsData.getCrewAssignedRegimens(crewId),
+    enabled:  !!crewId,
+    staleTime: 30_000,
+  });
+
+  if (!assigned.length) return null;
+  const top = assigned[0];
+  const regimen = top.regimens ?? {};
+  const exCount = (regimen.exercises || []).length;
+
+  return (
+    <div
+      className="mx-3 mt-2 rounded-xl border px-3 py-2.5 flex items-center gap-2.5"
+      style={{ borderColor: 'hsl(var(--primary) / 0.3)', background: 'hsl(var(--primary) / 0.06)' }}
+    >
+      <Dumbbell className="w-4 h-4 shrink-0" style={{ color: 'hsl(var(--primary))' }} />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Crew Plan</p>
+        <p className="text-sm font-bold text-foreground truncate">{regimen.name || 'Assigned Regimen'}</p>
+        <p className="text-[10px] text-muted-foreground">{exCount} exercise{exCount !== 1 ? 's' : ''}
+          {top.note ? ` · ${top.note}` : ''}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={() => onEquip(top)}
+          className="px-2.5 py-1 rounded-lg text-xs font-bold text-white"
+          style={{ background: 'hsl(var(--primary))' }}
+        >
+          Start
+        </motion.button>
+        {isAdmin && (
+          <button
+            onClick={async () => {
+              try {
+                await crewsData.removeAssignedRegimen(top.id);
+                qc.invalidateQueries({ queryKey: ['crewAssignedRegimens', crewId] });
+                toast.success('Plan removed.');
+              } catch { toast.error('Could not remove plan.'); }
+            }}
+            className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+            title="Remove plan"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Pinned Announcement Banner ────────────────────────────────────────────────
+
+function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
+  if (!message) return null;
+  return (
+    <div
+      className="mx-3 mt-2 rounded-xl border px-3 py-2 flex items-start gap-2"
+      style={{ borderColor: 'hsl(39 100% 57% / 0.35)', background: 'hsl(39 100% 57% / 0.08)' }}
+    >
+      <Megaphone className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
+      <div className="flex-1 min-w-0">
+        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-0.5">
+          📌 Announcement
+        </p>
+        <p className="text-xs text-foreground leading-relaxed line-clamp-3">
+          {message.content}
+        </p>
+      </div>
+      {isAdmin && (
+        <button
+          onClick={onUnpin}
+          className="p-1 text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title="Unpin"
+        >
+          <PinOff className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );
@@ -99,14 +223,15 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
   const fileInputRef = useRef(null);
   const stickRef     = useRef(true);
 
-  const [draft,         setDraft]         = useState('');
-  const [sending,       setSending]       = useState(false);
+  const [draft,           setDraft]           = useState('');
+  const [sending,         setSending]         = useState(false);
   const [memberPanelOpen, setMemberPanelOpen] = useState(false);
-  const [rollCallOpen,  setRollCallOpen]  = useState(false);
-  const [regimenOpen,   setRegimenOpen]   = useState(false);
-  const [attachment,    setAttachment]    = useState(null); // { file, preview, mode }
-  const [imageMode,     setImageMode]     = useState('normal'); // normal | one_time | one_hour
-  const [storyViewIdx,  setStoryViewIdx]  = useState(null); // index of story to fullscreen-view
+  const [statsPanelOpen,  setStatsPanelOpen]  = useState(false);
+  const [rollCallOpen,    setRollCallOpen]    = useState(false);
+  const [regimenOpen,     setRegimenOpen]     = useState(false);
+  const [attachment,      setAttachment]      = useState(null);
+  const [imageMode,       setImageMode]       = useState('normal');
+  const [storyViewIdx,    setStoryViewIdx]    = useState(null);
   const storyFileRef = useRef(null);
 
   // Queries
@@ -138,6 +263,14 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     refetchInterval: 30_000,
   });
 
+  const { data: pinnedMessage } = useQuery({
+    queryKey: ['crewPinnedMessage', crew.id],
+    queryFn:  () => crewsData.getPinnedMessage(crew.id),
+    enabled:  !!crew.id,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
   const handleAddStory = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -158,7 +291,10 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     if (u.id) profilesByUserId[u.id] = u;
   }
 
-  const isCurrentAdmin = members.some(m => m.user_id === user?.id && m.is_admin);
+  const myMember = members.find(m => m.user_id === user?.id);
+  const myRole = myMember?.role ?? (myMember?.is_admin ? 'leader' : 'member');
+  const isCurrentAdmin = myRole === 'leader';
+  const isCurrentModerator = myRole === 'leader' || myRole === 'moderator';
 
   // Auto-scroll
   const scrollToBottom = useCallback((smooth = true) => {
@@ -176,7 +312,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     stickRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
   };
 
-  // Attachment picking
   const handleFilePick = (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -191,7 +326,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     setImageMode('normal');
   };
 
-  // Send message
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed && !attachment) return;
@@ -206,7 +340,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         const mediaUrl = await crewsData.uploadCrewMedia(fileToUpload);
         const type = imageMode === 'one_time' ? 'image_one_time'
                    : imageMode === 'one_hour' ? 'image_one_hour'
-                   : 'image_one_hour'; // normal = permanent photo (no expires_at)
+                   : 'image_one_hour';
         const extras = { media_url: mediaUrl };
         if (imageMode === 'one_hour') {
           extras.expires_at = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -224,7 +358,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     }
   };
 
-  // Roll Call submit
   const handleRollCall = async (question) => {
     setRollCallOpen(false);
     try {
@@ -235,7 +368,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     } catch { toast.error('Could not send Roll Call.'); }
   };
 
-  // Share regimen
   const handleShareRegimen = async (regimen) => {
     setRegimenOpen(false);
     const exercises = (regimen.exercises || []).map(e => e.name || e.exercise_name || e).filter(Boolean);
@@ -251,6 +383,35 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     } catch { toast.error('Could not share regimen.'); }
   };
 
+  const handleAssignRegimen = async (regimen) => {
+    setRegimenOpen(false);
+    try {
+      await crewsData.assignRegimenToCrew(crew.id, regimen.id, user.id, null);
+      qc.invalidateQueries({ queryKey: ['crewAssignedRegimens', crew.id] });
+      toast.success(`"${regimen.name}" assigned as the Crew Plan!`);
+    } catch { toast.error('Could not assign regimen.'); }
+  };
+
+  const handlePinMessage = async (msgId, pinned) => {
+    try {
+      await crewsData.pinMessage(msgId, pinned);
+      qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
+      qc.invalidateQueries({ queryKey: ['crewPinnedMessage', crew.id] });
+      toast.success(pinned ? '📌 Message pinned as announcement.' : 'Unpinned.');
+    } catch { toast.error('Could not pin message.'); }
+  };
+
+  const handleEquipAssignedRegimen = async (assignment) => {
+    const regimen = assignment.regimens;
+    if (!regimen) return;
+    try {
+      await crewsData.equipRegimen(regimen.id, user);
+      toast.success(`"${regimen.name}" added to your regimens!`);
+    } catch (err) {
+      toast.error('Could not add regimen.', { description: err.message });
+    }
+  };
+
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
 
@@ -260,15 +421,13 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <ArrowLeft className="w-5 h-5" />
         </button>
 
-        {/* Name + story inline on the left, members button on the far right */}
         <div className="flex-1 min-w-0 flex items-center gap-2">
-          {/* Crew name / member count */}
           <div className="min-w-0">
             <h2 className="font-heading font-bold text-base truncate leading-tight">{crew.name}</h2>
             <p className="text-xs text-muted-foreground leading-tight">{members.length} member{members.length !== 1 ? 's' : ''}</p>
           </div>
 
-          {/* Story bubble — sits right next to the name */}
+          {/* Story bubble */}
           {crewStories.length > 0 ? (
             <div className="flex items-center gap-1 shrink-0">
               <button
@@ -298,6 +457,16 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           )}
         </div>
 
+        {/* Stats button */}
+        <button
+          onClick={() => setStatsPanelOpen(true)}
+          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          title="Crew Stats"
+        >
+          <BarChart3 className="w-4 h-4" />
+        </button>
+
+        {/* Members button */}
         <button
           onClick={() => setMemberPanelOpen(true)}
           className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -306,6 +475,21 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <Users className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Pinned announcement banner */}
+      <PinnedBanner
+        message={pinnedMessage}
+        isAdmin={isCurrentModerator}
+        crewId={crew.id}
+        onUnpin={() => handlePinMessage(pinnedMessage.id, false)}
+      />
+
+      {/* Assigned regimen banner */}
+      <AssignedRegimenBanner
+        crewId={crew.id}
+        isAdmin={isCurrentAdmin}
+        onEquip={handleEquipAssignedRegimen}
+      />
 
       {/* Crew story viewer overlay */}
       <AnimatePresence>
@@ -374,6 +558,8 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             currentUserId={user?.id}
             user={user}
             crewId={crew.id}
+            isCurrentModerator={isCurrentModerator}
+            onPin={(id) => handlePinMessage(id, true)}
           />
         ))}
         <div style={{ height: 1 }} />
@@ -395,9 +581,9 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             <div className="flex flex-col gap-1.5 pt-1">
               <p className="text-xs text-muted-foreground font-medium mb-0.5">View settings:</p>
               {[
-                { id: 'normal',   label: 'Standard',   icon: <Camera className="w-3 h-3" /> },
-                { id: 'one_time', label: 'One-time',    icon: <Eye    className="w-3 h-3" /> },
-                { id: 'one_hour', label: '1-hour expiry', icon: <Clock  className="w-3 h-3" /> },
+                { id: 'normal',   label: 'Standard',    icon: <Camera className="w-3 h-3" /> },
+                { id: 'one_time', label: 'One-time',     icon: <Eye    className="w-3 h-3" /> },
+                { id: 'one_hour', label: '1-hour expiry',icon: <Clock  className="w-3 h-3" /> },
               ].map(opt => (
                 <button
                   key={opt.id}
@@ -418,7 +604,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
 
       {/* Composer */}
       <div className="px-3 pb-3 pt-2 border-t border-border shrink-0 flex items-end gap-2">
-        {/* Attach */}
         <button
           onClick={() => fileInputRef.current?.click()}
           className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -426,7 +611,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <Paperclip className="w-4 h-4" />
         </button>
 
-        {/* Roll Call */}
         <button
           onClick={() => { setRollCallOpen(true); setRegimenOpen(false); }}
           className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -435,16 +619,14 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <span className="text-base leading-none">📣</span>
         </button>
 
-        {/* Regimen */}
         <button
           onClick={() => { setRegimenOpen(true); setRollCallOpen(false); }}
           className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0"
-          title="Share regimen"
+          title="Share / assign regimen"
         >
           <Dumbbell className="w-4 h-4" />
         </button>
 
-        {/* Text input */}
         <textarea
           value={draft}
           onChange={e => setDraft(e.target.value)}
@@ -455,7 +637,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           style={{ minHeight: '40px' }}
         />
 
-        {/* Send */}
         <motion.button
           whileTap={{ scale: 0.92 }}
           onClick={handleSend}
@@ -483,8 +664,17 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <RegimenPicker
             userEmail={user?.email}
             onShare={handleShareRegimen}
+            onAssign={handleAssignRegimen}
+            canAssign={isCurrentAdmin}
             onCancel={() => setRegimenOpen(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* Stats panel */}
+      <AnimatePresence>
+        {statsPanelOpen && (
+          <CrewStatsPanel crewId={crew.id} onClose={() => setStatsPanelOpen(false)} />
         )}
       </AnimatePresence>
 

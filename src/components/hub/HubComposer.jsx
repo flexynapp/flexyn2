@@ -257,7 +257,16 @@ export default function HubComposer({ onClose }) {
   });
 
   const [privacy, setPrivacy] = useState('public');
+  const [selectedCrewId, setSelectedCrewId] = useState(null);
   const [posting, setPosting] = useState(false);
+
+  // Crew list for crew-private posts
+  const { data: myCrews = [] } = useQuery({
+    queryKey: ['myCrews', user?.id],
+    queryFn:  () => import('@/lib/data/crews').then(m => m.getMyCrews(user.id)),
+    enabled:  !!user?.id,
+    staleTime: 60_000,
+  });
 
   // Custom meal form (for meal posts without a prior log)
   const [customMeal, setCustomMeal] = useState({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
@@ -455,6 +464,7 @@ export default function HubComposer({ onClose }) {
           like_count: 0,
           dislike_count: 0,
           comment_count: 0,
+          ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
         toast.success("Poll's live.");
@@ -597,6 +607,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_type:     effectiveSelected.kind === 'status' ? null : effectiveSelected.kind,
         linked_entity_id:       effectiveSelected.kind === 'status' ? null : (effectiveSelected.item?.id || null),
         linked_entity_snapshot: snapshot,
+        ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
@@ -1047,7 +1058,7 @@ export default function HubComposer({ onClose }) {
         {t('hub.composer.privacyLabel')}
       </label>
       <div className="flex gap-2 mb-1">
-        <button onClick={() => setPrivacy('public')}
+        <button onClick={() => { setPrivacy('public'); setSelectedCrewId(null); }}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
             privacy === 'public'
               ? 'border-primary bg-primary/5 text-primary'
@@ -1055,7 +1066,7 @@ export default function HubComposer({ onClose }) {
           }`}>
           <Globe2 className="w-4 h-4" /> {t('hub.privacy.public')}
         </button>
-        <button onClick={() => setPrivacy('followers')}
+        <button onClick={() => { setPrivacy('followers'); setSelectedCrewId(null); }}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
             privacy === 'followers'
               ? 'border-primary bg-primary/5 text-primary'
@@ -1063,7 +1074,31 @@ export default function HubComposer({ onClose }) {
           }`}>
           <Lock className="w-4 h-4" /> {t('hub.privacy.followers')}
         </button>
+        {myCrews.length > 0 && (
+          <button onClick={() => { setPrivacy('crew'); setSelectedCrewId(myCrews[0]?.id); }}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg border text-sm font-medium transition-colors ${
+              privacy === 'crew'
+                ? 'border-primary bg-primary/5 text-primary'
+                : 'border-border text-muted-foreground hover:bg-secondary'
+            }`}>
+            🛡️ Crew
+          </button>
+        )}
       </div>
+      {privacy === 'crew' && myCrews.length > 0 && (
+        <div className="mt-1">
+          <select
+            value={selectedCrewId || ''}
+            onChange={e => setSelectedCrewId(e.target.value)}
+            className="w-full rounded-lg border border-border bg-secondary/50 px-3 py-1.5 text-xs text-foreground focus:outline-none focus:border-primary/50"
+          >
+            {myCrews.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-[10px] text-muted-foreground mt-1">Only crew members will see this post.</p>
+        </div>
+      )}
     </>
   );
 

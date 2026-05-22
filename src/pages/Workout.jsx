@@ -50,6 +50,8 @@ import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
 import DuelBanner from '@/components/duels/DuelBanner';
 import { getActiveDuel } from '@/lib/data/duels';
+import { getMyCrews } from '@/lib/data/crews';
+import { getActiveWarForCrew, contributeWarXp } from '@/lib/data/crewWars';
 import BountyBanner from '@/components/bounties/BountyBanner';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
 import NemesisCard from '@/components/nemesis/NemesisCard';
@@ -704,6 +706,27 @@ export default function Workout() {
       leagues.recordWeeklyXp(user, xpGained)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
         .catch(() => {});
+
+      // Crew War contribution — fire-and-forget for each crew the user is in.
+      // Shows a toast for the first active war found so the user knows their
+      // workout counted toward the battle.
+      if (user?.id && xpGained > 0) {
+        getMyCrews(user.id)
+          .then(async (myCrews) => {
+            for (const crew of (myCrews || [])) {
+              const war = await getActiveWarForCrew(crew.id).catch(() => null);
+              if (!war || war.status !== 'active') continue;
+              await contributeWarXp(war.id, crew.id, xpGained).catch(() => {});
+              toast.success(`⚔️ +${xpGained} XP → ${crew.name}'s war score!`, {
+                description: 'Your workout contributed to the Crew War.',
+                duration: 4000,
+              });
+              // Only notify for the first active war to avoid toast spam
+              break;
+            }
+          })
+          .catch(() => {});
+      }
 
       // Workout streak — milestone days celebrate with toast + invalidate profile
       workoutStreak.recordWorkoutDay(user)

@@ -117,10 +117,30 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   });
 
   // Remember scroll position per feed-tab so navigating into a post
-  // detail / profile and back lands the user where they were. Backed
-  // by sessionStorage with a 30-min staleness window. Wait for the
-  // feed to load before restoring so we don't scroll into empty space.
+  // detail / profile and back lands the user where they were.
   useScrollRestoration(`hub-feed-${feedTab}`, { window: true, ready: !isLoading });
+
+  // Crew membership — used to filter out crew-private posts the viewer can't see
+  const { data: myCrewIds = [] } = useQuery({
+    queryKey: ['myCrewIds', user?.id],
+    queryFn: async () => {
+      const { getMyCrews } = await import('@/lib/data/crews');
+      const crews = await getMyCrews(user.id);
+      return (crews || []).map(c => c.id);
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  // Filter out crew-private posts the current user doesn't belong to
+  const filteredPosts = useMemo(() => {
+    if (!allPosts.length) return allPosts;
+    const crewSet = new Set(myCrewIds);
+    return allPosts.filter(p => {
+      if (p.privacy !== 'crew') return true;
+      return p.crew_id && crewSet.has(p.crew_id);
+    });
+  }, [allPosts, myCrewIds]);
 
   // ── Scroll-to-top refresh ────────────────────────────────────────────────
   // When the user scrolls back to the very top of the page (after having
@@ -164,13 +184,13 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     return () => window.removeEventListener('flexyn:active-tab-retap', onRetap);
   }, []);
 
-  // Slice the fetched window to the visible page.
+  // Slice the fetched + crew-filtered window to the visible page.
   const visiblePosts = useMemo(
-    () => allPosts.slice(0, visibleCount),
-    [allPosts, visibleCount]
+    () => filteredPosts.slice(0, visibleCount),
+    [filteredPosts, visibleCount]
   );
 
-  const hasMore = visibleCount < allPosts.length;
+  const hasMore = visibleCount < filteredPosts.length;
 
   // Auto-load more when sentinel scrolls into view.
   useEffect(() => {
@@ -178,14 +198,14 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) {
-          setVisibleCount(c => Math.min(c + PAGE_SIZE, allPosts.length));
+          setVisibleCount(c => Math.min(c + PAGE_SIZE, filteredPosts.length));
         }
       },
       { rootMargin: '200px' } // pre-load slightly before the user reaches it
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, allPosts.length]);
+  }, [hasMore, filteredPosts.length]);
 
   if (isLoading) {
     return (
@@ -195,7 +215,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     );
   }
 
-  if (allPosts.length === 0) {
+  if (filteredPosts.length === 0 && !isLoading) {
     const isSquadWithFollowing = feedTab === 'squad' && following.length > 0;
     // Friendly empty state with an actionable CTA — previously was just text.
     // The right next step depends on the surface:
@@ -294,7 +314,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       {hasMore && (
         <div ref={sentinelRef} className="flex justify-center py-6">
           <button
-            onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, allPosts.length))}
+            onClick={() => setVisibleCount(c => Math.min(c + PAGE_SIZE, filteredPosts.length))}
             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-secondary/50 hover:bg-secondary text-sm text-muted-foreground hover:text-foreground transition-colors"
           >
             <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
@@ -304,7 +324,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       )}
 
       {/* End of window marker */}
-      {!hasMore && allPosts.length >= PAGE_SIZE && (
+      {!hasMore && filteredPosts.length >= PAGE_SIZE && (
         <p className="text-center text-xs text-muted-foreground py-6">
           {t('hub.feed.allCaughtUp')}
         </p>

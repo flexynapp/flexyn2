@@ -408,3 +408,207 @@ export async function uploadCrewMedia(file) {
   if (!result?.file_url) throw new Error('Upload failed');
   return result.file_url;
 }
+
+// ── Crew Discovery ────────────────────────────────────────────────────────────
+
+/**
+ * Search for public crews by name or tag. Returns up to 20 results.
+ * Does NOT return crews the user already belongs to.
+ */
+export async function searchPublicCrews(query, userId) {
+  const q = (query || '').trim().toLowerCase();
+  let builder = supabase
+    .from('crews')
+    .select('id, name, description, tag, max_capacity, created_at')
+    .eq('is_public', true)
+    .limit(20);
+
+  if (q) {
+    builder = builder.or(`name.ilike.%${q}%,tag.ilike.%${q}%,description.ilike.%${q}%`);
+  } else {
+    builder = builder.order('created_at', { ascending: false });
+  }
+
+  const { data, error } = await builder;
+  if (error || !data) return [];
+
+  // Filter out crews the user already belongs to
+  if (!userId || !data.length) return data ?? [];
+  const { data: mine } = await supabase
+    .from('crew_members')
+    .select('crew_id')
+    .eq('user_id', userId);
+  const myIds = new Set((mine ?? []).map(r => r.crew_id));
+  return data.filter(c => !myIds.has(c.id));
+}
+
+/**
+ * Update a crew's public profile (name, description, is_public, tag).
+ * Only crew leaders can call this.
+ */
+export async function updateCrewProfile(crewId, updates) {
+  const allowed = {};
+  if (updates.name       !== undefined) allowed.name        = updates.name;
+  if (updates.description!== undefined) allowed.description = updates.description;
+  if (updates.is_public  !== undefined) allowed.is_public   = updates.is_public;
+  if (updates.tag        !== undefined) allowed.tag         = updates.tag;
+  const { error } = await supabase.from('crews').update(allowed).eq('id', crewId);
+  if (error) throw error;
+}
+
+// ── Pinned Announcements ──────────────────────────────────────────────────────
+
+/**
+ * Pin or unpin a crew message (moderators + leaders only — enforced by RLS).
+ */
+export async function pinMessage(messageId, pinned) {
+  const { error } = await supabase
+    .from('crew_messages')
+    .update({ is_pinned: pinned })
+    .eq('id', messageId);
+  if (error) throw error;
+}
+
+/**
+ * Fetch the currently pinned announcement for a crew (latest pinned message).
+ */
+export async function getPinnedMessage(crewId) {
+  if (!crewId) return null;
+  const { data, error } = await supabase
+    .from('crew_messages')
+    .select('*')
+    .eq('crew_id', crewId)
+    .eq('is_pinned', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single();
+  return error ? null : data;
+}
+
+// ── Crew Assigned Regimens ────────────────────────────────────────────────────
+
+export async function getCrewAssignedRegimens(crewId) {
+  if (!crewId) return [];
+  const { data, error } = await supabase
+    .from('crew_assigned_regimens')
+    .select('id, crew_id, regimen_id, assigned_by, note, assigned_at, regimens(id, name, exercises, description)')
+    .eq('crew_id', crewId)
+    .order('assigned_at', { ascending: false });
+  return error ? [] : (data ?? []);
+}
+
+export async function assignRegimenToCrew(crewId, regimenId, assignedBy, note) {
+  const { data, error } = await supabase
+    .from('crew_assigned_regimens')
+    .upsert(
+      { crew_id: crewId, regimen_id: regimenId, assigned_by: assignedBy, note: note ?? null },
+      { onConflict: 'crew_id,regimen_id' }
+    )
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function removeAssignedRegimen(id) {
+  const { error } = await supabase
+    .from('crew_assigned_regimens')
+    .delete()
+    .eq('id', id);
+  if (error) throw error;
+}
+
+// ── Crew Roles ────────────────────────────────────────────────────────────────
+
+/**
+ * Set the role for a crew member. Leaders can promote to moderator or demote.
+ * role: 'member' | 'moderator' | 'leader'
+ */
+export async function setMemberRole(crewId, userId, role) {
+  const isAdmin = role === 'leader';
+  const { error } = await supabase
+    .from('crew_members')
+    .update({ role, is_admin: isAdmin })
+    .eq('crew_id', crewId)
+    .eq('user_id', userId);
+  if (error) throw error;
+}
+
+// ── Crew Stats ────────────────────────────────────────────────────────────────
+
+/**
+ * Aggregate crew stats for the current week.
+ * Returns: { totalVolumeLbs, topPerformer, bestPr }
+ *
+ * Since workout_logs live in Base44, we fetch per-member and aggregate
+ * client-side. Capped at 16 members so this is O(16) API calls.
+ */
+export async function getCrewStats(crewId) {
+  if (!crewId) return null;
+
+  // 1. Get member user_ids
+  const members = await getCrewMembers(crewId);
+  if (!members.length) return { totalVolumeLbs: 0, topPerformer: null, bestPr: null, members: [] };
+
+  // 2. Get user profiles to resolve emails
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, email, username, avatar_url')
+    .in('id', userIds);
+  const profileMap = {};
+  for (const p of (profiles ?? [])) profileMap[p.id] = p;
+
+  // 3. Fetch last 7 days of workouts for each member (Base44)
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const memberStats = await Promise.all(
+    members.map(async (m) => {
+      const profile = profileMap[m.user_id];
+      if (!profile?.email) return { userId: m.user_id, profile, volume: 0, bestPr: null };
+
+      let logs = [];
+      try {
+        logs = await db.entities.WorkoutLog
+          .filter({ created_by: profile.email }, '-date', 20)
+          .catch(() => []);
+        // Filter to this week
+        logs = (logs ?? []).filter(l => l.date >= weekAgo);
+      } catch { logs = []; }
+
+      let volume = 0;
+      let bestPr = null;
+
+      for (const log of logs) {
+        for (const ex of (log.exercises ?? [])) {
+          for (const set of (ex.sets ?? [])) {
+            const w = Number(set.weight) || 0;
+            const r = Number(set.reps)   || 0;
+            volume += w * r;
+            // Epley 1RM approximation
+            const e1rm = r > 1 ? w * (1 + r / 30) : w;
+            if (!bestPr || e1rm > bestPr.e1rm) {
+              bestPr = { exercise: ex.name, weight: w, reps: r, e1rm };
+            }
+          }
+        }
+      }
+
+      return { userId: m.user_id, profile, volume, bestPr };
+    })
+  );
+
+  // 4. Aggregate
+  const totalVolumeLbs = memberStats.reduce((s, m) => s + m.volume, 0);
+  const topPerformer = [...memberStats].sort((a, b) => b.volume - a.volume)[0] ?? null;
+
+  // Best PR across the entire crew
+  let bestPr = null;
+  for (const ms of memberStats) {
+    if (ms.bestPr && (!bestPr || ms.bestPr.e1rm > bestPr.e1rm)) {
+      bestPr = { ...ms.bestPr, profile: ms.profile };
+    }
+  }
+
+  return { totalVolumeLbs, topPerformer, bestPr, memberStats };
+}

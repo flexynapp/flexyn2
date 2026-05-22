@@ -1,12 +1,12 @@
 // src/components/crews/CrewsSection.jsx
 //
 // Main Crews entry point rendered inside Hub when feedTab === 'crews'.
-// States: empty (no crews) → crew list → crew chat view → creation flow
-// Tabs: "My Crews" | "Battles" (crew war scoreboard + history)
+// States: empty (no crews) → crew list → crew chat view → creation flow → discovery
+// Tabs: "My Crews" | "Discover" | "Battles"
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Trophy, Crown, History } from 'lucide-react';
+import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Trophy, Crown, History, Globe2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
@@ -19,15 +19,20 @@ import CrewCreationFlow from './CrewCreationFlow';
 import CrewWarPanel from './CrewWarPanel';
 import CrewMemberDots from './CrewMemberDots';
 import CrewSuggestionRail from './CrewSuggestionRail';
+import CrewDiscovery from './CrewDiscovery';
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
-function CrewCard({ crew, onClick }) {
+function CrewCard({ crew, onClick, currentUserId }) {
   const { data: members = [] } = useQuery({
     queryKey: ['crewMembers', crew.id],
     queryFn:  () => crewsData.getCrewMembers(crew.id),
     staleTime: 30_000,
   });
+
+  const myMember = members.find(m => m.user_id === currentUserId);
+  const myRole = crew.is_admin ? 'leader'
+    : (myMember?.role === 'moderator' ? 'moderator' : 'member');
 
   return (
     <motion.button
@@ -50,7 +55,13 @@ function CrewCard({ crew, onClick }) {
           {crew.is_admin && (
             <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
               style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}>
-              Admin
+              Leader
+            </span>
+          )}
+          {!crew.is_admin && myRole === 'moderator' && (
+            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+              Mod
             </span>
           )}
         </p>
@@ -82,7 +93,7 @@ function BattleEntryRow({ crew, currentUserId }) {
     refetchInterval: 120_000,
   });
 
-  const { data: history = [], isLoading: histLoading } = useQuery({
+  const { data: history = [] } = useQuery({
     queryKey:  ['warHistory', crew.id],
     queryFn:   () => getCrewWarHistory(crew.id, 3),
     enabled:   !!crew.id,
@@ -107,26 +118,22 @@ function BattleEntryRow({ crew, currentUserId }) {
     );
   }
 
-  // Active or matchmaking war — show the full panel
   if (war) {
     return <CrewWarPanel crewId={crew.id} currentUserId={currentUserId} />;
   }
 
-  // No active war — show enter battle CTA + history
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       className="rounded-2xl border border-border bg-card overflow-hidden mb-4"
     >
-      {/* Header */}
       <div className="px-4 py-3 flex items-center gap-2 border-b border-border bg-secondary/30">
         <Shield className="w-4 h-4 text-muted-foreground" />
         <span className="font-bold text-sm truncate">{crew.name}</span>
       </div>
 
       <div className="p-4 space-y-4">
-        {/* No active battle */}
         <div className="text-center py-2">
           <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
             <Swords className="w-6 h-6 text-rose-500" />
@@ -148,7 +155,6 @@ function BattleEntryRow({ crew, currentUserId }) {
           </button>
         </div>
 
-        {/* Past battles */}
         {history.length > 0 && (
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2">
@@ -158,7 +164,7 @@ function BattleEntryRow({ crew, currentUserId }) {
             <div className="space-y-2">
               {history.map(w => {
                 const won = w.winner_crew_id === crew.id;
-                const myScore = getWarScore(w, crew.id);
+                const myScore    = getWarScore(w, crew.id);
                 const theirScore = getOpponentScore(w, crew.id);
                 return (
                   <div key={w.id} className="flex items-center justify-between px-3 py-2 rounded-xl bg-secondary/40">
@@ -228,9 +234,10 @@ function BattlesView({ myCrews, currentUserId }) {
 export default function CrewsSection({ initialCrewId }) {
   const { user } = useAuth();
   const qc = useQueryClient();
-  const [activeCrew, setActiveCrew] = useState(null);
-  const [creating, setCreating]     = useState(false);
-  const [warTab, setWarTab]         = useState('crews'); // 'crews' | 'battles'
+  const [activeCrew,  setActiveCrew]  = useState(null);
+  const [creating,    setCreating]    = useState(false);
+  const [discovering, setDiscovering] = useState(false);
+  const [warTab,      setWarTab]      = useState('crews'); // 'crews' | 'discover' | 'battles'
 
   const { data: myCrews = [], isLoading } = useQuery({
     queryKey: ['myCrews', user?.id],
@@ -251,7 +258,6 @@ export default function CrewsSection({ initialCrewId }) {
     setActiveCrew({ ...crew, is_admin: true });
   };
 
-  // Relay open-crew deep-link (flexyn:open-crew custom event from Hub.jsx)
   React.useEffect(() => {
     const handler = (e) => {
       const { crewId } = e.detail || {};
@@ -267,10 +273,7 @@ export default function CrewsSection({ initialCrewId }) {
   if (activeCrew) {
     return (
       <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
-        <CrewChat
-          crew={activeCrew}
-          onBack={() => setActiveCrew(null)}
-        />
+        <CrewChat crew={activeCrew} onBack={() => setActiveCrew(null)} />
       </div>
     );
   }
@@ -279,9 +282,21 @@ export default function CrewsSection({ initialCrewId }) {
   if (creating) {
     return (
       <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
-        <CrewCreationFlow
-          onCreated={handleCreated}
-          onClose={() => setCreating(false)}
+        <CrewCreationFlow onCreated={handleCreated} onClose={() => setCreating(false)} />
+      </div>
+    );
+  }
+
+  // ── Discovery ─────────────────────────────────────────────────────────────────
+  if (discovering) {
+    return (
+      <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
+        <CrewDiscovery
+          onBack={() => setDiscovering(false)}
+          onJoined={() => {
+            setDiscovering(false);
+            qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+          }}
         />
       </div>
     );
@@ -303,7 +318,7 @@ export default function CrewsSection({ initialCrewId }) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25 }}
-        className="flex flex-col items-center justify-center py-20 px-8 text-center"
+        className="flex flex-col items-center justify-center py-16 px-8 text-center"
       >
         <div
           className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5"
@@ -315,20 +330,30 @@ export default function CrewsSection({ initialCrewId }) {
         <p className="text-sm text-muted-foreground leading-relaxed mb-8">
           Create a private group with up to 16 friends. Share workouts, post roll calls, and fuel each other with XP.
         </p>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={() => setCreating(true)}
-          className="px-6 py-3 rounded-2xl font-bold text-white text-sm flex items-center gap-2"
-          style={{ background: 'hsl(var(--primary))' }}
-        >
-          <Plus className="w-4 h-4" />
-          Create a Crew
-        </motion.button>
+        <div className="flex gap-3">
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setDiscovering(true)}
+            className="px-5 py-3 rounded-2xl font-bold text-sm flex items-center gap-2 border border-border text-foreground"
+          >
+            <Globe2 className="w-4 h-4" />
+            Discover
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setCreating(true)}
+            className="px-5 py-3 rounded-2xl font-bold text-white text-sm flex items-center gap-2"
+            style={{ background: 'hsl(var(--primary))' }}
+          >
+            <Plus className="w-4 h-4" />
+            Create a Crew
+          </motion.button>
+        </div>
       </motion.div>
     );
   }
 
-  // ── Crews list + Battles tabs ─────────────────────────────────────────────────
+  // ── Crews list + Discover + Battles tabs ──────────────────────────────────────
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -341,20 +366,25 @@ export default function CrewsSection({ initialCrewId }) {
         <button
           onClick={() => setWarTab('crews')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'crews'
-              ? 'bg-card text-foreground shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+            warTab === 'crews' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Shield className="w-3.5 h-3.5" />
           My Crews
         </button>
         <button
+          onClick={() => setWarTab('discover')}
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
+            warTab === 'discover' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          <Globe2 className="w-3.5 h-3.5" />
+          Discover
+        </button>
+        <button
           onClick={() => setWarTab('battles')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${
-            warTab === 'battles'
-              ? 'bg-rose-500 text-white shadow-sm'
-              : 'text-muted-foreground hover:text-foreground'
+            warTab === 'battles' ? 'bg-rose-500 text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
         >
           <Swords className="w-3.5 h-3.5" />
@@ -363,7 +393,7 @@ export default function CrewsSection({ initialCrewId }) {
       </div>
 
       <AnimatePresence mode="wait">
-        {warTab === 'crews' ? (
+        {warTab === 'crews' && (
           <motion.div
             key="crews"
             initial={{ opacity: 0, x: -8 }}
@@ -392,15 +422,32 @@ export default function CrewsSection({ initialCrewId }) {
             </div>
             <div className="space-y-2.5">
               {myCrews.map(crew => (
-                <CrewCard
-                  key={crew.id}
-                  crew={crew}
-                  onClick={() => setActiveCrew(crew)}
-                />
+                <CrewCard key={crew.id} crew={crew} onClick={() => setActiveCrew(crew)} currentUserId={user?.id} />
               ))}
             </div>
           </motion.div>
-        ) : (
+        )}
+
+        {warTab === 'discover' && (
+          <motion.div
+            key="discover"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.15 }}
+          >
+            {/* Inline discovery (for users already in crews) */}
+            <CrewDiscovery
+              onBack={() => setWarTab('crews')}
+              onJoined={() => {
+                qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+                setWarTab('crews');
+              }}
+            />
+          </motion.div>
+        )}
+
+        {warTab === 'battles' && (
           <motion.div
             key="battles"
             initial={{ opacity: 0, x: 8 }}

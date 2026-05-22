@@ -115,14 +115,13 @@ function Timestamp({ dateStr }) {
 
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
-function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
+function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModerator, onPin }) {
   const { t, tFallback } = useLanguage();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
   const [showContext, setShowContext] = useState(false);
-  const [pinned, setPinned] = useState(!!msg.is_pinned);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
 
   const setReactedPersisted = (val) => {
@@ -150,26 +149,13 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
   };
 
-  const handlePinToggle = async () => {
+  const handlePinToggle = () => {
     setShowContext(false);
-    setPinned(p => !p); // optimistic
-    try {
-      await supabase.rpc('toggle_pin_crew_message', { p_message_id: msg.id });
-    } catch {
-      setPinned(p => !p); // revert
-      toast.error(tFallback('crew.messages.pinError', 'Could not pin message.'));
-    }
+    onPin?.(msg.id);
   };
 
   return (
     <>
-      {/* Pin banner */}
-      {pinned && (
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-0.5 px-1">
-          <span>📌</span>
-          <span>{tFallback('crew.messages.pinned', 'Pinned')}</span>
-        </div>
-      )}
       <div className={`flex gap-2 items-end ${isOwn ? 'flex-row-reverse' : 'flex-row'}`}>
         {!isOwn && <Avatar profile={senderProfile} />}
         <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
@@ -245,13 +231,15 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId }) {
               onClick={(e) => e.stopPropagation()}
               className="bg-card border border-border rounded-2xl overflow-hidden w-64 shadow-xl"
             >
-              <button
-                onClick={handlePinToggle}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
-              >
-                <span className="text-base">📌</span>
-                {pinned ? 'Unpin message' : 'Pin message'}
-              </button>
+              {isCurrentModerator && (
+                <button
+                  onClick={handlePinToggle}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors"
+                >
+                  <span className="text-base">📌</span>
+                  Pin as announcement
+                </button>
+              )}
               <button
                 onClick={() => setShowContext(false)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
@@ -675,7 +663,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn }) {
 
 // ── Router ────────────────────────────────────────────────────────────────────
 
-export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId }) {
+export default function CrewMessageItem({ msg, senderProfile, currentUserId, user, crewId, isCurrentModerator, onPin }) {
   const isOwn = msg.sender_id === currentUserId;
 
   switch (msg.message_type) {
@@ -690,6 +678,15 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'image_one_hour':
       return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
     default:
-      return <TextMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
+      return (
+        <TextMessage
+          msg={msg}
+          senderProfile={senderProfile}
+          isOwn={isOwn}
+          currentUserId={currentUserId}
+          isCurrentModerator={isCurrentModerator}
+          onPin={onPin}
+        />
+      );
   }
 }
