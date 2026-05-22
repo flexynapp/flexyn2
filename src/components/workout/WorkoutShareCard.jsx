@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import { formatNumber } from '@/lib/intl';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -52,7 +53,7 @@ function computeStats(workout) {
 }
 
 /** Draw the share card on the given canvas. */
-function drawCard(ctx, { username, dateStr, stats }) {
+function drawCard(ctx, { username, dateStr, stats, language }) {
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -108,7 +109,7 @@ function drawCard(ctx, { username, dateStr, stats }) {
 
   // ── Big primary stat: Total Volume ────────────────────────────────────
   const volumeStr = stats.totalVolume > 0
-    ? stats.totalVolume.toLocaleString()
+    ? formatNumber(stats.totalVolume, language)
     : '—';
 
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -201,7 +202,7 @@ function roundRect(ctx, x, y, w, h, r) {
 }
 
 export default function WorkoutShareCard({ open, onClose, workout, username }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
@@ -235,12 +236,13 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
       username: username || 'Athlete',
       dateStr,
       stats,
+      language,
     });
     // Convert to a stable preview URL
     canvas.toBlob((blob) => {
       if (blob) setImgUrl(URL.createObjectURL(blob));
     }, 'image/png');
-  }, [open, workout, username]);
+  }, [open, workout, username, language]);
 
   // Clean up object URL
   useEffect(() => {

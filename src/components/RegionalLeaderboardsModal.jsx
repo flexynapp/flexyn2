@@ -19,6 +19,7 @@ import { formatDistance } from '@/lib/distanceUnit';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
 import { COUNTRIES, US_STATES, getCountry, getUsState } from '@/lib/regions';
+import { useNumberFormatter } from '@/lib/intl';
 
 const BOARDS = [
   { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        gradient: 'from-sky-400 via-blue-500 to-indigo-600' },
@@ -33,13 +34,13 @@ const PODIUM_STYLE = {
   2: { ring: 'ring-orange-400/60',  glow: 'shadow-orange-400/40',  Icon: Flame,  iconColor: 'text-orange-400'  },
 };
 
-const formatNum = (n) => Math.round(n).toLocaleString();
-
 export default function RegionalLeaderboardsModal({ open, onClose }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
+  const fmt = useNumberFormatter();
+  const formatNum = (n) => fmt(Math.round(n));
   const [activeBoard, setActiveBoard] = useState('level');
   const [activeCountry, setActiveCountry] = useState(null);
   const [activeState, setActiveState] = useState(null);

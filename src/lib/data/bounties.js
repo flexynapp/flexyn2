@@ -3,6 +3,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
+import { formatNumber } from '@/lib/intl';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -19,13 +20,20 @@ export const METRIC_LABEL = {
   session_volume:     'Session volume',
 };
 
-/** Human-readable bounty description for a given row */
-export function bountyDescription(bounty) {
+/**
+ * Human-readable bounty description for a given row.
+ * Accepts an optional `language` (ISO 639-1) so the target value renders
+ * in the user's locale instead of the browser's. Callers in React land
+ * pass `useLanguage().language`; legacy callers omit it and fall back to
+ * 'en' formatting (still better than uncontrolled browser locale).
+ */
+export function bountyDescription(bounty, language) {
   const metric = METRIC_LABEL[bounty.metric] || bounty.metric;
+  const target = formatNumber(Math.round(bounty.target_value), language);
   if (bounty.exercise_name) {
-    return `${metric} ${bounty.exercise_name} — beat ${Math.round(bounty.target_value).toLocaleString()}${bounty.metric === 'single_lift_weight' ? ' lbs' : ' reps'}`;
+    return `${metric} ${bounty.exercise_name} — beat ${target}${bounty.metric === 'single_lift_weight' ? ' lbs' : ' reps'}`;
   }
-  return `${metric} — beat ${Math.round(bounty.target_value).toLocaleString()} lbs`;
+  return `${metric} — beat ${target} lbs`;
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────

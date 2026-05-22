@@ -29,6 +29,7 @@ import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
+import { useNumberFormatter } from '@/lib/intl';
 import * as users from '@/lib/data/users';
 import { supabase } from '@/api/supabaseClient';
 import { ACTION_TYPES } from '@/lib/questCatalog';
@@ -180,10 +181,18 @@ const summarize = {
     const date = p.takenAt ? format(parseISO(p.takenAt), 'MMM d') : '';
     return [p.workoutName, date].filter(Boolean).join(' · ') || 'Progress photo';
   },
-  stats: (s) => {
+  stats: (s, fmt) => {
+    // fmt is an optional locale-aware number formatter from useNumberFormatter().
+    // When the caller passes it the lift volume renders in the user's locale
+    // (Arabic-Indic digits for ar, French thin-spaces, etc.); without it we
+    // fall back to a plain toLocaleString() so this helper still works in
+    // hook-less contexts (tests, error boundaries, future callers).
     const parts = [];
+    const formatVol = fmt
+      ? (n) => fmt(Math.round(n))
+      : (n) => Math.round(n).toLocaleString();
     if (s.level) parts.push(`Level ${s.level}`);
-    if (s.total_volume_lbs) parts.push(`${Math.round(s.total_volume_lbs).toLocaleString()} lbs lifted`);
+    if (s.total_volume_lbs) parts.push(`${formatVol(s.total_volume_lbs)} lbs lifted`);
     if (s.total_distance_meters) parts.push(`${(s.total_distance_meters / 1000).toFixed(1)} km logged`);
     return parts.join(' · ') || 'Stats snapshot';
   },
@@ -201,6 +210,7 @@ export default function HubComposer({ onClose }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const fmt = useNumberFormatter();
 
   // Lock body scroll when composer is open
   useEffect(() => {
@@ -774,7 +784,7 @@ export default function HubComposer({ onClose }) {
         <Section title={t('hub.share.section.stats')}>
           <PickCard kind="stats" onClick={() => handlePick('stats', statsSnapshot)}
             title={t('hub.share.stats')}
-            subtitle={summarize.stats(statsSnapshot)} />
+            subtitle={summarize.stats(statsSnapshot, fmt)} />
         </Section>
       </div>
     </div>

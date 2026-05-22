@@ -15,12 +15,14 @@ import {
 } from '@/lib/data/prestige';
 import { toast } from 'sonner';
 import { reportError } from '@/lib/reportError';
+import { useNumberFormatter } from '@/lib/intl';
 
 const RESETS   = ['Current XP', 'Display level', 'Current season rank'];
 const PERSISTS = ['Lifetime XP total', 'All workout logs', 'All PRs & volume history', 'Flex Coins', 'Crew membership', 'Nemesis history'];
 
 export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
   const qc = useQueryClient();
+  const fmt = useNumberFormatter();
   const [step, setStep] = useState('prompt'); // 'prompt' | 'confirm'
 
   const nextTier   = currentPrestige + 1;
@@ -97,7 +99,7 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
               </div>
               <div>
                 <p className="text-sm font-bold">{title}</p>
-                <p className="text-xs text-muted-foreground">+{coins.toLocaleString()} Flex Coins · Permanent badge</p>
+                <p className="text-xs text-muted-foreground">+{fmt(coins)} Flex Coins · Permanent badge</p>
               </div>
             </div>
 

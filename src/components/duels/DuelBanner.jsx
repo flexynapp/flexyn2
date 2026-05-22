@@ -8,6 +8,7 @@ import { acceptDuel, declineDuel } from '@/lib/data/duels';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import DuelDetailSheet from './DuelDetailSheet';
+import { useNumberFormatter } from '@/lib/intl';
 
 function timeRemaining(expiresAt) {
   const diff = new Date(expiresAt) - new Date();
@@ -20,6 +21,7 @@ function timeRemaining(expiresAt) {
 
 export default function DuelBanner({ duel, currentUserId, opponentProfile }) {
   const qc = useQueryClient();
+  const fmt = useNumberFormatter();
   const [showDetail, setShowDetail] = useState(false);
   const [remaining,  setRemaining]  = useState(() => timeRemaining(duel?.expires_at));
   const [acting,     setActing]     = useState(false);
@@ -103,7 +105,7 @@ export default function DuelBanner({ duel, currentUserId, opponentProfile }) {
         {isActive && targetVolume > 0 && (
           <div className="px-3 pb-2.5 flex items-center gap-1.5">
             <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-wider">Target:</span>
-            <span className="text-xs font-bold">{targetVolume.toLocaleString()} lbs</span>
+            <span className="text-xs font-bold">{fmt(targetVolume)} lbs</span>
             <span className="text-[10px] text-muted-foreground">total volume to beat</span>
           </div>
         )}

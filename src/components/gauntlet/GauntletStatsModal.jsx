@@ -4,6 +4,7 @@
 import { useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share2, Trophy, Star, Zap } from 'lucide-react';
+import { useNumberFormatter } from '@/lib/intl';
 
 function StatPill({ label, value, accent }) {
   return (
@@ -35,6 +36,7 @@ export default function GauntletStatsModal({
   pathCompleted = false,
 }) {
   const cardRef = useRef(null);
+  const fmt = useNumberFormatter();
 
   const { completion_rate_pct = 0, attempt_count = 0, completion_count = 0, user_rank = null } = stats;
 
@@ -159,7 +161,7 @@ export default function GauntletStatsModal({
                   />
                   <StatPill
                     label="Total Attempts"
-                    value={attempt_count.toLocaleString()}
+                    value={fmt(attempt_count)}
                     accent="text-purple-400"
                   />
                   {user_rank != null && (

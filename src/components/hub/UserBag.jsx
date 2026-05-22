@@ -20,6 +20,7 @@ import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
 import CoinShopModal from './CoinShopModal';
+import { useNumberFormatter } from '@/lib/intl';
 
 // Sell price is half the hidden base value, rounded down.
 const SELL_PRICE = Object.fromEntries(
@@ -442,6 +443,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const { user } = useAuth();
   const { lootThemeId, setLootThemeId } = useTheme();
   const qc = useQueryClient();
+  const fmt = useNumberFormatter();
   const [activeTab, setActiveTab] = useState('capsules');
   const [selling, setSelling] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
@@ -563,7 +565,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1 hover:bg-amber-500/25 transition-colors"
               >
                 <span className="text-base">🪙</span>
-                <span className="text-amber-300 font-bold text-sm tabular-nums">{flexCoins.toLocaleString()}</span>
+                <span className="text-amber-300 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
                 <Store className="w-3.5 h-3.5 text-amber-300/80 ml-0.5" />
               </button>
               <button

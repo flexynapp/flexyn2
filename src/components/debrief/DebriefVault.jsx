@@ -15,10 +15,12 @@ import { listDebriefs, generateWeeklyDebrief, currentWeekStart, prevWeekStart } 
 import WeeklyDebriefCard from './WeeklyDebriefCard';
 import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
+import { useNumberFormatter } from '@/lib/intl';
 
 // ── Mini preview card ─────────────────────────────────────────────────────────
 
 function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
+  const fmt    = useNumberFormatter();
   const d      = debrief.data || {};
   const vol    = d.volume_lbs    ?? 0;
   const change = d.volume_change_pct;
@@ -56,7 +58,7 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
       <div className="px-3 py-2 flex-1">
         <div className="flex items-end gap-1.5 mb-1">
           <span className="text-xl font-heading font-black text-white tabular-nums">
-            {Number(vol).toLocaleString()}
+            {fmt(Number(vol))}
           </span>
           <span className="text-[10px] text-white/40 mb-0.5">lbs</span>
         </div>
@@ -72,7 +74,7 @@ function DebriefPreview({ debrief, onClick, isCurrentWeek }) {
         <span className="text-[10px] text-white/40">{wks} sessions</span>
         {isPr && <Trophy className="w-3 h-3 text-yellow-400" />}
         <span className="ml-auto text-[10px] text-yellow-400/60 flex items-center gap-0.5">
-          <Zap className="w-2.5 h-2.5" />+{Number(xp).toLocaleString()}
+          <Zap className="w-2.5 h-2.5" />+{fmt(Number(xp))}
         </span>
       </div>
     </motion.button>

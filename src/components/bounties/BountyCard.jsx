@@ -9,9 +9,11 @@ import { claimBounty, DIFFICULTY_CONFIG, bountyDescription } from '@/lib/data/bo
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
+import { useLanguage } from '@/lib/LanguageContext';
 
 export default function BountyCard({ bounty, hasActiveClaim = false, compact = false }) {
   const qc = useQueryClient();
+  const { language } = useLanguage();
   const [busy, setBusy] = useState(false);
   const [claimed, setClaimed] = useState(false);
 
@@ -26,7 +28,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
     ? formatDistanceToNow(new Date(bounty.expires_at), { addSuffix: false })
     : 'Expired';
 
-  const description = bountyDescription(bounty);
+  const description = bountyDescription(bounty, language);
 
   const handleClaim = async () => {
     if (!canClaim || busy) return;

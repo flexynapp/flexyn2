@@ -12,12 +12,14 @@ import { Trophy, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueCard({ onClick }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -121,7 +123,7 @@ export default function LeagueCard({ onClick }) {
             </span>
           )}
           <span className="text-xs font-medium tabular-nums text-muted-foreground">
-            {myXp.toLocaleString()} XP {tFallback('league.thisWeek', 'this week')}
+            {fmt(myXp)} XP {tFallback('league.thisWeek', 'this week')}
           </span>
         </div>
       </Card>

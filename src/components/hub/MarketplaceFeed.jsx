@@ -20,6 +20,7 @@ import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
+import { useNumberFormatter } from '@/lib/intl';
 import RecentlyViewedRail from './RecentlyViewedRail';
 
 // ─── Daily Chest helpers ──────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ function RarityBadge({ rarity, small = false }) {
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
 function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false }) {
+  const fmt = useNumberFormatter();
   const isMine      = listing.seller_email === currentUser?.email;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
@@ -132,7 +134,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
       {/* Price / trade req */}
       <div className="text-center relative z-10">
         {isSale ? (
-          <p className="text-amber-300 font-bold text-sm">🪙 {(listing.asking_price ?? 0).toLocaleString()}</p>
+          <p className="text-amber-300 font-bold text-sm">🪙 {fmt(listing.asking_price ?? 0)}</p>
         ) : (
           <p className="text-blue-300 text-xs font-medium">
             Want: <span className="capitalize">{listing.trade_for_rarity ?? 'any'}+</span>
@@ -161,7 +163,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
             ].join(' ')}
           >
             {!canAfford && <Lock className="w-3 h-3" />}
-            Buy · 🪙 {(listing.asking_price ?? 0).toLocaleString()}
+            Buy · 🪙 {fmt(listing.asking_price ?? 0)}
           </button>
         ) : (
           <button
@@ -511,6 +513,7 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
 
 // ─── Buy Confirm Dialog ───────────────────────────────────────────────────────
 function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
+  const fmt = useNumberFormatter();
   if (!open || !listing) return null;
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
@@ -529,7 +532,7 @@ function BuyConfirmDialog({ open, listing, onClose, onConfirm, busy }) {
           <span className="text-5xl">{listing.item_emoji}</span>
           <p className="text-white font-semibold">{listing.item_name}</p>
           <RarityBadge rarity={listing.item_rarity} />
-          <p className="text-amber-300 font-bold text-lg mt-1">🪙 {(listing.asking_price ?? 0).toLocaleString()} Flex Coins</p>
+          <p className="text-amber-300 font-bold text-lg mt-1">🪙 {fmt(listing.asking_price ?? 0)} Flex Coins</p>
         </div>
         <div className="flex gap-3">
           <button onClick={onClose} disabled={busy} className="flex-1 py-2.5 rounded-xl bg-white/10 text-white font-semibold text-sm hover:bg-white/20 transition-colors">
@@ -569,6 +572,7 @@ const CHEST_PARTICLES = [
 
 // ─── Rotating gradient header ─────────────────────────────────────────────────
 function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
+  const fmt = useNumberFormatter();
   const angleRef = useRef(0);
   const rafRef = useRef(null);
   const prevTimeRef = useRef(null);
@@ -630,7 +634,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-amber-400 rounded-full px-3 py-1.5">
             <span className="text-base">🪙</span>
-            <span className="text-gray-900 font-bold text-sm">{flexCoins.toLocaleString()}</span>
+            <span className="text-gray-900 font-bold text-sm">{fmt(flexCoins)}</span>
           </div>
           <button
             onClick={onList}

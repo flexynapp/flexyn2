@@ -6,6 +6,7 @@ import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useState } from 'react';
@@ -120,6 +121,7 @@ function DaySection({ dateStr, entries }) {
 export default function MealHistoryModal({ open, onClose, userProfile }) {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const fmt = useNumberFormatter();
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
@@ -175,7 +177,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
               <h2 className="font-heading font-bold text-xl tracking-tight">Meal History</h2>
               {!isLoading && mealLogs.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {mealLogs.length} entries · {Math.round(allTimeCalories).toLocaleString()} kcal total
+                  {mealLogs.length} entries · {fmt(Math.round(allTimeCalories))} kcal total
                 </p>
               )}
             </div>
@@ -196,7 +198,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
                 { label: 'Avg kcal/day', value: grouped.length > 0 ? Math.round(allTimeCalories / grouped.length) : 0 },
               ].map(stat => (
                 <div key={stat.label} className="text-center">
-                  <p className="font-heading font-bold text-lg leading-none">{stat.value.toLocaleString()}</p>
+                  <p className="font-heading font-bold text-lg leading-none">{fmt(stat.value)}</p>
                   <p className="text-[10px] text-muted-foreground mt-0.5">{stat.label}</p>
                 </div>
               ))}

@@ -16,8 +16,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import { listRecentlyViewed, removeRecentlyViewed, clearRecentlyViewed } from '@/lib/recentlyViewedListings';
 import { RARITY } from '@/lib/lootCatalog';
+import { useNumberFormatter } from '@/lib/intl';
 
 export default function RecentlyViewedRail({ userEmail, listings = [], onSelect }) {
+  const fmt = useNumberFormatter();
   const [recents, setRecents] = useState(() => listRecentlyViewed(userEmail));
 
   // Stay in sync with the storage backing — re-read on the custom
@@ -84,7 +86,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                   </span>
                   {entry.asking_price != null && (
                     <span className="text-[10px] text-amber-300 font-bold">
-                      🪙 {Number(entry.asking_price).toLocaleString()}
+                      🪙 {fmt(Number(entry.asking_price))}
                     </span>
                   )}
                 </button>

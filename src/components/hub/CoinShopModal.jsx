@@ -13,6 +13,7 @@ import { Coins, X, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { supabase } from '@/api/supabaseClient';
 import { SHOP_CATALOG, purchaseItem } from '@/lib/data/coinShop';
 
@@ -32,6 +33,7 @@ export default function CoinShopModal({ open, onClose }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const queryClient = useQueryClient();
+  const fmt = useNumberFormatter();
   const [busySku, setBusySku] = useState(null);
 
   // Admin bypass — skip RPC (which validates real DB balance) and directly grant
@@ -147,7 +149,7 @@ export default function CoinShopModal({ open, onClose }) {
               <h2 className="font-heading font-bold text-base">{t('shop.title')}</h2>
               <div className="flex items-center gap-1.5 mt-0.5">
                 <Coins className="w-3.5 h-3.5 text-primary" />
-                <span className="font-bold tabular-nums text-sm">{balance.toLocaleString()}</span>
+                <span className="font-bold tabular-nums text-sm">{fmt(balance)}</span>
                 <span className="text-[11px] text-muted-foreground">{t('shop.balance')}</span>
               </div>
             </div>

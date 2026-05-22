@@ -12,12 +12,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUp, ArrowDown, Crown, Trophy } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueStandingsModal({ open, onClose }) {
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -160,7 +162,7 @@ function Body({ data, userId, t, tFallback }) {
                     </div>
                     <div className="text-right">
                       <p className="font-heading font-bold text-sm tabular-nums">
-                        {(m.weekly_xp || 0).toLocaleString()} XP
+                        {fmt(m.weekly_xp || 0)} XP
                       </p>
                     </div>
                   </motion.div>

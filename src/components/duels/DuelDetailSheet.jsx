@@ -4,6 +4,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { X, Swords, Dumbbell, Timer, Trophy, Crown } from 'lucide-react';
+import { useNumberFormatter } from '@/lib/intl';
 
 const TYPE_ICON  = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 const TYPE_LABEL = { mirror: 'Mirror Duel', open: 'Open Duel', exercise: 'Exercise Duel' };
@@ -18,6 +19,7 @@ function StatPill({ label, value, highlight }) {
 }
 
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onClose }) {
+  const fmt = useNumberFormatter();
   if (!duel) return null;
 
   const Icon         = TYPE_ICON[duel.type] || Swords;
@@ -29,7 +31,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const tied         = duel.status === 'completed' && !duel.winner_id;
   const opponentName = opponentProfile?.username || 'Opponent';
 
-  const fmtVol = (v) => v != null ? `${Number(v).toLocaleString()} lbs` : '—';
+  const fmtVol = (v) => v != null ? `${fmt(Number(v))} lbs` : '—';
 
   return (
     <motion.div
@@ -101,14 +103,14 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
 
               {won && myResult?.volume && theirResult?.volume && (
                 <p className="text-center text-xs font-semibold text-primary mt-3">
-                  Won by {(myResult.volume - theirResult.volume).toLocaleString()} lbs
+                  Won by {fmt(myResult.volume - theirResult.volume)} lbs
                 </p>
               )}
 
               {/* Share line */}
               {won && (
                 <p className="text-center text-[10px] text-muted-foreground mt-2 italic">
-                  "I beat @{opponentName} by {((myResult?.volume || 0) - (theirResult?.volume || 0)).toLocaleString()} lbs. Flexyn."
+                  "I beat @{opponentName} by {fmt((myResult?.volume || 0) - (theirResult?.volume || 0))} lbs. Flexyn."
                 </p>
               )}
             </div>

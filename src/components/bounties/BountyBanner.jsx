@@ -8,6 +8,7 @@ import { Zap, Clock, ChevronRight } from 'lucide-react';
 import { differenceInHours, differenceInMinutes } from 'date-fns';
 import { bountyDescription } from '@/lib/data/bounties';
 import { useNavigate } from 'react-router-dom';
+import { useLanguage } from '@/lib/LanguageContext';
 
 function timeRemaining(deadline) {
   const now = new Date();
@@ -21,6 +22,7 @@ function timeRemaining(deadline) {
 
 export default function BountyBanner({ claim }) {
   const navigate = useNavigate();
+  const { language } = useLanguage();
   const [timeStr, setTimeStr] = useState(() => timeRemaining(claim?.deadline));
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export default function BountyBanner({ claim }) {
           )}
         </div>
         <p className="text-xs font-semibold text-foreground truncate mt-0.5">
-          {bountyDescription(bounty)}
+          {bountyDescription(bounty, language)}
         </p>
       </div>
 

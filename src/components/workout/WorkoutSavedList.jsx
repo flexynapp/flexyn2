@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { getDateLocale } from '@/lib/dateLocales';
+import { useNumberFormatter } from '@/lib/intl';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -27,6 +28,7 @@ export default function WorkoutSavedList({ onSelectLog }) {
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
+  const fmt = useNumberFormatter();
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
@@ -69,7 +71,7 @@ export default function WorkoutSavedList({ onSelectLog }) {
           sum + (ex.sets || []).reduce((s, set) =>
             s + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0), 0);
         const totalVolumeDisplay = totalVolumeLbs > 0
-          ? `${Math.round(fromLbs(totalVolumeLbs, weightUnit)).toLocaleString()} ${weightUnit}`
+          ? `${fmt(Math.round(fromLbs(totalVolumeLbs, weightUnit)))} ${weightUnit}`
           : '';
 
         const exLabel = exercises.length === 1

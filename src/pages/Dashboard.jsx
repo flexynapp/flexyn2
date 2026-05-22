@@ -32,6 +32,7 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import { useNumberFormatter } from '@/lib/intl';
 
 /* ──────────────────────────────────────────────────────────────────
  *  Sub-components live in this file deliberately — they only exist
@@ -230,6 +231,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
+  const fmt = useNumberFormatter();
   const isFirstLoad = location.state?.fromSplash;
   const [showWelcome, setShowWelcome] = useState(isFirstLoad);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
@@ -392,7 +394,7 @@ export default function Dashboard() {
   const formatVolume = (n) => {
     if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
     if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
-    return n.toLocaleString();
+    return fmt(n);
   };
 
   /* ── Render ────────────────────────────────────────────────────── */

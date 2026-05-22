@@ -17,6 +17,7 @@
 
 import { toast } from 'sonner';
 import * as Sentry from '@sentry/react';
+import { formatNumber } from '@/lib/intl';
 
 // Multi-color palette — distinct from any single-user celebration which
 // use tighter palettes. A crew win is meant to feel chromatically loud.
@@ -32,6 +33,7 @@ const PALETTE = ['#ef4444', '#3b82f6', '#22c55e', '#fbbf24', '#a855f7'];
  * @param {number} [opts.finalScore]  - Crew's final score (for the toast).
  * @param {boolean}[opts.wasContributor] - True if the user actually contributed; false if they're just a member.
  * @param {string} [opts.userEmail]   - For Sentry user tag.
+ * @param {string} [opts.language]    - User's ISO-639-1 language for locale-aware number rendering.
  */
 export function fireCrewWinCelebration({
   crewName,
@@ -39,6 +41,7 @@ export function fireCrewWinCelebration({
   finalScore,
   wasContributor = true,
   userEmail,
+  language,
 } = {}) {
   // Triple-tap + long pulse — the "group cheering" haptic shape.
   // Distinct from goal (15/50/15), first-workout (20/60/20/60/80),
@@ -52,9 +55,10 @@ export function fireCrewWinCelebration({
   const headline = wasContributor && xpGained > 0
     ? `${trophy} Crew won — +${xpGained} XP`
     : `${trophy} Your crew won!`;
+  const scoreStr = finalScore != null ? formatNumber(finalScore, language) : null;
   const description = crewName
-    ? (finalScore != null ? `${crewName} · final score ${finalScore.toLocaleString()}` : crewName)
-    : (finalScore != null ? `Final score: ${finalScore.toLocaleString()}` : undefined);
+    ? (scoreStr != null ? `${crewName} · final score ${scoreStr}` : crewName)
+    : (scoreStr != null ? `Final score: ${scoreStr}` : undefined);
 
   toast.success(headline, {
     description,

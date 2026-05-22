@@ -35,6 +35,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // the barcode scanner — so we dynamic-import it inside the scan
 // handler instead of pulling it into the entry chunk.
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
 
 // Helpers for water entries — encode oz in food_name so the value survives
@@ -46,6 +47,7 @@ const waterFoodName = (oz) => oz === 8 ? 'Water' : `Water|${oz}`;
 
 export default function Nutrition() {
   const { t, tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
   const location = useLocation();
 
   const [openLogMeal, setOpenLogMeal] = useState(false);
@@ -450,7 +452,7 @@ export default function Nutrition() {
   const MAX_BOTTLE_OZ = 640;
 
   const maxBottleInUnit = (unit) => {
-    if (unit === 'ml') return `${Math.round(MAX_BOTTLE_OZ * 29.5735).toLocaleString()} ml`;
+    if (unit === 'ml') return `${fmt(Math.round(MAX_BOTTLE_OZ * 29.5735))} ml`;
     if (unit === 'L')  return `${(MAX_BOTTLE_OZ * 0.0295735).toFixed(1)} L`;
     return `${MAX_BOTTLE_OZ} oz`;
   };

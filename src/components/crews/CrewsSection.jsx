@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
 import { getActiveWarForCrew, getCrewWarHistory, getWarScore, getOpponentScore, joinWarMatchmaking } from '@/lib/data/crewWars';
 import { formatDistanceToNow } from 'date-fns';
+import { useNumberFormatter } from '@/lib/intl';
 import { toast } from 'sonner';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
@@ -70,6 +71,7 @@ function CrewCard({ crew, onClick }) {
 
 function BattleEntryRow({ crew, currentUserId }) {
   const qc = useQueryClient();
+  const fmt = useNumberFormatter();
 
   const { data: war, isLoading: warLoading } = useQuery({
     queryKey:  ['activeWar', crew.id],
@@ -169,7 +171,7 @@ function BattleEntryRow({ crew, currentUserId }) {
                       </span>
                     </div>
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {myScore.toLocaleString()} – {theirScore.toLocaleString()} XP
+                      {fmt(myScore)} – {fmt(theirScore)} XP
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       {formatDistanceToNow(new Date(w.ends_at), { addSuffix: true })}

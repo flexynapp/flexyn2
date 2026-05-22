@@ -29,6 +29,7 @@ import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatDistance, formatDuration, formatPace } from '@/lib/distanceUnit';
 import { fromLbs } from '@/lib/weightUnit';
+import { useNumberFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import ErrorBoundary from '@/components/ErrorBoundary';
 // Lazy-load — maplibre-gl is ~200 KB gzipped and most hub posts
@@ -253,6 +254,7 @@ function CardioBlock({ snap }) {
 function WorkoutBlock({ snap }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const fmt = useNumberFormatter();
   const exCount = (snap.exercises || []).length;
   const setCount = (snap.exercises || []).reduce((s, e) => s + (e.sets?.length || 0), 0);
   const volumeLbs = (snap.exercises || []).reduce((sum, e) =>
@@ -268,7 +270,7 @@ function WorkoutBlock({ snap }) {
         <Stat icon={ListChecks} label={t('hub.activity.exercises')} value={exCount} />
         <Stat icon={Zap}        label={t('hub.activity.sets')}      value={setCount} />
         <Stat icon={Dumbbell}   label={t('hub.activity.volume')}
-              value={`${Math.round(fromLbs(volumeLbs, weightUnit)).toLocaleString()} ${weightUnit}`} />
+              value={`${fmt(Math.round(fromLbs(volumeLbs, weightUnit)))} ${weightUnit}`} />
       </div>
       {exCount > 0 && (
         <ul className="space-y-1">
@@ -472,17 +474,18 @@ function StatsBlock({ snap }) {
   const { t } = useLanguage();
   const { distanceUnit } = useDistanceUnit();
   const { weightUnit } = useWeightUnit();
+  const fmt = useNumberFormatter();
   return (
     <div className="grid grid-cols-2 gap-2">
       {snap.level != null && (
         <Stat icon={Zap} label={t('leaderboards.level')} value={`Lv ${snap.level}`} />
       )}
       {snap.total_xp != null && (
-        <Stat icon={TrendingUp} label="XP" value={Math.round(snap.total_xp).toLocaleString()} />
+        <Stat icon={TrendingUp} label="XP" value={fmt(Math.round(snap.total_xp))} />
       )}
       {snap.total_volume_lbs != null && (
         <Stat icon={Dumbbell} label={t('leaderboards.volume')}
-              value={`${Math.round(fromLbs(snap.total_volume_lbs, weightUnit)).toLocaleString()} ${weightUnit}`} />
+              value={`${fmt(Math.round(fromLbs(snap.total_volume_lbs, weightUnit)))} ${weightUnit}`} />
       )}
       {snap.total_distance_meters != null && (
         <Stat icon={Footprints} label={t('leaderboards.distance')}

@@ -10,12 +10,14 @@ import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemes
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 
 export default function NemesisCard({ currentUserId }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
+  const fmt = useNumberFormatter();
   const [showDuel, setShowDuel] = useState(false);
 
   const { data: assignment, isLoading } = useQuery({
@@ -143,7 +145,7 @@ export default function NemesisCard({ currentUserId }) {
             <p className="text-xs text-muted-foreground mt-0.5">
               Level {level ?? '—'}
               {profile?.total_xp > 0 && (
-                <span className="ml-1.5 text-rose-500/70">· {profile.total_xp.toLocaleString()} XP</span>
+                <span className="ml-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
               )}
             </p>
           </div>

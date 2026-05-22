@@ -17,10 +17,12 @@ import {
 import BountyCard from './BountyCard';
 import { toast } from 'sonner';
 import { formatDistanceToNow } from 'date-fns';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // ── Claim history row ─────────────────────────────────────────────────────────
 
 function ClaimRow({ claim }) {
+  const { language } = useLanguage();
   const bounty = claim.bounties;
   if (!bounty) return null;
   const cfg = DIFFICULTY_CONFIG[bounty.difficulty] || DIFFICULTY_CONFIG.medium;
@@ -47,7 +49,7 @@ function ClaimRow({ claim }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-xs font-semibold text-foreground leading-snug">
-          {bountyDescription(bounty)}
+          {bountyDescription(bounty, language)}
         </p>
         <p className="text-[10px] text-muted-foreground mt-0.5">
           @{bounty.target_username} · {cfg.label}
@@ -69,6 +71,7 @@ function ClaimRow({ claim }) {
 
 export default function BountyBoard() {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const qc = useQueryClient();
   const [tab, setTab] = useState('active'); // 'active' | 'mine'
 
@@ -117,7 +120,7 @@ export default function BountyBoard() {
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-amber-600">Active Bounty</p>
             <p className="text-xs text-muted-foreground truncate">
-              {bountyDescription(activeClaim.bounties)} · Reward: {DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward} 🪙
+              {bountyDescription(activeClaim.bounties, language)} · Reward: {DIFFICULTY_CONFIG[activeClaim.bounties?.difficulty]?.reward} 🪙
             </p>
           </div>
         </motion.div>

@@ -8,18 +8,21 @@ import { useQuery } from '@tanstack/react-query';
 import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore } from '@/lib/data/crewWars';
 import { fireCrewWinCelebration } from '@/lib/crewWinCelebration';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
+import { useNumberFormatter } from '@/lib/intl';
 
 function ScoreBar({ myScore, theirScore }) {
+  const fmt = useNumberFormatter();
   const total = myScore + theirScore || 1;
   const myPct = Math.round((myScore / total) * 100);
   return (
     <div className="space-y-1">
       <div className="flex justify-between text-xs font-bold tabular-nums">
-        <span className="text-primary">{myScore.toLocaleString()}</span>
-        <span className="text-muted-foreground">{theirScore.toLocaleString()}</span>
+        <span className="text-primary">{fmt(myScore)}</span>
+        <span className="text-muted-foreground">{fmt(theirScore)}</span>
       </div>
       <div className="h-2.5 rounded-full bg-secondary overflow-hidden flex">
         <motion.div
@@ -38,6 +41,7 @@ function ScoreBar({ myScore, theirScore }) {
 }
 
 function ContribRow({ rank, userId, xp, isCurrentUser }) {
+  const fmt = useNumberFormatter();
   return (
     <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${isCurrentUser ? 'bg-primary/8 border border-primary/20' : ''}`}>
       <span className={`text-xs font-black w-5 text-center ${rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-slate-400' : rank === 3 ? 'text-amber-700' : 'text-muted-foreground'}`}>
@@ -48,7 +52,7 @@ function ContribRow({ rank, userId, xp, isCurrentUser }) {
       </div>
       <div className="flex items-center gap-1">
         <Flame className="w-3 h-3 text-orange-500" />
-        <span className="text-xs font-bold tabular-nums">{xp.toLocaleString()} XP</span>
+        <span className="text-xs font-bold tabular-nums">{fmt(xp)} XP</span>
       </div>
     </div>
   );
@@ -113,6 +117,7 @@ function markNotified(userId, warId) {
 
 export default function CrewWarPanel({ crewId, currentUserId }) {
   const { user } = useAuth();
+  const { language } = useLanguage();
   const { data: war } = useQuery({
     queryKey:  ['activeWar', crewId],
     queryFn:   () => getActiveWarForCrew(crewId),
@@ -146,6 +151,7 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
       finalScore: getWarScore(war, crewId),
       wasContributor: !!myContribution,
       userEmail: user.email,
+      language,
     });
     markCelebrated(user.id, war.id);
   }, [war, user?.id, user?.email, crewId, currentUserId, contributions]);
