@@ -15,6 +15,7 @@ import LogWeightModal from '@/components/dashboard/LogWeightModal';
 import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
+import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
@@ -402,6 +403,12 @@ export default function Dashboard() {
       transition={{ duration: 0.4 }}
       className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
     >
+      {/* "Continue where you left off" — only renders when there's a
+          paused workout in localStorage. Peace-of-mind affordance for
+          users interrupted mid-workout. Auto-evicts drafts >24h old
+          so it doesn't degrade into "you have nothing to do" noise. */}
+      <ResumeWorkoutBanner />
+
       {/* ── Stories ─────────────────────────────────────────────── */}
       <StoriesRow
         onViewProfile={(u) =>

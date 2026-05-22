@@ -140,11 +140,40 @@ export default function Workout() {
           date,
           duration,
           notes,
+          // Timestamp powers the "Resume Chest Day · 14 min ago" banner
+          // on the Dashboard. Without it the banner can't show relative
+          // age and can't auto-evict stale (>24h) drafts.
+          pausedAt: new Date().toISOString(),
         });
       }
     };
-   
+
   }, []);
+
+  // Resume hook: when navigated here with `resumeSessionId` in router
+  // state (from the Dashboard ResumeWorkoutBanner), hydrate the matching
+  // paused session and drop the user straight into the active workout
+  // view with all logged sets intact. Runs once on mount.
+  useEffect(() => {
+    const resumeId = location.state?.resumeSessionId;
+    if (!resumeId) return;
+    try {
+      const stored = JSON.parse(localStorage.getItem('paused_workouts') || '[]');
+      const session = stored.find(s => s.id === resumeId);
+      if (!session) return;
+      setActiveSessionId(session.id);
+      if (session.selectedRegimen) setSelectedRegimen(session.selectedRegimen);
+      if (Array.isArray(session.exercises)) setExercises(session.exercises);
+      if (session.date) setDate(session.date);
+      if (typeof session.duration === 'number') setDuration(session.duration);
+      if (typeof session.notes === 'string') setNotes(session.notes);
+      setStarted(true);
+      // Clear router state so a reload of the workout page doesn't
+      // re-trigger this hydration on top of the user's edits.
+      navigate(location.pathname, { replace: true, state: null });
+    } catch { /* corrupted localStorage — ignore */ }
+
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: rawRegimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],

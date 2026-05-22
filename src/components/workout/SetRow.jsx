@@ -2,10 +2,12 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
+import { toast } from 'sonner';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '../../lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
+import { parseSetInput } from '@/lib/parseSetInput';
 
 const BAR_LBS = 45; // standard barbell; TODO: make configurable per settings
 
@@ -53,6 +55,26 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               const lbs = isNaN(val) ? null : toLbs(Math.max(0, val), weightUnit);
               onChange({ ...set, weight: lbs == null ? null : Math.min(maxWeight, lbs) });
             }
+          }}
+          onPaste={e => {
+            // Smart-paste: if the user pastes a "225 x 8" / "100kg 12 reps"
+            // shaped string, fill BOTH weight and reps in one tap. Lifters
+            // write down sets this way in notes apps; we meet them where
+            // they already are. Falls through to normal paste when the
+            // input doesn't match a set shape.
+            const text = e.clipboardData?.getData('text');
+            const parsed = parseSetInput(text);
+            if (!parsed) return;
+            e.preventDefault();
+            const sourceUnit = parsed.unit === 'kg' ? 'kg'
+                             : parsed.unit === 'lb' ? 'lbs'
+                             : weightUnit;
+            const lbs = toLbs(parsed.weight, sourceUnit);
+            const clampedWeight = Math.min(maxWeight, Math.max(0, lbs));
+            const clampedReps = Math.min(maxReps, Math.max(0, parsed.reps));
+            onChange({ ...set, weight: clampedWeight, reps: clampedReps });
+            try { navigator.vibrate?.(10); } catch { /* ignore */ }
+            toast.success('Set parsed', { duration: 1200 });
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
