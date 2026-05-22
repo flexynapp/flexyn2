@@ -29,6 +29,7 @@ import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 // next to data / chart tabs. AchievementsTab is now imported by
 // src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
+import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
 import PageHeader from '@/components/PageHeader';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
@@ -496,6 +497,13 @@ export default function Progress() {
               </motion.div>
             ))}
           </motion.div>
+
+          {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
+              pattern-recognition insight. Renders nothing if there
+              isn't enough data to call a pattern (see trainingPatterns.js). */}
+          <div className="mb-4">
+            <TrainingPatternCard workoutLogs={logs} />
+          </div>
 
           {/* ── This Week ────────────────────────────────────────────────── */}
           <motion.div

@@ -21,6 +21,8 @@ import TabQuickActionMenu from './TabQuickActionMenu';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { useRef } from 'react';
+import OneShotTooltip from './OneShotTooltip';
+import { TOOLTIP } from '@/lib/tooltipRegistry';
 
 // Per-tab subcomponent. Extracts the bottom-nav tile render so each
 // tab can attach its own useLongPress instance — hooks can't go
@@ -29,7 +31,7 @@ import { useRef } from 'react';
 //   • Long-press detection (consumed via onLongPress with the DOM ref
 //     so the menu popover can anchor above this exact tab)
 //   • Hub-tab special-case styling + the unread dot
-function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap }) {
+function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
 
@@ -38,6 +40,11 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
     >
+      {showLongPressHint && hasQuickActions && (
+        <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
+          Hold any tab for shortcuts.
+        </OneShotTooltip>
+      )}
       <Link
         ref={ref}
         to={item.path}
@@ -303,7 +310,7 @@ export default function Layout() {
         style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
       >
         <div className="flex justify-evenly items-end">
-          {navItems.map(item => {
+          {navItems.map((item, idx) => {
             const isActive = location.pathname === item.path;
             const isHubItem = item.isHub;
             const hasQuickActions = (TAB_ACTIONS[item.path] || []).length > 0;
@@ -316,6 +323,7 @@ export default function Layout() {
                 isHubItem={isHubItem}
                 hubHasNewFollowingPost={hubHasNewFollowingPost}
                 hasQuickActions={hasQuickActions}
+                showLongPressHint={idx === 0}
                 onLongPress={(el) => openQuickMenu(item.path, el)}
                 onTap={() => {
                   // Three behaviors stacked on one tap:

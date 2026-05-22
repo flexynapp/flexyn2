@@ -12,6 +12,7 @@ import { supabase } from '@/api/supabaseClient';
 import HubPostCard from './HubPostCard';
 import EmptyState from '@/components/EmptyState';
 import { reportError } from '@/lib/reportError';
+import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 
 // ── Post skeleton (shimmer placeholder while loading) ────────────────────────
 function PostSkeleton() {
@@ -113,6 +114,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     // (every tab switch back from a profile/composer overlay).
     staleTime: 30_000,
   });
+
+  // Remember scroll position per feed-tab so navigating into a post
+  // detail / profile and back lands the user where they were. Backed
+  // by sessionStorage with a 30-min staleness window. Wait for the
+  // feed to load before restoring so we don't scroll into empty space.
+  useScrollRestoration(`hub-feed-${feedTab}`, { window: true, ready: !isLoading });
 
   // ── Scroll-to-top refresh ────────────────────────────────────────────────
   // When the user scrolls back to the very top of the page (after having

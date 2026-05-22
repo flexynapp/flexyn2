@@ -16,6 +16,7 @@ import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
+import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
@@ -408,6 +409,15 @@ export default function Dashboard() {
           users interrupted mid-workout. Auto-evicts drafts >24h old
           so it doesn't degrade into "you have nothing to do" noise. */}
       <ResumeWorkoutBanner />
+
+      {/* "Keep your N-day streak alive — log 1 set?" — appears late in
+          the day (>= 6 PM local) when the user has an active streak
+          but hasn't logged a workout/meal yet. One-tap CTA → /workout.
+          Stateless trigger logic lives in lib/data/streakRescue.js. */}
+      <StreakRescueCard
+        streakDays={streak}
+        lastWorkoutDate={lastWorkoutDate?.toISOString()}
+      />
 
       {/* ── Stories ─────────────────────────────────────────────── */}
       <StoriesRow
