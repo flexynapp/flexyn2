@@ -11,20 +11,28 @@
 // nudges already own the "haven't worked out" surface, and a stat
 // card with all zeroes is worse than no card.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, lazy, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Trophy, TrendingUp, TrendingDown, Activity, Flame, Calendar } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Activity, Flame, Calendar, Share2 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { computeWeeklyRecap } from '@/lib/data/weeklyRecap';
 
+// Lazy-load the share modal so its Canvas drawing code only enters the
+// bundle when the user actually taps "Share" — most dashboard renders
+// never need it. Matches the WorkoutShareCard lazy-load pattern.
+const WeeklyRecapShareCard = lazy(() => import('./WeeklyRecapShareCard'));
+
 export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
+  const { user } = useAuth();
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const fmtNum = useNumberFormatter();
+  const [shareOpen, setShareOpen] = useState(false);
 
   // Compact display: "8.5k" / "12k" for large values, locale-formatted
   // otherwise. Built inline because it needs the fmtNum closure.
@@ -61,14 +69,22 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
       <Card className="overflow-hidden border-border/60 theme-card-accent">
-        {/* Top band — kicker + accent */}
-        <div className="relative bg-gradient-to-r from-primary/12 via-primary/6 to-transparent px-4 pt-3.5 pb-3 border-b border-border/40">
+        {/* Top band — kicker + accent + share affordance */}
+        <div className="relative bg-gradient-to-r from-primary/12 via-primary/6 to-transparent px-4 pt-3.5 pb-3 border-b border-border/40 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <Calendar className="w-3.5 h-3.5 text-primary" />
             <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
               {tFallback('recap.thisWeek', 'This week')}
             </span>
           </div>
+          <button
+            onClick={() => setShareOpen(true)}
+            className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-primary/80 hover:text-primary transition-colors px-1.5 py-0.5 rounded"
+            aria-label={tFallback('recap.share.cta', 'Share recap')}
+          >
+            <Share2 className="w-3 h-3" />
+            <span>{tFallback('recap.share.cta', 'Share')}</span>
+          </button>
         </div>
 
         {/* Stat row */}
@@ -151,6 +167,19 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
           </div>
         )}
       </Card>
+
+      {/* Share modal — lazy-loaded so the Canvas drawing code stays out
+          of the dashboard's initial bundle until the user taps Share. */}
+      {shareOpen && (
+        <Suspense fallback={null}>
+          <WeeklyRecapShareCard
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            recap={recap}
+            username={user?.user_metadata?.username || user?.email?.split('@')[0] || 'Athlete'}
+          />
+        </Suspense>
+      )}
     </motion.div>
   );
 }
