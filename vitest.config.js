@@ -14,6 +14,13 @@ export default defineConfig({
     environment: 'jsdom',
     // Run this file before every test suite
     setupFiles: ['./src/test/setup.js'],
+    // Don't pick up tests from sibling git worktrees that share the repo
+    // root. The default exclude already covers node_modules and dist; we
+    // also exclude `.claude/**` because the harness sometimes leaves test
+    // copies in that path with a stale React install that crashes with
+    // "Cannot read properties of null (reading 'useMemo')" when picked
+    // up alongside the main suite.
+    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
     // Resolve @/ aliases the same way the app does
     alias: {
       '@': path.resolve(__dirname, './src'),
