@@ -39,7 +39,7 @@ function NutrientTile({ field, value, onChange, t }) {
     <div className={`${field.bgColor} rounded-lg p-3`}>
       <p className="text-xs text-muted-foreground mb-1.5 truncate">
         {t(field.labelKey)}
-        <span className="ml-1 opacity-60">({field.unit})</span>
+        <span className="ms-1 opacity-60">({field.unit})</span>
       </p>
       <Input
         type="number"
@@ -215,7 +215,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
                           <button
                             type="button"
                             onClick={() => setExpandedSaved(isExpanded ? null : meal.id)}
-                            className="w-full flex items-start gap-2 px-3 py-2.5 text-left hover:bg-secondary/30 transition-colors"
+                            className="w-full flex items-start gap-2 px-3 py-2.5 text-start hover:bg-secondary/30 transition-colors"
                           >
                             {!meal.image_url && <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
                             <div className="flex-1 min-w-0">
@@ -256,7 +256,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
                                     className="flex-1 text-xs h-8"
                                     onClick={() => handleUseSavedMeal(meal)}
                                   >
-                                    <Plus className="w-3.5 h-3.5 mr-1" /> Use this meal
+                                    <Plus className="w-3.5 h-3.5 me-1" /> Use this meal
                                   </Button>
                                   <Button
                                     size="sm"
@@ -297,10 +297,10 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
       {activeTab !== 'saved' && (
         <div className="flex gap-2">
           <Button variant="outline" onClick={onScan} className="flex-1" disabled={isScanning}>
-            <Barcode className="w-4 h-4 mr-2" /> {t('nutrition.scan')}
+            <Barcode className="w-4 h-4 me-2" /> {t('nutrition.scan')}
           </Button>
           <Button onClick={handleLog} className="flex-1" disabled={isLogging}>
-            <Plus className="w-4 h-4 mr-2" /> {t('nutrition.logMeal')}
+            <Plus className="w-4 h-4 me-2" /> {t('nutrition.logMeal')}
           </Button>
         </div>
       )}

@@ -223,7 +223,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         key={g.id}
                         onClick={() => setGoal(g.id)}
                         whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                        className={`w-full text-left p-4 rounded-lg border-2 transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                        className={`w-full text-start p-4 rounded-lg border-2 transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-10 h-10 rounded-full ${g.bg} flex items-center justify-center`}>
@@ -313,14 +313,14 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         key={a.id}
                         onClick={() => setActivity(a.id)}
                         whileTap={{ scale: 0.99 }}
-                        className={`w-full text-left p-3 rounded-lg border-2 transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                        className={`w-full text-start p-3 rounded-lg border-2 transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
                       >
                         <div className="flex items-center justify-between">
                           <div>
                             <p className="font-heading font-semibold text-sm">{t(a.titleKey)}</p>
                             <p className="text-xs text-muted-foreground">{t(a.descKey)}</p>
                           </div>
-                          {selected && <Check className="w-5 h-5 text-primary shrink-0 ml-2" />}
+                          {selected && <Check className="w-5 h-5 text-primary shrink-0 ms-2" />}
                         </div>
                       </motion.button>
                     );
@@ -350,7 +350,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                         key={r.id}
                         onClick={() => toggleRestriction(r.id)}
                         whileTap={{ scale: 0.97 }}
-                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-start transition-colors ${selected ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
                       >
                         <span className="text-xl leading-none shrink-0">{r.emoji}</span>
                         <div className="min-w-0 flex-1">
@@ -424,14 +424,14 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
           <div className="flex gap-2 mt-6">
             {step > 0 && (
               <Button variant="outline" onClick={back} disabled={saving} className="flex-1">
-                <ArrowLeft className="w-4 h-4 mr-1" />
+                <ArrowLeft className="w-4 h-4 me-1 rtl:scale-x-[-1]" />
                 {t('common.back')}
               </Button>
             )}
             {step < totalSteps - 1 ? (
               <Button onClick={next} disabled={!canAdvance} className="flex-1">
                 {t('common.next')}
-                <ArrowRight className="w-4 h-4 ml-1" />
+                <ArrowRight className="w-4 h-4 ms-1 rtl:scale-x-[-1]" />
               </Button>
             ) : (
               <Button onClick={handleSubmit} disabled={saving} className="flex-1">

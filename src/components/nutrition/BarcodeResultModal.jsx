@@ -132,10 +132,10 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
               <p className="text-xs text-muted-foreground">{t('nutrition.macros.calories')}</p>
               <p className="font-heading font-bold text-3xl" style={{ color: '#f97316' }}>
                 {n.calories != null ? Math.round(n.calories) : '—'}
-                <span className="text-base text-muted-foreground font-normal ml-1">kcal</span>
+                <span className="text-base text-muted-foreground font-normal ms-1">kcal</span>
               </p>
             </div>
-            <div className="ml-auto text-right shrink-0">
+            <div className="ms-auto text-end shrink-0">
               <p className="text-xs text-muted-foreground">% DV</p>
               <p className="font-heading font-bold text-lg">
                 {n.calories != null ? Math.round((n.calories / DV.calories) * 100) : '—'}%
@@ -193,7 +193,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                        </div>
                       <p className="font-heading font-bold text-base" style={{ color: macro.color }}>
                         {val != null ? (val < 10 ? val.toFixed(1) : Math.round(val)) : '—'}
-                        <span className="text-xs text-muted-foreground font-normal ml-0.5">{macro.unit}</span>
+                        <span className="text-xs text-muted-foreground font-normal ms-0.5">{macro.unit}</span>
                       </p>
                       <div className="mt-2 w-full h-1 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.1)' }}>
                         <motion.div
@@ -230,7 +230,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
                       </div>
                       <p className="font-heading font-bold text-base text-emerald-500">
                         {val != null ? (val < 10 ? val.toFixed(1) : Math.round(val)) : '—'}
-                        <span className="text-xs text-muted-foreground font-normal ml-0.5">{vit.unit}</span>
+                        <span className="text-xs text-muted-foreground font-normal ms-0.5">{vit.unit}</span>
                       </p>
                       <div className="mt-2 w-full h-1 rounded-full overflow-hidden bg-black/10">
                         <motion.div
