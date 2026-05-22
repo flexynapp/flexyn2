@@ -168,7 +168,14 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
       language,
     });
     canvas.toBlob((blob) => {
-      if (blob) setImgUrl(URL.createObjectURL(blob));
+      if (!blob) return;
+      const nextUrl = URL.createObjectURL(blob);
+      // Revoke the previous URL before swapping to avoid blob-URL
+      // accumulation on rapid re-renders.
+      setImgUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return nextUrl;
+      });
     }, 'image/png');
   }, [open, pr, unit, username, language]);
 
@@ -206,10 +213,14 @@ export default function PRShareCard({ open, onClose, pr, unit = 'lb', username }
       const file = new File([blob], `flexyn-pr-${Date.now()}.png`, { type: 'image/png' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
+          // Fallbacks ensure the share text reads correctly even if `pr`
+          // is somehow null (closure race between event + state).
+          const exName = pr?.displayName || 'PR';
+          const newPRNum = Math.round(pr?.newPR ?? 0);
           await navigator.share({
             files: [file],
             title: 'New PR',
-            text: `New PR — ${pr?.displayName}: ${Math.round(pr?.newPR ?? 0)} ${unit}`,
+            text: `New PR — ${exName}: ${newPRNum} ${unit}`,
           });
           return;
         } catch (err) {

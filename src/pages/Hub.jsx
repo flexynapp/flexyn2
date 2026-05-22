@@ -16,6 +16,7 @@ import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
 import LiveActivityRail from '@/components/hub/LiveActivityRail';
 import FollowSuggestionRail from '@/components/hub/FollowSuggestionRail';
+import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -235,6 +236,11 @@ export default function Hub() {
           Each card is one-tap follow. The biggest single-feature lift
           to first-week retention because an empty feed = bounce. */}
       {section === 'feed' && feedTab !== 'crews' && <FollowSuggestionRail />}
+
+      {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
+          Sessions toggle. Competitive without crew commitment — your
+          name surfaces against your real friends, not random strangers. */}
+      {section === 'feed' && feedTab !== 'crews' && <FriendLeaderboardPanel />}
 
       {/* Stories tray — hidden on Crews tab */}
       {section === 'feed' && feedTab !== 'crews' && (

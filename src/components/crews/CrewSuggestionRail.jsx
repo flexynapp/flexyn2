@@ -111,7 +111,7 @@ export default function CrewSuggestionRail() {
   };
 
   const handleJoin = async (crewId) => {
-    if (joiningId) return;
+    if (joiningId || !user?.id) return;
     setJoiningId(crewId);
     try {
       await crewsData.joinCrew(crewId, user.id);

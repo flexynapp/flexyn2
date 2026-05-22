@@ -239,11 +239,19 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
       language,
     });
     canvas.toBlob((blob) => {
-      if (blob) setImgUrl(URL.createObjectURL(blob));
+      if (!blob) return;
+      const nextUrl = URL.createObjectURL(blob);
+      // Revoke the previous URL BEFORE swapping. Without this, rapid
+      // re-renders (deps churn while open) would accumulate orphaned
+      // blob URLs in memory until the cleanup effect runs.
+      setImgUrl((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return nextUrl;
+      });
     }, 'image/png');
   }, [open, recap, username, weekRangeStr, weightUnit, language]);
 
-  // Release the object URL when the preview swaps or the modal unmounts.
+  // Release the active object URL when the modal unmounts.
   useEffect(() => {
     return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); };
   }, [imgUrl]);

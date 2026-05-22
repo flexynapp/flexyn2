@@ -30,6 +30,7 @@ import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 // src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
+import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
 import {
@@ -503,6 +504,13 @@ export default function Progress() {
               isn't enough data to call a pattern (see trainingPatterns.js). */}
           <div className="mb-4">
             <TrainingPatternCard workoutLogs={logs} />
+          </div>
+
+          {/* 26-week GitHub-style activity grid. Self-hides on empty
+              windows. Drives habit awareness — seeing the streaks-and-
+              gaps pattern is more motivating than a workout count. */}
+          <div className="mb-4">
+            <WorkoutCalendarGrid logs={logs} />
           </div>
 
           {/* ── This Week ────────────────────────────────────────────────── */}
