@@ -14,6 +14,8 @@ import EmptyState from '@/components/EmptyState';
 import { NoFeedIllustration, NoFriendsIllustration } from '@/components/emptyStateIllustrations';
 import { reportError } from '@/lib/reportError';
 import { useScrollRestoration } from '@/hooks/useScrollRestoration';
+import * as userMutes from '@/lib/data/userMutes';
+import * as userBlocks from '@/lib/data/userBlocks';
 
 // ── Post skeleton (shimmer placeholder while loading) ────────────────────────
 function PostSkeleton() {
@@ -132,15 +134,36 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     staleTime: 60_000,
   });
 
-  // Filter out crew-private posts the current user doesn't belong to
+  // Mute/block lists — applied viewer-side in filteredPosts below.
+  // Both queries are cheap (RLS limits rows to the caller's own).
+  const { data: mutedEmails = [] } = useQuery({
+    queryKey: ['userMutes', user?.id],
+    queryFn: async () => (await userMutes.listMutes(user.id)).map(r => r.muted_email?.toLowerCase()),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+  const { data: blockedEmails = [] } = useQuery({
+    queryKey: ['userBlocks', user?.id],
+    queryFn: async () => (await userBlocks.listBlocks(user.id)).map(r => r.blocked_email?.toLowerCase()),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  // Filter out crew-private posts the current user doesn't belong to,
+  // posts from muted users, and posts from blocked users.
   const filteredPosts = useMemo(() => {
     if (!allPosts.length) return allPosts;
-    const crewSet = new Set(myCrewIds);
+    const crewSet  = new Set(myCrewIds);
+    const muteSet  = new Set(mutedEmails);
+    const blockSet = new Set(blockedEmails);
     return allPosts.filter(p => {
+      const authorLc = p.author_email?.toLowerCase();
+      if (authorLc && blockSet.has(authorLc)) return false;
+      if (authorLc && muteSet.has(authorLc))  return false;
       if (p.privacy !== 'crew') return true;
       return p.crew_id && crewSet.has(p.crew_id);
     });
-  }, [allPosts, myCrewIds]);
+  }, [allPosts, myCrewIds, mutedEmails, blockedEmails]);
 
   // ── Scroll-to-top refresh ────────────────────────────────────────────────
   // When the user scrolls back to the very top of the page (after having

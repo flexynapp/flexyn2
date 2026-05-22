@@ -12,8 +12,10 @@ import BugReportDialog from './BugReportDialog';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, FileText } from 'lucide-react';
+import { ShieldAlert, FileText, VolumeX, Ban } from 'lucide-react';
 import { listMyReports } from '@/lib/data/hubReports';
+import * as userBlocksData from '@/lib/data/userBlocks';
+import * as userMutesData  from '@/lib/data/userMutes';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
@@ -65,6 +67,42 @@ export default function SettingsPanel() {
     enabled: !!user?.id,
     staleTime: 60_000,
   });
+
+  // Full-block + mute lists.
+  const { data: myBlocks = [] } = useQuery({
+    queryKey: ['userBlocks', user?.id],
+    queryFn: () => userBlocksData.listBlocks(user.id),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+  const { data: myMutes = [] } = useQuery({
+    queryKey: ['userMutes', user?.id],
+    queryFn: () => userMutesData.listMutes(user.id),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  const handleUnblockFull = async (email) => {
+    try {
+      await userBlocksData.unblockUserFull(email);
+      queryClient.invalidateQueries({ queryKey: ['userBlocks', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      toast.success(`Unblocked ${email}.`);
+    } catch (err) {
+      toast.error(`Could not unblock: ${err.message || 'try again'}`);
+    }
+  };
+
+  const handleUnmute = async (email) => {
+    try {
+      await userMutesData.unmuteUser(user.id, email);
+      queryClient.invalidateQueries({ queryKey: ['userMutes', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      toast.success(`Unmuted ${email}.`);
+    } catch (err) {
+      toast.error(`Could not unmute: ${err.message || 'try again'}`);
+    }
+  };
 
   const saveStatEdit = async () => {
     if (!editingStat || !statValue) return;
@@ -786,6 +824,58 @@ export default function SettingsPanel() {
       >
         {buildLabel()}
       </button>
+
+      {/* Blocked users — full-scope blocks from mig 106. Shows the
+          unblock control. story_blocks live in a separate Settings
+          section already (handled elsewhere in this file). */}
+      {myBlocks.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <Ban className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Blocked users
+            </h3>
+          </div>
+          <ul className="space-y-1.5">
+            {myBlocks.map(b => (
+              <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
+                <span className="text-foreground truncate">{b.blocked_email}</span>
+                <button
+                  onClick={() => handleUnblockFull(b.blocked_email)}
+                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                >
+                  Unblock
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Muted users — soft hides from mig 107. */}
+      {myMutes.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <VolumeX className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Muted users
+            </h3>
+          </div>
+          <ul className="space-y-1.5">
+            {myMutes.map(m => (
+              <li key={m.muted_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
+                <span className="text-foreground truncate">{m.muted_email}</span>
+                <button
+                  onClick={() => handleUnmute(m.muted_email)}
+                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
+                >
+                  Unmute
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* My reports — shows the user the status of every report they
           filed. Status updates fire a notification via mig 104, but

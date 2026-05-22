@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
+import { muteUser } from '@/lib/data/userMutes';
+import { blockUserFull } from '@/lib/data/userBlocks';
 
 function CrownBadge({ size = 14 }) {
   return (
@@ -443,14 +445,51 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         ) : (
-          <button
-            onClick={() => setReportOpen(true)}
-            className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
-            aria-label={t('report.buttonLabel')}
-            title={t('report.buttonLabel')}
-          >
-            <Flag className="w-3.5 h-3.5" />
-          </button>
+          <>
+            <button
+              onClick={async () => {
+                try {
+                  await muteUser(user, post.author_email);
+                  toast.success(`Muted @${post.author_name?.replace(/^@/, '') || 'user'}. Their posts won't appear in your feed.`);
+                  queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
+                } catch (err) {
+                  toast.error(`Could not mute: ${err.message || 'try again'}`);
+                }
+              }}
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              aria-label="Mute this author"
+              title="Mute author"
+            >
+              <VolumeX className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={async () => {
+                const handle = post.author_name?.replace(/^@/, '') || post.author_email;
+                if (!confirm(`Block @${handle}? They won't see your profile, posts, or stories, and you won't see theirs. You can unblock from Settings.`)) return;
+                try {
+                  await blockUserFull(post.author_email);
+                  toast.success(`Blocked @${handle}.`);
+                  queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
+                  queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+                } catch (err) {
+                  toast.error(`Could not block: ${err.message || 'try again'}`);
+                }
+              }}
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              aria-label="Block this author"
+              title="Block author"
+            >
+              <Ban className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={() => setReportOpen(true)}
+              className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"
+              aria-label={t('report.buttonLabel')}
+              title={t('report.buttonLabel')}
+            >
+              <Flag className="w-3.5 h-3.5" />
+            </button>
+          </>
         )}
       </div>
 
