@@ -16,6 +16,7 @@ import {
   Tooltip, ResponsiveContainer, Legend,
 } from 'recharts';
 import { toast } from 'sonner';
+import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -174,16 +175,28 @@ export default function BodyMetricsTab() {
   const createMutation = useMutation({
     mutationFn: d => db.entities.BodyMetric.create(d),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); setShowForm(false); toast.success(t('bodyMetrics.saved')); },
+    onError: (err) => {
+      reportError(err, { feature: 'bodyMetrics.create', level: 'warning', userEmail: user?.email });
+      toast.error('Could not save measurement. Try again.');
+    },
   });
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }) => db.entities.BodyMetric.update(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); setEditingId(null); toast.success(t('bodyMetrics.updated')); },
+    onError: (err) => {
+      reportError(err, { feature: 'bodyMetrics.update', level: 'warning', userEmail: user?.email });
+      toast.error('Could not update measurement. Try again.');
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: id => db.entities.BodyMetric.delete(id),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] }); toast.success(t('bodyMetrics.deleted')); },
+    onError: (err) => {
+      reportError(err, { feature: 'bodyMetrics.delete', level: 'warning', userEmail: user?.email });
+      toast.error('Could not delete measurement. Try again.');
+    },
   });
 
   const sorted = useMemo(() => {

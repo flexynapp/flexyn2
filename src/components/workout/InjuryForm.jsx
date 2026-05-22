@@ -9,6 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { ChevronLeft, Plus, Trash2, CheckCircle2, Clock, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
+import { reportError } from '@/lib/reportError';
 import { format, addDays, differenceInDays } from 'date-fns';
 import * as injuries from '@/lib/data/injuries';
 
@@ -158,16 +159,28 @@ export default function InjuryForm({ onClose }) {
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,
     onSuccess: () => { invalidate(); toast.success('Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'); },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
+      toast.error('Could not clear injury. Try again.');
+    },
   });
 
   const extendMutation = useMutation({
     mutationFn: ({ id, date }) => injuries.extendRecovery(id, date),
     onSuccess: () => { invalidate(); toast.success('Recovery date updated.'); },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.extend', level: 'warning', userEmail: user?.email });
+      toast.error('Could not update recovery date. Try again.');
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: injuries.deleteInjury,
     onSuccess: () => { invalidate(); },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.delete', level: 'warning', userEmail: user?.email });
+      toast.error('Could not delete injury. Try again.');
+    },
   });
 
   const activeList  = injuryList.filter(i => i.status !== 'cleared');

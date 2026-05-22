@@ -11,6 +11,7 @@ import { ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { differenceInCalendarDays, format, addDays } from 'date-fns';
 import { toast } from 'sonner';
+import { reportError } from '@/lib/reportError';
 import * as injuries from '@/lib/data/injuries';
 
 // Clearance prompt shown when an injury's estimated_recovery_date is reached
@@ -75,11 +76,19 @@ export default function InjuryBanner({ onOpenForm }) {
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,
     onSuccess: () => { invalidate(); toast.success('Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'); },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
+      toast.error('Could not clear injury. Try again.');
+    },
   });
 
   const extendMutation = useMutation({
     mutationFn: ({ id, date }) => injuries.extendRecovery(id, date),
     onSuccess: () => { invalidate(); toast.success('Recovery date updated.'); },
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.extend', level: 'warning', userEmail: user?.email });
+      toast.error('Could not update recovery date. Try again.');
+    },
   });
 
   // Injuries whose estimated_recovery_date has arrived (≤ today) — show clearance prompt

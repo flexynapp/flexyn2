@@ -14,6 +14,7 @@ import {
   prestigeCoins,
 } from '@/lib/data/prestige';
 import { toast } from 'sonner';
+import { reportError } from '@/lib/reportError';
 
 const RESETS   = ['Current XP', 'Display level', 'Current season rank'];
 const PERSISTS = ['Lifetime XP total', 'All workout logs', 'All PRs & volume history', 'Flex Coins', 'Crew membership', 'Nemesis history'];
@@ -32,6 +33,11 @@ export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
     onSuccess:  () => {
       qc.invalidateQueries({ queryKey: ['userProfile'] });
       onDismiss?.();
+    },
+    onError: (err) => {
+      // Dismiss is intentionally low-stakes — log it but don't yell
+      // at the user. They can dismiss the next time the prompt shows.
+      reportError(err, { feature: 'prestige.dismiss', level: 'warning' });
     },
   });
 

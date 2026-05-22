@@ -418,7 +418,13 @@ export default function RegimensSection({ onStartRegimen }) {
               {editing ? t('regimens.edit') : t('regimens.create')}
             </DialogTitle>
           </DialogHeader>
-          <RegimenForm initial={editing} onSubmit={handleSubmit} onCancel={closeForm} userProfile={userProfile} />
+          <RegimenForm
+            initial={editing}
+            onSubmit={handleSubmit}
+            onCancel={closeForm}
+            userProfile={userProfile}
+            isSubmitting={createMutation.isPending || updateMutation.isPending}
+          />
         </DialogContent>
       </Dialog>
     </div>

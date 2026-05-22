@@ -5,7 +5,9 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, RefreshCw, Loader2, Swords } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemesis';
+import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
@@ -35,6 +37,10 @@ export default function NemesisCard({ currentUserId }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['myNemesis'] });
       qc.invalidateQueries({ queryKey: ['nemesisProfile'] });
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'nemesis.assign', level: 'warning', userEmail: user?.email });
+      toast.error('Could not assign nemesis. Try again.');
     },
   });
 

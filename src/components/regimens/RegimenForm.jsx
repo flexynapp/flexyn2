@@ -19,7 +19,7 @@ const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'L
 const TYPE_COLOR  = { superset: 'border-violet-500/40 bg-violet-500/5', circuit: 'border-emerald-500/40 bg-emerald-500/5' };
 const TYPE_BADGE  = { superset: 'text-violet-500 bg-violet-500/10 border-violet-500/25', circuit: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/25' };
 
-export default function RegimenForm({ initial, onSubmit, onCancel, userProfile = {} }) {
+export default function RegimenForm({ initial, onSubmit, onCancel, userProfile = {}, isSubmitting = false }) {
   const { t } = useLanguage();
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
 
@@ -462,8 +462,19 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
       </button>
 
       <div className="flex justify-end gap-3 pt-2">
-        <Button type="button" variant="outline" onClick={onCancel}>{t('common.cancel')}</Button>
-        <Button type="submit">{initial ? t('common.save') : t('regimens.create')}</Button>
+        <Button type="button" variant="outline" onClick={onCancel} disabled={isSubmitting}>
+          {t('common.cancel')}
+        </Button>
+        {/* Disable when: form is in-flight, OR required fields are
+            empty. The handleSubmit toasts already explain why, but
+            pre-disabling teaches the user the validity rules without
+            them having to tap and fail. */}
+        <Button
+          type="submit"
+          disabled={isSubmitting || !name?.trim() || !exercises || exercises.length === 0}
+        >
+          {initial ? t('common.save') : t('regimens.create')}
+        </Button>
       </div>
 
       <ProfanityWarningDialog open={guard.open} onContinue={guard.onContinue} />
