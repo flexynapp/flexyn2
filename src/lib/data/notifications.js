@@ -45,6 +45,7 @@ export const NOTIFICATION_TYPES = {
   STREAK_BREAK_WARNING: 'streak_break_warning',
   WELCOME_BACK:         'welcome_back',
   QUEST_EXPIRY_WARNING: 'quest_expiry_warning',
+  REPORT_RESOLVED:      'report_resolved',
 };
 
 const DEFAULT_LIMIT = 50;

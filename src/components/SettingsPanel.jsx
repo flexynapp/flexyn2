@@ -12,7 +12,8 @@ import BugReportDialog from './BugReportDialog';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { Link } from 'react-router-dom';
-import { ShieldAlert } from 'lucide-react';
+import { ShieldAlert, FileText } from 'lucide-react';
+import { listMyReports } from '@/lib/data/hubReports';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
@@ -53,6 +54,15 @@ export default function SettingsPanel() {
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
+    staleTime: 60_000,
+  });
+
+  // Reporter-facing report history. Powers the "My reports" panel
+  // below — closes the loop that started in ReportDialog.jsx.
+  const { data: myReports = [] } = useQuery({
+    queryKey: ['myReports', user?.id],
+    queryFn: () => listMyReports({ limit: 10 }),
+    enabled: !!user?.id,
     staleTime: 60_000,
   });
 
@@ -776,6 +786,40 @@ export default function SettingsPanel() {
       >
         {buildLabel()}
       </button>
+
+      {/* My reports — shows the user the status of every report they
+          filed. Status updates fire a notification via mig 104, but
+          this is the persistent surface they can come back to. */}
+      {myReports.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              My reports
+            </h3>
+          </div>
+          <ul className="space-y-2">
+            {myReports.map(r => (
+              <li
+                key={r.id}
+                className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40"
+              >
+                <span className="text-foreground capitalize">
+                  {r.reported_type} · {r.reason.replace('_', ' ')}
+                </span>
+                <span className={`text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${
+                  r.status === 'pending'   ? 'bg-amber-500/15 text-amber-500'
+                  : r.status === 'actioned' ? 'bg-emerald-500/15 text-emerald-500'
+                  : r.status === 'reviewed' ? 'bg-blue-500/15 text-blue-500'
+                  : 'bg-secondary text-muted-foreground'
+                }`}>
+                  {r.status}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />
     </div>

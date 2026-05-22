@@ -260,6 +260,13 @@ export default function HubComposer({ onClose }) {
   const [selectedCrewId, setSelectedCrewId] = useState(null);
   const [posting, setPosting] = useState(false);
 
+  // Content warning state. NULL by default — most posts don't need one.
+  // `cwType` is one of the catalog keys; `cwLabel` is freeform text
+  // shown when cwType is 'other'.
+  const [cwType, setCwType] = useState(null);
+  const [cwLabel, setCwLabel] = useState('');
+  const [cwPickerOpen, setCwPickerOpen] = useState(false);
+
   // Crew list for crew-private posts
   const { data: myCrews = [] } = useQuery({
     queryKey: ['myCrews', user?.id],
@@ -608,6 +615,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_id:       effectiveSelected.kind === 'status' ? null : (effectiveSelected.item?.id || null),
         linked_entity_snapshot: snapshot,
         ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
+        ...(cwType ? { content_warning: cwType, content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null } : {}),
       });
 
       queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
@@ -1099,6 +1107,55 @@ export default function HubComposer({ onClose }) {
           <p className="text-[10px] text-muted-foreground mt-1">Only crew members will see this post.</p>
         </div>
       )}
+
+      {/* Content warning picker. Optional — hidden by default behind
+          a single small button. Users who need it find it; users who
+          don't aren't distracted by a third row of pills. */}
+      <div className="mt-3">
+        <button
+          type="button"
+          onClick={() => setCwPickerOpen(o => !o)}
+          className={`text-[11px] font-semibold uppercase tracking-wide flex items-center gap-1.5 py-1 transition-colors ${
+            cwType ? 'text-amber-500' : 'text-muted-foreground hover:text-foreground'
+          }`}
+        >
+          {cwType ? '⚠️' : '＋'} {cwType
+            ? `Content warning: ${cwType === 'other' ? (cwLabel || 'Custom') : cwType.replace('_', ' ')}`
+            : 'Add content warning'}
+        </button>
+        {cwPickerOpen && (
+          <div className="mt-2 p-3 rounded-lg border border-border bg-secondary/40 space-y-2">
+            {[
+              { id: 'graphic_injury', label: 'Graphic injury' },
+              { id: 'sensitive',      label: 'Sensitive content' },
+              { id: 'spoiler',        label: 'Spoiler' },
+              { id: 'other',          label: 'Other (specify)' },
+              { id: null,             label: 'No warning' },
+            ].map(opt => (
+              <label key={opt.id ?? 'none'} className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="cw"
+                  checked={cwType === opt.id}
+                  onChange={() => setCwType(opt.id)}
+                  className="accent-primary"
+                />
+                {opt.label}
+              </label>
+            ))}
+            {cwType === 'other' && (
+              <input
+                type="text"
+                value={cwLabel}
+                onChange={e => setCwLabel(e.target.value.slice(0, 60))}
+                placeholder="Brief description (max 60 chars)"
+                className="w-full mt-1 px-2 py-1.5 text-sm rounded-md border border-border bg-background focus:outline-none focus:border-primary/50"
+                maxLength={60}
+              />
+            )}
+          </div>
+        )}
+      </div>
     </>
   );
 

@@ -47,6 +47,21 @@ export async function checkAlreadyReported(reporterEmail, reportedType, reported
 }
 
 /**
+ * List the current user's filed reports + their current status. RLS
+ * already restricts SELECT to `reporter_user_id = auth.uid()`, so this
+ * is just a regular query — backs the "My reports" tab in Settings.
+ */
+export async function listMyReports({ limit = 25 } = {}) {
+  const { data, error } = await supabase
+    .from('hub_reports')
+    .select('id, reported_type, reported_id, reason, detail, status, created_at')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) return [];
+  return data ?? [];
+}
+
+/**
  * Submit a bug report.
  * @param {{
  *   reporterEmail:  string,

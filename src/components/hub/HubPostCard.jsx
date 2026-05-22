@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2 } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
+import ContentWarningGate from './ContentWarningGate';
 
 function CrownBadge({ size = 14 }) {
   return (
@@ -461,9 +462,11 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
       {/* Body */}
       {postBody && !postBody.startsWith('[POLL_V1]') && (
         <div className="px-3 pb-3 text-sm break-words">
-          <div className="whitespace-pre-wrap">
-            {translation && !showOriginal ? translation.text : postBody}
-          </div>
+          <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
+            <div className="whitespace-pre-wrap">
+              {translation && !showOriginal ? translation.text : postBody}
+            </div>
+          </ContentWarningGate>
           {/* Translate / Show original — hide once we know the post is already in the user's language */}
           {canTranslate && !isLikelyAlreadyInLanguage(postBody, language) && (
             <div className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -532,20 +535,22 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
 
       {/* Image */}
       {post.image_url && (
-        <div className="border-y border-border bg-black">
-          <img
-            src={post.image_url}
-            alt=""
-            className="w-full max-h-[600px] object-contain"
-            loading="lazy"
-            onError={(e) => {
-              // Storage URL went stale (deleted, expired) — hide the
-              // broken image icon rather than leave it forever.
-              const wrap = e.currentTarget.parentElement;
-              if (wrap) wrap.style.display = 'none';
-            }}
-          />
-        </div>
+        <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
+          <div className="border-y border-border bg-black">
+            <img
+              src={post.image_url}
+              alt=""
+              className="w-full max-h-[600px] object-contain"
+              loading="lazy"
+              onError={(e) => {
+                // Storage URL went stale (deleted, expired) — hide the
+                // broken image icon rather than leave it forever.
+                const wrap = e.currentTarget.parentElement;
+                if (wrap) wrap.style.display = 'none';
+              }}
+            />
+          </div>
+        </ContentWarningGate>
       )}
 
       {/* Actions */}
