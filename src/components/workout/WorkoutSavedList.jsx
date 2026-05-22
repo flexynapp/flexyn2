@@ -1,10 +1,11 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Dumbbell, ChevronRight } from 'lucide-react';
+import { Dumbbell, ChevronRight, Repeat } from 'lucide-react';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -29,6 +30,15 @@ export default function WorkoutSavedList({ onSelectLog }) {
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
   const fmt = useNumberFormatter();
+  const navigate = useNavigate();
+
+  // Navigate to the Workout page with this log pre-loaded as a template.
+  // Stops the click event from also firing onSelectLog (which opens the
+  // detail view), since the user has chosen a different action.
+  const handleRepeat = (e, log) => {
+    e.stopPropagation();
+    navigate('/workout', { state: { repeatFromLog: log } });
+  };
 
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
@@ -108,6 +118,22 @@ export default function WorkoutSavedList({ onSelectLog }) {
                   <p className="font-medium text-sm truncate">{title}</p>
                   <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
                 </div>
+                {/* Repeat — pre-fills Workout with this log's exercise
+                    list (weights/reps blanked) so the user can run the
+                    same session again. Hidden when there are no real
+                    exercises to repeat. stopPropagation so the Card's
+                    onClick (which opens detail) doesn't also fire. */}
+                {exercises.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRepeat(e, log)}
+                    className="shrink-0 inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-primary bg-primary/10 hover:bg-primary/20 transition-colors"
+                    aria-label={tFallback('workout.repeat', 'Repeat this workout')}
+                  >
+                    <Repeat className="w-3 h-3" />
+                    {tFallback('workout.repeat', 'Repeat')}
+                  </button>
+                )}
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
               </div>
             </Card>

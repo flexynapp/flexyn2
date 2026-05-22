@@ -196,23 +196,48 @@ export default function Workout() {
   // view with all logged sets intact. Runs once on mount.
   useEffect(() => {
     const resumeId = location.state?.resumeSessionId;
-    if (!resumeId) return;
-    try {
-      const stored = JSON.parse(localStorage.getItem('paused_workouts') || '[]');
-      const session = stored.find(s => s.id === resumeId);
-      if (!session) return;
-      setActiveSessionId(session.id);
-      if (session.selectedRegimen) setSelectedRegimen(session.selectedRegimen);
-      if (Array.isArray(session.exercises)) setExercises(session.exercises);
-      if (session.date) setDate(session.date);
-      if (typeof session.duration === 'number') setDuration(session.duration);
-      if (typeof session.notes === 'string') setNotes(session.notes);
-      setStarted(true);
-      // Clear router state so a reload of the workout page doesn't
-      // re-trigger this hydration on top of the user's edits.
-      navigate(location.pathname, { replace: true, state: null });
-    } catch { /* corrupted localStorage — ignore */ }
+    const repeatLog = location.state?.repeatFromLog;
+    if (!resumeId && !repeatLog) return;
 
+    // Resume-paused-session branch.
+    if (resumeId) {
+      try {
+        const stored = JSON.parse(localStorage.getItem('paused_workouts') || '[]');
+        const session = stored.find(s => s.id === resumeId);
+        if (!session) return;
+        setActiveSessionId(session.id);
+        if (session.selectedRegimen) setSelectedRegimen(session.selectedRegimen);
+        if (Array.isArray(session.exercises)) setExercises(session.exercises);
+        if (session.date) setDate(session.date);
+        if (typeof session.duration === 'number') setDuration(session.duration);
+        if (typeof session.notes === 'string') setNotes(session.notes);
+        setStarted(true);
+        navigate(location.pathname, { replace: true, state: null });
+      } catch { /* corrupted localStorage — ignore */ }
+      return;
+    }
+
+    // Repeat-from-past-log branch. Clones the exercise list from the
+    // referenced log but BLANKS the weight + reps on each set so the
+    // user is entering fresh numbers, not editing yesterday's
+    // numbers in place. We treat the past log as a TEMPLATE, not a
+    // copy — keeping the weight/reps would invite accidentally
+    // saving the old workout twice.
+    if (repeatLog && Array.isArray(repeatLog.exercises)) {
+      const clonedExercises = repeatLog.exercises.map(ex => ({
+        name:           ex.name,
+        displayName:    ex.displayName || ex.name,
+        muscle_group:   ex.muscle_group  || '',
+        muscle_groups:  Array.isArray(ex.muscle_groups) ? [...ex.muscle_groups] : [],
+        sets: (Array.isArray(ex.sets) && ex.sets.length > 0 ? ex.sets : [{}])
+          .map(() => ({ weight: null, reps: null })),
+      }));
+      setExercises(clonedExercises);
+      setStarted(true);
+      // Notes carry forward as a hint of what they were trying to do.
+      if (typeof repeatLog.notes === 'string') setNotes(repeatLog.notes);
+      navigate(location.pathname, { replace: true, state: null });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: rawRegimens = [], isLoading } = useQuery({

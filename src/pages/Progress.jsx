@@ -508,9 +508,16 @@ export default function Progress() {
 
           {/* 26-week GitHub-style activity grid. Self-hides on empty
               windows. Drives habit awareness — seeing the streaks-and-
-              gaps pattern is more motivating than a workout count. */}
+              gaps pattern is more motivating than a workout count.
+              Second tap on a trained square → "repeat this workout"
+              flow on the Workout page. */}
           <div className="mb-4">
-            <WorkoutCalendarGrid logs={logs} />
+            <WorkoutCalendarGrid
+              logs={logs}
+              onSelectDay={(log) => {
+                navigate('/workout', { state: { repeatFromLog: log } });
+              }}
+            />
           </div>
 
           {/* ── This Week ────────────────────────────────────────────────── */}

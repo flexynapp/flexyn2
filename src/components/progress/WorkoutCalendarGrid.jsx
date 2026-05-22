@@ -76,10 +76,27 @@ function buildVolumeMap(logs) {
   return map;
 }
 
-export default function WorkoutCalendarGrid({ logs = [] }) {
+export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const [tooltip, setTooltip] = useState(null);
+
+  // Build a date → first matching log map so we can hand the parent
+  // the actual log object on tap. Multiple logs on one day return the
+  // first; the calendar is a daily aggregate, deeper inspection lives
+  // in the (future) "this day's workouts" modal.
+  const logByDay = useMemo(() => {
+    const map = {};
+    for (const log of logs || []) {
+      const raw = log?.date || log?.created_at || log?.created_date;
+      if (!raw) continue;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) continue;
+      const k = format(d, 'yyyy-MM-dd');
+      if (!map[k]) map[k] = log;
+    }
+    return map;
+  }, [logs]);
 
   // Build the 26×7 day grid backwards from today, aligned to Sunday.
   // Each cell = { date, volume, bucket }.
@@ -154,7 +171,24 @@ export default function WorkoutCalendarGrid({ logs = [] }) {
                     onMouseLeave={() => setTooltip(null)}
                     onFocus={() => setTooltip(day)}
                     onBlur={() => setTooltip(null)}
-                    onClick={() => setTooltip(prev => prev?.key === day.key ? null : day)}
+                    onClick={() => {
+                      // Two-step interaction:
+                      //   • First tap: show tooltip (preview).
+                      //   • Second tap on the SAME square AND the day
+                      //     has a workout: fire onSelectDay so the
+                      //     parent can open the workout detail view.
+                      // This avoids accidentally opening a modal on
+                      // hover-then-click on desktop while still letting
+                      // mobile users drill in with two consecutive taps.
+                      const log = logByDay[day.key];
+                      const wasShowing = tooltip?.key === day.key;
+                      if (wasShowing && log && onSelectDay) {
+                        onSelectDay(log);
+                        setTooltip(null);
+                      } else {
+                        setTooltip(wasShowing ? null : day);
+                      }
+                    }}
                     aria-label={
                       day.isFuture
                         ? `${format(day.date, 'MMM d, yyyy')}: ${tFallback('calendar.future', 'future')}`
