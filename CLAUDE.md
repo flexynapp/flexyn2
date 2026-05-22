@@ -62,6 +62,19 @@ contributors should match:
   service_role grants, and orphan rows. Migration 085's ALTER DEFAULT
   PRIVILEGES auto-grants service_role on new public tables, so new
   drift in that dimension shouldn't accumulate.
+- **The single most-common defect class shipped this session** has
+  been references to nonexistent columns / functions in new
+  migrations and RPCs — caught and patched across 100 (timezone_offset
+  vs timezone_offset_minutes), 101 (weekly_xp/volume/sessions on the
+  wrong table, total_posts nonexistent, grant_flex_coins undefined),
+  109 (followed_email vs followee_email on hub_follows — broke 100%
+  of Block-button clicks). Before writing a new migration that
+  references existing schema, **grep for the actual column / function
+  name in the migrations directory** rather than typing what you
+  expect it to be. Same rule for SECURITY DEFINER RPCs that pass
+  user-supplied identifiers: gate on auth.uid() server-side, not
+  on the client-supplied param (108 was a privacy leak from
+  trusting client-passed email).
 
 The biggest user-facing additions this session:
 
