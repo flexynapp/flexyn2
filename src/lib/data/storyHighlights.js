@@ -5,6 +5,7 @@
 // user's profile beyond the normal 24-hour story TTL.
 
 import { supabase } from '@/api/supabaseClient';
+import { containsProfanity } from '@/lib/profanityFilter';
 
 /** List a user's highlight albums, sorted by sort_order then newest. */
 export async function listHighlightsForUser(userEmail) {
@@ -36,6 +37,9 @@ export async function createHighlight({ title, coverUrl } = {}) {
   const t = (title || '').trim();
   if (!t) return { ok: false, reason: 'no_title' };
   if (t.length > 40) return { ok: false, reason: 'title_too_long' };
+  // Profanity gate — album titles are visible to followers + anyone
+  // viewing the profile. Mirrors the username + crew-name policy.
+  if (containsProfanity(t)) return { ok: false, reason: 'profanity' };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id || !user?.email) return { ok: false, reason: 'unauthenticated' };
 

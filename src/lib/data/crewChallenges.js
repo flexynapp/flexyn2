@@ -6,6 +6,7 @@
 // members can read.
 
 import { supabase } from '@/api/supabaseClient';
+import { containsProfanity } from '@/lib/profanityFilter';
 
 export const VALID_METRICS = ['total_volume', 'total_sessions', 'total_xp', 'days_active'];
 
@@ -42,6 +43,11 @@ export async function createChallenge({ crewId, title, metric, targetValue, ends
   const target = Math.round(Number(targetValue));
   if (!Number.isFinite(target) || target <= 0) {
     return { ok: false, reason: 'invalid_target' };
+  }
+  // Challenge titles render in the crew chat header to all members
+  // — gate profanity. Mirrors crew_name + hub_posts policies.
+  if (containsProfanity(title)) {
+    return { ok: false, reason: 'profanity' };
   }
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false, reason: 'unauthenticated' };

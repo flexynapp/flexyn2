@@ -5,6 +5,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
 import { formatNumber } from '@/lib/intl';
+import { containsProfanity } from '@/lib/profanityFilter';
 
 /**
  * Create a user-posted bounty on YOUR OWN record (migration 098).
@@ -18,6 +19,12 @@ export async function createUserBounty({ metric, exerciseName, targetValue, diff
   if (!targetValue || targetValue <= 0) return { ok: false, reason: 'invalid_target' };
   if (!['easy', 'medium', 'hard'].includes(difficulty)) {
     return { ok: false, reason: 'invalid_difficulty' };
+  }
+  // Bounty exercise names appear on the public bounty board — gate
+  // profanity so users can't broadcast slurs through the bounty
+  // surface. Mirrors hub_posts + crew_name + highlight policies.
+  if (exerciseName && containsProfanity(exerciseName)) {
+    return { ok: false, reason: 'profanity' };
   }
   const expIso = (() => {
     if (!expiresAt) return null;

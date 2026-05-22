@@ -14,6 +14,7 @@
 // sources (a workout_log row vs. a workout_templates row).
 
 import { supabase } from '@/api/supabaseClient';
+import { containsProfanity } from '@/lib/profanityFilter';
 
 /**
  * List all templates owned by the current user. Returns array,
@@ -53,6 +54,10 @@ export async function saveTemplate({ name, description = '', exercises = [] }) {
   if (description.length > 280) return { ok: false, reason: 'description_too_long' };
   if (!Array.isArray(exercises) || exercises.length === 0) {
     return { ok: false, reason: 'no_exercises' };
+  }
+  // Profanity gate on user-supplied text (mirrors hub_posts + crew name).
+  if (containsProfanity(cleanName) || (description && containsProfanity(description))) {
+    return { ok: false, reason: 'profanity' };
   }
 
   const { data: { user } } = await supabase.auth.getUser();
