@@ -25,6 +25,7 @@ import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
 import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import NemesisCard from '@/components/nemesis/NemesisCard';
+import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
@@ -575,6 +576,15 @@ export default function Dashboard() {
         </ErrorBoundary>
         <ErrorBoundary label="HydrationRing">
           <HydrationRing />
+        </ErrorBoundary>
+      </div>
+
+      {/* Readiness Score — composite of sleep + mood + recent-workout
+          recency. Drives the daily train/maintain/deload/rest decision.
+          Hidden when no user. */}
+      <div className="mb-5 md:mb-6">
+        <ErrorBoundary label="ReadinessCard">
+          <ReadinessCard logs={logs} />
         </ErrorBoundary>
       </div>
 

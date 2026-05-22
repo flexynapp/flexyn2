@@ -54,6 +54,12 @@ export default function LeaderboardsContent({ active = true }) {
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
   const [activeBoard, setActiveBoard] = useState('level');
+  // Time-window toggle. 'alltime' uses total_* columns (lifetime);
+  // 'weekly' uses weekly_* columns (current ISO week, refreshed by
+  // the leaderboard cron). Monthly is a future enhancement — would
+  // need either monthly_* columns or aggregation from logs which is
+  // heavier than the current implementation handles.
+  const [period, setPeriod] = useState('alltime');
 
   useEffect(() => {
     if (active && user?.email) backfillLeaderboardStatsOnce(user.email);
@@ -74,6 +80,11 @@ export default function LeaderboardsContent({ active = true }) {
     const enriched = allUsers.map(u => {
       const xp = Number(u.total_xp) || 0;
       const lvl = calculateLevelFromXp(xp);
+      // Period-scoped values fall back to the all-time value when
+      // the weekly column is missing (pre-093 host) so the UI
+      // gracefully degrades to lifetime stats rather than zeros.
+      const weekly_xp     = Number(u.weekly_xp);
+      const weekly_volume = Number(u.weekly_volume);
       return {
         id: u.id,
         email: u.email,
@@ -83,6 +94,8 @@ export default function LeaderboardsContent({ active = true }) {
         achievements_unlocked_count: Number(u.achievements_unlocked_count) || 0,
         total_volume_lbs: Number(u.total_volume_lbs) || 0,
         total_distance_meters: Number(u.total_distance_meters) || 0,
+        weekly_xp:     Number.isFinite(weekly_xp)     ? weekly_xp     : 0,
+        weekly_volume: Number.isFinite(weekly_volume) ? weekly_volume : 0,
       };
     });
 
@@ -94,23 +107,28 @@ export default function LeaderboardsContent({ active = true }) {
     );
 
     let valueOf, formatValue;
+    const isWeekly = period === 'weekly';
     switch (activeBoard) {
       case 'achievements':
+        // Achievements aren't time-scoped, always all-time.
         valueOf = u => u.achievements_unlocked_count;
         formatValue = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
         break;
       case 'volume':
-        valueOf = u => u.total_volume_lbs;
+        valueOf = u => isWeekly ? u.weekly_volume : u.total_volume_lbs;
         formatValue = v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}`;
         break;
       case 'distance':
+        // Distance: no weekly_distance_meters yet → always all-time.
         valueOf = u => u.total_distance_meters;
         formatValue = v => formatDistance(v, distanceUnit, 1);
         break;
       case 'level':
       default:
-        valueOf = u => u.total_xp;
-        formatValue = (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
+        valueOf = u => isWeekly ? u.weekly_xp : u.total_xp;
+        formatValue = isWeekly
+          ? v => `${formatNum(v)} XP`
+          : (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
         break;
     }
 
@@ -119,7 +137,7 @@ export default function LeaderboardsContent({ active = true }) {
       .sort((a, b) => valueOf(b) - valueOf(a))
       .slice(0, 100)
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
-  }, [allUsers, activeBoard, weightUnit, distanceUnit, t]);
+  }, [allUsers, activeBoard, period, weightUnit, distanceUnit, t]);
 
   const myRow = ranked.find(r => r.email === user?.email);
 
@@ -146,7 +164,30 @@ export default function LeaderboardsContent({ active = true }) {
           </div>
         </div>
 
-        <div className="relative z-10 mt-5 flex flex-wrap gap-1.5 sm:gap-2">
+        {/* Period toggle — All-time vs This week. Achievements +
+            Distance always render all-time because we don't track
+            weekly aggregates for them. */}
+        <div className="relative z-10 mt-3 flex items-center gap-1">
+          {[
+            { id: 'alltime', label: 'All-time' },
+            { id: 'weekly',  label: 'This week' },
+          ].map(p => (
+            <button
+              key={p.id}
+              onClick={() => setPeriod(p.id)}
+              aria-pressed={period === p.id}
+              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                period === p.id
+                  ? 'bg-white text-foreground'
+                  : 'bg-white/15 text-white hover:bg-white/25'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative z-10 mt-3 flex flex-wrap gap-1.5 sm:gap-2">
           {BOARDS.map(b => {
             const Icon = b.icon;
             const isActive = b.id === activeBoard;

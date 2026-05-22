@@ -3,12 +3,21 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { db } from '@/api/db';
 import { compressImage } from '@/lib/imageCompress';
+import { containsProfanity } from '@/lib/profanityFilter';
 
 const CREW_XP_FUEL_AMOUNT = 500;
 
 // ── Crews ─────────────────────────────────────────────────────────────────────
 
 export async function createCrew(user, name) {
+  // Profanity gate on crew name. Mirrors the existing username +
+  // hub-post checks. Server can't re-enforce yet (no trigger), so
+  // this is client-side defense — but server-side check could be a
+  // follow-up in a future migration.
+  if (typeof name === 'string' && containsProfanity(name)) {
+    throw Object.assign(new Error('Profanity detected in crew name'),
+      { code: 'PROFANITY', field: 'name' });
+  }
   const { data: crew, error } = await supabase
     .from('crews')
     .insert({ name, created_by: user.id })

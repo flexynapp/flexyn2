@@ -1,9 +1,53 @@
 // src/lib/data/bounties.js
-// Bounty System — auto-generated social challenges with Flex Coin rewards.
+// Bounty System — auto-generated AND user-created social challenges
+// with Flex Coin rewards.
 
 import { supabase } from '@/api/supabaseClient';
 import { reportError } from '@/lib/reportError';
 import { formatNumber } from '@/lib/intl';
+
+/**
+ * Create a user-posted bounty on YOUR OWN record (migration 098).
+ * Server-side validates caller == target (anti-griefing — you
+ * can't post a bounty on someone else's record).
+ *
+ * Returns { ok: true, id } on success, { ok: false, reason } on failure.
+ */
+export async function createUserBounty({ metric, exerciseName, targetValue, difficulty, expiresAt } = {}) {
+  if (!metric)                          return { ok: false, reason: 'metric_required' };
+  if (!targetValue || targetValue <= 0) return { ok: false, reason: 'invalid_target' };
+  if (!['easy', 'medium', 'hard'].includes(difficulty)) {
+    return { ok: false, reason: 'invalid_difficulty' };
+  }
+  const expIso = (() => {
+    if (!expiresAt) return null;
+    try {
+      const d = expiresAt instanceof Date ? expiresAt : new Date(expiresAt);
+      return Number.isNaN(d.getTime()) ? null : d.toISOString();
+    } catch { return null; }
+  })();
+
+  try {
+    const { data, error } = await supabase.rpc('create_user_bounty', {
+      p_metric:        metric,
+      p_exercise_name: exerciseName || null,
+      p_target_value:  targetValue,
+      p_difficulty:    difficulty,
+      p_expires_at:    expIso,
+    });
+    if (error) {
+      if (error.code === '42883' || error.code === '42P01') {
+        return { ok: false, reason: 'rpc_missing' };
+      }
+      console.warn('[bounties] create_user_bounty failed:', error);
+      return { ok: false, reason: 'db_error' };
+    }
+    return { ok: true, id: data };
+  } catch (err) {
+    console.warn('[bounties] createUserBounty threw:', err?.message || err);
+    return { ok: false, reason: 'network' };
+  }
+}
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
