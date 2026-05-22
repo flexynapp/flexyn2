@@ -4,20 +4,24 @@
 // user has actually completed a workout. Reads workout_streak from the
 // user_profiles table. Auto-hides on day 0.
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { useQuery } from '@tanstack/react-query';
-import { Dumbbell, Trophy } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Dumbbell, Trophy, ShieldCheck } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { differenceInCalendarDays } from 'date-fns';
 import StreakFlame from '@/components/StreakFlame';
+import { getStreakRescueStatus, spendStreakRescue } from '@/lib/data/streakRescue';
 
 export default function WorkoutStreakBanner() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const qc = useQueryClient();
+  const [rescuing, setRescuing] = useState(false);
 
   const { data: profile } = useQuery({
     queryKey: ['workoutStreakProfile', user?.id],
@@ -36,6 +40,65 @@ export default function WorkoutStreakBanner() {
     enabled: !!user?.id,
     staleTime: 30_000,
   });
+
+  // Streak rescue eligibility (migration 087). Only fires the RPC when
+  // the streak is potentially broken-but-recoverable (daysSince === 2)
+  // so we don't waste an RPC on every Dashboard mount. If the RPC is
+  // missing (pre-087 host) or returns available=false, the rescue UI
+  // simply doesn't render and the banner falls back to its previous
+  // behavior (hide on broken streak).
+  const lastDateForGate = profile?.last_workout_date;
+  const daysSinceForGate = lastDateForGate
+    ? differenceInCalendarDays(new Date(), new Date(lastDateForGate))
+    : 0;
+  const { data: rescueStatus } = useQuery({
+    queryKey: ['streakRescueStatus', user?.id],
+    queryFn: getStreakRescueStatus,
+    enabled: !!user?.id && daysSinceForGate === 2 && (profile?.workout_streak ?? 0) >= 3,
+    staleTime: 60_000,
+  });
+
+  const rescueAvailable = !!rescueStatus?.available;
+
+  const handleRescue = async () => {
+    if (rescuing) return;
+    setRescuing(true);
+    try {
+      const res = await spendStreakRescue();
+      if (res == null) {
+        // Pre-087 host. Shouldn't normally hit because the button only
+        // renders when getStreakRescueStatus returned available=true,
+        // but a stale schema cache could trip it.
+        toast.error(tFallback('streakRescue.unavailable', 'Streak rescue not available yet.'));
+        return;
+      }
+      if (res.ok) {
+        toast.success(
+          tFallback(
+            'streakRescue.saved',
+            'Streak saved! Work out today to keep it going.',
+          ),
+        );
+        // Force re-read so the banner flips back to its normal active
+        // state on next render.
+        qc.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
+        qc.invalidateQueries({ queryKey: ['streakRescueStatus',   user?.id] });
+      } else if (res.reason === 'already_used_this_month') {
+        toast.error(
+          tFallback(
+            'streakRescue.alreadyUsed',
+            'Rescue already used this month — try again next month.',
+          ),
+        );
+      } else {
+        toast.error(
+          tFallback('streakRescue.failed', 'Could not save streak — try again.'),
+        );
+      }
+    } finally {
+      setRescuing(false);
+    }
+  };
 
   // Compute everything we need from `profile` BEFORE any early returns
   // so the hook count stays stable across render passes. Rules of Hooks
@@ -66,7 +129,46 @@ export default function WorkoutStreakBanner() {
   // Hidden states — banner only renders for an active, non-broken streak.
   if (!user?.id || !profile) return null;
   if (streak === 0) return null;
-  if (broken) return null; // hide rather than show stale info
+
+  // Streak just broke (missed yesterday). Two paths:
+  //   • Rescue available → render the rescue offer card.
+  //   • No rescue (cap spent / streak too short) → hide as before.
+  if (broken) {
+    if (!rescueAvailable) return null;
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 flex items-center justify-between gap-3"
+        role="alert"
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <ShieldCheck className="w-4 h-4 shrink-0 text-amber-500" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-sm font-heading font-bold leading-tight">
+              {tFallback('streakRescue.title', 'Save your {streak}-day streak', { streak })}
+            </p>
+            <p className="text-[11px] text-muted-foreground leading-tight">
+              {tFallback(
+                'streakRescue.subtitle',
+                'You missed yesterday. Use your monthly rescue to keep it alive.',
+              )}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleRescue}
+          disabled={rescuing}
+          className="shrink-0 px-3 py-1.5 rounded-md text-xs font-bold bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-60 transition-colors"
+        >
+          {rescuing
+            ? tFallback('streakRescue.saving', 'Saving…')
+            : tFallback('streakRescue.cta', 'Save streak')}
+        </button>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div
