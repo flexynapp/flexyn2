@@ -11,6 +11,7 @@ import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
+import { useHubUnreadDot } from '@/hooks/useHubUnreadDot';
 import { useBagFlow } from '@/lib/inventoryFlow';
 import UserBag from './hub/UserBag';
 import CapsuleOpener from './hub/CapsuleOpener';
@@ -40,6 +41,12 @@ export default function Layout() {
   // No longer attached to the Hub nav item; lives on dedicated Messages
   // surfaces (header icon on mobile, sidebar icon on desktop).
   const hubUnreadCount = useUnreadDMCount();
+
+  // Quiet "new content from people you follow" dot on the Hub tab.
+  // No counts on purpose — counts feel TikTok-y and demanding. A single
+  // dot is the universal "something new here" social-app convention.
+  // Clears when the user lands on /hub.
+  const hubHasNewFollowingPost = useHubUnreadDot(user?.email);
 
   // Bag flow lives at the layout level so only one instance exists
   // (ProfileMenu is rendered twice — sidebar + header — so hosting bag
@@ -213,6 +220,16 @@ export default function Layout() {
                     <item.icon
                       className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`}
                     />
+                    {/* Unread dot for the Hub tab — appears when a
+                        followed user has posted something new since the
+                        viewer last visited Hub. Hidden when they're on
+                        the Hub route (the act of being there clears it). */}
+                    {isHubItem && hubHasNewFollowingPost && !isActive && (
+                      <span
+                        className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
+                        aria-label="New posts in Hub"
+                      />
+                    )}
                   </motion.div>
                   <motion.span animate={isActive ? { fontWeight: 700 } : { fontWeight: 500 }}>
                     {item.label}

@@ -17,6 +17,7 @@ import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useStartConversation } from '@/lib/hubMessaging';
+import { markHubVisited } from '@/hooks/useHubUnreadDot';
 
 // ─── Ember particle data for the marketplace button ───────────────────────────
 const EMBERS = [
@@ -43,6 +44,15 @@ export default function Hub() {
   const navigate = useNavigate();
 
   const startConversation = useStartConversation();
+
+  // Mark this visit so the bottom-nav Hub-tab dot clears. The custom
+  // event lets useHubUnreadDot re-read localStorage in real time
+  // without needing a query invalidation round-trip.
+  useEffect(() => {
+    if (!user?.email) return;
+    markHubVisited(user.email);
+    try { window.dispatchEvent(new CustomEvent('flexyn:hub-visited')); } catch { /* ignore */ }
+  }, [user?.email]);
 
   // Deep-links Hub still owns:
   //   ?compose=1       — open the post composer (used by daily-quest links)

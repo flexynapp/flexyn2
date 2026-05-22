@@ -31,6 +31,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, fromLbs } from '@/lib/weightUnit';
+import UnitPill from '@/components/UnitPill';
 import { reportError } from '@/lib/reportError';
 
 export default function LogWeightModal({ open, onOpenChange, profile }) {
@@ -121,9 +122,15 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           <div>
-            <label className="text-xs font-medium text-muted-foreground mb-1 block">
-              {tFallback('dashboard.logWeight.weightLabel', 'Weight')} ({weightUnit})
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-medium text-muted-foreground">
+                {tFallback('dashboard.logWeight.weightLabel', 'Weight')}
+              </label>
+              {/* Inline unit-swap pill — one tap flips the whole app's
+                  weight unit. Eliminates the Settings detour for users
+                  switching units mid-flow (traveling, coaching, etc). */}
+              <UnitPill />
+            </div>
             <Input
               ref={inputRef}
               type="number"

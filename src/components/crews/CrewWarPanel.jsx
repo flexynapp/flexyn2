@@ -1,11 +1,13 @@
 // src/components/crews/CrewWarPanel.jsx
 // Live crew war scoreboard panel — shown on the Crews page when an active war exists.
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Shield, Clock, Crown, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore } from '@/lib/data/crewWars';
+import { fireCrewWinCelebration } from '@/lib/crewWinCelebration';
+import { useAuth } from '@/lib/AuthContext';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
 
 function ScoreBar({ myScore, theirScore }) {
@@ -50,7 +52,31 @@ function ContribRow({ rank, userId, xp, isCurrentUser }) {
   );
 }
 
+// Local-storage key recording which crew wars we've already celebrated
+// for this user. Without this, the celebration would re-fire every
+// time the user opens the Crews tab on a panel showing a past win.
+// localStorage is per-device but that's OK — re-firing on a second
+// device is a minor annoyance compared to celebrating once per device
+// (which is actually warmer).
+const CELEBRATED_KEY = (userId) => `flexyn.celebratedCrewWars.${userId || 'anon'}`;
+function readCelebrated(userId) {
+  try {
+    const raw = localStorage.getItem(CELEBRATED_KEY(userId));
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+}
+function markCelebrated(userId, warId) {
+  try {
+    const set = readCelebrated(userId);
+    set.add(warId);
+    // Cap at last 50 to keep the key from growing unbounded.
+    const trimmed = Array.from(set).slice(-50);
+    localStorage.setItem(CELEBRATED_KEY(userId), JSON.stringify(trimmed));
+  } catch { /* best-effort */ }
+}
+
 export default function CrewWarPanel({ crewId, currentUserId }) {
+  const { user } = useAuth();
   const { data: war } = useQuery({
     queryKey:  ['activeWar', crewId],
     queryFn:   () => getActiveWarForCrew(crewId),
@@ -65,6 +91,28 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
     enabled:   !!war?.id,
     staleTime: 60_000,
   });
+
+  // Auto-fire the crew-win celebration the first time we see a
+  // completed war this user's crew won. Per-device localStorage gate
+  // ensures we don't re-celebrate every panel render. The user's
+  // personal contribution drives whether the toast credits them with
+  // XP — passive members still see the celebration but without a
+  // wasn't-theirs XP claim.
+  useEffect(() => {
+    if (!war || !user?.id || !crewId) return;
+    if (war.status !== 'completed' || war.winner_crew_id !== crewId) return;
+    const alreadyCelebrated = readCelebrated(user.id).has(war.id);
+    if (alreadyCelebrated) return;
+    const myContribution = contributions.find(c => c.user_id === currentUserId);
+    fireCrewWinCelebration({
+      crewName: war.winner_crew_name,
+      xpGained: myContribution?.xp_contributed ?? 0,
+      finalScore: getWarScore(war, crewId),
+      wasContributor: !!myContribution,
+      userEmail: user.email,
+    });
+    markCelebrated(user.id, war.id);
+  }, [war, user?.id, user?.email, crewId, currentUserId, contributions]);
 
   if (!war) return null;
 

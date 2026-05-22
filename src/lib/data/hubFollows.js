@@ -30,6 +30,33 @@ export const isFollowing = async (followerEmail, followeeEmail) => {
 };
 
 /**
+ * If two users mutually follow each other, returns the date of the
+ * EARLIER follow (i.e., when the friendship effectively started — the
+ * second follow is just the reciprocation that confirmed it).
+ *
+ * Returns null when the pair is not mutual or when either row is
+ * missing. Returns an ISO date string when mutual.
+ *
+ * Powers the "Training together since March 2025" anniversary line on
+ * HubProfile — only needs the month/year, but exposing the full date
+ * lets the consumer decide whether to also fire an anniversary glow
+ * when the calendar date matches.
+ */
+export const getMutualFollowSince = async (emailA, emailB) => {
+  if (!emailA || !emailB || emailA === emailB) return null;
+  // Two single-row reads in parallel — cheaper than a full mutual list.
+  const [aFollowsB, bFollowsA] = await Promise.all([
+    e().filter({ follower_email: emailA, followee_email: emailB }, '-created_date', 1).catch(() => []),
+    e().filter({ follower_email: emailB, followee_email: emailA }, '-created_date', 1).catch(() => []),
+  ]);
+  if (aFollowsB.length === 0 || bFollowsA.length === 0) return null;
+  const dateA = aFollowsB[0]?.created_date;
+  const dateB = bFollowsA[0]?.created_date;
+  if (!dateA || !dateB) return null;
+  return dateA < dateB ? dateA : dateB;
+};
+
+/**
  * Create a follow relationship. Idempotent — returns existing if already
  * followed.
  *

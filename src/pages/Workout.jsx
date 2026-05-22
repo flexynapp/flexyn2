@@ -1184,8 +1184,17 @@ export default function Workout() {
               const setCount = (last.exercises || [])
                 .reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
               const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
+              // Today-highlight signal — when the most recent workout
+              // happened on the user's local calendar day, the card
+              // gets a thicker left border + "TODAY" pill so the eye
+              // immediately recognizes recent activity. Calendar-day
+              // (not 24h) so workouts logged early morning still feel
+              // like today if it's still today.
+              const lastDateStr = last.date ? String(last.date).slice(0, 10) : null;
+              const todayStr = new Date().toISOString().slice(0, 10);
+              const isToday = lastDateStr === todayStr;
               const subtitleParts = [
-                last.date ? format(parseISO(last.date), 'MMM d') : null,
+                last.date ? (isToday ? tFallback('common.today', 'Today') : format(parseISO(last.date), 'MMM d')) : null,
                 exCount === 1
                   ? `1 ${tFallback('workout.exerciseSingular', 'exercise')}`
                   : `${exCount} ${(tFallback('workout.exercises', 'exercises')).toLowerCase()}`,
@@ -1203,9 +1212,21 @@ export default function Workout() {
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={startFromLastWorkout}
-                  className="group w-full mb-4 rounded-2xl border border-primary/25 bg-gradient-to-r from-primary/8 via-primary/5 to-transparent hover:border-primary/45 transition-colors p-4 md:p-5 text-left"
+                  className={`group relative w-full mb-4 rounded-2xl border bg-gradient-to-r p-4 md:p-5 text-left transition-colors ${
+                    isToday
+                      ? 'border-l-4 border-primary border-primary/40 from-primary/12 via-primary/6 to-transparent hover:border-primary/60'
+                      : 'border-primary/25 from-primary/8 via-primary/5 to-transparent hover:border-primary/45'
+                  }`}
                   aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
                 >
+                  {/* TODAY pill — Apple/Strava-style anchor for the eye
+                      when scanning a session list, even on a card with
+                      just one item. */}
+                  {isToday && (
+                    <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-[0.18em] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                      {tFallback('common.today', 'Today')}
+                    </span>
+                  )}
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 md:w-11 md:h-11 rounded-xl bg-primary/15 flex items-center justify-center shrink-0 group-hover:bg-primary/25 transition-colors">
                       <History className="w-5 h-5 text-primary" />

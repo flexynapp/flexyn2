@@ -330,6 +330,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   });
   const isMutualFollow = amFollowing === true && theyFollowMe === true;
 
+  // Anniversary date — the moment this friendship became mutual. Only
+  // queried when we KNOW it's mutual (avoids a wasted call for non-
+  // mutual or self views). Drives the "Training together since March
+  // 2025" line under the bio. Returns ISO string or null.
+  const { data: mutualSince } = useQuery({
+    queryKey: ['hubMutualSince', user?.email, email],
+    queryFn: () => hubFollows.getMutualFollowSince(user.email, email),
+    enabled: !isSelf && isMutualFollow && !!user?.email && !!email,
+    staleTime: 5 * 60_000, // doesn't change often
+  });
+
   // True only when we have a definitive answer from the server. While the
   // query is still in-flight (or hasn't started because user.email isn't
   // loaded yet), we DON'T know whether the user follows the target — so
@@ -839,6 +850,28 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             {bio && (
               <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{bio}</p>
             )}
+
+            {/* Training-together anniversary — only renders for mutual
+                follows where the friendship is at least 30 days old. On
+                the actual anniversary day each year, gets a small 🎂.
+                Pure relationship warmth, Strava + Spotify Wrapped vibes. */}
+            {!isSelf && mutualSince && (() => {
+              const since = new Date(mutualSince);
+              const now = new Date();
+              const daysOld = Math.floor((now - since) / (1000 * 60 * 60 * 24));
+              if (daysOld < 30) return null; // brand-new relationships read as noise
+              const monthYear = since.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+              // Anniversary glow: within 7 days of the month/day each year.
+              const isAnniversaryWeek =
+                since.getMonth() === now.getMonth() &&
+                Math.abs(now.getDate() - since.getDate()) <= 7;
+              return (
+                <p className="text-[11px] text-muted-foreground/80 italic mt-2">
+                  {isAnniversaryWeek && <span className="mr-1" aria-hidden="true">🎂</span>}
+                  {tFallback('hub.profile.trainingSince', 'Training together since {month}').replace('{month}', monthYear)}
+                </p>
+              );
+            })()}
 
             {/* Edit profile (own, no city/flag yet) */}
             {isSelf && !city && !countryFlag && (
