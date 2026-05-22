@@ -148,7 +148,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
  * Enforces a 10-story limit per rolling 25-hour window and sets expires_at
  * explicitly to 25 hours from now.
  */
-export async function createStory(user, file, overlayStyle = null, privacy = 'friends') {
+export async function createStory(user, file, overlayStyle = null, privacy = 'friends', overlays = null) {
   if (!user?.id || !file) return { ok: false, error: 'missing_params' };
 
   // Enforce 10-story limit
@@ -175,20 +175,53 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
 
   const { data: { publicUrl } } = supabase.storage.from('uploads').getPublicUrl(path);
 
-  const { data, error } = await supabase
+  // Sanitize overlays (mig 111) — keep only the fields we render so a
+  // bad client can't bloat the JSONB cap. Caps the array at 50 items.
+  const cleanOverlays = Array.isArray(overlays)
+    ? overlays.slice(0, 50).map(o => {
+        if (!o || typeof o !== 'object') return null;
+        const base = {
+          kind: String(o.kind || '').slice(0, 16),
+          x: Number(o.x) || 0.5,
+          y: Number(o.y) || 0.5,
+          scale: Number.isFinite(Number(o.scale)) ? Number(o.scale) : 1,
+          rotation: Number.isFinite(Number(o.rotation)) ? Number(o.rotation) : 0,
+        };
+        if (base.kind === 'emoji')   return { ...base, emoji: String(o.emoji || '').slice(0, 8) };
+        if (base.kind === 'text')    return { ...base, text: String(o.text || '').slice(0, 280), color: o.color || '#fff', font: o.font || 'normal' };
+        if (base.kind === 'sticker') return { ...base, label: String(o.label || '').slice(0, 32), stickerId: o.stickerId || null };
+        return null;
+      }).filter(Boolean)
+    : null;
+
+  const baseInsert = {
+    user_id:       user.id,
+    user_email:    user.email,
+    image_url:     publicUrl,
+    overlay_text:  overlayStyle?.text || null,
+    overlay_style: overlayStyle       || null,
+    media_type:    mediaType,
+    privacy,
+    expires_at:    expiresAt,
+  };
+  const insertRow = (cleanOverlays && cleanOverlays.length)
+    ? { ...baseInsert, overlays: cleanOverlays }
+    : baseInsert;
+
+  let { data, error } = await supabase
     .from('stories')
-    .insert({
-      user_id:       user.id,
-      user_email:    user.email,
-      image_url:     publicUrl,
-      overlay_text:  overlayStyle?.text || null,
-      overlay_style: overlayStyle       || null,
-      media_type:    mediaType,
-      privacy,
-      expires_at:    expiresAt,
-    })
+    .insert(insertRow)
     .select()
     .single();
+
+  // Pre-111 host: `overlays` column doesn't exist yet — retry without
+  // it so the story still saves. The overlay layer is purely additive
+  // so dropping it on stale hosts is a clean degradation.
+  if (error && (error.code === '42703' || error.code === 'PGRST204') && cleanOverlays?.length) {
+    const retry = await supabase.from('stories').insert(baseInsert).select().single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     // Insert failed but the file is already in Supabase Storage.

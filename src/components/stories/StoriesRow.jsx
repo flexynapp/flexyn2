@@ -430,8 +430,8 @@ export default function StoriesRow({ onViewProfile } = {}) {
   const showQuickAdd = !qaDismissed && qaHadItems;
 
   const uploadMutation = useMutation({
-    mutationFn: ({ file, overlayStyle }) =>
-      storiesData.createStory(user, file, overlayStyle, feedData?.ownPrivacyDefault ?? 'friends'),
+    mutationFn: ({ file, overlayStyle, overlays }) =>
+      storiesData.createStory(user, file, overlayStyle, feedData?.ownPrivacyDefault ?? 'friends', overlays),
     onSuccess: (result) => {
       if (result?.limitReached) {
         toast.error("Hey, you can only have 10 posts at a time! Delete an active story or wait until tomorrow to post more.");
@@ -703,7 +703,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
             dataUrl={preview.objectUrl}
             isVideo={preview.isVideo}
             uploading={uploadMutation.isPending}
-            onConfirm={(overlayStyle) => uploadMutation.mutate({ file: preview.file, overlayStyle })}
+            onConfirm={(overlayStyle, overlays) => uploadMutation.mutate({ file: preview.file, overlayStyle, overlays })}
             onCancel={cleanupPreview}
           />
         )}

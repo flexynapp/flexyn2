@@ -22,8 +22,22 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Pipette, Download, Check } from 'lucide-react';
+import { Loader2, Pipette, Download, Check, Smile, X as XIcon } from 'lucide-react';
 import { toast } from 'sonner';
+
+// Curated emoji set for the in-composer picker. Eight rows of 8 keeps
+// the picker thumb-reachable on phones while covering the obvious
+// fitness/celebration/reaction use cases.
+const EMOJI_PALETTE = [
+  '🔥','💪','🏋️','🏃','🥇','🎯','⚡','🚀',
+  '❤️','😂','😍','🤩','😭','🙌','👏','👀',
+  '💯','✨','⭐','🌟','🎉','🎊','🏆','👑',
+  '😤','💀','😎','🤘','🙏','💥','🤯','⚽',
+  '🏀','🥊','🥋','🤸','🧘','🤝','🤲','👊',
+  '🍎','🥗','🥤','💧','☕','🍌','🥩','🥑',
+  '☀️','🌙','🌈','❄️','🌊','🏔️','🌴','🏟️',
+  '✅','❌','➕','➖','📈','📉','⏱️','⌛',
+];
 
 const FILTERS = [
   { label: 'Normal', css: 'none' },
@@ -59,6 +73,13 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   const [filterIdx,       setFilterIdx]       = useState(0);
   const [filterLabelVis,  setFilterLabelVis]  = useState(false);
   const filterLabelTimer = useRef(null);
+
+  // Emoji overlays — array of { id, emoji, x, y } with x/y normalized.
+  // Each one is independently draggable via pointer events on its
+  // rendered span. The id is just a stable React key.
+  const [emojiOverlays, setEmojiOverlays] = useState([]);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const draggingEmojiId = useRef(null);
 
   // Eyedropper
   const [eyedropperActive, setEyedropperActive] = useState(false);
@@ -438,7 +459,17 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       font:     FONTS[fontIdx].label.toLowerCase(),
       filter,
     } : (filter ? { filter } : null);
-    onConfirm(style);
+    // Serialize emoji overlays (mig 111). Single source of normalized
+    // coords already maintained by the drag handler; just shape it.
+    const overlays = emojiOverlays.map(o => ({
+      kind:  'emoji',
+      emoji: o.emoji,
+      x:     o.x,
+      y:     o.y,
+      scale: 1,
+      rotation: 0,
+    }));
+    onConfirm(style, overlays);
   };
 
   const hasText = overlayText.trim().length > 0;
@@ -475,6 +506,19 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             )}
           </AnimatePresence>
         </motion.button>
+
+        {/* Center: emoji picker toggle */}
+        <button
+          onClick={(e) => { e.stopPropagation(); setEmojiPickerOpen(v => !v); }}
+          className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${
+            emojiPickerOpen
+              ? 'bg-white text-black border-white'
+              : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'
+          }`}
+          aria-label="Add emoji"
+        >
+          <Smile className="w-4 h-4" />
+        </button>
 
         {/* Aa toggle */}
         <button
@@ -547,6 +591,50 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             />
           ))}
         </div>
+
+        {/* Emoji overlays — each independently positioned via normalized
+            coords and draggable. Pointer-events on the span; the rest
+            of the preview keeps its tap-to-edit text behavior. */}
+        {emojiOverlays.map(o => (
+          <span
+            key={o.id}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              e.currentTarget.setPointerCapture(e.pointerId);
+              draggingEmojiId.current = o.id;
+            }}
+            onPointerMove={(e) => {
+              if (draggingEmojiId.current !== o.id) return;
+              const rect = containerRef.current?.getBoundingClientRect();
+              if (!rect) return;
+              const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+              const ny = Math.max(0, Math.min(1, (e.clientY - rect.top)  / rect.height));
+              setEmojiOverlays(curr => curr.map(c => c.id === o.id ? { ...c, x: nx, y: ny } : c));
+            }}
+            onPointerUp={(e) => {
+              e.currentTarget.releasePointerCapture(e.pointerId);
+              draggingEmojiId.current = null;
+            }}
+            onDoubleClick={(e) => {
+              // Double-tap removes — tiny X button would clutter at scale.
+              e.stopPropagation();
+              setEmojiOverlays(curr => curr.filter(c => c.id !== o.id));
+            }}
+            className="absolute select-none cursor-grab active:cursor-grabbing touch-none"
+            style={{
+              left: `${o.x * 100}%`,
+              top:  `${o.y * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              fontSize: 56,
+              lineHeight: 1,
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+              textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+            }}
+          >
+            {o.emoji}
+          </span>
+        ))}
 
         {/* Editing textarea — centered, transparent */}
         {editingText && (
@@ -741,6 +829,54 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
           }
         </motion.button>
       </div>
+
+      {/* Emoji picker drawer — slides up from the bottom. Tapping an
+          emoji adds it as a draggable overlay at center; user then
+          drags into final position. Double-tap an existing overlay
+          removes it. */}
+      <AnimatePresence>
+        {emojiPickerOpen && (
+          <motion.div
+            key="emoji-picker"
+            initial={{ y: '100%' }}
+            animate={{ y: 0 }}
+            exit={{ y: '100%' }}
+            transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+            className="absolute left-0 right-0 bottom-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
+            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
+          >
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <span className="text-white/80 text-xs font-bold uppercase tracking-wide">Emoji</span>
+              <button
+                onClick={() => setEmojiPickerOpen(false)}
+                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white"
+                aria-label="Close emoji picker"
+              >
+                <XIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="grid grid-cols-8 gap-1.5 px-4 pb-3 max-h-56 overflow-y-auto">
+              {EMOJI_PALETTE.map(em => (
+                <button
+                  key={em}
+                  onClick={() => {
+                    setEmojiOverlays(curr => ([
+                      ...curr,
+                      { id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, emoji: em, x: 0.5, y: 0.5 },
+                    ]));
+                    setEmojiPickerOpen(false);
+                  }}
+                  className="aspect-square rounded-lg hover:bg-white/10 active:bg-white/20 text-2xl flex items-center justify-center"
+                  aria-label={`Add ${em}`}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+            <p className="text-white/45 text-[10px] text-center pb-1">Tap to add · drag to position · double-tap to remove</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.div>,
     document.body,
   );

@@ -32,6 +32,7 @@ import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
 import { formatTimeUntil } from '@/lib/timeUntil';
 import { downloadMedia } from '@/lib/downloadMedia';
+import StoryOverlayRenderer from './StoryOverlayRenderer';
 
 const STORY_DURATION_MS = 8000;
 
@@ -399,6 +400,16 @@ export default function StoryViewer({
                 </p>
               </div>
             ) : null}
+
+            {/* ── Multi-overlay layer (emoji / text / sticker, mig 111) ──
+                Rendered above the base media and the legacy overlay_text
+                so a story can carry BOTH. Coordinates are normalized so
+                the same row renders identically at any aspect ratio. */}
+            {Array.isArray(currentStory.overlays) && currentStory.overlays.length > 0 && (
+              <div className="absolute inset-0 pointer-events-none">
+                <StoryOverlayRenderer overlays={currentStory.overlays} />
+              </div>
+            )}
 
             {/* ── Top gradient ─────────────────────────────────────────── */}
             <div className="absolute top-0 left-0 right-0 h-36 pointer-events-none"
