@@ -1,7 +1,7 @@
 // src/components/BugReportDialog.jsx
 // In-app bug / feedback form. Stores reports to the bug_reports Supabase table.
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bug, CheckCircle2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -16,6 +16,7 @@ export default function BugReportDialog({ open, onClose }) {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting]   = useState(false);
   const [submitted, setSubmitted]     = useState(false);
+  const textareaRef = useRef(null);
 
   // Reset when dialog closes.
   useEffect(() => {
@@ -24,6 +25,15 @@ export default function BugReportDialog({ open, onClose }) {
       setSubmitting(false);
       setSubmitted(false);
     }
+  }, [open]);
+
+  // Auto-focus the textarea on open so users can start typing without
+  // a tap. 80ms delay lets the entrance animation settle so the mobile
+  // keyboard doesn't appear before the dialog is in position.
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => textareaRef.current?.focus(), 80);
+    return () => clearTimeout(t);
   }, [open]);
 
   const handleSubmit = async () => {
@@ -97,6 +107,7 @@ export default function BugReportDialog({ open, onClose }) {
                 <>
                   <p className="text-sm text-muted-foreground mb-3">{t('bugReport.desc')}</p>
                   <textarea
+                    ref={textareaRef}
                     value={description}
                     onChange={(e) => setDescription(e.target.value.slice(0, 1000))}
                     placeholder={t('bugReport.placeholder')}

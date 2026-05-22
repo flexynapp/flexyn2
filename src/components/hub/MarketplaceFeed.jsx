@@ -546,7 +546,7 @@ const CHEST_PARTICLES = [
 ];
 
 // ─── Rotating gradient header ─────────────────────────────────────────────────
-function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
+function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
   const angleRef = useRef(0);
   const rafRef = useRef(null);
   const prevTimeRef = useRef(null);
@@ -612,9 +612,13 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, sortBy, sortDir, onSo
           </div>
           <button
             onClick={onList}
-            className="px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity"
+            // Live count of listable items (stickers you own that aren't
+            // already listed). Removes the wasted tap-and-discover cycle
+            // for users with nothing to sell; doubles as a satisfying
+            // tick-up when a capsule opens and inventory grows.
+            className={`px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity ${listableCount === 0 ? 'opacity-60' : ''}`}
           >
-            List Item
+            List Item{listableCount > 0 && <span className="ml-1 text-purple-200 font-semibold tabular-nums">· {listableCount > 99 ? '99+' : listableCount}</span>}
           </button>
         </div>
       </div>
@@ -846,6 +850,7 @@ export default function MarketplaceFeed() {
         flexCoins={flexCoins}
         onRefresh={() => refetch()}
         onList={() => setShowListDialog(true)}
+        listableCount={myItems.filter(i => !i.is_listed && i.item_type === 'sticker').length}
         sortBy={sortBy}
         sortDir={sortDir}
         onSortByChange={setSortBy}

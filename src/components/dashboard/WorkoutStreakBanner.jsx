@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { differenceInCalendarDays } from 'date-fns';
+import StreakFlame from '@/components/StreakFlame';
 
 export default function WorkoutStreakBanner() {
   const { user } = useAuth();
@@ -91,6 +92,10 @@ export default function WorkoutStreakBanner() {
         <Dumbbell className={`w-4 h-4 shrink-0 ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`} />
         <span className="text-sm">
           <span className="font-heading font-bold tabular-nums">{streak}</span>
+          {/* Flame badge scales visually with the streak (Duolingo pattern).
+              Tiered: subtle glow at 7d, gold ring at 30d, pulsing sparkles at
+              100d, rainbow ring at 365d. The flame ITSELF is the status. */}
+          <StreakFlame days={streak} size={14} className="ml-1" />
           <span className="text-muted-foreground">
             {' '}
             {streak === 1

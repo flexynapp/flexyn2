@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewWarPanel from './CrewWarPanel';
+import CrewMemberDots from './CrewMemberDots';
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
@@ -51,6 +52,13 @@ function CrewCard({ crew, onClick }) {
             </span>
           )}
         </p>
+        {/* Overlapping avatar dots — humanizes the group. Reading "5
+            members" doesn't convey community the way 5 little faces do. */}
+        {members.length > 0 && (
+          <div className="mt-2">
+            <CrewMemberDots members={members} size={20} max={5} />
+          </div>
+        )}
       </div>
 
       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />

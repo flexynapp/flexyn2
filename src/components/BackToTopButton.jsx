@@ -1,0 +1,65 @@
+// src/components/BackToTopButton.jsx
+//
+// Small floating circular button that appears once the user has scrolled
+// past 2 screen-heights on any long page. Tap → smooth scroll to top.
+// Mounted globally in Layout so it overlays every route without per-page
+// wiring. Pairs with double-tap-active-tab for power users (different
+// muscle memories, same outcome).
+
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowUp } from 'lucide-react';
+import { useScrollPosition } from '@/hooks/useScrollPosition';
+
+export default function BackToTopButton() {
+  const scrollY = useScrollPosition();
+  const threshold = typeof window !== 'undefined'
+    ? window.innerHeight * 2
+    : 1600;
+  const visible = scrollY > threshold;
+
+  // Respect reduced-motion: smooth scroll → instant jump for users who
+  // opt out of motion (and on iOS Safari where smooth scroll can be
+  // janky for very long lists).
+  const [reducedMotion, setReducedMotion] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!mq) return;
+    setReducedMotion(mq.matches);
+    const handler = (e) => setReducedMotion(e.matches);
+    mq.addEventListener?.('change', handler);
+    return () => mq.removeEventListener?.('change', handler);
+  }, []);
+
+  const handleClick = () => {
+    try { navigator.vibrate?.(8); } catch { /* ignore */ }
+    window.scrollTo({
+      top: 0,
+      behavior: reducedMotion ? 'auto' : 'smooth',
+    });
+  };
+
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.button
+          initial={{ opacity: 0, scale: 0.6 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.6 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 26 }}
+          onClick={handleClick}
+          // 80px above the bottom tab bar so it doesn't overlap on mobile,
+          // plus safe-area inset for iPhones with home-indicator gestures.
+          className="fixed right-4 z-30 w-12 h-12 rounded-full bg-card/95 backdrop-blur-sm border border-border shadow-lg flex items-center justify-center text-foreground hover:bg-secondary transition-colors lg:bottom-6"
+          style={{
+            bottom: 'max(env(safe-area-inset-bottom), 80px)',
+          }}
+          aria-label="Back to top"
+          type="button"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+}

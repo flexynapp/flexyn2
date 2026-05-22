@@ -4,6 +4,7 @@ import { VitePWA } from 'vite-plugin-pwa'
 import { visualizer } from 'rollup-plugin-visualizer'
 import path from 'path'
 import { fileURLToPath } from 'url'
+import { execSync } from 'child_process'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -15,9 +16,27 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 //   ANALYZE=true npm run build   (or the `analyze` npm script)
 const SHOULD_ANALYZE = process.env.ANALYZE === 'true';
 
+// Build metadata: the short git SHA + build timestamp injected as
+// __BUILD_HASH__ / __BUILD_DATE__ globals (consumed by src/lib/buildInfo.js).
+// Lets the running app self-identify which commit it was built from,
+// surfaced in Settings → About. Critical when diagnosing "the deploy
+// looks stale" situations — a user can read the hash off their phone in
+// 5 seconds. Falls back to 'dev' when git isn't available (CI from a ZIP,
+// downloaded source, etc).
+function readBuildInfo() {
+  let hash = 'dev';
+  try { hash = execSync('git rev-parse --short HEAD').toString().trim(); } catch { /* keep 'dev' */ }
+  return { hash, date: new Date().toISOString() };
+}
+const BUILD_INFO = readBuildInfo();
+
 // https://vite.dev/config/
 export default defineConfig({
   logLevel: 'error', // Suppress warnings, only show errors
+  define: {
+    __BUILD_HASH__: JSON.stringify(BUILD_INFO.hash),
+    __BUILD_DATE__: JSON.stringify(BUILD_INFO.date),
+  },
   plugins: [
     react(),
     // PWA — generates manifest.webmanifest, registers a service worker,

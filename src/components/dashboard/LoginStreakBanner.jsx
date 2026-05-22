@@ -12,6 +12,7 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Flame, Snowflake } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import StreakFlame from '@/components/StreakFlame';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
@@ -105,6 +106,9 @@ export default function LoginStreakBanner() {
         <Flame className="w-4 h-4 text-orange-500 shrink-0" />
         <span className="text-sm">
           <span className="font-heading font-bold tabular-nums">{streak}</span>
+          {/* Milestone flame — visually richer as the streak grows.
+              See StreakFlame for tier definitions. */}
+          <StreakFlame days={streak} size={14} className="ml-1" />
           <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
             <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">

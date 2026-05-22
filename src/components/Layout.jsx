@@ -14,6 +14,7 @@ import { useUnreadDMCount } from '@/lib/hubMessaging';
 import { useBagFlow } from '@/lib/inventoryFlow';
 import UserBag from './hub/UserBag';
 import CapsuleOpener from './hub/CapsuleOpener';
+import BackToTopButton from './BackToTopButton';
 
 // Helper: check if today's daily chest has NOT been claimed yet (ready to claim)
 function useDailyChestReady(userId) {
@@ -222,6 +223,13 @@ export default function Layout() {
           })}
         </div>
       </nav>
+
+      {/* Floating back-to-top — visible after scrolling past 2 screen-heights
+          on any route. Pairs with the Link onClick scrollTo above (which
+          triggers on every tab tap); the floating button is the thumb-reach
+          escape hatch when the user is mid-feed and doesn't want to break
+          context by tapping a tab. */}
+      <BackToTopButton />
 
       {/* Bag + Capsule Opener — single global mount, opened by ProfileMenu
           or by the OPEN_BAG_EVENT (e.g. StatsHub modal "Bag & Capsules"). */}

@@ -8,6 +8,7 @@ import { supabase } from '@/api/supabaseClient';
 import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
+import { buildLabel, diagnosticString } from '@/lib/buildInfo';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
@@ -617,6 +618,27 @@ export default function SettingsPanel() {
       >
         <Bug className="w-3.5 h-3.5 shrink-0" />
         {t('bugReport.button')}
+      </button>
+
+      {/* Build hash — diagnostic signal so users (and we) can confirm which
+          commit their device is actually running. Tap to copy a full
+          diagnostic blob to clipboard, useful for support tickets. We hit
+          a hard-to-diagnose stale-deploy bug recently; this is the
+          forever-fix so nobody has to play archaeologist again. */}
+      <button
+        type="button"
+        onClick={async () => {
+          try {
+            await navigator.clipboard?.writeText(diagnosticString());
+            toast.success('Copied build info to clipboard.');
+          } catch {
+            toast.error('Could not copy — your browser blocked clipboard access.');
+          }
+        }}
+        className="block w-full text-left py-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+        aria-label="Copy build diagnostic info to clipboard"
+      >
+        {buildLabel()}
       </button>
 
       <BugReportDialog open={bugReportOpen} onClose={() => setBugReportOpen(false)} />

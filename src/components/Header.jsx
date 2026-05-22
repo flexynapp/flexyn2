@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import ProfileMenu from './ProfileMenu';
 import LevelBar from './LevelBar';
 import NotificationBell from './NotificationBell';
+import NetworkStatusChip from './NetworkStatusChip';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
@@ -110,6 +111,10 @@ export default function Header() {
         >
           {isChildRoute ? title : t('app.name')}
         </button>
+        {/* Network status — only renders when offline OR briefly after
+            reconnect, so usually invisible. When something feels broken,
+            users learn to glance up here. */}
+        <NetworkStatusChip />
         <div className="flex items-center gap-0.5 shrink-0">
           <button
             type="button"

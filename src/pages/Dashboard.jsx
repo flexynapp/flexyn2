@@ -14,6 +14,7 @@ import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
 import LogWeightModal from '@/components/dashboard/LogWeightModal';
 import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
+import SyncStatus from '@/components/dashboard/SyncStatus';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
@@ -241,7 +242,7 @@ export default function Dashboard() {
     }
   }, [showWelcome]);
 
-  const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
+  const { data: rawLogs = [], isLoading: logsLoading, dataUpdatedAt: logsUpdatedAt } = useQuery({
     queryKey: ['workoutLogs', user?.email],
     queryFn: () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
     enabled: !!user?.email,
@@ -682,6 +683,14 @@ export default function Dashboard() {
           onOpenChange={setPhotoCaptureOpen}
         />
       </ErrorBoundary>
+
+      {/* Subtle "Synced Xm ago" footer. Tappable to force refresh of all
+          primary Dashboard queries. Trust signal — when a user wonders
+          "is this stale?" they get a clear answer at a glance, and a
+          one-tap path to fix it. Color shifts amber/red as data ages. */}
+      <div className="mt-6 flex justify-center pb-4">
+        <SyncStatus dataUpdatedAt={logsUpdatedAt} />
+      </div>
     </motion.div>
   );
 }
