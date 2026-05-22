@@ -52,7 +52,7 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
       <Card className="overflow-hidden border-border/60">
         <button
           onClick={() => navigate('/workout')}
-          className="w-full text-left px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors"
+          className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors"
         >
           <div className="shrink-0 w-9 h-9 rounded-full bg-amber-500/12 text-amber-500 flex items-center justify-center">
             <Lightbulb className="w-4 h-4" aria-hidden="true" />

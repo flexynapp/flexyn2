@@ -115,7 +115,7 @@ function FriendRow({ profile, stats, onQuickSend, onSelect }) {
 
   return (
     <div className="flex items-center gap-2.5 px-1 py-1.5 rounded-xl hover:bg-secondary/40 transition-colors group">
-      <button onClick={() => onSelect(profile)} className="flex items-center gap-2.5 flex-1 min-w-0 text-left">
+      <button onClick={() => onSelect(profile)} className="flex items-center gap-2.5 flex-1 min-w-0 text-start">
         <Avatar profile={profile} size="sm" />
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">@{profile.username}</p>
@@ -305,17 +305,17 @@ export default function CreateDuelModal({
               {/* Search bar */}
               <div className="px-4 pt-3 pb-2">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <input
                     autoFocus
                     type="text"
                     placeholder="Search @username…"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40"
+                    className="w-full ps-9 pe-4 py-2.5 rounded-xl bg-secondary border border-border text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/40"
                   />
                   {searching && (
-                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                    <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
                   )}
                 </div>
               </div>
@@ -390,7 +390,7 @@ export default function CreateDuelModal({
                     <button
                       key={id}
                       onClick={() => setSelectedType(id)}
-                      className={`w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-all ${
+                      className={`w-full flex items-start gap-3 p-3 rounded-xl border text-start transition-all ${
                         active ? `${activeBg} text-white` : `${idleBg} hover:opacity-80`
                       }`}
                     >

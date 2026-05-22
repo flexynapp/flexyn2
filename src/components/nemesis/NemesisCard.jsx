@@ -145,7 +145,7 @@ export default function NemesisCard({ currentUserId }) {
             <p className="text-xs text-muted-foreground mt-0.5">
               Level {level ?? '—'}
               {profile?.total_xp > 0 && (
-                <span className="ml-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
+                <span className="ms-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
               )}
             </p>
           </div>
