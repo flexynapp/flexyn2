@@ -68,6 +68,18 @@ export async function createChallenge({ crewId, title, metric, targetValue, ends
     console.warn('[crewChallenges] create failed:', error);
     return { ok: false, reason: error.code === '42501' ? 'not_admin' : 'db_error' };
   }
+
+  // Fan out per-member notifications. Best-effort — the challenge
+  // itself is already persisted, this is just delivery decoration.
+  // Mig 103 RPC handles auth + dedup + i18n server-side.
+  try {
+    await supabase.rpc('notify_crew_challenge_created_for', {
+      p_challenge_id: data?.id,
+    });
+  } catch (e) {
+    console.warn('[crewChallenges] notify_crew_challenge_created_for failed:', e?.message || e);
+  }
+
   return { ok: true, id: data?.id };
 }
 
@@ -92,5 +104,21 @@ export async function setChallengeStatus(id, status) {
     .update({ status })
     .eq('id', id);
   if (error) return { ok: false, reason: 'db_error' };
+
+  // Fan out a per-member celebration push when the challenge just
+  // hit its goal. Expiry is intentionally silent — a "you missed
+  // your goal" push reads as scolding. Mig 103 RPC checks the
+  // status server-side and no-ops if not 'completed', so a benign
+  // double-call (e.g. expired then completed) doesn't push twice.
+  if (status === 'completed') {
+    try {
+      await supabase.rpc('notify_crew_challenge_completed_for', {
+        p_challenge_id: id,
+      });
+    } catch (e) {
+      console.warn('[crewChallenges] notify_crew_challenge_completed_for failed:', e?.message || e);
+    }
+  }
+
   return { ok: true };
 }

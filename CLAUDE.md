@@ -328,7 +328,7 @@ without giving it a distinct haptic + confetti signature.**
   is built but not deployed. VAPID secrets + `ALTER DATABASE postgres
   SET app.send_push_url/_secret` haven't been set. See the "Push
   notifications" section above for the deploy checklist.
-- Competitive-feature pushes are mostly wired now:
+- Competitive-feature pushes are wired:
   • Duels — `notify_duel_invite_for` / `_result_for` (mig 065)
   • Bounties — `notify_bounty_claim_for` / `_beaten_for` (mig 069)
   • Crew Wars — `notify_crew_war_started_for` / `_resolved_for` (mig 069)
@@ -336,12 +336,17 @@ without giving it a distinct haptic + confetti signature.**
   • Nemesis overthrown — self-celebration in `performOverthrow`,
     `nemesis_overthrown` → competitive (mig 102)
   • Gauntlet path completion — self-targeted in `completeGauntletPath`
+  • Weekly gauntlet started — hourly cron fans out on status flip
+    upcoming→active to opted-in active users (mig 082)
+  • Crew challenge created / completed — per-member fanout via
+    `notify_crew_challenge_*_for` RPCs (mig 103)
 
   Still NOT pushing (pick any of these if extending):
-  • Individual gauntlet-challenge completions (probably intentional
-    — handled by in-app celebration only).
-  • Weekly-gauntlet "starting now" mass push — the cron flips status
-    upcoming→active but doesn't fan out a notification.
-  • Crew-challenge milestones (added in mig 098).
-  • "You got dethroned" cross-user push to the overthrown rival —
+  • Individual gauntlet-challenge completions — intentional, in-app
+    celebration only.
+  • Crew-challenge progress milestones (25/50/75%) — intentional,
+    too noisy; chat header shows progress.
+  • Crew-challenge expiry without hitting goal — intentional silent
+    failure; a "you missed your goal" push reads as scolding.
+  • "You got dethroned" cross-user push to the overthrown nemesis —
     skipped intentionally; likely demotivating.
