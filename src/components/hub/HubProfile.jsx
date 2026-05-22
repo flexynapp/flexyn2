@@ -105,6 +105,7 @@ import * as hubPosts from '@/lib/data/hubPosts';
 import * as me from '@/lib/data/me';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import HubPostCard from './HubPostCard';
+import ReferralCard from './ReferralCard';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
@@ -1127,6 +1128,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               {tFallback('hub.profile.themes', 'Themes')}
             </button>
           </motion.div>
+        )}
+
+        {/* Referral card — own profile only. Renders the user's
+            shareable code + invite link + earnings strip. Acquisition
+            channel: every share is an unpaid distribution opportunity. */}
+        {isSelf && (
+          <div className="mb-4">
+            <ReferralCard />
+          </div>
         )}
 
         {!isSelf && (

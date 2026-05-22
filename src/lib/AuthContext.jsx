@@ -76,6 +76,33 @@ export function AuthProvider({ children }) {
         if (session?.user) {
           // Defer so Supabase's internal auth state settles first
           setTimeout(() => loadProfile(session.user), 0);
+
+          // Auto-claim referral code if one was captured pre-signup. The
+          // claim RPC is idempotent — already-claimed returns 'already_
+          // claimed' which we silently swallow on TOKEN_REFRESHED events.
+          // The first successful claim writes to the audit table + fires
+          // BOTH parties' celebration notifications.
+          if (event === 'SIGNED_IN') {
+            setTimeout(async () => {
+              try {
+                const { consumePendingReferralCode } = await import('./data/referrals');
+                const { claimReferral } = await import('./data/referrals');
+                const pending = consumePendingReferralCode();
+                if (pending) {
+                  const res = await claimReferral(pending);
+                  if (res?.ok) {
+                    const { toast } = await import('sonner');
+                    toast.success(`Welcome! +200 coins and an Elite capsule are yours.`);
+                  }
+                  // Silent on failure — already-claimed / self-referral
+                  // shouldn't pop a toast. The RPC's error paths are all
+                  // expected outcomes, not crashes.
+                }
+              } catch (err) {
+                console.warn('[auth] referral claim error:', err?.message || err);
+              }
+            }, 500); // small delay to let profile load complete first
+          }
           // Magic-link / OAuth callbacks land at /something#access_token=…&refresh_token=…
           // After Supabase parses + stores the session, the tokens linger in
           // window.location.hash — visible in the browser address bar, kept

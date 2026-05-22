@@ -3,6 +3,15 @@ import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import App from './App.jsx'
 import './index.css'
+import { capturePendingReferralCode } from './lib/data/referrals'
+
+// Capture ?ref=ABC123 from the landing URL BEFORE React mounts. This
+// has to run early because the URL gets cleaned during React Router's
+// initial parse; we read the param first and stash it in localStorage
+// where AuthContext can pick it up after sign-up completes. The capture
+// helper is a no-op when there's no ref param, so it's cheap to run
+// unconditionally.
+capturePendingReferralCode();
 
 // ── Sentry error monitoring ───────────────────────────────────────────────────
 // To activate: replace the dsn placeholder with your real DSN from
