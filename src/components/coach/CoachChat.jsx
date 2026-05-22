@@ -6,7 +6,8 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Sparkles, Loader2, Trash2 } from 'lucide-react';
+import { Send, Sparkles, Loader2, Trash2, Mic, MicOff } from 'lucide-react';
+import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
@@ -35,6 +36,35 @@ export default function CoachChat() {
   const { tFallback } = useLanguage();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
+  // Voice dictation state — the Mic icon swaps to MicOff with a pulse
+  // while listening. Captures one phrase per tap (not continuous).
+  const [voiceListening, setVoiceListening] = useState(false);
+  const voiceSessionRef = useRef(null);
+  const handleVoiceTap = () => {
+    if (voiceListening) {
+      voiceSessionRef.current?.stop();
+      setVoiceListening(false);
+      return;
+    }
+    setVoiceListening(true);
+    voiceSessionRef.current = startVoiceCapture({
+      lang: 'en-US',
+      onResult: ({ transcript }) => {
+        setVoiceListening(false);
+        voiceSessionRef.current = null;
+        if (transcript && transcript.trim()) {
+          // Append to existing draft so a half-typed question + a voice
+          // addition both land. Trim trailing whitespace before appending
+          // a space so we don't get double spaces.
+          setDraft((prev) => (prev.trim() ? prev.trim() + ' ' + transcript : transcript));
+        }
+      },
+      onError: () => {
+        setVoiceListening(false);
+        voiceSessionRef.current = null;
+      },
+    });
+  };
   const [thinking, setThinking] = useState(false);
   const scrollerRef = useRef(null);
   const textareaRef = useRef(null);
@@ -192,6 +222,27 @@ export default function CoachChat() {
           className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-snug"
           style={{ maxHeight: 140 }}
         />
+        {/* Voice dictation — hidden when Web Speech API isn't available
+            (Firefox, some embedded browsers). Captures one phrase per
+            tap and appends it to the draft so the user can review +
+            edit before sending. */}
+        {isVoiceInputSupported() && (
+          <button
+            type="button"
+            onClick={handleVoiceTap}
+            disabled={thinking}
+            aria-label={voiceListening ? 'Stop listening' : 'Dictate your question'}
+            aria-pressed={voiceListening}
+            className={[
+              'p-2 rounded-lg transition-colors shrink-0',
+              voiceListening
+                ? 'bg-rose-500/15 text-rose-500'
+                : 'bg-secondary text-muted-foreground hover:text-foreground',
+            ].join(' ')}
+          >
+            {voiceListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+          </button>
+        )}
         <button
           onClick={() => handleSend()}
           disabled={thinking || !draft.trim()}

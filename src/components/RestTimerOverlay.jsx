@@ -193,6 +193,38 @@ function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundE
         </div>
       </div>
 
+      {/* HIIT / Interval presets — set the timer to standard interval
+          work/rest durations. Tabata is the most-requested one;
+          30/30 and 40/20 cover broad HIIT territory; EMOM = "every
+          minute on the minute" = 60s rest interval. */}
+      <div className="mb-4">
+        <span className="block text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground mb-2">
+          HIIT presets
+        </span>
+        <div className="grid grid-cols-2 gap-1.5">
+          {[
+            { label: 'Tabata 20s', dur: 20 },
+            { label: 'Tabata 10s', dur: 10 },
+            { label: '30 / 30',    dur: 30 },
+            { label: '40 / 20',    dur: 20 },
+            { label: 'EMOM 1:00',  dur: 60 },
+            { label: '20 / 40',    dur: 40 },
+          ].map(({ label, dur }) => (
+            <button
+              key={label}
+              onClick={() => setDefaultDuration(dur)}
+              className={`py-2 rounded-lg text-xs font-semibold transition-colors ${
+                dur === defaultDuration
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-foreground hover:bg-secondary/70'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <button
         onClick={() => setSoundEnabled(!soundEnabled)}
         className="w-full flex items-center justify-between p-2.5 rounded-lg hover:bg-secondary transition-colors"

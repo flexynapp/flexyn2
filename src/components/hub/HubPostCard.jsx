@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2 } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 
 function CrownBadge({ size = 14 }) {
@@ -587,12 +587,59 @@ export default function HubPostCard({ post, onAuthorClick = null }) {
           <motion.button
             whileTap={{ scale: 0.88 }}
             onClick={handleSaveMeal}
-            className={`ml-auto p-2 rounded-md transition-colors ${mealSaved ? 'text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            className={`p-2 rounded-md transition-colors ${mealSaved ? 'text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
             aria-label={mealSaved ? 'Remove from saved meals' : 'Save meal'}
           >
             <Bookmark className={`w-4 h-4 ${mealSaved ? 'fill-current' : ''}`} />
           </motion.button>
         )}
+
+        {/* Share — Web Share API with clipboard fallback. Drives
+            virality: every share carries the deep-link URL to the
+            author's profile + this post, surfacing the brand in the
+            recipient's chat/feed.
+            Always shown (mealPost or not) — every post is shareable. */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={async () => {
+            // Deep-link to the author's profile. We can't link directly
+            // to a single post yet (no post permalink route exists), so
+            // we route via the author's profile which is the closest
+            // permalink target.
+            const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
+            const authorEmail = post.author_email || post.created_by;
+            const url = authorEmail
+              ? `${origin}/hub?profile=${encodeURIComponent(authorEmail)}`
+              : origin;
+            const text = post.body || post.content || 'Check out this post on Flexyn';
+            const shareData = {
+              title: post.author_username ? `@${post.author_username} on Flexyn` : 'Flexyn',
+              text:  text.length > 200 ? text.slice(0, 197) + '…' : text,
+              url,
+            };
+            try {
+              if (typeof navigator.share === 'function') {
+                await navigator.share(shareData);
+                return;
+              }
+            } catch (err) {
+              if (err?.name === 'AbortError') return;
+              // fall through to clipboard
+            }
+            try {
+              await navigator.clipboard.writeText(url);
+              const { toast } = await import('sonner');
+              toast.success('Link copied');
+            } catch {
+              const { toast } = await import('sonner');
+              toast.error('Could not share — try again.');
+            }
+          }}
+          className="ml-auto p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          aria-label="Share post"
+        >
+          <Share2 className="w-4 h-4" />
+        </motion.button>
       </div>
 
       {/* ── Sticker reaction waterfall ─────────────────────────────────────── */}

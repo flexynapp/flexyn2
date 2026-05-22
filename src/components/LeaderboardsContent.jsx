@@ -210,6 +210,37 @@ export default function LeaderboardsContent({ active = true }) {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.25 }}
             >
+              {/* "Your rank: #N" sticky pill — shown when the user is
+                  on this board but below the top 3 (podium). Gives
+                  them a quick read of where they stand without
+                  scrolling to find their row in a 100-deep list. */}
+              {(() => {
+                const myRowIdx = ranked.findIndex(r => r.email === user?.email);
+                if (myRowIdx < 0) return null;
+                const myRow = ranked[myRowIdx];
+                if (myRowIdx < 3) return null; // already visible on podium
+                return (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="sticky top-0 z-10 -mx-1 mb-1"
+                  >
+                    <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-primary text-primary-foreground shadow-md">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
+                          Your rank
+                        </span>
+                        <span className="font-heading font-black text-base tabular-nums">
+                          #{myRow.rank}
+                        </span>
+                      </div>
+                      <span className="font-heading font-bold text-sm tabular-nums">
+                        {myRow._display}
+                      </span>
+                    </div>
+                  </motion.div>
+                );
+              })()}
               {ranked.map((row, idx) => {
                 const podium = PODIUM_STYLE[idx];
                 const isMe = row.email === user?.email;

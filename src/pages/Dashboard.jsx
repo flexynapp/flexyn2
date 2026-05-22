@@ -22,6 +22,9 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
+import HydrationRing from '@/components/dashboard/HydrationRing';
+import MoodLogCard from '@/components/dashboard/MoodLogCard';
+import NemesisCard from '@/components/nemesis/NemesisCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
@@ -562,6 +565,29 @@ export default function Dashboard() {
           <WorkoutMemoryCard logs={logs} />
         </ErrorBoundary>
       </div>
+
+      {/* Daily mood + hydration ring — quick-tap micro-trackers that
+          double as data sources for cross-domain correlations on the
+          Progress page (mood-vs-volume, hydration-vs-PRs, etc.). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 md:mb-6">
+        <ErrorBoundary label="MoodLogCard">
+          <MoodLogCard />
+        </ErrorBoundary>
+        <ErrorBoundary label="HydrationRing">
+          <HydrationRing />
+        </ErrorBoundary>
+      </div>
+
+      {/* Weekly nemesis snapshot — drives competitive identity on the
+          Dashboard surface (rather than only on Workout). Hidden when
+          there's no active assignment. */}
+      {user?.id && (
+        <div className="mb-5 md:mb-6">
+          <ErrorBoundary label="NemesisCard">
+            <NemesisCard currentUserId={user.id} />
+          </ErrorBoundary>
+        </div>
+      )}
 
       {/* ── Daily quote ────────────────────────────────────────── */}
       <div className="mb-5 md:mb-6">

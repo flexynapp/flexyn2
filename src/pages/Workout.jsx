@@ -60,6 +60,7 @@ import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
 import { firePRCelebration, OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
+import { detectDeloadOpportunity } from '@/lib/deloadDetector';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
@@ -598,6 +599,29 @@ export default function Workout() {
               userEmail: user?.email,
             });
           }
+
+          // Deload signal — soft suggestion when 3 consecutive weeks
+          // of working volume are >2σ above the user's prior 4-week
+          // baseline. Includes this just-saved workout's volume. The
+          // toast is informational, not blocking; we never auto-deload.
+          try {
+            const deload = detectDeloadOpportunity([clampedData, ...realPrev]);
+            if (deload?.suggest) {
+              toast(
+                tFallback(
+                  'deload.suggest',
+                  '3 weeks of high volume in a row. Consider a deload next week.'
+                ),
+                {
+                  description: tFallback(
+                    'deload.suggestDesc',
+                    'Cut working sets ~40% to bank the gains.'
+                  ),
+                  duration: 7000,
+                }
+              );
+            }
+          } catch { /* non-critical */ }
         } catch (err) {
           // Non-critical — workout save already succeeded. Log to
           // Sentry but don't surface to the user.
@@ -1965,6 +1989,7 @@ export default function Workout() {
                   onChange={(updated) => updateExercise(i, updated)}
                   userProfile={userProfile}
                   prIndex={prIndex}
+                  workoutLogs={rawLogs}
                 />
                 <div className="absolute top-3 right-3 flex items-center gap-1">
                   {!selectedRegimen && (

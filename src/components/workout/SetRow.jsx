@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, X } from 'lucide-react';
+import { Trophy, X, Flame } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -130,6 +130,24 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           <Trophy className="w-3.5 h-3.5" />
         </motion.span>
       )}
+      {/* Warmup toggle — stored on the set object as is_warmup so the
+          XP calculator / volume math can down-weight these. Visual:
+          empty flame icon = working set, filled = warmup. */}
+      <button
+        type="button"
+        onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })}
+        className={[
+          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors',
+          set.is_warmup
+            ? 'bg-orange-500/15 text-orange-500'
+            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+        ].join(' ')}
+        aria-label={set.is_warmup ? 'Mark as working set' : 'Mark as warmup'}
+        aria-pressed={!!set.is_warmup}
+        title={set.is_warmup ? 'Warmup set (lower XP)' : 'Toggle warmup'}
+      >
+        <Flame className={`w-3.5 h-3.5 ${set.is_warmup ? 'fill-orange-500' : ''}`} />
+      </button>
       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRemove}>
         <X className="w-3.5 h-3.5 text-muted-foreground" />
       </Button>

@@ -1,0 +1,71 @@
+// src/lib/data/moodLogs.js
+//
+// Wraps the public.mood_logs table (migration 096). Daily emoji-tier
+// log. One row per (user, date) via UNIQUE constraint — upsert
+// pattern matches sleepLogs.js.
+
+import { supabase } from '@/api/supabaseClient';
+import { format, subDays } from 'date-fns';
+
+const todayDateString = () => format(new Date(), 'yyyy-MM-dd');
+
+export const MOOD_EMOJIS = ['😩', '😐', '🙂', '😄', '🔥'];
+export const MOOD_LABELS = ['Awful', 'Meh', 'Okay', 'Good', 'On fire'];
+
+/**
+ * Upsert today's mood. mood is 1-5 (matches MOOD_EMOJIS index + 1).
+ */
+export async function upsertMoodLog({ mood, notes } = {}) {
+  if (typeof mood !== 'number' || mood < 1 || mood > 5) {
+    return { ok: false, reason: 'invalid_mood' };
+  }
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id || !user?.email) return { ok: false, reason: 'unauthenticated' };
+
+  const payload = {
+    user_id:    user.id,
+    user_email: user.email,
+    date:       todayDateString(),
+    mood:       Math.round(mood),
+    updated_at: new Date().toISOString(),
+  };
+  if (typeof notes === 'string') payload.notes = notes.slice(0, 280);
+
+  const { error } = await supabase
+    .from('mood_logs')
+    .upsert(payload, { onConflict: 'user_id,date' });
+  if (error) {
+    console.warn('[moodLogs] upsert failed:', error);
+    return { ok: false, reason: 'db_error' };
+  }
+  return { ok: true };
+}
+
+/** Returns today's mood log or null. */
+export async function getTodayMoodLog() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return null;
+  const { data, error } = await supabase
+    .from('mood_logs')
+    .select('date, mood, notes')
+    .eq('user_id', user.id)
+    .eq('date', todayDateString())
+    .maybeSingle();
+  if (error) return null;
+  return data ?? null;
+}
+
+/** Returns the last N days of mood logs (oldest first). */
+export async function listRecentMoodLogs(days = 30) {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return [];
+  const since = format(subDays(new Date(), days), 'yyyy-MM-dd');
+  const { data, error } = await supabase
+    .from('mood_logs')
+    .select('date, mood, notes')
+    .eq('user_id', user.id)
+    .gte('date', since)
+    .order('date', { ascending: true });
+  if (error) return [];
+  return data ?? [];
+}

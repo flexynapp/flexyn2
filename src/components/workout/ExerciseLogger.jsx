@@ -1,10 +1,11 @@
-import React, { useRef } from 'react';
+import React, { useRef, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, History } from 'lucide-react';
 import { toast } from 'sonner';
 import SetRow from './SetRow';
+import { getRecentSessionsForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -20,7 +21,14 @@ const epley1RM = (weight, reps) => {
   return weight * (1 + reps / 30);
 };
 
-export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {} }) {
+export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [] }) {
+  // Last 3 sessions' sets for this exercise. Pulled from the user's
+  // cached workout-log array — no extra query. Self-collapses to []
+  // for first-ever attempts so the hint hides gracefully.
+  const recentSessions = useMemo(
+    () => getRecentSessionsForExercise(workoutLogs, exercise.name || exercise.displayName, 3),
+    [workoutLogs, exercise.name, exercise.displayName]
+  );
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { start: startRestTimer } = useRestTimer();
@@ -82,6 +90,25 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               {muscles.map(m => (
                 <Badge key={m} variant="secondary" className="text-xs">{t(`muscleGroups.${muscleKey(m)}`)}</Badge>
               ))}
+            </div>
+          )}
+          {/* Last-session sidebar — "Last: 185×8, 185×8, 185×7".
+              Renders only when this exercise has been logged before;
+              otherwise the line hides (a "Last: (nothing)" hint would
+              be misleading). Helps the user pick a starting weight
+              without flipping between screens. */}
+          {recentSessions.length > 0 && (
+            <div className="mt-1.5 space-y-0.5">
+              {recentSessions.slice(0, 3).map((sessionSets, idx) => {
+                const line = formatSetsLine(sessionSets);
+                if (!line) return null;
+                return (
+                  <div key={idx} className="flex items-center gap-1 text-[10px] text-muted-foreground">
+                    {idx === 0 && <History className="w-3 h-3 shrink-0" aria-hidden="true" />}
+                    <span className={idx === 0 ? 'font-semibold' : 'pl-4'}>{line}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
