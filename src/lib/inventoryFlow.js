@@ -78,6 +78,12 @@ export function useBagFlow() {
   const claimCapsule = useCallback(async (wonItem) => {
     const capsuleId = openingCapsule?.id;
     setOpeningCapsule(null);
+    // Re-open the bag so the user lands back on the bag menu (where
+    // they came from) instead of falling through to whatever surface
+    // was rendered behind the opener. Without this, opening a capsule
+    // from the marketplace or any other surface forced the user to
+    // re-navigate back to the bag to open the next one.
+    setBagOpen(true);
     if (!wonItem || !user?.email) return;
     try {
       // Atomic verify-capsule + insert-inventory via the

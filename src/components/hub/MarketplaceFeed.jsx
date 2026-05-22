@@ -16,6 +16,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
+import { requestOpenBag } from '@/lib/inventoryFlow';
 import { supabase } from '@/api/supabaseClient';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
@@ -619,7 +620,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
         />
       ))}
 
-      {/* Row 1: title + coins + list button */}
+      {/* Row 1: title + coins + bag + list button */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-2">
           <ShoppingBag className="w-5 h-5 text-purple-300" />
@@ -636,6 +637,19 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
             <span className="text-base">🪙</span>
             <span className="text-gray-900 font-bold text-sm">{fmt(flexCoins)}</span>
           </div>
+          {/* My Bag — opens the bag/capsules drawer via the global
+              OPEN_BAG_EVENT. Avoids forcing the user to navigate back
+              to ProfileMenu just to open their inventory. Also drives
+              the capsule-open flow: tap → open capsule → close opener
+              → bag re-opens automatically (see inventoryFlow.js). */}
+          <button
+            onClick={requestOpenBag}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-purple-900 border border-purple-600 text-white font-bold text-sm hover:bg-purple-800 transition-colors"
+            aria-label="Open My Bag"
+          >
+            <Package className="w-4 h-4" />
+            <span>My Bag</span>
+          </button>
           <button
             onClick={onList}
             // Live count of listable items (stickers you own that aren't
