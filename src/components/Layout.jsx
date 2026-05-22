@@ -309,7 +309,7 @@ export default function Layout() {
         className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui"
         style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
       >
-        <div className="flex justify-evenly items-end">
+        <div className="flex justify-evenly items-start">
           {navItems.map((item, idx) => {
             const isActive = location.pathname === item.path;
             const isHubItem = item.isHub;
