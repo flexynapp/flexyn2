@@ -234,28 +234,10 @@ export async function performOverthrow(assignmentId) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
 
-  // Look up the dethroned nemesis's name BEFORE archiving the row — used
-  // in the celebration push body. Best-effort; if the lookup fails the
-  // push falls back to a generic body.
-  let dethronedUsername = null;
-  try {
-    const { data: assignment } = await supabase
-      .from('nemesis_assignments')
-      .select('nemesis_id')
-      .eq('id', assignmentId)
-      .maybeSingle();
-    if (assignment?.nemesis_id) {
-      const { data: prof } = await supabase
-        .from('user_profiles')
-        .select('username')
-        .eq('id', assignment.nemesis_id)
-        .maybeSingle();
-      dethronedUsername = prof?.username || null;
-    }
-  } catch {
-    // Non-critical; the overthrow itself proceeds regardless.
-  }
-
+  // Order matters: status must flip to 'overthrown' BEFORE the
+  // notification RPC fires, because the RPC checks the row's status
+  // server-side and no-ops if it's still 'active' (defensive guard
+  // against the celebration push landing prematurely).
   await supabase
     .from('nemesis_assignments')
     .update({ status: 'overthrown', overthrown_at: new Date().toISOString() })
@@ -271,29 +253,24 @@ export async function performOverthrow(assignmentId) {
     // fallback if RPC not deployed yet — no-op
   });
 
-  // Self-targeted celebration push. Overthrowing your nemesis is the
-  // emotional peak of the feature — push delivery makes it land even
-  // if the user closed the app right after the qualifying workout.
-  // The 034 trigger handles fanout; the in-app row is the source of
-  // truth for the bell tray either way. Fire-and-forget — the
-  // overthrow itself is the canonical event, this is just decoration.
+  // Self-targeted celebration push. Mig 111 RPC renders the title +
+  // body in the user's preferred_language (15 supported) and looks
+  // up the dethroned user's name server-side. Falls back to the
+  // generic "your rival" when the dethroned username is missing.
+  // The 034 trigger handles push fanout; the in-app row lands in
+  // the bell tray either way. Fire-and-forget — the overthrow itself
+  // is the canonical event, this is decoration.
   try {
-    const body = dethronedUsername
-      ? `You overthrew ${dethronedUsername}. A new rival awaits.`
-      : 'You overthrew your nemesis. A new rival awaits.';
-    await supabase.from('notifications').insert({
-      user_id:    user.id,
-      user_email: user.email,
-      type:       'nemesis_overthrown',
-      title:      'Nemesis overthrown',
-      body,
-      icon:       '👑',
-      link_url:   '/dashboard',
-      metadata: {
-        assignment_id: assignmentId,
-        dethroned_username: dethronedUsername,
-      },
+    const { error: rpcErr } = await supabase.rpc('notify_nemesis_overthrown_for', {
+      p_assignment_id: assignmentId,
     });
+    if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
+      // Pre-111 host (RPC not deployed). Skip silently — the overthrow
+      // itself still succeeded, only the celebration push is missing.
+      console.warn('[nemesis] notify_nemesis_overthrown_for unavailable:', rpcErr.code);
+    } else if (rpcErr) {
+      console.warn('[nemesis] notify_nemesis_overthrown_for failed:', rpcErr);
+    }
   } catch (e) {
     // Non-critical; in-app celebration still fires from the caller.
     console.warn('[nemesis] overthrow notification failed:', e?.message || e);

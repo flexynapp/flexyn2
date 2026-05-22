@@ -71,7 +71,7 @@ export async function createChallenge({ crewId, title, metric, targetValue, ends
 
   // Fan out per-member notifications. Best-effort — the challenge
   // itself is already persisted, this is just delivery decoration.
-  // Mig 103 RPC handles auth + dedup + i18n server-side.
+  // Mig 104 RPC handles auth + dedup + i18n server-side.
   try {
     await supabase.rpc('notify_crew_challenge_created_for', {
       p_challenge_id: data?.id,
@@ -107,7 +107,7 @@ export async function setChallengeStatus(id, status) {
 
   // Fan out a per-member celebration push when the challenge just
   // hit its goal. Expiry is intentionally silent — a "you missed
-  // your goal" push reads as scolding. Mig 103 RPC checks the
+  // your goal" push reads as scolding. Mig 104 RPC checks the
   // status server-side and no-ops if not 'completed', so a benign
   // double-call (e.g. expired then completed) doesn't push twice.
   if (status === 'completed') {
