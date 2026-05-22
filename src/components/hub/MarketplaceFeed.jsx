@@ -217,7 +217,7 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
       await inventory.setListed(selectedItem.id, true);
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      toast.success('Item listed!');
+      toast.success('Listed. Good luck.');
       handleClose();
       onSuccess?.();
     } catch (err) {
@@ -429,7 +429,7 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
         `Reply to accept or decline!`,
       ].join('\n');
       await sendMessage({ conversationId: conv.id, senderEmail: user.email, recipientEmail: listing.seller_email, body });
-      toast.success('Trade offer sent! Check your messages.');
+      toast.success('Trade offer sent — watch your messages.');
       onClose();
     } catch (err) {
       toast.error('Could not send trade offer: ' + err.message);
@@ -863,7 +863,7 @@ export default function MarketplaceFeed() {
       await inventory.setListed(listing.inventory_id, false);
       await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
       await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
-      toast.success('Listing cancelled.');
+      toast.success('Pulled it back.');
     } catch (err) {
       toast.error('Could not cancel: ' + err.message);
     }
@@ -1011,8 +1011,19 @@ export default function MarketplaceFeed() {
       ) : listings.length === 0 && recentlySold.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-gray-700" />
-          <p className="text-gray-500 font-medium">No listings yet</p>
-          <p className="text-gray-600 text-sm">Be the first to list an item!</p>
+          <p className="text-gray-300 font-bold">Marketplace is quiet</p>
+          <p className="text-gray-500 text-sm max-w-xs">
+            No one's listing right now — be the trendsetter.
+          </p>
+          {myItems.filter(i => !i.is_listed && i.item_type === 'sticker').length > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowListDialog(true)}
+              className="mt-2 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-md hover:opacity-90 transition-opacity"
+            >
+              List the first item →
+            </button>
+          )}
         </div>
       ) : (
         <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3">

@@ -441,7 +441,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       if (!result?.ok) { toast.error('Could not post story — try again.'); return; }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       cleanupPreview();
-      toast.success('Story posted!');
+      toast.success("Story's up.");
     },
     onError: () => {
       // Revoke the preview's object URL before clearing — previously this
@@ -532,7 +532,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
     if (!result) { toast.error('Could not post note — try again.'); return; }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     setNoteEditorOpen(false);
-    toast.success('Note posted!');
+    toast.success("Note's up.");
   }, [user, queryClient]);
 
   const handleNoteDelete = useCallback(async () => {
@@ -542,7 +542,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
     if (!ok) { toast.error('Could not delete note.'); return; }
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     setNoteEditorOpen(false);
-    toast.success('Note removed.');
+    toast.success('Note pulled.');
   }, [ownGroup, queryClient]);
 
   const handleQuickAdd = useCallback(async (email) => {

@@ -540,7 +540,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       await me.update({ city: cityDraft.trim() });
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
       setEditProfileOpen(false);
-      toast.success('Profile updated');
+      toast.success('Saved. Looking sharp.');
     } catch (err) {
       toast.error(err?.message || 'Could not save');
     } finally {
@@ -765,7 +765,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                         toast.error('Could not upload story');
                       } else {
                         queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
-                        toast.success('Story added!');
+                        toast.success("Story's up.");
                       }
                     }}
                   />

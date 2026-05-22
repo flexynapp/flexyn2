@@ -13,7 +13,7 @@ import DuelDetailSheet from '@/components/duels/DuelDetailSheet';
 import CreateInviteLinkModal from '@/components/duels/CreateInviteLinkModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Link as LinkIcon } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatRelativeDate } from '@/lib/formatRelativeDate';
 
 // Static config keyed by status; the visible label is resolved at render
 // time via t() so the same English fallback works for every locale.
@@ -54,7 +54,7 @@ function DuelRow({ duel, currentUserId, onClick }) {
           <span className="text-muted-foreground capitalize">{duel.type}</span>
         </p>
         <p className="text-xs text-muted-foreground">
-          {formatDistanceToNow(new Date(duel.created_at), { addSuffix: true })}
+          {formatRelativeDate(duel.created_at, { variant: 'short' })}
         </p>
       </div>
       {duel.status === 'completed' && (

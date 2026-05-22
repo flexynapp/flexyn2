@@ -223,7 +223,7 @@ export default function DebriefVault({ onClose }) {
             userEmail: user?.email,
           }));
       }
-      toast.success('Weekly summary refreshed!');
+      toast.success('Summary refreshed.');
     },
     onError: (err) => {
       // Was: silent failure. The refresh button spun forever and the

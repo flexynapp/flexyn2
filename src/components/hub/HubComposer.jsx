@@ -415,7 +415,7 @@ export default function HubComposer({ onClose }) {
           comment_count: 0,
         });
         queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
-        toast.success('Poll posted!');
+        toast.success("Poll's live.");
         onClose();
       } catch {
         toast.error(t('hub.composer.postError'));
