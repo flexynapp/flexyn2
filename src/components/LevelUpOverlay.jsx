@@ -102,7 +102,7 @@ export default function LevelUpOverlay({ event, onDismiss }) {
             <button
               aria-label={t('levelUp.skip')}
               onClick={onDismiss}
-              className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 flex items-center justify-center transition-colors text-white"
+              className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/20 hover:bg-black/35 flex items-center justify-center transition-colors text-white"
             >
               <X className="w-4 h-4" />
             </button>

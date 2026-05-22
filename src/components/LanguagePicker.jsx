@@ -119,7 +119,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
                 type="button"
                 onClick={() => handleSelect(lang.code)}
                 whileHover={{ backgroundColor: 'hsl(var(--secondary))' }}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left transition-colors"
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-start transition-colors"
               >
                 <span className="text-base">{lang.flag}</span>
                 <span className="flex-1 min-w-0">
