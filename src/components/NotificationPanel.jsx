@@ -261,7 +261,7 @@ export default function NotificationPanel({ open, onClose }) {
               }`}
             >
               {tFallback('notifications.tab.all', 'All')}
-              <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+              <span className="ms-1.5 text-[10px] text-muted-foreground/70">
                 {rows.length}
               </span>
             </button>
@@ -275,7 +275,7 @@ export default function NotificationPanel({ open, onClose }) {
               }`}
             >
               {tFallback('notifications.tab.friends', 'Friends')}
-              <span className="ml-1.5 text-[10px] text-muted-foreground/70">
+              <span className="ms-1.5 text-[10px] text-muted-foreground/70">
                 {friendsCount}
               </span>
             </button>
@@ -429,12 +429,12 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
           tabIndex={0}
           onClick={onClick}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
-          className={`group relative flex items-start gap-3 p-3 text-left bg-card transition-colors hover:bg-secondary/40 cursor-pointer ${
-            !n.is_read ? 'bg-primary/[0.04] border-l-2 border-l-primary pl-[10px]' : ''
+          className={`group relative flex items-start gap-3 p-3 text-start bg-card transition-colors hover:bg-secondary/40 cursor-pointer ${
+            !n.is_read ? 'bg-primary/[0.04] border-s-2 border-s-primary ps-[10px]' : ''
           } ${deleting ? 'opacity-50 pointer-events-none' : ''}`}
         >
           <div className="text-2xl shrink-0 mt-0.5" aria-hidden="true">{n.icon || '🔔'}</div>
-          <div className="flex-1 min-w-0 pr-8">
+          <div className="flex-1 min-w-0 pe-8">
             <p className="font-heading font-bold text-sm leading-tight">{n.title}</p>
             {n.body && (
               <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.body}</p>
@@ -442,7 +442,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
             <p className="text-[10px] text-muted-foreground/70 mt-1">{time}</p>
           </div>
           {!n.is_read && (
-            <span className="absolute top-3 right-3 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />
+            <span className="absolute top-3 end-3 w-2 h-2 rounded-full bg-primary" aria-hidden="true" />
           )}
 
           {/* Trash button — always rendered but subtle (40% on touch /
@@ -455,7 +455,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
             onKeyDown={(e) => { e.stopPropagation(); }}
             aria-label={deleteLabel}
             disabled={deleting}
-            className="absolute bottom-2 right-2 p-1.5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive focus-visible:opacity-100 group-hover:text-muted-foreground transition-colors"
+            className="absolute bottom-2 end-2 p-1.5 rounded-md text-muted-foreground/40 hover:bg-destructive/10 hover:text-destructive focus-visible:text-destructive focus-visible:opacity-100 group-hover:text-muted-foreground transition-colors"
           >
             <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
           </button>

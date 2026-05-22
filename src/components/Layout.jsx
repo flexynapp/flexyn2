@@ -81,7 +81,7 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
               Hidden when they're on the Hub route (being there clears it). */}
           {isHubItem && hubHasNewFollowingPost && !isActive && (
             <span
-              className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
+              className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
               aria-label="New posts in Hub"
             />
           )}
@@ -189,7 +189,7 @@ export default function Layout() {
   return (
     <div className="min-h-[100dvh] bg-background font-body overscroll-y-none">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border z-30">
+      <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-12 h-12 rounded-xl overflow-hidden">
@@ -231,7 +231,7 @@ export default function Layout() {
                   key={hubUnreadCount}
                   initial={{ scale: 0.5, opacity: 0 }}
                   animate={{ scale: 1, opacity: 1 }}
-                  className="absolute top-0.5 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
+                  className="absolute top-0.5 end-0.5 min-w-[16px] h-4 px-1 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
                 >
                   {hubUnreadCount > 9 ? '9+' : hubUnreadCount}
                 </motion.span>
@@ -251,7 +251,7 @@ export default function Layout() {
             >
               <ShoppingBag className="w-5 h-5" />
               {chestReady && (
-                <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-card" />
+                <span className="absolute top-0.5 end-0.5 w-2.5 h-2.5 rounded-full bg-red-500 border-2 border-card" />
               )}
             </button>
           </div>
@@ -295,7 +295,7 @@ export default function Layout() {
       </aside>
 
       {/* Main content */}
-      <main className="lg:ml-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      <main className="lg:ms-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
           <AnimatedRoutes>
