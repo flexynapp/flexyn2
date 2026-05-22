@@ -72,6 +72,7 @@ const Messages  = lazy(() => import('./pages/Messages'));
 const Market    = lazy(() => import('./pages/Market'));
 const Coach     = lazy(() => import('./pages/Coach'));
 const Notifications = lazy(() => import('./pages/Notifications'));
+const AdminReports = lazy(() => import('./pages/AdminReports'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -231,6 +232,7 @@ const AuthenticatedApp = () => {
           <Route path="/bounties"  element={<ErrorBoundary label="Bounties"><Suspense fallback={<PageLoader />}><Bounties /></Suspense></ErrorBoundary>} />
           <Route path="/gauntlet"  element={<ErrorBoundary label="Gauntlet"><Suspense fallback={<PageLoader />}><Gauntlet /></Suspense></ErrorBoundary>} />
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
+          <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>

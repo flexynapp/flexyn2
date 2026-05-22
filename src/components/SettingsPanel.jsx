@@ -10,6 +10,9 @@ import LanguagePicker from './LanguagePicker';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import BugReportDialog from './BugReportDialog';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
+import { isAppAdmin } from '@/lib/adminRoles';
+import { Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
@@ -740,6 +743,18 @@ export default function SettingsPanel() {
         <Bug className="w-3.5 h-3.5 shrink-0" />
         {t('bugReport.button')}
       </button>
+
+      {/* Moderator-only: link to the report queue. Gated by isAppAdmin() —
+          renders nothing for non-admin users so it isn't even discoverable. */}
+      {isAppAdmin(user) && (
+        <Link
+          to="/admin/reports"
+          className="flex items-center gap-2 w-full py-1.5 text-xs text-amber-500 hover:text-amber-400 transition-colors"
+        >
+          <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
+          Open report queue
+        </Link>
+      )}
 
       {/* Build hash — diagnostic signal so users (and we) can confirm which
           commit their device is actually running. Tap to copy a full
