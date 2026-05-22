@@ -9,6 +9,8 @@ import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore
 import { fireCrewWinCelebration } from '@/lib/crewWinCelebration';
 import { useAuth } from '@/lib/AuthContext';
 import { formatDistanceToNow, differenceInHours } from 'date-fns';
+import { supabase } from '@/api/supabaseClient';
+import { reportError } from '@/lib/reportError';
 
 function ScoreBar({ myScore, theirScore }) {
   const total = myScore + theirScore || 1;
@@ -75,6 +77,40 @@ function markCelebrated(userId, warId) {
   } catch { /* best-effort */ }
 }
 
+// Separate localStorage key for the SERVER-side push notification
+// dispatch. We dedup independently from the celebration so that:
+//   • A user who clears celebration history (or switches devices)
+//     doesn't re-fire pushes to every member of both crews.
+//   • If the celebration ever moves server-side, the push tracking
+//     here doesn't have to follow.
+// The notify_crew_war_resolved_for RPC fans out to ALL members of
+// BOTH crews — so the FIRST crew member to open the panel after the
+// war completes triggers the push for everyone. Subsequent viewers
+// see this localStorage flag and skip the call.
+//
+// Cross-device note: another member opening the app first will fire
+// the push. If THIS device opens first AND a second member also
+// opens before any device-sync, the RPC will be called twice and
+// every member gets two push notifications. The cost is low (a
+// duplicate "your crew won!" push) and the alternative — a
+// server-side war_status trigger — requires refactoring the RPC's
+// auth.uid() check, which is a larger change.
+const NOTIFIED_KEY = (userId) => `flexyn.notifiedCrewWars.${userId || 'anon'}`;
+function readNotified(userId) {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_KEY(userId));
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch { return new Set(); }
+}
+function markNotified(userId, warId) {
+  try {
+    const set = readNotified(userId);
+    set.add(warId);
+    const trimmed = Array.from(set).slice(-50);
+    localStorage.setItem(NOTIFIED_KEY(userId), JSON.stringify(trimmed));
+  } catch { /* best-effort */ }
+}
+
 export default function CrewWarPanel({ crewId, currentUserId }) {
   const { user } = useAuth();
   const { data: war } = useQuery({
@@ -113,6 +149,62 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
     });
     markCelebrated(user.id, war.id);
   }, [war, user?.id, user?.email, crewId, currentUserId, contributions]);
+
+  // Dispatch server-side push notifications when this user is the
+  // first member to observe a completed war. The RPC fans out to ALL
+  // members of BOTH crews (winners get a 🏆 push, losers get a
+  // good-fight 💪 push), so we only need ONE caller to fire it. The
+  // localStorage flag means subsequent panel renders on this device
+  // skip the RPC.
+  //
+  // Independent from the celebration effect above:
+  //   • Fires for BOTH winners and losers (celebration is winners only).
+  //   • Doesn't depend on contribution state.
+  //   • Tolerates RPC failure silently — push is best-effort; the
+  //     in-app notification still lands via the normal trigger if
+  //     other paths insert notification rows for this war.
+  useEffect(() => {
+    if (!war || !user?.id || !crewId) return;
+    if (war.status !== 'completed') return;
+    const alreadyNotified = readNotified(user.id).has(war.id);
+    if (alreadyNotified) return;
+
+    // Optimistically mark BEFORE the RPC. If two tabs fire the effect
+    // back-to-back, the second one sees the localStorage flag and
+    // skips. The RPC itself is idempotent at the application level
+    // (it inserts new notification rows each call), so this dedup
+    // matters — without it we'd send Nx pushes to every crew member.
+    markNotified(user.id, war.id);
+
+    (async () => {
+      try {
+        const { error } = await supabase.rpc('notify_crew_war_resolved_for', {
+          p_war_id: war.id,
+        });
+        if (error) {
+          // 42883 / 42P01 → pre-migration host (069 not applied).
+          // Silently skip; the celebration still fires for the winner.
+          if (error.code !== '42883' && error.code !== '42P01') {
+            reportError(error, {
+              feature: 'crewWars.notifyResolved',
+              level: 'warning',
+              userEmail: user.email,
+              warId: war.id,
+            });
+          }
+        }
+      } catch (err) {
+        if (err?.code !== '42883' && err?.code !== '42P01') {
+          reportError(err, {
+            feature: 'crewWars.notifyResolved.throw',
+            level: 'warning',
+            userEmail: user.email,
+            warId: war.id,
+          });
+        }
+      }
+    })();
+  }, [war, user?.id, user?.email, crewId]);
 
   if (!war) return null;
 
