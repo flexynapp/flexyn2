@@ -325,12 +325,21 @@ without giving it a distinct haptic + confetti signature.**
   per the "Don't ship machine-translated copy" rule. Affected files:
   `i18n-bug-report.js`, `i18n-hub.js`, `i18n-goals.js` and others —
   search for non-`en` blocks with fewer keys than the `en` block.
-- RTL polish: `dir="rtl"` is already wired on `<html>` for Arabic in
-  LanguageContext, but ~20 components still use hardcoded `text-left`/
-  `text-right`/`ml-`/`mr-` Tailwind classes that don't flip. Listed
-  in the audit. Each needs testing in both directions, so it's a
-  per-file cleanup as developers touch those files. Use logical
-  properties (`text-start`/`ms-`/`me-`) or `rtl:` modifier overrides.
+- RTL polish: `dir="rtl"` is wired on `<html>` for Arabic in
+  LanguageContext. The bulk audit-pass swap is complete — 22 files
+  cleaned across 6 batches (56 logical-property swaps + 4 icon-flip
+  `rtl:scale-x-[-1]` transforms). Layout chrome, notification UI,
+  Dashboard cards, Leaderboards, nutrition flows, debrief, duel
+  modals, nemesis card all use logical properties (`text-start`/
+  `ms-`/`me-`/`ps-`/`pe-`/`start-`/`end-`/`border-s`/`border-e`)
+  instead of hardcoded LTR classes. Three audit-flagged components
+  (OneShotTooltip, PullToRefresh, AdminReports) had hits that were
+  intentional symmetric positioning (centering or full-width pins)
+  and need no swap. Still pending: visual verification in RTL mode
+  on device (class swaps produce correct LAYOUT but icon orientation
+  in non-flipped components and JS animations — e.g., NotificationPanel
+  slide-in direction — still need direction-aware logic for full
+  Arabic readiness).
 - `.toLocaleString()` migration: `src/lib/intl.js` is the new util
   (`useNumberFormatter` / `useDateFormatter` / `formatNumber` /
   `formatDate`). Sites swapped so far: WeeklyRecap, StatsHubModal,
