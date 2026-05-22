@@ -14,6 +14,8 @@
 // clients still in the wild.
 
 import React from 'react';
+import StoryPollOverlay from './StoryPollOverlay';
+import StoryCountdownOverlay from './StoryCountdownOverlay';
 
 const FONT_MAP = {
   normal:  "'Inter', system-ui, sans-serif",
@@ -21,8 +23,17 @@ const FONT_MAP = {
   casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
 };
 
-function OverlayItem({ overlay }) {
+function OverlayItem({ overlay, storyId, userId, isOwn }) {
   const { kind } = overlay || {};
+  // Interactive kinds delegate to dedicated components. They handle
+  // their own positioning + pointer-events so the static-overlay
+  // path below stays simple.
+  if (kind === 'poll') {
+    return <StoryPollOverlay overlay={overlay} storyId={storyId} userId={userId} isOwn={isOwn} />;
+  }
+  if (kind === 'countdown') {
+    return <StoryCountdownOverlay overlay={overlay} />;
+  }
   const x = clamp01(overlay?.x);
   const y = clamp01(overlay?.y);
   const scale = Number.isFinite(overlay?.scale) ? overlay.scale : 1;
@@ -87,12 +98,18 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, v));
 }
 
-export default function StoryOverlayRenderer({ overlays }) {
+export default function StoryOverlayRenderer({ overlays, storyId, userId, isOwn }) {
   if (!Array.isArray(overlays) || overlays.length === 0) return null;
   return (
     <>
       {overlays.map((o, i) => (
-        <OverlayItem key={`${o?.kind || 'x'}-${i}`} overlay={o} />
+        <OverlayItem
+          key={`${o?.kind || 'x'}-${i}`}
+          overlay={o}
+          storyId={storyId}
+          userId={userId}
+          isOwn={isOwn}
+        />
       ))}
     </>
   );

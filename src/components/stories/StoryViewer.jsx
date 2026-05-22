@@ -401,13 +401,20 @@ export default function StoryViewer({
               </div>
             ) : null}
 
-            {/* ── Multi-overlay layer (emoji / text / sticker, mig 111) ──
+            {/* ── Multi-overlay layer (emoji/text/sticker/poll/countdown, mig 111+112) ──
                 Rendered above the base media and the legacy overlay_text
                 so a story can carry BOTH. Coordinates are normalized so
-                the same row renders identically at any aspect ratio. */}
+                the same row renders identically at any aspect ratio.
+                Interactive overlays (poll) re-enable pointer-events
+                on their own container. */}
             {Array.isArray(currentStory.overlays) && currentStory.overlays.length > 0 && (
               <div className="absolute inset-0 pointer-events-none">
-                <StoryOverlayRenderer overlays={currentStory.overlays} />
+                <StoryOverlayRenderer
+                  overlays={currentStory.overlays}
+                  storyId={currentStory.id}
+                  userId={user?.id}
+                  isOwn={!!currentGroup.isOwn}
+                />
               </div>
             )}
 
