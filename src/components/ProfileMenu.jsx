@@ -16,17 +16,20 @@ import LanguagePicker from './LanguagePicker';
 import { useLanguage } from '@/lib/LanguageContext';
 import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
-// DebriefVault + InjuryForm are modals that ONLY mount when the user
-// explicitly opens them from this menu — they have no reason to be in
-// the entry bundle. ProfileMenu is rendered on every authenticated
-// page, so any static dependency here is paid on first paint across
-// the whole app. Lazy-import both so the chunk only loads on demand.
-const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
-const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
-const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { isVerified } from '@/lib/verifiedUsers';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+
+// DebriefVault + InjuryForm + AchievementsVault are modals that ONLY
+// mount when the user explicitly opens them from this menu — no reason
+// to be in the entry bundle. ProfileMenu is rendered on every
+// authenticated page, so static deps here are paid on every first
+// paint. Lazy-import to keep the chunk on-demand. Declared AFTER all
+// imports so Vite's bundle init doesn't hit a TDZ on `const`s that
+// would otherwise sit between import statements.
+const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
+const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
+const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
 
 // ─── My Journal ───────────────────────────────────────────────────────────────
 const JOURNAL_KEY = (email, dateStr) => `journal_${email}_${dateStr}`;

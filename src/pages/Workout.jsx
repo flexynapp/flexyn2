@@ -16,23 +16,12 @@ import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activ
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
-// Five modals that ONLY mount on user action — lazy-load each so the
-// Workout page chunk doesn't carry their compiled bodies + transitive
-// imports on first paint. FormCoachModal in particular pulls in
-// vendor-pose / vendor-tfjs via its lazy detectorPrewarm chain; the
-// static import was preventing tree-shaking heuristics from confirming
-// "really lazy." Mirrors the DebriefVault / InjuryForm pattern in
-// ProfileMenu.
-const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
-const WorkoutGeneratorModal = lazy(() => import('@/components/workout/WorkoutGeneratorModal'));
 import WorkoutShareCard from '@/components/workout/WorkoutShareCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
-const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPhotoCapture'));
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
@@ -43,9 +32,6 @@ import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/Ex
 import GroupBlock from '@/components/workout/GroupBlock';
 import WorkoutElapsedChip from '@/components/workout/WorkoutElapsedChip';
 import InjuryBanner from '@/components/workout/InjuryBanner';
-// InjuryForm is lazy in BOTH places it mounts (ProfileMenu + here)
-// so the chunk only loads when the user actually opens the form.
-const InjuryForm = lazy(() => import('@/components/workout/InjuryForm'));
 import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
@@ -69,8 +55,6 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import * as capsules from '@/lib/data/capsules';
 import * as activity from '@/lib/data/activity';
-const PRShareCard = lazy(() => import('@/components/workout/PRShareCard'));
-const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
@@ -85,6 +69,19 @@ import * as notifications from '@/lib/data/notifications';
 import { speakWorkoutComplete } from '@/lib/audioCues';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
+
+// Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
+// init doesn't hit a TDZ when consts sit between import statements
+// (the bug that crashed /hub twice in this session). FormCoachModal
+// in particular pulls vendor-pose / vendor-tfjs through its
+// detectorPrewarm chain; static import would defeat tree-shaking.
+const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
+const WorkoutGeneratorModal = lazy(() => import('@/components/workout/WorkoutGeneratorModal'));
+const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
+const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPhotoCapture'));
+const InjuryForm           = lazy(() => import('@/components/workout/InjuryForm'));
+const PRShareCard          = lazy(() => import('@/components/workout/PRShareCard'));
+const GoalsModal           = lazy(() => import('@/components/goals/GoalsModal'));
 
 const EXERCISE_NAMES = new Set(EXERCISE_LIBRARY.map(e => e.name.toLowerCase()));
 

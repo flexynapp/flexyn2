@@ -38,18 +38,6 @@ import Layout from './components/Layout';
 // LevelUpManager registers a useQuery; lazy-loading delays the first
 // query by milliseconds. Other queries already fetch the profile, so
 // React Query dedupes and there's no data race.
-const LevelUpManager      = lazy(() => import('@/components/LevelUpManager'));
-const RestTimerOverlay    = lazy(() => import('@/components/RestTimerOverlay'));
-const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'));
-
-// Page-level code-splitting. Each route is a separate chunk so the initial
-// load only fetches the page the user is actually visiting. The main bundle
-// drops by hundreds of KB because pages no longer pull every other page's
-// dependencies into the entry chunk transitively.
-//
-// Splash + SignIn + Onboarding are eagerly imported because they're shown
-// during auth bootstrap — lazy-loading them would introduce a visible
-// loading flash during the auth flow, which is bad first-impression UX.
 import Splash from './pages/Splash';
 import Onboarding from './pages/Onboarding';
 import SignInToContinue from './pages/SignInToContinue';
@@ -61,6 +49,18 @@ import SignInToContinue from './pages/SignInToContinue';
 import DuelInviteLanding from './pages/DuelInviteLanding';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
+
+const LevelUpManager      = lazy(() => import('@/components/LevelUpManager'));
+const RestTimerOverlay    = lazy(() => import('@/components/RestTimerOverlay'));
+const ThemeAnimationLayer = lazy(() => import('@/components/ThemeAnimationLayer'));
+
+// Page-level code-splitting. Each route is a separate chunk so the initial
+// load only fetches the page the user is actually visiting. The main bundle
+// drops by hundreds of KB because pages no longer pull every other page's
+// dependencies into the entry chunk transitively.
+//
+// Splash + SignIn + Onboarding are eagerly imported above (during auth
+// bootstrap — lazy-loading them would introduce a visible loading flash).
 
 // ── @username profile redirect ────────────────────────────────────────────────
 // Resolves a username to an email, then redirects to /hub?profile=EMAIL.
