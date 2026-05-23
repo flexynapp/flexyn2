@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -22,6 +22,9 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
+import TodaysPlanCard from '@/components/dashboard/TodaysPlanCard';
+import CalorieProgressWidget from '@/components/dashboard/CalorieProgressWidget';
+import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
 import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import NemesisCard from '@/components/nemesis/NemesisCard';
@@ -172,7 +175,13 @@ function HeroCard({ streak, hasWorkedOutToday, daysSinceLast, onPrimary, t }) {
   );
 }
 
-function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false }) {
+function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false, trend = null }) {
+  // trend: positive number = up, negative = down, 0 or null = no arrow
+  const showTrend = trend !== null && trend !== 0;
+  const isUp = trend > 0;
+  const TrendIcon = isUp ? TrendingUp : TrendingDown;
+  const trendColor = isUp ? 'text-green-500' : 'text-red-400';
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 14 }}
@@ -198,6 +207,20 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false 
             <span className="text-xs text-muted-foreground font-medium">{suffix}</span>
           )}
         </div>
+        {showTrend && (
+          <div className={`flex items-center gap-0.5 mt-1.5 ${trendColor}`}>
+            <TrendIcon className="w-3 h-3" />
+            <span className="text-[10px] font-semibold">
+              {isUp ? '+' : ''}{trend} vs last wk
+            </span>
+          </div>
+        )}
+        {trend === 0 && (
+          <div className="flex items-center gap-0.5 mt-1.5 text-muted-foreground/60">
+            <Minus className="w-3 h-3" />
+            <span className="text-[10px]">same as last wk</span>
+          </div>
+        )}
       </Card>
     </motion.div>
   );
@@ -248,9 +271,24 @@ export default function Dashboard() {
   const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
 
+  // ── Rest day declaration ──────────────────────────────────────────────────
+  const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const [isRestDay, setIsRestDay] = useState(() => {
+    try { return localStorage.getItem(`flexyn.restDay.${todayKey}`) === '1'; } catch { return false; }
+  });
+  const handleDeclareRestDay = () => {
+    try { localStorage.setItem(`flexyn.restDay.${todayKey}`, '1'); } catch {}
+    setIsRestDay(true);
+  };
+  const handleUndoRestDay = () => {
+    try { localStorage.removeItem(`flexyn.restDay.${todayKey}`); } catch {}
+    setIsRestDay(false);
+  };
+
   useEffect(() => {
     if (showWelcome) {
-      const timer = setTimeout(() => setShowWelcome(false), 3500);
+      // 6 s gives slower readers time to finish the welcome-back message
+      const timer = setTimeout(() => setShowWelcome(false), 6000);
       return () => clearTimeout(timer);
     }
   }, [showWelcome]);
@@ -311,6 +349,37 @@ export default function Dashboard() {
     });
     return groups.size;
   }, [thisWeekLogs]);
+
+  // ── Last-week stats for trend arrows ──────────────────────────────────────
+  const lastWeekLogs = useMemo(
+    () => logs.filter(l => {
+      if (!l.date) return false;
+      const d = new Date(l.date);
+      return isAfter(d, subDays(new Date(), 14)) && !isAfter(d, subDays(new Date(), 7));
+    }),
+    [logs]
+  );
+
+  const lastWeekWorkoutCount = lastWeekLogs.length;
+
+  const lastWeekMuscleGroupCount = useMemo(() => {
+    const groups = new Set();
+    lastWeekLogs.forEach(log => {
+      log.exercises?.forEach(ex => {
+        if (ex.muscle_group) groups.add(ex.muscle_group);
+        if (ex.muscle_groups?.length) ex.muscle_groups.forEach(g => groups.add(g));
+      });
+    });
+    return groups.size;
+  }, [lastWeekLogs]);
+
+  // delta: positive = up, negative = down, null = no last-week data
+  const workoutTrend = lastWeekWorkoutCount > 0
+    ? thisWeekLogs.length - lastWeekWorkoutCount
+    : null;
+  const muscleTrend = lastWeekMuscleGroupCount > 0
+    ? muscleGroupCount - lastWeekMuscleGroupCount
+    : null;
 
   // Total volume this week (in user's preferred unit, lbs or kg)
   const weeklyVolume = useMemo(() => {
@@ -423,12 +492,13 @@ export default function Dashboard() {
 
       {/* "Keep your N-day streak alive — log 1 set?" — appears late in
           the day (>= 6 PM local) when the user has an active streak
-          but hasn't logged a workout/meal yet. One-tap CTA → /workout.
-          Stateless trigger logic lives in lib/data/streakRescue.js. */}
-      <StreakRescueCard
-        streakDays={streak}
-        lastWorkoutDate={lastWorkoutDate?.toISOString()}
-      />
+          but hasn't logged a workout/meal yet. Suppressed on rest days. */}
+      {!isRestDay && (
+        <StreakRescueCard
+          streakDays={streak}
+          lastWorkoutDate={lastWorkoutDate?.toISOString()}
+        />
+      )}
 
       {/* ── Stories ─────────────────────────────────────────────── */}
       <StoriesRow
@@ -486,6 +556,84 @@ export default function Dashboard() {
         />
       </div>
 
+      {/* ── Repeat Last Workout — near the top for returning users ──────
+           Highest-priority quick action: most returning users want to
+           repeat exactly what they did last. Shown before discovery
+           cards so it's always visible without scrolling. */}
+      {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
+        const last = logs[0];
+        const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
+        return (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="mb-4 md:mb-5"
+          >
+            <button
+              onClick={() => navigate('/workout', { state: { repeatLog: last } })}
+              className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
+            >
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Repeat2 className="w-4.5 h-4.5 text-primary" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Repeat last workout</p>
+                <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
+              </div>
+              <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+            </button>
+          </motion.div>
+        );
+      })()}
+
+      {/* ── Rest day declaration ─────────────────────────────────────── */}
+      {!hasWorkedOutToday && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.35, delay: 0.08 }}
+          className="mb-4 md:mb-5"
+        >
+          {isRestDay ? (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/5">
+              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400">Rest day — you earned it 🌿</p>
+                <p className="text-[11px] text-muted-foreground">Your streak is safe. Recovery is training too.</p>
+              </div>
+              <button
+                onClick={handleUndoRestDay}
+                className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
+              >
+                Undo
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleDeclareRestDay}
+              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
+            >
+              <Moon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                Mark today as a rest day
+              </span>
+            </button>
+          )}
+        </motion.div>
+      )}
+
+      {/* ── Today's scheduled plan (PPL / split inference) ──────────── */}
+      <div className="mb-4 md:mb-5">
+        <ErrorBoundary label="TodaysPlanCard">
+          <TodaysPlanCard
+            regimens={regimens}
+            logs={logs}
+            hasWorkedOutToday={hasWorkedOutToday}
+          />
+        </ErrorBoundary>
+      </div>
+
       {/* ── Discovery cards ─────────────────────────────────────
            Single-slot, prioritized: starter plan → Form Coach → AI Coach.
            Wrapped in its own ErrorBoundary so a card-level bug never
@@ -514,6 +662,7 @@ export default function Dashboard() {
           }
           delay={0.05}
           accent
+          trend={workoutTrend}
         />
         <StatTile
           icon={Zap}
@@ -532,7 +681,18 @@ export default function Dashboard() {
               : t('dashboard.stats.groupPlural')
           }
           delay={0.19}
+          trend={muscleTrend}
         />
+      </div>
+
+      {/* ── Calorie progress + Macro ring ──────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 md:mb-6">
+        <ErrorBoundary label="CalorieProgressWidget">
+          <CalorieProgressWidget userProfile={userProfile} />
+        </ErrorBoundary>
+        <ErrorBoundary label="MacroRingWidget">
+          <MacroRingWidget userProfile={userProfile} />
+        </ErrorBoundary>
       </div>
 
       {/* ── Weekly recap ────────────────────────────────────────
