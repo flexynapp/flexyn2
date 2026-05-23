@@ -1182,9 +1182,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         )}
                       </div>
                     </motion.div>
+                    </SwipeableDmMessage>
                   );
                 })()}
-                </SwipeableDmMessage>
 
                 {/* Read receipt — last sent message only */}
                 {isLastSent && !isOptimistic && (

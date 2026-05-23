@@ -30,7 +30,7 @@ export default function NotificationBell() {
   // DM unread count for combined app-badge total
   const { data: dmUnread = 0 } = useQuery({
     queryKey: ['hubUnreadCount', user?.email],
-    queryFn: () => hubMessages.unreadCount(user?.email),
+    queryFn: () => hubMessages.unreadCountFor(user?.email),
     enabled: !!user?.email,
     refetchInterval: 30_000,
     staleTime: 15_000,
