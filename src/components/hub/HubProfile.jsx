@@ -259,6 +259,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  // Highlight album viewer — opens StoryViewer with the album's items
+  // shaped as a single group. activeHighlightItems is the resolved
+  // story array; while it's loading we don't render the viewer.
+  const [activeHighlight, setActiveHighlight] = useState(null);
+  const [activeHighlightItems, setActiveHighlightItems] = useState([]);
   const [noteEditorOpen, setNoteEditorOpen] = useState(false);
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
@@ -1286,10 +1291,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         <StoryHighlightsRail
           userEmail={isSelf ? user?.email : targetUser?.email}
           isOwn={isSelf}
-          onOpenAlbum={(_h) => {
-            // TODO: open StoryViewer with this album's items.
-            // For V1, surface the album exists; viewer wiring is the
-            // next tap-tier follow-up.
+          onOpenAlbum={async (h) => {
+            // Lazy-import to keep the highlights surface out of the
+            // hub-profile entry chunk for users who never open one.
+            const { listItemsForHighlight } = await import('@/lib/data/storyHighlights');
+            const items = await listItemsForHighlight(h.id);
+            // Items come back joined with the underlying stories row;
+            // unwrap the nested `stories` and filter out any orphans
+            // (the parent story was deleted but the highlight item
+            // still points at the dangling id).
+            const stories = (items || [])
+              .map(it => it.stories)
+              .filter(Boolean);
+            if (stories.length === 0) {
+              toast.error(tFallback('highlight.empty', 'This album is empty.'));
+              return;
+            }
+            setActiveHighlight(h);
+            setActiveHighlightItems(stories);
           }}
         />
 
@@ -1451,6 +1470,32 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           user={user}
           onClose={() => setStoryViewerOpen(false)}
           onStoriesChange={() => queryClient.invalidateQueries({ queryKey: ['profileStories', email] })}
+          onAddStory={() => {}}
+        />
+      )}
+
+      {/* Highlight album viewer — same StoryViewer component, but the
+          story list comes from the chosen album rather than the
+          user's current 24-hour story window. */}
+      {activeHighlight && activeHighlightItems.length > 0 && (
+        <StoryViewer
+          open={true}
+          groups={[{
+            email,
+            username: activeHighlight.title || displayUsername || 'athlete',
+            avatarUrl,
+            storyDmsDisabled: true,
+            isOwn: isSelf,
+            stories: activeHighlightItems,
+            hasUnseen: false,
+            note: null,
+          }]}
+          startIndex={0}
+          viewedIds={new Set()}
+          likedIds={new Set()}
+          user={user}
+          onClose={() => { setActiveHighlight(null); setActiveHighlightItems([]); }}
+          onStoriesChange={() => {}}
           onAddStory={() => {}}
         />
       )}
