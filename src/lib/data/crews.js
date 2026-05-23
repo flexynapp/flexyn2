@@ -612,3 +612,65 @@ export async function getCrewStats(crewId) {
 
   return { totalVolumeLbs, topPerformer, bestPr, memberStats };
 }
+
+/**
+ * First-to-achieve leaderboard for a crew. For each achievement that any
+ * crew member has unlocked, returns the member who unlocked it earliest
+ * along with the unlock date. Ordered by most-recent earliest-unlock so
+ * the freshest "bragging rights" rise to the top.
+ *
+ * Achievement records live in Base44 (no Supabase mirror), so we fetch
+ * per-member and aggregate client-side — same O(N) pattern as
+ * `getCrewStats`. Capped at the crew's 16-member ceiling.
+ *
+ * Returns: Array<{ achievementId, member, profile, unlockedAt }>
+ */
+export async function getCrewFirstAchievers(crewId) {
+  if (!crewId) return [];
+
+  const members = await getCrewMembers(crewId);
+  if (!members.length) return [];
+
+  const userIds = members.map(m => m.user_id);
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, email, username, avatar_url')
+    .in('id', userIds);
+  const profileMap = {};
+  for (const p of (profiles ?? [])) profileMap[p.id] = p;
+
+  // Pull every unlocked achievement for every member in parallel.
+  const perMember = await Promise.all(members.map(async (m) => {
+    const profile = profileMap[m.user_id];
+    if (!profile?.email) return [];
+    try {
+      const all = await db.entities.Achievement
+        .filter({ created_by: profile.email })
+        .catch(() => []);
+      return (all || [])
+        .filter(a => a?.unlocked && a?.unlocked_date)
+        .map(a => ({
+          achievementId: a.achievement_id,
+          userId:        m.user_id,
+          profile,
+          unlockedAt:    a.unlocked_date,
+        }));
+    } catch { return []; }
+  }));
+
+  // Reduce to earliest-per-achievement.
+  const earliest = {};
+  for (const arr of perMember) {
+    for (const row of arr) {
+      const prev = earliest[row.achievementId];
+      if (!prev || row.unlockedAt < prev.unlockedAt) {
+        earliest[row.achievementId] = row;
+      }
+    }
+  }
+
+  // Sort by unlockedAt DESC so the most-recently-claimed bragging
+  // rights rise to the top — that's the most engagement-worthy view.
+  return Object.values(earliest)
+    .sort((a, b) => (b.unlockedAt > a.unlockedAt ? 1 : -1));
+}

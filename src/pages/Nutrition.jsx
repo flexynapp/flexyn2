@@ -189,7 +189,9 @@ export default function Nutrition() {
   }, [logs]);
 
   const saveMutation = useMutation({
-    mutationFn: (data) => nutritionData.create(data),
+    // Strip non-DB telemetry flags (leading underscore) so they don't
+    // trigger PostgREST strip-and-retry round-trips on save.
+    mutationFn: ({ _via_barcode: _vb, ...data } = {}) => nutritionData.create(data),
     onMutate: async (variables) => {
       if (!isWaterEntry(variables)) return;
       const qKey = ['nutritionLogs', user?.email, date];
@@ -266,6 +268,30 @@ export default function Nutrition() {
         quests.recordAction(user, ACTION_TYPES.MEAL_LOGGED, 1)
           .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
           .catch(() => {});
+
+        // Server-side achievement evaluation (meal-count milestones, log
+        // streak, barcode-scanner unlock, daily-protein-goal unlock).
+        // Fire-and-forget — a failed RPC just delays the achievement
+        // unlock, doesn't break the save.
+        try {
+          const proteinG  = Number(variables?.protein_g) || 0;
+          const proteinTarget = Number(userProfile?.daily_protein_goal_g) || 0;
+          // Check whether today's cumulative protein crosses the goal
+          // post-save. We sum from the optimistic logs (includes the
+          // entry we just added).
+          const todayProtein = (logs || []).reduce(
+            (sum, l) => sum + (Number(l.protein_g ?? l.protein) || 0), 0,
+          ) + proteinG;
+          db.functions.invoke('updateUserXpAndAchievements', {
+            xp_gained: 5,
+            action_type: 'meal_logged',
+            action_data: {
+              date,
+              viaBarcode:      !!variables?._via_barcode,
+              proteinGoalHit:  proteinTarget > 0 && todayProtein >= proteinTarget,
+            },
+          }).catch(() => {});
+        } catch { /* non-blocking */ }
       }
     },
     onError: (err, variables, context) => {
@@ -425,6 +451,7 @@ export default function Nutrition() {
       vitamin_d_iu:    v.vitamin_d_iu   ?? null,
       vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
       meal_type: mealType,
+      _via_barcode: true, // telemetry-only, stripped in mutationFn
     });
     setScannedProduct(null);
   };

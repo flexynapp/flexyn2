@@ -7,10 +7,12 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { X, BarChart3, Trophy, Dumbbell, Loader2, Users } from 'lucide-react';
+import { X, BarChart3, Trophy, Dumbbell, Loader2, Users, Award } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getCrewStats } from '@/lib/data/crews';
-import { useNumberFormatter } from '@/lib/intl';
+import { getCrewStats, getCrewFirstAchievers } from '@/lib/data/crews';
+import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
+import { useLanguage } from '@/lib/LanguageContext';
+import { getAchievementById } from '@/lib/achievementDefinitions';
 
 function StatCard({ icon, label, value, sub }) {
   return (
@@ -32,11 +34,19 @@ function StatCard({ icon, label, value, sub }) {
 
 export default function CrewStatsPanel({ crewId, onClose }) {
   const fmt = useNumberFormatter();
+  const fmtDate = useDateFormatter();
+  const { t } = useLanguage();
   const { data: stats, isLoading } = useQuery({
     queryKey: ['crewStats', crewId],
     queryFn:  () => getCrewStats(crewId),
     enabled:  !!crewId,
     staleTime: 60_000,
+  });
+  const { data: firstAchievers } = useQuery({
+    queryKey: ['crewFirstAchievers', crewId],
+    queryFn:  () => getCrewFirstAchievers(crewId),
+    enabled:  !!crewId,
+    staleTime: 5 * 60_000,
   });
 
   const fmtVolume = (lbs) => {
@@ -107,6 +117,38 @@ export default function CrewStatsPanel({ crewId, onClose }) {
               value={stats?.bestPr ? `@${prName}` : '—'}
               sub={prDesc}
             />
+
+            {/* First-to-achieve — bragging rights for who unlocked
+                each badge first within this crew. Sorted by recency
+                so freshly-claimed firsts rise to the top. */}
+            {firstAchievers && firstAchievers.length > 0 && (
+              <div className="pt-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                  <Award className="w-3 h-3 text-yellow-500" />
+                  First to Achieve
+                </p>
+                <div className="space-y-1.5">
+                  {firstAchievers.slice(0, 8).map((row) => {
+                    const def = getAchievementById(row.achievementId);
+                    const name = row.profile?.username || row.profile?.email?.split('@')[0] || '—';
+                    return (
+                      <div key={row.achievementId}
+                        className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/30">
+                        <span className="text-xl shrink-0">{def?.icon || '🏅'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-semibold text-foreground truncate">
+                            {def ? (t(def.nameKey) || def.nameKey) : row.achievementId}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            @{name} · {fmtDate(row.unlockedAt)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Per-member breakdown */}
             {stats?.memberStats?.length > 0 && (

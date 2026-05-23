@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { db } from '@/api/db';
 
 const EMPTY_INGREDIENT = { name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '' };
 
@@ -86,6 +87,16 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       });
       queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
       toast.success(editingRecipe ? 'Recipe updated.' : 'Recipe saved.');
+      // Achievement signal — only fire on first-time creation, not edits.
+      // The server-side guard re-checks the unlock state idempotently,
+      // so an extra invocation is safe but wasteful.
+      if (!editingRecipe?.id) {
+        db.functions.invoke('updateUserXpAndAchievements', {
+          xp_gained: 25,
+          action_type: 'recipe_created',
+          action_data: { name },
+        }).catch(() => {});
+      }
       onClose?.();
     } catch (err) {
       toast.error(`Couldn't save: ${err?.message || 'try again'}`);
