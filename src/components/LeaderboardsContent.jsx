@@ -25,6 +25,7 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
 import { getPeriodLeaderboard } from '@/lib/data/periodLeaderboard';
 import TapToCopy from '@/components/TapToCopy';
+import AnimatedNumber from '@/components/AnimatedNumber';
 
 const BOARDS = [
   { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        gradient: 'from-amber-400 via-orange-400 to-rose-500' },
@@ -253,7 +254,7 @@ export default function LeaderboardsContent({ active = true }) {
             <Card className="p-4 bg-primary/5 border-2 border-primary/30">
               <div className="flex items-center gap-3">
                 <div className="w-11 h-11 rounded-xl bg-primary/20 flex items-center justify-center shrink-0 font-heading font-bold text-primary">
-                  #{myRow.rank}
+                  #<AnimatedNumber value={myRow.rank} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-bold text-sm">{t('progress.you')}</p>

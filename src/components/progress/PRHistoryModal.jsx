@@ -6,6 +6,7 @@
  */
 import React, { useMemo } from 'react';
 import BottomSheet from '@/components/ui/BottomSheet';
+import TapToCopy from '@/components/TapToCopy';
 import { motion } from 'framer-motion';
 import { Trophy, Dumbbell } from 'lucide-react';
 import { format } from 'date-fns';
@@ -104,9 +105,11 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
               </div>
               <div>
                 <p className="text-xs text-muted-foreground font-medium">All-time best</p>
-                <p className="font-heading font-black text-2xl text-yellow-500">
-                  {formatWeight(allTimeBest, weightUnit)}
-                </p>
+                <TapToCopy value={`All-time PR: ${formatWeight(allTimeBest, weightUnit)}`} label="PR">
+                  <p className="font-heading font-black text-2xl text-yellow-500">
+                    {formatWeight(allTimeBest, weightUnit)}
+                  </p>
+                </TapToCopy>
               </div>
               <div className="ml-auto text-right">
                 <p className="text-xs text-muted-foreground">{prTimeline.length} PRs set</p>

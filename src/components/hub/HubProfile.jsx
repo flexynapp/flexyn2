@@ -29,6 +29,7 @@ import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
 import ProfileCompletionMeter from './ProfileCompletionMeter';
 import EmptyState from '@/components/EmptyState';
+import AnimatedNumber from '@/components/AnimatedNumber';
 import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
@@ -1180,7 +1181,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               />
             </div>
             <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>{Math.round(xpInLevel)} / {xpNeeded} XP</span>
+              <span>
+                <AnimatedNumber value={Math.round(xpInLevel)} /> / {xpNeeded} XP
+              </span>
             </div>
           </div>
         </motion.div>

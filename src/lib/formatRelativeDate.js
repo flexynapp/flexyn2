@@ -27,8 +27,6 @@
 import {
   differenceInMinutes,
   differenceInCalendarDays,
-  isToday,
-  isYesterday,
   format,
   isAfter,
 } from 'date-fns';
@@ -52,15 +50,17 @@ function inOrAgo(value, now, includeTime, locale) {
     return past ? `${m}m ago` : `in ${m}m`;
   }
 
-  // Today (calendar-day, honoring local timezone). Short variant
-  // drops the "at HH:MM" suffix for compact rows.
-  if (isToday(value)) {
+  // Today / yesterday — compare against the PASSED `now` rather than
+  // using date-fns `isToday` / `isYesterday`, which always anchor on
+  // the system clock and break unit tests that pin a fake "now."
+  const calendarDelta = differenceInCalendarDays(value, now);
+  if (calendarDelta === 0) {
     if (!includeTime) return 'Today';
     const t = format(value, 'p', { locale });
     return `Today at ${t}`;
   }
 
-  if (isYesterday(value)) {
+  if (calendarDelta === -1) {
     if (!includeTime) return 'Yesterday';
     const t = format(value, 'p', { locale });
     return `Yesterday at ${t}`;
