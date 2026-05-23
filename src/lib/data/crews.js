@@ -86,7 +86,28 @@ export async function getCrewMembers(crewId) {
     .eq('crew_id', crewId)
     .order('is_admin', { ascending: false })
     .order('joined_at',  { ascending: true });
-  return error ? [] : (data ?? []);
+  if (error || !data) return [];
+
+  // Enrich each member row with their profile (email, username,
+  // avatar_url). Without this, CrewMemberDots fell back to '?' for
+  // every member because the bare crew_members row only has user_id.
+  // Two reds question-marks were the visible symptom on the My Crews
+  // card. We do this client-side because the relational embed
+  // (crew_members → user_profiles) requires a FK Supabase doesn't
+  // always expose, and the user list per crew is bounded at 16.
+  const userIds = data.map(m => m.user_id).filter(Boolean);
+  if (userIds.length === 0) return data;
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, email, username, avatar_url')
+    .in('id', userIds);
+  const byId = new Map((profiles ?? []).map(p => [p.id, p]));
+  return data.map(m => {
+    const p = byId.get(m.user_id);
+    return p
+      ? { ...m, email: p.email, username: p.username, avatar_url: p.avatar_url }
+      : m;
+  });
 }
 
 export async function joinCrew(crewId, userId) {

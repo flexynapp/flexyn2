@@ -652,7 +652,22 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   return (
     <article
       ref={cardRef}
-      className={`border rounded-xl overflow-hidden relative ${hasDiamond ? 'border-cyan-300/80' : `bg-card border-border ${typeAccent}`}`}
+      // Two visual signals can stack on a single post:
+      //   1. typeAccent — left-edge stripe coloring the post by its category
+      //      (purple = regimen, orange = meal, etc.). Always meaningful: the
+      //      category is a property of the post itself.
+      //   2. hasDiamond glow — cyan halo around the card when at least one
+      //      viewer has reacted with the diamond sticker (rarest reaction).
+      //      Always meaningful: it's social proof for the post.
+      //
+      // Previously these collided: the hasDiamond branch dropped typeAccent
+      // entirely, so a Regimen post (purple left stripe) lost its category
+      // identity the moment someone reacted with diamond — the user reported
+      // the regimen post border vanishing into the cyan hue.
+      //
+      // Fix: keep typeAccent on the diamond branch too. The 4px left-edge
+      // stripe sits inside the 1px cyan inset boxShadow and is preserved.
+      className={`border rounded-xl overflow-hidden relative ${hasDiamond ? `border-cyan-300/80 ${typeAccent}` : `bg-card border-border ${typeAccent}`}`}
       style={hasDiamond ? {
         background: 'rgba(244,250,255,0.04)',
         boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)',

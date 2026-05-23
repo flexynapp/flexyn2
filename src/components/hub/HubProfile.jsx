@@ -1246,18 +1246,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
         {/* Stats row */}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          <Stat icon={FileText}  label={pluralize(posts.length, { one: t('hub.profile.post') || 'post', other: t('hub.profile.posts') || 'posts' }, language)} value={posts.length} />
+          <Stat icon={FileText}  label={pluralize(posts.length, { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') }, language)} value={posts.length} />
           <AnimatedStatButton
             onClick={() => setOpenModal('followers')}
             icon={UsersIcon}
             value={followers.length}
-            label={pluralize(followers.length, { one: t('hub.profile.follower') || 'follower', other: t('hub.profile.followers') || 'followers' }, language)}
+            label={pluralize(followers.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language)}
           />
           <AnimatedStatButton
             onClick={() => setOpenModal('following')}
             icon={UserIcon}
             value={following.length}
-            label={t('hub.profile.following') || 'following'}
+            label={tFallback('hub.profile.following', 'following')}
           />
         </div>
 
@@ -1859,7 +1859,7 @@ function AnimatedStatButton({ onClick, icon: Icon, value, label }) {
     return () => clearInterval(timer);
   }, [value]);
   return (
-    <button onClick={onClick} className="bg-secondary/40 rounded-lg p-2 text-center hover:bg-secondary/60 transition-colors">
+    <button onClick={onClick} className="bg-secondary/40 border border-border/60 rounded-lg p-2 text-center hover:bg-secondary/60 hover:border-border transition-colors">
       <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
       <p className="font-heading font-bold text-base">{display}</p>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
@@ -1883,7 +1883,7 @@ function Stat({ icon: Icon, label, value }) {
     return () => clearInterval(timer);
   }, [value]);
   return (
-    <div className="bg-secondary/40 rounded-lg p-2 text-center">
+    <div className="bg-secondary/40 border border-border/60 rounded-lg p-2 text-center">
       <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
       <p className="font-heading font-bold text-base">{display}</p>
       <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
