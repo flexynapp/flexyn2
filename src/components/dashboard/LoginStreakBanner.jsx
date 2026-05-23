@@ -13,6 +13,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Snowflake, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StreakFlame from '@/components/StreakFlame';
+import AnimatedNumber from '@/components/AnimatedNumber';
+import TapToCopy from '@/components/TapToCopy';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
@@ -107,18 +109,22 @@ export default function LoginStreakBanner() {
       ))}
       <div className="flex items-center gap-2 min-w-0">
         <Flame className="w-4 h-4 text-orange-500 shrink-0" />
-        <span className="text-sm">
-          <span className="font-heading font-bold tabular-nums">{streak}</span>
-          {/* Milestone flame — visually richer as the streak grows.
-              See StreakFlame for tier definitions. */}
-          <StreakFlame days={streak} size={14} className="ms-1" />
-          <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
-          {isPersonalBest && (
-            <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
-              {t('dashboard.best')}
+        <TapToCopy value={`${streak}-day login streak`} label="streak">
+          <span className="text-sm">
+            <span className="font-heading font-bold tabular-nums">
+              <AnimatedNumber value={streak} />
             </span>
-          )}
-        </span>
+            {/* Milestone flame — visually richer as the streak grows.
+                See StreakFlame for tier definitions. */}
+            <StreakFlame days={streak} size={14} className="ms-1" />
+            <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
+            {isPersonalBest && (
+              <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
+                {t('dashboard.best')}
+              </span>
+            )}
+          </span>
+        </TapToCopy>
       </div>
       {freezes > 0 && (
         <div

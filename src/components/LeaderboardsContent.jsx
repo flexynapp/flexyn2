@@ -24,6 +24,7 @@ import { formatDistance } from '@/lib/distanceUnit';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
 import { getPeriodLeaderboard } from '@/lib/data/periodLeaderboard';
+import TapToCopy from '@/components/TapToCopy';
 
 const BOARDS = [
   { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        gradient: 'from-amber-400 via-orange-400 to-rose-500' },
@@ -259,7 +260,9 @@ export default function LeaderboardsContent({ active = true }) {
                   <p className="text-xs text-muted-foreground truncate">{myRow.full_name}</p>
                 </div>
                 <div className="text-end">
-                  <p className="font-heading font-bold text-base text-primary">{myRow._display}</p>
+                  <TapToCopy value={`Rank #${myRow.rank} · ${myRow._display}`} label="rank">
+                    <p className="font-heading font-bold text-base text-primary">{myRow._display}</p>
+                  </TapToCopy>
                 </div>
               </div>
             </Card>
