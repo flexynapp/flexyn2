@@ -1,5 +1,5 @@
 // src/components/hub/HubFeed.jsx
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,10 +17,16 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import * as userMutes from '@/lib/data/userMutes';
 import * as userBlocks from '@/lib/data/userBlocks';
 import PeopleYouMayKnow from './PeopleYouMayKnow';
-import LiveSessionCard from './LiveSessionCard';
-import LiveSessionBroadcaster from './LiveSessionBroadcaster';
-import ActivityFeed from './ActivityFeed';
 import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
+
+// ── Lazy-load new components added in batch 2 ─────────────────────────────────
+// These were imported statically before and caused a Rollup TDZ crash
+// (ReferenceError: Cannot access 'oe' before initialization) in the Hub chunk.
+// Converting to lazy() moves them out of the Hub chunk's synchronous evaluation
+// sequence, eliminating the initialization-order conflict.
+const LiveSessionCard       = lazy(() => import('./LiveSessionCard'));
+const LiveSessionBroadcaster = lazy(() => import('./LiveSessionBroadcaster'));
+const ActivityFeed          = lazy(() => import('./ActivityFeed'));
 
 // ── Trending hashtags helper ──────────────────────────────────────────────────
 // Extracts #tags from all loaded posts and returns top N sorted by frequency.
@@ -282,7 +288,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   // ── Activity tab — render ActivityFeed instead of posts ──────────────────
   if (feedTab === 'activity') {
-    return <ActivityFeed />;
+    return (
+      <Suspense fallback={<div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-16 rounded-xl bg-muted animate-pulse" />)}</div>}>
+        <ActivityFeed />
+      </Suspense>
+    );
   }
 
   if (isLoading) {
@@ -358,18 +368,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       </button>
 
       {/* ── Live session cards ─────────────────────────────────────────── */}
-      {liveSessions.filter(s => s.host_email !== user?.email).map(session => (
-        <LiveSessionCard
-          key={session.id}
-          session={session}
-          onViewProfile={onAuthorClick}
-        />
-      ))}
+      <Suspense fallback={null}>
+        {liveSessions.filter(s => s.host_email !== user?.email).map(session => (
+          <LiveSessionCard
+            key={session.id}
+            session={session}
+            onViewProfile={onAuthorClick}
+          />
+        ))}
+      </Suspense>
 
       {/* ── Broadcaster overlay ─────────────────────────────────────────── */}
       <AnimatePresence>
         {broadcasterOpen && (
-          <LiveSessionBroadcaster onClose={() => setBroadcasterOpen(false)} />
+          <Suspense fallback={null}>
+            <LiveSessionBroadcaster onClose={() => setBroadcasterOpen(false)} />
+          </Suspense>
         )}
       </AnimatePresence>
 

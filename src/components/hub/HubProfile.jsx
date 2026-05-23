@@ -1,4 +1,8 @@
 // src/components/hub/HubProfile.jsx
+// NOTE: All imports are consolidated at the top before any function declarations.
+// Having code before import statements confuses Rollup's module-ordering
+// algorithm and can produce TDZ (Cannot access 'X' before initialization) errors
+// in the Hub bundle. Keep imports-first as an invariant here.
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';

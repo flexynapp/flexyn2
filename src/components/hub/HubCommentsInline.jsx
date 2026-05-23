@@ -16,7 +16,8 @@ import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
 import ReportDialog from './ReportDialog';
 import { toast } from 'sonner';
 
-// Orange 3-pronged crown badge for verified admins
+// Orange 3-pronged crown badge for verified admins — defined after all imports
+// so Rollup sees a clean import-first module boundary (avoids TDZ risk).
 function CrownBadge({ size = 14 }) {
   return (
     <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
