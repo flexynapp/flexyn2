@@ -202,7 +202,11 @@ export default function WorkoutStreakBanner() {
       ))}
       <div className="flex items-center gap-2 min-w-0">
         <Dumbbell className={`w-4 h-4 shrink-0 ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`} />
-        <TapToCopy value={`${streak}-day workout streak`} label="streak" className="text-sm inline">
+        <TapToCopy
+          value={tFallback('dashboard.workoutStreakCopy', `${streak}-day workout streak`).replace('{n}', String(streak))}
+          label="streak"
+          className="text-sm inline"
+        >
         <span className="text-sm">
           <span className="font-heading font-bold tabular-nums">
             <AnimatedNumber value={streak} />
@@ -231,7 +235,10 @@ export default function WorkoutStreakBanner() {
         </span>
       )}
       {!atRisk && (
-        <Trophy className="w-3.5 h-3.5 text-emerald-500" title={`Longest: ${longest}`} />
+        <Trophy
+          className="w-3.5 h-3.5 text-emerald-500"
+          title={tFallback('dashboard.longestStreak', `Longest: ${longest}`).replace('{n}', String(longest))}
+        />
       )}
     </motion.div>
   );

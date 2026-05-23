@@ -22,6 +22,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Loader2, Heart, Check, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as storiesData from '@/lib/data/stories';
 import * as statusNotesData from '@/lib/data/statusNotes';
@@ -78,6 +79,7 @@ function AvatarImage({ avatarUrl, username, faded }) {
 // ── Status note bubble ────────────────────────────────────────────────────────
 
 function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
+  const { tFallback } = useLanguage();
   if (!note) return null;
   return (
     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5">
@@ -102,7 +104,9 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
         <button
           onClick={e => { e.stopPropagation(); onLike(); }}
           className="flex items-center gap-0.5 mt-0.5"
-          aria-label={isLiked ? 'Unlike note' : 'Like note'}
+          aria-label={isLiked
+            ? tFallback('stories.unlikeNote', 'Unlike note')
+            : tFallback('stories.likeNote', 'Like note')}
         >
           <Heart
             className={`w-3 h-3 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground/60'}`}
@@ -122,6 +126,7 @@ function StoryAvatarButton({
   group, onPress, onNoteLike, onNoteEditOwn, isUploading, likedNoteIds,
   notePillRef, noteEditorOpen,
 }) {
+  const { tFallback } = useLanguage();
   const noStory     = group.stories.length === 0;
   const faded       = !group.isOwn && noStory && !group.note;
   const hasUnseen   = group.hasUnseen && !noStory;
@@ -144,7 +149,7 @@ function StoryAvatarButton({
       onClick={onPress}
       className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
       style={{ minWidth: 68, paddingTop: hasTopPill ? 40 : 0 }}
-      aria-label={group.isOwn ? 'Your story' : group.username}
+      aria-label={group.isOwn ? tFallback('stories.yourStory', 'Your story') : group.username}
     >
       <div className="relative w-full flex justify-center">
 
@@ -176,7 +181,7 @@ function StoryAvatarButton({
               <p className={`text-[9px] leading-tight text-center line-clamp-2 select-none ${
                 group.note ? 'text-foreground' : 'text-muted-foreground/70'
               }`}>
-                {group.note ? group.note.text : 'Add a note...'}
+                {group.note ? group.note.text : tFallback('stories.addANote', 'Add a note...')}
               </p>
               {/* Chat bubble tail — only when note exists */}
               {group.note && (
@@ -344,6 +349,7 @@ function qaIsStale(cache) {
 
 export default function StoriesRow({ onViewProfile } = {}) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const fileRef = useRef(null);
 
@@ -589,7 +595,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
               onClick={() => fileRef.current?.click()}
               className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
               style={{ minWidth: 68 }}
-              aria-label="Add a story"
+              aria-label={tFallback('stories.addAStory', 'Add a story')}
             >
               {/* Outer ring rotates; inner Plus stays stationary via counter-rotation */}
               <div className="relative w-[60px] h-[60px] flex items-center justify-center">

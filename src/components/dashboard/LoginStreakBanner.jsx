@@ -23,7 +23,7 @@ import StreakCalendarGrid from './StreakCalendarGrid';
 
 export default function LoginStreakBanner() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
 
   // Read the user's streak data
   const { data: profile } = useQuery({
@@ -139,7 +139,9 @@ export default function LoginStreakBanner() {
         type="button"
         onClick={() => setShowCalendar(v => !v)}
         className="relative z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
-        aria-label={showCalendar ? 'Hide streak calendar' : 'Show streak calendar'}
+        aria-label={showCalendar
+          ? tFallback('streakBanner.hideCalendar', 'Hide streak calendar')
+          : tFallback('streakBanner.showCalendar', 'Show streak calendar')}
         aria-expanded={showCalendar}
       >
         {showCalendar ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}

@@ -16,6 +16,7 @@ import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { startOfDay } from 'date-fns';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { useLanguage } from '@/lib/LanguageContext';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -73,6 +74,7 @@ function inferDayLabel(regimen) {
 
 export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutToday = false }) {
   const navigate = useNavigate();
+  const { tFallback } = useLanguage();
 
   const todaysPlan = useMemo(() => {
     if (!regimens.length) return null;
@@ -118,6 +120,13 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
   if (!todaysPlan) return null;
 
   const { regimen, doneToday, info } = todaysPlan;
+  // Translate the inferred day label via a slug derived from the
+  // English fallback ("Push Day" → "push-day"). Translators fill the
+  // `todaysPlan.label.*` keys in i18n part files; English-only users
+  // get the inline fallback so the surface never shows a key code.
+  const labelSlug = (info.label || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const translatedLabel = tFallback(`todaysPlan.label.${labelSlug}`, info.label);
+  const exerciseCount = regimen.exercises?.length || 0;
 
   return (
     <motion.div
@@ -136,14 +145,22 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${info.color}`}>
-                {doneToday ? 'Completed ✓' : "Today's Plan"}
+                {doneToday
+                  ? tFallback('todaysPlan.completed', 'Completed ✓')
+                  : tFallback('todaysPlan.kicker', "Today's Plan")}
               </span>
             </div>
             <p className="text-sm font-heading font-bold leading-tight mt-0.5">
-              {doneToday ? `${info.emoji} ${info.label} — done!` : `${info.emoji} ${info.label}`}
+              {doneToday
+                ? `${info.emoji} ${tFallback('todaysPlan.doneFmt', '{label} — done!').replace('{label}', translatedLabel)}`
+                : `${info.emoji} ${translatedLabel}`}
             </p>
             <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate">
-              {regimen.name}{regimen.exercises?.length ? ` · ${regimen.exercises.length} exercises` : ''}
+              {regimen.name}
+              {exerciseCount > 0 && ` · ${exerciseCount} ${tFallback(
+                exerciseCount === 1 ? 'todaysPlan.exerciseOne' : 'todaysPlan.exerciseMany',
+                exerciseCount === 1 ? 'exercise' : 'exercises'
+              )}`}
             </p>
           </div>
           {!doneToday && (

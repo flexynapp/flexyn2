@@ -142,7 +142,8 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleRemoveWidget(widgetId)}
                 className="absolute -top-2 -end-2 w-7 h-7 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
-                title="Remove widget"
+                title={t('dashboard.removeWidget') || 'Remove widget'}
+                aria-label={t('dashboard.removeWidget') || 'Remove widget'}
               >
                 <X className="w-3.5 h-3.5" />
               </motion.button>
