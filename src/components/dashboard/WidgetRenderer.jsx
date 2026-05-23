@@ -8,6 +8,7 @@ import StatsSlideshow from './StatsSlideshow';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
 
 // Exercise Trends Widget
@@ -69,7 +70,10 @@ function WeeklyVolumeWidget({ logs, isLoading }) {
     const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     
     return logs
-      ?.filter(log => new Date(log.date) >= weekAgo)
+      ?.filter(log => {
+        const d = parseLocalDate(log.date);
+        return d && d >= weekAgo;
+      })
       .reduce((sum, log) => {
         return sum + (log.exercises?.reduce((exSum, ex) => {
           return exSum + (ex.sets?.reduce((setSum, set) => {

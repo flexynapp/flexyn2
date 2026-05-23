@@ -27,11 +27,26 @@ export default function SyncStatus({ dataUpdatedAt }) {
   const [refreshing, setRefreshing] = useState(false);
 
   // Re-render every 30 seconds so the relative time stays accurate
-  // without being expensive. (1-minute granularity is plenty for a
-  // status indicator; we don't need per-second updates.)
+  // without being expensive. Visibility-gated — no point ticking a
+  // background tab's "last synced" label; refresh on visibility
+  // restore catches the user up.
   useEffect(() => {
-    const id = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(id);
+    let id = null;
+    const start = () => {
+      if (id) clearInterval(id);
+      id = setInterval(() => setNow(Date.now()), 30_000);
+    };
+    const stop = () => { if (id) { clearInterval(id); id = null; } };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') { setNow(Date.now()); start(); }
+      else stop();
+    };
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   if (!dataUpdatedAt) return null;

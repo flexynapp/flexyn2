@@ -13,6 +13,7 @@ import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
 import { translateExerciseName } from '@/lib/exerciseTranslations';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 const SLIDE_DURATION = 4000;
 
@@ -33,14 +34,18 @@ function WeeklyVolumeChart({ logs = [] }) {
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
   const data = useMemo(() => {
+    // parseLocalDate so 'YYYY-MM-DD' strings sort and format in local
+    // TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight, which can
+    // flip a workout's label to the previous day in negative-offset
+    // zones (visible in the chart axis).
     return [...logs]
-      .filter(l => l.date)
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .filter(l => parseLocalDate(l.date))
+      .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
       .slice(-8)
       .map(log => {
         const vol = (log.exercises || []).reduce((s, ex) =>
           s + (ex.sets || []).reduce((ss, set) => ss + ((set.weight || 0) * (set.reps || 0)), 0), 0);
-        return { date: format(new Date(log.date), 'MMM d', { locale: dateLocale }), volumeDisplay: fromLbs(Math.round(vol), weightUnit) };
+        return { date: format(parseLocalDate(log.date), 'MMM d', { locale: dateLocale }), volumeDisplay: fromLbs(Math.round(vol), weightUnit) };
       });
   }, [logs, dateLocale, weightUnit]);
 
@@ -87,13 +92,13 @@ function TopExerciseChart({ logs = [] }) {
     if (!top) return { exName: null, data: [] };
     const name = top[0];
     const points = [...logs]
-      .filter(l => l.date && l.exercises?.some(e => e.name === name))
-      .sort((a, b) => new Date(a.date) - new Date(b.date))
+      .filter(l => parseLocalDate(l.date) && l.exercises?.some(e => e.name === name))
+      .sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date))
       .slice(-8)
       .map(log => {
         const ex = log.exercises.find(e => e.name === name);
         const maxW = (ex?.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
-        return { date: format(new Date(log.date), 'MMM d', { locale: dateLocale }), Weight: fromLbs(maxW, weightUnit) };
+        return { date: format(parseLocalDate(log.date), 'MMM d', { locale: dateLocale }), Weight: fromLbs(maxW, weightUnit) };
       })
       .filter(d => d.Weight > 0);
     return { exName: name, data: points };
@@ -138,7 +143,10 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   // forward undefined. Same guard already added to the chart components.
   if (!Array.isArray(logs)) logs = [];
   if (!Array.isArray(goals)) goals = [];
-  const thisWeekLogs = logs.filter(l => l.date && isAfter(new Date(l.date), subDays(new Date(), 7)));
+  const thisWeekLogs = logs.filter(l => {
+    const d = parseLocalDate(l.date);
+    return d && isAfter(d, subDays(new Date(), 7));
+  });
 
   slides.push({
     id: 'week', icon: Flame, iconColor: 'text-orange-500', iconBg: 'bg-orange-500/10',
@@ -164,7 +172,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
   }
 
   const pbMap = {};
-  [...logs].sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(log => {
+  [...logs].sort((a, b) => (parseLocalDate(a.date) || 0) - (parseLocalDate(b.date) || 0)).forEach(log => {
     (log.exercises || []).forEach(ex => {
       (ex.sets || []).forEach(set => {
         if (set.weight && set.reps && (!pbMap[ex.name] || set.weight > pbMap[ex.name].weight)) {
@@ -173,7 +181,7 @@ function buildStatSlides(logs, goals, weightUnit, language) {
       });
     });
   });
-  const recentPBs = Object.entries(pbMap).sort((a, b) => new Date(b[1].date) - new Date(a[1].date)).slice(0, 1);
+  const recentPBs = Object.entries(pbMap).sort((a, b) => (parseLocalDate(b[1].date) || 0) - (parseLocalDate(a[1].date) || 0)).slice(0, 1);
   if (recentPBs.length > 0) {
     const [exName, pb] = recentPBs[0];
     slides.push({
@@ -193,11 +201,13 @@ function buildStatSlides(logs, goals, weightUnit, language) {
 
   const streak = (() => {
     if (!logs.length) return 0;
-    const sorted = [...logs].sort((a, b) => new Date(b.date) - new Date(a.date));
+    const sorted = [...logs].sort((a, b) => (parseLocalDate(b.date) || 0) - (parseLocalDate(a.date) || 0));
     let s = 0;
     let cur = new Date(); cur.setHours(0, 0, 0, 0);
     for (const log of sorted) {
-      const d = new Date(log.date); d.setHours(0, 0, 0, 0);
+      const d = parseLocalDate(log.date);
+      if (!d) continue;
+      d.setHours(0, 0, 0, 0);
       if (Math.round((cur - d) / 86400000) === s) { s++; cur = d; } else break;
     }
     return s;
@@ -251,11 +261,29 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
 
   useEffect(() => {
     if (allSlides.length < 2) return;
-    const timer = setInterval(() => {
+    // Pause auto-advance when the tab is hidden — the animation runs
+    // off-screen and burns battery otherwise. Same pattern recommended
+    // for DailyQuestsCard / SyncStatus.
+    let timer = null;
+    const tick = () => {
       setDirection(1);
       setIndex(i => (i + 1) % allSlides.length);
-    }, SLIDE_DURATION);
-    return () => clearInterval(timer);
+    };
+    const start = () => {
+      if (timer) clearInterval(timer);
+      timer = setInterval(tick, SLIDE_DURATION);
+    };
+    const stop = () => { if (timer) { clearInterval(timer); timer = null; } };
+    const onVis = () => {
+      if (document.visibilityState === 'visible') start();
+      else stop();
+    };
+    if (document.visibilityState === 'visible') start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [allSlides.length]);
 
   const slide = allSlides[Math.min(index, allSlides.length - 1)];

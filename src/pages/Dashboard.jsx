@@ -273,16 +273,26 @@ export default function Dashboard() {
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
 
   // ── Rest day declaration ──────────────────────────────────────────────────
+  // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
+  // on the same device (family shared phone, sign in/out) don't inherit
+  // each other's rest-day state. Falls back to 'anon' before auth resolves
+  // so the read on first render still works.
   const todayKey = format(new Date(), 'yyyy-MM-dd');
+  const restDayKey = `flexyn.restDay.${user?.id || 'anon'}.${todayKey}`;
   const [isRestDay, setIsRestDay] = useState(() => {
-    try { return localStorage.getItem(`flexyn.restDay.${todayKey}`) === '1'; } catch { return false; }
+    try { return localStorage.getItem(restDayKey) === '1'; } catch { return false; }
   });
+  // Re-read when the user resolves (the initial render happens with
+  // user undefined; once auth loads we want the per-user value).
+  useEffect(() => {
+    try { setIsRestDay(localStorage.getItem(restDayKey) === '1'); } catch {}
+  }, [restDayKey]);
   const handleDeclareRestDay = () => {
-    try { localStorage.setItem(`flexyn.restDay.${todayKey}`, '1'); } catch {}
+    try { localStorage.setItem(restDayKey, '1'); } catch {}
     setIsRestDay(true);
   };
   const handleUndoRestDay = () => {
-    try { localStorage.removeItem(`flexyn.restDay.${todayKey}`); } catch {}
+    try { localStorage.removeItem(restDayKey); } catch {}
     setIsRestDay(false);
   };
 
@@ -365,8 +375,16 @@ export default function Dashboard() {
 
   const today = useMemo(() => startOfDay(new Date()), []);
 
+  // parseLocalDate so a 'YYYY-MM-DD' DATE column is interpreted in the
+  // user's local TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight,
+  // which is the PREVIOUS local day for negative-offset zones — making
+  // a workout that happened on the 7-day boundary fall in or out of
+  // "this week" depending on which side of midnight UTC the user is on.
   const thisWeekLogs = useMemo(
-    () => logs.filter(l => l.date && isAfter(new Date(l.date), subDays(new Date(), 7))),
+    () => logs.filter(l => {
+      const d = parseLocalDate(l.date);
+      return d && isAfter(d, subDays(new Date(), 7));
+    }),
     [logs]
   );
 
@@ -384,8 +402,8 @@ export default function Dashboard() {
   // ── Last-week stats for trend arrows ──────────────────────────────────────
   const lastWeekLogs = useMemo(
     () => logs.filter(l => {
-      if (!l.date) return false;
-      const d = new Date(l.date);
+      const d = parseLocalDate(l.date);
+      if (!d) return false;
       return isAfter(d, subDays(new Date(), 14)) && !isAfter(d, subDays(new Date(), 7));
     }),
     [logs]
