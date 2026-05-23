@@ -1424,6 +1424,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           <DMStickerPicker
             open
             userId={user?.id}
+            userEmail={user?.email}
             onPick={handleSendSticker}
             onClose={() => setStickerPickerOpen(false)}
           />

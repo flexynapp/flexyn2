@@ -19,11 +19,18 @@ const STICKERS_BY_ID = Object.fromEntries(
   ITEMS.filter(i => i.type === 'sticker').map(s => [s.id, s])
 );
 
-export default function DMStickerPicker({ open, userId, onPick, onClose }) {
+export default function DMStickerPicker({ open, userId, userEmail, onPick, onClose }) {
   const { data: ownedRows = [] } = useQuery({
-    queryKey: ['dmStickerInventory', userId],
-    queryFn:  () => inventory.listMine(userId).catch(() => []),
-    enabled:  !!userId && open,
+    queryKey: ['dmStickerInventory', userEmail || userId],
+    // inventory.listItems(userEmail) is the real export — the old call
+    // `inventory.listMine(userId)` referenced a never-defined property.
+    // Vite's static analyzer flagged this at build time
+    // ("listMine is not exported by inventory.js"); at runtime the
+    // .catch() swallowed the TypeError so the picker just rendered
+    // empty. Pass userEmail when available, fall back to listItems
+    // returning [] when missing (the function expects an email).
+    queryFn:  () => userEmail ? inventory.listItems(userEmail).catch(() => []) : Promise.resolve([]),
+    enabled:  !!(userEmail || userId) && open,
     staleTime: 60_000,
   });
 
