@@ -139,6 +139,11 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                 {regimen.name}
               </h3>
               <PopularityBadge count={copyCount} index={index} />
+              {regimen.difficulty && (
+                <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
+                  {regimen.difficulty}
+                </Badge>
+              )}
               {isMine && (
                 <Badge variant="outline" className="text-[10px] shrink-0">Yours</Badge>
               )}
@@ -270,6 +275,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
   const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [muscleFilter, setMuscleFilter] = useState('All');
+  const [difficultyFilter, setDifficultyFilter] = useState('All');
   const chipRowRef = useRef(null);
   const searchRef = useRef(null);
 
@@ -310,7 +316,14 @@ export default function RegimenStorePage({ onBack, onPublish }) {
               );
             });
 
-        return matchSearch && matchMuscle;
+        // Difficulty filter (mig 120). NULL/unset on the regimen
+        // means "unrated" — only matches the 'All' option, never a
+        // specific bucket. Avoids silently miscategorizing legacy
+        // regimens.
+        const matchDifficulty = difficultyFilter === 'All'
+          || tmpl.difficulty === difficultyFilter;
+
+        return matchSearch && matchMuscle && matchDifficulty;
       })
       // Re-sort by download count descending after filter
       .sort((a, b) => {
@@ -318,7 +331,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
         const cb = (b.copy_count || b.clone_count || 0);
         return cb - ca;
       });
-  }, [templates, search, muscleFilter]);
+  }, [templates, search, muscleFilter, difficultyFilter]);
 
   const totalDownloads = useMemo(
     () => templates.reduce((s, t) => s + (t.copy_count || t.clone_count || 0), 0),
@@ -401,6 +414,33 @@ export default function RegimenStorePage({ onBack, onPublish }) {
               ].join(' ')}
             >
               {group}
+            </motion.button>
+          );
+        })}
+      </div>
+
+      {/* ── Difficulty filter chips (mig 120) ───────────────────────────── */}
+      <div className="flex gap-1.5 pb-2 mb-4 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+        {[
+          { id: 'All',          label: 'Any level' },
+          { id: 'beginner',     label: 'Beginner' },
+          { id: 'intermediate', label: 'Intermediate' },
+          { id: 'advanced',     label: 'Advanced' },
+        ].map(opt => {
+          const isActive = difficultyFilter === opt.id;
+          return (
+            <motion.button
+              key={opt.id}
+              whileTap={{ scale: 0.93 }}
+              onClick={() => setDifficultyFilter(opt.id)}
+              className={[
+                'shrink-0 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wide border transition-colors',
+                isActive
+                  ? 'bg-foreground/90 text-background border-foreground/90'
+                  : 'border-border/60 text-muted-foreground hover:border-primary/40 hover:text-foreground bg-card/50',
+              ].join(' ')}
+            >
+              {opt.label}
             </motion.button>
           );
         })}

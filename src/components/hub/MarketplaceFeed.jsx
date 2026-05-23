@@ -8,7 +8,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   ShoppingBag, X, Coins, Zap,
   ChevronLeft, RefreshCw, Lock,
-  ArrowUpDown, Gift, Package,
+  ArrowUpDown, Gift, Package, Heart, Star,
 } from 'lucide-react';
 import CoinShopModal from './CoinShopModal';
 import { toast } from 'sonner';
@@ -20,6 +20,7 @@ import * as inventory   from '@/lib/data/inventory';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { supabase } from '@/api/supabaseClient';
 import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
+import * as wishlist from '@/lib/data/marketplaceWishlist';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
@@ -65,13 +66,14 @@ function RarityBadge({ rarity, small = false }) {
 }
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
-function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false, soldCount = 0, onSellerClick }) {
+function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false, soldCount = 0, onSellerClick, isSaved = false, onToggleSave }) {
   const fmt = useNumberFormatter();
   const isMine      = listing.seller_email === currentUser?.email;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
   const rc          = RARITY[listing.item_rarity] ?? RARITY.common;
   const soldLabel   = itemSoldCounts.formatSoldCount(soldCount);
+  const isFeatured  = !!listing.is_featured && listing.featured_until && new Date(listing.featured_until) > new Date();
 
   return (
     <motion.div
@@ -82,9 +84,27 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
       className={[
         'flex flex-col rounded-xl border-2 bg-[#0f0f2a] p-3 gap-2 relative overflow-hidden transition-opacity',
         rc.borderClass,
+        isFeatured ? 'ring-2 ring-amber-400/70' : '',
         recentlySold ? 'pointer-events-none opacity-50' : '',
       ].join(' ')}
     >
+      {/* Featured ribbon (mig 122) */}
+      {isFeatured && (
+        <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-[9px] font-extrabold uppercase tracking-wider">
+          <Star className="w-2.5 h-2.5 fill-current" /> Featured
+        </div>
+      )}
+      {/* Heart save-for-later (mig 121) — hidden on own listings */}
+      {!isMine && !recentlySold && onToggleSave && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onToggleSave(listing.id); }}
+          aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
+          className="absolute top-2 right-2 z-20 w-7 h-7 rounded-full bg-black/55 flex items-center justify-center hover:bg-black/75 transition-colors"
+        >
+          <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white/80'}`} />
+        </button>
+      )}
       {/* Subtle rarity glow */}
       <div
         className="absolute inset-0 pointer-events-none rounded-xl"
@@ -867,6 +887,50 @@ export default function MarketplaceFeed() {
     navigate(`/hub?profile=${encodeURIComponent(email)}`);
   }, [navigate]);
 
+  // Wishlist (mig 121). Single query for the viewer's saved
+  // listing ids; toggle handler is optimistic via setQueryData so
+  // the heart fills/unfills instantly.
+  const { data: savedIds = new Set() } = useQuery({
+    queryKey: ['marketplaceWishlist', user?.id],
+    queryFn:  async () => {
+      const rows = await wishlist.listMine(user.id);
+      return new Set(rows.map(r => r.listing_id));
+    },
+    enabled:   !!user?.id,
+    staleTime: 60_000,
+  });
+  const handleToggleSave = useCallback(async (listingId) => {
+    if (!user?.id || !listingId) return;
+    const currentlySaved = savedIds.has(listingId);
+    // Optimistic update.
+    qc.setQueryData(['marketplaceWishlist', user.id], (prev) => {
+      const next = new Set(prev || []);
+      if (currentlySaved) next.delete(listingId); else next.add(listingId);
+      return next;
+    });
+    try {
+      await wishlist.toggle(user.id, listingId, currentlySaved);
+    } catch {
+      // Revert on failure.
+      qc.setQueryData(['marketplaceWishlist', user.id], (prev) => {
+        const next = new Set(prev || []);
+        if (currentlySaved) next.add(listingId); else next.delete(listingId);
+        return next;
+      });
+      toast.error('Could not update wishlist — try again.');
+    }
+  }, [user?.id, savedIds, qc]);
+
+  // Featured listings — derived from the active list (already
+  // fetched). When any exist with a future featured_until, render
+  // them in a top rail above the regular grid.
+  const featuredListings = useMemo(
+    () => listings.filter(l =>
+      l.is_featured && l.featured_until && new Date(l.featured_until) > new Date()
+    ),
+    [listings]
+  );
+
   // Detect listings that disappeared between the previous render and
   // this one — those are the just-sold (or cancelled) ones. Mark them
   // for a 5s "sold-fade" overlay, then clean them up. boughtByMe is
@@ -1084,6 +1148,38 @@ export default function MarketplaceFeed() {
           )}
         </div>
       ) : (
+        <>
+        {/* Featured this week (mig 122) — rail rendered above the main
+            grid when any listing is featured + non-expired. Quiet when
+            empty so the marketplace doesn't grow a permanent header
+            ribbon for nothing. */}
+        {featuredListings.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-400">
+                Featured this week
+              </h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              {featuredListings.map(listing => (
+                <ListingCard
+                  key={`featured-${listing.id}`}
+                  listing={listing}
+                  currentUser={user}
+                  flexCoins={flexCoins}
+                  onBuy={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setBuyTarget(l); }}
+                  onCancel={handleCancel}
+                  onOfferTrade={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); }}
+                  soldCount={soldCountMap.get(listing.item_id) || 0}
+                  onSellerClick={handleSellerClick}
+                  isSaved={savedIds.has(listing.id)}
+                  onToggleSave={handleToggleSave}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <AnimatePresence>
             {/* Live listings — wrap onBuy/onOfferTrade to record the
@@ -1100,6 +1196,8 @@ export default function MarketplaceFeed() {
                 onOfferTrade={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); }}
                 soldCount={soldCountMap.get(listing.item_id) || 0}
                 onSellerClick={handleSellerClick}
+                isSaved={savedIds.has(listing.id)}
+                onToggleSave={handleToggleSave}
               />
             ))}
             {/* Sold-fade cards — re-render the just-removed listings
@@ -1123,10 +1221,13 @@ export default function MarketplaceFeed() {
                   boughtByMe={boughtByMeIds.has(listing.id)}
                   soldCount={soldCountMap.get(listing.item_id) || 0}
                   onSellerClick={handleSellerClick}
+                  isSaved={savedIds.has(listing.id)}
+                  onToggleSave={handleToggleSave}
                 />
               ))}
           </AnimatePresence>
         </motion.div>
+        </>
       )}
 
       {/* Dialogs */}
