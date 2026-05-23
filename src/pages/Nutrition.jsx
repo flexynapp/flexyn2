@@ -27,6 +27,7 @@ import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import PortionGuide from '@/components/nutrition/PortionGuide';
+import RecipeBuilderModal from '@/components/nutrition/RecipeBuilderModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
@@ -121,6 +122,7 @@ export default function Nutrition() {
   // clock on mount so the user doesn't have to choose mid-day; can
   // be overridden via MealTypePicker.
   const [mealType, setMealType] = useState(() => autoPickMealType());
+  const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -766,7 +768,13 @@ export default function Nutrition() {
       </motion.div>
 
       {/* Nutrition Goals & Plans */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="mb-6 grid grid-cols-3 gap-2">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+          <Button onClick={() => setShowRecipeBuilder(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
+            <span className="mr-1">🥘</span>
+            <span className="truncate">Recipes</span>
+          </Button>
+        </motion.div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
           <Button onClick={openGoalsEditor} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
             <SettingsIcon className="w-4 h-4 mr-1.5 shrink-0" />
@@ -1034,6 +1042,13 @@ export default function Nutrition() {
       </motion.div>
 
       {/* Meal History Modal */}
+      <ErrorBoundary label="RecipeBuilderModal">
+        <RecipeBuilderModal
+          open={showRecipeBuilder}
+          onClose={() => setShowRecipeBuilder(false)}
+        />
+      </ErrorBoundary>
+
       <ErrorBoundary label="MealHistoryModal">
         <MealHistoryModal
           open={showMealHistory}
