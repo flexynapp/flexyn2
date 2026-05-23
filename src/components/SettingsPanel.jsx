@@ -245,6 +245,47 @@ export default function SettingsPanel() {
     }
   }, [profile?.story_dms_disabled, profile?.default_story_privacy]);
 
+  // ── Privacy mode (mig 117) ──────────────────────────────────────────
+  // is_private hides the profile content from non-followers.
+  // hide_from_search removes the account from user-search + PYMK.
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [hideFromSearch, setHideFromSearch] = useState(false);
+  useEffect(() => {
+    if (profile?.is_private !== undefined) setIsPrivate(!!profile.is_private);
+    if (profile?.hide_from_search !== undefined) setHideFromSearch(!!profile.hide_from_search);
+  }, [profile?.is_private, profile?.hide_from_search]);
+
+  const togglePrivacy = async (column, next) => {
+    const setLocal = column === 'is_private' ? setIsPrivate : setHideFromSearch;
+    const prev = column === 'is_private' ? isPrivate : hideFromSearch;
+    setLocal(next); // optimistic
+    try {
+      const { error } = await supabase.from('user_profiles').update({ [column]: next }).eq('id', user.id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+    } catch {
+      setLocal(prev);
+      toast.error('Could not update privacy. Try again.');
+    }
+  };
+
+  // ── Data export ──────────────────────────────────────────────────────
+  const [exporting, setExporting] = useState(false);
+  const handleDataExport = async () => {
+    if (exporting || !user?.id) return;
+    setExporting(true);
+    try {
+      const mod = await import('@/lib/data/dataExport');
+      const data = await mod.buildExport(user);
+      mod.downloadExport(data);
+      toast.success('Data export downloaded.');
+    } catch (err) {
+      toast.error(`Export failed: ${err?.message || 'try again'}`);
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const loadStoryBlocks = async () => {
     if (!user?.id) return;
     const blocks = await getStoryBlocks(user.id);
@@ -826,6 +867,50 @@ export default function SettingsPanel() {
           )}
         </div>
       </div>
+
+      {/* Privacy mode toggles (mig 117). Optimistic + reverting on
+          failure; both flags persist to user_profiles so the choice
+          follows the user across devices. */}
+      <div className="border-t border-border pt-3 mt-1 space-y-2">
+        <div className="flex items-center gap-2 mb-1">
+          <Lock className="w-3.5 h-3.5 text-muted-foreground" />
+          <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Privacy</h3>
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p id="settings-private-label" className="text-xs text-foreground">Private profile</p>
+            <p className="text-[10px] text-muted-foreground">Only followers see your level, workouts, and progress photos.</p>
+          </div>
+          <ToggleSwitch
+            checked={isPrivate}
+            onChange={(next) => togglePrivacy('is_private', next)}
+            labelledBy="settings-private-label"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p id="settings-hidesearch-label" className="text-xs text-foreground">Hide from search</p>
+            <p className="text-[10px] text-muted-foreground">Your account won't appear in search results or "People you may know."</p>
+          </div>
+          <ToggleSwitch
+            checked={hideFromSearch}
+            onChange={(next) => togglePrivacy('hide_from_search', next)}
+            labelledBy="settings-hidesearch-label"
+          />
+        </div>
+      </div>
+
+      {/* Download my data — one-tap export of all user-owned rows
+          across the known tables. Triggers a JSON file download. */}
+      <button
+        onClick={handleDataExport}
+        disabled={exporting}
+        className="flex items-center gap-2 w-full py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+      >
+        {exporting
+          ? <><Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" /> Preparing export…</>
+          : <><FileText className="w-3.5 h-3.5 shrink-0" /> Download my data</>}
+      </button>
 
       {/* Bug report */}
       <button
