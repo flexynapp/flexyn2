@@ -5,10 +5,10 @@
 // No new schema or queries — just visual polish over the data we
 // already cache.
 
-import React, { useMemo } from 'react';
+import React, { lazy, Suspense, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Trophy, Activity, Flame } from 'lucide-react';
+import { Trophy, Activity, Flame, Share2 } from 'lucide-react';
 import { db } from '@/api/db';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -17,7 +17,10 @@ import { useNumberFormatter } from '@/lib/intl';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import TapToCopy from '@/components/TapToCopy';
 
-export default function ProfileLiftStats({ userEmail, longestStreak }) {
+const ProfileShareCard = lazy(() => import('./ProfileShareCard'));
+
+export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, username }) {
+  const [shareOpen, setShareOpen] = useState(false);
   const { tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
@@ -135,6 +138,42 @@ export default function ProfileLiftStats({ userEmail, longestStreak }) {
             })}
           </div>
         </div>
+      )}
+
+      {/* Share-your-stats CTA — own profile only. Lazy-mounts the
+          1080×1080 canvas card on demand so the module only ships
+          when a user actually taps. */}
+      {isOwn && (
+        <button
+          type="button"
+          onClick={() => setShareOpen(true)}
+          className="mt-3 w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border bg-card hover:bg-secondary/50 transition-colors text-xs font-bold uppercase tracking-wider text-foreground"
+        >
+          <Share2 className="w-3.5 h-3.5" />
+          {tFallback('profileLifts.share', 'Share my stats')}
+        </button>
+      )}
+      {shareOpen && (
+        <Suspense fallback={null}>
+          <ProfileShareCard
+            open={shareOpen}
+            onClose={() => setShareOpen(false)}
+            profile={{
+              username,
+              topLifts: topLifts.map(l => ({
+                name: l.name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' '),
+                value: fromLbs(l.rm, weightUnit),
+              })),
+              tonnage: fromLbs(totalVolumeLbs, weightUnit),
+              streak: longestStreak || 0,
+              recentWorkouts: logs.slice(0, 3).map(l => ({
+                title: l.regimen_name || 'Workout',
+                date:  l.date ? new Date(l.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '',
+              })),
+              unit: unitSuffix,
+            }}
+          />
+        </Suspense>
       )}
     </motion.div>
   );

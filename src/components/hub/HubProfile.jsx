@@ -1320,6 +1320,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           longestStreak={isSelf
             ? user?.longest_workout_streak
             : targetUser?.longest_workout_streak}
+          isOwn={isSelf}
+          username={displayUsername}
         />
 
         {/* Recent badges showcase — visible on both own profile and
