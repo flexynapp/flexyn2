@@ -16,9 +16,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Target, Plus, Trash2, CheckCircle2, Footprints, PersonStanding,
-  Bike, Waves, Activity, TrendingUp,
+  Bike, Waves, Activity,
 } from 'lucide-react';
-import { format, startOfWeek, startOfMonth, endOfWeek, endOfMonth, parseISO } from 'date-fns';
+import { format, startOfWeek, startOfMonth, endOfWeek, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
