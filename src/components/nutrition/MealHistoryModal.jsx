@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
-import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
+import NutritionTrendsChart from './NutritionTrendsChart';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -122,6 +123,11 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
   const { user } = useAuth();
   const { t } = useLanguage();
   const fmt = useNumberFormatter();
+  // 'browse' (default — day list) vs 'trends' (7-day chart) vs
+  // 'picker' (jump to a specific date). The picker is a single
+  // <input type="date"> that scrolls the list to that day's section.
+  const [tab, setTab] = useState('browse');
+  const [pickedDate, setPickedDate] = useState('');
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
@@ -205,7 +211,28 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
             </div>
           )}
 
-          {/* List */}
+          {/* Tab row */}
+          {!isLoading && mealLogs.length > 0 && (
+            <div className="flex gap-1 px-4 pt-3 border-b border-border/60">
+              {[
+                { id: 'browse', label: 'Browse',  Icon: UtensilsCrossed },
+                { id: 'picker', label: 'Pick day', Icon: CalendarIcon },
+                { id: 'trends', label: 'Trends',  Icon: BarChart3 },
+              ].map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setTab(id)}
+                  className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold uppercase tracking-wide rounded-t-md transition-colors ${
+                    tab === id ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground'
+                  }`}
+                >
+                  <Icon className="w-3.5 h-3.5" /> {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Body */}
           <div className="flex-1 overflow-y-auto px-4 py-4">
             {isLoading ? (
               <div className="space-y-3">
@@ -220,6 +247,30 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
                 </div>
                 <p className="font-heading font-bold text-base">No meal history yet</p>
                 <p className="text-sm text-muted-foreground mt-1">Start logging meals to see your history here.</p>
+              </div>
+            ) : tab === 'trends' ? (
+              <NutritionTrendsChart entries={mealLogs} userProfile={userProfile} />
+            ) : tab === 'picker' ? (
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Jump to date
+                  </label>
+                  <input
+                    type="date"
+                    value={pickedDate}
+                    onChange={(e) => setPickedDate(e.target.value)}
+                    max={format(new Date(), 'yyyy-MM-dd')}
+                    className="w-full mt-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm outline-none focus:border-primary/50"
+                  />
+                </div>
+                {pickedDate && (() => {
+                  const found = grouped.find(([d]) => d === pickedDate);
+                  if (!found) {
+                    return <p className="text-xs text-muted-foreground text-center py-4">No entries on {pickedDate}.</p>;
+                  }
+                  return <DaySection dateStr={found[0]} entries={found[1]} />;
+                })()}
               </div>
             ) : (
               <div>
