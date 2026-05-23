@@ -250,11 +250,14 @@ export default function Workout() {
     const repeatLog = location.state?.repeatFromLog;
     if (!resumeId && !repeatLog) return;
 
-    // Resume-paused-session branch.
+    // Resume-paused-session branch. Use the hook's resumeWorkout()
+    // helper instead of re-reading localStorage directly. The legacy
+    // un-namespaced 'paused_workouts' key was migrated to
+    // 'paused_workouts.<userId>' in useWorkoutSessions, so a direct
+    // read of the old key now misses every paused session.
     if (resumeId) {
       try {
-        const stored = JSON.parse(localStorage.getItem('paused_workouts') || '[]');
-        const session = stored.find(s => s.id === resumeId);
+        const session = resumeWorkout(resumeId);
         if (!session) return;
         setActiveSessionId(session.id);
         if (session.selectedRegimen) setSelectedRegimen(session.selectedRegimen);
