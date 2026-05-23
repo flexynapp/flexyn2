@@ -218,6 +218,73 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
   );
 }
 
+// ─── Bundle Card ─────────────────────────────────────────────────────────────
+// Shows all sale-type listings in a bundle as a grouped row with discount badge.
+// The "Buy Bundle" button fires the purchase_bundle RPC.
+function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
+  const fmt = useNumberFormatter();
+  const isMine = bundle.seller_email === currentUser?.email;
+  const totalPrice = listings.reduce((sum, l) => sum + (l.asking_price ?? 0), 0);
+  const discountedPrice = Math.max(1, Math.round(totalPrice * (1 - bundle.discount_pct / 100)));
+  const savings = totalPrice - discountedPrice;
+  const canAfford = flexCoins >= discountedPrice;
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      className="col-span-full rounded-xl border-2 border-amber-400/50 bg-[#0f0f2a] p-4 gap-3 flex flex-col relative overflow-hidden"
+    >
+      {/* Bundle badge */}
+      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-wide">
+        <Package className="w-3 h-3" /> Bundle · {bundle.discount_pct}% off
+      </div>
+
+      <div>
+        <p className="font-bold text-white text-sm pr-24">{bundle.title}</p>
+        <p className="text-gray-400 text-[11px] mt-0.5">
+          by {bundle.seller_email?.split('@')[0]} · {listings.length} items
+        </p>
+      </div>
+
+      {/* Item emoji row */}
+      <div className="flex flex-wrap gap-2">
+        {listings.map(l => (
+          <div key={l.id} className="flex flex-col items-center gap-0.5">
+            <span className="text-2xl">{l.item_emoji}</span>
+            <RarityBadge rarity={l.item_rarity} small />
+          </div>
+        ))}
+      </div>
+
+      {/* Pricing */}
+      <div className="flex items-center gap-3">
+        <span className="text-gray-500 text-xs line-through">🪙 {fmt(totalPrice)}</span>
+        <span className="text-amber-300 font-bold text-base">🪙 {fmt(discountedPrice)}</span>
+        <span className="text-emerald-400 text-xs font-semibold">Save {fmt(savings)}</span>
+      </div>
+
+      {!isMine && (
+        <button
+          onClick={() => onBuyBundle(bundle, listings, discountedPrice)}
+          disabled={!canAfford}
+          className={[
+            'w-full py-2 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1.5',
+            canAfford
+              ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40 hover:bg-amber-500/30'
+              : 'bg-gray-800 text-gray-600 border border-gray-700 cursor-not-allowed',
+          ].join(' ')}
+        >
+          {!canAfford && <Lock className="w-3.5 h-3.5" />}
+          Buy bundle · 🪙 {fmt(discountedPrice)}
+        </button>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── List Item Dialog ─────────────────────────────────────────────────────────
 function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
   const { t, tFallback } = useLanguage();
@@ -870,6 +937,10 @@ export default function MarketplaceFeed() {
   const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
   const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
 
+  // Top-level view: 'browse' shows the full marketplace, 'saved' shows
+  // the viewer's wishlist only (heart-saved listings).
+  const [marketView, setMarketView] = useState('browse'); // 'browse' | 'saved'
+
   // ── Data fetching ──────────────────────────────────────────────────────────
   const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
     queryKey: ['marketplaceListings', sortBy, sortDir],
@@ -932,6 +1003,50 @@ export default function MarketplaceFeed() {
       toast.error('Could not update wishlist — try again.');
     }
   }, [user?.id, savedIds, qc]);
+
+  // Bundle deals (migration 134) — fetch active bundles and group
+  // their member listings for the special bundle card row.
+  const { data: activeBundles = [] } = useQuery({
+    queryKey: ['marketplaceBundles'],
+    queryFn: marketplace.listActiveBundles,
+    staleTime: 60_000,
+  });
+
+  // Group listings by bundle_id so BundleCard gets a pre-filtered list.
+  const bundleMap = useMemo(() => {
+    const map = new Map(); // bundleId → [listing, ...]
+    listings.forEach(l => {
+      if (!l.bundle_id) return;
+      if (!map.has(l.bundle_id)) map.set(l.bundle_id, []);
+      map.get(l.bundle_id).push(l);
+    });
+    return map;
+  }, [listings]);
+
+  // IDs already shown inside a bundle card — exclude from the regular grid.
+  const bundledListingIds = useMemo(() => {
+    const ids = new Set();
+    bundleMap.forEach(ls => ls.forEach(l => ids.add(l.id)));
+    return ids;
+  }, [bundleMap]);
+
+  const handleBuyBundle = useCallback(async (bundle, bundleListings, paidPrice) => {
+    if (!user?.id) return;
+    try {
+      const result = await marketplace.purchaseBundle(bundle.id);
+      toast.success(`Bundle purchased! 🪙 ${result.paid_price} spent. Items are yours.`);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['marketplaceBundles'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+    } catch (err) {
+      const msg = err.message?.includes('insufficient_coins')
+        ? 'Not enough coins for this bundle.'
+        : err.message?.includes('bundle_not_available')
+        ? 'This bundle is no longer available.'
+        : 'Could not purchase bundle — try again.';
+      toast.error(msg);
+    }
+  }, [user?.id, user?.email, qc]);
 
   // Featured listings — derived from the active list (already
   // fetched). When any exist with a future featured_until, render
@@ -1055,8 +1170,35 @@ export default function MarketplaceFeed() {
     }
   }, [buyTarget, user, qc]);
 
+  // In "saved" view show only the listings the viewer has wishlisted.
+  // In "browse" view, exclude listings already shown inside a bundle card.
+  const visibleListings = useMemo(() => {
+    if (marketView === 'saved') return listings.filter(l => savedIds.has(l.id));
+    return listings.filter(l => !bundledListingIds.has(l.id));
+  }, [listings, savedIds, marketView, bundledListingIds]);
+
   return (
     <div className="flex flex-col gap-4">
+      {/* Browse / Saved tab strip */}
+      <div className="flex gap-1 p-1 bg-secondary/40 rounded-xl">
+        {[
+          { id: 'browse', label: 'Browse' },
+          { id: 'saved',  label: `Saved${savedIds.size > 0 ? ` (${savedIds.size})` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setMarketView(tab.id)}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              marketView === tab.id
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {/* Feature 21: Rotating gradient header with sort controls */}
       <MarketplaceHeader
         flexCoins={flexCoins}
@@ -1143,6 +1285,20 @@ export default function MarketplaceFeed() {
           <p className="text-gray-500 font-medium">Could not load listings</p>
           <button onClick={() => refetch()} className="text-purple-400 text-sm hover:underline">Try again</button>
         </div>
+      ) : marketView === 'saved' && savedIds.size === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <Heart className="w-12 h-12 text-gray-600" />
+          <p className="text-gray-300 font-bold">No saved listings yet</p>
+          <p className="text-gray-500 text-sm max-w-xs">
+            Tap the ♥ on any listing to save it here.
+          </p>
+          <button
+            onClick={() => setMarketView('browse')}
+            className="mt-1 px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm"
+          >
+            Browse marketplace →
+          </button>
+        </div>
       ) : listings.length === 0 && recentlySold.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <ShoppingBag className="w-12 h-12 text-gray-700" />
@@ -1193,12 +1349,44 @@ export default function MarketplaceFeed() {
             </div>
           </div>
         )}
+        {/* Bundle deal rows (migration 134) — shown in browse view only.
+            Each bundle occupies the full grid width (col-span-full) and
+            lists its member items as emoji chips before the buy button.
+            Bundled items are excluded from the regular grid below. */}
+        {marketView === 'browse' && activeBundles.length > 0 && activeBundles.some(b => bundleMap.has(b.id)) && (
+          <div className="mb-4">
+            <div className="flex items-center gap-1.5 mb-2 px-1">
+              <Package className="w-3.5 h-3.5 text-amber-400" />
+              <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-400">Bundle deals</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <AnimatePresence>
+                {activeBundles
+                  .filter(b => bundleMap.has(b.id) && bundleMap.get(b.id).some(l => l.listing_type === 'sale'))
+                  .map(bundle => (
+                    <BundleCard
+                      key={bundle.id}
+                      bundle={bundle}
+                      listings={bundleMap.get(bundle.id) || []}
+                      currentUser={user}
+                      flexCoins={flexCoins}
+                      onBuyBundle={handleBuyBundle}
+                    />
+                  ))
+                }
+              </AnimatePresence>
+            </div>
+          </div>
+        )}
+
         <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <AnimatePresence>
             {/* Live listings — wrap onBuy/onOfferTrade to record the
                 tap in the recently-viewed log so the rail can show
-                them next time. */}
-            {listings.map(listing => (
+                them next time. In saved-view, visibleListings is
+                pre-filtered to only wishlist items. Bundled listings
+                are excluded (shown in the bundle section above). */}
+            {visibleListings.map(listing => (
               <ListingCard
                 key={listing.id}
                 listing={listing}

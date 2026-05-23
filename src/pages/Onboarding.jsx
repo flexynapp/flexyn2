@@ -1839,6 +1839,245 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   STEP V2-A: BODY BASELINE (optional)
+   Collects circumference measurements + body-fat % so the
+   Progress tab has a meaningful starting point. All fields are
+   optional — user can skip the whole step.
+═══════════════════════════════════════════════════════════════ */
+
+const MEASURE_FIELDS = [
+  { key: 'waistCm',   label: 'Waist',   icon: '📏', min: 40,  max: 180 },
+  { key: 'chestCm',   label: 'Chest',   icon: '💪', min: 50,  max: 200 },
+  { key: 'hipCm',     label: 'Hips',    icon: '🍑', min: 50,  max: 200 },
+  { key: 'bodyFatPct',label: 'Body fat',icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
+];
+
+function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
+  // value = { waistCm, chestCm, hipCm, bodyFatPct } — all nullable
+  // Measurements are collected in cm only (body-fat in %). Weight unit
+  // is handled separately by the weight step.
+
+  const handleField = (key, raw) => {
+    const num = raw === '' ? null : Number(raw);
+    onChange({ ...value, [key]: isNaN(num) ? null : num });
+  };
+
+  const hasAny = MEASURE_FIELDS.some(f => value[f.key] != null && value[f.key] !== '');
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+        <KineticHeading
+          kicker="Body baseline · optional"
+          text="Starting numbers for your progress graphs."
+          accentWord="progress"
+        />
+        <p className="text-sm text-muted-foreground mt-1 mb-5">
+          All optional. Stored encrypted, never shared. You can add these later in Progress too.
+        </p>
+
+        <div className="space-y-3">
+          {MEASURE_FIELDS.map((f, i) => (
+            <motion.div
+              key={f.key}
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.06, ease: [0.16, 1, 0.3, 1], duration: 0.4 }}
+              className="rounded-2xl border border-border bg-card p-4 flex items-center gap-4"
+            >
+              <span className="text-2xl w-8 shrink-0">{f.icon}</span>
+              <div className="flex-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  {f.label}
+                  {!f.isPercent && <span className="font-normal normal-case"> (cm)</span>}
+                  {f.isPercent && <span className="font-normal normal-case"> (%)</span>}
+                </p>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min={f.min}
+                  max={f.max}
+                  step={f.isPercent ? '0.1' : '1'}
+                  placeholder={f.isPercent ? 'e.g. 18' : 'e.g. 80'}
+                  value={value[f.key] ?? ''}
+                  onChange={e => handleField(f.key, e.target.value)}
+                  className="w-full h-10 rounded-xl border border-border bg-secondary/50 px-3 font-mono text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
+                />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
+      <div className="pb-2 pt-2 space-y-2 shrink-0">
+        <PrimaryBtn onClick={onNext}>
+          {hasAny ? 'Save & continue' : 'Continue'}
+        </PrimaryBtn>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Skip for now
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP V2-B: INJURY HISTORY (optional)
+   Quick injury log so the starter regimen can exclude affected
+   muscle groups from day one. Mirrors the InjuryForm flow but
+   stripped to the minimum: muscle group + severity chips, no
+   dates, max 5 entries.
+═══════════════════════════════════════════════════════════════ */
+
+const OB_MUSCLES = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
+const OB_SEVERITIES = [
+  { id: 'mild',     label: 'Mild',     color: 'text-yellow-400 border-yellow-400/40 bg-yellow-400/10' },
+  { id: 'moderate', label: 'Moderate', color: 'text-orange-400 border-orange-400/40 bg-orange-400/10' },
+  { id: 'serious',  label: 'Serious',  color: 'text-red-400 border-red-400/40 bg-red-400/10' },
+];
+
+function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSkip }) {
+  // value = [{ muscleGroup, severity }]
+  const [pendingMuscle, setPendingMuscle] = useState('');
+  const [pendingSeverity, setPendingSeverity] = useState('mild');
+
+  const addEntry = () => {
+    if (!pendingMuscle) return;
+    if (value.length >= 5) return;
+    onChange([...value, { muscleGroup: pendingMuscle, severity: pendingSeverity }]);
+    setPendingMuscle('');
+    setPendingSeverity('mild');
+  };
+
+  const remove = (idx) => onChange(value.filter((_, i) => i !== idx));
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+        <KineticHeading
+          kicker="Any injuries? · optional"
+          text="We'll work around them from day one."
+          accentWord="around"
+        />
+        <p className="text-sm text-muted-foreground mt-1 mb-5">
+          We exclude affected areas from your starter plan. Skip if you're all good.
+        </p>
+
+        {/* Logged injuries */}
+        {value.length > 0 && (
+          <div className="space-y-2 mb-4">
+            {value.map((inj, i) => {
+              const sev = OB_SEVERITIES.find(s => s.id === inj.severity) || OB_SEVERITIES[0];
+              return (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="flex items-center justify-between rounded-xl border border-border bg-card px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold">{inj.muscleGroup}</span>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full border ${sev.color}`}>
+                      {sev.label}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => remove(i)}
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1 leading-none text-lg"
+                    aria-label="Remove"
+                  >
+                    ×
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Add form */}
+        {value.length < 5 && (
+          <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Muscle group</p>
+              <div className="flex flex-wrap gap-1.5">
+                {OB_MUSCLES.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setPendingMuscle(p => p === m ? '' : m)}
+                    className={[
+                      'px-2.5 py-1 rounded-full text-xs font-semibold border transition-all',
+                      pendingMuscle === m
+                        ? 'bg-primary text-primary-foreground border-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                    ].join(' ')}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Severity</p>
+              <div className="flex gap-2">
+                {OB_SEVERITIES.map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setPendingSeverity(s.id)}
+                    className={[
+                      'flex-1 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+                      pendingSeverity === s.id ? s.color : 'border-border text-muted-foreground',
+                    ].join(' ')}
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={addEntry}
+              disabled={!pendingMuscle}
+              className={[
+                'w-full py-2 rounded-xl text-sm font-bold border transition-all',
+                pendingMuscle
+                  ? 'bg-secondary text-foreground border-border hover:border-primary/40'
+                  : 'bg-secondary/40 text-muted-foreground/50 border-border/40 cursor-not-allowed',
+              ].join(' ')}
+            >
+              + Add injury
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="pb-2 pt-2 space-y-2 shrink-0">
+        <PrimaryBtn onClick={onNext}>
+          {value.length > 0 ? `Continue · ${value.length} logged` : 'Continue'}
+        </PrimaryBtn>
+        <button
+          type="button"
+          onClick={onSkip}
+          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Skip — no injuries
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    STEP 6: LOADING
 ═══════════════════════════════════════════════════════════════ */
 
@@ -2010,22 +2249,24 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
    MAIN ONBOARDING ORCHESTRATOR
 ═══════════════════════════════════════════════════════════════ */
 
-const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'days', 'assessment', 'loading', 'reveal'];
-const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'days', 'assessment'];
+const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history', 'loading', 'reveal'];
+const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
 // Per-step theatrical transition flavors — variety = wow factor
 const STEP_TRANSITIONS = {
-  welcome:    null,                                // first step, no entry needed
-  goal:       'curtain',
-  experience: 'tilt',
-  age:        'fwd',
-  height:     'flip',
-  weight:     'tilt',
-  days:       'curtain',
-  assessment: 'fwd',
-  loading:    'flash',
-  reveal:     'iris',
+  welcome:       null,
+  goal:          'curtain',
+  experience:    'tilt',
+  age:           'fwd',
+  height:        'flip',
+  weight:        'tilt',
+  body_baseline: 'flip',
+  days:          'curtain',
+  assessment:    'fwd',
+  injury_history:'tilt',
+  loading:       'flash',
+  reveal:        'iris',
 };
 
 function buildVariants(flavor, direction) {
@@ -2105,6 +2346,9 @@ export default function Onboarding() {
     // 4-question lift-estimate assessment. Optional — empty object
     // means "skipped." See `assessment` step + buildStarterRegimen.
     assessment: {},
+    // V2 optional steps — all nullable/empty means step was skipped
+    bodyBaseline: { waistCm: null, chestCm: null, hipCm: null, bodyFatPct: null },
+    onboardingInjuries: [], // [{ muscleGroup, severity }]
   };
 
   const [data, setData] = useState(() => {
@@ -2118,6 +2362,8 @@ export default function Onboarding() {
         ...DEFAULT_DATA,
         ...parsed,
         stats: { ...DEFAULT_DATA.stats, ...(parsed.stats || {}) },
+        bodyBaseline: { ...DEFAULT_DATA.bodyBaseline, ...(parsed.bodyBaseline || {}) },
+        onboardingInjuries: Array.isArray(parsed.onboardingInjuries) ? parsed.onboardingInjuries : [],
       };
     } catch {
       return DEFAULT_DATA;
@@ -2305,6 +2551,41 @@ export default function Onboarding() {
       }).catch(err => {
         reportError(err, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
       });
+
+      // Save body baseline measurements (migration 133) — fire-and-forget.
+      const bb = data.bodyBaseline || {};
+      const hasMeasurements = Object.values(bb).some(v => v != null && v !== '');
+      if (user?.id && hasMeasurements) {
+        supabase.from('body_metrics').insert({
+          created_by: user.email,
+          user_id:    user.id,
+          date:       new Date().toISOString().split('T')[0],
+          weight_lbs: s.weightUnit === 'lb' ? s.weightLb : Math.round(s.weightKg / 0.453592),
+          body_fat_pct: bb.bodyFatPct ?? null,
+          waist_cm:   bb.waistCm   ?? null,
+          chest_cm:   bb.chestCm   ?? null,
+          hip_cm:     bb.hipCm     ?? null,
+        }).then(() => {}).catch(err => {
+          reportError(err, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
+        });
+      }
+
+      // Save onboarding injuries — fire-and-forget (each is idempotent on retry).
+      if (user?.id && user?.email && Array.isArray(data.onboardingInjuries) && data.onboardingInjuries.length > 0) {
+        const injuryRows = data.onboardingInjuries.map(inj => ({
+          user_id:    user.id,
+          user_email: user.email,
+          muscle_group: inj.muscleGroup,
+          severity:     inj.severity,
+          notes:        'Logged during onboarding',
+          injured_at:   new Date().toISOString().split('T')[0],
+          status:       'active',
+        }));
+        supabase.from('injury_logs').insert(injuryRows).then(() => {}).catch(err => {
+          reportError(err, { feature: 'onboarding.injury-history', level: 'warning', userEmail: user?.email });
+        });
+      }
+
       saved = true;
     } catch (err) {
       // Full save failed — try the minimal fallback below. This is a
@@ -2492,6 +2773,15 @@ export default function Onboarding() {
                   onNext={next} onBack={back} />
               )}
 
+              {stepName === 'body_baseline' && (
+                <BodyBaselineStep
+                  step={formStep} total={TOTAL_FORM}
+                  value={data.bodyBaseline}
+                  onChange={v => setData(d => ({ ...d, bodyBaseline: v }))}
+                  onNext={next} onBack={back} onSkip={next}
+                />
+              )}
+
               {stepName === 'days' && (
                 <DaysStep step={formStep} total={TOTAL_FORM}
                   days={data.days} preferredTime={data.preferredTime}
@@ -2508,6 +2798,15 @@ export default function Onboarding() {
                   onChange={v => setData(d => ({ ...d, assessment: v }))}
                   onNext={next}
                   onBack={back}
+                />
+              )}
+
+              {stepName === 'injury_history' && (
+                <InjuryHistoryStep
+                  step={formStep} total={TOTAL_FORM}
+                  value={data.onboardingInjuries}
+                  onChange={v => setData(d => ({ ...d, onboardingInjuries: v }))}
+                  onNext={next} onBack={back} onSkip={next}
                 />
               )}
 

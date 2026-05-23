@@ -23,6 +23,7 @@ import { compressImage } from '@/lib/imageCompress';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
 import DuelInviteCard, { parseDuelInvite } from '@/components/duels/DuelInviteCard';
+import { useSwipeToDelete } from '@/hooks/useSwipeToDelete';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
 const msgTime = (m) => m?.created_date || m?.created_at || null;
@@ -117,6 +118,28 @@ function renderBodyWithHighlights(text, query) {
           : <span key={idx}>{seg.text}</span>
       )}
     </span>
+  );
+}
+
+// Wraps a single DM message row with swipe-to-delete. Only fires
+// onDelete when the message is the user's own (non-optimistic) message.
+function SwipeableDmMessage({ children, isMine, isOptimistic, onDelete }) {
+  const swipe = useSwipeToDelete({
+    onDelete,
+    enabled: isMine && !isOptimistic,
+  });
+  if (!isMine || isOptimistic) return children;
+  return (
+    <div {...swipe.containerProps}>
+      {/* Delete affordance — slides in from the right as user drags left */}
+      <div
+        style={swipe.actionStyle}
+        className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide"
+      >
+        🗑️ Delete
+      </div>
+      <div {...swipe.contentProps}>{children}</div>
+    </div>
   );
 }
 
@@ -988,6 +1011,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   const msgIsPinned = isPinned(m);
 
                   return (
+                    <SwipeableDmMessage
+                      key={`swipe-${m.id}`}
+                      isMine={isMine}
+                      isOptimistic={isOptimistic}
+                      onDelete={() => handleDeleteMessage(m)}
+                    >
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1155,6 +1184,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                     </motion.div>
                   );
                 })()}
+                </SwipeableDmMessage>
 
                 {/* Read receipt — last sent message only */}
                 {isLastSent && !isOptimistic && (

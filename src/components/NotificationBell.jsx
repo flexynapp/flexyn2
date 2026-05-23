@@ -3,13 +3,14 @@
 // Lives in the global Header. Shows the unread count as a small red badge
 // and opens the NotificationPanel on tap. Polls every 30 s in the background.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Bell } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as notifications from '@/lib/data/notifications';
+import * as hubMessages from '@/lib/data/hubMessages';
 import NotificationPanel from './NotificationPanel';
 
 export default function NotificationBell() {
@@ -25,6 +26,29 @@ export default function NotificationBell() {
     refetchInterval: 30_000,
     staleTime: 15_000,
   });
+
+  // DM unread count for combined app-badge total
+  const { data: dmUnread = 0 } = useQuery({
+    queryKey: ['hubUnreadCount', user?.email],
+    queryFn: () => hubMessages.unreadCount(user?.email),
+    enabled: !!user?.email,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  // App icon badge (PWA Badging API). Combines notification + DM unread
+  // counts so the home-screen icon reflects the full "attention needed"
+  // total. Clears to 0 when both counts drop to zero. Gracefully no-ops
+  // on browsers that don't support the API (iOS Safari < 16.4, desktop).
+  const totalBadge = count + dmUnread;
+  useEffect(() => {
+    if (!('setAppBadge' in navigator)) return;
+    if (totalBadge > 0) {
+      navigator.setAppBadge(totalBadge).catch(() => {});
+    } else {
+      navigator.clearAppBadge?.().catch(() => {});
+    }
+  }, [totalBadge]);
 
   const handleOpen = () => {
     setOpen(true);

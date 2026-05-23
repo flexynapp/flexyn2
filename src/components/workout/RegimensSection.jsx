@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Plus, Pencil, Trash2, Dumbbell, Eye, ChevronUp, LayoutTemplate, Globe, Lock, Send } from 'lucide-react';
+import { Plus, Pencil, Trash2, Dumbbell, Eye, ChevronUp, LayoutTemplate, Globe, Lock, Send, Zap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -167,6 +167,27 @@ export default function RegimensSection({ onStartRegimen }) {
     );
   };
 
+  // is_active toggle — marks a regimen as the "currently running" plan.
+  // Only one regimen should be active at a time; activating one deactivates
+  // all others optimistically. The DB has no constraint enforcing single-
+  // active, so the UI enforces it client-side and the server stays idempotent.
+  const toggleActive = (r) => {
+    const next = !r.is_active;
+    // Optimistically deactivate all others when activating this one
+    if (next) {
+      queryClient.setQueryData(['regimens', user?.email], (old = []) =>
+        old.map(row => ({ ...row, is_active: row.id === r.id }))
+      );
+    }
+    updateMutation.mutate(
+      { id: r.id, data: { is_active: next } },
+      {
+        onSuccess: () => toast.success(next ? '✅ Set as active plan' : 'Regimen deactivated'),
+        onError: () => queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] }),
+      }
+    );
+  };
+
   const openShare = (r) => {
     setSharingRegimen(r);
     setShareCaption('');
@@ -266,7 +287,14 @@ export default function RegimensSection({ onStartRegimen }) {
             <Card className="p-4 border-none shadow-sm hover:shadow-md transition-shadow overflow-hidden">
               <div className="flex items-start justify-between gap-3 mb-2">
               <div className="flex-1 min-w-0">
-                <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
+                  {r.is_active && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 shrink-0">
+                      <Zap className="w-2.5 h-2.5 fill-current" /> Active
+                    </span>
+                  )}
+                </div>
                 {r.original_author_username && (
                   <p className="text-xs text-muted-foreground mt-2 break-words">
                     {t('regimens.copiedFrom').replace('{author}', r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}`)}
@@ -298,6 +326,16 @@ export default function RegimensSection({ onStartRegimen }) {
                       {r.is_public
                         ? <Globe className="w-4 h-4 text-primary" />
                         : <Lock className="w-4 h-4 text-muted-foreground" />}
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title={r.is_active ? 'Active plan (tap to deactivate)' : 'Set as active plan'}
+                      onClick={() => toggleActive(r)}
+                    >
+                      <Zap className={`w-4 h-4 ${r.is_active ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
                     </Button>
                   </motion.div>
                   <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>

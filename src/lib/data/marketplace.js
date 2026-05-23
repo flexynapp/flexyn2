@@ -12,10 +12,16 @@ import { supabase } from '@/api/supabaseClient';
 export async function listActive(limit = 50, sortBy = 'recent', sortDir = 'desc') {
   const column = sortBy === 'price' ? 'asking_price' : 'created_at';
   const ascending = sortDir === 'asc';
+  const now = new Date().toISOString();
   const { data, error } = await supabase
     .from('marketplace_listings')
     .select('*')
     .eq('status', 'active')
+    // Seasonal / limited-time filter (migration 131).
+    // Listings with no window (both NULL) are always shown.
+    // Listings with a window only appear when now() is inside it.
+    .or(`available_from.is.null,available_from.lte.${now}`)
+    .or(`available_until.is.null,available_until.gt.${now}`)
     .order(column, { ascending })
     .limit(limit);
   if (error) throw error;
@@ -121,6 +127,34 @@ export async function listBySeller(sellerEmail) {
     .order('created_at', { ascending: false });
   if (error) throw error;
   return data ?? [];
+}
+
+/**
+ * List active bundles (migration 134).
+ * Returns an array of bundle rows that still have active status.
+ */
+export async function listActiveBundles() {
+  const { data, error } = await supabase
+    .from('marketplace_bundles')
+    .select('*')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  if (error) throw error;
+  return data ?? [];
+}
+
+/**
+ * Purchase all sale listings in a bundle at a discount.
+ * Calls the purchase_bundle RPC (migration 134).
+ * Returns { bundle_id, listing_count, total_price, paid_price, buyer_coins }
+ */
+export async function purchaseBundle(bundleId) {
+  if (!bundleId) throw new Error('bundleId required');
+  const { data, error } = await supabase.rpc('purchase_bundle', {
+    p_bundle_id: bundleId,
+  });
+  if (error) throw error;
+  return data;
 }
 
 /**

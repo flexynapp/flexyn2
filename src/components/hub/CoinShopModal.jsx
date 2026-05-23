@@ -142,6 +142,12 @@ export default function CoinShopModal({ open, onClose }) {
           transition={{ type: 'spring', damping: 24, stiffness: 280 }}
           onClick={(e) => e.stopPropagation()}
           className="w-full md:w-[460px] max-h-[88vh] bg-card border-t md:border md:rounded-2xl rounded-t-2xl overflow-hidden flex flex-col shadow-2xl"
+          drag="y"
+          dragConstraints={{ top: 0, bottom: 0 }}
+          dragElastic={{ top: 0, bottom: 0.3 }}
+          onDragEnd={(_e, info) => {
+            if (info.velocity.y >= 300 || info.offset.y >= 80) onClose?.();
+          }}
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">

@@ -47,6 +47,12 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
         initial={{ y: 80, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 80, opacity: 0 }}
+        drag="y"
+        dragConstraints={{ top: 0, bottom: 0 }}
+        dragElastic={{ top: 0, bottom: 0.3 }}
+        onDragEnd={(_e, info) => {
+          if (info.velocity.y >= 300 || info.offset.y >= 80) onClose?.();
+        }}
         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
       >
         {/* Handle */}
