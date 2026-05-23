@@ -320,6 +320,82 @@ export async function togglePinPost(postId) {
  * Reuses the same bucket as the gym logo/cover uploads (mig 135's
  * Storage RLS already gates on auth.uid()).
  */
+// ── Event RSVPs (mig 139) ──────────────────────────────────────────
+/**
+ * Set my RSVP for an event. Pass null to clear.
+ * Status: 'going' | 'maybe' | 'cant'.
+ */
+export async function setEventRsvp(eventId, status) {
+  if (!eventId) return { ok: false };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { ok: false };
+  if (!status) {
+    const { error } = await supabase
+      .from('gym_event_rsvps')
+      .delete()
+      .eq('event_id', eventId)
+      .eq('user_id', user.id);
+    return { ok: !error };
+  }
+  // Upsert by (event_id, user_id) — unique constraint handles the
+  // "already RSVP'd, switching status" case via ON CONFLICT.
+  const { error } = await supabase
+    .from('gym_event_rsvps')
+    .upsert({ event_id: eventId, user_id: user.id, status },
+            { onConflict: 'event_id,user_id' });
+  return { ok: !error, error: error?.message };
+}
+
+/** Bulk-fetch every RSVP for the given event ids. */
+export async function listEventRsvps(eventIds) {
+  if (!Array.isArray(eventIds) || eventIds.length === 0) return {};
+  const { data, error } = await supabase.rpc('get_gym_event_rsvps_bulk', {
+    p_event_ids: eventIds,
+  });
+  if (error) return {};
+  const out = {};
+  for (const id of eventIds) out[id] = { going: 0, maybe: 0, cant: 0, byUser: {} };
+  for (const r of data || []) {
+    const slot = out[r.event_id];
+    if (!slot) continue;
+    slot[r.status] = (slot[r.status] || 0) + 1;
+    slot.byUser[r.user_id] = r.status;
+  }
+  return out;
+}
+
+// ── Member directory (mig 135) ──────────────────────────────────────
+/**
+ * Full member list for the directory modal. Joins gym_members to
+ * user_profiles for the display data. Caps at 200 — past that we'd
+ * want pagination but the practical gym member count rarely exceeds
+ * a couple hundred.
+ */
+export async function listGymMembers(gymId) {
+  if (!gymId) return [];
+  const { data, error } = await supabase
+    .from('gym_members')
+    .select(`
+      joined_at,
+      user_id,
+      profile:user_profiles!user_id (
+        username, avatar_url, total_xp, workout_streak
+      )
+    `)
+    .eq('gym_id', gymId)
+    .order('joined_at', { ascending: false })
+    .limit(200);
+  if (error) return [];
+  return (data || []).map(r => ({
+    user_id:    r.user_id,
+    joined_at:  r.joined_at,
+    username:   r.profile?.username || null,
+    avatar_url: r.profile?.avatar_url || null,
+    total_xp:   r.profile?.total_xp || 0,
+    workout_streak: r.profile?.workout_streak || 0,
+  }));
+}
+
 export async function uploadFeedImage(gymId, file) {
   if (!gymId || !file) return null;
   const { data: { user } } = await supabase.auth.getUser();

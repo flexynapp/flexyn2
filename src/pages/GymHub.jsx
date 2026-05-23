@@ -18,7 +18,8 @@ import {
 import { leaveGym } from '@/lib/data/gymBusinesses';
 
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
-const GymFeedTab     = lazy(() => import('@/components/gyms/GymFeedTab'));
+const GymFeedTab            = lazy(() => import('@/components/gyms/GymFeedTab'));
+const MemberDirectoryModal  = lazy(() => import('@/components/gyms/MemberDirectoryModal'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,6 +52,7 @@ export default function GymHub() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('feed');
   const [signageOpen, setSignageOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   // Membership check — false until proven true so we don't flash the
   // full member-only feed/leaderboard to a non-member on first render.
   const [isMember, setIsMember] = useState(false);
@@ -152,9 +154,14 @@ export default function GymHub() {
                 {[gym.street_address, gym.city, gym.state_code].filter(Boolean).join(', ')}
               </p>
               <div className="flex items-center gap-3 mt-2 text-xs">
-                <span className="flex items-center gap-1 text-muted-foreground">
+                <button
+                  type="button"
+                  onClick={() => setMembersOpen(true)}
+                  className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                  aria-label="View members"
+                >
                   <Users className="w-3 h-3" /> <span className="tabular-nums">{gym.member_count}</span> members
-                </span>
+                </button>
                 {isOwner && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold uppercase tracking-wide text-[10px]">
                     <Crown className="w-2.5 h-2.5" /> Owner
@@ -300,23 +307,56 @@ export default function GymHub() {
           />
         </Suspense>
       )}
+      {membersOpen && (
+        <Suspense fallback={null}>
+          <MemberDirectoryModal
+            open={membersOpen}
+            onClose={() => setMembersOpen(false)}
+            gymId={gym.id}
+            gymOwnerId={gym.owner_id}
+          />
+        </Suspense>
+      )}
     </motion.div>
   );
 }
 
 // ── Events Tab ──────────────────────────────────────────────────────
 function EventsTab({ gymId, canCreate }) {
+  const { user } = useAuth();
   const [events, setEvents] = useState([]);
+  const [rsvps, setRsvps] = useState({}); // eventId → { going, maybe, cant, byUser }
   const [loading, setLoading] = useState(true);
   const [composing, setComposing] = useState(false);
   const [form, setForm] = useState({ title: '', body: '', starts_at: '', location_note: '' });
+  const [rsvpBusy, setRsvpBusy] = useState(null);
 
   const refresh = async () => {
     setLoading(true);
-    setEvents(await listEvents(gymId));
+    const rows = await listEvents(gymId);
+    setEvents(rows);
+    if (rows.length > 0) {
+      const { listEventRsvps } = await import('@/lib/data/gymBusinesses');
+      setRsvps(await listEventRsvps(rows.map(r => r.id)));
+    } else {
+      setRsvps({});
+    }
     setLoading(false);
   };
   useEffect(() => { refresh(); }, [gymId]);
+
+  const handleRsvp = async (eventId, nextStatus) => {
+    if (rsvpBusy === eventId) return;
+    setRsvpBusy(eventId);
+    const { setEventRsvp } = await import('@/lib/data/gymBusinesses');
+    // Toggle off if tapping the same status they already have.
+    const currentStatus = rsvps[eventId]?.byUser?.[user?.id];
+    const targetStatus = currentStatus === nextStatus ? null : nextStatus;
+    const res = await setEventRsvp(eventId, targetStatus);
+    setRsvpBusy(null);
+    if (res.ok) refresh();
+    else toast.error("Couldn't RSVP.");
+  };
 
   const handleCreate = async () => {
     if (!form.title.trim() || !form.starts_at) return;
@@ -373,16 +413,51 @@ function EventsTab({ gymId, canCreate }) {
         <EmptyState icon={Calendar} title="No events scheduled" body="Owners or members can post events here." />
       ) : (
         <div className="space-y-2">
-          {events.map(e => (
-            <div key={e.id} className="rounded-xl border border-border bg-card p-3">
-              <p className="font-heading font-bold text-sm">{e.title}</p>
-              <p className="text-xs text-muted-foreground">
-                {format(parseISO(e.starts_at), "EEE MMM d 'at' h:mm a")}
-                {e.location_note && ` · ${e.location_note}`}
-              </p>
-              {e.body && <p className="text-sm text-foreground/85 mt-1.5 whitespace-pre-wrap">{e.body}</p>}
-            </div>
-          ))}
+          {events.map(e => {
+            const slot = rsvps[e.id] || { going: 0, maybe: 0, cant: 0, byUser: {} };
+            const myStatus = slot.byUser?.[user?.id] || null;
+            const busy = rsvpBusy === e.id;
+            return (
+              <div key={e.id} className="rounded-xl border border-border bg-card p-3">
+                <p className="font-heading font-bold text-sm">{e.title}</p>
+                <p className="text-xs text-muted-foreground">
+                  {format(parseISO(e.starts_at), "EEE MMM d 'at' h:mm a")}
+                  {e.location_note && ` · ${e.location_note}`}
+                </p>
+                {e.body && <p className="text-sm text-foreground/85 mt-1.5 whitespace-pre-wrap">{e.body}</p>}
+                {/* RSVP row */}
+                <div className="flex items-center gap-1.5 mt-3">
+                  {[
+                    { id: 'going', label: 'Going',   activeClass: 'bg-emerald-500 text-white border-emerald-500' },
+                    { id: 'maybe', label: 'Maybe',   activeClass: 'bg-amber-500 text-white border-amber-500' },
+                    { id: 'cant',  label: "Can't",   activeClass: 'bg-secondary text-foreground border-border' },
+                  ].map(opt => {
+                    const isActive = myStatus === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => handleRsvp(e.id, opt.id)}
+                        className={`px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-colors ${
+                          isActive
+                            ? opt.activeClass
+                            : 'border-border text-muted-foreground hover:bg-secondary'
+                        } ${busy ? 'opacity-60' : ''}`}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                  {slot.going > 0 && (
+                    <span className="ms-auto text-[11px] text-muted-foreground tabular-nums flex items-center gap-1">
+                      <Users className="w-3 h-3" /> {slot.going} going
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
