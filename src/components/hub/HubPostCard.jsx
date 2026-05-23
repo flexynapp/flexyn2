@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2 } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
@@ -107,8 +107,35 @@ import StickerPanel from './StickerPanel';
 import { toast } from 'sonner';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
+import * as hubSavedPosts from '@/lib/data/hubSavedPosts';
+import * as hubPostViews from '@/lib/data/hubPostViews';
+import ShareSheetModal from './ShareSheetModal';
+import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
+
+// ── Post-type accent border ───────────────────────────────────────────────────
+// Returns a Tailwind class for a subtle left-border accent per content type.
+// Applied to the card's article element so every post type is visually distinct
+// at a glance even before the activity block renders.
+function getPostTypeAccent(post) {
+  const type = post.linked_entity_type || post.post_type;
+  if (!type || type === 'status') return '';
+  const map = {
+    workout:        'border-l-4 border-l-violet-500/60',
+    cardio:         'border-l-4 border-l-green-500/60',
+    meal:           'border-l-4 border-l-orange-500/60',
+    goal_completed: 'border-l-4 border-l-primary/60',
+    goal:           'border-l-4 border-l-primary/60',
+    achievement:    'border-l-4 border-l-amber-500/60',
+    regimen:        'border-l-4 border-l-indigo-500/60',
+    stats:          'border-l-4 border-l-blue-500/60',
+    video:          'border-l-4 border-l-red-500/60',
+    repost:         'border-l-4 border-l-primary/30',
+    poll:           'border-l-4 border-l-pink-500/60',
+  };
+  return map[type] || '';
+}
 
 // ── Feature 24: Poll Card ────────────────────────────────────────────────────
 const VOTE_KEY = (postId, userEmail) => `poll_vote_${postId}_${userEmail}`;
@@ -137,6 +164,8 @@ function PollCard({ post, userEmail }) {
   const [counts, setCounts] = useState(() => Array.from({ length: optionCount }, () => 0));
   const [totalVotes, setTotalVotes] = useState(0);
   const [voting, setVoting] = useState(false);
+  const [showTimeline, setShowTimeline] = useState(false);
+  const [timelineVotes, setTimelineVotes] = useState([]);
 
   // Fetch existing votes from Supabase (graceful fallback if table missing).
   useEffect(() => {
@@ -153,6 +182,20 @@ function PollCard({ post, userEmail }) {
         setTotalVotes(data.length);
       });
   }, [post.id, optionCount, isValid]);
+
+  // Fetch vote timeline when showTimeline is toggled on
+  useEffect(() => {
+    if (!showTimeline || !post.id) return;
+    supabase
+      .from('poll_votes')
+      .select('option_index, created_at')
+      .eq('post_id', post.id)
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) setTimelineVotes(data);
+      })
+      .catch(() => {});
+  }, [showTimeline, post.id]);
 
   if (!isValid) return null;
 
@@ -218,8 +261,42 @@ function PollCard({ post, userEmail }) {
             );
           })}
         </div>
-        {myVote !== null && (
-          <p className="text-[11px] text-muted-foreground mt-2 text-right">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
+        <div className="flex items-center justify-between mt-2">
+          {myVote !== null && (
+            <p className="text-[11px] text-muted-foreground">{totalVotes} vote{totalVotes !== 1 ? 's' : ''}</p>
+          )}
+          {totalVotes > 0 && (
+            <button
+              onClick={() => setShowTimeline(v => !v)}
+              className="text-[11px] text-primary font-medium hover:underline ml-auto"
+            >
+              {showTimeline ? 'Hide timeline' : 'Vote timeline →'}
+            </button>
+          )}
+        </div>
+        {/* Vote timeline */}
+        {showTimeline && timelineVotes.length > 0 && (
+          <div className="mt-3 border-t border-border pt-2">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Vote history</p>
+            <div className="relative pl-3">
+              {/* Vertical line */}
+              <div className="absolute left-1 top-0 bottom-0 w-px bg-border" />
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {timelineVotes.map((v, i) => {
+                  const optLabel = options?.[v.option_index] || `Option ${v.option_index + 1}`;
+                  const ts = v.created_at ? new Date(v.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+                  const date = v.created_at ? new Date(v.created_at).toLocaleDateString([], { month: 'short', day: 'numeric' }) : '';
+                  return (
+                    <div key={i} className="flex items-center gap-2 text-[11px]">
+                      <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 -ml-px" />
+                      <span className="text-muted-foreground shrink-0">{date} {ts}</span>
+                      <span className="font-medium text-foreground truncate">{optLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>
@@ -268,6 +345,71 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   const [stickerPanelOpen, setStickerPanelOpen] = useState(false);
 
   const isMealPost = post.post_type === 'meal';
+
+  // ── Saved posts (universal bookmark) ─────────────────────────────────────────
+  const [postSaved, setPostSaved] = useState(false);
+  const [saveLoading, setSaveLoading] = useState(false);
+  useEffect(() => {
+    if (!user?.email || !post.id) return;
+    hubSavedPosts.isSaved(user.email, post.id).then(setPostSaved).catch(() => {});
+  }, [user?.email, post.id]);
+
+  const handleToggleSave = async (e) => {
+    e.stopPropagation();
+    if (!user?.email || saveLoading) return;
+    setSaveLoading(true);
+    const next = !postSaved;
+    setPostSaved(next);
+    try {
+      if (next) {
+        await hubSavedPosts.save(user.email, post.id);
+        toast.success(tFallback('hub.post.saved', 'Post saved'));
+      } else {
+        await hubSavedPosts.unsave(user.email, post.id);
+        toast.success(tFallback('hub.post.unsaved', 'Removed from saved'));
+      }
+    } catch {
+      setPostSaved(!next); // revert
+      toast.error(tFallback('hub.post.saveError', 'Could not save post'));
+    } finally {
+      setSaveLoading(false);
+    }
+  };
+
+  // ── Share sheet ───────────────────────────────────────────────────────────────
+  const [shareSheetOpen, setShareSheetOpen] = useState(false);
+
+  // ── Creator analytics ─────────────────────────────────────────────────────────
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+
+  // ── Video mute toggle ─────────────────────────────────────────────────────────
+  const [videoMuted, setVideoMuted] = useState(true);
+  const videoRef = useRef(null);
+
+  // ── View tracking (IntersectionObserver, 2-second dwell) ─────────────────────
+  const cardRef = useRef(null);
+  const viewTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!user?.email || !post.id || viewTrackedRef.current || isMine) return;
+    const el = cardRef.current;
+    if (!el) return;
+    let timer = null;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && !viewTrackedRef.current) {
+          timer = setTimeout(() => {
+            viewTrackedRef.current = true;
+            hubPostViews.recordView(post.id, user.email).catch(() => {});
+          }, 2000);
+        } else {
+          if (timer) { clearTimeout(timer); timer = null; }
+        }
+      },
+      { threshold: 0.5 }
+    );
+    observer.observe(el);
+    return () => { observer.disconnect(); if (timer) clearTimeout(timer); };
+  }, [user?.email, post.id, isMine]);
 
   const handleSaveMeal = () => {
     if (mealSaved) {
@@ -472,9 +614,12 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
 
   const timeLabel = post.created_date ? format(parseISO(post.created_date), 'MMM d, h:mma') : '';
 
+  const typeAccent = getPostTypeAccent(post);
+
   return (
     <article
-      className={`border rounded-xl overflow-hidden relative ${hasDiamond ? 'border-cyan-300/80' : 'bg-card border-border'}`}
+      ref={cardRef}
+      className={`border rounded-xl overflow-hidden relative ${hasDiamond ? 'border-cyan-300/80' : `bg-card border-border ${typeAccent}`}`}
       style={hasDiamond ? {
         background: 'rgba(244,250,255,0.04)',
         boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)',
@@ -549,7 +694,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
               );
             })()}
           </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
             <span>{timeLabel}</span>
             <span>·</span>
             {post.privacy === 'public' ? (
@@ -558,6 +703,26 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
               <Lock className="w-3 h-3" />
             )}
             <span className="capitalize">{post.privacy === 'public' ? t('hub.privacy.public') : t('hub.privacy.followers')}</span>
+            {/* Collaborators — "with @username" */}
+            {Array.isArray(post.collaborator_emails) && post.collaborator_emails.length > 0 && (
+              <>
+                <span>·</span>
+                <span className="flex items-center gap-0.5">
+                  <Users className="w-3 h-3" />
+                  {tFallback('hub.post.with', 'with')}{' '}
+                  {post.collaborator_emails.slice(0, 2).map((e, i) => (
+                    <button
+                      key={e}
+                      type="button"
+                      onClick={(ev) => { ev.stopPropagation(); onAuthorClick?.({ email: e }); }}
+                      className="font-semibold text-foreground hover:underline"
+                    >
+                      @{e.split('@')[0]}{i < Math.min(post.collaborator_emails.length, 2) - 1 ? ', ' : ''}
+                    </button>
+                  ))}
+                </span>
+              </>
+            )}
           </div>
         </div>
         {onAuthorClick && post.author_email && (
@@ -786,12 +951,45 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
               className="w-full max-h-[600px] object-contain"
               loading="lazy"
               onError={(e) => {
-                // Storage URL went stale (deleted, expired) — hide the
-                // broken image icon rather than leave it forever.
                 const wrap = e.currentTarget.parentElement;
                 if (wrap) wrap.style.display = 'none';
               }}
             />
+          </div>
+        </ContentWarningGate>
+      )}
+
+      {/* Video — TikTok-style: autoplay muted, tap to mute/unmute */}
+      {post.video_url && (
+        <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
+          <div className="relative border-y border-border bg-black">
+            <video
+              ref={videoRef}
+              src={post.video_url}
+              className="w-full max-h-[520px] object-contain"
+              autoPlay
+              loop
+              muted={videoMuted}
+              playsInline
+              onClick={(e) => { e.stopPropagation(); setVideoMuted(m => !m); }}
+              onError={(e) => { const w = e.currentTarget.parentElement; if (w) w.style.display = 'none'; }}
+            />
+            {/* Mute indicator */}
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); setVideoMuted(m => !m); }}
+              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white"
+              aria-label={videoMuted ? 'Unmute' : 'Mute'}
+            >
+              {videoMuted
+                ? <VolumeX className="w-3.5 h-3.5" />
+                : <Volume2 className="w-3.5 h-3.5" />}
+            </button>
+            {/* Video type badge */}
+            <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
+              <Film className="w-3 h-3" />
+              VIDEO
+            </div>
           </div>
         </ContentWarningGate>
       )}
@@ -831,6 +1029,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           <Sticker className="w-4 h-4" />
           {stickerRxns.length > 0 && <span>{stickerRxns.length}</span>}
         </motion.button>
+        {/* Save meal (meal-specific: also saves to meal library) */}
         {isMealPost && (
           <motion.button
             whileTap={{ scale: 0.88 }}
@@ -839,6 +1038,29 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             aria-label={mealSaved ? 'Remove from saved meals' : 'Save meal'}
           >
             <Bookmark className={`w-4 h-4 ${mealSaved ? 'fill-current' : ''}`} />
+          </motion.button>
+        )}
+        {/* Universal bookmark (all posts) */}
+        <motion.button
+          whileTap={{ scale: 0.88 }}
+          onClick={handleToggleSave}
+          disabled={saveLoading}
+          className={`p-2 rounded-md transition-colors disabled:opacity-40 ${postSaved ? 'text-amber-500' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+          aria-label={postSaved ? tFallback('hub.post.unsave', 'Remove from saved') : tFallback('hub.post.save', 'Save post')}
+          title={postSaved ? tFallback('hub.post.unsave', 'Remove from saved') : tFallback('hub.post.save', 'Save post')}
+        >
+          <Bookmark className={`w-4 h-4 ${postSaved ? 'fill-current' : ''}`} />
+        </motion.button>
+        {/* Creator analytics — own posts only */}
+        {isMine && (
+          <motion.button
+            whileTap={{ scale: 0.88 }}
+            onClick={(e) => { e.stopPropagation(); setAnalyticsOpen(o => !o); }}
+            className={`p-2 rounded-md transition-colors ${analyticsOpen ? 'text-primary bg-secondary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+            aria-label="Post analytics"
+            title="View analytics"
+          >
+            <BarChart2 className="w-4 h-4" />
           </motion.button>
         )}
 
@@ -856,47 +1078,10 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           </motion.button>
         )}
 
-        {/* Share — Web Share API with clipboard fallback. Drives
-            virality: every share carries the deep-link URL to the
-            author's profile + this post, surfacing the brand in the
-            recipient's chat/feed.
-            Always shown (mealPost or not) — every post is shareable. */}
+        {/* Share — opens ShareSheetModal with DM + external options */}
         <motion.button
           whileTap={{ scale: 0.88 }}
-          onClick={async () => {
-            // Deep-link to the author's profile. We can't link directly
-            // to a single post yet (no post permalink route exists), so
-            // we route via the author's profile which is the closest
-            // permalink target.
-            const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
-            const authorEmail = post.author_email || post.created_by;
-            const url = authorEmail
-              ? `${origin}/hub?profile=${encodeURIComponent(authorEmail)}`
-              : origin;
-            const text = post.body || post.content || 'Check out this post on Flexyn';
-            const shareData = {
-              title: post.author_username ? `@${post.author_username} on Flexyn` : 'Flexyn',
-              text:  text.length > 200 ? text.slice(0, 197) + '…' : text,
-              url,
-            };
-            try {
-              if (typeof navigator.share === 'function') {
-                await navigator.share(shareData);
-                return;
-              }
-            } catch (err) {
-              if (err?.name === 'AbortError') return;
-              // fall through to clipboard
-            }
-            try {
-              await navigator.clipboard.writeText(url);
-              const { toast } = await import('sonner');
-              toast.success('Link copied');
-            } catch {
-              const { toast } = await import('sonner');
-              toast.error('Could not share — try again.');
-            }
-          }}
+          onClick={(e) => { e.stopPropagation(); setShareSheetOpen(true); }}
           className="ml-auto p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
           aria-label="Share post"
         >
@@ -959,6 +1144,24 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Creator analytics panel — own posts only, toggled by BarChart2 button */}
+      <AnimatePresence initial={false}>
+        {analyticsOpen && isMine && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{ overflow: 'hidden' }}
+          >
+            <CreatorAnalyticsPanel postId={post.id} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Share sheet */}
+      <ShareSheetModal post={post} open={shareSheetOpen} onClose={() => setShareSheetOpen(false)} />
 
       {/* Report dialog — only rendered for other people's posts */}
       {!isMine && (

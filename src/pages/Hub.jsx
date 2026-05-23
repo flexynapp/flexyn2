@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Bell } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -213,6 +213,18 @@ export default function Hub() {
                 <Shield className="w-3.5 h-3.5" />
                 Crews
               </button>
+              <button
+                type="button"
+                onClick={() => setFeedTab('activity')}
+                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                  feedTab === 'activity'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Bell className="w-3.5 h-3.5" />
+                Activity
+              </button>
             </div>
           )}
         </div>
@@ -229,21 +241,21 @@ export default function Hub() {
           nobody's training. Drives FOMO + copy-cat workouts — a strong
           social mechanic that compounds with the crew wars / nemesis
           stack. */}
-      {section === 'feed' && feedTab !== 'crews' && <LiveActivityRail />}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <LiveActivityRail />}
 
       {/* Follow suggestions rail (migration 091). Visible when the user
           has <3 followees (empty-feed trap) or hasn't dismissed in 30d.
           Each card is one-tap follow. The biggest single-feature lift
           to first-week retention because an empty feed = bounce. */}
-      {section === 'feed' && feedTab !== 'crews' && <FollowSuggestionRail />}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
 
       {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
           Sessions toggle. Competitive without crew commitment — your
           name surfaces against your real friends, not random strangers. */}
-      {section === 'feed' && feedTab !== 'crews' && <FriendLeaderboardPanel />}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
 
       {/* Stories tray — hidden on Crews tab */}
-      {section === 'feed' && feedTab !== 'crews' && (
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <StoriesRow
           onViewProfile={(u) => {
             setProfileTarget(u);
@@ -253,7 +265,7 @@ export default function Hub() {
       )}
 
       {/* Marketplace + New Post row — shown on feed tabs, not crews */}
-      {section === 'feed' && feedTab !== 'crews' && (
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <div className="flex gap-2.5 mb-4">
           {/* Marketplace — 3/4 width, ember animation */}
           <div className="flex-[3] relative overflow-hidden rounded-2xl">
@@ -312,7 +324,7 @@ export default function Hub() {
           exit={{ opacity: 0, pointerEvents: 'none' }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
         >
-          {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad') && (
+          {section === 'feed' && (feedTab === 'pump' || feedTab === 'squad' || feedTab === 'activity') && (
             <HubFeed
               feedTab={feedTab}
               onAuthorClick={(authorObj) => {
@@ -340,7 +352,7 @@ export default function Hub() {
       </AnimatePresence>
 
       {/* Mobile FAB — only on the feed, not on Crews tab */}
-      {section === 'feed' && feedTab !== 'crews' && (
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
           style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}

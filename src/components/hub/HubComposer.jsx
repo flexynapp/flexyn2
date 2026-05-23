@@ -7,13 +7,13 @@
 //
 // There is no file picker for posting content — progress photos are the only
 // image source, and they're chosen from the user's saved progress photos.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X, Send, Globe2, Lock,
   Dumbbell, Activity, Apple, Target, Trophy, ListChecks, Image as ImageIcon, BarChart3,
-  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle,
+  ArrowLeft, Loader2, MessageSquare, ChevronDown, Camera, XCircle, Film, Users, AtSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
@@ -203,7 +203,7 @@ const ICONS = {
   workout: Dumbbell, cardio: Activity, meal: Apple,
   goal: Target, achievement: Trophy, regimen: ListChecks,
   progressPhoto: ImageIcon, stats: BarChart3,
-  poll: BarChart3,
+  poll: BarChart3, video: Film,
 };
 
 export default function HubComposer({ onClose }) {
@@ -326,6 +326,52 @@ export default function HubComposer({ onClose }) {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
 
+  // Video post state
+  const [videoFile, setVideoFile] = useState(null);
+  const [videoPreview, setVideoPreview] = useState(null);
+  const videoInputRef = useRef(null);
+
+  const handleVideoPick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('Video must be under 100 MB.');
+      return;
+    }
+    setVideoFile(file);
+    setVideoPreview(URL.createObjectURL(file));
+  };
+
+  const clearVideo = () => {
+    if (videoPreview) URL.revokeObjectURL(videoPreview);
+    setVideoFile(null);
+    setVideoPreview(null);
+    if (videoInputRef.current) videoInputRef.current.value = '';
+  };
+
+  // Collaborator tagging state
+  const [collaboratorInput, setCollaboratorInput] = useState('');
+  const [collaboratorEmails, setCollaboratorEmails] = useState([]);
+
+  // Look up users for collaborator @mention suggestions
+  const { data: allUsers = [] } = useQuery({
+    queryKey: ['allUsers'],
+    queryFn: () => users.list(),
+    staleTime: 60_000,
+  });
+
+  const collaboratorSuggestions = useMemo(() => {
+    if (!collaboratorInput.trim()) return [];
+    const q = collaboratorInput.toLowerCase().replace(/^@/, '');
+    return allUsers
+      .filter(u =>
+        u.email !== user?.email &&
+        !collaboratorEmails.includes(u.email) &&
+        ((u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q))
+      )
+      .slice(0, 5);
+  }, [collaboratorInput, allUsers, collaboratorEmails, user?.email]);
+
   // ── Load shareable activities ──
   const { data: recentWorkouts = [] } = useQuery({
     queryKey: ['composer.workouts', user?.email],
@@ -398,6 +444,14 @@ export default function HubComposer({ onClose }) {
       setPollOptions(['', '']);
       setBody('');
       setStep('poll_compose');
+      return;
+    }
+    // Video post
+    if (kind === 'video') {
+      setSelected({ kind: 'video', item: null, summary: null });
+      clearVideo();
+      setBody('');
+      setStep('video_compose');
       return;
     }
     setSelected({
@@ -483,6 +537,46 @@ export default function HubComposer({ onClose }) {
         draft.clear();
         onClose();
       } catch {
+        toast.error(t('hub.composer.postError'));
+      } finally {
+        setPosting(false);
+      }
+      return;
+    }
+
+    // Video posts
+    if (selected.kind === 'video') {
+      if (!videoFile) { toast.error('Please pick a video to share.'); return; }
+      if (body && containsProfanity(body)) {
+        toast.error(t('hub.composer.profanityError'));
+        return;
+      }
+      setPosting(true);
+      try {
+        const result = await db.integrations.Core.UploadFile({ file: videoFile });
+        const videoUrl = result?.file_url || null;
+        await hubPosts.create({
+          author_email:       user.email,
+          author_name:        user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+          author_avatar_url:  user.avatar_url || null,
+          post_type:          'video',
+          body:               body.trim() || 'Shared a video',
+          video_url:          videoUrl,
+          privacy,
+          like_count:   0,
+          dislike_count: 0,
+          comment_count: 0,
+          collaborator_emails: collaboratorEmails.length > 0 ? collaboratorEmails : [],
+          ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
+          ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
+        });
+        queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+        toast.success('Video posted!');
+        draft.clear();
+        clearVideo();
+        onClose();
+      } catch (err) {
+        reportError(err, { feature: 'hub.composer.video', level: 'warning' });
         toast.error(t('hub.composer.postError'));
       } finally {
         setPosting(false);
@@ -619,6 +713,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_type:     effectiveSelected.kind === 'status' ? null : effectiveSelected.kind,
         linked_entity_id:       effectiveSelected.kind === 'status' ? null : (effectiveSelected.item?.id || null),
         linked_entity_snapshot: snapshot,
+        collaborator_emails:    collaboratorEmails.length > 0 ? collaboratorEmails : [],
         ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
         ...(cwType ? { content_warning: cwType, content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null } : {}),
         ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
@@ -716,6 +811,13 @@ export default function HubComposer({ onClose }) {
             onClick={() => handlePick('poll')}
             title="Create a Poll"
             subtitle="Ask your followers to vote on something"
+          />
+          {/* Video post */}
+          <PickCard
+            kind="video"
+            onClick={() => handlePick('video')}
+            title="Share a Video"
+            subtitle="Upload a short workout clip (up to 100 MB)"
           />
         </Section>
 
@@ -1066,6 +1168,128 @@ export default function HubComposer({ onClose }) {
     </div>
   );
 
+  // ── Rendering: collaborator tagging UI (shared by video + activity compose) ──
+  const renderCollaboratorInput = () => (
+    <div className="mb-3">
+      <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 block">
+        Co-authors (optional)
+      </label>
+      {/* Chips of added collaborators */}
+      {collaboratorEmails.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-2">
+          {collaboratorEmails.map(email => {
+            const u = allUsers.find(u => u.email === email);
+            const label = u?.username ? `@${u.username}` : email.split('@')[0];
+            return (
+              <span key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+                <Users className="w-3 h-3" />
+                {label}
+                <button
+                  type="button"
+                  onClick={() => setCollaboratorEmails(prev => prev.filter(e => e !== email))}
+                  className="ml-0.5 hover:text-destructive"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            );
+          })}
+        </div>
+      )}
+      <div className="relative">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-secondary/40">
+          <AtSign className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <input
+            value={collaboratorInput}
+            onChange={e => setCollaboratorInput(e.target.value)}
+            placeholder="Tag a co-author by username…"
+            className="flex-1 bg-transparent text-sm focus:outline-none"
+          />
+        </div>
+        {collaboratorSuggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-20 mt-1 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
+            {collaboratorSuggestions.map(u => (
+              <button
+                key={u.email}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setCollaboratorEmails(prev => [...prev, u.email]);
+                  setCollaboratorInput('');
+                }}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-left hover:bg-secondary transition-colors"
+              >
+                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
+                  {(u.username || u.email)[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium truncate">{u.username ? `@${u.username}` : u.email.split('@')[0]}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Rendering: video compose step ──
+  const renderVideoCompose = () => (
+    <div className="flex-1 flex flex-col px-4 pt-4 pb-4">
+      <div className="mb-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <Film className="w-3.5 h-3.5 text-red-500" />
+        Share a short workout clip
+      </div>
+
+      {/* Video picker / preview */}
+      {videoPreview ? (
+        <div className="relative rounded-xl overflow-hidden border border-border mb-3 bg-black">
+          <video
+            src={videoPreview}
+            controls
+            muted
+            playsInline
+            className="w-full max-h-56 object-contain"
+          />
+          <button onClick={clearVideo} className="absolute top-2 right-2 p-1.5 rounded-full bg-black/60 text-white hover:bg-black/80">
+            <XCircle className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => videoInputRef.current?.click()}
+          className="w-full flex flex-col items-center justify-center gap-2 py-8 rounded-xl border-2 border-dashed border-border text-sm text-muted-foreground hover:border-primary/50 hover:text-foreground transition-colors mb-3"
+        >
+          <Film className="w-8 h-8 opacity-40" />
+          <span>Tap to select a video</span>
+          <span className="text-[11px] opacity-60">MP4 / MOV · max 100 MB</span>
+        </button>
+      )}
+      <input
+        ref={videoInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={handleVideoPick}
+      />
+
+      {/* Caption */}
+      <textarea
+        value={body}
+        onChange={e => bodyGuard.handleChange(e.target.value)}
+        placeholder="Add a caption… (optional)"
+        maxLength={500}
+        rows={2}
+        className="w-full p-3 bg-secondary/40 border border-border rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/40 mb-3"
+      />
+
+      {renderCollaboratorInput()}
+      {renderPrivacyButtons()}
+    </div>
+  );
+
   const renderPrivacyButtons = () => (
     <>
       <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
@@ -1201,6 +1425,7 @@ export default function HubComposer({ onClose }) {
   const isStatusStep = step === 'status_compose';
   const isMealComposeStep = step === 'meal_compose';
   const isPollStep = step === 'poll_compose';
+  const isVideoStep = step === 'video_compose';
 
   return (
     <AnimatePresence>
@@ -1229,14 +1454,10 @@ export default function HubComposer({ onClose }) {
                   setBody('');
                   setCustomMeal({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
                   clearMealImage();
-                  // Status-post attached image was also clearable here but
-                  // got missed. Without this, attaching an image to a status
-                  // draft → tapping back to pick a different post type
-                  // leaves the statusImageFile / statusImagePreview in
-                  // state. Re-selecting status shows the stale image as if
-                  // it were still attached, and the eventual upload posts
-                  // an image the user thinks they discarded.
                   clearStatusImage();
+                  clearVideo();
+                  setCollaboratorInput('');
+                  setCollaboratorEmails([]);
                 }}
                 className="p-1.5 rounded-md hover:bg-secondary"
               >
@@ -1251,6 +1472,10 @@ export default function HubComposer({ onClose }) {
                   ? t('hub.composer.statusTitle')
                   : isMealComposeStep
                   ? 'Share a Meal'
+                  : isVideoStep
+                  ? 'Share a Video'
+                  : isPollStep
+                  ? 'Create a Poll'
                   : t('hub.composer.title')}
               </h2>
               {onPickStep && (
@@ -1272,6 +1497,8 @@ export default function HubComposer({ onClose }) {
             ? renderMealCompose()
             : isPollStep
             ? renderPollCompose()
+            : isVideoStep
+            ? renderVideoCompose()
             : renderCompose()}
 
           {!onPickStep && (

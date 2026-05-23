@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw, ArrowUp, Hash, X, TrendingUp } from 'lucide-react';
+import { Loader2, RefreshCw, ArrowUp, Hash, X, TrendingUp, Radio } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -17,6 +17,10 @@ import { useScrollRestoration } from '@/hooks/useScrollRestoration';
 import * as userMutes from '@/lib/data/userMutes';
 import * as userBlocks from '@/lib/data/userBlocks';
 import PeopleYouMayKnow from './PeopleYouMayKnow';
+import LiveSessionCard from './LiveSessionCard';
+import LiveSessionBroadcaster from './LiveSessionBroadcaster';
+import ActivityFeed from './ActivityFeed';
+import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
 
 // ── Trending hashtags helper ──────────────────────────────────────────────────
 // Extracts #tags from all loaded posts and returns top N sorted by frequency.
@@ -78,6 +82,16 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // ── Hashtag filter state ──────────────────────────────────────────────────
   const [activeHashtag, setActiveHashtag] = useState(null); // e.g. '#legday'
   const [showTrending, setShowTrending] = useState(false);
+
+  // ── Live sessions ─────────────────────────────────────────────────────────
+  const [broadcasterOpen, setBroadcasterOpen] = useState(false);
+  const { data: liveSessions = [] } = useQuery({
+    queryKey: ['hubLiveSessions'],
+    queryFn: () => hubLiveSessions.listActiveSessions(),
+    enabled: !!user?.email,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
 
   // ── "X new posts" Realtime pill ────────────────────────────────────────────
   const [pendingNewCount, setPendingNewCount] = useState(0);
@@ -266,6 +280,11 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     return () => observer.disconnect();
   }, [hasMore, filteredPosts.length]);
 
+  // ── Activity tab — render ActivityFeed instead of posts ──────────────────
+  if (feedTab === 'activity') {
+    return <ActivityFeed />;
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -325,6 +344,35 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
+      {/* ── Go Live button ─────────────────────────────────────────────── */}
+      <button
+        onClick={() => setBroadcasterOpen(true)}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/5 text-red-500 text-sm font-semibold hover:bg-red-500/10 transition-colors"
+      >
+        <span className="relative flex w-2.5 h-2.5 shrink-0">
+          <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
+          <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-red-500" />
+        </span>
+        <Radio className="w-4 h-4" />
+        Go Live — broadcast your workout
+      </button>
+
+      {/* ── Live session cards ─────────────────────────────────────────── */}
+      {liveSessions.filter(s => s.host_email !== user?.email).map(session => (
+        <LiveSessionCard
+          key={session.id}
+          session={session}
+          onViewProfile={onAuthorClick}
+        />
+      ))}
+
+      {/* ── Broadcaster overlay ─────────────────────────────────────────── */}
+      <AnimatePresence>
+        {broadcasterOpen && (
+          <LiveSessionBroadcaster onClose={() => setBroadcasterOpen(false)} />
+        )}
+      </AnimatePresence>
+
       {/* ── Trending hashtags rail ──────────────────────────────────────── */}
       {trendingTags.length > 0 && (
         <div className="flex items-center gap-2 flex-wrap">

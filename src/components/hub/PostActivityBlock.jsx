@@ -37,13 +37,13 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 const RouteMap = lazy(() => import('@/components/cardio/RouteMap'));
 
 const TYPE_META = {
-  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout' },
-  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      entity: 'CardioLog' },
-  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        entity: 'NutritionLog' },
-  goal_completed: { Icon: Target,     labelKey: 'hub.share.goal',        entity: 'Goal' },
-  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', entity: 'Achievement' },
-  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     entity: 'Regimen' },
-  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       entity: null },
+  workout:        { Icon: Dumbbell,   labelKey: 'hub.share.workout',     entity: 'Workout',      accent: 'border-violet-500/60 bg-violet-500/5',   iconBg: 'bg-violet-500/15',   iconColor: 'text-violet-500' },
+  cardio:         { Icon: Activity,   labelKey: 'hub.share.cardio',      entity: 'CardioLog',    accent: 'border-green-500/60 bg-green-500/5',     iconBg: 'bg-green-500/15',    iconColor: 'text-green-500' },
+  meal:           { Icon: Apple,      labelKey: 'hub.share.meal',        entity: 'NutritionLog', accent: 'border-orange-500/60 bg-orange-500/5',   iconBg: 'bg-orange-500/15',   iconColor: 'text-orange-500' },
+  goal_completed: { Icon: Target,     labelKey: 'hub.share.goal',        entity: 'Goal',         accent: 'border-primary/60 bg-primary/5',         iconBg: 'bg-primary/15',      iconColor: 'text-primary' },
+  achievement:    { Icon: Trophy,     labelKey: 'hub.share.achievement', entity: 'Achievement',  accent: 'border-amber-500/60 bg-amber-500/5',     iconBg: 'bg-amber-500/15',    iconColor: 'text-amber-500' },
+  regimen:        { Icon: ListChecks, labelKey: 'hub.share.regimen',     entity: 'Regimen',      accent: 'border-indigo-500/60 bg-indigo-500/5',   iconBg: 'bg-indigo-500/15',   iconColor: 'text-indigo-500' },
+  stats:          { Icon: BarChart3,  labelKey: 'hub.share.stats',       entity: null,           accent: 'border-blue-500/60 bg-blue-500/5',       iconBg: 'bg-blue-500/15',     iconColor: 'text-blue-500' },
 };
 
 // Same decimation logic as the composer — used when we have to build a
@@ -169,18 +169,18 @@ export default function PostActivityBlock({ post }) {
   // post has at least a hint of what it's about.
   if (!snap) {
     return (
-      <div className="mx-3 mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-secondary text-xs font-medium text-muted-foreground">
-        <meta.Icon className="w-3.5 h-3.5" />
+      <div className={`mx-3 mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium text-muted-foreground ${meta.accent || 'border-border bg-secondary'}`}>
+        <meta.Icon className={`w-3.5 h-3.5 ${meta.iconColor || 'text-muted-foreground'}`} />
         {t(meta.labelKey)}
       </div>
     );
   }
 
   return (
-    <div className="mx-3 mb-3 rounded-xl border border-border bg-secondary/30 overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-secondary/40">
-        <div className="w-6 h-6 rounded-md bg-primary/15 flex items-center justify-center">
-          <meta.Icon className="w-3.5 h-3.5 text-primary" />
+    <div className={`mx-3 mb-3 rounded-xl border overflow-hidden ${meta.accent || 'border-border bg-secondary/30'}`}>
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-current/10 bg-black/5 dark:bg-white/5">
+        <div className={`w-6 h-6 rounded-md flex items-center justify-center ${meta.iconBg || 'bg-primary/15'}`}>
+          <meta.Icon className={`w-3.5 h-3.5 ${meta.iconColor || 'text-primary'}`} />
         </div>
         <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
           {t(meta.labelKey)}

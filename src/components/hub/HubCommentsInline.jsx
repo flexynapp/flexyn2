@@ -1,7 +1,7 @@
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2, AtSign } from 'lucide-react';
 
 // Orange 3-pronged crown badge for verified admins
 function CrownBadge({ size = 14 }) {
@@ -39,6 +39,60 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const inFlightRef = useRef(false);
 
   const authorsByEmail = useAuthorsByEmail();
+
+  // ── @mention autocomplete ─────────────────────────────────────────────────
+  const inputRef = useRef(null);
+  const [mentionQuery, setMentionQuery] = useState(''); // text after the @
+  const [mentionActive, setMentionActive] = useState(false);
+
+  // Build a flat list of known handles from authorsByEmail for autocomplete
+  const knownHandles = useMemo(() => {
+    return Object.values(authorsByEmail).map(a => ({
+      email:  a.email,
+      handle: a.username || a.email?.split('@')[0] || '',
+    })).filter(a => a.handle);
+  }, [authorsByEmail]);
+
+  const mentionResults = useMemo(() => {
+    if (!mentionActive || mentionQuery.length < 1) return [];
+    const q = mentionQuery.toLowerCase();
+    return knownHandles.filter(a => a.handle.toLowerCase().startsWith(q)).slice(0, 6);
+  }, [mentionActive, mentionQuery, knownHandles]);
+
+  // Called on every keystroke in the comment input
+  const handleDraftChange = useCallback((value) => {
+    draftGuard.handleChange(value, setDraft);
+    // Detect @mention: find the last @ in the string
+    const caretPos = inputRef.current?.selectionStart ?? value.length;
+    const textBefore = value.slice(0, caretPos);
+    const mentionMatch = textBefore.match(/@(\w*)$/);
+    if (mentionMatch) {
+      setMentionQuery(mentionMatch[1]);
+      setMentionActive(true);
+    } else {
+      setMentionActive(false);
+      setMentionQuery('');
+    }
+  }, [draftGuard]);
+
+  // Insert selected @handle into draft, replacing the partial @query
+  const insertMention = useCallback((handle) => {
+    const caretPos = inputRef.current?.selectionStart ?? draft.length;
+    const before = draft.slice(0, caretPos).replace(/@(\w*)$/, `@${handle} `);
+    const after  = draft.slice(caretPos);
+    const next = before + after;
+    setDraft(next);
+    setMentionActive(false);
+    setMentionQuery('');
+    // Restore focus
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.focus();
+        const pos = before.length;
+        inputRef.current.setSelectionRange(pos, pos);
+      }
+    }, 0);
+  }, [draft]);
 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['hubComments', post.id],
@@ -296,32 +350,77 @@ export default function HubCommentsInline({ post, open, onClose }) {
         </div>
       )}
 
-      {/* Composer */}
-      <div className="border-t border-border px-3 py-2 flex items-center gap-2">
-        <input
-          value={draft}
-          onChange={(e) => draftGuard.handleChange(e.target.value, setDraft)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handlePost();
-            }
-          }}
-          placeholder={replyTarget ? t('hub.comments.replyPlaceholder') : t('hub.comments.placeholder')}
-          maxLength={500}
-          className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
-        />
-        <button
-          onClick={handlePost}
-          disabled={posting || !draft.trim()}
-          className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+      {/* Composer with @mention autocomplete */}
+      <div className="border-t border-border px-3 py-2">
+        {/* Mention dropdown — floats above the input */}
+        <AnimatePresence>
+          {mentionActive && mentionResults.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 4 }}
+              className="mb-1.5 rounded-xl border border-border bg-card shadow-lg overflow-hidden"
+            >
+              {mentionResults.map((a) => (
+                <button
+                  key={a.email}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); insertMention(a.handle); }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                >
+                  <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {a.handle.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="font-medium">@{a.handle}</span>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <div className="flex items-center gap-2">
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => handleDraftChange(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Escape') { setMentionActive(false); return; }
+              if (e.key === 'Enter' && !e.shiftKey && !mentionActive) {
+                e.preventDefault();
+                handlePost();
+              }
+            }}
+            onBlur={() => setTimeout(() => setMentionActive(false), 150)}
+            placeholder={replyTarget
+              ? t('hub.comments.replyPlaceholder')
+              : 'Comment… use @ to mention someone'}
+            maxLength={500}
+            className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+          />
+          <button
+            onClick={handlePost}
+            disabled={posting || !draft.trim()}
+            className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50"
+          >
+            {posting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
 
       <ProfanityWarningDialog open={draftGuard.open} onContinue={draftGuard.onContinue} />
     </div>
+  );
+}
+
+// ── @mention renderer ─────────────────────────────────────────────────────────
+// Splits comment body on @username tokens and highlights each as primary text.
+function renderCommentBody(text) {
+  if (!text) return null;
+  const parts = text.split(/(@\w+)/g);
+  return parts.map((part, i) =>
+    /^@\w+$/.test(part)
+      ? <span key={i} className="font-semibold text-primary">{part}</span>
+      : <span key={i}>{part}</span>
   );
 }
 
@@ -370,7 +469,9 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
                 </span>
               )}
             </div>
-            <p className="text-sm whitespace-pre-wrap break-words mt-0.5">{displayBody}</p>
+            <p className="text-sm whitespace-pre-wrap break-words mt-0.5">
+              {renderCommentBody(displayBody)}
+            </p>
           </div>
 
           {/* Action row */}
