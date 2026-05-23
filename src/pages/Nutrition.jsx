@@ -28,6 +28,7 @@ import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTyp
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import PortionGuide from '@/components/nutrition/PortionGuide';
 import RecipeBuilderModal from '@/components/nutrition/RecipeBuilderModal';
+import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
@@ -730,6 +731,13 @@ export default function Nutrition() {
           by how close you are. Surfaces the most-asked nutrition
           question ("how much can I still eat today?") above the fold. */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
+
+      {/* Intermittent-fasting tracker — optional. Card renders the
+          start CTA when not fasting; switches to a live countdown
+          ring once started. Per-device localStorage only. */}
+      <div className="mb-4">
+        <FastingTrackerCard />
+      </div>
 
       {/* Nutrition Tabs */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
