@@ -2,12 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Trash2, Calendar, Dumbbell, ZoomIn, X } from 'lucide-react';
+import { Camera, Trash2, Calendar, Dumbbell, ZoomIn, X, ArrowLeftRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { loadProgressPhotos, deleteProgressPhoto } from './ProgressPhotoCapture';
 import { displayWorkoutName } from '@/lib/workoutDisplay';
+import PhotoCompareSlider from './PhotoCompareSlider';
 
 export default function ProgressPhotosTab() {
   const { t, language } = useLanguage();
@@ -15,6 +16,7 @@ export default function ProgressPhotosTab() {
   const [photos, setPhotos] = useState([]);
   const [lightbox, setLightbox] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [compareMode, setCompareMode] = useState(false);
 
   useEffect(() => {
     setPhotos(loadProgressPhotos());
@@ -51,13 +53,44 @@ export default function ProgressPhotosTab() {
   // Populated state
   return (
     <div>
-      {/* Count badge */}
-      <div className="flex items-center gap-2 mb-6">
-        <div className="w-2 h-2 rounded-full bg-primary" />
-        <span className="text-xs text-muted-foreground font-medium">
-          {photos.length === 1 ? t('photos.countOne') : t('photos.countMany').replace('{{count}}', photos.length)}
-        </span>
+      {/* Count badge + compare toggle */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-primary" />
+          <span className="text-xs text-muted-foreground font-medium">
+            {photos.length === 1 ? t('photos.countOne') : t('photos.countMany').replace('{{count}}', photos.length)}
+          </span>
+        </div>
+        {photos.length >= 2 && (
+          <motion.button
+            whileTap={{ scale: 0.96 }}
+            onClick={() => setCompareMode(m => !m)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              compareMode
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ArrowLeftRight className="w-3.5 h-3.5" />
+            Compare
+          </motion.button>
+        )}
       </div>
+
+      {/* Compare slider */}
+      <AnimatePresence>
+        {compareMode && photos.length >= 2 && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden mb-6"
+          >
+            <PhotoCompareSlider photos={photos} onClose={() => setCompareMode(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Photo grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -17,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   TrendingUp, BarChart2, Trophy, Sparkles as SparklesIcon,
-  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw,
+  Flame, Dumbbell, Camera, Ruler, ChevronRight, Zap, RefreshCw, Lightbulb,
 } from 'lucide-react';
 import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
@@ -25,6 +25,8 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterDropdown from '@/components/progress/FilterDropdown';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
+import InsightsTab from '@/components/progress/InsightsTab';
+import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // Achievements moved to ProfileMenu (above "My Bag") — it didn't fit
 // next to data / chart tabs. AchievementsTab is now imported by
 // src/components/achievements/AchievementsVault.jsx.
@@ -67,10 +69,11 @@ const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 // Achievements removed from this strip — it lives in ProfileMenu now.
 // See src/components/achievements/AchievementsVault.jsx.
 const TAB_META = [
-  { id: 'trends',    label: 'Trends',    Icon: TrendingUp, iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2,  iconColor: 'text-amber-500',   activeBg: 'bg-amber-500',   activeText: 'text-white' },
-  { id: 'body',      label: 'Body',      Icon: Ruler,      iconColor: 'text-emerald-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
-  { id: 'photos',    label: 'Photos',    Icon: Camera,     iconColor: 'text-violet-500',  activeBg: 'bg-violet-500',  activeText: 'text-white' },
+  { id: 'trends',    label: 'Trends',    Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
+  { id: 'analytics', label: 'Analytics', Icon: BarChart2,   iconColor: 'text-amber-500',  activeBg: 'bg-amber-500',   activeText: 'text-white' },
+  { id: 'body',      label: 'Body',      Icon: Ruler,       iconColor: 'text-emerald-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
+  { id: 'photos',    label: 'Photos',    Icon: Camera,      iconColor: 'text-violet-500', activeBg: 'bg-violet-500',  activeText: 'text-white' },
+  { id: 'insights',  label: 'Insights',  Icon: Lightbulb,   iconColor: 'text-cyan-500',   activeBg: 'bg-cyan-500',    activeText: 'text-white' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -95,7 +98,7 @@ function calcVolume(logs) {
 
 // ─── Personal Bests Tab ───────────────────────────────────────────────────────
 
-function PersonalBestsTab({ logs }) {
+function PersonalBestsTab({ logs, onViewHistory }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
@@ -105,7 +108,8 @@ function PersonalBestsTab({ logs }) {
       if (!log.date) return;
       (log.exercises || []).forEach(ex => {
         if (!ex.name || !ex.sets?.length) return;
-        if (!map[ex.name]) map[ex.name] = { weight: 0, weightDate: null, reps: 0, repsDate: null };
+        if (!map[ex.name]) map[ex.name] = { weight: 0, weightDate: null, reps: 0, repsDate: null, sessionCount: 0 };
+        map[ex.name].sessionCount += 1;
         ex.sets.forEach(s => {
           if ((s.weight || 0) > map[ex.name].weight) { map[ex.name].weight = s.weight; map[ex.name].weightDate = log.date; }
           if ((s.reps   || 0) > map[ex.name].reps)   { map[ex.name].reps   = s.reps;   map[ex.name].repsDate   = log.date; }
@@ -137,7 +141,15 @@ function PersonalBestsTab({ logs }) {
                 <motion.div className="w-8 h-8 rounded-lg bg-yellow-500/10 flex items-center justify-center shrink-0" animate={{ scale: [1, 1.15, 1] }} transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut', delay: idx * 0.3 }}>
                   <Trophy className="w-4 h-4 text-yellow-500" />
                 </motion.div>
-                <span className="font-heading font-bold text-sm">{pb.name}</span>
+                <span className="font-heading font-bold text-sm flex-1">{pb.name}</span>
+                {onViewHistory && (
+                  <button
+                    onClick={() => onViewHistory(pb.name)}
+                    className="text-[10px] font-semibold text-primary/70 hover:text-primary flex items-center gap-0.5 transition-colors shrink-0"
+                  >
+                    History <ChevronRight className="w-3 h-3" />
+                  </button>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <motion.div className="bg-primary/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
@@ -155,6 +167,11 @@ function PersonalBestsTab({ logs }) {
                   {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
               </div>
+              {pb.sessionCount > 0 && (
+                <p className="text-[10px] text-muted-foreground mt-2 pl-0.5">
+                  Logged {pb.sessionCount} {pb.sessionCount === 1 ? 'time' : 'times'}
+                </p>
+              )}
             </div>
           </Card>
         </motion.div>
@@ -318,6 +335,7 @@ export default function Progress() {
 
   const [personalBestsModalOpen, setPersonalBestsModalOpen] = useState(false);
   const [advancedAnalyticsOpen, setAdvancedAnalyticsOpen]   = useState(false);
+  const [prHistoryExercise,     setPRHistoryExercise]       = useState(null);
   const [selectedRegimen,       setSelectedRegimen]         = useState('all');
   const [timeRange,             setTimeRange]               = useState('90');
   const [selectedMuscleGroup,   setSelectedMuscleGroup]     = useState('all');
@@ -350,9 +368,15 @@ export default function Progress() {
     queryFn: () => db.entities.CardioLog.filter({ created_by: user.email }, '-date', 200),
     enabled: !!user?.email,
   });
+  const { data: rawBodyMetrics = [] } = useQuery({
+    queryKey: ['bodyMetrics', user?.email],
+    queryFn: () => db.entities.BodyMetric.filter({ created_by: user.email }, '-date', 200),
+    enabled: !!user?.email,
+  });
 
-  const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),    [rawLogs, userProfile]);
-  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
+  const logs         = useMemo(() => filterAfterReset(rawLogs, userProfile),       [rawLogs, userProfile]);
+  const regimens     = useMemo(() => filterAfterReset(rawRegimens, userProfile),   [rawRegimens, userProfile]);
+  const bodyMetrics  = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
   const isLoading    = logsLoading || regimensLoading;
 
   // Weekly summary — auto-generate on first load, then cache for 5 min
@@ -733,6 +757,17 @@ export default function Progress() {
                   </ErrorBoundary>
                 )}
 
+                {activeTab === 'insights' && (
+                  <ErrorBoundary label="Insights">
+                    <InsightsTab
+                      logs={logs}
+                      cardioLogs={cardioLogs}
+                      bodyMetrics={bodyMetrics}
+                      userProfile={userProfile}
+                    />
+                  </ErrorBoundary>
+                )}
+
                 {activeTab === 'trends' && (
                   <ErrorBoundary label="ExerciseTrends">
                     <div>
@@ -882,9 +917,23 @@ export default function Progress() {
               {t('progress.personalBests')}
             </DialogTitle>
           </DialogHeader>
-          <PersonalBestsTab logs={logs} />
+          <PersonalBestsTab
+            logs={logs}
+            onViewHistory={(name) => {
+              setPersonalBestsModalOpen(false);
+              setPRHistoryExercise(name);
+            }}
+          />
         </DialogContent>
       </Dialog>
+
+      {/* PR History Modal */}
+      <PRHistoryModal
+        open={!!prHistoryExercise}
+        onClose={() => setPRHistoryExercise(null)}
+        exerciseName={prHistoryExercise}
+        logs={logs}
+      />
 
       {/* Advanced Analytics Modal */}
       <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} />
