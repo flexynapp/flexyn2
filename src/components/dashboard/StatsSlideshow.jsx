@@ -28,7 +28,7 @@ const CHART_TOOLTIP_STYLE = {
 
 // ─── Chart Slide Components ───────────────────────────────────────────────────
 
-function WeeklyVolumeChart({ logs }) {
+function WeeklyVolumeChart({ logs = [] }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
@@ -73,7 +73,7 @@ function WeeklyVolumeChart({ logs }) {
   );
 }
 
-function TopExerciseChart({ logs }) {
+function TopExerciseChart({ logs = [] }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
@@ -134,6 +134,10 @@ function TopExerciseChart({ logs }) {
 
 function buildStatSlides(logs, goals, weightUnit, language) {
   const slides = [];
+  // Defensive — Dashboard always passes [], but a future call site could
+  // forward undefined. Same guard already added to the chart components.
+  if (!Array.isArray(logs)) logs = [];
+  if (!Array.isArray(goals)) goals = [];
   const thisWeekLogs = logs.filter(l => l.date && isAfter(new Date(l.date), subDays(new Date(), 7)));
 
   slides.push({
@@ -221,10 +225,10 @@ function buildStatSlides(logs, goals, weightUnit, language) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function StatsSlideshow({ logs, goals, isLoading }) {
+export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
-  const hasData = logs.length >= 3;
+  const hasData = (logs?.length ?? 0) >= 3;
 
   const statSlides = useMemo(() => buildStatSlides(logs, goals, weightUnit, language), [logs, goals, weightUnit, language]);
 

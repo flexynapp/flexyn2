@@ -14,7 +14,8 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { startOfDay, parseISO } from 'date-fns';
+import { startOfDay } from 'date-fns';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 // Map exercise muscle groups → plan day label
 const MUSCLE_TO_LABEL = {
@@ -80,12 +81,10 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
     if (active.length < 2) return null;
 
     const today = startOfDay(new Date()).getTime();
-    const parseLocalDate = (s) => {
-      if (!s) return null;
-      const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      try { return parseISO(s); } catch { return null; }
-    };
+
+    // parseLocalDate now comes from @/lib/dateUtils (shared helper) —
+    // previously this component re-implemented the function inline,
+    // which would drift from the canonical version over time.
 
     // Build a map: regimenName → last date used
     const lastUsed = {};

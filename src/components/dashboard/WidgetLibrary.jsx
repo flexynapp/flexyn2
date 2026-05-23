@@ -17,7 +17,7 @@ export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets =
     : WIDGET_DEFINITIONS.filter(w => w.category === selectedCategory);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading text-xl">{t('widgets.library')}</DialogTitle>

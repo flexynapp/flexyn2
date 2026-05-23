@@ -258,7 +258,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
         </div>
         <button
           onClick={handleDismiss}
-          className="shrink-0 -me-1 -mt-1 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+          className="shrink-0 -me-1 -mt-1 p-2.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
           aria-label={tFallback('onboarding.dismiss', 'Dismiss')}
         >
           <X className="w-3.5 h-3.5" />

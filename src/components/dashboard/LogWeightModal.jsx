@@ -137,6 +137,11 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               inputMode="decimal"
               step="0.1"
               min="0"
+              // Mirror the server-side guard (50-700 lbs / 23-318 kg) on
+              // the HTML5 input so iOS users see native validation
+              // before submitting, and the input loses focus instead of
+              // accepting a 4-digit junk value and showing a toast.
+              max={weightUnit === 'kg' ? '318' : '700'}
               value={value}
               onChange={e => setValue(e.target.value)}
               placeholder={weightUnit === 'kg' ? '70.0' : '154.0'}

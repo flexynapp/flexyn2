@@ -240,7 +240,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
       <AnimatePresence>
         {cameraOpen && (
           <Dialog open={cameraOpen} onOpenChange={closeCamera}>
-            <DialogContent className="w-full h-screen max-w-none p-0 border-0 rounded-0 bg-black min-h-[420px]">
+            <DialogContent className="w-full h-[100dvh] max-w-none p-0 border-0 rounded-0 bg-black min-h-[420px]">
               {/* Top Bar */}
               <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/70 to-transparent flex items-center justify-between">
                 <p className="font-heading font-bold text-white">

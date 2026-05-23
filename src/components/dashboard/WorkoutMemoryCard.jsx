@@ -18,6 +18,8 @@ import { format } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { findWorkoutMemory, summarizeMemoryLog } from '@/lib/workoutMemories';
+import { parseLocalDate } from '@/lib/dateUtils';
+import { getDateLocale } from '@/lib/dateLocales';
 
 const DISMISS_KEY = (userId, dayKey) => `flexyn.memoryDismissed.${userId || 'anon'}.${dayKey}`;
 const TODAY_KEY = () => format(new Date(), 'yyyy-MM-dd');
@@ -42,10 +44,16 @@ export default function WorkoutMemoryCard({ logs = [] }) {
   if (!user?.id || !memory || dismissed) return null;
 
   const summary = summarizeMemoryLog(memory.log, language);
+  const dateLocale = getDateLocale(language);
   const dateStr = (() => {
     try {
-      const d = new Date(memory.log?.date || memory.log?.created_at || memory.log?.created_date);
-      return format(d, 'MMM d, yyyy');
+      // parseLocalDate so 'YYYY-MM-DD' DATE columns aren't shifted to
+      // UTC midnight (which renders as the previous local day in
+      // negative-offset zones). Pass locale so non-English users see
+      // their month names.
+      const d = parseLocalDate(memory.log?.date || memory.log?.created_at || memory.log?.created_date);
+      if (!d) return '';
+      return format(d, 'MMM d, yyyy', { locale: dateLocale });
     } catch { return ''; }
   })();
 
@@ -100,7 +108,11 @@ export default function WorkoutMemoryCard({ logs = [] }) {
           </button>
           <button
             onClick={handleDismiss}
-            className="absolute top-2 end-2 p-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            // -m-1.5 expands the tap target to ~44pt (iOS HIG min) without
+            // changing the visual layout. Bare p-1 was 22px — below the
+            // accessible-touch threshold and easy to mis-tap when the
+            // primary card CTA sits right next to it.
+            className="absolute top-2 end-2 p-2.5 -m-1.5 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             aria-label={tFallback('memory.dismiss', 'Dismiss for today')}
           >
             <X className="w-3.5 h-3.5" />
