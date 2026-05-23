@@ -13,8 +13,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Send, Loader2, Plus, Crown, Printer,
+  Send, Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut,
 } from 'lucide-react';
+import { leaveGym } from '@/lib/data/gymBusinesses';
 
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 import { Button } from '@/components/ui/button';
@@ -137,6 +138,63 @@ export default function GymHub() {
                 </div>
               )}
             </div>
+          </div>
+
+          {/* Action row — share / edit (owner) / leave (member) */}
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/60">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const shareUrl = `${window.location.origin}/gym/${gym.id}`;
+                const text = `Join me at ${gym.name} on Flexyn — code ${gym.flexyn_code}`;
+                if (navigator.share) {
+                  try {
+                    await navigator.share({ title: gym.name, text, url: shareUrl });
+                    return;
+                  } catch (err) {
+                    if (err?.name === 'AbortError') return;
+                  }
+                }
+                try {
+                  await navigator.clipboard.writeText(`${text}\n${shareUrl}`);
+                  toast.success('Copied to clipboard.');
+                } catch {
+                  toast.error("Couldn't share or copy.");
+                }
+              }}
+              className="gap-1.5"
+            >
+              <Share2 className="w-3.5 h-3.5" /> Share
+            </Button>
+            {isOwner ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate(`/gym/${gym.id}/edit`)}
+                className="gap-1.5"
+              >
+                <Pencil className="w-3.5 h-3.5" /> Edit
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  if (!confirm(`Leave ${gym.name}?`)) return;
+                  const res = await leaveGym(gym.id);
+                  if (res.ok) {
+                    toast.success('Left gym.');
+                    navigate('/my-gyms');
+                  } else {
+                    toast.error("Couldn't leave — try again.");
+                  }
+                }}
+                className="gap-1.5 text-muted-foreground hover:text-destructive"
+              >
+                <LogOut className="w-3.5 h-3.5" /> Leave
+              </Button>
+            )}
           </div>
         </div>
       </div>

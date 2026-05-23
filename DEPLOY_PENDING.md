@@ -6,7 +6,7 @@ Everything below ships the SQL + Edge Function I built this session. Do steps 1 
 
 ## Step 1 — Run the migrations (2 minutes)
 
-This turns on coin gifting, monthly leaderboards, emoji reactions, notification snooze, cycle tracking, and the onboarding fitness assessment.
+This turns on coin gifting, monthly leaderboards, emoji reactions, notification snooze, cycle tracking, the onboarding fitness assessment, **the entire gym business ecosystem (My Gyms, Gym Hub, national map, owner verification, member-join notifications)**.
 
 1. Open **Supabase Dashboard** → your Flexyn project
 2. Click **SQL Editor** in the left sidebar
@@ -28,10 +28,13 @@ SELECT
   EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'snooze_notification_category')  AS snooze,
   EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'cycle_logs') AS cycle,
   EXISTS (SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'user_profiles' AND column_name = 'fitness_assessment') AS assessment;
+          WHERE table_name = 'user_profiles' AND column_name = 'fitness_assessment') AS assessment,
+  EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'gym_businesses') AS gyms,
+  EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'join_gym_by_code')                AS gym_join,
+  EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'notify_gym_owner_on_join')        AS gym_notif;
 ```
 
-All 6 should return `true`. If any return `false`, that migration didn't apply — re-paste the section for that one from `_deploy_pending.sql`.
+All 9 should return `true`. If any return `false`, that migration didn't apply — re-paste the section for that one from `_deploy_pending.sql`.
 
 ---
 
