@@ -58,6 +58,7 @@ import * as activity from '@/lib/data/activity';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
+import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
@@ -1415,6 +1416,28 @@ export default function Workout() {
           />
         ) : !regimensOpen ? (
           <>
+            {/* First-visit AI Coach starter-plan hero card. Renders when:
+                  • zero workout logs (truly first session), AND
+                  • a regimen with the canonical starter name exists.
+                Goes above the freestyle CTA so the personalized plan is
+                the first thing the user sees, but freestyle stays
+                available right below for users who want to wing it. */}
+            {logs.length === 0 && (() => {
+              const starter = regimens.find(r =>
+                typeof r?.name === 'string' &&
+                r.name.startsWith('Your Starter Plan'),
+              );
+              if (!starter) return null;
+              return (
+                <StarterPlanHeroCard
+                  regimen={starter}
+                  userProfile={userProfile}
+                  onStart={startFromRegimen}
+                  onCustomize={() => setRegimensOpen(true)}
+                />
+              );
+            })()}
+
             {/* Primary action */}
             <motion.button
               initial={{ opacity: 0, y: 12 }}
