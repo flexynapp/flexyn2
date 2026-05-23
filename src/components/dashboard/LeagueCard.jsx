@@ -29,6 +29,25 @@ export default function LeagueCard({ onClick }) {
     refetchInterval: 90_000, // gentle poll so the rank refreshes after others log XP
   });
 
+  // Rank-change animation state — hooks MUST be declared before any
+  // early return so the hook order stays stable across renders where
+  // data is loading vs ready. The effect's no-op guard handles the
+  // case where myRank isn't known yet.
+  const myRank = data?.myRank ?? null;
+  const prevRankRef = useRef(myRank);
+  const [rankDelta, setRankDelta] = useState(null);
+  useEffect(() => {
+    if (!myRank || !prevRankRef.current || prevRankRef.current === myRank) {
+      prevRankRef.current = myRank;
+      return;
+    }
+    const delta = myRank - prevRankRef.current;
+    setRankDelta(delta);
+    prevRankRef.current = myRank;
+    const t = setTimeout(() => setRankDelta(null), 2800);
+    return () => clearTimeout(t);
+  }, [myRank]);
+
   if (!user?.id) return null;
 
   if (isLoading) {
@@ -42,24 +61,9 @@ export default function LeagueCard({ onClick }) {
     return null;
   }
 
-  const { league, tier, members, myRank, totalMembers } = data;
+  const { league, tier, members, totalMembers } = data;
   const me = members.find(m => m && m.user_id === user.id);
   const myXp = me?.weekly_xp || 0;
-
-  // Track previous rank to animate climbing/falling when rank changes
-  const prevRankRef = useRef(myRank);
-  const [rankDelta, setRankDelta] = useState(null); // negative = climbed up, positive = fell
-  useEffect(() => {
-    if (!myRank || !prevRankRef.current || prevRankRef.current === myRank) {
-      prevRankRef.current = myRank;
-      return;
-    }
-    const delta = myRank - prevRankRef.current; // negative = better rank (climbed)
-    setRankDelta(delta);
-    prevRankRef.current = myRank;
-    const t = setTimeout(() => setRankDelta(null), 2800);
-    return () => clearTimeout(t);
-  }, [myRank]);
 
   // Days left in the week (week_end is a YYYY-MM-DD string)
   const endDate = parseISO(league.week_end + 'T23:59:59');

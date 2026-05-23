@@ -18,7 +18,6 @@ import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
 import * as crewRxns from '@/lib/data/crewMessageReactions';
 import { supabase } from '@/api/supabaseClient';
-import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
 
