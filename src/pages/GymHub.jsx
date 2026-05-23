@@ -20,6 +20,7 @@ import { leaveGym } from '@/lib/data/gymBusinesses';
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 const GymFeedTab            = lazy(() => import('@/components/gyms/GymFeedTab'));
 const MemberDirectoryModal  = lazy(() => import('@/components/gyms/MemberDirectoryModal'));
+const GymAboutCard          = lazy(() => import('@/components/gyms/GymAboutCard'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -249,6 +250,13 @@ export default function GymHub() {
         </div>
       </div>
 
+      {/* About — hours, amenities, photos, description. Auto-hides
+          when nothing has been set. Lazy-loaded since most gym
+          visits won't need to crack open the chunk. */}
+      <Suspense fallback={null}>
+        <GymAboutCard gym={gym} />
+      </Suspense>
+
       {/* Non-member preview — when you arrive from the map or a
           shared link without belonging to the gym yet, the feed /
           events / leaderboard are RLS-empty anyway. Skip the tabs
@@ -256,10 +264,7 @@ export default function GymHub() {
           instead. Owners always count as members for this check. */}
       {membershipChecked && !isMember && !isOwner && (
         <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-center">
-          {gym.description && (
-            <p className="text-sm text-foreground/85 mb-4 leading-relaxed">{gym.description}</p>
-          )}
-          <p className="text-xs text-muted-foreground mb-3">
+          <p className="text-sm text-muted-foreground mb-3">
             Join to access the local feed, events, and member leaderboard.
           </p>
           <Button onClick={handleJoinHere} disabled={joining} className="gap-2 px-6">

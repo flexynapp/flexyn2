@@ -12,7 +12,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Building2, Loader2, MapPin, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Building2, Clock, Loader2, MapPin, Save, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { AMENITY_META, AMENITY_SLUGS } from '@/lib/gymAmenities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -43,7 +44,12 @@ export default function GymEdit() {
     website_url: '',
     latitude: '',
     longitude: '',
+    // mig 140 fields
+    hours: {},        // { mon: { open: '06:00', close: '22:00' }, ... }
+    amenities: [],    // ['parking', 'showers', ...]
+    photo_urls: [],   // array of public URLs
   });
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -60,6 +66,9 @@ export default function GymEdit() {
           website_url: g.website_url || '',
           latitude:    g.latitude  != null ? String(g.latitude)  : '',
           longitude:   g.longitude != null ? String(g.longitude) : '',
+          hours:       g.hours      && typeof g.hours === 'object' ? g.hours : {},
+          amenities:   Array.isArray(g.amenities)  ? g.amenities  : [],
+          photo_urls:  Array.isArray(g.photo_urls) ? g.photo_urls : [],
         });
       }
       setLoading(false);
@@ -166,6 +175,9 @@ export default function GymEdit() {
         website_url: form.website_url || null,
         latitude:    lat,
         longitude:   lng,
+        hours:       form.hours      || {},
+        amenities:   form.amenities  || [],
+        photo_urls:  form.photo_urls || [],
         updated_at:  new Date().toISOString(),
       })
       .eq('id', gym.id);
@@ -312,11 +324,204 @@ export default function GymEdit() {
           </div>
         </div>
 
+        {/* Hours editor — one row per day with open/close time inputs.
+            Leaving both blank for a day means "closed" on that day. */}
+        <HoursEditor
+          value={form.hours}
+          onChange={(next) => setForm(f => ({ ...f, hours: next }))}
+        />
+
+        {/* Amenities — chip toggle grid from the controlled vocabulary. */}
+        <AmenitiesEditor
+          value={form.amenities}
+          onChange={(next) => setForm(f => ({ ...f, amenities: next }))}
+        />
+
+        {/* Photo gallery — multi-image uploader with reorder via
+            drag handles in a later pass. v1 = add + remove. */}
+        <PhotoGalleryEditor
+          gymId={gym.id}
+          value={form.photo_urls}
+          onChange={(next) => setForm(f => ({ ...f, photo_urls: next }))}
+          uploading={uploadingPhoto}
+          setUploading={setUploadingPhoto}
+          uploadFn={uploadImage}
+        />
+
         <Button onClick={handleSave} disabled={saving} className="w-full h-11 gap-2">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           {saving ? 'Saving…' : 'Save changes'}
         </Button>
       </div>
     </motion.div>
+  );
+}
+
+// ── Hours editor ────────────────────────────────────────────────────
+const DAY_ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+const DAY_LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+
+function HoursEditor({ value, onChange }) {
+  const updateDay = (key, field, val) => {
+    const next = { ...(value || {}) };
+    const slot = { ...(next[key] || {}) };
+    slot[field] = val || null;
+    if (!slot.open && !slot.close) delete next[key];
+    else next[key] = slot;
+    onChange(next);
+  };
+
+  const setAllSame = () => {
+    const refDay = value?.mon;
+    if (!refDay?.open || !refDay?.close) {
+      toast.error('Set Monday first, then tap "Copy to all days".');
+      return;
+    }
+    const next = {};
+    for (const k of DAY_ORDER) {
+      next[k] = { open: refDay.open, close: refDay.close };
+    }
+    onChange(next);
+  };
+
+  return (
+    <div className="rounded-xl border border-dashed border-border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <Clock className="w-3 h-3 inline-block mr-1" /> Hours
+        </p>
+        <button
+          type="button"
+          onClick={setAllSame}
+          className="text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded"
+        >
+          Copy Mon → all days
+        </button>
+      </div>
+      <div className="space-y-1">
+        {DAY_ORDER.map(key => {
+          const slot = value?.[key] || {};
+          return (
+            <div key={key} className="grid grid-cols-[42px_1fr_8px_1fr] items-center gap-2">
+              <span className="text-xs font-bold text-muted-foreground">{DAY_LABEL[key]}</span>
+              <Input
+                type="time"
+                value={slot.open || ''}
+                onChange={(e) => updateDay(key, 'open', e.target.value)}
+                className="h-8 text-xs"
+              />
+              <span className="text-muted-foreground text-xs text-center">–</span>
+              <Input
+                type="time"
+                value={slot.close || ''}
+                onChange={(e) => updateDay(key, 'close', e.target.value)}
+                className="h-8 text-xs"
+              />
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted-foreground mt-2">
+        Leave both fields blank to mark a day as closed.
+      </p>
+    </div>
+  );
+}
+
+// ── Amenities editor ────────────────────────────────────────────────
+function AmenitiesEditor({ value, onChange }) {
+  const selected = new Set(value || []);
+  const toggle = (slug) => {
+    const next = new Set(selected);
+    if (next.has(slug)) next.delete(slug);
+    else next.add(slug);
+    onChange(Array.from(next));
+  };
+  return (
+    <div className="rounded-xl border border-dashed border-border p-3">
+      <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">
+        Amenities
+      </p>
+      <div className="flex flex-wrap gap-1.5">
+        {AMENITY_SLUGS.map(slug => {
+          const meta = AMENITY_META[slug];
+          const isOn = selected.has(slug);
+          return (
+            <button
+              key={slug}
+              type="button"
+              onClick={() => toggle(slug)}
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
+                isOn
+                  ? 'bg-primary/15 text-primary border-primary/30'
+                  : 'bg-secondary/60 text-muted-foreground border-border hover:bg-secondary'
+              }`}
+            >
+              <span aria-hidden="true">{meta.emoji}</span>
+              {meta.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Photo gallery editor ────────────────────────────────────────────
+const MAX_GALLERY_PHOTOS = 10;
+
+function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, uploadFn }) {
+  const handlePick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if ((value || []).length >= MAX_GALLERY_PHOTOS) {
+      toast.error(`Max ${MAX_GALLERY_PHOTOS} photos.`);
+      return;
+    }
+    setUploading(true);
+    const url = await uploadFn(file, 'gallery');
+    setUploading(false);
+    if (url) onChange([...(value || []), url]);
+  };
+
+  const handleRemove = (url) => {
+    onChange((value || []).filter(u => u !== url));
+  };
+
+  return (
+    <div className="rounded-xl border border-dashed border-border p-3">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <ImageIcon className="w-3 h-3 inline-block mr-1" /> Photo gallery
+        </p>
+        <label className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded cursor-pointer">
+          {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+          {uploading ? 'Uploading…' : 'Add photo'}
+          <input type="file" accept="image/*" className="hidden" onChange={handlePick} disabled={uploading} />
+        </label>
+      </div>
+      {(value || []).length === 0 ? (
+        <p className="text-[11px] text-muted-foreground">
+          Up to {MAX_GALLERY_PHOTOS} photos. Members see them as a swipeable rail on your hub page.
+        </p>
+      ) : (
+        <div className="grid grid-cols-3 gap-2">
+          {value.map((url) => (
+            <div key={url} className="relative aspect-square rounded-lg overflow-hidden bg-secondary">
+              <img src={url} alt="" className="w-full h-full object-cover" loading="lazy" />
+              <button
+                type="button"
+                onClick={() => handleRemove(url)}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/65 text-white flex items-center justify-center"
+                aria-label="Remove photo"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
