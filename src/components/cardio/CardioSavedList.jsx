@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Footprints, PersonStanding, Bike, Activity, ChevronRight } from 'lucide-react';
+import { Footprints, PersonStanding, Bike, Activity, Waves, ChevronRight } from 'lucide-react';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -25,9 +25,10 @@ const itemVariants = {
 };
 
 function typeIcon(type) {
-  if (type?.startsWith('running')) return Footprints;
-  if (type?.startsWith('walking')) return PersonStanding;
-  if (type?.startsWith('biking'))  return Bike;
+  if (type?.startsWith('running'))  return Footprints;
+  if (type?.startsWith('walking'))  return PersonStanding;
+  if (type?.startsWith('biking'))   return Bike;
+  if (type?.startsWith('swimming')) return Waves;
   return Activity;
 }
 

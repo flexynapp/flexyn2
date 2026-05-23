@@ -25,6 +25,14 @@ function metForActivity(type, speedKmh) {
     if (speedKmh < 28) return 10.0;
     return 12.0;
   }
+  // Swimming MET values (Compendium of Physical Activities 2011)
+  if (type.startsWith('swimming')) {
+    // speed-based proxy: recreational ~1-2 km/h, competitive ~4-8 km/h
+    if (speedKmh < 1.5) return 5.0;  // leisurely
+    if (speedKmh < 2.5) return 6.0;  // moderate
+    if (speedKmh < 4.0) return 8.3;  // vigorous freestyle
+    return 9.8;                        // competitive / sprint
+  }
   return 6.0;
 }
 

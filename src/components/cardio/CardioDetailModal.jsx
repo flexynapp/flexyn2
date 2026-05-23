@@ -7,7 +7,8 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Heart, Zap, Waves, Wind, Map } from 'lucide-react';
+import { vo2maxTier } from '@/lib/cardioVO2max';
 import { format, parseISO } from 'date-fns';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -249,6 +250,57 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
             label={t('cardio.field.elevation')}
             value={elevationDisplay}
           />
+          {/* New enhanced fields */}
+          {log.avg_heart_rate && (
+            <DetailRow
+              label={<span className="flex items-center gap-1"><Heart className="w-3 h-3 text-rose-500" /> Avg HR</span>}
+              value={`${log.avg_heart_rate} bpm`}
+            />
+          )}
+          {log.cadence_spm && (
+            <DetailRow
+              label={<span className="flex items-center gap-1"><Wind className="w-3 h-3 text-primary" /> Cadence</span>}
+              value={`${log.cadence_spm} spm`}
+            />
+          )}
+          {log.power_watts && (
+            <DetailRow
+              label={<span className="flex items-center gap-1"><Zap className="w-3 h-3 text-amber-500" /> Avg Power</span>}
+              value={`${log.power_watts} W`}
+            />
+          )}
+          {log.pool_length_m && (
+            <DetailRow
+              label={<span className="flex items-center gap-1"><Waves className="w-3 h-3 text-blue-500" /> Pool Length</span>}
+              value={`${log.pool_length_m} m`}
+            />
+          )}
+          {log.laps && (
+            <DetailRow label="Laps" value={`${log.laps} laps`} />
+          )}
+          {log.stroke_type && (
+            <DetailRow label="Stroke" value={log.stroke_type} />
+          )}
+          {log.route_name && (
+            <DetailRow
+              label={<span className="flex items-center gap-1"><Map className="w-3 h-3 text-green-500" /> Route</span>}
+              value={log.route_name}
+            />
+          )}
+          {log.vo2max_estimate && (() => {
+            const tier = vo2maxTier(log.vo2max_estimate);
+            return (
+              <DetailRow
+                label="VO₂max est."
+                value={
+                  <span className="flex items-center gap-1.5 justify-end">
+                    <span>{log.vo2max_estimate} mL/kg/min</span>
+                    {tier && <span className={`text-[10px] font-bold ${tier.color}`}>{tier.label}</span>}
+                  </span>
+                }
+              />
+            );
+          })()}
         </div>
 
         {log.notes && (

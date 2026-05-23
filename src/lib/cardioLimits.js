@@ -17,12 +17,16 @@
  * Keys match the `type` field stored on CardioLog.
  */
 export const CARDIO_SPEED_LIMITS = {
-  walking_outside:   { minKmh: 0.5, maxKmh: 14.0 },
-  walking_treadmill: { minKmh: 0.5, maxKmh: 14.0 },
-  running_outside:   { minKmh: 2.0, maxKmh: 28.0 },
-  running_treadmill: { minKmh: 2.0, maxKmh: 28.0 },
-  biking_outside:    { minKmh: 2.0, maxKmh: 75.0 },
-  biking_treadmill:  { minKmh: 2.0, maxKmh: 60.0 },
+  walking_outside:      { minKmh: 0.5, maxKmh: 14.0 },
+  walking_treadmill:    { minKmh: 0.5, maxKmh: 14.0 },
+  running_outside:      { minKmh: 2.0, maxKmh: 28.0 },
+  running_treadmill:    { minKmh: 2.0, maxKmh: 28.0 },
+  biking_outside:       { minKmh: 2.0, maxKmh: 75.0 },
+  biking_stationary:    { minKmh: 2.0, maxKmh: 60.0 },
+  biking_treadmill:     { minKmh: 2.0, maxKmh: 60.0 },
+  // Swimming: elite short-course sprinters reach ~8 km/h; recreational ~1-3 km/h
+  swimming_pool:        { minKmh: 0.2, maxKmh: 9.0 },
+  swimming_openwater:   { minKmh: 0.2, maxKmh: 8.0 },
 };
 
 const DEFAULT_SPEED_LIMIT = { minKmh: 0.5, maxKmh: 75.0 };

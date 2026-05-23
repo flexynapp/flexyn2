@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { toast } from 'sonner';
@@ -7,7 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Save, Calculator } from 'lucide-react';
+import { Save, Calculator, Heart, Zap, Waves, BookmarkPlus, RotateCcw } from 'lucide-react';
 import { reportError } from '@/lib/reportError';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -25,19 +25,26 @@ import { checkCardioSpeed, getMaxRealisticCalories, checkDailyHours } from '@/li
 import { detectNewPRs, PR_LABELS } from '@/lib/cardioPRs';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
+import { bestVO2max } from '@/lib/cardioVO2max';
 
 function deriveType(mode, env) {
   return `${mode}_${env}`;
 }
 
-export default function CardioManualForm({ mode, env, initial, onCancel, onSaved, userProfile = {} }) {
+const STROKE_OPTIONS = ['Freestyle', 'Backstroke', 'Breaststroke', 'Butterfly', 'Mixed'];
+
+export default function CardioManualForm({
+  mode,
+  env,
+  initial,
+  onCancel,
+  onSaved,
+  userProfile = {},
+  templateDefaults = null,
+}) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
 
-  // Today's existing workout + cardio logs — used by the daily-hour
-  // plausibility gate below. Scoped to TODAY only (the gate is a
-  // per-day combined-volume sanity check). Cached for 60s so a
-  // double-tap save doesn't double-fetch.
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const { data: todayWorkoutLogs = [] } = useQuery({
     queryKey: ['workoutLogs.today', user?.email, todayStr],
@@ -58,32 +65,67 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
   const { distanceUnit } = useDistanceUnit();
   const queryClient = useQueryClient();
 
+  // Derive initial values from editing log OR template defaults
+  const src = initial || templateDefaults || {};
+
   const [date, setDate] = useState(initial?.date || format(new Date(), 'yyyy-MM-dd'));
-  const [hours, setHours] = useState(initial ? Math.floor(initial.duration_seconds / 3600) : '');
-  const [minutes, setMinutes] = useState(initial ? Math.floor((initial.duration_seconds % 3600) / 60) : '');
-  const [seconds, setSeconds] = useState(initial ? initial.duration_seconds % 60 : '');
-  const [distance, setDistance] = useState(initial
-    ? metersTo(distanceUnit, initial.distance_meters).toFixed(2) : '');
-  const [incline, setIncline] = useState(initial?.incline_percent ?? '');
-  const [elevation, setElevation] = useState(initial?.elevation_gain_m
+  const [hours, setHours] = useState(src.duration_seconds != null ? Math.floor(src.duration_seconds / 3600) : '');
+  const [minutes, setMinutes] = useState(src.duration_seconds != null ? Math.floor((src.duration_seconds % 3600) / 60) : '');
+  const [seconds, setSeconds] = useState(src.duration_seconds != null ? src.duration_seconds % 60 : '');
+  const [distance, setDistance] = useState(src.distance_meters
+    ? metersTo(distanceUnit, src.distance_meters).toFixed(2) : '');
+  const [incline, setIncline] = useState(src.incline_percent ?? '');
+  const [elevation, setElevation] = useState(src.elevation_gain_m
     ? (distanceUnit === 'mi'
-        ? (initial.elevation_gain_m / 0.3048).toFixed(0)
-        : initial.elevation_gain_m.toFixed(0))
+        ? (src.elevation_gain_m / 0.3048).toFixed(0)
+        : src.elevation_gain_m.toFixed(0))
     : '');
-  const [calories, setCalories] = useState(initial?.calories ?? '');
-  const [notes, setNotes] = useState(initial?.notes || '');
+  const [calories, setCalories] = useState(src.calories ?? '');
+  const [notes, setNotes] = useState(src.notes || '');
   const notesGuard = useProfanityGuard(setNotes);
+
+  // New fields
+  const [avgHr, setAvgHr] = useState(src.avg_heart_rate ?? '');
+  const [cadence, setCadence] = useState(src.cadence_spm ?? '');
+  const [powerWatts, setPowerWatts] = useState(src.power_watts ?? '');
+  const [poolLength, setPoolLength] = useState(src.pool_length_m ?? '');
+  const [laps, setLaps] = useState(src.laps ?? '');
+  const [strokeType, setStrokeType] = useState(src.stroke_type || '');
+  const [routeName, setRouteName] = useState(src.route_name || '');
+  const [savingTemplate, setSavingTemplate] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [speedWarning, setSpeedWarning] = useState(null);
+
+  const isSwim = mode === 'swimming';
+  const isBiking = mode === 'biking';
+  const showIncline = env === 'treadmill';
+  const showElevation = env === 'outside' && !isBiking && !isSwim;
+  const showSwimFields = isSwim;
+  const showPower = isBiking;
+  const showCadence = mode === 'running' || mode === 'walking' || isSwim;
+  const showRouteName = env === 'outside' || env === 'openwater';
+  const elevationSuffix = distanceUnit === 'mi' ? 'ft' : 'm';
 
   const durationSeconds = useMemo(
     () => (Number(hours) || 0) * 3600 + (Number(minutes) || 0) * 60 + (Number(seconds) || 0),
     [hours, minutes, seconds]
   );
-  const distanceMeters = useMemo(
-    () => toMeters(distanceUnit, Number(distance) || 0),
-    [distance, distanceUnit]
-  );
+
+  // For swimming: auto-compute distance from laps × pool length
+  const swimDistMeters = useMemo(() => {
+    if (!isSwim) return 0;
+    const pLen = Number(poolLength);
+    const lapCount = Number(laps);
+    return pLen > 0 && lapCount > 0 ? pLen * lapCount : 0;
+  }, [isSwim, poolLength, laps]);
+
+  const distanceMeters = useMemo(() => {
+    const manual = toMeters(distanceUnit, Number(distance) || 0);
+    if (isSwim && manual === 0 && swimDistMeters > 0) return swimDistMeters;
+    return manual;
+  }, [distance, distanceUnit, isSwim, swimDistMeters]);
+
   const paceSecPerKm = useMemo(
     () => paceSecPerKmFrom(distanceMeters, durationSeconds),
     [distanceMeters, durationSeconds]
@@ -92,10 +134,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
     () => speedKmhFrom(distanceMeters, durationSeconds),
     [distanceMeters, durationSeconds]
   );
-
-  const showIncline = env === 'treadmill';
-  const showElevation = env === 'outside' && mode !== 'biking';
-  const elevationSuffix = distanceUnit === 'mi' ? 'ft' : 'm';
 
   const canSave = useMemo(() => {
     if (durationSeconds <= 0) return false;
@@ -121,6 +159,48 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
     setCalories(est);
   };
 
+  // Auto-fill swim distance from laps × pool length
+  const handleSwimDistAutoFill = useCallback(() => {
+    if (swimDistMeters > 0) {
+      setDistance(metersTo(distanceUnit, swimDistMeters).toFixed(2));
+    }
+  }, [swimDistMeters, distanceUnit]);
+
+  const handleSaveAsTemplate = async () => {
+    if (!routeName && !notes) {
+      toast.info('Enter a route name or notes to identify this template');
+      return;
+    }
+    const tplName = routeName ||
+      `${deriveType(mode, env).replace(/_/g, ' ')} ${distance ? distance + distanceUnit : ''}`.trim();
+    if (!tplName) { toast.info('Give the template a name via Route/Label field'); return; }
+    setSavingTemplate(true);
+    try {
+      await supabase.from('cardio_templates').insert({
+        created_by: user.email,
+        name: tplName,
+        type: deriveType(mode, env),
+        distance_meters: distanceMeters || null,
+        duration_seconds: durationSeconds || null,
+        incline_percent: env === 'treadmill' ? (Number(incline) || null) : null,
+        avg_heart_rate: Number(avgHr) || null,
+        cadence_spm: Number(cadence) || null,
+        power_watts: Number(powerWatts) || null,
+        pool_length_m: Number(poolLength) || null,
+        laps: Number(laps) || null,
+        stroke_type: strokeType || null,
+        notes: notes || null,
+      });
+      queryClient.invalidateQueries({ queryKey: ['cardioTemplates', user?.email] });
+      toast.success(`Template "${tplName}" saved`);
+    } catch (err) {
+      reportError(err, { feature: 'cardio.template.save' });
+      toast.error('Failed to save template');
+    } finally {
+      setSavingTemplate(false);
+    }
+  };
+
   const handleSave = async () => {
     if (hasAnyProfanity(notes)) {
       toast.error('Please remove inappropriate language from notes before saving.');
@@ -134,12 +214,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         setSaving(false);
         return;
       }
-      // Anti-cheat: reject future-dated cardio. Mirrors the Workout
-      // future-date fix (src/pages/Workout.jsx) — uses UTC + 14h as
-      // the ceiling so legitimate logging from UTC+14 timezones at
-      // the local-day rollover isn't blocked, but tomorrow-anywhere
-      // is. Previously cardio had NO future-date check; users in
-      // UTC+14 could log tomorrow's session to game streak/league.
       const maxDate = new Date(Date.now() + 14 * 60 * 60 * 1000);
       const ceilingYmd = maxDate.toISOString().slice(0, 10);
       if (date > ceilingYmd) {
@@ -148,26 +222,14 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         return;
       }
 
-      // ── Daily-hour plausibility check ──
-      // The checkDailyHours util existed in src/lib/cardioLimits.js
-      // but no caller wired it in — users could log 12h cardio + 4h
-      // workout on the same day with no gate. Now applied here AND
-      // (by symmetry) to be applied at the equivalent point in
-      // Workout.jsx as a follow-up.
-      // Only blocks dates that ARE today — past-date entries don't
-      // race against today's accumulated logs.
-      // When editing an existing today-log, exclude that log from the
-      // accumulated set or its OLD duration counts toward the cap on
-      // top of the new duration — e.g. editing a 1h log to 1.5h would
-      // check (1h + 1.5h = 2.5h) instead of (1.5h).
       if (date === todayStr) {
         const otherCardioLogs = initial?.id
           ? todayCardioLogs.filter(l => l.id !== initial.id)
           : todayCardioLogs;
         const hoursCheck = checkDailyHours(
           todayWorkoutLogs, otherCardioLogs,
-          0,                              // newWorkoutMins (this is a cardio save)
-          Number(durationSeconds) || 0,   // newCardioSecs
+          0,
+          Number(durationSeconds) || 0,
         );
         if (hoursCheck.implausible) {
           toast.error(
@@ -179,7 +241,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         }
       }
 
-      // ── Speed plausibility check ──
       const cardioType = deriveType(mode, env);
       const speedCheck = checkCardioSpeed(cardioType, distanceMeters, durationSeconds);
       if (speedCheck.implausible) {
@@ -188,7 +249,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         return;
       }
 
-      // ── Calorie plausibility check ──
       const maxCal = getMaxRealisticCalories(durationSeconds, userProfile);
       if (Number(calories) > maxCal) {
         toast.error(
@@ -204,9 +264,21 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       const cappedDistance = Math.min(distanceMeters, 160934);
       const cappedCalories = Math.min(Number(calories) || 0, getMaxRealisticCalories(cappedDuration, userProfile));
 
+      // Compute VO2max estimate
+      const restHr = userProfile.resting_heart_rate || null;
+      const age = userProfile.age || null;
+      const vo2 = bestVO2max({
+        mode,
+        distanceMeters: cappedDistance,
+        durationSeconds: cappedDuration,
+        avgHr: Number(avgHr) || null,
+        restHr,
+        age,
+      });
+
       const payload = {
         date,
-        type: deriveType(mode, env),
+        type: cardioType,
         mode: 'manual',
         duration_seconds: cappedDuration,
         distance_meters: cappedDistance,
@@ -214,11 +286,20 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         avg_speed_kmh: speedKmhFrom(cappedDistance, cappedDuration),
         calories: cappedCalories,
         incline_percent: env === 'treadmill' ? (Number(incline) || 0) : null,
-        elevation_gain_m: (env === 'outside' && mode !== 'biking' && elevation)
+        elevation_gain_m: (showElevation && elevation)
           ? (distanceUnit === 'mi' ? Number(elevation) * 0.3048 : Number(elevation))
           : null,
         notes: notes || null,
         gps_track: null,
+        // New fields
+        avg_heart_rate: Number(avgHr) || null,
+        cadence_spm: Number(cadence) || null,
+        power_watts: Number(powerWatts) || null,
+        pool_length_m: Number(poolLength) || null,
+        laps: Number(laps) || null,
+        stroke_type: strokeType || null,
+        route_name: routeName || null,
+        vo2max_estimate: vo2,
       };
 
       let prCount = 0;
@@ -226,28 +307,18 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         await db.entities.CardioLog.update(initial.id, payload);
       } else {
         const createdLog = await db.entities.CardioLog.create(payload);
-        // Atomic accumulation via increment_user_distance RPC (migration 023).
-        // The previous read-modify-write raced against itself when a workout +
-        // cardio finished within ~200ms — both reads saw the same `prev` and
-        // one write lost. Falls back to the old path only if the RPC isn't
-        // available (pre-migration).
         if (Number(payload.distance_meters) > 0) {
           try {
             const { error: rpcErr } = await supabase.rpc('increment_user_distance', {
               p_delta: Number(payload.distance_meters),
             });
             if (rpcErr) {
-              console.warn('[Cardio] distance RPC failed, falling back:', rpcErr);
               const me = await db.auth.me();
               const prev = Number(me?.total_distance_meters) || 0;
               await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
             }
           } catch (err) { console.warn('[Cardio] distance accumulate failed:', err); }
         }
-        // Fire achievement check (non-blocking). Report on failure so a
-        // broken cardio→achievements pipeline doesn't silently rot — the
-        // user can save cardio forever without an XP/achievement update
-        // ever landing and no one would know.
         db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 0,
           action_type: 'cardio_completed',
@@ -261,7 +332,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
           level: 'warning',
           userEmail: user?.email,
         }));
-        // Check for PRs
         const prior = await db.entities.CardioLog.filter(
           { created_by: user.email }, '-date', 1000
         );
@@ -270,9 +340,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         prCount = prs.length;
         for (const pr of prs) {
           const label = PR_LABELS[pr.distance];
-          toast.success(t('cardio.pr.title').replace('{label}', label), {
-            duration: 6000,
-          });
+          toast.success(t('cardio.pr.title').replace('{label}', label), { duration: 6000 });
           try { navigator.vibrate?.([100, 60, 100]); } catch {}
         }
       }
@@ -281,9 +349,6 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success(t('cardio.saved'));
 
-      // Quest progress — non-blocking. Failures used to silently
-      // .catch(() => {}); now reportError so quest progression
-      // breakage is visible rather than silently lost.
       const durSec = Number(payload.duration_seconds) || 0;
       Promise.all([
         quests.recordAction(user, ACTION_TYPES.CARDIO_COMPLETED, 1),
@@ -291,13 +356,8 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
         prCount > 0 ? quests.recordAction(user, ACTION_TYPES.PR_ACHIEVED, prCount) : null,
       ].filter(Boolean))
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
-        .catch(err => reportError(err, {
-          feature: 'cardio.quest-progress',
-          level: 'warning',
-          userEmail: user?.email,
-        }));
+        .catch(err => reportError(err, { feature: 'cardio.quest-progress', level: 'warning', userEmail: user?.email }));
 
-      // League weekly XP + workout streak — non-blocking
       const cardioXp = calculateCardioXp({
         duration_seconds: payload.duration_seconds,
         distance_meters:  payload.distance_meters,
@@ -305,22 +365,13 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
       });
       leagues.recordWeeklyXp(user, cardioXp)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
-        .catch(err => reportError(err, {
-          feature: 'cardio.league-xp',
-          level: 'warning',
-          userEmail: user?.email,
-          cardioXp,
-        }));
+        .catch(err => reportError(err, { feature: 'cardio.league-xp', level: 'warning', userEmail: user?.email, cardioXp }));
       workoutStreak.recordWorkoutDay(user)
         .then(() => {
           queryClient.invalidateQueries({ queryKey: ['workoutStreakProfile', user?.id] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         })
-        .catch(err => reportError(err, {
-          feature: 'cardio.workout-streak',
-          level: 'warning',
-          userEmail: user?.email,
-        }));
+        .catch(err => reportError(err, { feature: 'cardio.workout-streak', level: 'warning', userEmail: user?.email }));
 
       onSaved();
     } catch (err) {
@@ -385,6 +436,83 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
           </div>
         </div>
 
+        {/* Swim-specific: Pool Length + Laps */}
+        {showSwimFields && (
+          <div className="space-y-4 rounded-xl border border-blue-500/20 bg-blue-500/5 p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Waves className="w-4 h-4 text-blue-500" />
+              <span className="text-xs font-bold uppercase tracking-wider text-blue-500">Swim Details</span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {/* Pool Length */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Pool Length</label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    min={10}
+                    max={50}
+                    inputMode="numeric"
+                    value={poolLength}
+                    onChange={e => setPoolLength(e.target.value)}
+                    onKeyDown={blockSpecialKeys}
+                    className="pr-8"
+                    placeholder="25"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
+                </div>
+              </div>
+              {/* Laps */}
+              <div>
+                <label className="text-sm font-medium mb-1.5 block">Laps</label>
+                <Input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={laps}
+                  onChange={e => setLaps(e.target.value)}
+                  onKeyDown={blockSpecialKeys}
+                  placeholder="0"
+                />
+              </div>
+            </div>
+
+            {/* Stroke Type */}
+            <div>
+              <label className="text-sm font-medium mb-1.5 block">Stroke</label>
+              <div className="flex flex-wrap gap-2">
+                {STROKE_OPTIONS.map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setStrokeType(strokeType === s ? '' : s)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                      strokeType === s
+                        ? 'bg-blue-500 text-white border-blue-500'
+                        : 'border-border text-muted-foreground hover:border-blue-400'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Auto-fill distance from laps */}
+            {swimDistMeters > 0 && (
+              <button
+                type="button"
+                onClick={handleSwimDistAutoFill}
+                className="flex items-center gap-2 text-xs text-blue-500 hover:text-blue-400"
+              >
+                <RotateCcw className="w-3 h-3" />
+                Fill distance from laps ({metersTo(distanceUnit, swimDistMeters).toFixed(2)} {distanceUnit})
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Distance */}
         <div>
           <label className="text-sm font-medium mb-1.5 block">{t('cardio.field.distance')}</label>
@@ -398,7 +526,9 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
               onChange={e => setDistance(e.target.value)}
               onKeyDown={blockSpecialKeys}
               className="pr-12"
-              placeholder="0.00"
+              placeholder={isSwim && swimDistMeters > 0
+                ? metersTo(distanceUnit, swimDistMeters).toFixed(2)
+                : '0.00'}
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
               {distanceUnit}
@@ -428,7 +558,7 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
           </div>
         )}
 
-        {/* Elevation (outside non-biking only) */}
+        {/* Elevation (outside non-biking, non-swim only) */}
         {showElevation && (
           <div>
             <label className="text-sm font-medium mb-1.5 block">{t('cardio.field.elevation')}</label>
@@ -448,6 +578,94 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
                 {elevationSuffix}
               </span>
             </div>
+          </div>
+        )}
+
+        {/* Heart Rate — shown for all activity types */}
+        <div>
+          <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
+            <Heart className="w-3.5 h-3.5 text-rose-500" />
+            Avg Heart Rate <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+          </label>
+          <div className="relative">
+            <Input
+              type="number"
+              min={40}
+              max={220}
+              inputMode="numeric"
+              value={avgHr}
+              onChange={e => setAvgHr(e.target.value)}
+              onKeyDown={blockSpecialKeys}
+              className="pr-12"
+              placeholder="—"
+            />
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">bpm</span>
+          </div>
+        </div>
+
+        {/* Cadence — running / walking / swimming */}
+        {showCadence && (
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">
+              {isSwim ? 'Strokes / Min' : 'Cadence'}{' '}
+              <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+            </label>
+            <div className="relative">
+              <Input
+                type="number"
+                min={10}
+                max={300}
+                inputMode="numeric"
+                value={cadence}
+                onChange={e => setCadence(e.target.value)}
+                onKeyDown={blockSpecialKeys}
+                className="pr-12"
+                placeholder="—"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                {isSwim ? 'spm' : 'spm'}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Power — cycling only */}
+        {showPower && (
+          <div>
+            <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
+              <Zap className="w-3.5 h-3.5 text-amber-500" />
+              Avg Power <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+            </label>
+            <div className="relative">
+              <Input
+                type="number"
+                min={0}
+                max={2000}
+                inputMode="numeric"
+                value={powerWatts}
+                onChange={e => setPowerWatts(e.target.value)}
+                onKeyDown={blockSpecialKeys}
+                className="pr-10"
+                placeholder="—"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">W</span>
+            </div>
+          </div>
+        )}
+
+        {/* Route / Label — outside and open water */}
+        {showRouteName && (
+          <div>
+            <label className="text-sm font-medium mb-1.5 block">
+              Route / Label <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+            </label>
+            <Input
+              type="text"
+              value={routeName}
+              onChange={e => setRouteName(e.target.value)}
+              placeholder="e.g. Morning Loop, Park Run…"
+              maxLength={80}
+            />
           </div>
         )}
 
@@ -509,7 +727,21 @@ export default function CardioManualForm({ mode, env, initial, onCancel, onSaved
             {saving ? t('cardio.saving') : t('cardio.save')}
           </Button>
         </motion.div>
+
+        {/* Save as Template */}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="w-full text-muted-foreground"
+          onClick={handleSaveAsTemplate}
+          disabled={savingTemplate || durationSeconds <= 0}
+        >
+          <BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />
+          {savingTemplate ? 'Saving…' : 'Save as Template'}
+        </Button>
       </Card>
+
       {speedWarning && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSpeedWarning(null)} />
