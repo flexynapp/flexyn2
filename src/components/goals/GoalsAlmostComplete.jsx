@@ -211,6 +211,11 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
                 tabIndex={onOpen ? 0 : undefined}
                 aria-label={onOpen ? tFallback('goals.almostComplete.openLabel', 'Open goals') : undefined}
                 onKeyDown={onOpen ? (e) => {
+                  // Gate on currentTarget — the inner "Push to complete"
+                  // button (when isComplete) is focusable, and Enter/Space
+                  // on it would otherwise ALSO fire onOpen via bubbling,
+                  // racing the completion against opening the modal.
+                  if (e.target !== e.currentTarget) return;
                   if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
                 } : undefined}
                 style={onOpen ? { cursor: 'pointer' } : {}}

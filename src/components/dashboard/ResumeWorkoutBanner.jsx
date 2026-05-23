@@ -133,7 +133,12 @@ export default function ResumeWorkoutBanner() {
         onClick={handleResume}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); } }}
+        onKeyDown={(e) => {
+          // Gate on currentTarget so Enter/Space on the inner discard
+          // button doesn't ALSO fire handleResume via bubbling.
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
+        }}
         className="flex items-center gap-3 p-3 mb-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover:border-primary/50 transition-colors"
         aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >

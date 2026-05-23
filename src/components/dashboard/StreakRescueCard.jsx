@@ -57,7 +57,15 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         onClick={handleResume}
         role="button"
         tabIndex={0}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); } }}
+        onKeyDown={(e) => {
+          // Only the outer card itself — not a focused descendant
+          // (the inner Skip button) — should treat Enter/Space as
+          // Resume. Without this gate, Tab→inner X→Enter fires BOTH
+          // handleDismiss (click from button activation) AND
+          // handleResume (keydown bubbling to this handler).
+          if (e.target !== e.currentTarget) return;
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
+        }}
         className="flex items-center gap-3 p-3 mb-3 rounded-xl border-2 border-orange-500/35 bg-gradient-to-r from-orange-500/12 via-amber-500/8 to-transparent cursor-pointer hover:border-orange-500/55 transition-colors"
         aria-label={tFallback('streakRescue.aria', `Keep your ${streakDays}-day streak alive`).replace('{n}', String(streakDays))}
       >

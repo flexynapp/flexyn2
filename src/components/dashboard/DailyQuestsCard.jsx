@@ -184,7 +184,13 @@ function QuestRow({ quest, onClaim, onGo, t }) {
       role={tappable ? 'button' : undefined}
       tabIndex={tappable ? 0 : undefined}
       onClick={tappable ? onGo : undefined}
-      onKeyDown={tappable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); } } : undefined}
+      onKeyDown={tappable ? (e) => {
+        // Gate on currentTarget — inner Claim button (when completed)
+        // is focusable, and Enter on it would otherwise also fire onGo
+        // via bubbling, navigating away from the page mid-claim.
+        if (e.target !== e.currentTarget) return;
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onGo(); }
+      } : undefined}
       className={`relative rounded-lg bg-background/60 border border-border/50 p-3 overflow-hidden ${tappable ? 'cursor-pointer hover:border-border transition-colors' : ''}`}
     >
       {/* Subtle progress bar fill in background */}
