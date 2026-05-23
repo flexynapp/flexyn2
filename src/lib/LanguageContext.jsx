@@ -109,10 +109,24 @@ export function LanguageProvider({ children }) {
    * Avoids the verbose `t(k) === k ? 'fallback' : t(k)` pattern across the
    * codebase. Use this when shipping new components that haven't had their
    * keys added to every language file yet.
+   *
+   * Vars are interpolated into BOTH the translation AND the fallback so
+   * non-English users on a missing key don't see literal `{placeholder}`
+   * tokens in the UI. Without this, e.g.
+   *   `tFallback('streakRescue.title', 'Save your {streak}-day streak', { streak: 14 })`
+   * would render "Save your {streak}-day streak" (placeholder visible)
+   * to any locale where the key is missing.
    */
   const tFallback = useCallback((key, fallback, vars) => {
     const v = t(key, vars);
-    return v === key ? fallback : v;
+    if (v !== key) return v;
+    let str = fallback;
+    if (vars && typeof str === 'string') {
+      Object.entries(vars).forEach(([k, val]) => {
+        str = str.replace(new RegExp(`\\{${k}\\}`, 'g'), String(val));
+      });
+    }
+    return str;
   }, [t]);
 
   const currentLanguage = SUPPORTED_LANGUAGES.find(l => l.code === language) || SUPPORTED_LANGUAGES[0];
