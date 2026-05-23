@@ -14,22 +14,17 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronRight, X } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const LS_KEY = (userId) => `flexyn.firstWorkoutTutorial.${userId || 'anon'}`;
 
-const STEPS = [
-  {
-    title: 'Welcome to your first workout',
-    body:  "Your AI Coach pre-loaded the exercises. Tap a set row to start logging.",
-  },
-  {
-    title: 'Enter weight + reps per set',
-    body:  'Each row has a weight field and a reps field. The last set from prior sessions seeds future workouts automatically.',
-  },
-  {
-    title: 'Tap "Save workout" when finished',
-    body:  'The big button at the bottom of the page saves the session, awards XP, and updates your streak. You\'re all set!',
-  },
+const STEP_KEYS = [
+  { titleKey: 'workout.tutorial.step1.title', titleFallback: 'Welcome to your first workout',
+    bodyKey:  'workout.tutorial.step1.body',  bodyFallback:  "Your AI Coach pre-loaded the exercises. Tap a set row to start logging." },
+  { titleKey: 'workout.tutorial.step2.title', titleFallback: 'Enter weight + reps per set',
+    bodyKey:  'workout.tutorial.step2.body',  bodyFallback:  'Each row has a weight field and a reps field. The last set from prior sessions seeds future workouts automatically.' },
+  { titleKey: 'workout.tutorial.step3.title', titleFallback: 'Tap "Save workout" when finished',
+    bodyKey:  'workout.tutorial.step3.body',  bodyFallback:  'The big button at the bottom of the page saves the session, awards XP, and updates your streak.' },
 ];
 
 export function hasSeenFirstWorkoutTutorial(userId) {
@@ -38,6 +33,7 @@ export function hasSeenFirstWorkoutTutorial(userId) {
 }
 
 export default function FirstWorkoutTutorial({ userId, onClose }) {
+  const { tFallback } = useLanguage();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(true);
 
@@ -49,7 +45,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
   }, [userId]);
 
   const handleNext = () => {
-    if (step < STEPS.length - 1) setStep(s => s + 1);
+    if (step < STEP_KEYS.length - 1) setStep(s => s + 1);
     else handleDismiss();
   };
 
@@ -58,7 +54,9 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
     setTimeout(() => onClose?.(), 250);
   };
 
-  const current = STEPS[step] || STEPS[0];
+  const current = STEP_KEYS[step] || STEP_KEYS[0];
+  const currentTitle = tFallback(current.titleKey, current.titleFallback);
+  const currentBody  = tFallback(current.bodyKey,  current.bodyFallback);
 
   return (
     <AnimatePresence>
@@ -85,20 +83,22 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-0.5">
                       <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
-                        Tip {step + 1} / {STEPS.length}
+                        {tFallback('workout.tutorial.step', 'Tip {n} / {total}')
+                          .replace('{n}', step + 1)
+                          .replace('{total}', STEP_KEYS.length)}
                       </span>
                     </div>
                     <h3 className="font-heading font-bold text-sm leading-tight">
-                      {current.title}
+                      {currentTitle}
                     </h3>
                     <p className="text-xs text-muted-foreground leading-snug mt-1">
-                      {current.body}
+                      {currentBody}
                     </p>
                   </div>
                   <button
                     type="button"
                     onClick={handleDismiss}
-                    aria-label="Dismiss tutorial"
+                    aria-label={tFallback('workout.tutorial.dismiss', 'Dismiss tutorial')}
                     className="w-7 h-7 rounded-full bg-secondary/60 hover:bg-secondary text-muted-foreground hover:text-foreground flex items-center justify-center shrink-0"
                   >
                     <X className="w-3.5 h-3.5" />
@@ -107,7 +107,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
 
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1">
-                    {STEPS.map((_, i) => (
+                    {STEP_KEYS.map((_, i) => (
                       <span
                         key={i}
                         className={`h-1.5 rounded-full transition-all ${
@@ -121,13 +121,13 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                     ))}
                   </div>
                   <div className="flex items-center gap-2">
-                    {step < STEPS.length - 1 && (
+                    {step < STEP_KEYS.length - 1 && (
                       <button
                         type="button"
                         onClick={handleDismiss}
                         className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground px-2 py-1"
                       >
-                        Skip
+                        {tFallback('workout.tutorial.skip', 'Skip')}
                       </button>
                     )}
                     <button
@@ -135,7 +135,9 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
                       onClick={handleNext}
                       className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
                     >
-                      {step < STEPS.length - 1 ? 'Next' : 'Got it'}
+                      {step < STEP_KEYS.length - 1
+                        ? tFallback('workout.tutorial.next', 'Next')
+                        : tFallback('workout.tutorial.gotIt', 'Got it')}
                       <ChevronRight className="w-3 h-3" />
                     </button>
                   </div>

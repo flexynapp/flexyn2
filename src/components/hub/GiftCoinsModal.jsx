@@ -17,12 +17,14 @@ import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
 import { useNumberFormatter } from '@/lib/intl';
 import { useAutofocusOnOpen } from '@/hooks/useAutofocusOnOpen';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const QUICK_AMOUNTS = [25, 100, 500, 1000];
 const MAX_MESSAGE_LEN = 120;
 
 export default function GiftCoinsModal({ open, onClose, recipient }) {
   const { user, refreshUser } = useAuth();
+  const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [amount, setAmount] = useState(100);
   const [message, setMessage] = useState('');
@@ -34,7 +36,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
   const balance  = Math.max(0, Number(user?.flex_coins) || 0);
   const recipName = recipient?.username
     ? `@${recipient.username}`
-    : (recipient?.email ? `@${recipient.email.split('@')[0]}` : 'this user');
+    : (recipient?.email ? `@${recipient.email.split('@')[0]}` : tFallback('gift.thisUser', 'this user'));
   const cleanAmount = Number.isFinite(amount) ? Math.floor(amount) : 0;
   const overBudget  = cleanAmount > balance;
   const overCap     = cleanAmount > 10000;
@@ -51,16 +53,20 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
     });
     setSending(false);
     if (res.ok) {
-      toast.success(`Sent ${cleanAmount.toLocaleString()} coins to ${recipName}.`);
+      toast.success(
+        tFallback('gift.successToast', 'Sent {amount} coins to {recipient}.')
+          .replace('{amount}', cleanAmount.toLocaleString())
+          .replace('{recipient}', recipName),
+      );
       try { await refreshUser?.(); } catch { /* non-blocking */ }
       onClose?.();
     } else {
       const err = res.error || 'UNKNOWN';
-      if (err === 'INSUFFICIENT_FUNDS') toast.error("You don't have enough coins.");
-      else if (err === 'PIPELINE_MISSING') toast.error('Gifting not yet available on this server.');
-      else if (err === 'SELF_GIFT') toast.error("You can't gift yourself coins.");
-      else if (err === 'RECIPIENT_NOT_FOUND') toast.error('Recipient could not be found.');
-      else toast.error('Could not send gift. Try again.');
+      if (err === 'INSUFFICIENT_FUNDS')      toast.error(tFallback('gift.error.insufficient',   "You don't have enough coins."));
+      else if (err === 'PIPELINE_MISSING')   toast.error(tFallback('gift.error.pipeline',       'Gifting not yet available on this server.'));
+      else if (err === 'SELF_GIFT')          toast.error(tFallback('gift.error.self',           "You can't gift yourself coins."));
+      else if (err === 'RECIPIENT_NOT_FOUND') toast.error(tFallback('gift.error.notFound',      'Recipient could not be found.'));
+      else                                   toast.error(tFallback('gift.error.generic',        'Could not send gift. Try again.'));
     }
   };
 
@@ -78,7 +84,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
         <div className="flex items-center justify-between px-4 pt-4 pb-2">
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
             <Coins className="w-4 h-4 text-yellow-500" />
-            Send a gift
+            {tFallback('gift.title', 'Send a gift')}
           </h2>
           <button onClick={onClose} aria-label="Close"
             className="w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center hover:text-foreground">
@@ -88,7 +94,9 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
 
         <div className="px-4 pb-4 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Sending coins to <span className="font-semibold text-foreground">{recipName}</span>
+            {tFallback('gift.sendingTo', 'Sending coins to {recipient}').split('{recipient}')[0]}
+            <span className="font-semibold text-foreground">{recipName}</span>
+            {tFallback('gift.sendingTo', 'Sending coins to {recipient}').split('{recipient}')[1]}
           </p>
 
           <div className="grid grid-cols-4 gap-2">
@@ -110,7 +118,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
 
           <div>
             <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Custom amount
+              {tFallback('gift.customAmount', 'Custom amount')}
             </label>
             <input
               ref={amountRef}
@@ -122,25 +130,25 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm tabular-nums"
             />
             <p className="text-[10px] text-muted-foreground mt-1 tabular-nums">
-              Balance: {fmt(balance)} coins · max 10,000 per gift
+              {tFallback('gift.balance', 'Balance: {n} coins · max 10,000 per gift').replace('{n}', fmt(balance))}
             </p>
             {overBudget && (
-              <p className="text-[11px] text-destructive mt-1">Not enough coins in your balance.</p>
+              <p className="text-[11px] text-destructive mt-1">{tFallback('gift.notEnough', "You don't have enough coins.")}</p>
             )}
             {overCap && !overBudget && (
-              <p className="text-[11px] text-destructive mt-1">Max 10,000 per gift.</p>
+              <p className="text-[11px] text-destructive mt-1">{tFallback('gift.maxPerGift', 'Max 10,000 per gift.')}</p>
             )}
           </div>
 
           <div>
             <label className="block text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
-              Message (optional)
+              {tFallback('gift.message', 'Message (optional)')}
             </label>
             <input
               type="text"
               value={message}
               onChange={e => setMessage(e.target.value.slice(0, MAX_MESSAGE_LEN))}
-              placeholder="Crushed that PR!"
+              placeholder={tFallback('gift.messagePlaceholder', 'Crushed that PR!')}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
             />
             <p className="text-[10px] text-muted-foreground mt-1 tabular-nums text-right">
@@ -155,7 +163,9 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
             {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {sending ? 'Sending…' : `Send ${cleanAmount.toLocaleString()} coins`}
+            {sending
+              ? tFallback('gift.sending', 'Sending…')
+              : tFallback('gift.send', 'Send {n} coins').replace('{n}', cleanAmount.toLocaleString())}
           </button>
         </div>
       </motion.div>

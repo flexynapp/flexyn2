@@ -16,20 +16,21 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Play, Sparkles, Pencil, ArrowRight } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
-const GOAL_LABELS = {
-  strength:  'Strength',
-  muscle:    'Muscle',
-  lose:      'Fat loss',
-  endurance: 'Endurance',
-  mobility:  'Mobility',
+const GOAL_KEYS = {
+  strength:  ['workout.starter.goal.strength',  'Strength'],
+  muscle:    ['workout.starter.goal.muscle',    'Muscle'],
+  lose:      ['workout.starter.goal.lose',      'Fat loss'],
+  endurance: ['workout.starter.goal.endurance', 'Endurance'],
+  mobility:  ['workout.starter.goal.mobility',  'Mobility'],
 };
 
-const LEVEL_LABELS = {
-  newbie:     'Beginner',
-  returning:  'Returning',
-  consistent: 'Consistent',
-  advanced:   'Advanced',
+const LEVEL_KEYS = {
+  newbie:     ['workout.starter.level.newbie',     'Beginner'],
+  returning:  ['workout.starter.level.returning',  'Returning'],
+  consistent: ['workout.starter.level.consistent', 'Consistent'],
+  advanced:   ['workout.starter.level.advanced',   'Advanced'],
 };
 
 function pickPrimaryGoal(userProfile) {
@@ -47,12 +48,17 @@ export default function StarterPlanHeroCard({
   onStart,
   onCustomize,
 }) {
+  const { tFallback } = useLanguage();
   if (!regimen) return null;
 
   const goalKey  = pickPrimaryGoal(userProfile);
-  const goalText = goalKey ? (GOAL_LABELS[goalKey] || goalKey) : null;
-  const levelKey = userProfile?.fitness_level || null;
-  const levelText = levelKey ? (LEVEL_LABELS[levelKey] || levelKey) : null;
+  const goalLabel = goalKey && GOAL_KEYS[goalKey]
+    ? tFallback(GOAL_KEYS[goalKey][0], GOAL_KEYS[goalKey][1])
+    : goalKey || null;
+  const levelKeyRaw = userProfile?.fitness_level || null;
+  const levelLabel = levelKeyRaw && LEVEL_KEYS[levelKeyRaw]
+    ? tFallback(LEVEL_KEYS[levelKeyRaw][0], LEVEL_KEYS[levelKeyRaw][1])
+    : levelKeyRaw || null;
   const daysCount = Array.isArray(userProfile?.training_days)
     ? userProfile.training_days.length
     : null;
@@ -74,31 +80,31 @@ export default function StarterPlanHeroCard({
         <div className="flex items-center gap-1.5 mb-2">
           <Sparkles className="w-3.5 h-3.5 text-primary" />
           <span className="text-[10px] font-bold tracking-[0.18em] uppercase text-primary">
-            Built by your AI Coach
+            {tFallback('workout.starter.kicker', 'Built by your AI Coach')}
           </span>
         </div>
 
         <h2 className="font-heading font-bold text-xl md:text-2xl leading-tight">
-          Your starter plan is ready
+          {tFallback('workout.starter.title', 'Your starter plan is ready')}
         </h2>
 
         {/* Context badges — surface the personalization signals onboarding
             already captured so the user sees this plan was custom-fit. */}
-        {(goalText || levelText || daysCount) && (
+        {(goalLabel || levelLabel || daysCount) && (
           <div className="flex flex-wrap items-center gap-1.5 mt-2">
-            {goalText && (
+            {goalLabel && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">
-                {goalText}
+                {goalLabel}
               </span>
             )}
-            {levelText && (
+            {levelLabel && (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border">
-                {levelText}
+                {levelLabel}
               </span>
             )}
             {daysCount ? (
               <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-secondary/60 text-foreground border border-border tabular-nums">
-                {daysCount}×/week
+                {tFallback('workout.starter.daysPerWeek', '{n}×/week').replace('{n}', daysCount)}
               </span>
             ) : null}
           </div>
@@ -117,7 +123,7 @@ export default function StarterPlanHeroCard({
             ))}
             {overflow > 0 && (
               <li className="text-xs text-muted-foreground italic">
-                +{overflow} more
+                {tFallback('workout.starter.moreCount', '+{n} more').replace('{n}', overflow)}
               </li>
             )}
           </ul>
@@ -131,7 +137,7 @@ export default function StarterPlanHeroCard({
             className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm shadow-md shadow-primary/30 hover:opacity-95 transition-opacity"
           >
             <Play className="w-4 h-4 fill-current" />
-            Start your first workout
+            {tFallback('workout.starter.startCta', 'Start your first workout')}
             <ArrowRight className="w-4 h-4" />
           </motion.button>
           {onCustomize && (
@@ -139,10 +145,10 @@ export default function StarterPlanHeroCard({
               type="button"
               onClick={() => onCustomize(regimen)}
               className="inline-flex items-center gap-1.5 px-3 py-3 rounded-xl border border-border bg-background/60 text-xs font-bold uppercase tracking-wider text-foreground hover:bg-secondary/50 transition-colors"
-              aria-label="Customize starter plan"
+              aria-label={tFallback('workout.starter.customizeAria', 'Customize starter plan')}
             >
               <Pencil className="w-3.5 h-3.5" />
-              Customize
+              {tFallback('workout.starter.customize', 'Customize')}
             </button>
           )}
         </div>
