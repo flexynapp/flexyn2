@@ -1,7 +1,8 @@
 // src/components/hub/MarketplaceFeed.jsx
 // Marketplace tab — browse listings, buy, trade, and list your own items.
 
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -18,6 +19,7 @@ import * as marketplace from '@/lib/data/marketplace';
 import * as inventory   from '@/lib/data/inventory';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { supabase } from '@/api/supabaseClient';
+import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
@@ -63,12 +65,13 @@ function RarityBadge({ rarity, small = false }) {
 }
 
 // ─── Listing Card ─────────────────────────────────────────────────────────────
-function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false }) {
+function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOfferTrade, recentlySold = false, boughtByMe = false, soldCount = 0, onSellerClick }) {
   const fmt = useNumberFormatter();
   const isMine      = listing.seller_email === currentUser?.email;
   const isSale      = listing.listing_type === 'sale';
   const canAfford   = isSale && flexCoins >= (listing.asking_price ?? 0);
   const rc          = RARITY[listing.item_rarity] ?? RARITY.common;
+  const soldLabel   = itemSoldCounts.formatSoldCount(soldCount);
 
   return (
     <motion.div
@@ -114,9 +117,25 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
         <RarityBadge rarity={listing.item_rarity} small />
       </div>
 
-      {/* Seller */}
+      {/* Seller — tap to open their HubProfile. Excludes own listings. */}
       <p className="text-gray-500 text-[10px] text-center relative z-10">
-        by <span className="text-gray-400 font-medium">{listing.seller_username || listing.seller_email.split('@')[0]}</span>
+        by{' '}
+        {isMine || !onSellerClick ? (
+          <span className="text-gray-400 font-medium">
+            {listing.seller_username || listing.seller_email.split('@')[0]}
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onSellerClick(listing.seller_email); }}
+            className="text-gray-300 font-medium hover:text-white hover:underline"
+          >
+            {listing.seller_username || listing.seller_email.split('@')[0]}
+          </button>
+        )}
+        {soldLabel && (
+          <span className="text-gray-500"> · {soldLabel}</span>
+        )}
       </p>
 
       {/* Listing type badge */}
@@ -827,6 +846,27 @@ export default function MarketplaceFeed() {
   });
   const listings = Array.isArray(rawListings) ? rawListings : [];
 
+  // Sold-counts lookup — one bulk query for every visible listing's
+  // item_id. Re-runs only when the set of visible item_ids changes.
+  const visibleItemIds = useMemo(
+    () => Array.from(new Set(listings.map(l => l.item_id).filter(Boolean))),
+    [listings]
+  );
+  const { data: soldCountMap = new Map() } = useQuery({
+    queryKey: ['itemSoldCounts', visibleItemIds.join(',')],
+    queryFn:  () => itemSoldCounts.countsFor(visibleItemIds),
+    enabled:  visibleItemIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  // Single navigate handler threaded into every ListingCard's seller
+  // link. Routes to /hub?profile=<email> — the canonical profile URL.
+  const navigate = useNavigate();
+  const handleSellerClick = useCallback((email) => {
+    if (!email) return;
+    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+  }, [navigate]);
+
   // Detect listings that disappeared between the previous render and
   // this one — those are the just-sold (or cancelled) ones. Mark them
   // for a 5s "sold-fade" overlay, then clean them up. boughtByMe is
@@ -1058,6 +1098,8 @@ export default function MarketplaceFeed() {
                 onBuy={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setBuyTarget(l); }}
                 onCancel={handleCancel}
                 onOfferTrade={(l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); }}
+                soldCount={soldCountMap.get(listing.item_id) || 0}
+                onSellerClick={handleSellerClick}
               />
             ))}
             {/* Sold-fade cards — re-render the just-removed listings
@@ -1079,6 +1121,8 @@ export default function MarketplaceFeed() {
                   onOfferTrade={() => {}}
                   recentlySold
                   boughtByMe={boughtByMeIds.has(listing.id)}
+                  soldCount={soldCountMap.get(listing.item_id) || 0}
+                  onSellerClick={handleSellerClick}
                 />
               ))}
           </AnimatePresence>

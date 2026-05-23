@@ -21,6 +21,9 @@ import {
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as regimens from '@/lib/data/regimens';
+import * as regimenReviews from '@/lib/data/regimenReviews';
+import StarRating from './StarRating';
+import RegimenReviewsBlock from './RegimenReviewsBlock';
 
 // All muscle groups the app recognises — hardcoded so the chips are always
 // shown even when the loaded templates don't cover every group.
@@ -99,6 +102,26 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
 
   const copyCount = regimen.copy_count || regimen.clone_count || 0;
 
+  // Live aggregate rating for this card. Single-row lookup with
+  // generous staleTime — store cards re-render often and this is
+  // cosmetic.
+  const { data: ratingAgg } = useQuery({
+    queryKey: ['regimenReviewAgg', regimen.id],
+    queryFn:  async () => (await regimenReviews.aggregatesFor([regimen.id])).get(regimen.id) || null,
+    enabled:  !!regimen.id,
+    staleTime: 5 * 60_000,
+  });
+
+  // First-exercise preview — show 3 names inline below the title so
+  // the buyer sees what they're getting without expanding the card.
+  const exercisePreview = useMemo(() => {
+    const list = (regimen.exercises || [])
+      .map(e => e.name || e.exercise_name)
+      .filter(Boolean);
+    if (list.length === 0) return null;
+    return { names: list.slice(0, 3), more: Math.max(0, list.length - 3) };
+  }, [regimen.exercises]);
+
   return (
     <motion.div
       layout
@@ -129,6 +152,18 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
               </p>
             ) : null}
 
+            {/* First-exercise preview — teaser of what's inside the
+                regimen without forcing the user to expand the card. */}
+            {exercisePreview && (
+              <p className="text-xs text-muted-foreground mt-1 truncate">
+                <span className="opacity-60">Includes: </span>
+                {exercisePreview.names.join(' · ')}
+                {exercisePreview.more > 0 && (
+                  <span className="opacity-60"> · +{exercisePreview.more} more</span>
+                )}
+              </p>
+            )}
+
             {/* Stats row */}
             <div className="flex items-center gap-3 mt-2">
               <DownloadBadge count={copyCount} />
@@ -136,6 +171,15 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                 <Dumbbell className="w-3 h-3" />
                 {regimen.exercises?.length || 0} exercises
               </span>
+              {/* Aggregate rating — quiet when no reviews yet. */}
+              {ratingAgg && ratingAgg.review_count > 0 && (
+                <span className="flex items-center gap-1 text-xs">
+                  <StarRating value={ratingAgg.avg_rating} size="sm" />
+                  <span className="text-muted-foreground">
+                    {ratingAgg.avg_rating.toFixed(1)} · {ratingAgg.review_count}
+                  </span>
+                </span>
+              )}
             </div>
 
             {/* Muscle group chips */}
@@ -207,6 +251,10 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
                   <p className="text-xs text-muted-foreground">No exercises listed.</p>
                 )}
               </div>
+
+              {/* Reviews — aggregate + list + your-review composer.
+                  Adoption-gate is enforced server-side. */}
+              <RegimenReviewsBlock regimenId={regimen.id} user={user} />
             </motion.div>
           )}
         </AnimatePresence>
