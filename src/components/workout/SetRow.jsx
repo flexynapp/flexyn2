@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, X, Flame, Gauge, MessageCircle } from 'lucide-react';
+import { Trophy, X, Flame, Gauge, MessageCircle, Minus, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -83,7 +83,33 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     <div className="relative">
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
-      <div className="flex-1">
+      <div className="flex-1 flex items-center gap-0.5">
+        {/* Stepper buttons for progressive overload — one-tap bumps
+            of the unit-appropriate small plate (5 lb / 2.5 kg). The
+            kg increment matches the smallest standard plate pair.
+            Tap +/- repeatedly to nudge; the value is clamped to the
+            same maxWeight that direct typing respects. */}
+        {(() => {
+          const stepLbs = weightUnit === 'kg' ? 2.5 / 0.453592 : 5;
+          const currentLbs = Number(set.weight) || 0;
+          const bump = (delta) => {
+            const next = Math.max(0, Math.min(maxWeight, currentLbs + delta));
+            onChange({ ...set, weight: next });
+          };
+          return (
+            <>
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label="Decrease weight"
+                onClick={() => bump(-stepLbs)}
+                className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors shrink-0"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+            </>
+          );
+        })()}
         <Input
           type="number"
           inputMode="decimal"
@@ -125,6 +151,25 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           className="h-9 text-center"
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
+        {(() => {
+          const stepLbs = weightUnit === 'kg' ? 2.5 / 0.453592 : 5;
+          const currentLbs = Number(set.weight) || 0;
+          const bumpUp = () => {
+            const next = Math.max(0, Math.min(maxWeight, currentLbs + stepLbs));
+            onChange({ ...set, weight: next });
+          };
+          return (
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label="Increase weight"
+              onClick={bumpUp}
+              className="w-6 h-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition-colors shrink-0"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          );
+        })()}
       </div>
       <span className="text-muted-foreground text-xs">×</span>
       <div className="flex-1">
