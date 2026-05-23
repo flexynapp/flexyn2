@@ -2,15 +2,6 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
-
-// Orange 3-pronged crown badge for verified admins
-function CrownBadge({ size = 14 }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
-      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
-    </svg>
-  );
-}
 import { isVerified } from '@/lib/verifiedUsers';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
@@ -24,6 +15,15 @@ import * as hubComments from '@/lib/data/hubComments';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
 import ReportDialog from './ReportDialog';
 import { toast } from 'sonner';
+
+// Orange 3-pronged crown badge for verified admins
+function CrownBadge({ size = 14 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 14" fill="none" aria-label="Admin" title="Verified Admin">
+      <path d="M1 12h14M2 12L1 4l4 3.5L8 1l3 6.5L15 4l-1 8H2z" fill="#f97316" stroke="#ea6c00" strokeWidth="0.8" strokeLinejoin="round"/>
+    </svg>
+  );
+}
 
 export default function HubCommentsInline({ post, open, onClose }) {
   const { t } = useLanguage();

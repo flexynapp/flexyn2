@@ -5,6 +5,35 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink } from 'lucide-react';
+import ThemeSelector from '@/components/ThemeSelector';
+import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
+import { pluralize } from '@/lib/pluralize';
+import { calculateLevelFromXp } from '@/lib/xpSystem';
+import { getTier } from '@/lib/xpTier';
+import Particles from '@/components/Particles';
+import { db } from '@/api/db';
+import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+import * as hubFollows from '@/lib/data/hubFollows';
+import * as hubPosts from '@/lib/data/hubPosts';
+import * as me from '@/lib/data/me';
+import * as statusNotesData from '@/lib/data/statusNotes';
+import HubPostCard from './HubPostCard';
+import ReferralCard from './ReferralCard';
+import ProfileBadgeShowcase from './ProfileBadgeShowcase';
+import ProfileLiftStats from './ProfileLiftStats';
+import StoryHighlightsRail from './StoryHighlightsRail';
+import ThemedScope from '@/components/ThemedScope';
+import AvatarUploader from '@/components/AvatarUploader';
+import { getLootTitleById } from '@/lib/lootTitles';
+import { getLootFrameById } from '@/lib/lootFrames';
+import { RARITY } from '@/lib/lootCatalog';
+import { useTheme } from '@/lib/ThemeContext';
+import { isVerified } from '@/lib/verifiedUsers';
+import StoryViewer from '@/components/stories/StoryViewer';
+import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
+import * as storiesData from '@/lib/data/stories';
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -90,35 +119,6 @@ function codeToFlag(code) {
   return String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(0))
        + String.fromCodePoint(0x1F1E6 - 65 + upper.charCodeAt(1));
 }
-import ThemeSelector from '@/components/ThemeSelector';
-import { useAuth } from '@/lib/AuthContext';
-import { useLanguage } from '@/lib/LanguageContext';
-import { pluralize } from '@/lib/pluralize';
-import { calculateLevelFromXp } from '@/lib/xpSystem';
-import { getTier } from '@/lib/xpTier';
-import Particles from '@/components/Particles';
-import { db } from '@/api/db';
-import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
-import * as hubFollows from '@/lib/data/hubFollows';
-import * as hubPosts from '@/lib/data/hubPosts';
-import * as me from '@/lib/data/me';
-import * as statusNotesData from '@/lib/data/statusNotes';
-import HubPostCard from './HubPostCard';
-import ReferralCard from './ReferralCard';
-import ProfileBadgeShowcase from './ProfileBadgeShowcase';
-import ProfileLiftStats from './ProfileLiftStats';
-import StoryHighlightsRail from './StoryHighlightsRail';
-import ThemedScope from '@/components/ThemedScope';
-import AvatarUploader from '@/components/AvatarUploader';
-import { getLootTitleById } from '@/lib/lootTitles';
-import { getLootFrameById } from '@/lib/lootFrames';
-import { RARITY } from '@/lib/lootCatalog';
-import { useTheme } from '@/lib/ThemeContext';
-import { isVerified } from '@/lib/verifiedUsers';
-import StoryViewer from '@/components/stories/StoryViewer';
-import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
-import * as storiesData from '@/lib/data/stories';
 
 // ── QR Code generator ─────────────────────────────────────────────────────────
 // Uses the public qrserver.com API — no package needed, no CORS issues.
