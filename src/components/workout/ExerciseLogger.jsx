@@ -21,6 +21,15 @@ const epley1RM = (weight, reps) => {
   return weight * (1 + reps / 30);
 };
 
+// Bodyweight exercise detection — pure name regex so we don't need
+// every entry in EXERCISE_LIBRARY to be re-tagged. The weight input
+// for these is "added load on top of bodyweight" (e.g. +25 on a
+// weighted pull-up); 0 / blank means "just bodyweight."
+const BW_REGEX = /\b(pull[- ]?up|chin[- ]?up|push[- ]?up|dip|muscle[- ]?up|pistol squat|handstand|burpee|air squat|bodyweight)\b/i;
+function isBodyweightExercise(name) {
+  return BW_REGEX.test(String(name || ''));
+}
+
 export default function ExerciseLogger({ exercise, onChange, onViewForm, userProfile = {}, prIndex = {}, workoutLogs = [] }) {
   // Last 3 sessions' sets for this exercise. Pulled from the user's
   // cached workout-log array — no extra query. Self-collapses to []
@@ -34,6 +43,10 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   const { start: startRestTimer } = useRestTimer();
   const sets = exercise.sets || [];
   const muscles = exercise.muscle_groups?.length ? exercise.muscle_groups : (exercise.muscle_group ? [exercise.muscle_group] : []);
+  // Detect bodyweight exercises by name so the SetRow can label the
+  // weight input "+lb" instead of just "lb" (added weight on top of
+  // bodyweight). Pure name regex — no library tag needed.
+  const isBodyweight = isBodyweightExercise(exercise.name || exercise.displayName || '');
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
   const atSetLimit = sets.length >= maxSetsPerExercise;
@@ -153,7 +166,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ overflow: 'hidden' }}
             >
-              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} />
+              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} />
             </motion.div>
           ))}
         </AnimatePresence>

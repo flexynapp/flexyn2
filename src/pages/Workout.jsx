@@ -21,7 +21,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
@@ -2035,61 +2035,94 @@ export default function Workout() {
         </div>
       </Card>
 
-      <motion.div
-        className="space-y-4 mb-6"
-        initial="hidden"
-        animate="visible"
-        variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
-      >
-        {/* Grouped render — exercises with a matching group_id render as a
-            GroupBlock (superset/circuit); all others render individually. */}
-        {(() => {
-          const items = [];
-          const seenGroups = new Set();
-          exercises.forEach((ex, globalIdx) => {
-            if (ex.group_id) {
-              if (!seenGroups.has(ex.group_id)) {
-                seenGroups.add(ex.group_id);
-                const groupItems = exercises
-                  .map((e, ii) => ({ exercise: e, globalIdx: ii }))
-                  .filter(({ exercise }) => exercise.group_id === ex.group_id);
-                items.push({ type: 'group', groupId: ex.group_id, groupMeta: ex.group_meta || {}, items: groupItems });
-              }
-            } else {
-              items.push({ type: 'single', exercise: ex, globalIdx });
+      {(() => {
+        // Build top-level items + a stable key per item. Keys are used
+        // both as React keys AND as Reorder.Item values so framer-motion
+        // can track drag identity across reorders.
+        const items = [];
+        const seenGroups = new Set();
+        exercises.forEach((ex, globalIdx) => {
+          if (ex.group_id) {
+            if (!seenGroups.has(ex.group_id)) {
+              seenGroups.add(ex.group_id);
+              const groupItems = exercises
+                .map((e, ii) => ({ exercise: e, globalIdx: ii }))
+                .filter(({ exercise }) => exercise.group_id === ex.group_id);
+              items.push({ type: 'group', key: `group:${ex.group_id}`, groupId: ex.group_id, groupMeta: ex.group_meta || {}, items: groupItems });
             }
-          });
+          } else {
+            // Use the exercise's stable id when available, else the
+            // global index. Since freeform exercises don't carry ids,
+            // a synthetic key per name+position is good enough — we
+            // re-key on every render anyway.
+            items.push({ type: 'single', key: `ex:${ex.id || `${ex.name}-${globalIdx}`}`, exercise: ex, globalIdx });
+          }
+        });
+        const orderKeys = items.map(it => it.key);
 
-          return items.map((item, renderIdx) => {
-            if (item.type === 'group') {
-              return (
-                <GroupBlock
-                  key={`group-${item.groupId}`}
-                  groupId={item.groupId}
-                  groupMeta={item.groupMeta}
-                  exercises={item.items.map(gi => gi.exercise)}
-                  onChange={(gIdx, updated) => {
-                    if (item.items[gIdx]) updateExercise(item.items[gIdx].globalIdx, updated);
-                  }}
-                  userProfile={userProfile}
-                />
-              );
+        // Rebuild the exercises array from a new top-level key order.
+        // Preserves intra-group order (the exercises inside a superset
+        // don't get re-shuffled — only the group as a whole moves).
+        const reorderTopLevel = (nextKeys) => {
+          const itemsByKey = Object.fromEntries(items.map(it => [it.key, it]));
+          const nextExercises = [];
+          for (const k of nextKeys) {
+            const it = itemsByKey[k];
+            if (!it) continue;
+            if (it.type === 'group') {
+              for (const g of it.items) nextExercises.push(g.exercise);
+            } else {
+              nextExercises.push(it.exercise);
             }
-            const { exercise: ex, globalIdx: i } = item;
-            return (
-              <motion.div
-                key={i}
-                className="relative"
-                variants={{ hidden: { opacity: 0, y: 16, scale: 0.97 }, visible: { opacity: 1, y: 0, scale: 1 } }}
-                transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-              >
-                <ExerciseLogger
-                  exercise={ex}
-                  onChange={(updated) => updateExercise(i, updated)}
-                  userProfile={userProfile}
-                  prIndex={prIndex}
-                  workoutLogs={rawLogs}
-                />
+          }
+          setExercises(nextExercises);
+        };
+
+        return (
+          <Reorder.Group
+            axis="y"
+            values={orderKeys}
+            onReorder={reorderTopLevel}
+            className="space-y-4 mb-6 list-none p-0"
+          >
+            {items.map((item) => {
+              if (item.type === 'group') {
+                return (
+                  <Reorder.Item
+                    key={item.key}
+                    value={item.key}
+                    className="relative"
+                    whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.25)' }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                  >
+                    <GroupBlock
+                      groupId={item.groupId}
+                      groupMeta={item.groupMeta}
+                      exercises={item.items.map(gi => gi.exercise)}
+                      onChange={(gIdx, updated) => {
+                        if (item.items[gIdx]) updateExercise(item.items[gIdx].globalIdx, updated);
+                      }}
+                      userProfile={userProfile}
+                    />
+                  </Reorder.Item>
+                );
+              }
+              const { exercise: ex, globalIdx: i } = item;
+              return (
+                <Reorder.Item
+                  key={item.key}
+                  value={item.key}
+                  className="relative"
+                  whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.25)' }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                >
+                  <ExerciseLogger
+                    exercise={ex}
+                    onChange={(updated) => updateExercise(i, updated)}
+                    userProfile={userProfile}
+                    prIndex={prIndex}
+                    workoutLogs={rawLogs}
+                  />
                 <div className="absolute top-3 right-3 flex items-center gap-1">
                   {/* Group with previous as a superset — one-tap pairing
                       that fills in group_id on both exercises so the
@@ -2143,11 +2176,12 @@ export default function Workout() {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </motion.div>
-            );
-          });
-        })()}
-      </motion.div>
+                </Reorder.Item>
+              );
+            })}
+          </Reorder.Group>
+        );
+      })()}
 
       <div className="mb-4">
         <label htmlFor="workout-notes" className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>

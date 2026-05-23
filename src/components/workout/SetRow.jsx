@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
 import PRProximityBar from './PRProximityBar';
+import PlateDiagram from './PlateDiagram';
 import { getActiveBarLbs, platesPerSide } from '@/lib/barInventory';
 
 // Plate calculator reads the user's active bar from barInventory.js
@@ -23,7 +24,7 @@ function plateCalc(weightLbs) {
   return result;
 }
 
-export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {} }) {
+export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false }) {
   const { weightUnit } = useWeightUnit();
   const { t } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
@@ -120,8 +121,9 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
           }}
-          placeholder={weightUnit}
+          placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
           className="h-9 text-center"
+          aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
       </div>
       <span className="text-muted-foreground text-xs">×</span>
@@ -341,9 +343,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       prIndex={prIndex}
     />
     {showPlates && (
-      <p className="text-[10px] text-muted-foreground pl-8 mt-0.5 leading-none">
-        {plates.map(({ count, plate }) => `${count}×${plate}`).join(' + ')} per side
-      </p>
+      <PlateDiagram plates={plates} barLbs={getActiveBarLbs()} />
     )}
     </div>
   );
