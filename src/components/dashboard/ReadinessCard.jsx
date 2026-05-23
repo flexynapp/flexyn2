@@ -19,6 +19,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { computeRecoveryScore } from '@/lib/recoveryScore';
 import { getTodaySleepLog } from '@/lib/data/sleepLogs';
 import { getTodayMoodLog } from '@/lib/data/moodLogs';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 const COLOR_BY_LABEL = {
   Primed:    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500', ring: '#10b981' },
@@ -59,15 +60,17 @@ export default function ReadinessCard({ logs = [] }) {
     staleTime: 5 * 60_000,
   });
 
-  // Find the most recent workout from `logs` (already in dashboard cache)
+  // Find the most recent workout from `logs` (already in dashboard cache).
+  // Use parseLocalDate so 'YYYY-MM-DD' DATE columns are interpreted in
+  // local TZ. Without this, the recovery `daysSinceWorkout` term could
+  // flicker ±1 at midnight in negative-offset zones.
   const lastWorkoutAt = (() => {
     if (!Array.isArray(logs)) return null;
     let best = null;
     for (const log of logs) {
       const raw = log?.date || log?.created_at || log?.created_date;
-      if (!raw) continue;
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) continue;
+      const d = parseLocalDate(raw);
+      if (!d) continue;
       if (!best || d > best) best = d;
     }
     return best;

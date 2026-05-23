@@ -35,10 +35,12 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
   const [shareOpen, setShareOpen] = useState(false);
 
   // Compact display: "8.5k" / "12k" for large values, locale-formatted
-  // otherwise. Built inline because it needs the fmtNum closure.
+  // otherwise. Use fmtNum (not .toFixed) so the decimal separator matches
+  // the user's locale — German users see "1,5k" not "1.5k". Matches
+  // Dashboard.jsx's formatVolume pattern.
   const formatVolume = (n) => {
-    if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
-    if (n >= 1000)  return `${(n / 1000).toFixed(1)}k`;
+    if (n >= 10000) return `${fmtNum(n / 1000, { maximumFractionDigits: 0 })}k`;
+    if (n >= 1000)  return `${fmtNum(n / 1000, { maximumFractionDigits: 1 })}k`;
     return fmtNum(n);
   };
 

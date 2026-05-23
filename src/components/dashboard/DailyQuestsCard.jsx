@@ -4,7 +4,7 @@
 // (idempotent), polls for progress changes, and lets the user claim coin
 // rewards when quests complete.
 
-import React, { useEffect, useRef } from 'react';
+import React, { useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -50,11 +50,13 @@ export default function DailyQuestsCard({ onNavigated }) {
     refetchOnWindowFocus: true,
   });
 
-  // Re-ensure on a fresh day (e.g., user keeps the tab open past midnight).
-  useEffect(() => {
-    const id = setInterval(() => refetch(), 60 * 1000);
-    return () => clearInterval(id);
-  }, [refetch]);
+  // We previously ran a setInterval(refetch, 60s) to handle the midnight
+  // rollover case. That was a duplicate signal — useQuery already polls
+  // at refetchInterval: 90_000 AND refetches on window focus, both of
+  // which cover the same case AND honor visibility (so a backgrounded
+  // PWA isn't burning battery + Supabase reads). Removed entirely. If a
+  // future midnight-precision case appears, gate it on
+  // `document.visibilityState === 'visible'`.
 
   // Per-quest in-flight guard. claim_quest_atomic IS server-side
   // idempotent (the second call returns success=false with

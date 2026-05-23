@@ -15,10 +15,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { RefreshCw } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 
 export default function SyncStatus({ dataUpdatedAt }) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const { tFallback, language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const [now, setNow] = useState(() => Date.now());
   const [refreshing, setRefreshing] = useState(false);
 
@@ -42,9 +46,10 @@ export default function SyncStatus({ dataUpdatedAt }) {
 
   // formatDistanceToNow rounds awkwardly for very-recent timestamps
   // ("less than a minute ago" vs "just now"); hand-format the < 1m case.
+  // Pass `locale` so the relative phrase renders in the user's language.
   const relative = ageMs < 60_000
-    ? 'just now'
-    : formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true });
+    ? tFallback('sync.justNow', 'just now')
+    : formatDistanceToNow(new Date(dataUpdatedAt), { addSuffix: true, locale: dateLocale });
 
   const handleRefresh = async () => {
     if (refreshing) return;
@@ -74,10 +79,10 @@ export default function SyncStatus({ dataUpdatedAt }) {
       onClick={handleRefresh}
       disabled={refreshing}
       className={`inline-flex items-center gap-1 text-[10px] ${color} hover:text-foreground transition-colors disabled:opacity-50`}
-      aria-label="Refresh dashboard data"
+      aria-label={tFallback('sync.refreshAria', 'Refresh dashboard data')}
     >
       <RefreshCw className={`w-2.5 h-2.5 ${refreshing ? 'animate-spin' : ''}`} />
-      <span>Synced {relative}</span>
+      <span>{tFallback('sync.syncedPrefix', 'Synced')} {relative}</span>
     </button>
   );
 }

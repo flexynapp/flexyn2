@@ -65,7 +65,9 @@ export default function MacroRingWidget({ userProfile = {} }) {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: todayLogs = [] } = useQuery({
-    queryKey: ['nutritionToday', user?.email, today],
+    // Shared key with src/pages/Nutrition.jsx — see CalorieProgressWidget
+    // for the rationale.
+    queryKey: ['nutritionLogs', user?.email, today],
     queryFn: async () => {
       if (!user?.email) return [];
       const { data } = await supabase

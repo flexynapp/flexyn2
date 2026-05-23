@@ -16,6 +16,7 @@ import { safeSelect } from '@/api/safeSelect';
 import { differenceInCalendarDays } from 'date-fns';
 import StreakFlame from '@/components/StreakFlame';
 import { getStreakRescueStatus, spendStreakRescue } from '@/lib/data/streakRescue';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 export default function WorkoutStreakBanner() {
   const { user } = useAuth();
@@ -47,9 +48,15 @@ export default function WorkoutStreakBanner() {
   // missing (pre-087 host) or returns available=false, the rescue UI
   // simply doesn't render and the banner falls back to its previous
   // behavior (hide on broken streak).
+  // Use parseLocalDate so a 'YYYY-MM-DD' date string from Postgres is
+  // interpreted in the user's local TZ. `new Date('2025-11-22')` would
+  // be UTC midnight, which is the PREVIOUS local day for users west of
+  // UTC — daysSinceForGate would flip ±1 at the TZ boundary and
+  // mis-classify the streak-rescue gate.
   const lastDateForGate = profile?.last_workout_date;
-  const daysSinceForGate = lastDateForGate
-    ? differenceInCalendarDays(new Date(), new Date(lastDateForGate))
+  const parsedLastDateForGate = parseLocalDate(lastDateForGate);
+  const daysSinceForGate = parsedLastDateForGate
+    ? differenceInCalendarDays(new Date(), parsedLastDateForGate)
     : 0;
   const { data: rescueStatus } = useQuery({
     queryKey: ['streakRescueStatus', user?.id],
@@ -105,7 +112,8 @@ export default function WorkoutStreakBanner() {
   // forbids calling a hook (useMemo below) after a conditional return.
   const streak    = profile?.workout_streak ?? 0;
   const lastDate  = profile?.last_workout_date;
-  const daysSince = lastDate ? differenceInCalendarDays(new Date(), new Date(lastDate)) : 0;
+  const parsedLastDate = parseLocalDate(lastDate);
+  const daysSince = parsedLastDate ? differenceInCalendarDays(new Date(), parsedLastDate) : 0;
   const atRisk    = daysSince === 1; // worked out yesterday but not today
   const broken    = daysSince > 1;   // streak technically broken — DB still shows old value until next save resets it
   const longest   = profile?.longest_workout_streak ?? streak;

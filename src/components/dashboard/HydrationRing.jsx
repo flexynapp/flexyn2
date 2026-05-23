@@ -43,7 +43,12 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
   const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: todaysLogs = [] } = useQuery({
-    queryKey: ['hydrationToday', user?.email, today],
+    // Shared key with src/pages/Nutrition.jsx — logging a water entry
+    // there invalidates ['nutritionLogs', email, date] which now also
+    // covers this widget. The water entries are a subset of nutrition
+    // logs (filtered by isWaterEntry below), so reading the same row
+    // set is correct.
+    queryKey: ['nutritionLogs', user?.email, today],
     queryFn: async () => {
       if (!user?.email) return [];
       try {

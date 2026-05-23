@@ -5,7 +5,7 @@
 // card shrinks to a "logged" pill showing today's choice — gives the
 // user closure without occupying full real estate after the action.
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -20,6 +20,15 @@ export default function MoodLogCard() {
   const qc = useQueryClient();
   const [submitting, setSubmitting] = useState(null);
   const [optimistic, setOptimistic] = useState(null);
+  // Ref-based in-flight guard matches the DailyQuestsCard / GoalsAlmostComplete
+  // pattern. The `submitting` state-based check has a single-render race
+  // window where a fast tap-then-tap-different-emoji could slip through
+  // before React applies the state. upsertMoodLog is idempotent on
+  // (user_id, date) so a slipped second call wouldn't corrupt data, but
+  // the guard avoids the duplicate RPC + the brief optimistic flicker.
+  const submittingRef = useRef(false);
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   const { data: today } = useQuery({
     queryKey: ['moodLogToday', user?.id],
@@ -34,16 +43,22 @@ export default function MoodLogCard() {
   }, [today?.mood]);
 
   const handleTap = async (mood) => {
-    if (submitting != null) return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitting(mood);
     setOptimistic(mood); // optimistic
-    const res = await upsertMoodLog({ mood });
-    setSubmitting(null);
-    if (res.ok) {
-      qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
-    } else {
-      setOptimistic(today?.mood ?? null); // revert
-      toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));
+    try {
+      const res = await upsertMoodLog({ mood });
+      if (!mountedRef.current) return; // bail if unmounted mid-request
+      if (res.ok) {
+        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
+      } else {
+        setOptimistic(today?.mood ?? null); // revert
+        toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));
+      }
+    } finally {
+      submittingRef.current = false;
+      if (mountedRef.current) setSubmitting(null);
     }
   };
 

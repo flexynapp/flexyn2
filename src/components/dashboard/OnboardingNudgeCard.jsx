@@ -36,9 +36,14 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
 import { supabase } from '@/api/supabaseClient';
+import { todayLocalDateString } from '@/lib/dateUtils';
 
 const STATE_KEY = (userId) => `flexyn.onboardingState.${userId || 'anon'}`;
-const TODAY_KEY = () => new Date().toISOString().slice(0, 10);
+// todayLocalDateString — NOT toISOString().slice(0,10). The latter is
+// UTC, so a user in UTC+14 at 9pm local would see *tomorrow's* string
+// → nudge state suppressed for the rest of today, re-fires after
+// midnight tomorrow (opposite of the intent). See dateUtils.js.
+const TODAY_KEY = todayLocalDateString;
 
 function readState(userId) {
   try {

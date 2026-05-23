@@ -375,10 +375,18 @@ export default function StoriesRow({ onViewProfile } = {}) {
     enabled:  !!user?.id,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
-    onSuccess: (data) => {
-      if (data?.likedNoteIds) setLikedNoteIds(new Set(data.likedNoteIds));
-    },
   });
+
+  // react-query v5 removed `onSuccess` on useQuery — the previous
+  // implementation silently never hydrated `likedNoteIds` from the
+  // server, so the heart icon rendered unfilled on already-liked notes
+  // until the user toggled one manually. Replace with the v5 idiom:
+  // a useEffect that watches the resolved data.
+  useEffect(() => {
+    if (feedData?.likedNoteIds) {
+      setLikedNoteIds(new Set(feedData.likedNoteIds));
+    }
+  }, [feedData?.likedNoteIds]);
 
   const [crewStoryViewerOpen, setCrewStoryViewerOpen] = useState(null); // { crew, stories, idx }
 
@@ -390,9 +398,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
     refetchInterval: 60_000,
   });
 
-  // Load / refresh the Quick Add list once per noon cycle
+  // Load / refresh the Quick Add list once per noon cycle.
+  // Guard with a `cancelled` flag so a slow getRecommendations() that
+  // resolves AFTER unmount doesn't call setState (warning + leak).
   useEffect(() => {
     if (!user?.email || qaFetchedRef.current) return;
+    let cancelled = false;
     const cache = qaLoad();
     if (!qaIsStale(cache) && cache.list?.length > 0) {
       // Cache is fresh — restore, filter out already-added items
@@ -401,19 +412,21 @@ export default function StoriesRow({ onViewProfile } = {}) {
       setQaList(remaining);
       setQaHadItems(true);
       qaFetchedRef.current = true;
-      return;
+      return () => { cancelled = true; };
     }
     // Stale or empty — only fetch when the user has ≤1 friend (initial discovery)
     // Once cached, the section persists regardless of followingEmails.
     if ((followingEmails.length <= 1 || (cache?.list?.length > 0))) {
       qaFetchedRef.current = true;
       hubFollows.getRecommendations(user.email, followingEmails, 6).then(recs => {
+        if (cancelled) return;
         if (recs.length === 0) return;
         qaSave({ refreshedAt: new Date().toISOString(), list: recs, addedEmails: [] });
         setQaList(recs);
         setQaHadItems(true);
       }).catch(() => {});
     }
+    return () => { cancelled = true; };
   // followingEmails intentionally omitted — we only want this to run once per mount
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);

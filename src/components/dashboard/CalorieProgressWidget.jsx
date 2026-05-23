@@ -49,7 +49,12 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
 
   // Today's nutrition logs
   const { data: todayLogs = [] } = useQuery({
-    queryKey: ['nutritionToday', user?.email, today],
+    // Share the SAME query key as src/pages/Nutrition.jsx (line 173)
+    // so that logging a meal on /nutrition invalidates this Dashboard
+    // widget too. Previously this used ['nutritionToday', ...] and the
+    // Nutrition page invalidated ['nutritionLogs', ...] — different
+    // caches, so this widget stayed stale until refetchInterval fired.
+    queryKey: ['nutritionLogs', user?.email, today],
     queryFn: async () => {
       if (!user?.email) return [];
       const { data } = await supabase

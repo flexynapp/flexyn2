@@ -45,6 +45,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 /* ──────────────────────────────────────────────────────────────────
  *  Sub-components live in this file deliberately — they only exist
@@ -425,15 +426,8 @@ export default function Dashboard() {
   }, [thisWeekLogs, weightUnit]);
 
   // Streak — merges workout + cardio dates, parses date strings as LOCAL dates
+  // via the shared parseLocalDate helper.
   const streak = useMemo(() => {
-    const parseLocalDate = (s) => {
-      if (!s) return null;
-      if (typeof s === 'string') {
-        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      }
-      return new Date(s);
-    };
     const stamps = new Set();
     const addStamp = (raw) => {
       const d = parseLocalDate(raw);
@@ -463,16 +457,8 @@ export default function Dashboard() {
   }, [logs, cardioLogs]);
 
   const lastWorkoutDate = useMemo(() => {
-    const parseLocal = (s) => {
-      if (!s) return null;
-      if (typeof s === 'string') {
-        const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-        if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-      }
-      return new Date(s);
-    };
     const all = [...logs.map(l => l.date), ...cardioLogs.map(l => l.date)]
-      .map(parseLocal)
+      .map(parseLocalDate)
       .filter(d => d && !isNaN(d.getTime()));
     if (all.length === 0) return null;
     return new Date(Math.max(...all.map(d => d.getTime())));
