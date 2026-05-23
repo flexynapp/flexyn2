@@ -59,6 +59,7 @@ import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
+import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/workout/FirstWorkoutTutorial';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
@@ -104,6 +105,13 @@ export default function Workout() {
   const { weightUnit } = useWeightUnit();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  // First-workout tutorial visibility. Defaults true so a brand-new
+  // session shows the tutorial; the effect below flips it to false
+  // once user.id is known AND the per-user localStorage flag confirms
+  // they've already seen it. The tutorial component writes the flag
+  // itself on dismiss / unmount, so we just have to honor it on
+  // subsequent mounts.
+  const [showFirstTutorial, setShowFirstTutorial] = useState(true);
   // Workout start time (ISO). Set when a session starts, persisted in
   // the paused-workout localStorage so resuming after a refresh keeps
   // the timer continuous. Drives the live MM:SS clock in the header
@@ -115,6 +123,12 @@ export default function Workout() {
   // in the Hub list and (eventually) a "X is working out right now"
   // badge on the feed. The TTL caps the damage if clearActive ever
   // fails to land — we don't want users stuck as "active" indefinitely.
+  useEffect(() => {
+    if (user?.id && hasSeenFirstWorkoutTutorial(user.id)) {
+      setShowFirstTutorial(false);
+    }
+  }, [user?.id]);
+
   useEffect(() => {
     if (started) {
       activity.markActive(90);
@@ -2005,6 +2019,18 @@ export default function Workout() {
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       className="p-4 md:p-8 max-w-3xl mx-auto"
     >
+      {/* First-workout coach-mark tutorial — only mounts when the user
+          has never logged a workout AND hasn't dismissed before. The
+          banner is fixed-positioned (lives in a portal-equivalent
+          stacking context) so it floats above the page chrome without
+          shifting layout. */}
+      {showFirstTutorial && logs.length === 0 && (
+        <FirstWorkoutTutorial
+          userId={user?.id}
+          onClose={() => setShowFirstTutorial(false)}
+        />
+      )}
+
       <div className="flex items-center justify-between mb-2">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
