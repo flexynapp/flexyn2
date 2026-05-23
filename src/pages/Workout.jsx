@@ -103,6 +103,15 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs'
 export default function Workout() {
   const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  // Auth / routing destructured EARLY — multiple useEffects below depend
+  // on `user` in their deps arrays. A const referenced in a useEffect
+  // deps array is evaluated synchronously at hook-call time, so it must
+  // be declared BEFORE that hook line — TDZ otherwise (see CLAUDE.md
+  // "TDZ trap" section). The other heavier hooks (useWorkoutSessions,
+  // useQueryClient) stay below.
+  const { user } = useAuth();
+  const location = useLocation();
+  const navigate  = useNavigate();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
   // First-workout tutorial visibility. Defaults true so a brand-new
@@ -184,9 +193,8 @@ export default function Workout() {
   const guard = useMultiProfanityGuard();
   const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions();
   const queryClient = useQueryClient();
-  const { user } = useAuth();
-  const location = useLocation();
-  const navigate  = useNavigate();
+  // user / location / navigate are already destructured at the top of
+  // the component so the early useEffect deps arrays don't TDZ.
 
   // One-shot: when a session starts and no startedAt is set yet
   // (i.e. this is a NEW session, not a resume), stamp the current
