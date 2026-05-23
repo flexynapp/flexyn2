@@ -23,7 +23,7 @@ import BodyMetricsTab from '@/components/progress/BodyMetricsTab';
 import ProgressPhotosTab from '@/components/progress/ProgressPhotosTab';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import FilterDropdown from '@/components/progress/FilterDropdown';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import BottomSheet from '@/components/ui/BottomSheet';
 import AdvancedAnalytics from '@/components/progress/AdvancedAnalytics';
 import InsightsTab from '@/components/progress/InsightsTab';
 import PRHistoryModal from '@/components/progress/PRHistoryModal';
@@ -908,24 +908,20 @@ export default function Progress() {
         </>
       )}
 
-      {/* Personal Bests Modal */}
-      <Dialog open={personalBestsModalOpen} onOpenChange={setPersonalBestsModalOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-heading text-xl flex items-center gap-2">
-              <Trophy className="w-5 h-5 text-yellow-500" />
-              {t('progress.personalBests')}
-            </DialogTitle>
-          </DialogHeader>
-          <PersonalBestsTab
-            logs={logs}
-            onViewHistory={(name) => {
-              setPersonalBestsModalOpen(false);
-              setPRHistoryExercise(name);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+      {/* Personal Bests — BottomSheet on mobile (swipe-to-dismiss) */}
+      <BottomSheet
+        open={personalBestsModalOpen}
+        onClose={() => setPersonalBestsModalOpen(false)}
+        title={t('progress.personalBests')}
+      >
+        <PersonalBestsTab
+          logs={logs}
+          onViewHistory={(name) => {
+            setPersonalBestsModalOpen(false);
+            setPRHistoryExercise(name);
+          }}
+        />
+      </BottomSheet>
 
       {/* PR History Modal */}
       <PRHistoryModal

@@ -131,9 +131,6 @@ export default function FormCoachModal({ open, onClose }) {
               <div className="mb-4 pr-8">
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   {t('formcoach.title')}
-                  <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-primary/15 text-primary">
-                    {t('formcoach.beta')}
-                  </span>
                 </h2>
               </div>
 

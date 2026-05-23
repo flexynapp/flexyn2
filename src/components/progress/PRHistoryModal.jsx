@@ -5,9 +5,9 @@
  * list of every time a new PR was set, with date + delta.
  */
 import React, { useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import BottomSheet from '@/components/ui/BottomSheet';
 import { motion } from 'framer-motion';
-import { Trophy, TrendingUp, Dumbbell } from 'lucide-react';
+import { Trophy, Dumbbell } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -84,15 +84,11 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
   })), [sessionHistory, weightUnit]);
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="font-heading text-lg flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-primary" />
-            {exerciseName} — PR History
-          </DialogTitle>
-        </DialogHeader>
-
+    <BottomSheet
+      open={open}
+      onClose={onClose}
+      title={exerciseName ? `${exerciseName} — PR History` : 'PR History'}
+    >
         {sessionHistory.length === 0 ? (
           <div className="text-center py-12">
             <Dumbbell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
@@ -187,7 +183,6 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
             )}
           </div>
         )}
-      </DialogContent>
-    </Dialog>
+    </BottomSheet>
   );
 }

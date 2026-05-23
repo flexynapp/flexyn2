@@ -60,6 +60,22 @@ export default function LoginStreakSync() {
         .replace('{coins}', result.coinsAwarded);
       toast.success(msg, { icon: '🔥', duration: 4500 });
 
+      // Full confetti burst on milestone streak days (7, 14, 30, 60, 100…)
+      if (MILESTONE_DAYS.has(result.streak)) {
+        import('canvas-confetti').then(({ default: confetti }) => {
+          const fire = (opts) => confetti({
+            particleCount: 120,
+            spread: 80,
+            gravity: 0.9,
+            colors: ['#f97316', '#fbbf24', '#ef4444', '#a855f7', '#3b82f6'],
+            ...opts,
+          });
+          fire({ origin: { x: 0.2, y: 0.55 } });
+          setTimeout(() => fire({ origin: { x: 0.8, y: 0.55 } }), 180);
+          setTimeout(() => fire({ origin: { x: 0.5, y: 0.4 }, particleCount: 60, spread: 50 }), 350);
+        }).catch(() => {});
+      }
+
       // Elite capsule sub-toast on milestone days.
       if (result.eliteCapsuleAwarded) {
         setTimeout(() => {

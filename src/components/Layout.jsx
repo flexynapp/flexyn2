@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { LOGO_URL } from '@/lib/constants';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
 import Header from './Header';
@@ -20,7 +20,6 @@ import BackToTopButton from './BackToTopButton';
 import TabQuickActionMenu from './TabQuickActionMenu';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
-import { useRef } from 'react';
 import OneShotTooltip from './OneShotTooltip';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 
@@ -136,6 +135,39 @@ export default function Layout() {
   // state inside it would split open/closed state across copies).
   // ProfileMenu's "My Bag" entry triggers this via OPEN_BAG_EVENT.
   const bag = useBagFlow();
+
+  // ── Auto-hide bottom nav on scroll-down, reveal on scroll-up ─────────────
+  // Classic Instagram/TikTok pattern: nav slides down out of view as the
+  // user reads deeper into a feed, then snaps back on any upward scroll.
+  // Threshold of 6 px prevents single-pixel jitter from toggling the state.
+  const [navHidden, setNavHidden] = useState(false);
+  const lastScrollY = useRef(0);
+  const scrollTicking = useRef(false);
+  const handleWindowScroll = useCallback(() => {
+    if (scrollTicking.current) return;
+    scrollTicking.current = true;
+    requestAnimationFrame(() => {
+      const y = window.scrollY;
+      const delta = y - lastScrollY.current;
+      if (Math.abs(delta) > 6) {
+        // Always show nav when near the top of the page
+        setNavHidden(y > 80 && delta > 0);
+        lastScrollY.current = y;
+      }
+      scrollTicking.current = false;
+    });
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('scroll', handleWindowScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleWindowScroll);
+  }, [handleWindowScroll]);
+
+  // Reset nav visibility on route change (arriving at a new page → show nav)
+  useEffect(() => {
+    setNavHidden(false);
+    lastScrollY.current = 0;
+  }, [location.pathname]);
 
   const navItems = [
     { path: '/dashboard', label: t('nav.dashboard'), icon: LayoutDashboard },
@@ -304,10 +336,17 @@ export default function Layout() {
         </PullToRefresh>
       </main>
 
-      {/* Mobile + Tablet bottom nav */}
+      {/* Mobile + Tablet bottom nav — slides out of view on scroll-down,
+          snaps back on scroll-up. CSS transform is GPU-composited so no
+          layout thrash. Transition is deliberately fast (220 ms) to feel
+          native, not sluggish. */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui"
-        style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui transition-transform duration-[220ms] ease-in-out"
+        style={{
+          paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
+          transform: navHidden ? 'translateY(100%)' : 'translateY(0)',
+          willChange: 'transform',
+        }}
       >
         <div className="flex justify-evenly items-start">
           {navItems.map((item, idx) => {

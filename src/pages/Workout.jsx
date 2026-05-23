@@ -766,13 +766,26 @@ export default function Workout() {
           .catch(() => {});
       }
 
-      // Workout streak — milestone days celebrate with toast + invalidate profile
+      // Workout streak — milestone days celebrate with toast + confetti + invalidate profile
       workoutStreak.recordWorkoutDay(user)
         .then((res) => {
           if (res?.isNewDay && res.coinsAwarded > 0) {
             toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
               ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
               : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
+            // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30…)
+            import('canvas-confetti').then(({ default: confetti }) => {
+              const fire = (opts) => confetti({
+                particleCount: 100,
+                spread: 75,
+                gravity: 0.85,
+                colors: ['#f97316', '#fbbf24', '#ef4444', '#22c55e', '#a855f7'],
+                ...opts,
+              });
+              fire({ origin: { x: 0.3, y: 0.5 } });
+              setTimeout(() => fire({ origin: { x: 0.7, y: 0.5 } }), 200);
+              setTimeout(() => fire({ origin: { x: 0.5, y: 0.35 }, particleCount: 60, spread: 50 }), 380);
+            }).catch(() => {});
             // In-app notification on milestone
             notifications.notifyStreakMilestone({
               user,

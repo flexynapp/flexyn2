@@ -7,7 +7,7 @@ import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, formatDistanceToNow, differenceInHours } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
@@ -636,7 +636,16 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     }
   };
 
-  const timeLabel = post.created_date ? format(parseISO(post.created_date), 'MMM d, h:mma') : '';
+  // Relative time for recent posts ("3 minutes ago", "2 hours ago"),
+  // absolute date for older ones ("> 24 h old). Same pattern as DMs.
+  const timeLabel = (() => {
+    if (!post.created_date) return '';
+    const d = parseISO(post.created_date);
+    const hoursOld = differenceInHours(new Date(), d);
+    if (hoursOld < 24) return formatDistanceToNow(d, { addSuffix: true });
+    if (hoursOld < 24 * 7) return format(d, 'EEE h:mma'); // "Mon 3:45pm"
+    return format(d, 'MMM d');
+  })();
 
   const typeAccent = getPostTypeAccent(post);
 

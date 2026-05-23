@@ -95,8 +95,8 @@ export default function LevelUpOverlay({ event, onDismiss }) {
             onClick={(e) => e.stopPropagation()}
             className={`relative w-full max-w-sm rounded-3xl overflow-hidden bg-gradient-to-br ${tier.badge} shadow-2xl ${tier.glow} p-6 flex flex-col items-center gap-5`}
           >
-            {/* Particles */}
-            <Particles type={tier.particles} />
+            {/* Particles — ambient floaters + outward burst on entry */}
+            <Particles type={tier.particles} burst={!reducedMotion} />
 
             {/* Skip button */}
             <button
