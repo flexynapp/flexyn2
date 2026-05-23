@@ -1,10 +1,10 @@
 // src/components/hub/HubProfile.jsx
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink, Coins } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -34,6 +34,8 @@ import { isVerified } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
+
+const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -258,6 +260,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [websiteUrlDraft, setWebsiteUrlDraft] = useState('');
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [giftOpen, setGiftOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const storyFileRef = useRef(null);
@@ -320,7 +323,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // column is absent.
       const { data } = await safeSelect({
         columns: [
-          'email', 'username', 'avatar_url', 'total_xp',
+          'id', 'email', 'username', 'avatar_url', 'total_xp',
           'preferred_theme', 'loot_theme_id',
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
@@ -1369,9 +1372,32 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </button>
               );
             })()}
+            <button
+              onClick={() => setGiftOpen(true)}
+              disabled={!targetProfile?.id}
+              className="px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label={tFallback('hub.profile.gift', 'Send a coin gift')}
+              title={tFallback('hub.profile.gift', 'Send a coin gift')}
+            >
+              <Coins className="w-4 h-4 text-yellow-500" />
+            </button>
           </div>
         )}
       </motion.div>
+
+      {giftOpen && (
+        <Suspense fallback={null}>
+          <GiftCoinsModal
+            open={giftOpen}
+            onClose={() => setGiftOpen(false)}
+            recipient={{
+              id:       targetProfile?.id,
+              email:    targetProfile?.email,
+              username: targetProfile?.username,
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* Posts */}
       <h3 className="font-heading font-bold text-base mb-2 px-1">{t('hub.profile.recentPosts')}</h3>

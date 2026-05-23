@@ -188,6 +188,60 @@ const ACHIEVEMENT_DEFINITIONS = [
     category: 'cardio',
     xp_reward: 800,
   },
+  {
+    achievement_id: 'first_meal_logged',
+    name: 'First Bite',
+    description: 'Log your first meal',
+    icon: '🥗',
+    target: 1,
+    category: 'nutrition',
+    xp_reward: 50,
+  },
+  {
+    achievement_id: 'fifty_meals_logged',
+    name: 'Tracked Plate',
+    description: 'Log 50 meals',
+    icon: '🍽️',
+    target: 50,
+    category: 'nutrition',
+    xp_reward: 400,
+  },
+  {
+    achievement_id: 'meal_streak_14',
+    name: 'Two-Week Streak',
+    description: 'Log meals on 14 consecutive days',
+    icon: '📆',
+    target: 14,
+    category: 'nutrition',
+    xp_reward: 600,
+  },
+  {
+    achievement_id: 'protein_day_hit',
+    name: 'Protein Hit',
+    description: 'Hit your daily protein goal',
+    icon: '🥩',
+    target: 1,
+    category: 'nutrition',
+    xp_reward: 200,
+  },
+  {
+    achievement_id: 'barcode_scanner',
+    name: 'Barcode Pro',
+    description: 'Scan your first barcode',
+    icon: '📷',
+    target: 1,
+    category: 'nutrition',
+    xp_reward: 150,
+  },
+  {
+    achievement_id: 'first_recipe',
+    name: 'Home Cook',
+    description: 'Save your first recipe',
+    icon: '👩‍🍳',
+    target: 1,
+    category: 'nutrition',
+    xp_reward: 150,
+  },
   ];
 
 Deno.serve(async (req) => {
@@ -450,6 +504,93 @@ Deno.serve(async (req) => {
             unlocked_date: new Date().toISOString(),
             progress: action_data.consecutiveDays,
           },
+        });
+      }
+    }
+
+    if (action_type === 'meal_logged') {
+      // Count all NutritionLog rows (excluding pure-water entries) that
+      // post-date the user's account reset. Same isAfterReset pattern as
+      // workouts. Meal logs include barcode scans, manual entries, and
+      // saved-recipe re-logs.
+      const allMealLogsRaw = await base44Client.asServiceRole.entities.NutritionLog.filter(
+        { created_by: user.email }
+      );
+      const mealLogs = allMealLogsRaw
+        .filter(isAfterReset)
+        .filter((l: any) => l.food_name !== 'Water');
+      const mealCount = mealLogs.length;
+
+      // first_meal_logged
+      if (mealCount >= 1 && !achievementMap['first_meal_logged']?.unlocked) {
+        updatesToMake.push({
+          id: 'first_meal_logged',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: 1 },
+        });
+      }
+
+      // fifty_meals_logged + progress
+      if (mealCount >= 50 && !achievementMap['fifty_meals_logged']?.unlocked) {
+        updatesToMake.push({
+          id: 'fifty_meals_logged',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: mealCount },
+        });
+      }
+      updatesToMake.push({
+        id: 'fifty_meals_logged',
+        data: { progress: mealCount },
+      });
+
+      // meal_streak_14 — 14 consecutive calendar dates with at least
+      // one non-water meal log.
+      const dates = new Set(mealLogs.map((l: any) => l.date).filter((d: any) => !!d));
+      const sorted: string[] = Array.from(dates).sort() as string[];
+      let maxStreak = sorted.length > 0 ? 1 : 0;
+      let current = sorted.length > 0 ? 1 : 0;
+      for (let i = 1; i < sorted.length; i++) {
+        const prev = new Date(sorted[i - 1]).getTime();
+        const curr = new Date(sorted[i]).getTime();
+        const days = (curr - prev) / (1000 * 60 * 60 * 24);
+        if (Math.abs(days - 1) < 0.01) {
+          current++;
+          if (current > maxStreak) maxStreak = current;
+        } else {
+          current = 1;
+        }
+      }
+      if (maxStreak >= 14 && !achievementMap['meal_streak_14']?.unlocked) {
+        updatesToMake.push({
+          id: 'meal_streak_14',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: maxStreak },
+        });
+      }
+      updatesToMake.push({
+        id: 'meal_streak_14',
+        data: { progress: maxStreak },
+      });
+
+      // protein_day_hit — client signals via action_data.proteinGoalHit
+      if (action_data?.proteinGoalHit && !achievementMap['protein_day_hit']?.unlocked) {
+        updatesToMake.push({
+          id: 'protein_day_hit',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: 1 },
+        });
+      }
+
+      // barcode_scanner — client signals via action_data.viaBarcode
+      if (action_data?.viaBarcode && !achievementMap['barcode_scanner']?.unlocked) {
+        updatesToMake.push({
+          id: 'barcode_scanner',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: 1 },
+        });
+      }
+    }
+
+    if (action_type === 'recipe_created') {
+      if (!achievementMap['first_recipe']?.unlocked) {
+        updatesToMake.push({
+          id: 'first_recipe',
+          data: { unlocked: true, unlocked_date: new Date().toISOString(), progress: 1 },
         });
       }
     }
