@@ -36,7 +36,7 @@ export default function DailyQuestsCard({ onNavigated }) {
   };
 
   // Ensure today's quests exist on mount, then read them.
-  const { data: rows = [], refetch } = useQuery({
+  const { data: rows = [] } = useQuery({
     queryKey: ['dailyQuests', user?.id, quests.todayDateString()],
     queryFn: async () => {
       await quests.ensureTodaysQuests(user);
