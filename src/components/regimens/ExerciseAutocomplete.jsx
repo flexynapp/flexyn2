@@ -4,6 +4,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { searchExercises, muscleKey } from '@/lib/exerciseTranslations';
 import { titleCase } from '@/lib/textCase';
 import { getUsageScores } from '@/lib/recentExerciseUsage';
+import { EQUIPMENT_FILTERS, matchesEquipment } from '@/lib/exerciseEquipment';
 
 const EXERCISE_LIBRARY = [
   // Chest
@@ -433,6 +434,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
   const { t, language } = useLanguage();
   const [query, setQuery] = useState(value || '');
   const [open, setOpen] = useState(false);
+  const [equipmentFilter, setEquipmentFilter] = useState('all');
   const ref = useRef(null);
 
   // Recently-used exercise ranking — boost exercises the user has
@@ -455,6 +457,9 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
             isRecent: usageScore > 0.25, // mark visually for top recents
           };
         })
+        // Equipment filter — drop matches that don't fit the chosen
+        // category. Inferred from the exercise name (no schema change).
+        .filter(s => matchesEquipment(s.name, equipmentFilter))
         // Stable-sort by usage score desc; preserves alphabetical
         // order within equal scores (search results already alpha).
         .sort((a, b) => (b.usageScore || 0) - (a.usageScore || 0))
@@ -506,8 +511,30 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
         placeholder={placeholder || 'Search exercise...'}
         autoComplete="off"
       />
+      {/* Equipment filter — visible whenever the dropdown is open OR a
+          non-default filter is active. Lets the user say "I only have
+          dumbbells today" without typing the equipment into the
+          search box. */}
+      {(open || equipmentFilter !== 'all') && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 flex gap-1 overflow-x-auto px-1 pb-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+          {EQUIPMENT_FILTERS.map(f => (
+            <button
+              key={f.id}
+              type="button"
+              onMouseDown={(e) => { e.preventDefault(); setEquipmentFilter(f.id); }}
+              className={`shrink-0 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide border transition-colors ${
+                equipmentFilter === f.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border/60 text-muted-foreground hover:border-primary/40 bg-card'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      )}
       {open && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto">
+        <div className="absolute z-40 left-0 right-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto" style={{ top: 'calc(100% + 28px)' }}>
           {suggestions.map((ex) => (
             <button
               key={ex.name}

@@ -6,6 +6,7 @@ import { Plus, History } from 'lucide-react';
 import { toast } from 'sonner';
 import SetRow from './SetRow';
 import { getRecentSessionsForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
+import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -36,6 +37,13 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // for first-ever attempts so the hint hides gracefully.
   const recentSessions = useMemo(
     () => getRecentSessionsForExercise(workoutLogs, exercise.name || exercise.displayName, 3),
+    [workoutLogs, exercise.name, exercise.displayName]
+  );
+  // Auto-progressive-overload hint — looks at the user's last
+  // session for THIS exercise and suggests a target. Quiet by
+  // design: renders nothing without enough history.
+  const progressionHint = useMemo(
+    () => suggestProgression(exercise.name || exercise.displayName, workoutLogs),
     [workoutLogs, exercise.name, exercise.displayName]
   );
   const { t, language } = useLanguage();
@@ -134,6 +142,18 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
                 );
               })}
             </div>
+          )}
+          {/* Progressive-overload hint — color tints by kind so the
+              user can scan-read intent (bump = primary, hold = amber,
+              regress = muted). */}
+          {progressionHint && (
+            <p className={`mt-1 text-[10px] font-medium ${
+              progressionHint.kind === 'bump'    ? 'text-primary' :
+              progressionHint.kind === 'hold'    ? 'text-amber-500' :
+                                                   'text-muted-foreground'
+            }`}>
+              💡 {progressionHint.message}
+            </p>
           )}
         </div>
       </div>
