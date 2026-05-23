@@ -28,6 +28,7 @@ import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTyp
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import PortionGuide from '@/components/nutrition/PortionGuide';
 import RecipeBuilderModal from '@/components/nutrition/RecipeBuilderModal';
+import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
@@ -124,6 +125,7 @@ export default function Nutrition() {
   // be overridden via MealTypePicker.
   const [mealType, setMealType] = useState(() => autoPickMealType());
   const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
+  const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -828,6 +830,12 @@ export default function Nutrition() {
             <span className="truncate">{t('nutrition.nutritionPlans')}</span>
           </Button>
         </motion.div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+          <Button onClick={() => setShowWeeklyPlanner(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
+            <span className="mr-1">📅</span>
+            <span className="truncate">{tFallback('nutrition.weeklyPlanner', 'Weekly planner')}</span>
+          </Button>
+        </motion.div>
       </motion.div>
 
       {/* Log Meal Form */}
@@ -1107,6 +1115,14 @@ export default function Nutrition() {
           open={showNutritionPlans}
           onClose={() => setShowNutritionPlans(false)}
           userProfile={userProfile}
+        />
+      </ErrorBoundary>
+
+      {/* Weekly planner — 7-day grid + grocery list export */}
+      <ErrorBoundary label="WeeklyMealPlannerModal">
+        <WeeklyMealPlannerModal
+          open={showWeeklyPlanner}
+          onClose={() => setShowWeeklyPlanner(false)}
         />
       </ErrorBoundary>
     </motion.div>
