@@ -24,6 +24,9 @@ import LogMealForm from '@/components/nutrition/LogMealForm';
 import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboardingModal';
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
+import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
+import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
+import PortionGuide from '@/components/nutrition/PortionGuide';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { reportError } from '@/lib/reportError';
 import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
@@ -114,6 +117,10 @@ export default function Nutrition() {
   // waterOz is derived from persisted logs
   const [waterUnit, setWaterUnit] = useState('oz');
   const [customBottles, setCustomBottles] = useState([]);
+  // Selected meal context for the next log. Auto-picks from local
+  // clock on mount so the user doesn't have to choose mid-day; can
+  // be overridden via MealTypePicker.
+  const [mealType, setMealType] = useState(() => autoPickMealType());
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -386,7 +393,7 @@ export default function Nutrition() {
       vitamin_c_mg:    v.vitamin_c_mg   ?? null,
       vitamin_d_iu:    v.vitamin_d_iu   ?? null,
       vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
-      meal_type: 'snack',
+      meal_type: mealType,
     });
   };
 
@@ -414,7 +421,7 @@ export default function Nutrition() {
       vitamin_c_mg:    v.vitamin_c_mg   ?? null,
       vitamin_d_iu:    v.vitamin_d_iu   ?? null,
       vitamin_b12_mcg: v.vitamin_b12_mcg ?? null,
-      meal_type: 'snack',
+      meal_type: mealType,
     });
     setScannedProduct(null);
   };
@@ -425,6 +432,7 @@ export default function Nutrition() {
       date,
       created_by: user?.email,
       user_id: user?.id,
+      meal_type: mealType,
       ...Object.fromEntries(Object.entries(newEntry).map(([k, v]) => [k, v === '' ? 0 : v]))
     });
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
@@ -716,6 +724,11 @@ export default function Nutrition() {
         </ErrorBoundary>
       )}
 
+      {/* Top calorie progress bar — live tally vs goal, color-tinted
+          by how close you are. Surfaces the most-asked nutrition
+          question ("how much can I still eat today?") above the fold. */}
+      <CalorieTopBar entries={entries} userProfile={userProfile} />
+
       {/* Nutrition Tabs */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
         <div className="flex gap-1 p-1 bg-secondary rounded-lg mb-4 border border-border">
@@ -782,6 +795,19 @@ export default function Nutrition() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mb-6 scroll-mt-24"
       >
+        {/* Portion-size visual guide. Collapsed by default — users
+            who know the math don't see it; first-timers can expand. */}
+        <div className="mb-3">
+          <PortionGuide />
+        </div>
+
+        {/* Meal-type pill row — surfaced ABOVE the form so the user
+            sees what bucket this log will land in. Defaults to the
+            time-of-day auto-pick from MealTypePicker. */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Meal</p>
+          <MealTypePicker value={mealType} onChange={setMealType} />
+        </div>
         <ErrorBoundary label="LogMealForm">
           <LogMealForm
             newEntry={newEntry}

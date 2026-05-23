@@ -119,6 +119,17 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
           );
         })}
       </motion.div>
+      {/* Net carbs — carbs minus fiber. Standard for keto / low-carb
+          tracking. Quiet single-line label so users who don't care
+          about the metric aren't distracted. */}
+      <div className="mt-3 pt-3 border-t border-border/40 flex items-center justify-between">
+        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          Net carbs <span className="font-normal normal-case opacity-70">(carbs − fiber)</span>
+        </span>
+        <span className="text-xs font-bold tabular-nums text-blue-600">
+          {Math.max(0, totals.carbs_g - totals.fiber_g).toFixed(1)} g
+        </span>
+      </div>
     </Card>
   );
 }
