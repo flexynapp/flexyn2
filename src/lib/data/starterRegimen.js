@@ -54,6 +54,19 @@ const LEVEL_SETS_REPS = {
   advanced:   { sets: 5, reps: 5  },
 };
 
+// Compute an "advanced index" 0..4 from the fitness_assessment blob
+// (mig 129). Each 'yes' answer adds 1; 'not_yet' and missing answers
+// don't. Used to optionally bump sets +1 across the board (more
+// volume) when the user is clearly more advanced than their
+// fitness_level alone suggests.
+function advancedIndex(assessment) {
+  if (!assessment || typeof assessment !== 'object') return 0;
+  const keys = ['bench_bw', 'squat_bw15', 'pullups_10', 'mile_under10'];
+  let n = 0;
+  for (const k of keys) if (assessment[k] === 'yes') n++;
+  return n;
+}
+
 // Cardio + breath-heavy exercises don't take a literal rep target the way
 // barbell lifts do; we set a higher placeholder so the displayed regimen
 // reads sensibly ("3 × 30") instead of "3 × 5". Logging is still flexible.
@@ -72,15 +85,25 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  * @param {string[]} input.goals       - Array of goal IDs (e.g. ['strength','muscle']).
  * @param {string|null} input.level    - One of 'newbie'|'returning'|'consistent'|'advanced'.
  * @param {number} input.daysCount     - Training days per week (used in description).
+ * @param {Object} [input.assessment]  - Optional fitness self-assessment
+ *                                       (mig 129). Bumps volume when the
+ *                                       user reports advanced lift capacity.
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment } = {}) {
   const primary = (Array.isArray(goals) && goals[0]) ? goals[0] : 'strength';
   const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
   const goalTitle = GOAL_TITLES[goalKey];
   const exerciseNames = GOAL_EXERCISES[goalKey];
 
-  const { sets, reps } = LEVEL_SETS_REPS[level] || LEVEL_SETS_REPS.newbie;
+  const baseSetsReps = LEVEL_SETS_REPS[level] || LEVEL_SETS_REPS.newbie;
+  const advIdx = advancedIndex(assessment);
+  // 3+ "yes" answers = bump sets by 1 (more volume). 4/4 = bump by 2.
+  // Reps stay constant — adding sets is the cleaner volume lever for
+  // an automated plan. Never exceed 6 sets per exercise (matches the
+  // per-exercise cap in realisticLimits).
+  const sets = Math.min(6, baseSetsReps.sets + (advIdx >= 3 ? 1 : 0) + (advIdx >= 4 ? 1 : 0));
+  const reps = baseSetsReps.reps;
 
   const exercises = exerciseNames.map(name => {
     const libEntry = EX(name);

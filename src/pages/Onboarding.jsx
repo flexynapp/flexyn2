@@ -720,6 +720,113 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   ASSESSMENT STEP — 4 lift-estimate questions, all optional
+═══════════════════════════════════════════════════════════════ */
+
+const ASSESSMENT_QUESTIONS = [
+  { id: 'bench_bw',     icon: '🏋️', question: 'Can you bench-press your bodyweight?' },
+  { id: 'squat_bw15',   icon: '🦵', question: 'Can you squat 1.5× your bodyweight?' },
+  { id: 'pullups_10',   icon: '🤸', question: 'Can you do 10 strict pull-ups in a row?' },
+  { id: 'mile_under10', icon: '🏃', question: 'Can you run a mile in under 10 minutes?' },
+];
+
+const ASSESSMENT_ANSWERS = [
+  { id: 'yes',     label: 'Yes',     hue: 'hsl(142 71% 45%)' },
+  { id: 'not_yet', label: 'Not yet', hue: 'hsl(38 92% 50%)'  },
+  { id: 'no',     label: 'No',      hue: 'hsl(220 9% 46%)'   },
+];
+
+function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }) {
+  const answers = value || {};
+  const setAnswer = (qid, aid) => onChange({ ...answers, [qid]: aid });
+  // Allow proceeding when all 4 are answered OR when the user
+  // explicitly chooses to skip. We don't BLOCK on incomplete; the
+  // bottom button text changes to "Skip rest" when fewer than 4 are
+  // answered so the user always knows they can move on.
+  const answeredCount = ASSESSMENT_QUESTIONS.filter(q => !!answers[q.id]).length;
+  const allAnswered = answeredCount === ASSESSMENT_QUESTIONS.length;
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+        <KineticHeading
+          kicker={`Assessment · ${String(step).padStart(2, '0')}`}
+          text="Quick lift check"
+          accentWord="lift"
+        />
+        <p className="text-sm text-muted-foreground mt-2 mb-6">
+          Optional — but the more honest you are, the better the plan.
+          <br />
+          <span className="text-xs text-muted-foreground/70">
+            Your AI Coach uses these to dial in starting volume.
+          </span>
+        </p>
+
+        <div className="space-y-4">
+          {ASSESSMENT_QUESTIONS.map((q, qi) => (
+            <motion.div
+              key={q.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 + qi * 0.06, duration: 0.4 }}
+              className="rounded-2xl border bg-card p-4"
+            >
+              <div className="flex items-start gap-2 mb-3">
+                <span className="text-2xl leading-none" aria-hidden="true">{q.icon}</span>
+                <p className="font-heading font-semibold text-sm leading-snug text-foreground">
+                  {q.question}
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {ASSESSMENT_ANSWERS.map(a => {
+                  const selected = answers[q.id] === a.id;
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => setAnswer(q.id, a.id)}
+                      className="py-2 rounded-xl border text-xs font-bold uppercase tracking-wide transition-colors"
+                      style={{
+                        borderColor: selected ? a.hue : 'hsl(var(--border))',
+                        background:  selected ? `${a.hue}1f` : 'hsl(var(--card))',
+                        color:       selected ? a.hue : 'hsl(var(--foreground))',
+                      }}
+                    >
+                      {a.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        <p className="text-[11px] text-center text-muted-foreground mt-4">
+          Answered {answeredCount} of {ASSESSMENT_QUESTIONS.length}
+        </p>
+      </div>
+
+      <div className="pt-4 shrink-0 flex flex-col gap-2">
+        <PrimaryBtn onClick={onNext}>
+          {allAnswered ? 'Build my plan' : 'Continue'}
+          <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        </PrimaryBtn>
+        {!allAnswered && (
+          <button
+            type="button"
+            onClick={onSkip || onNext}
+            className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors py-1.5"
+          >
+            Skip — generate a generic plan
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    SCRUBBER COMPONENT (drag ruler)
 ═══════════════════════════════════════════════════════════════ */
 
@@ -1903,8 +2010,8 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
    MAIN ONBOARDING ORCHESTRATOR
 ═══════════════════════════════════════════════════════════════ */
 
-const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'days', 'loading', 'reveal'];
-const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'days'];
+const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'days', 'assessment', 'loading', 'reveal'];
+const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'days', 'assessment'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
 // Per-step theatrical transition flavors — variety = wow factor
@@ -1916,6 +2023,7 @@ const STEP_TRANSITIONS = {
   height:     'flip',
   weight:     'tilt',
   days:       'curtain',
+  assessment: 'fwd',
   loading:    'flash',
   reveal:     'iris',
 };
@@ -1994,6 +2102,9 @@ export default function Onboarding() {
     },
     days: [],
     preferredTime: '',
+    // 4-question lift-estimate assessment. Optional — empty object
+    // means "skipped." See `assessment` step + buildStarterRegimen.
+    assessment: {},
   };
 
   const [data, setData] = useState(() => {
@@ -2150,6 +2261,7 @@ export default function Onboarding() {
       fitness_goals:          Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
       fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
       fitness_level:          data.level,
+      fitness_assessment:     data.assessment || {},
       training_days:          data.days,
       preferred_workout_time: data.preferredTime,
       age:                    s.age,
@@ -2188,6 +2300,7 @@ export default function Onboarding() {
           goals: data.goal,
           level: data.level,
           daysCount: Array.isArray(data.days) ? data.days.length : 0,
+          assessment: data.assessment || null,
         },
       }).catch(err => {
         reportError(err, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
@@ -2385,6 +2498,17 @@ export default function Onboarding() {
                   onDaysChange={v => setData(d => ({ ...d, days: v }))}
                   onTimeChange={v => setData(d => ({ ...d, preferredTime: v }))}
                   onNext={next} onBack={back} />
+              )}
+
+              {stepName === 'assessment' && (
+                <AssessmentStep
+                  step={formStep}
+                  total={TOTAL_FORM}
+                  value={data.assessment}
+                  onChange={v => setData(d => ({ ...d, assessment: v }))}
+                  onNext={next}
+                  onBack={back}
+                />
               )}
 
               {stepName === 'loading' && <LoadingStep onDone={next} />}
