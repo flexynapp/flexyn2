@@ -365,6 +365,9 @@ export default function Layout() {
                 showLongPressHint={idx === 0}
                 onLongPress={(el) => openQuickMenu(item.path, el)}
                 onTap={() => {
+                  // Light haptic on every tab tap — matches iOS tab bars.
+                  // 'light' is a 10ms pulse that's felt but not obtrusive.
+                  triggerHaptic('light');
                   // Three behaviors stacked on one tap:
                   //   1. Navigating to a different tab → just scroll to top.
                   //   2. Tapping the active tab when scrolled down → scroll

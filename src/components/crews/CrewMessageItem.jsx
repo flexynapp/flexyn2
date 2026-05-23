@@ -8,18 +8,26 @@
 //   image_one_time — tap-to-view; local state blocks re-view
 //   image_one_hour — normal photo (filtered by expires_at server-side)
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, ThumbsUp, ThumbsDown, Dumbbell, Eye, EyeOff, Loader2, Check } from 'lucide-react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { toast } from 'sonner';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import * as crewsData from '@/lib/data/crews';
+import * as crewRxns from '@/lib/data/crewMessageReactions';
 import { supabase } from '@/api/supabaseClient';
 import { useLanguage } from '@/lib/LanguageContext';
+import { triggerHaptic } from '@/lib/haptic';
+import { playSound, SOUND } from '@/lib/playSound';
 
-// Feature 18: Write fire reaction to Supabase (graceful fallback)
+// Quick emoji strip in long-press context menu (same set as DM reactions)
+const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
+
+// Graceful fire-reaction write — falls back silently if table not yet migrated.
+// Uses `emoji` column (migration 130). Previously used `reaction` — table
+// didn't exist in production, so the column name change is safe.
 async function writeFireReaction(msgId, userId, active) {
   if (!msgId || !userId) return;
   try {
@@ -27,8 +35,8 @@ async function writeFireReaction(msgId, userId, active) {
       await supabase
         .from('crew_message_reactions')
         .upsert(
-          { message_id: msgId, user_id: userId, reaction: '🔥' },
-          { onConflict: 'message_id,user_id,reaction', ignoreDuplicates: false }
+          { message_id: msgId, user_id: userId, emoji: '🔥' },
+          { onConflict: 'message_id,user_id,emoji', ignoreDuplicates: false }
         );
     } else {
       await supabase
@@ -36,10 +44,10 @@ async function writeFireReaction(msgId, userId, active) {
         .delete()
         .eq('message_id', msgId)
         .eq('user_id', userId)
-        .eq('reaction', '🔥');
+        .eq('emoji', '🔥');
     }
   } catch {
-    // Table may not exist — localStorage already covers local state
+    // Table may not exist yet — localStorage already covers local state
   }
 }
 
@@ -116,13 +124,41 @@ function Timestamp({ dateStr }) {
 // ── Text bubble ───────────────────────────────────────────────────────────────
 
 function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModerator, onPin }) {
-  const { t, tFallback } = useLanguage();
+  const qc = useQueryClient();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
   const [reacted, setReacted] = useState(() => loadFire(msg.id));
   const [animating, setAnimating] = useState(false);
   const [showContext, setShowContext] = useState(false);
+  // Optimistic emoji reactions state: { [emoji]: { count, myReacted } }
+  const [optimisticRxns, setOptimisticRxns] = useState(null);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
+
+  // Fetch reactions from DB — keyed per message so all instances share the cache.
+  const { data: rxnData } = useQuery({
+    queryKey: ['crewMsgRxns', msg.id],
+    queryFn: async () => {
+      const map = await crewRxns.getReactionsForMessages([msg.id]);
+      return map[msg.id] || [];
+    },
+    enabled: !String(msg.id).startsWith('temp-'),
+    staleTime: 10_000,
+    refetchInterval: 15_000,
+  });
+
+  // Merge DB data with any in-flight optimistic state
+  const rxnList = optimisticRxns !== null ? optimisticRxns : (rxnData || []);
+
+  // Group by emoji for display
+  const rxnGroups = (() => {
+    const groups = {};
+    for (const r of rxnList) {
+      if (!groups[r.emoji]) groups[r.emoji] = { count: 0, myReacted: false };
+      groups[r.emoji].count++;
+      if (r.user_id === currentUserId) groups[r.emoji].myReacted = true;
+    }
+    return Object.entries(groups).map(([emoji, g]) => ({ emoji, ...g }));
+  })();
 
   const setReactedPersisted = (val) => {
     setReacted(val);
@@ -142,8 +178,11 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
     lastTapRef.current = now;
   };
 
-  const startLong = () => {
-    longPressTimer.current = setTimeout(() => setShowContext(true), 500);
+  const startLong = (e) => {
+    longPressTimer.current = setTimeout(() => {
+      triggerHaptic('primary');
+      setShowContext(true);
+    }, 480);
   };
   const cancelLong = () => {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; }
@@ -153,6 +192,41 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
     setShowContext(false);
     onPin?.(msg.id);
   };
+
+  // Emoji reaction toggle — optimistic + async persist
+  const handleEmojiReact = useCallback(async (emoji) => {
+    if (!currentUserId || String(msg.id).startsWith('temp-')) return;
+    setShowContext(false);
+
+    // Optimistic update
+    const base = rxnData || [];
+    const alreadyReacted = base.some(r => r.user_id === currentUserId && r.emoji === emoji);
+    const updated = alreadyReacted
+      ? base.filter(r => !(r.user_id === currentUserId && r.emoji === emoji))
+      : [...base, { user_id: currentUserId, emoji }];
+    setOptimisticRxns(updated);
+
+    if (!alreadyReacted) {
+      playSound(SOUND.capsuleOpen);
+      triggerHaptic('primary');
+    }
+
+    try {
+      await crewRxns.toggleReaction(msg.id, currentUserId, emoji);
+      // Invalidate so the DB truth replaces the optimistic state
+      qc.invalidateQueries({ queryKey: ['crewMsgRxns', msg.id] });
+    } catch {
+      // Revert on failure
+      setOptimisticRxns(null);
+    } finally {
+      setOptimisticRxns(null);
+    }
+  }, [currentUserId, msg.id, rxnData, qc]);
+
+  // Handle tapping a reaction bubble inline (toggle)
+  const handleBubbleTap = useCallback((emoji) => {
+    handleEmojiReact(emoji);
+  }, [handleEmojiReact]);
 
   return (
     <>
@@ -181,7 +255,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               {msg.content}
             </div>
 
-            {/* Fire reaction — floats up on double-tap, then sticks as badge */}
+            {/* Fire reaction — floats up on double-tap */}
             <AnimatePresence>
               {animating && (
                 <motion.span
@@ -197,8 +271,8 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               )}
             </AnimatePresence>
 
-            {/* Persistent reaction badge */}
-            {reacted && !animating && (
+            {/* Legacy local fire badge (double-tap) — kept for offline feel */}
+            {reacted && !animating && rxnGroups.findIndex(g => g.emoji === '🔥') === -1 && (
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
@@ -210,6 +284,30 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               </motion.div>
             )}
           </div>
+
+          {/* Emoji reaction bubbles — fetched from DB */}
+          {rxnGroups.length > 0 && (
+            <div className={`flex flex-wrap gap-1 mt-1.5 ${isOwn ? 'justify-end' : 'justify-start'}`}>
+              {rxnGroups.map(({ emoji, count, myReacted }) => (
+                <motion.button
+                  key={emoji}
+                  initial={{ scale: 0.7, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                  onClick={() => handleBubbleTap(emoji)}
+                  className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-xs border transition-colors ${
+                    myReacted
+                      ? 'bg-primary/20 border-primary/40 text-foreground'
+                      : 'bg-card border-border text-muted-foreground hover:bg-secondary'
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  {count > 1 && <span className="font-medium tabular-nums">{count}</span>}
+                </motion.button>
+              ))}
+            </div>
+          )}
+
           <Timestamp dateStr={msg.created_at} />
         </div>
       </div>
@@ -229,8 +327,24 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 20, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-card border border-border rounded-2xl overflow-hidden w-64 shadow-xl"
+              className="bg-card border border-border rounded-2xl overflow-hidden w-72 shadow-xl"
             >
+              {/* Quick emoji strip */}
+              <div className="flex items-center justify-around px-3 py-3 border-b border-border">
+                {QUICK_EMOJIS.map(emoji => {
+                  const myReacted = (rxnData || []).some(r => r.user_id === currentUserId && r.emoji === emoji);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => handleEmojiReact(emoji)}
+                      className={`text-2xl p-1.5 rounded-xl transition-all ${myReacted ? 'bg-primary/20 scale-110' : 'hover:bg-secondary hover:scale-110'}`}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+
               {isCurrentModerator && (
                 <button
                   onClick={handlePinToggle}
@@ -242,7 +356,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               )}
               <button
                 onClick={() => setShowContext(false)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors border-t border-border"
+                className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-muted-foreground hover:bg-secondary transition-colors ${isCurrentModerator ? 'border-t border-border' : ''}`}
               >
                 Cancel
               </button>

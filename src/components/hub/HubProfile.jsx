@@ -932,12 +932,22 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             {/* @handle row — visually paired with the username, no extra mt */}
             <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
             {activeLabel && (
-              <p className={`text-[11px] font-medium leading-tight mt-1.5 flex items-center gap-1 ${activeLabel.color}`}>
-                {activeLabel.text === 'Active now' && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              <span className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+                activeLabel.text === 'Active now'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                  : 'bg-muted/60 border-border/50 text-muted-foreground'
+              }`}>
+                {activeLabel.text === 'Active now' ? (
+                  <motion.span
+                    className="w-2 h-2 rounded-full bg-emerald-500 shrink-0"
+                    animate={{ scale: [1, 1.4, 1], opacity: [1, 0.6, 1] }}
+                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+                  />
+                ) : (
+                  <span className="w-2 h-2 rounded-full bg-muted-foreground/40 shrink-0" />
                 )}
                 {activeLabel.text}
-              </p>
+              </span>
             )}
 
             {/* Equipped title */}

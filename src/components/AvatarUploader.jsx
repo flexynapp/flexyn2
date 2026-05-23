@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import { compressImage } from '@/lib/imageCompress';
 import { toast } from 'sonner';
+import { getAvatarGradient } from '@/lib/avatarGradient';
 
 /**
  * Circular avatar with optional edit affordance.
@@ -29,7 +30,7 @@ import { toast } from 'sonner';
  *   frameAnimation — optional CSS animation name for animated frames
  *               (e.g. "frame-pulse", "frame-rainbow"). Wired up in src/index.css.
  */
-export default function AvatarUploader({ src, initials = '?', editable = false, size = 64, onChange, frameCss = null, frameAnimation = null }) {
+export default function AvatarUploader({ src, initials = '?', seed = '', editable = false, size = 64, onChange, frameCss = null, frameAnimation = null }) {
   const { t } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -89,6 +90,12 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
 
   const dim = `${size}px`;
 
+  // Deterministic gradient for the initials fallback circle — same seed
+  // always maps to the same gradient so avatars are visually stable.
+  const { gradient: fallbackGradient } = src
+    ? { gradient: undefined }
+    : getAvatarGradient(seed || initials || '');
+
   // When a frame is equipped, apply its CSS to a wrapper that sits OUTSIDE the
   // avatar circle. This lets gradient frames (which need their own border +
   // backgroundImage trick) render without conflicting with the default
@@ -127,10 +134,14 @@ export default function AvatarUploader({ src, initials = '?', editable = false, 
         {/* The circle */}
         <div
           className={[
-            'w-full h-full rounded-full bg-primary/10 flex items-center justify-center overflow-hidden font-heading font-bold text-primary',
+            'w-full h-full rounded-full flex items-center justify-center overflow-hidden font-heading font-bold',
+            src ? 'bg-primary/10 text-primary' : 'text-white',
             hasFrame ? '' : 'border-2 border-card',
           ].join(' ')}
-          style={{ fontSize: Math.round(size * 0.32) }}
+          style={{
+            fontSize: Math.round(size * 0.32),
+            background: src ? undefined : fallbackGradient,
+          }}
         >
           {src ? (
             <img src={src} alt="" className="w-full h-full object-cover" />

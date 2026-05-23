@@ -4,9 +4,9 @@
 // XP this week, days remaining, and a peek at the rivals around them.
 // Tap → full league standings (handled via onClick prop).
 
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Trophy, ChevronRight, ArrowUp, ArrowDown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -45,6 +45,21 @@ export default function LeagueCard({ onClick }) {
   const { league, tier, members, myRank, totalMembers } = data;
   const me = members.find(m => m && m.user_id === user.id);
   const myXp = me?.weekly_xp || 0;
+
+  // Track previous rank to animate climbing/falling when rank changes
+  const prevRankRef = useRef(myRank);
+  const [rankDelta, setRankDelta] = useState(null); // negative = climbed up, positive = fell
+  useEffect(() => {
+    if (!myRank || !prevRankRef.current || prevRankRef.current === myRank) {
+      prevRankRef.current = myRank;
+      return;
+    }
+    const delta = myRank - prevRankRef.current; // negative = better rank (climbed)
+    setRankDelta(delta);
+    prevRankRef.current = myRank;
+    const t = setTimeout(() => setRankDelta(null), 2800);
+    return () => clearTimeout(t);
+  }, [myRank]);
 
   // Days left in the week (week_end is a YYYY-MM-DD string)
   const endDate = parseISO(league.week_end + 'T23:59:59');
@@ -88,12 +103,40 @@ export default function LeagueCard({ onClick }) {
               <p className="text-[10px] uppercase tracking-wider opacity-80">
                 {tFallback('league.yourRank', 'Your rank')}
               </p>
-              <p className="font-heading font-bold text-2xl leading-none mt-0.5 tabular-nums">
-                {myRank ? `#${myRank}` : '—'}
-                <span className="text-sm font-normal opacity-75 ms-1">
-                  / {totalMembers}
-                </span>
-              </p>
+              <div className="flex items-baseline gap-1.5 mt-0.5">
+                <motion.p
+                  key={myRank}
+                  className="font-heading font-bold text-2xl leading-none tabular-nums"
+                  initial={{ y: rankDelta != null ? (rankDelta < 0 ? 12 : -12) : 0, opacity: 0.4 }}
+                  animate={{ y: 0, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 22 }}
+                >
+                  {myRank ? `#${myRank}` : '—'}
+                  <span className="text-sm font-normal opacity-75 ms-1">
+                    / {totalMembers}
+                  </span>
+                </motion.p>
+
+                {/* Delta badge — fades in, slides, fades out */}
+                <AnimatePresence>
+                  {rankDelta != null && rankDelta !== 0 && (
+                    <motion.span
+                      key="delta"
+                      initial={{ opacity: 0, y: rankDelta < 0 ? 6 : -6, scale: 0.8 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: rankDelta < 0 ? -6 : 6, scale: 0.8 }}
+                      transition={{ type: 'spring', stiffness: 320, damping: 22 }}
+                      className={`text-xs font-bold leading-none px-1.5 py-0.5 rounded-full ${
+                        rankDelta < 0
+                          ? 'bg-emerald-500/30 text-emerald-200'  // climbed
+                          : 'bg-red-500/30 text-red-200'           // fell
+                      }`}
+                    >
+                      {rankDelta < 0 ? `▲${Math.abs(rankDelta)}` : `▼${rankDelta}`}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
             <div className="text-end">
               <p className="text-[10px] uppercase tracking-wider opacity-80">

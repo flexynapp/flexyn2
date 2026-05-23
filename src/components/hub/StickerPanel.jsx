@@ -5,6 +5,8 @@
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles } from 'lucide-react';
+import { playSound, SOUND } from '@/lib/playSound';
+import { triggerHaptic } from '@/lib/haptic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
@@ -81,6 +83,9 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
           item_rarity: sticker.item_rarity,
           variant:    sticker.variant ?? null,
         });
+        // Sound + haptic: sticker reactions are a premium feel moment
+        playSound(SOUND.capsuleOpen); // bright, celebratory chime
+        triggerHaptic('primary');
         toast(`${sticker.item_emoji} Sticker reaction added!`);
       }
       qc.invalidateQueries({ queryKey: ['stickerReactions', postId] });

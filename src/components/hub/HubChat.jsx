@@ -449,12 +449,31 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   }, [conversation?.id, fireReactions]);
 
   // ── Long-press for context menu ───────────────────────────────────────────
-  const startLongPress = useCallback((msg) => {
-    longPressRef.current = setTimeout(() => setContextMsg(msg), 500);
+  // Move tolerance: cancel only if finger moves > 8 px from start position.
+  // Fixes "must hold precisely on bubble" — slight finger drift no longer
+  // cancels, matching iOS Messages behavior.
+  const lpStartPos = useRef(null);
+  const startLongPress = useCallback((msg, e) => {
+    const touch = e?.touches?.[0] || e;
+    lpStartPos.current = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    longPressRef.current = setTimeout(() => {
+      triggerHaptic('primary');
+      setContextMsg(msg);
+    }, 480);
   }, []);
   const cancelLongPress = useCallback(() => {
     if (longPressRef.current) { clearTimeout(longPressRef.current); longPressRef.current = null; }
+    lpStartPos.current = null;
   }, []);
+  const moveLongPress = useCallback((e) => {
+    if (!lpStartPos.current || !longPressRef.current) return;
+    const touch = e?.touches?.[0] || e;
+    if (!touch) return;
+    const dx = touch.clientX - lpStartPos.current.x;
+    const dy = touch.clientY - lpStartPos.current.y;
+    // Only cancel if finger has drifted more than 8 px in any direction
+    if (Math.sqrt(dx * dx + dy * dy) > 8) cancelLongPress();
+  }, [cancelLongPress]);
 
   // ── Pin toggle ────────────────────────────────────────────────────────────
   const isPinned = useCallback((msg) =>
@@ -1018,12 +1037,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           tabIndex={0}
                           onClick={() => !isOptimistic && handleMessageTap(m.id)}
                           onKeyDown={(e) => { if (e.key === 'Enter') handleMessageTap(m.id); }}
-                          onMouseDown={() => !isOptimistic && startLongPress(m)}
+                          onMouseDown={(e) => !isOptimistic && startLongPress(m, e)}
                           onMouseUp={cancelLongPress}
                           onMouseLeave={cancelLongPress}
-                          onTouchStart={() => !isOptimistic && startLongPress(m)}
+                          onTouchStart={(e) => !isOptimistic && startLongPress(m, e)}
                           onTouchEnd={cancelLongPress}
-                          onTouchMove={cancelLongPress}
+                          onTouchMove={moveLongPress}
                           className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm transition-opacity cursor-pointer select-text ${
                             isMine
                               ? 'bg-primary text-primary-foreground rounded-br-sm'

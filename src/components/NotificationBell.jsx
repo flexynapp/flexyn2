@@ -70,8 +70,16 @@ export default function NotificationBell() {
           {count > 0 && (
             <motion.span
               key={count}
-              initial={{ scale: 0.6, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
+              initial={{ scale: 0, opacity: 0 }}
+              animate={{
+                scale: [0, 1.4, 0.85, 1.15, 0.95, 1],
+                opacity: 1,
+              }}
+              transition={{
+                duration: 0.5,
+                times: [0, 0.3, 0.5, 0.7, 0.85, 1],
+                ease: 'easeOut',
+              }}
               aria-hidden="true"
               className="absolute -top-0.5 -end-0.5 min-w-[16px] h-4 px-0.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center"
             >
