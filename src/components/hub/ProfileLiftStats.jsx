@@ -15,6 +15,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { buildPRIndex } from '@/lib/data/personalRecords';
+import TapToCopy from '@/components/TapToCopy';
 
 export default function ProfileLiftStats({ userEmail, longestStreak }) {
   const { tFallback } = useLanguage();
@@ -79,18 +80,28 @@ export default function ProfileLiftStats({ userEmail, longestStreak }) {
             <Activity className="w-3 h-3 text-emerald-500" aria-hidden="true" />
             {tFallback('profileLifts.tonnage', 'Total tonnage')}
           </div>
-          <p className="font-heading font-black text-lg tabular-nums mt-0.5">
-            {tonnageDisplay} <span className="text-xs text-muted-foreground">{unitSuffix}</span>
-          </p>
+          <TapToCopy
+            value={`${tonnageDisplay} ${unitSuffix}`}
+            label="tonnage"
+          >
+            <p className="font-heading font-black text-lg tabular-nums mt-0.5">
+              {tonnageDisplay} <span className="text-xs text-muted-foreground">{unitSuffix}</span>
+            </p>
+          </TapToCopy>
         </div>
         <div className="rounded-2xl border border-border bg-card px-3 py-2.5">
           <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
             <Flame className="w-3 h-3 text-orange-500" aria-hidden="true" />
             {tFallback('profileLifts.longestStreak', 'Longest streak')}
           </div>
-          <p className="font-heading font-black text-lg tabular-nums mt-0.5">
-            {longestStreak ?? '—'} <span className="text-xs text-muted-foreground">{tFallback('profileLifts.days', 'days')}</span>
-          </p>
+          <TapToCopy
+            value={longestStreak ? `${longestStreak} day streak` : '—'}
+            label="streak"
+          >
+            <p className="font-heading font-black text-lg tabular-nums mt-0.5">
+              {longestStreak ?? '—'} <span className="text-xs text-muted-foreground">{tFallback('profileLifts.days', 'days')}</span>
+            </p>
+          </TapToCopy>
         </div>
       </div>
 
@@ -102,17 +113,26 @@ export default function ProfileLiftStats({ userEmail, longestStreak }) {
             {tFallback('profileLifts.topLifts', 'Top lifts')}
           </div>
           <div className="space-y-1">
-            {topLifts.map((lift, i) => (
-              <div key={lift.name} className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium truncate">
-                  <span className="text-muted-foreground tabular-nums mr-1.5">#{i + 1}</span>
-                  {lift.name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ')}
-                </span>
-                <span className="text-xs font-bold tabular-nums">
-                  {Math.round(fromLbs(lift.rm, weightUnit))} {unitSuffix}
-                </span>
-              </div>
-            ))}
+            {topLifts.map((lift, i) => {
+              const displayName = lift.name.split(' ').map(w => w[0]?.toUpperCase() + w.slice(1)).join(' ');
+              const rmDisplay = `${Math.round(fromLbs(lift.rm, weightUnit))} ${unitSuffix}`;
+              return (
+                <TapToCopy
+                  key={lift.name}
+                  value={`${displayName} 1RM: ${rmDisplay}`}
+                  label="PR"
+                  className="block"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-medium truncate">
+                      <span className="text-muted-foreground tabular-nums mr-1.5">#{i + 1}</span>
+                      {displayName}
+                    </span>
+                    <span className="text-xs font-bold tabular-nums">{rmDisplay}</span>
+                  </div>
+                </TapToCopy>
+              );
+            })}
           </div>
         </div>
       )}
