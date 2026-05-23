@@ -9,10 +9,12 @@
 // Empty state is the most common case for v1 — explain the value +
 // CTA into both add paths.
 
-import React, { useEffect, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Plus, MapPin, Loader2, Building2, QrCode, Users } from 'lucide-react';
+import { Plus, MapPin, Loader2, Building2, QrCode, Users, ArrowRight, ScanLine } from 'lucide-react';
+
+const QrCodeScanner = lazy(() => import('@/components/gyms/QrCodeScanner'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -27,6 +29,32 @@ export default function MyGyms() {
   const [loading, setLoading] = useState(true);
   const [codeInput, setCodeInput] = useState('');
   const [joining, setJoining] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Shared join handler — used by both the typed-code form submit and
+  // the QR scanner's onDetect. Wraps the same joinByCode + UX flow so
+  // a scanned code is identical to a typed one from the user's POV.
+  const joinWithCode = async (code) => {
+    if (joining) return;
+    setJoining(true);
+    const res = await joinByCode(code);
+    setJoining(false);
+    if (res.ok) {
+      if (res.alreadyMember) toast.info("You're already a member of this gym.");
+      else toast.success('Joined! Welcome to the local community.');
+      setCodeInput('');
+      setScannerOpen(false);
+      refresh();
+      if (res.gymId) navigate(`/gym/${res.gymId}`);
+    } else {
+      const map = {
+        INVALID_CODE: "That code doesn't look right (8 letters/numbers).",
+        CODE_NOT_FOUND: 'No gym matches that code.',
+        PIPELINE_MISSING: 'Gym features are rolling out — try again shortly.',
+      };
+      toast.error(map[res.error] || `Couldn't join: ${res.error || 'try again'}`);
+    }
+  };
 
   const refresh = async () => {
     if (!user?.id) return;
@@ -38,27 +66,9 @@ export default function MyGyms() {
 
   useEffect(() => { refresh(); }, [user?.id]);
 
-  const handleJoin = async (e) => {
+  const handleJoin = (e) => {
     e?.preventDefault?.();
-    if (joining) return;
-    setJoining(true);
-    const res = await joinByCode(codeInput);
-    setJoining(false);
-    if (res.ok) {
-      if (res.alreadyMember) toast.info("You're already a member of this gym.");
-      else toast.success('Joined! Welcome to the local community.');
-      setCodeInput('');
-      refresh();
-      // Auto-open the gym hub for immediate context
-      if (res.gymId) navigate(`/gym/${res.gymId}`);
-    } else {
-      const map = {
-        INVALID_CODE: 'That code doesn\'t look right (8 letters/numbers).',
-        CODE_NOT_FOUND: 'No gym matches that code.',
-        PIPELINE_MISSING: 'Gym features are rolling out — try again shortly.',
-      };
-      toast.error(map[res.error] || `Couldn't join: ${res.error || 'try again'}`);
-    }
+    joinWithCode(codeInput);
   };
 
   return (
@@ -89,9 +99,18 @@ export default function MyGyms() {
           <p className="text-sm font-semibold">Join by code</p>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Enter the 8-character Flexyn Code printed inside the gym.
+          Scan the QR code or type the 8-character Flexyn Code printed inside the gym.
         </p>
         <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setScannerOpen(true)}
+            className="shrink-0"
+            aria-label="Scan QR code"
+          >
+            <ScanLine className="w-4 h-4" />
+          </Button>
           <Input
             value={codeInput}
             onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8))}
@@ -108,6 +127,16 @@ export default function MyGyms() {
           </Button>
         </div>
       </form>
+
+      {scannerOpen && (
+        <Suspense fallback={null}>
+          <QrCodeScanner
+            open={scannerOpen}
+            onClose={() => setScannerOpen(false)}
+            onDetect={joinWithCode}
+          />
+        </Suspense>
+      )}
 
       {/* Joined gym list */}
       {loading ? (
@@ -155,6 +184,30 @@ export default function MyGyms() {
           ))}
         </div>
       )}
+
+      {/* Owner CTA — discoverable from every user's My Gyms page so
+          business owners can self-serve the verification flow without
+          a separate signup path. The MyGyms route is the canonical
+          entry to the whole gym ecosystem; this keeps everything one
+          tap away. */}
+      <button
+        type="button"
+        onClick={() => navigate('/register-gym')}
+        className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 transition-colors p-4 text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
+            <Building2 className="w-5 h-5 text-violet-500" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-heading font-bold text-sm">Own a gym?</p>
+            <p className="text-xs text-muted-foreground">
+              Register your location so members can join + show up on the national map.
+            </p>
+          </div>
+          <ArrowRight className="w-4 h-4 text-muted-foreground" />
+        </div>
+      </button>
     </motion.div>
   );
 }

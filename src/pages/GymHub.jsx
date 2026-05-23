@@ -8,13 +8,15 @@
 // Header: gym name + city/state + member count + Flexyn Code (shown
 // to the owner, hidden from regular members for cleanliness).
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Send, Loader2, Plus, Crown,
+  Send, Loader2, Plus, Crown, Printer,
 } from 'lucide-react';
+
+const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -47,6 +49,7 @@ export default function GymHub() {
   const [gym, setGym] = useState(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('feed');
+  const [signageOpen, setSignageOpen] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -119,9 +122,18 @@ export default function GymHub() {
                 <div className="mt-3 rounded-xl bg-primary/8 border border-primary/20 p-2.5">
                   <p className="text-[10px] font-bold uppercase tracking-wider text-primary mb-0.5">Your Flexyn Code</p>
                   <p className="font-mono text-lg tracking-[0.3em] font-bold text-foreground">{gym.flexyn_code}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1">
+                  <p className="text-[10px] text-muted-foreground mt-1 mb-2">
                     Print this. Members scan or type it inside the gym to join.
                   </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSignageOpen(true)}
+                    className="gap-1.5 h-7"
+                  >
+                    <Printer className="w-3 h-3" />
+                    Open printable signage
+                  </Button>
                 </div>
               )}
             </div>
@@ -150,6 +162,16 @@ export default function GymHub() {
       {tab === 'feed'        && <FeedTab        gymId={id} />}
       {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} />}
       {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
+
+      {signageOpen && (
+        <Suspense fallback={null}>
+          <GymSignageCard
+            open={signageOpen}
+            onClose={() => setSignageOpen(false)}
+            gym={gym}
+          />
+        </Suspense>
+      )}
     </motion.div>
   );
 }

@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft, Trophy, ShieldAlert } from 'lucide-react';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft, Trophy, ShieldAlert, Building2 } from 'lucide-react';
 import { format, subDays, addDays } from 'date-fns';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
@@ -403,6 +403,25 @@ export default function ProfileMenu() {
                         )}
                         <ChevronRight className="w-4 h-4 text-muted-foreground" />
                       </div>
+                    </button>
+                    {/* My Gyms — entry point into the gym business
+                        ecosystem. Lands the user on their joined-gyms
+                        dashboard with a code-entry box + a "Browse map"
+                        link in the header. Owner-specific surfaces
+                        (Register your gym, Manage business) live one
+                        screen deeper. */}
+                    <button
+                      onClick={() => {
+                        setOpen(false);
+                        navigate('/my-gyms');
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-primary" />
+                        {tFallback('profile.myGyms', 'My Gyms')}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
                     <button
                       onClick={() => {

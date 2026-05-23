@@ -212,6 +212,9 @@ export default defineConfig({
           if (id.includes('maplibre-gl')) return undefined;
           if (id.includes('@zxing'))  return undefined;
           if (id.includes('canvas-confetti')) return undefined;
+          // qrcode (~25 KB) is dynamic-imported by GymSignageCard only.
+          // Same rationale as the libs above — keep it lazy.
+          if (id.includes('node_modules/qrcode')) return undefined;
           // html2canvas (~200 KB) is dynamically-imported from
           // DebriefVault only. Without this explicit `undefined`, the
           // vendor-misc catch-all pulls it into the entry bundle,

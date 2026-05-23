@@ -105,6 +105,7 @@ const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
 const MyGyms       = lazy(() => import('./pages/MyGyms'));
 const GymHub       = lazy(() => import('./pages/GymHub'));
 const GymMap       = lazy(() => import('./pages/GymMap'));
+const AdminGyms    = lazy(() => import('./pages/AdminGyms'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -270,6 +271,7 @@ const AuthenticatedApp = () => {
           <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />
           <Route path="/gym-map"      element={<ErrorBoundary label="GymMap"><Suspense fallback={<PageLoader />}><GymMap /></Suspense></ErrorBoundary>} />
+          <Route path="/admin/gyms"   element={<ErrorBoundary label="AdminGyms"><Suspense fallback={<PageLoader />}><AdminGyms /></Suspense></ErrorBoundary>} />
         </Route>
         {/* Shareable profile link: flexyn.app/@username → resolves username to email → /hub?profile=EMAIL */}
         <Route path="/@:username" element={<ProfileRedirect />} />
