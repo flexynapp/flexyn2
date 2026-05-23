@@ -50,9 +50,18 @@ export default function SyncStatus({ dataUpdatedAt }) {
     if (refreshing) return;
     setRefreshing(true);
     try { navigator.vibrate?.(8); } catch { /* ignore */ }
+    // Query keys must match what the consuming queries actually use.
+    // Audit on 2026-05-23 caught two typos here that silently no-op'd
+    // the refresh:
+    //   • 'workouts'    — every consumer uses 'workoutLogs'
+    //     (Dashboard.jsx:297, Workout.jsx:277, Progress.jsx:331, etc)
+    //   • 'cardio_logs' — every consumer uses 'cardioLogs'
+    //     (CardioDetailModal.jsx:125, CardioGoals.jsx:229, etc)
+    // The button still spun + showed "Synced just now", but the
+    // workout + cardio caches never actually re-fetched. Fixed below.
     await Promise.allSettled([
-      queryClient.invalidateQueries({ queryKey: ['workouts', user?.email] }),
-      queryClient.invalidateQueries({ queryKey: ['cardio_logs', user?.email] }),
+      queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] }),
+      queryClient.invalidateQueries({ queryKey: ['cardioLogs', user?.email] }),
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] }),
       queryClient.invalidateQueries({ queryKey: ['goals', user?.email] }),
     ]);

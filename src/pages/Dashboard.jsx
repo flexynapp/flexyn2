@@ -285,6 +285,36 @@ export default function Dashboard() {
     setIsRestDay(false);
   };
 
+  // ── Deep-link query params ───────────────────────────────────────────────
+  // Layout.jsx long-press shortcuts on the Progress tab navigate to:
+  //   /dashboard?logWeight=1  → open LogWeightModal
+  //   /dashboard?addPhoto=1   → open ProgressPhotoCapture
+  // Without this effect those navigations would land on /dashboard with
+  // the modal NEVER opening — the shortcuts looked like they worked
+  // (URL changed, page changed) but the promised action silently
+  // failed. Strip the params after consuming so a back-nav doesn't
+  // reopen the modal on every revisit.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    let changed = false;
+    if (params.get('logWeight') === '1') {
+      setLogWeightOpen(true);
+      params.delete('logWeight');
+      changed = true;
+    }
+    if (params.get('addPhoto') === '1') {
+      setPhotoCaptureOpen(true);
+      params.delete('addPhoto');
+      changed = true;
+    }
+    if (changed) {
+      navigate(
+        { pathname: '/dashboard', search: params.toString() ? '?' + params.toString() : '' },
+        { replace: true },
+      );
+    }
+  }, [location.search, navigate]);
+
   useEffect(() => {
     if (showWelcome) {
       // 6 s gives slower readers time to finish the welcome-back message
@@ -468,10 +498,14 @@ export default function Dashboard() {
   const firstName = user?.username || user?.full_name?.split(' ')[0] || '';
   const todayLabel = format(new Date(), 'EEEE, MMMM d');
 
-  // Format weekly volume nicely (1.2k for big numbers)
+  // Format weekly volume nicely (1.2k for big numbers).
+  // Use fmt() for ALL branches so digit grouping + decimal separator
+  // respect the user's locale (matches CrewStatsPanel.fmtVolume).
+  // Previously: `(n/1000).toFixed(1)` rendered "1.5k" for German users
+  // who expect "1,5k", and English digits for Arabic users.
   const formatVolume = (n) => {
-    if (n >= 10000) return `${(n / 1000).toFixed(0)}k`;
-    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+    if (n >= 10000) return `${fmt(Math.round(n / 1000))}k`;
+    if (n >= 1000) return `${fmt(n / 1000, { maximumFractionDigits: 1 })}k`;
     return fmt(n);
   };
 

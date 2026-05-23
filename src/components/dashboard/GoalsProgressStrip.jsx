@@ -97,9 +97,22 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
       transition={{ duration: 0.3 }}
     >
       <Card
+        // Keyboard accessibility: the bare onClick was not reachable
+        // via Tab+Enter — Card is a styled div, not a button. Add the
+        // standard role+tabIndex+keyDown trio so screen readers
+        // announce it as interactive and keyboard users can activate.
+        // aria-label describes the action since the visible text only
+        // says "N active goals" and "Exercise · NN%" — neither makes
+        // the "tap me to open the modal" affordance obvious.
         onClick={onOpen}
+        role={onOpen ? 'button' : undefined}
+        tabIndex={onOpen ? 0 : undefined}
+        aria-label={onOpen ? tFallback('goals.strip.openLabel', 'Open goals') : undefined}
+        onKeyDown={onOpen ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
+        } : undefined}
         style={onOpen ? { cursor: 'pointer' } : {}}
-        className="p-3 md:p-4 border-border/60 bg-gradient-to-br from-primary/5 to-card hover:border-primary/40 transition-colors"
+        className="p-3 md:p-4 border-border/60 bg-gradient-to-br from-primary/5 to-card hover:border-primary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">

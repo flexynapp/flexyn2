@@ -51,7 +51,16 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
           { created_by: user.email, date: today }, '-created_date', 100
         );
         return all || [];
-      } catch { return []; }
+      } catch (err) {
+        // Don't crash render; report so observability catches a real
+        // network/RLS regression instead of silently showing 0 oz.
+        // Bare `catch { return []; }` previously masked all failures.
+        try {
+          const { reportError } = await import('@/lib/reportError');
+          reportError(err, { feature: 'hydration.fetch', level: 'warning' });
+        } catch { /* reportError unavailable — non-critical */ }
+        return [];
+      }
     },
     enabled: !!user?.email,
     staleTime: 30_000,
@@ -80,11 +89,21 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="px-4 py-3 cursor-pointer hover:bg-secondary/30 transition-colors"
+      <Card className="px-4 py-3 cursor-pointer hover:bg-secondary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             onClick={() => navigate('/nutrition')}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter') navigate('/nutrition'); }}
+            aria-label={tFallback('hydration.openLabel', 'Hydration — tap to open Nutrition')}
+            // Accept Space in addition to Enter; the role=button ARIA
+            // contract activates on both keys. The bare 'if Enter' check
+            // would skip Space, which screen-reader + keyboard users
+            // expect to also activate a button.
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                navigate('/nutrition');
+              }
+            }}
       >
         <div className="flex items-center gap-3">
           <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
