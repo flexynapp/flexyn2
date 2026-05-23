@@ -36,6 +36,7 @@ import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { lookupBarcode } from '@/lib/foodLookup';
+import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
 // the barcode scanner — so we dynamic-import it inside the scan
@@ -126,6 +127,11 @@ export default function Nutrition() {
   const [mealType, setMealType] = useState(() => autoPickMealType());
   const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
   const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
+  // Photo-AI meal recognition state — `photoInputRef` is the hidden
+  // <input type="file"> behind the "Photo-AI" button. `photoRecognizing`
+  // shows a spinner on the button while the Edge Function round-trips.
+  const photoInputRef = useRef(null);
+  const [photoRecognizing, setPhotoRecognizing] = useState(false);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -320,6 +326,43 @@ export default function Nutrition() {
   /* =========================================================
      BARCODE SCANNER
      ========================================================= */
+
+  // ── Photo-AI meal recognition handler ─────────────────────────────
+  // Reads the chosen file, sends it to the recognize-meal Edge
+  // Function, then prefills the meal log form with the returned
+  // macros. User reviews + saves.
+  const handlePhotoMealPick = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so picking the same file twice still fires
+    if (!file) return;
+    setPhotoRecognizing(true);
+    const res = await recognizeMealPhoto(file);
+    setPhotoRecognizing(false);
+    if (!res?.ok) {
+      const err = res?.error;
+      if (err === 'NOT_FOOD') toast.error("That doesn't look like food — try another photo.");
+      else if (err === 'PIPELINE_MISSING') toast.error('Photo recognition isn\'t enabled yet.');
+      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit — try again in a moment.');
+      else if (err === 'TOO_LARGE') toast.error('Photo is too large — try a smaller image.');
+      else toast.error('Could not recognize meal. Try again.');
+      return;
+    }
+    const r = res.result || {};
+    setNewEntry(prev => ({
+      ...prev,
+      food_name:  r.food_name || prev.food_name,
+      calories:   r.calories  ?? prev.calories,
+      protein_g:  r.protein_g ?? prev.protein_g,
+      carbs_g:    r.carbs_g   ?? prev.carbs_g,
+      fat_g:      r.fat_g     ?? prev.fat_g,
+      fiber_g:    r.fiber_g   ?? prev.fiber_g,
+    }));
+    toast.success(`Identified: ${r.food_name || 'meal'} — review macros and save.`);
+    // Scroll the meal form into view so the user can review.
+    setTimeout(() => {
+      document.getElementById('log-meal-form')?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
+  };
 
   const startScanner = async () => {
     setShowScanner(true);
@@ -564,6 +607,32 @@ export default function Nutrition() {
               style={{ background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)' }} />
             <ScanLine className="w-4 h-4 shrink-0" />
             Scan Food
+          </motion.button>
+
+          {/* Photo-AI recognition trigger — hidden file input behind
+              a styled button so iOS surfaces "Take photo" + "Choose
+              from library" naturally. */}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            style={{ display: 'none' }}
+            onChange={handlePhotoMealPick}
+          />
+          <motion.button
+            whileHover={{ scale: 1.04, y: -1 }}
+            whileTap={{ scale: 0.96 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+            onClick={() => photoInputRef.current?.click()}
+            disabled={photoRecognizing}
+            className="group relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading font-bold text-sm text-white overflow-hidden shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: 'linear-gradient(135deg, #7c3aed, #4338ca)' }}
+          >
+            {photoRecognizing
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <span className="text-base leading-none">📸</span>}
+            {photoRecognizing ? 'Reading…' : 'Photo-AI'}
           </motion.button>
 
           {/* Scanner history toggle */}
