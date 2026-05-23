@@ -71,9 +71,10 @@ export default function MoodLogCard() {
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="h-full"
     >
-      <Card className="px-4 py-3">
-        <div className="flex items-center justify-between gap-2">
+      <Card className="px-4 py-3 h-full flex items-center">
+        <div className="flex items-center justify-between gap-2 w-full">
           <div className="min-w-0">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
               {tFallback('mood.kicker', 'Today')}
