@@ -611,7 +611,7 @@ const CHEST_PARTICLES = [
 ];
 
 // ─── Rotating gradient header ─────────────────────────────────────────────────
-function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, sortBy, sortDir, onSortByChange, onSortDirToggle }) {
+function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, sortBy, sortDir, onSortByChange, onSortDirToggle, onOpenTradeHistory }) {
   const fmt = useNumberFormatter();
   const angleRef = useRef(0);
   const rafRef = useRef(null);
@@ -670,6 +670,18 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+          {/* Trade history — opens the consolidated timeline of every
+              trade offer the viewer sent or received (mig-free, reads
+              from the existing hub_messages markers). */}
+          <a
+            href="/market/trades"
+            onClick={(e) => { e.preventDefault(); onOpenTradeHistory?.(); }}
+            className="text-purple-300 hover:text-white transition-colors p-1 rounded-lg hover:bg-purple-800"
+            aria-label="Trade history"
+            title="Trade history"
+          >
+            <ArrowUpDown className="w-4 h-4" />
+          </a>
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5 bg-amber-400 rounded-full px-3 py-1.5">
@@ -1050,6 +1062,7 @@ export default function MarketplaceFeed() {
         flexCoins={flexCoins}
         onRefresh={() => refetch()}
         onList={() => setShowListDialog(true)}
+        onOpenTradeHistory={() => navigate('/market/trades')}
         listableCount={myItems.filter(i => !i.is_listed && i.item_type === 'sticker').length}
         sortBy={sortBy}
         sortDir={sortDir}

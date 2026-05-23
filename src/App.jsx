@@ -100,6 +100,7 @@ const Market    = lazy(() => import('./pages/Market'));
 const Coach     = lazy(() => import('./pages/Coach'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
+const TradeHistory = lazy(() => import('./pages/TradeHistory'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -260,6 +261,7 @@ const AuthenticatedApp = () => {
           <Route path="/gauntlet"  element={<ErrorBoundary label="Gauntlet"><Suspense fallback={<PageLoader />}><Gauntlet /></Suspense></ErrorBoundary>} />
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
+          <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
         </Route>
         {/* Shareable profile link: flexyn.app/@username → resolves username to email → /hub?profile=EMAIL */}
         <Route path="/@:username" element={<ProfileRedirect />} />
