@@ -13,21 +13,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Send, Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut,
+  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut,
 } from 'lucide-react';
 import { leaveGym } from '@/lib/data/gymBusinesses';
 
 const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
+const GymFeedTab     = lazy(() => import('@/components/gyms/GymFeedTab'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { format, formatDistanceToNow, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
 import {
   getGym, getLeaderboard, listEvents, createEvent,
-  listFeedPosts, postToFeed,
 } from '@/lib/data/gymBusinesses';
 
 const TABS = [
@@ -281,7 +281,11 @@ export default function GymHub() {
             ))}
           </div>
 
-          {tab === 'feed'        && <FeedTab        gymId={id} />}
+          {tab === 'feed' && (
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+              <GymFeedTab gymId={id} gymOwnerId={gym?.owner_id} />
+            </Suspense>
+          )}
           {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} />}
           {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
         </>
@@ -297,72 +301,6 @@ export default function GymHub() {
         </Suspense>
       )}
     </motion.div>
-  );
-}
-
-// ── Feed Tab ────────────────────────────────────────────────────────
-function FeedTab({ gymId }) {
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [body, setBody] = useState('');
-  const [posting, setPosting] = useState(false);
-
-  const refresh = async () => {
-    setLoading(true);
-    setPosts(await listFeedPosts(gymId));
-    setLoading(false);
-  };
-  useEffect(() => { refresh(); }, [gymId]);
-
-  const handlePost = async () => {
-    if (!body.trim() || posting) return;
-    setPosting(true);
-    const res = await postToFeed(gymId, body);
-    setPosting(false);
-    if (res.ok) {
-      setBody('');
-      refresh();
-    } else {
-      toast.error("Couldn't post — try again.");
-    }
-  };
-
-  return (
-    <div>
-      <div className="rounded-2xl border border-border bg-card p-3 mb-3">
-        <Textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value.slice(0, 500))}
-          placeholder="Share with your local community…"
-          rows={2}
-          className="resize-none border-0 focus-visible:ring-0 px-0"
-        />
-        <div className="flex items-center justify-between">
-          <span className="text-[10px] text-muted-foreground tabular-nums">{body.length}/500</span>
-          <Button size="sm" onClick={handlePost} disabled={!body.trim() || posting} className="gap-1.5">
-            {posting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-            Post
-          </Button>
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
-      ) : posts.length === 0 ? (
-        <EmptyState icon={MessageSquare} title="No posts yet" body="Be the first to post to your local community." />
-      ) : (
-        <div className="space-y-2">
-          {posts.map(p => (
-            <div key={p.id} className="rounded-xl border border-border bg-card p-3">
-              <p className="text-xs text-muted-foreground mb-1">
-                @{p.author_email?.split('@')[0]} · {formatDistanceToNow(parseISO(p.created_at), { addSuffix: true })}
-              </p>
-              <p className="text-sm whitespace-pre-wrap">{p.body}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

@@ -207,12 +207,129 @@ export async function postToFeed(gymId, body, mediaUrl = null) {
   if (!gymId || !body?.trim()) return { ok: false };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false };
-  const { error } = await supabase.from('gym_feed_posts').insert({
+  const { data, error } = await supabase.from('gym_feed_posts').insert({
     gym_id:       gymId,
     author_id:    user.id,
     author_email: user.email,
     body:         body.trim(),
     media_url:    mediaUrl,
-  });
+  }).select('id').single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, id: data.id };
+}
+
+export async function deleteFeedPost(postId) {
+  if (!postId) return { ok: false };
+  const { error } = await supabase.from('gym_feed_posts').delete().eq('id', postId);
   return { ok: !error };
+}
+
+// ── Feed reactions (mig 138) ───────────────────────────────────────
+/** Toggle a single emoji reaction on a feed post for the current user. */
+export async function toggleFeedReaction(postId, emoji) {
+  if (!postId || !emoji) return { ok: false };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { ok: false };
+  // Try-delete first; if nothing was deleted, insert. Two round-trips
+  // is fine for a tap-driven action.
+  const { data: existing } = await supabase
+    .from('gym_feed_post_reactions')
+    .select('id')
+    .eq('post_id', postId)
+    .eq('user_id', user.id)
+    .eq('emoji', emoji)
+    .maybeSingle();
+  if (existing?.id) {
+    const { error } = await supabase
+      .from('gym_feed_post_reactions')
+      .delete()
+      .eq('id', existing.id);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true, removed: true };
+  }
+  const { error } = await supabase
+    .from('gym_feed_post_reactions')
+    .insert({ post_id: postId, user_id: user.id, emoji });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, added: true };
+}
+
+/** Per-emoji counts + the current user's set of reacted emojis. */
+export async function listReactionsForPosts(postIds, userId) {
+  if (!Array.isArray(postIds) || postIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('gym_feed_post_reactions')
+    .select('post_id, user_id, emoji')
+    .in('post_id', postIds);
+  if (error) return {};
+  const out = {};
+  for (const id of postIds) out[id] = { counts: {}, mine: new Set() };
+  for (const r of data || []) {
+    const slot = out[r.post_id];
+    if (!slot) continue;
+    slot.counts[r.emoji] = (slot.counts[r.emoji] || 0) + 1;
+    if (userId && r.user_id === userId) slot.mine.add(r.emoji);
+  }
+  return out;
+}
+
+// ── Feed comments (mig 138) ────────────────────────────────────────
+export async function listFeedComments(postId) {
+  if (!postId) return [];
+  const { data, error } = await supabase
+    .from('gym_feed_comments')
+    .select('id, author_id, author_email, body, created_at, parent_id')
+    .eq('post_id', postId)
+    .order('created_at', { ascending: true });
+  if (error) return [];
+  return data || [];
+}
+
+export async function postFeedComment(postId, body, parentId = null) {
+  if (!postId || !body?.trim()) return { ok: false };
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { ok: false };
+  const { error } = await supabase.from('gym_feed_comments').insert({
+    post_id:      postId,
+    parent_id:    parentId,
+    author_id:    user.id,
+    author_email: user.email,
+    body:         body.trim().slice(0, 1000),
+  });
+  return { ok: !error, error: error?.message };
+}
+
+export async function deleteFeedComment(commentId) {
+  if (!commentId) return { ok: false };
+  const { error } = await supabase.from('gym_feed_comments').delete().eq('id', commentId);
+  return { ok: !error };
+}
+
+// ── Pin / unpin (owner-only) ───────────────────────────────────────
+export async function togglePinPost(postId) {
+  if (!postId) return { ok: false };
+  const { data, error } = await supabase.rpc('toggle_pin_gym_post', { p_post_id: postId });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, pinned: !!data };
+}
+
+// ── Image upload helper for feed post media ────────────────────────
+/**
+ * Upload an image to the avatars bucket under
+ * `gym/<gymId>/feed/<userId>-<ts>.<ext>` and return the public URL.
+ * Reuses the same bucket as the gym logo/cover uploads (mig 135's
+ * Storage RLS already gates on auth.uid()).
+ */
+export async function uploadFeedImage(gymId, file) {
+  if (!gymId || !file) return null;
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return null;
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `gym/${gymId}/feed/${user.id}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage
+    .from('avatars')
+    .upload(path, file, { upsert: false, contentType: file.type || 'image/jpeg' });
+  if (error) return null;
+  const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
+  return publicUrl;
 }
