@@ -101,6 +101,10 @@ const Coach     = lazy(() => import('./pages/Coach'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
 const TradeHistory = lazy(() => import('./pages/TradeHistory'));
+const RegisterGym  = lazy(() => import('./pages/RegisterGym'));
+const MyGyms       = lazy(() => import('./pages/MyGyms'));
+const GymHub       = lazy(() => import('./pages/GymHub'));
+const GymMap       = lazy(() => import('./pages/GymMap'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -262,6 +266,10 @@ const AuthenticatedApp = () => {
           <Route path="/notifications" element={<ErrorBoundary label="Notifications"><Suspense fallback={<PageLoader />}><Notifications /></Suspense></ErrorBoundary>} />
           <Route path="/admin/reports" element={<ErrorBoundary label="AdminReports"><Suspense fallback={<PageLoader />}><AdminReports /></Suspense></ErrorBoundary>} />
           <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
+          <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
+          <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
+          <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />
+          <Route path="/gym-map"      element={<ErrorBoundary label="GymMap"><Suspense fallback={<PageLoader />}><GymMap /></Suspense></ErrorBoundary>} />
         </Route>
         {/* Shareable profile link: flexyn.app/@username → resolves username to email → /hub?profile=EMAIL */}
         <Route path="/@:username" element={<ProfileRedirect />} />
