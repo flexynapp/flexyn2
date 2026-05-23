@@ -23,6 +23,7 @@ import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
+import ProfileCompletionMeter from './ProfileCompletionMeter';
 import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
@@ -1305,6 +1306,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           userEmail={isSelf ? user?.email : targetUser?.email}
           isOwn={isSelf}
         />
+
+        {/* Profile completion meter — own profile only. Dismissible
+            once at 100%. Quietly nudges the user toward the next
+            identity-investment step (bio, city, first workout) without
+            gamifying with hard rewards. */}
+        {isSelf && (
+          <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
+        )}
 
         {/* Referral card — own profile only. Renders the user's
             shareable code + invite link + earnings strip. Acquisition
