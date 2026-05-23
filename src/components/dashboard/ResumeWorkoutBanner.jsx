@@ -23,6 +23,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWorkoutSessions } from '@/hooks/useWorkoutSessions';
 import { getDateLocale } from '@/lib/dateLocales';
+import { useAuth } from '@/lib/AuthContext';
 
 const STALE_MS = 24 * 60 * 60 * 1000; // 24h
 
@@ -30,7 +31,8 @@ export default function ResumeWorkoutBanner() {
   const { tFallback, language } = useLanguage();
   const navigate = useNavigate();
   const dateLocale = getDateLocale(language);
-  const { sessions, removeSession } = useWorkoutSessions();
+  const { user } = useAuth();
+  const { sessions, removeSession } = useWorkoutSessions(user?.id);
   const [confirmDiscardId, setConfirmDiscardId] = useState(null);
   // Hold the discard-confirm timeout ID so we can clear it on subsequent
   // taps + on unmount. Without this, every tap that flipped state to

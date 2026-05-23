@@ -191,7 +191,7 @@ export default function Workout() {
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
 
   const guard = useMultiProfanityGuard();
-  const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions();
+  const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
   const queryClient = useQueryClient();
   // user / location / navigate are already destructured at the top of
   // the component so the early useEffect deps arrays don't TDZ.
@@ -211,14 +211,19 @@ export default function Workout() {
     }
   }, [started, startedAt]);
 
+  // Track user.id alongside the workout state so the unmount-time
+  // pauseWorkoutSync call can pass the correct userId — paused workouts
+  // are now per-user (see useWorkoutSessions.js header). Without this,
+  // an unmount that happens between sign-in transitions would write to
+  // the 'anon' bucket or the wrong user's namespace.
   const workoutStateRef = React.useRef({});
-  workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt };
+  workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId: user?.id };
 
   useEffect(() => {
     return () => {
-      const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt } = workoutStateRef.current;
+      const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId } = workoutStateRef.current;
       if (started && activeSessionId) {
-        pauseWorkoutSync({
+        pauseWorkoutSync(userId, {
           id: activeSessionId,
           selectedRegimen,
           exercises,
