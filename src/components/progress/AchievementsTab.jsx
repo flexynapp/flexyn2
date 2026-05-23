@@ -8,9 +8,12 @@ import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Lock, Star, LockKeyhole } from 'lucide-react';
+import { Trophy, Lock, Star, LockKeyhole, Share2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { shareAchievementPost } from '@/lib/data/shareAchievement';
 import { useDateFormatter } from '@/lib/intl';
 
 const CATEGORY_COLORS = {
@@ -24,8 +27,31 @@ const CATEGORY_COLORS = {
 
 export default function AchievementsTab({ achievements = [] }) {
   const { t } = useLanguage();
+  const { user } = useAuth();
   const fmtDate = useDateFormatter();
   const [activeSubTab, setActiveSubTab] = useState('active');
+  // Tracks the achievement_id currently being shared so the button can
+  // disable + show a spinner. Single-flight — only one share at a time.
+  const [sharingId, setSharingId] = useState(null);
+
+  const handleShareAchievement = async (ach) => {
+    if (sharingId) return;
+    setSharingId(ach.achievement_id);
+    const res = await shareAchievementPost({
+      user,
+      achievement: {
+        ...ach,
+        name:        t(ach.nameKey)        || ach.name,
+        description: t(ach.descriptionKey) || ach.description,
+      },
+    });
+    setSharingId(null);
+    if (res.ok) {
+      toast.success('Shared to Hub!');
+    } else {
+      toast.error(`Couldn't share: ${res.error || 'try again'}`);
+    }
+  };
 
   const achievementMap = useMemo(() => {
     const map = {};
@@ -193,10 +219,24 @@ export default function AchievementsTab({ achievements = [] }) {
                               </div>
                             )}
                             {ach.unlocked && ach.unlockedDate && (
-                              <p className="text-xs text-muted-foreground mt-2">
-                                {t('progress.unlockedOn')}{' '}
-                                {fmtDate(ach.unlockedDate)}
-                              </p>
+                              <div className="flex items-center justify-between gap-2 mt-2">
+                                <p className="text-xs text-muted-foreground">
+                                  {t('progress.unlockedOn')}{' '}
+                                  {fmtDate(ach.unlockedDate)}
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => handleShareAchievement(ach)}
+                                  disabled={sharingId === ach.achievement_id}
+                                  className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                                  aria-label="Share to Hub"
+                                >
+                                  {sharingId === ach.achievement_id
+                                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                                    : <Share2 className="w-3 h-3" />}
+                                  Share
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>

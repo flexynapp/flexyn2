@@ -1,9 +1,9 @@
 // src/components/hub/CapsuleOpener.jsx
 // Premium capsule opening experience with slot-reel animation.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles } from 'lucide-react';
+import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from 'sonner';
 import { ITEMS, RARITY, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
@@ -12,6 +12,9 @@ import { LOOT_FRAMES } from '@/lib/lootFrames';
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { supabase } from '@/api/supabaseClient';
 import StickerDisplay from './StickerDisplay';
+import CapsuleRarityOdds from './CapsuleRarityOdds';
+
+const LootCatalogModal = lazy(() => import('./LootCatalogModal'));
 
 // Given a (category, rarity) tuple from the server-side roll, pick a random
 // specific item from the client-side catalog that matches. Items within the
@@ -169,6 +172,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
   const [reel,    setReel]    = useState([]);
+  const [catalogOpen, setCatalogOpen] = useState(false);
   // Per-spin animation persona — duration, easing, kicker text.
   // Picked once when the user hits Open so a single spin doesn't
   // mid-flight switch curves. Initialized to a placeholder so the
@@ -428,6 +432,21 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 <p className="text-gray-400 text-sm mt-1">Crack it open to reveal your prize</p>
               </div>
 
+              {/* Loot-box transparency — pre-open drop rates per
+                  rarity. Collapsed by default so the dramatic moment
+                  stays clean; one tap to expand. */}
+              <div className="mb-2 w-72 max-w-full">
+                <CapsuleRarityOdds capsuleType={capsule?.capsule_type || 'standard'} />
+              </div>
+              <button
+                type="button"
+                onClick={() => setCatalogOpen(true)}
+                className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-300 hover:text-purple-200 underline-offset-2 hover:underline transition-colors"
+              >
+                <BookOpen className="w-3 h-3" aria-hidden="true" />
+                Preview catalog
+              </button>
+
               <motion.button
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
@@ -649,6 +668,12 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
         </AnimatePresence>
       </motion.div>
+
+      {catalogOpen && (
+        <Suspense fallback={null}>
+          <LootCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+        </Suspense>
+      )}
     </div>
   );
 }

@@ -8,15 +8,16 @@
 // inactive even though they were using the app daily. Moved to the
 // global LoginStreakSync component which mounts at the App level.
 
-import React, { useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Flame, Snowflake } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Flame, Snowflake, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StreakFlame from '@/components/StreakFlame';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import StreakCalendarGrid from './StreakCalendarGrid';
 
 export default function LoginStreakBanner() {
   const { user } = useAuth();
@@ -58,6 +59,7 @@ export default function LoginStreakBanner() {
       color: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#fed7aa',
     })),
   []);
+  const [showCalendar, setShowCalendar] = useState(false);
 
   if (!user?.id) return null;
   const streak = profile?.login_streak ?? 0;
@@ -68,6 +70,7 @@ export default function LoginStreakBanner() {
   const isPersonalBest = streak === longest && streak > 1;
 
   return (
+    <div>
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
@@ -126,6 +129,29 @@ export default function LoginStreakBanner() {
           <span className="tabular-nums">×{freezes}</span>
         </div>
       )}
+      <button
+        type="button"
+        onClick={() => setShowCalendar(v => !v)}
+        className="relative z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
+        aria-label={showCalendar ? 'Hide streak calendar' : 'Show streak calendar'}
+        aria-expanded={showCalendar}
+      >
+        {showCalendar ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+      </button>
     </motion.div>
+    <AnimatePresence>
+      {showCalendar && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.3, ease: 'easeOut' }}
+          className="mt-2 overflow-hidden"
+        >
+          <StreakCalendarGrid profile={profile} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+    </div>
   );
 }
