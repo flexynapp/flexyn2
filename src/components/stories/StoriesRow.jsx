@@ -330,13 +330,32 @@ function QuickAddAvatarItem({ profile, onAdd }) {
 // Cache refreshes once per day at noon. Structure:
 //   { refreshedAt: ISO, list: [...profiles], addedEmails: [...] }
 
-const QA_KEY = 'flexyn_quickadd_v1';
+// Per-user key (flexyn.<feature>.<userId> per CLAUDE.md). The cache
+// contains another user's emails / usernames / avatars from the server
+// recommender, plus the set of emails the user has already added. On a
+// shared device, surfacing User A's recommendations to User B would
+// expose recommendation signal that the server computed for User A
+// (potentially a friend-of-A who never consented to be shown to B) and
+// would let B add them with a one-tap CTA. Same class as the
+// paused_workouts leak fixed in pass 4 run 8.
+// One-shot migration: any data at the legacy global key is dropped
+// rather than carried forward — the cache refreshes at noon anyway,
+// so the user loses at most one cycle of stale suggestions.
+const QA_KEY = (userId) => `flexyn.quickadd.v1.${userId || 'anon'}`;
 
-function qaLoad() {
-  try { return JSON.parse(localStorage.getItem(QA_KEY) ?? 'null'); } catch { return null; }
+let __quickAddLegacyEvicted = false;
+function evictLegacyQuickAdd() {
+  if (__quickAddLegacyEvicted) return;
+  __quickAddLegacyEvicted = true;
+  try { localStorage.removeItem('flexyn_quickadd_v1'); } catch { /* best-effort */ }
 }
-function qaSave(cache) {
-  try { localStorage.setItem(QA_KEY, JSON.stringify(cache)); } catch {}
+
+function qaLoad(userId) {
+  evictLegacyQuickAdd();
+  try { return JSON.parse(localStorage.getItem(QA_KEY(userId)) ?? 'null'); } catch { return null; }
+}
+function qaSave(userId, cache) {
+  try { localStorage.setItem(QA_KEY(userId), JSON.stringify(cache)); } catch {}
 }
 function qaIsStale(cache) {
   if (!cache?.refreshedAt) return true;
@@ -410,7 +429,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
   useEffect(() => {
     if (!user?.email || qaFetchedRef.current) return;
     let cancelled = false;
-    const cache = qaLoad();
+    const cache = qaLoad(user?.id);
     if (!qaIsStale(cache) && cache.list?.length > 0) {
       // Cache is fresh — restore, filter out already-added items
       const addedSet = new Set(cache.addedEmails ?? []);
@@ -427,7 +446,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       hubFollows.getRecommendations(user.email, followingEmails, 6).then(recs => {
         if (cancelled) return;
         if (recs.length === 0) return;
-        qaSave({ refreshedAt: new Date().toISOString(), list: recs, addedEmails: [] });
+        qaSave(user?.id, { refreshedAt: new Date().toISOString(), list: recs, addedEmails: [] });
         setQaList(recs);
         setQaHadItems(true);
       }).catch(() => {});
@@ -568,10 +587,10 @@ export default function StoriesRow({ onViewProfile } = {}) {
     // Remove from visible list immediately — the section stays mounted
     setQaList(prev => prev.filter(p => p.email !== email));
     // Persist the addition so it survives page refresh
-    const cache = qaLoad();
+    const cache = qaLoad(user?.id);
     if (cache) {
       cache.addedEmails = [...new Set([...(cache.addedEmails ?? []), email])];
-      qaSave(cache);
+      qaSave(user?.id, cache);
     }
     await hubFollows.follow(user.email, email);
     queryClient.invalidateQueries({ queryKey: ['following'] });
