@@ -987,7 +987,7 @@ export default function Nutrition() {
               <label htmlFor="bottle-amount" className="text-sm font-medium mb-2 block">{t('nutrition.amount')}</label>
               <Input
                 id="bottle-amount"
-                type="number"
+                type="number" inputMode="decimal"
                 min="1"
                 max={bottleInputUnit === 'ml' ? Math.round(MAX_BOTTLE_OZ * 29.5735) : bottleInputUnit === 'L' ? (MAX_BOTTLE_OZ * 0.0295735).toFixed(1) : MAX_BOTTLE_OZ}
                 placeholder="e.g. 32"

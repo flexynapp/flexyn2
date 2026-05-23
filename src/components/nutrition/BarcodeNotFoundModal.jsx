@@ -234,7 +234,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                       </label>
                       <div className="flex items-center gap-1">
                         <Input
-                          type="number"
+                          type="number" inputMode="decimal"
                           min="0"
                           value={nutrients[field.key]}
                           onChange={e => setN(field.key, e.target.value)}
@@ -265,7 +265,7 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
                       <label className="text-sm font-medium flex-1">{field.label}</label>
                       <div className="flex items-center gap-1">
                         <Input
-                          type="number"
+                          type="number" inputMode="decimal"
                           min="0"
                           value={vitamins[field.key]}
                           onChange={e => setV(field.key, e.target.value)}

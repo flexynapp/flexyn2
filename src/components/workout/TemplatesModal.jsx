@@ -118,11 +118,11 @@ function NewTemplateForm({ onSave, onCancel }) {
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="text-xs text-muted-foreground">{t('workout.templates.sets')}</label>
-            <Input type="number" min="1" value={exSets} onChange={e => setExSets(e.target.value)} className="h-8 text-sm" />
+            <Input type="number" inputMode="decimal" min="1" value={exSets} onChange={e => setExSets(e.target.value)} className="h-8 text-sm" />
           </div>
           <div className="flex-1">
             <label className="text-xs text-muted-foreground">{t('workout.templates.reps')}</label>
-            <Input type="number" min="1" value={exReps} onChange={e => setExReps(e.target.value)} className="h-8 text-sm" />
+            <Input type="number" inputMode="decimal" min="1" value={exReps} onChange={e => setExReps(e.target.value)} className="h-8 text-sm" />
           </div>
           <div className="flex items-end">
             <Button size="sm" className="h-8" onClick={addExercise} disabled={!exName.trim()}>

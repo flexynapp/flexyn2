@@ -42,7 +42,7 @@ function NutrientTile({ field, value, onChange, t }) {
         <span className="ms-1 opacity-60">({field.unit})</span>
       </p>
       <Input
-        type="number"
+        type="number" inputMode="decimal"
         min="0"
         step="0.1"
         placeholder={field.placeholder}

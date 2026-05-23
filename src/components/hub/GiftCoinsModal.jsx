@@ -16,6 +16,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
 import { useNumberFormatter } from '@/lib/intl';
+import { useAutofocusOnOpen } from '@/hooks/useAutofocusOnOpen';
 
 const QUICK_AMOUNTS = [25, 100, 500, 1000];
 const MAX_MESSAGE_LEN = 120;
@@ -26,6 +27,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
   const [amount, setAmount] = useState(100);
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const amountRef = useAutofocusOnOpen(open);
 
   if (!open) return null;
 
@@ -111,7 +113,8 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               Custom amount
             </label>
             <input
-              type="number"
+              ref={amountRef}
+              type="number" inputMode="decimal"
               min={1}
               max={10000}
               value={amount}

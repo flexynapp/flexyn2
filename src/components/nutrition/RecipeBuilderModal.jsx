@@ -136,7 +136,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               className="col-span-2 h-9"
             />
             <Input
-              type="number"
+              type="number" inputMode="decimal"
               min="1"
               step="0.5"
               value={servings}

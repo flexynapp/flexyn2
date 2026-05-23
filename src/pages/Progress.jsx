@@ -259,7 +259,7 @@ function AnalyticsTab({ logs }) {
           <ResponsiveContainer width="100%" height={240} key={language}>
             <BarChart data={volumeByMuscle} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-              <XAxis type="number" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+              <XAxis type="number" inputMode="decimal" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
               <YAxis type="category" dataKey="displayGroup" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" width={80} />
               <Tooltip {...CHART_STYLE} />
               <Bar dataKey="Volume" fill="hsl(var(--accent))" radius={[0, 4, 4, 0]} />

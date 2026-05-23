@@ -947,7 +947,7 @@ export default function HubComposer({ onClose }) {
           <div key={f.key} className="flex flex-col">
             <span className={`text-[10px] font-medium mb-1 ${f.color}`}>{f.label}</span>
             <input
-              type="number"
+              type="number" inputMode="decimal"
               min="0"
               placeholder="0"
               value={customMeal[f.key]}

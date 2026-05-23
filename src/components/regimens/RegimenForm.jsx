@@ -373,7 +373,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground">Intra rest</span>
                         <input
-                          type="number" min="0" max="300"
+                          type="number" inputMode="decimal" min="0" max="300"
                           value={groupMeta.intra_rest_seconds ?? 15}
                           onChange={e => updateGroupMeta(groupId, 'intra_rest_seconds', Number(e.target.value) || 0)}
                           className="w-14 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
@@ -383,7 +383,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] text-muted-foreground">Inter rest</span>
                         <input
-                          type="number" min="0" max="600"
+                          type="number" inputMode="decimal" min="0" max="600"
                           value={groupMeta.inter_rest_seconds ?? 90}
                           onChange={e => updateGroupMeta(groupId, 'inter_rest_seconds', Number(e.target.value) || 0)}
                           className="w-14 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
@@ -393,7 +393,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                       <div className="flex items-center gap-1.5">
                         <RotateCcw className="w-3 h-3 text-muted-foreground" />
                         <input
-                          type="number" min="1" max="10"
+                          type="number" inputMode="decimal" min="1" max="10"
                           value={groupMeta.round_count ?? 3}
                           onChange={e => updateGroupMeta(groupId, 'round_count', Math.max(1, Number(e.target.value) || 1))}
                           className="w-10 text-xs text-center rounded border border-border bg-background px-1 py-0.5 tabular-nums"
@@ -579,7 +579,7 @@ function ExerciseCard({
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{t('common.sets')}</label>
             <Input
-              type="number" min="1" max={maxSetsPerExercise}
+              type="number" inputMode="decimal" min="1" max={maxSetsPerExercise}
               value={ex.target_sets ?? ''}
               onChange={e => {
                 const raw = e.target.value;
@@ -597,7 +597,7 @@ function ExerciseCard({
           <div>
             <label className="text-xs text-muted-foreground mb-1 block">{t('common.reps')}</label>
             <Input
-              type="number" min="1" max={getMaxRealisticReps(ex.name, 0, userProfile)}
+              type="number" inputMode="decimal" min="1" max={getMaxRealisticReps(ex.name, 0, userProfile)}
               value={ex.target_reps ?? ''}
               onChange={e => {
                 const raw = e.target.value;

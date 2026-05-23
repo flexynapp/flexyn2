@@ -252,7 +252,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.duration')}</label>
-              <Input type="number" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder={t('common.optional')} />
+              <Input type="number" inputMode="decimal" min="0" value={duration} onChange={e => setDuration(e.target.value)} placeholder={t('common.optional')} />
             </div>
           </div>
 

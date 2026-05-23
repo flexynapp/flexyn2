@@ -93,7 +93,7 @@ function EntryForm({ initial, onSave, onCancel, t }) {
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('bodyMetrics.bodyFatPct')}</label>
-          <Input type="number" step="0.1" min="0" max="100" placeholder={t('bodyMetrics.bodyFatPlaceholder')} value={form.body_fat_pct} onChange={e => set('body_fat_pct', e.target.value)} />
+          <Input type="number" inputMode="decimal" step="0.1" min="0" max="100" placeholder={t('bodyMetrics.bodyFatPlaceholder')} value={form.body_fat_pct} onChange={e => set('body_fat_pct', e.target.value)} />
         </div>
       </div>
       <p className="text-xs font-medium text-muted-foreground mb-2">{t('bodyMetrics.measurementsInches')}</p>
@@ -101,7 +101,7 @@ function EntryForm({ initial, onSave, onCancel, t }) {
         {MEASUREMENTS.map(m => (
           <div key={m.key}>
             <label className="text-xs text-muted-foreground mb-0.5 block">{t(m.labelKey)}</label>
-            <Input type="number" step="0.1" min="0" placeholder="—" value={form[m.key]} onChange={e => set(m.key, e.target.value)} className="h-8 text-sm" />
+            <Input type="number" inputMode="decimal" step="0.1" min="0" placeholder="—" value={form[m.key]} onChange={e => set(m.key, e.target.value)} className="h-8 text-sm" />
           </div>
         ))}
       </div>

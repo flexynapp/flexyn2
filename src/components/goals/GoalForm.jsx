@@ -200,7 +200,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
                 <UnitPill />
               </div>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 min={fromLbs(10, weightUnit)}
                 max={maxTargetWeightDisplay}
                 value={targetWeightLbs ? formatWeightNumber(parseFloat(targetWeightLbs), weightUnit) : ''}
@@ -215,7 +215,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t('goals.targetReps')}</label>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 min="5"
                 max={maxTargetReps}
                 value={targetReps}
@@ -249,7 +249,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
               <label className="text-sm font-medium mb-1.5 block">{t('goals.cardio.targetDistance')}</label>
               <div className="relative">
                 <Input
-                  type="number"
+                  type="number" inputMode="decimal"
                   min={0}
                   step={0.1}
                   value={cardioDistanceInput}
@@ -275,7 +275,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
                 ].map(({ value, set, label, max }) => (
                   <div key={label} className="flex-1 text-center">
                     <Input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min={0}
                       max={max}
                       value={value}
@@ -295,7 +295,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t('goals.cardio.targetSessions')}</label>
               <Input
-                type="number"
+                type="number" inputMode="decimal"
                 min={0}
                 value={cardioSessions}
                 onChange={e => setCardioSessions(e.target.value)}

@@ -364,7 +364,7 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
                   <div className="flex items-center gap-2 bg-white/5 border border-white/10 rounded-xl px-3 py-2">
                     <span>🪙</span>
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       min="1"
                       value={price}
                       onChange={e => setPrice(e.target.value)}
