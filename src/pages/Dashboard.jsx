@@ -508,6 +508,10 @@ export default function Dashboard() {
   // Previously: `(n/1000).toFixed(1)` rendered "1.5k" for German users
   // who expect "1,5k", and English digits for Arabic users.
   const formatVolume = (n) => {
+    // Guard at entry — a NaN/Infinity from upstream (corrupt set, broken
+    // import) would otherwise fall through every branch and render as
+    // "NaN" in the stats tile. Treat unrenderable inputs as zero.
+    if (!Number.isFinite(n)) return fmt(0);
     if (n >= 10000) return `${fmt(Math.round(n / 1000))}k`;
     if (n >= 1000) return `${fmt(n / 1000, { maximumFractionDigits: 1 })}k`;
     return fmt(n);
