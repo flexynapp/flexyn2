@@ -12,6 +12,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
+import EmojiReactionButton from './EmojiReactionButton';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as stickerReactions from '@/lib/data/stickerReactions';
 import HubCommentsInline from './HubCommentsInline';
@@ -449,6 +450,16 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     queryKey: ['hubReaction', post.id, user?.email],
     queryFn: () => hubReactions.getMyReaction(post.id, user.email),
     enabled: !!user?.email,
+  });
+
+  // Emoji reaction (independent from like/dislike). Lazy-fetched per
+  // card so the post feed query stays small; reads are LRU-cached by
+  // TanStack so the same card doesn't refetch on scroll-back.
+  const { data: myEmojiReaction } = useQuery({
+    queryKey: ['hubEmojiReaction', post.id, user?.email],
+    queryFn: () => hubReactions.getMyEmojiReaction(post.id, user.email),
+    enabled: !!user?.email,
+    staleTime: 60_000,
   });
 
   const { data: stickerRxns = [] } = useQuery({
@@ -1022,6 +1033,11 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           active={displayedReaction === 'dislike'}
           activeColor="text-destructive"
           onClick={() => handleReact('dislike')}
+        />
+        <EmojiReactionButton
+          postId={post.id}
+          initialEmoji={myEmojiReaction || null}
+          initialCount={Number(post.emoji_reaction_count) || 0}
         />
         <ActionButton
           icon={MessageCircle}

@@ -76,6 +76,44 @@ export const setReaction = async (postId, email, newReaction /* 'like' | 'dislik
   return null;
 };
 
+/**
+ * Get the current user's emoji reaction on a post (if any). Emoji
+ * reactions are independent from like/dislike — a user can have both.
+ * Returns the emoji string or null.
+ */
+export async function getMyEmojiReaction(postId, email) {
+  if (!postId || !email) return null;
+  const rows = await e().filter(
+    { post_id: postId, created_by: email, reaction_type: null },
+    '-created_date',
+    1,
+  ).catch(() => []);
+  return rows[0]?.emoji || null;
+}
+
+/**
+ * Set or clear the user's emoji reaction on a post. Pass null to clear.
+ * Returns the new emoji_reaction_count on success, or null on RPC error.
+ */
+export async function setEmojiReaction(postId, emoji) {
+  if (!postId) return null;
+  try {
+    const { data, error } = await supabase.rpc('set_post_emoji_reaction', {
+      p_post_id: postId,
+      p_emoji:   emoji || null,
+    });
+    if (error) {
+      if (error.code === '42883' || error.code === '42P01') return null;
+      console.warn('[hubReactions] emoji RPC failed:', error);
+      return null;
+    }
+    return Number(data) || 0;
+  } catch (err) {
+    console.warn('[hubReactions] emoji RPC threw:', err?.message || err);
+    return null;
+  }
+}
+
 /** Cascade-delete all reactions by a user and decrement post counters. */
 export const purgeForUser = async (email) => {
   if (!email) return;
