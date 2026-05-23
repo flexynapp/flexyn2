@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
@@ -146,9 +146,23 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
     },
   });
 
+  // In-flight guard against rapid double-tap. Between the click and
+  // the next render (when `disabled={isCelebrating}` takes effect),
+  // a fast second tap can slip through and fire two mutate() calls
+  // for the same goalId. complete_goal IS server-side idempotent
+  // (the second returns alreadyCompleted: true), but the wasted RPC
+  // roundtrip + the alreadyCompleted skip path are both avoidable
+  // with this ref-based guard. Same pattern as DailyQuestsCard
+  // claimingRef. Set-of-ids so multiple goals can be in flight
+  // simultaneously without contending.
+  const completingRef = useRef(new Set());
   const handleComplete = (goalId) => {
+    if (completingRef.current.has(goalId)) return;
+    completingRef.current.add(goalId);
     setCompletingId(goalId);
-    completeMutation.mutate(goalId);
+    completeMutation.mutate(goalId, {
+      onSettled: () => { completingRef.current.delete(goalId); },
+    });
   };
 
   if (almostCompleteGoals.length === 0) {
