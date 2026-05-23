@@ -90,7 +90,7 @@ export default function LeagueCard({ onClick }) {
               </p>
               <p className="font-heading font-bold text-2xl leading-none mt-0.5 tabular-nums">
                 {myRank ? `#${myRank}` : '—'}
-                <span className="text-sm font-normal opacity-75 ml-1">
+                <span className="text-sm font-normal opacity-75 ms-1">
                   / {totalMembers}
                 </span>
               </p>

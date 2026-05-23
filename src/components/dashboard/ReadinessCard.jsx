@@ -40,14 +40,20 @@ export default function ReadinessCard({ logs = [] }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
 
+  // Use the SAME query keys as MoodLogCard / SleepLog so that when the
+  // user taps a mood (which invalidates ['moodLogToday', user?.id]),
+  // the Readiness score recomputes immediately. Previously this card
+  // had its own ['readinessMood', ...] / ['readinessSleep', ...] keys,
+  // so the two cards drifted out of sync for up to 5 minutes (the
+  // staleTime) after a tap. Visible because they render side-by-side.
   const { data: sleep } = useQuery({
-    queryKey: ['readinessSleep', user?.id],
+    queryKey: ['sleepLogToday', user?.id],
     queryFn: getTodaySleepLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
   const { data: mood } = useQuery({
-    queryKey: ['readinessMood', user?.id],
+    queryKey: ['moodLogToday', user?.id],
     queryFn: getTodayMoodLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,

@@ -177,10 +177,13 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
           const isCelebrating = completingId === goal.id;
 
           // Build display label - cap at target value
-          let progressLabel = `${Math.round(goal.progress)}% complete`;
+          let progressLabel = tFallback('goals.almostComplete.percentLabel', `${Math.round(goal.progress)}% complete`)
+            .replace('{n}', String(Math.round(goal.progress)));
           if (goal.target_reps > 0 && !(goal.target_weight > 0)) {
             const displayed = Math.min(goal.maxRepsInSet, goal.target_reps);
-            progressLabel = `${displayed} / ${goal.target_reps} reps`;
+            progressLabel = tFallback('goals.almostComplete.repsLabel', `${displayed} / ${goal.target_reps} reps`)
+              .replace('{current}', String(displayed))
+              .replace('{target}', String(goal.target_reps));
           } else if (goal.target_weight > 0 && !(goal.target_reps > 0)) {
             const displayed = Math.min(goal.maxWeight, goal.target_weight);
             progressLabel = `${formatWeight(displayed, weightUnit)} / ${formatWeight(goal.target_weight, weightUnit)}`;

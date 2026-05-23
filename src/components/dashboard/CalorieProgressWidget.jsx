@@ -18,7 +18,11 @@ import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
+// NOTE: `today` is computed INSIDE the component (not at module load)
+// so a PWA left open overnight transitions to the new day. Otherwise
+// `format(new Date(), 'yyyy-MM-dd')` evaluated once at JS-eval time
+// would freeze the date string, the query key would never advance, and
+// any food logged on day-N+1 would silently miss the cache.
 
 function MacroBar({ label, consumed, goal, color }) {
   const pct = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
@@ -41,17 +45,18 @@ function MacroBar({ label, consumed, goal, color }) {
 export default function CalorieProgressWidget({ userProfile = {} }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   // Today's nutrition logs
   const { data: todayLogs = [] } = useQuery({
-    queryKey: ['nutritionToday', user?.email, TODAY],
+    queryKey: ['nutritionToday', user?.email, today],
     queryFn: async () => {
       if (!user?.email) return [];
       const { data } = await supabase
         .from('nutrition_logs')
         .select('calories, protein_g, carbs_g, fat_g, food_name')
         .eq('created_by', user.email)
-        .eq('date', TODAY);
+        .eq('date', today);
       return data || [];
     },
     enabled: !!user?.email,

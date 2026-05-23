@@ -17,9 +17,12 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { computeSuggestion } from '@/lib/workoutSuggestion';
 
-// Map focus → emoji + lucide icon style so each suggestion has a
-// distinct visual identity without redesigning the card per type.
-const FOCUS_LABEL = {
+// Map focus → emoji prefix + English-label fallback. The label is
+// resolved via tFallback at render time so non-English locales can
+// translate it via the `suggestion.focusLabel.*` keys; the emoji
+// stays in the fallback string so untranslated locales still get the
+// visual cue.
+const FOCUS_LABEL_FALLBACK = {
   legs:      '🦵 Legs day',
   chest:     '💪 Chest day',
   back:      '🔱 Back day',
@@ -41,7 +44,10 @@ export default function WorkoutSuggestionCard({ logs = [], cardioLogs = [] }) {
 
   if (!suggestion) return null;
 
-  const label = FOCUS_LABEL[suggestion.focus] || suggestion.focus;
+  const label = tFallback(
+    `suggestion.focusLabel.${suggestion.focus}`,
+    FOCUS_LABEL_FALLBACK[suggestion.focus] || suggestion.focus
+  );
 
   return (
     <motion.div

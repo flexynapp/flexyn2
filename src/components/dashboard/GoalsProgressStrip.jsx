@@ -18,41 +18,16 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Target, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 
-// Mirrors the strength-progress math in GoalsAlmostComplete so the
-// numbers stay consistent between the strip and the upgraded card.
-// Cardio progress is left at 0% in the strip — the card shows the
-// detailed breakdown when the user opens the modal.
-function computeStrengthProgress(goal, logs) {
-  const hasWeightTarget = goal.target_weight != null && goal.target_weight > 0;
-  const hasRepsTarget = goal.target_reps != null && goal.target_reps > 0;
-  if (!hasWeightTarget && !hasRepsTarget) return 0;
-
-  let maxWeight = 0;
-  let totalReps = 0;
-  for (const log of logs || []) {
-    if (new Date(log.created_date) < new Date(goal.created_date)) continue;
-    for (const ex of log.exercises || []) {
-      if (ex.name.toLowerCase() !== goal.exercise_name.toLowerCase()) continue;
-      for (const set of ex.sets || []) {
-        if (set.weight && set.weight > maxWeight) maxWeight = set.weight;
-        if (set.reps) totalReps += set.reps;
-      }
-    }
-  }
-
-  let progress = 0;
-  if (hasWeightTarget && hasRepsTarget) {
-    const weightProgress = maxWeight >= goal.target_weight ? 100 : (maxWeight / goal.target_weight) * 100;
-    const repsProgress = totalReps >= goal.target_reps ? 100 : (totalReps / goal.target_reps) * 100;
-    progress = Math.max(weightProgress, repsProgress);
-  } else if (hasWeightTarget) {
-    progress = (maxWeight / goal.target_weight) * 100;
-  } else if (hasRepsTarget) {
-    progress = (totalReps / goal.target_reps) * 100;
-  }
-  return Math.min(Math.max(progress, 0), 100);
-}
+// Strength progress uses the SHARED module in src/lib/goalProgress.js
+// — single source of truth across GoalsAlmostComplete, GoalsList, and
+// this strip. Previously each surface had its own implementation that
+// diverged subtly (this one summed ALL reps regardless of weight,
+// inflating progress; the upgraded card uses the shared module which
+// correctly counts reps at-or-above target_weight). Bug surfaced as
+// different % shown for the same goal on Dashboard vs Goals modal.
+// Cardio goals get 0% from the shared module too — strip stays simple.
 
 export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
   const { t, tFallback } = useLanguage();
@@ -64,7 +39,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
     // Compute progress for each active goal (strength only — cardio
     // progress is too varied to express in a one-line strip; the modal
     // shows the full picture).
-    const enriched = active.map(g => ({ goal: g, progress: computeStrengthProgress(g, logs) }));
+    const enriched = active.map(g => ({ goal: g, progress: computeStrengthGoalProgress(g, logs).progress }));
 
     // If ANY goal is ≥75%, GoalsAlmostComplete will show it. Don't
     // duplicate the surfacing here — the strip is for the gap below.

@@ -22,12 +22,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWorkoutSessions } from '@/hooks/useWorkoutSessions';
+import { getDateLocale } from '@/lib/dateLocales';
 
 const STALE_MS = 24 * 60 * 60 * 1000; // 24h
 
 export default function ResumeWorkoutBanner() {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const navigate = useNavigate();
+  const dateLocale = getDateLocale(language);
   const { sessions, removeSession } = useWorkoutSessions();
   const [confirmDiscardId, setConfirmDiscardId] = useState(null);
   // Hold the discard-confirm timeout ID so we can clear it on subsequent
@@ -85,7 +87,7 @@ export default function ResumeWorkoutBanner() {
     .reduce((sum, ex) => sum + (ex.sets?.filter(s => s.weight || s.reps).length || 0), 0);
   const title = session.selectedRegimen?.name
     || tFallback('workout.resumeFallbackTitle', 'Paused workout');
-  const relative = formatDistanceToNow(new Date(session.pausedAt), { addSuffix: true });
+  const relative = formatDistanceToNow(new Date(session.pausedAt), { addSuffix: true, locale: dateLocale });
 
   const handleResume = () => {
     try { navigator.vibrate?.(10); } catch { /* ignore */ }
@@ -131,7 +133,7 @@ export default function ResumeWorkoutBanner() {
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); } }}
         className="flex items-center gap-3 p-3 mb-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover:border-primary/50 transition-colors"
-        aria-label={`Resume ${title}`}
+        aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >
         <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
           <History className="w-4 h-4 text-primary" />
@@ -142,8 +144,8 @@ export default function ResumeWorkoutBanner() {
           </p>
           <p className="text-sm font-heading font-bold truncate">{title}</p>
           <p className="text-[11px] text-muted-foreground truncate">
-            {exCount > 0 && `${exCount} ${exCount === 1 ? 'exercise' : 'exercises'}`}
-            {setCount > 0 && ` · ${setCount} ${setCount === 1 ? 'set' : 'sets'} logged`}
+            {exCount > 0 && `${exCount} ${tFallback(exCount === 1 ? 'workout.resumeExerciseOne' : 'workout.resumeExerciseMany', exCount === 1 ? 'exercise' : 'exercises')}`}
+            {setCount > 0 && ` · ${setCount} ${tFallback(setCount === 1 ? 'workout.resumeSetOne' : 'workout.resumeSetMany', setCount === 1 ? 'set logged' : 'sets logged')}`}
             {' · '}{relative}
           </p>
         </div>
@@ -155,7 +157,9 @@ export default function ResumeWorkoutBanner() {
               ? 'text-destructive bg-destructive/10'
               : 'text-muted-foreground hover:bg-secondary'
           }`}
-          aria-label={confirmDiscardId === session.id ? 'Tap again to confirm discard' : 'Discard paused workout'}
+          aria-label={confirmDiscardId === session.id
+            ? tFallback('workout.resumeDiscardConfirmAria', 'Tap again to confirm discard')
+            : tFallback('workout.resumeDiscardAria', 'Discard paused workout')}
         >
           {confirmDiscardId === session.id ? (
             <span className="text-[11px] font-bold">{tFallback('common.confirm', 'Confirm?')}</span>

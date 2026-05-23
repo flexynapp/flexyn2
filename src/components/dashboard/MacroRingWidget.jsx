@@ -18,7 +18,9 @@ import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
-const TODAY = format(new Date(), 'yyyy-MM-dd');
+// `today` is computed inside the component (see CalorieProgressWidget
+// for the rationale — overnight PWA stays open, date string would
+// otherwise freeze at module-load time).
 
 // SVG donut ring — a single arc showing pct [0–100]
 function Ring({ r, strokeWidth, pct, color, dashOffset = 0 }) {
@@ -60,16 +62,17 @@ const MACROS = [
 export default function MacroRingWidget({ userProfile = {} }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const today = format(new Date(), 'yyyy-MM-dd');
 
   const { data: todayLogs = [] } = useQuery({
-    queryKey: ['nutritionToday', user?.email, TODAY],
+    queryKey: ['nutritionToday', user?.email, today],
     queryFn: async () => {
       if (!user?.email) return [];
       const { data } = await supabase
         .from('nutrition_logs')
         .select('calories, protein_g, carbs_g, fat_g')
         .eq('created_by', user.email)
-        .eq('date', TODAY);
+        .eq('date', today);
       return data || [];
     },
     enabled: !!user?.email,

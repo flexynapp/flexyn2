@@ -612,7 +612,7 @@ export default function Dashboard() {
                 <Repeat2 className="w-4.5 h-4.5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Repeat last workout</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
                 <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
               </div>
               <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
@@ -633,14 +633,14 @@ export default function Dashboard() {
             <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/5">
               <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
               <div className="flex-1">
-                <p className="text-sm font-semibold text-green-600 dark:text-green-400">Rest day — you earned it 🌿</p>
-                <p className="text-[11px] text-muted-foreground">Your streak is safe. Recovery is training too.</p>
+                <p className="text-sm font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
+                <p className="text-[11px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe. Recovery is training too.')}</p>
               </div>
               <button
                 onClick={handleUndoRestDay}
                 className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
               >
-                Undo
+                {tFallback('dashboard.restDay.undo', 'Undo')}
               </button>
             </div>
           ) : (
@@ -650,7 +650,7 @@ export default function Dashboard() {
             >
               <Moon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
               <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                Mark today as a rest day
+                {tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
               </span>
             </button>
           )}

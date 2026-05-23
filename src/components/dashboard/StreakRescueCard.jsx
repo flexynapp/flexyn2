@@ -59,7 +59,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         tabIndex={0}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); } }}
         className="flex items-center gap-3 p-3 mb-3 rounded-xl border-2 border-orange-500/35 bg-gradient-to-r from-orange-500/12 via-amber-500/8 to-transparent cursor-pointer hover:border-orange-500/55 transition-colors"
-        aria-label={`Keep your ${streakDays}-day streak alive`}
+        aria-label={tFallback('streakRescue.aria', `Keep your ${streakDays}-day streak alive`).replace('{n}', String(streakDays))}
       >
         <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center shrink-0">
           <Flame className="w-5 h-5 text-orange-500" />
@@ -76,7 +76,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
           type="button"
           onClick={handleDismiss}
           className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors shrink-0"
-          aria-label="Skip today"
+          aria-label={tFallback('streakRescue.skipAria', 'Skip today')}
         >
           <X className="w-4 h-4" />
         </button>

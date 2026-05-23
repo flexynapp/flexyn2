@@ -76,7 +76,7 @@ function Body({ data, userId, t, tFallback }) {
       {/* Hero */}
       <div className={`relative bg-gradient-to-br ${tier.gradient} px-5 pt-6 pb-7 text-white`}>
         <DialogHeader>
-          <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pr-8">
+          <DialogTitle className="font-heading text-xl flex items-center gap-2 text-white drop-shadow pe-8">
             <span className="text-2xl">{tier.icon}</span>
             {tier.label} {tFallback('league.title', 'League')}
           </DialogTitle>
