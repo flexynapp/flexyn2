@@ -23,6 +23,7 @@ import { fromLbs } from '@/lib/weightUnit';
 import { formatDistance } from '@/lib/distanceUnit';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
+import { getPeriodLeaderboard } from '@/lib/data/periodLeaderboard';
 
 const BOARDS = [
   { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        gradient: 'from-amber-400 via-orange-400 to-rose-500' },
@@ -54,12 +55,15 @@ export default function LeaderboardsContent({ active = true }) {
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
   const [activeBoard, setActiveBoard] = useState('level');
-  // Time-window toggle. 'alltime' uses total_* columns (lifetime);
-  // 'weekly' uses weekly_* columns (current ISO week, refreshed by
-  // the leaderboard cron). Monthly is a future enhancement — would
-  // need either monthly_* columns or aggregation from logs which is
-  // heavier than the current implementation handles.
+  // Time-window toggle. Weekly + monthly hit the
+  // `get_period_leaderboard` RPC (migration 125) which aggregates
+  // workout_logs over the ISO week / calendar month. All-time keeps
+  // using the in-memory User.list() path against denormalized
+  // total_* columns. Boards that don't have a time-scoped definition
+  // (achievements, distance) are pinned to all-time regardless.
   const [period, setPeriod] = useState('alltime');
+  const periodScoped = period !== 'alltime' &&
+    (activeBoard === 'volume' || activeBoard === 'level');
 
   useEffect(() => {
     if (active && user?.email) backfillLeaderboardStatsOnce(user.email);
@@ -70,21 +74,49 @@ export default function LeaderboardsContent({ active = true }) {
     queryFn: () => db.entities.User.list(),
     enabled: active,
   });
+  // Period-scoped feed from the RPC. Only fired when period is
+  // weekly/monthly AND the active board has a period-scoped definition.
+  const { data: periodRows = [], isLoading: isLoadingPeriodRaw } = useQuery({
+    queryKey: ['periodLeaderboard', activeBoard, period],
+    queryFn:  () => getPeriodLeaderboard({
+      board:  activeBoard === 'level' ? 'xp' : 'volume',
+      period,
+      limit:  100,
+    }),
+    enabled: active && periodScoped,
+    staleTime: 60_000,
+  });
   // 250ms gate so a cached re-open of leaderboards doesn't flash
   // a loading spinner that disappears the same frame.
-  const isLoading = useDelayedLoading(isLoadingRaw);
+  const isLoading = useDelayedLoading(isLoadingRaw || (periodScoped && isLoadingPeriodRaw));
 
   const board = BOARDS.find(b => b.id === activeBoard);
 
   const ranked = useMemo(() => {
+    // Period-scoped path — server-side aggregation via the RPC.
+    if (periodScoped) {
+      const formatValue = activeBoard === 'volume'
+        ? v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}`
+        : v => `${formatNum(v)} ${activeBoard === 'level' ? (period === 'weekly' ? 'vol/wk' : 'vol/mo') : ''}`;
+      return periodRows
+        .filter(r => Number(r.value) > 0)
+        .map((r, idx) => {
+          const val = Number(r.value) || 0;
+          return {
+            id:     r.user_id,
+            email:  r.email,
+            full_name: r.full_name || r.username || t('progress.anonymous'),
+            rank:   idx + 1,
+            _val:   val,
+            _display: formatValue(val),
+          };
+        });
+    }
+
+    // All-time path — in-memory ranking against denormalized columns.
     const enriched = allUsers.map(u => {
       const xp = Number(u.total_xp) || 0;
       const lvl = calculateLevelFromXp(xp);
-      // Period-scoped values fall back to the all-time value when
-      // the weekly column is missing (pre-093 host) so the UI
-      // gracefully degrades to lifetime stats rather than zeros.
-      const weekly_xp     = Number(u.weekly_xp);
-      const weekly_volume = Number(u.weekly_volume);
       return {
         id: u.id,
         email: u.email,
@@ -94,8 +126,6 @@ export default function LeaderboardsContent({ active = true }) {
         achievements_unlocked_count: Number(u.achievements_unlocked_count) || 0,
         total_volume_lbs: Number(u.total_volume_lbs) || 0,
         total_distance_meters: Number(u.total_distance_meters) || 0,
-        weekly_xp:     Number.isFinite(weekly_xp)     ? weekly_xp     : 0,
-        weekly_volume: Number.isFinite(weekly_volume) ? weekly_volume : 0,
       };
     });
 
@@ -107,28 +137,23 @@ export default function LeaderboardsContent({ active = true }) {
     );
 
     let valueOf, formatValue;
-    const isWeekly = period === 'weekly';
     switch (activeBoard) {
       case 'achievements':
-        // Achievements aren't time-scoped, always all-time.
         valueOf = u => u.achievements_unlocked_count;
         formatValue = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
         break;
       case 'volume':
-        valueOf = u => isWeekly ? u.weekly_volume : u.total_volume_lbs;
+        valueOf = u => u.total_volume_lbs;
         formatValue = v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}`;
         break;
       case 'distance':
-        // Distance: no weekly_distance_meters yet → always all-time.
         valueOf = u => u.total_distance_meters;
         formatValue = v => formatDistance(v, distanceUnit, 1);
         break;
       case 'level':
       default:
-        valueOf = u => isWeekly ? u.weekly_xp : u.total_xp;
-        formatValue = isWeekly
-          ? v => `${formatNum(v)} XP`
-          : (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
+        valueOf = u => u.total_xp;
+        formatValue = (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
         break;
     }
 
@@ -137,7 +162,7 @@ export default function LeaderboardsContent({ active = true }) {
       .sort((a, b) => valueOf(b) - valueOf(a))
       .slice(0, 100)
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
-  }, [allUsers, activeBoard, period, weightUnit, distanceUnit, t]);
+  }, [allUsers, activeBoard, period, periodScoped, periodRows, weightUnit, distanceUnit, t]);
 
   const myRow = ranked.find(r => r.email === user?.email);
 
@@ -164,27 +189,37 @@ export default function LeaderboardsContent({ active = true }) {
           </div>
         </div>
 
-        {/* Period toggle — All-time vs This week. Achievements +
-            Distance always render all-time because we don't track
-            weekly aggregates for them. */}
+        {/* Period toggle — All-time / This month / This week. Server
+            aggregation via the get_period_leaderboard RPC handles the
+            two scoped windows. Achievements + Distance boards always
+            render all-time because we don't track period aggregates
+            for them; the toggle disables itself for those. */}
         <div className="relative z-10 mt-3 flex items-center gap-1">
           {[
             { id: 'alltime', label: 'All-time' },
+            { id: 'monthly', label: 'This month' },
             { id: 'weekly',  label: 'This week' },
-          ].map(p => (
-            <button
-              key={p.id}
-              onClick={() => setPeriod(p.id)}
-              aria-pressed={period === p.id}
-              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                period === p.id
-                  ? 'bg-white text-foreground'
-                  : 'bg-white/15 text-white hover:bg-white/25'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+          ].map(p => {
+            const disabled = p.id !== 'alltime' &&
+              (activeBoard === 'achievements' || activeBoard === 'distance');
+            return (
+              <button
+                key={p.id}
+                onClick={() => !disabled && setPeriod(p.id)}
+                aria-pressed={period === p.id}
+                disabled={disabled}
+                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                  period === p.id
+                    ? 'bg-white text-foreground'
+                    : disabled
+                      ? 'bg-white/10 text-white/40 cursor-not-allowed'
+                      : 'bg-white/15 text-white hover:bg-white/25'
+                }`}
+              >
+                {p.label}
+              </button>
+            );
+          })}
         </div>
 
         <div className="relative z-10 mt-3 flex flex-wrap gap-1.5 sm:gap-2">
