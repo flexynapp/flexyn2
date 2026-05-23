@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
 import { useNumberFormatter } from '@/lib/intl';
 import { useAutofocusOnOpen } from '@/hooks/useAutofocusOnOpen';
+import { usePullToDismiss } from '@/hooks/usePullToDismiss';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const QUICK_AMOUNTS = [25, 100, 500, 1000];
@@ -30,6 +31,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const amountRef = useAutofocusOnOpen(open);
+  const pull = usePullToDismiss({ onDismiss: onClose, enabled: open });
 
   if (!open) return null;
 
@@ -80,8 +82,15 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
         initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
         onClick={(e) => e.stopPropagation()}
         className="w-full sm:max-w-sm bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl flex flex-col"
+        style={pull.contentStyle}
       >
-        <div className="flex items-center justify-between px-4 pt-4 pb-2">
+        {/* Grab-bar — visual affordance + pull-to-dismiss touch target.
+            Only the bar captures the drag, so inputs below still
+            scroll/focus normally on touch. */}
+        <div {...pull.handleProps} className="sm:hidden flex justify-center py-2 cursor-grab active:cursor-grabbing">
+          <div className="h-1 w-10 rounded-full bg-border" aria-hidden="true" />
+        </div>
+        <div className="flex items-center justify-between px-4 pt-2 pb-2 sm:pt-4">
           <h2 className="font-heading font-bold text-base flex items-center gap-2">
             <Coins className="w-4 h-4 text-yellow-500" />
             {tFallback('gift.title', 'Send a gift')}
