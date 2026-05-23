@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, X, Flame, Gauge } from 'lucide-react';
+import { Trophy, X, Flame, Gauge, MessageCircle } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -37,6 +37,13 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   const hasEffortData = (set.rpe != null && set.rpe !== '') || (set.rir != null && set.rir !== '');
   const [effortOpen, setEffortOpen] = useState(hasEffortData);
 
+  // Per-set "feel" — short emoji + freeform note. Stored on the set
+  // object alongside RPE/RIR. Hidden behind a toggle to keep the
+  // collapsed row scannable.
+  const hasFeelData = !!(set.feel_emoji || set.feel_note);
+  const [feelOpen, setFeelOpen] = useState(hasFeelData);
+  const FEEL_EMOJI_SET = ['💪', '🔥', '😤', '😐', '😩', '💀', '🤕'];
+
   // Plate calculator — shown for barbell exercises when weight ≥ bar weight
   // set.weight is always stored internally in lbs
   const plates = plateCalc(set.weight);
@@ -48,7 +55,12 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // moment, not 30 seconds later when the celebration toast fires.
   const priorBest = prIndex[(exerciseName || '').trim().toLowerCase()] || 0;
   const liveEstimate = epleyOneRepMax(set.weight, set.reps);
-  const isPRSet = priorBest > 0 && liveEstimate > priorBest;
+  // PR detection skips warmups + failed sets — a missed lift
+  // shouldn't claim a fake record.
+  const isPRSet = priorBest > 0
+    && liveEstimate > priorBest
+    && !set.is_warmup
+    && !set.is_failed;
 
   // Flash a prominent "NEW PR 🎉" pill on the false→true edge so the
   // user sees the win in real time. We keep the small inline trophy
@@ -183,6 +195,41 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       >
         <Flame className={`w-3.5 h-3.5 ${set.is_warmup ? 'fill-orange-500' : ''}`} />
       </button>
+      {/* Failed-set marker — for honest tracking when the user
+          attempted but didn't complete the prescribed reps. Excluded
+          from PR detection (see SetRow's isPRSet computation above) so
+          a missed lift doesn't claim a fake record. */}
+      <button
+        type="button"
+        onClick={() => onChange({ ...set, is_failed: !set.is_failed })}
+        className={[
+          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors text-xs font-extrabold',
+          set.is_failed
+            ? 'bg-red-500/15 text-red-500'
+            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+        ].join(' ')}
+        aria-label={set.is_failed ? 'Mark as completed' : 'Mark set as failed'}
+        aria-pressed={!!set.is_failed}
+        title={set.is_failed ? 'Failed set' : 'Mark as failed'}
+      >
+        ✗
+      </button>
+      {/* Feel/note toggle — opens an inline emoji-picker + short text
+          row. Active tint when either field has a value. */}
+      <button
+        type="button"
+        onClick={() => setFeelOpen(o => !o)}
+        aria-label={feelOpen ? 'Hide feel row' : 'Show feel row'}
+        title="How did this set feel?"
+        className={[
+          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors text-sm',
+          hasFeelData
+            ? 'bg-purple-500/15 text-purple-400'
+            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+        ].join(' ')}
+      >
+        {set.feel_emoji || <MessageCircle className="w-3.5 h-3.5" />}
+      </button>
       {/* Effort tracking toggle — opens an inline RPE/RIR row. Active
           (tinted) when any effort field has a value so the user sees
           at-a-glance which sets carry effort data. */}
@@ -248,6 +295,40 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           placeholder="0–5"
           className="h-7 text-center text-xs flex-1"
+        />
+      </div>
+    )}
+    {/* Per-set feel — quick emoji palette + freeform note. Stored as
+        set.feel_emoji + set.feel_note so each set carries its own
+        signal (RPE captures effort; this captures the more-subjective
+        "how did that go" the user can scan back through later). */}
+    {feelOpen && (
+      <div className="flex items-center gap-2 mt-1.5 pl-8 pr-2">
+        <div className="flex items-center gap-0.5 shrink-0">
+          {FEEL_EMOJI_SET.map(em => (
+            <button
+              key={em}
+              type="button"
+              onClick={() =>
+                onChange({ ...set, feel_emoji: set.feel_emoji === em ? null : em })
+              }
+              className={`text-base px-1 py-0.5 rounded transition-colors ${
+                set.feel_emoji === em ? 'bg-purple-500/20' : 'opacity-60 hover:opacity-100'
+              }`}
+              aria-label={`Feel ${em}`}
+              aria-pressed={set.feel_emoji === em}
+            >
+              {em}
+            </button>
+          ))}
+        </div>
+        <Input
+          type="text"
+          value={set.feel_note ?? ''}
+          onChange={(e) => onChange({ ...set, feel_note: e.target.value.slice(0, 80) || null })}
+          placeholder="Note (optional)"
+          maxLength={80}
+          className="h-7 text-xs flex-1"
         />
       </div>
     )}

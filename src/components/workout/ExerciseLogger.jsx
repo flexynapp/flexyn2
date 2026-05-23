@@ -71,9 +71,20 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   const updateSet = (index, updated) => {
     const newSets = [...sets];
+    const prev = newSets[index] || {};
     newSets[index] = updated;
     checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
+    // Auto-start the rest timer the moment a set transitions to
+    // "fully logged" (both weight + reps present) when it wasn't
+    // before. Previously the timer only started on Add Set — a user
+    // who finished their last set without immediately adding a new
+    // row got no rest cue at all.
+    const wasComplete = !!(prev.weight && prev.reps);
+    const isNowComplete = !!(updated.weight && updated.reps);
+    if (!wasComplete && isNowComplete && !updated.is_warmup) {
+      startRestTimer();
+    }
   };
 
   const removeSet = (index) => {
