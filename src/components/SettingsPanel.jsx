@@ -17,6 +17,8 @@ import { listMyReports } from '@/lib/data/hubReports';
 import * as userBlocksData from '@/lib/data/userBlocks';
 import * as userMutesData  from '@/lib/data/userMutes';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
+import { useTheme } from '@/lib/ThemeContext';
+import { Sun } from 'lucide-react';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -44,6 +46,12 @@ export default function SettingsPanel() {
   const [storyBlocks,         setStoryBlocks]         = useState([]);
   const [blockEmail,          setBlockEmail]          = useState('');
   const [blockSaving,         setBlockSaving]         = useState(false);
+
+  // Theme system (light/dark). Lives in ThemeContext + syncs to the
+  // server's user_profiles.dark_mode column so the choice follows the
+  // user across devices. The picker also lives in ProfileMenu — this
+  // section is here so Settings has a discoverable home for it.
+  const { darkMode, setDarkMode } = useTheme();
 
   // Local mirrors of the per-device tactile preferences. Both are
   // backed by localStorage (not server) — a user who silenced one
@@ -450,6 +458,42 @@ export default function SettingsPanel() {
           )}
         </div>
       )}
+
+      {/* Appearance — light vs dark mode. Mirrors the same picker
+          surfaced in ProfileMenu; Settings is the discoverable home so
+          users searching for it find it here too. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          {darkMode
+            ? <Moon className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+            : <Sun  className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />}
+          <p className="text-xs text-foreground leading-tight">
+            {tFallback('settings.appearance', 'Appearance')}
+          </p>
+        </div>
+        <div className="flex rounded-md border border-border overflow-hidden shrink-0" role="group" aria-label="Light or dark mode">
+          <button
+            type="button"
+            onClick={() => setDarkMode(false)}
+            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              !darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+            }`}
+            aria-pressed={!darkMode}
+          >
+            <Sun className="w-3 h-3" /> Light
+          </button>
+          <button
+            type="button"
+            onClick={() => setDarkMode(true)}
+            className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold transition-colors ${
+              darkMode ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+            }`}
+            aria-pressed={darkMode}
+          >
+            <Moon className="w-3 h-3" /> Dark
+          </button>
+        </div>
+      </div>
 
       {/* Haptic feedback — per-device. When on, primary actions fire a
           short tick. The toggle itself fires a sample haptic when
