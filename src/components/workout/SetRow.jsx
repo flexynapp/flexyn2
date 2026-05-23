@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useSwipeToDelete } from '@/hooks/useSwipeToDelete';
 import { motion } from 'framer-motion';
 import { Trophy, X, Flame, Gauge, MessageCircle, Minus, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -79,9 +80,15 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     return undefined;
   }, [isPRSet]);
 
+  // Swipe-to-delete (touch only). The X button stays as the desktop
+  // affordance; phones get the gesture in addition. Pan-Y on the
+  // container so vertical scroll still works through the row.
+  const swipe = useSwipeToDelete({ onDelete: onRemove, enabled: !!onRemove });
+
   return (
-    <div className="relative">
-    <div className="flex items-center gap-2">
+    <div {...swipe.containerProps} className="relative">
+      <div style={swipe.actionStyle}>Delete</div>
+    <div {...swipe.contentProps} className="flex items-center gap-2 bg-card">
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
       <div className="flex-1 flex items-center gap-0.5">
         {/* Stepper buttons for progressive overload — one-tap bumps
