@@ -7,6 +7,27 @@ import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
 import { blockUserFull } from '@/lib/data/userBlocks';
+import { format, parseISO } from 'date-fns';
+import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
+import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
+import * as hubReactions from '@/lib/data/hubReactions';
+import * as hubPosts from '@/lib/data/hubPosts';
+import * as stickerReactions from '@/lib/data/stickerReactions';
+import HubCommentsInline from './HubCommentsInline';
+import PostActivityBlock from './PostActivityBlock';
+import ReportDialog from './ReportDialog';
+import StickerDisplay from './StickerDisplay';
+import StickerPanel from './StickerPanel';
+import { toast } from 'sonner';
+import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
+import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
+import * as hubSavedPosts from '@/lib/data/hubSavedPosts';
+import * as hubPostViews from '@/lib/data/hubPostViews';
+import ShareSheetModal from './ShareSheetModal';
+import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
+import { getLootTitleById } from '@/lib/lootTitles';
+import { getLootFrameById } from '@/lib/lootFrames';
 
 // ── Hashtag renderer ──────────────────────────────────────────────────────────
 // Splits post body on #word tokens and renders each as a tappable chip.
@@ -92,28 +113,6 @@ function CrownBadge({ size = 14 }) {
     </svg>
   );
 }
-import { format, parseISO } from 'date-fns';
-import { useAuth } from '@/lib/AuthContext';
-import { useLanguage } from '@/lib/LanguageContext';
-import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
-import * as hubReactions from '@/lib/data/hubReactions';
-import * as hubPosts from '@/lib/data/hubPosts';
-import * as stickerReactions from '@/lib/data/stickerReactions';
-import HubCommentsInline from './HubCommentsInline';
-import PostActivityBlock from './PostActivityBlock';
-import ReportDialog from './ReportDialog';
-import StickerDisplay from './StickerDisplay';
-import StickerPanel from './StickerPanel';
-import { toast } from 'sonner';
-import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
-import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
-import * as hubSavedPosts from '@/lib/data/hubSavedPosts';
-import * as hubPostViews from '@/lib/data/hubPostViews';
-import ShareSheetModal from './ShareSheetModal';
-import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
-import { getLootTitleById } from '@/lib/lootTitles';
-import { getLootFrameById } from '@/lib/lootFrames';
-
 // ── Post-type accent border ───────────────────────────────────────────────────
 // Returns a Tailwind class for a subtle left-border accent per content type.
 // Applied to the card's article element so every post type is visually distinct
