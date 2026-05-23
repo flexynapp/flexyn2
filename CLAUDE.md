@@ -275,6 +275,42 @@ rebuild. If you have a defensible case for treating one as a false
 positive (extremely rare), surface it explicitly rather than removing
 the code from the blocking set silently.
 
+## TDZ trap — declare const/let BEFORE first use
+
+JavaScript hoists `function` declarations but **not** `const` or `let`.
+Code that *reads* a const-bound name before its declaration line
+throws `ReferenceError: can't access lexical declaration X before
+initialization`. Dev mode masks some patterns (React's double-render,
+JSX callback fns that only run after render); production minified
+re-orders statements and the bug fires on the first render.
+
+The 2026-05-23 production Hub crash was this exact pattern in
+`HubPostCard.jsx`:
+
+```jsx
+function HubPostCard({ post }) {
+  // ...
+  useEffect(() => {
+    if (... || isMine) return;     // ← reads `isMine`
+    // ...
+  }, [user?.email, post.id, isMine]);  // ← AND in deps array
+
+  // ... 80 lines later ...
+  const isMine = post.author_email === user?.email;  // ← declared LATE
+}
+```
+
+The deps array `[..., isMine]` is evaluated synchronously when
+`useEffect` is called, but `isMine` is in TDZ at that point. **Always
+declare a `const` before its first use, including inside any
+`useEffect` / `useMemo` / `useCallback` deps array.**
+
+ESLint has `no-use-before-define` configured at `'warn'` level
+(masked by `--quiet` in the default `npm run lint` script — run
+`npx eslint .` to see all 141 existing warnings). Goal is to upgrade
+to `'error'` once those are cleaned up. New code: don't add new
+violations of this rule.
+
 ## Build & analyze
 
 - `npm run dev` — Vite dev server.

@@ -385,6 +385,17 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   const [videoMuted, setVideoMuted] = useState(true);
   const videoRef = useRef(null);
 
+  // `isMine` is read by the view-tracking effect below + its deps array,
+  // by handleAvatarTap / delete handler / many JSX conditionals later.
+  // It MUST be declared before the useEffect that lists it as a dep —
+  // otherwise the deps-array expression `[..., isMine]` evaluates while
+  // `isMine` is still in the temporal dead zone and the component
+  // throws `ReferenceError: can't access lexical declaration before
+  // initialization` (only visible after minification in production —
+  // dev mode masks it). This was the cause of the 2026-05-23 prod
+  // Hub crash; previously declared at line 473 below.
+  const isMine = post.author_email === user?.email;
+
   // ── View tracking (IntersectionObserver, 2-second dwell) ─────────────────────
   const cardRef = useRef(null);
   const viewTrackedRef = useRef(false);
@@ -470,7 +481,10 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     if (avatarLongPressRef.current) { clearTimeout(avatarLongPressRef.current); avatarLongPressRef.current = null; }
   }, []);
 
-  const isMine = post.author_email === user?.email;
+  // `isMine` is now declared earlier in the function body (see the
+  // "is this my own post?" block above the view-tracking useEffect)
+  // because the deps array of that useEffect references it. Keeping
+  // a duplicate `const isMine =` here would be a redeclaration error.
   const authorsByEmail = useAuthorsByEmail();
   const author = resolveAuthor(authorsByEmail, post.author_email, {
     author_name: post.author_name,

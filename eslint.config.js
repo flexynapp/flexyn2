@@ -55,6 +55,33 @@ export default [
         { ignore: ["cmdk-input-wrapper", "toast-close"] },
       ],
       "react-hooks/rules-of-hooks": "error",
+      // Catches the exact pattern that caused the production Hub TDZ:
+      // a useEffect referencing a `const` declared later in the same
+      // function body. JavaScript hoists function declarations but NOT
+      // `const`/`let`, so accessing them before their line throws
+      // ReferenceError. In dev mode some patterns mask this; in prod
+      // minified everything fails.
+      //
+      // CURRENT LEVEL: 'warn' (visible in `npm run lint` output but
+      // doesn't block CI). The codebase has ~41 pre-existing instances
+      // — most are safe-in-practice (the use sits inside a JSX callback
+      // that only fires after render completes), but they're all
+      // latent bugs of the same class waiting for a refactor to put
+      // them in a synchronous evaluation path.
+      //
+      // GOAL: upgrade to 'error' once those 41 are cleaned up. The
+      // mechanical fix is to move the `const X = ...` declaration
+      // above its first use. Each occurrence takes ~30 seconds to fix
+      // and lint will tell you the exact line.
+      "no-use-before-define": [
+        "warn",
+        {
+          functions: false,    // function declarations DO hoist; OK to use earlier
+          classes: true,
+          variables: true,     // const/let do NOT hoist — this is the bug class we caught
+          allowNamedExports: true,
+        },
+      ],
     },
   },
 ];
