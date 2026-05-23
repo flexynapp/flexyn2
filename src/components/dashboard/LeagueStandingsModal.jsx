@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowUp, ArrowDown, Crown, Trophy } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
@@ -114,9 +115,11 @@ function Body({ data, userId, t, tFallback }) {
       {/* Members list */}
       <div className="p-4 sm:p-5 md:p-6">
         {members.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-8">
-            {tFallback('league.empty', 'No members yet — earn XP to join the standings!')}
-          </p>
+          <EmptyState
+            icon={Trophy}
+            title={tFallback('league.emptyTitle', 'Empty league')}
+            body={tFallback('league.empty', 'No members yet — earn XP to join the standings!')}
+          />
         ) : (
           <AnimatePresence>
             <div className="space-y-1.5">

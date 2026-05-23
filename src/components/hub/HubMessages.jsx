@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus } from 'lucide-react';
@@ -343,27 +344,19 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : visibleConvs.length === 0 ? (
-            <div className="text-center py-12">
-              <MessageCircle className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-              <p className="font-heading font-bold text-base">
-                {dmView === 'requests'
-                  ? 'No requests'
-                  : dmView === 'archived'
-                  ? 'No archived conversations'
-                  : t('hub.messages.empty.title')}
-              </p>
-              <p className="text-sm text-muted-foreground">
-                {dmView === 'inbox' ? t('hub.messages.empty.desc') : ''}
-              </p>
-              {dmView === 'inbox' && (
-                <button
-                  onClick={() => setNewGroupOpen(true)}
-                  className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold"
-                >
-                  <UserPlus className="w-3.5 h-3.5" /> Start a group
-                </button>
-              )}
-            </div>
+            <EmptyState
+              icon={MessageCircle}
+              title={dmView === 'requests'
+                ? 'No requests'
+                : dmView === 'archived'
+                ? 'No archived conversations'
+                : t('hub.messages.empty.title')}
+              body={dmView === 'inbox' ? t('hub.messages.empty.desc') : null}
+              action={dmView === 'inbox' ? {
+                label: 'Start a group',
+                onClick: () => setNewGroupOpen(true),
+              } : null}
+            />
           ) : (
             <div className="space-y-1">
               {visibleConvs.map((c, i) => {
@@ -569,11 +562,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
           ) : myCrews.length === 0 ? (
-            <div className="text-center py-12">
-              <Shield className="w-12 h-12 mx-auto text-muted-foreground mb-2" />
-              <p className="font-heading font-bold text-base">{tFallback('hub.messages.noCrews.title', 'No Crews yet')}</p>
-              <p className="text-sm text-muted-foreground">{tFallback('hub.messages.noCrews.desc', 'Join or create a Crew from the Hub tab.')}</p>
-            </div>
+            <EmptyState
+              icon={Shield}
+              title={tFallback('hub.messages.noCrews.title', 'No Crews yet')}
+              body={tFallback('hub.messages.noCrews.desc', 'Join or create a Crew from the Hub tab.')}
+            />
           ) : (
             <div className="space-y-2">
               {myCrews.map((crew, i) => (

@@ -14,8 +14,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell,
-  Clock, Eye, Plus, BarChart3, PinOff, Megaphone,
+  Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle,
 } from 'lucide-react';
+import EmptyState from '@/components/EmptyState';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
@@ -545,10 +546,11 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         <CrewChallengeCard crewId={crew?.id} isAdmin={!!crew?.is_admin} />
 
         {messages.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">
-            <p className="text-sm font-semibold">No messages yet.</p>
-            <p className="text-xs">Be the first to fuel the Crew!</p>
-          </div>
+          <EmptyState
+            icon={MessageCircle}
+            title="No messages yet"
+            body="Be the first to fuel the Crew."
+          />
         )}
         {messages.map(msg => (
           <CrewMessageItem
