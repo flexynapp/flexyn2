@@ -128,6 +128,46 @@ export default defineConfig({
     // file that only loads on Form Coach open). Noise > signal otherwise.
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // BUILD GUARD — fail the build instead of silently shipping when
+      // Rollup detects a class of warning we've documented as a real
+      // production-crash risk. The top-level `logLevel: 'error'` above
+      // suppresses Vite's stdout output of these warnings to keep
+      // build logs clean; without this onwarn hook those warnings
+      // would land in production unread.
+      //
+      // History: on 2026-05-23 a `inventory.listMine` reference that
+      // didn't exist as a named export shipped to prod because Vite's
+      // MISSING_EXPORT warning was silenced. The error surfaced as a
+      // minified TDZ at runtime that took hours to triage. Never again.
+      //
+      // The list below should ONLY contain warning codes that:
+      //   1. Correspond to a real production-crash defect class
+      //   2. Have NO legitimate uses currently in the codebase
+      // Adding a code here flips it from "tolerated warning" to
+      // "build failure" — be careful.
+      onwarn(warning, defaultHandler) {
+        const blockingCodes = new Set([
+          // X is not exported by Y — namespace-import dotted access
+          // (e.g. `inv.foo`) where `foo` is not on the module's
+          // exports object. Resolves to `undefined` at runtime →
+          // TypeError on call, or TDZ in some Rollup configs.
+          'MISSING_EXPORT',
+          // Direct import { foo } from 'mod' where 'foo' isn't exported.
+          // Same defect class as MISSING_EXPORT for default imports.
+          'UNRESOLVED_IMPORT',
+          // Plugin produced an error (e.g. invalid syntax slipped
+          // past lint) — should never be a warning, surface as error.
+          'PLUGIN_ERROR',
+        ]);
+        if (blockingCodes.has(warning.code)) {
+          throw new Error(
+            `[vite-build-guard] Rollup ${warning.code} treated as error.\n` +
+            `${warning.message}\n` +
+            `If you believe this is a false positive, see vite.config.js onwarn for context.`
+          );
+        }
+        defaultHandler(warning);
+      },
       output: {
         // Manual vendor chunking. Splits the heaviest dependencies into their
         // own files so:

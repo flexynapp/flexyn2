@@ -251,6 +251,30 @@ without giving it a distinct haptic + confetti signature.**
   `npm run test:coverage` — V8 coverage. As of writing: **432/432 tests
   passing across 30 files**.
 
+## Build guards (don't disable)
+
+The build has an `onwarn` hook in `vite.config.js` that turns specific
+Rollup warning codes into **build failures**. These were added after a
+production crash on 2026-05-23 — a `inventory.listMine` call referenced
+a non-existent named export, Vite's `logLevel: 'error'` setting silenced
+the `MISSING_EXPORT` warning, and the bug shipped as a runtime crash.
+The guard ensures that defect class can never silently land again.
+
+Currently blocking:
+- `MISSING_EXPORT` — `import { foo } from 'mod'` or `ns.foo` where
+  `foo` isn't on the module's exports. Symptoms in production: silent
+  `undefined`-call TypeError, or in some bundler configs a minified
+  TDZ (`can't access lexical declaration 'oe' before initialization`).
+- `UNRESOLVED_IMPORT` — module path doesn't resolve at build time.
+- `PLUGIN_ERROR` — a Vite/Rollup plugin escalated to error (shouldn't
+  be a warning anyway).
+
+**If the build fails with `[vite-build-guard]`** — don't disable the
+guard. The warning corresponds to a real bug. Fix the import, then
+rebuild. If you have a defensible case for treating one as a false
+positive (extremely rare), surface it explicitly rather than removing
+the code from the blocking set silently.
+
 ## Build & analyze
 
 - `npm run dev` — Vite dev server.
