@@ -15,6 +15,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { shareAchievementPost } from '@/lib/data/shareAchievement';
 import { useDateFormatter } from '@/lib/intl';
+import EmptyState from '@/components/EmptyState';
 
 const CATEGORY_COLORS = {
   workout:    'bg-primary/10 text-primary',
@@ -250,16 +251,18 @@ export default function AchievementsTab({ achievements = [] }) {
         })}
 
         {activeSubTab === 'active' && Object.values(displayData).every(arr => arr.length === 0) && (
-          <div className="text-center py-8">
-            <Trophy className="w-10 h-10 text-yellow-500 mx-auto mb-2" />
-            <p className="text-muted-foreground text-sm">{t('progress.allCompleted')}</p>
-          </div>
+          <EmptyState
+            icon={Trophy}
+            title={t('progress.allCompletedTitle') || 'Everything unlocked!'}
+            body={t('progress.allCompleted')}
+          />
         )}
         {activeSubTab === 'completed' && Object.values(displayData).every(arr => arr.length === 0) && (
-          <div className="text-center py-8">
-            <Lock className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-            <p className="text-muted-foreground text-sm">{t('progress.noneCompleted')}</p>
-          </div>
+          <EmptyState
+            icon={Lock}
+            title={t('progress.noneCompletedTitle') || 'No badges yet'}
+            body={t('progress.noneCompleted')}
+          />
         )}
       </div>
     </div>

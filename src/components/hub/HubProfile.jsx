@@ -28,6 +28,7 @@ import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
 import ProfileCompletionMeter from './ProfileCompletionMeter';
+import EmptyState from '@/components/EmptyState';
 import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
@@ -1415,7 +1416,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       {/* Posts */}
       <h3 className="font-heading font-bold text-base mb-2 px-1">{t('hub.profile.recentPosts')}</h3>
       {posts.length === 0 ? (
-        <p className="text-center text-sm text-muted-foreground py-8">{t('hub.profile.noPosts')}</p>
+        <EmptyState
+          icon={FileText}
+          title={isSelf
+            ? tFallback('hub.profile.noPostsSelfTitle', 'No posts yet')
+            : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
+          body={isSelf
+            ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
+            : tFallback('hub.profile.noPostsBody', 'Check back later — new posts will appear here.')}
+        />
       ) : (
         <div className="space-y-3">
           {posts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
