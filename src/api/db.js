@@ -237,16 +237,45 @@ const auth = {
     throw new Error('[Supabase] updateMe failed after stripping unknown columns');
   },
 
-  /** Kick off Google OAuth. */
+  /** Kick off Google OAuth — kept as the default for legacy call sites. */
   redirectToLogin(redirectTo) {
-    supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: redirectTo
-          ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
-          : window.location.origin,
-      },
+    return this.signInWithProvider('google', redirectTo);
+  },
+
+  /**
+   * OAuth sign-in via any supported provider. Currently supported by
+   * the Supabase project: 'google' | 'apple'. Add a new provider here
+   * AND in the Supabase dashboard before exposing a button for it.
+   */
+  signInWithProvider(provider, redirectTo) {
+    const target = redirectTo
+      ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
+      : window.location.origin;
+    return supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: target },
     });
+  },
+
+  /**
+   * Email magic-link sign-in. Supabase emails the user a one-tap link
+   * that signs them in directly — no password needed. shouldCreateUser
+   * is true so the same flow handles both signup and login. The auth
+   * provider must be enabled in the Supabase dashboard.
+   */
+  async signInWithMagicLink(email, redirectTo) {
+    if (!email || typeof email !== 'string') {
+      throw new Error('email required');
+    }
+    const target = redirectTo
+      ? `${window.location.origin}${redirectTo.startsWith('/') ? redirectTo : '/' + redirectTo}`
+      : window.location.origin;
+    const { error } = await supabase.auth.signInWithOtp({
+      email: email.trim().toLowerCase(),
+      options: { emailRedirectTo: target, shouldCreateUser: true },
+    });
+    if (error) throw error;
+    return { ok: true };
   },
 
   /**
