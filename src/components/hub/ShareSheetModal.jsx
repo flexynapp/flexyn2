@@ -12,8 +12,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
-  X, Send, Copy, Check, Link2,
-  MessageCircle, ExternalLink,
+  X, Send, Check, Link2,
+  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';

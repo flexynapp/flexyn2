@@ -6,7 +6,7 @@
 // No video — this is a live data/presence stream of the workout in progress.
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Radio, StopCircle, ChevronUp, ChevronDown, Users, Loader2 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';

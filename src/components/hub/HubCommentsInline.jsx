@@ -1,7 +1,7 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2, AtSign } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
 
 // Orange 3-pronged crown badge for verified admins
 function CrownBadge({ size = 14 }) {

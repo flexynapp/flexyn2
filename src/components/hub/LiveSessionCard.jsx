@@ -7,7 +7,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Radio, Dumbbell } from 'lucide-react';
+import { Users, Dumbbell } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
