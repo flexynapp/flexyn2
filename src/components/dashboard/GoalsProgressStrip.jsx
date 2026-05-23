@@ -136,7 +136,7 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
               />
             </div>
           </div>
-          {onOpen && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />}
+          {onOpen && <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 rtl:scale-x-[-1]" />}
         </div>
       </Card>
     </motion.div>

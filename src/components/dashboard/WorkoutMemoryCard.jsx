@@ -96,7 +96,7 @@ export default function WorkoutMemoryCard({ logs = [] }) {
                 {tFallback('memory.replayHint', 'Hit the gym today to top it.')}
               </p>
             </div>
-            <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1]" aria-hidden="true" />
           </button>
           <button
             onClick={handleDismiss}

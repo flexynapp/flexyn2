@@ -148,7 +148,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
             </p>
           </div>
           {!doneToday && (
-            <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground" />
+            <ArrowRight className="w-4 h-4 shrink-0 text-muted-foreground rtl:scale-x-[-1]" />
           )}
         </button>
       </Card>

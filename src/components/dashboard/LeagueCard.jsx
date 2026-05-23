@@ -79,7 +79,7 @@ export default function LeagueCard({ onClick }) {
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 opacity-80" />
+            <ChevronRight className="w-4 h-4 opacity-80 rtl:scale-x-[-1]" />
           </div>
 
           {/* Rank + days */}

@@ -185,7 +185,19 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
               transition={isCelebrating ? { duration: 0.4, ease: 'easeInOut' } : { duration: 0.3 }}
               style={{ overflow: 'hidden', pointerEvents: isCelebrating ? 'none' : 'auto' }}
             >
-              <Card onClick={onOpen} style={onOpen ? { cursor: 'pointer' } : {}} className={`${compact ? 'p-3' : 'p-5'} shadow-lg transition-shadow h-full border ${
+              <Card
+                // Match the keyboard-accessibility pattern used by
+                // GoalsProgressStrip + HydrationRing — Card is a div,
+                // so onClick alone isn't reachable via Tab+Enter.
+                onClick={onOpen}
+                role={onOpen ? 'button' : undefined}
+                tabIndex={onOpen ? 0 : undefined}
+                aria-label={onOpen ? tFallback('goals.almostComplete.openLabel', 'Open goals') : undefined}
+                onKeyDown={onOpen ? (e) => {
+                  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); }
+                } : undefined}
+                style={onOpen ? { cursor: 'pointer' } : {}}
+                className={`${compact ? 'p-3' : 'p-5'} shadow-lg transition-shadow h-full border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
                 isComplete
                   ? 'bg-gradient-to-br from-green-500/15 to-green-500/5 border-green-500/40'
                   : 'bg-gradient-to-br from-accent/15 to-accent/5 border-accent/30'
@@ -222,7 +234,7 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
                           className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white"
                           disabled={isCelebrating}
                         >
-                          <Trophy className="w-3 h-3 mr-1" /> {t('goals.pushToComplete')}
+                          <Trophy className="w-3 h-3 me-1" /> {t('goals.pushToComplete')}
                         </Button>
                       </motion.div>
                     )}

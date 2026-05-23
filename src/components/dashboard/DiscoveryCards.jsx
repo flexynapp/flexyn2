@@ -154,7 +154,7 @@ function DiscoveryCard({
               className={`mt-3 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold transition-opacity ${a.btn}`}
             >
               {ctaLabel}
-              <ArrowRight className="w-4 h-4 stroke-[2.5]" />
+              <ArrowRight className="w-4 h-4 stroke-[2.5] rtl:scale-x-[-1]" />
             </button>
           </div>
           <button

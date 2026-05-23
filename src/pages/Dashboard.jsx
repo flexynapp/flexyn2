@@ -165,7 +165,7 @@ function HeroCard({ streak, hasWorkedOutToday, daysSinceLast, onPrimary, t }) {
                 className="shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30"
                 whileHover={{ rotate: 5 }}
               >
-                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5" />
+                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" />
               </motion.div>
             </motion.button>
           </div>
@@ -240,7 +240,7 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0 }) {
         <Icon className="w-4 h-4 text-foreground/70 group-hover:text-primary transition-colors" />
       </div>
       <span className="font-heading font-semibold text-sm flex-1 leading-tight">{label}</span>
-      <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+      <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0 rtl:scale-x-[-1]" />
     </motion.div>
   );
 
@@ -615,7 +615,7 @@ export default function Dashboard() {
                 <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">Repeat last workout</p>
                 <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
               </div>
-              <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform" />
+              <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
             </button>
           </motion.div>
         );

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, X, FlipHorizontal, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -116,6 +116,23 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
       streamRef.current = null;
     }
   };
+
+  // Unmount cleanup — if the component is removed while the camera
+  // is still active (parent route change, error boundary trigger,
+  // modal closed via Esc through Radix Dialog without going through
+  // closeCamera), explicit user-action handlers never fire. Without
+  // this, the MediaStream tracks keep running indefinitely: camera
+  // privacy light stays on, RAM/CPU leak. Capture streamRef into a
+  // local so the cleanup closure does the right thing if streamRef
+  // is reassigned between effect run and unmount.
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
 
   const capturePhoto = () => {
     if (!videoRef.current || !canvasRef.current) return;

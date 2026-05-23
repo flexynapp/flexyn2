@@ -80,7 +80,7 @@ export default function StreakRescueCard({ streakDays, lastWorkoutDate, lastMeal
         >
           <X className="w-4 h-4" />
         </button>
-        <ArrowRight className="w-4 h-4 text-orange-500 shrink-0" aria-hidden="true" />
+        <ArrowRight className="w-4 h-4 text-orange-500 shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
       </motion.div>
     </AnimatePresence>
   );

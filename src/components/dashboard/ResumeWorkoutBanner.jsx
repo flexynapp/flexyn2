@@ -133,7 +133,7 @@ export default function ResumeWorkoutBanner() {
             <X className="w-4 h-4" />
           )}
         </button>
-        <ArrowRight className="w-4 h-4 text-primary shrink-0" aria-hidden="true" />
+        <ArrowRight className="w-4 h-4 text-primary shrink-0 rtl:scale-x-[-1]" aria-hidden="true" />
       </motion.div>
     </AnimatePresence>
   );

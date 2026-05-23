@@ -248,7 +248,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
             className={`mt-2 inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold text-white transition-colors ${c.btn}`}
           >
             {nudge.cta}
-            <ArrowRight className="w-3 h-3" aria-hidden="true" />
+            <ArrowRight className="w-3 h-3 rtl:scale-x-[-1]" aria-hidden="true" />
           </button>
         </div>
         <button
