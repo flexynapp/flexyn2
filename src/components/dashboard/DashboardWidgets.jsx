@@ -12,21 +12,28 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
   const [activeWidgets, setActiveWidgets] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
 
-  // Load saved widgets from localStorage
+  // Load saved widgets from localStorage. The outer try/catch covers
+  // Safari private-mode + iOS quota-exceeded — both throw on the bare
+  // `localStorage.getItem` call before any JSON parsing happens.
   useEffect(() => {
-    const saved = localStorage.getItem('dashboardWidgets');
-    if (saved) {
-      try {
+    try {
+      const saved = localStorage.getItem('dashboardWidgets');
+      if (saved) {
         setActiveWidgets(JSON.parse(saved));
-      } catch {
-        setActiveWidgets([]);
       }
+    } catch {
+      setActiveWidgets([]);
     }
   }, []);
 
-  // Save widgets to localStorage whenever they change
+  // Save widgets to localStorage whenever they change. Same Safari /
+  // quota concerns as above — wrap so a write failure doesn't surface
+  // as an uncaught error (would land in the parent ErrorBoundary and
+  // crash the whole widget grid for a non-critical persistence issue).
   useEffect(() => {
-    localStorage.setItem('dashboardWidgets', JSON.stringify(activeWidgets));
+    try {
+      localStorage.setItem('dashboardWidgets', JSON.stringify(activeWidgets));
+    } catch { /* best-effort — quota / private mode */ }
   }, [activeWidgets]);
 
   const handleAddWidget = (widgetId) => {

@@ -19,7 +19,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, X, History } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWorkoutSessions } from '@/hooks/useWorkoutSessions';
 
@@ -30,6 +30,13 @@ export default function ResumeWorkoutBanner() {
   const navigate = useNavigate();
   const { sessions, removeSession } = useWorkoutSessions();
   const [confirmDiscardId, setConfirmDiscardId] = useState(null);
+  // Hold the discard-confirm timeout ID so we can clear it on subsequent
+  // taps + on unmount. Without this, every tap that flipped state to
+  // "confirm?" leaked an untracked setTimeout — if the user tapped the X
+  // again to confirm (or the banner unmounted), the timeout still fired
+  // ~3s later and called setState on an unmounted component (React
+  // warning in dev, slow leak in prod).
+  const discardTimeoutRef = useRef(null);
 
   // Auto-evict stale (>24h) sessions on mount — keeping them around
   // makes the banner act like an annoying "you have nothing to do"
@@ -45,6 +52,19 @@ export default function ResumeWorkoutBanner() {
     }
 
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cleanup any pending auto-revert when the banner unmounts (route
+  // change, session removed, parent re-render). MUST be declared
+  // before the early-return below — rules-of-hooks requires every
+  // hook to run on every render in the same order.
+  useEffect(() => {
+    return () => {
+      if (discardTimeoutRef.current) {
+        clearTimeout(discardTimeoutRef.current);
+        discardTimeoutRef.current = null;
+      }
+    };
+  }, []);
 
   // Pick the most recent live (non-stale) session. We deliberately
   // show one banner at a time — stacking multiple resume banners
@@ -77,6 +97,13 @@ export default function ResumeWorkoutBanner() {
 
   const handleDiscard = (e) => {
     e.stopPropagation();
+    // Cancel any in-flight auto-revert before transitioning state —
+    // the previous timeout would otherwise fire ~3s later and call
+    // setState on a (potentially) unmounted component.
+    if (discardTimeoutRef.current) {
+      clearTimeout(discardTimeoutRef.current);
+      discardTimeoutRef.current = null;
+    }
     if (confirmDiscardId === session.id) {
       removeSession(session.id);
       setConfirmDiscardId(null);
@@ -85,7 +112,10 @@ export default function ResumeWorkoutBanner() {
       // Auto-revert the confirm state after 3s if user doesn't tap
       // again (so an accidental tap doesn't leave the banner in a
       // weird "tap × to confirm" state forever).
-      setTimeout(() => setConfirmDiscardId((cur) => (cur === session.id ? null : cur)), 3000);
+      discardTimeoutRef.current = setTimeout(() => {
+        setConfirmDiscardId((cur) => (cur === session.id ? null : cur));
+        discardTimeoutRef.current = null;
+      }, 3000);
     }
   };
 
