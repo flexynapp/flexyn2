@@ -19,6 +19,8 @@ import * as userMutesData  from '@/lib/data/userMutes';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { useTheme } from '@/lib/ThemeContext';
 import { Sun } from 'lucide-react';
+import TwoFactorSection from './TwoFactorSection';
+import ConnectedAppsSection from './ConnectedAppsSection';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
 import { useAuth } from '@/lib/AuthContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -867,6 +869,14 @@ export default function SettingsPanel() {
           )}
         </div>
       </div>
+
+      {/* Two-factor auth status + enrollment flow. Lives just above
+          Privacy because account security is a related concern. */}
+      <TwoFactorSection />
+
+      {/* Connected apps — placeholder for Strava / Apple Health /
+          Google Fit integrations (coming soon). */}
+      <ConnectedAppsSection />
 
       {/* Privacy mode toggles (mig 117). Optimistic + reverting on
           failure; both flags persist to user_profiles so the choice
