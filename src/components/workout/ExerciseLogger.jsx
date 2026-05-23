@@ -161,6 +161,59 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           <Plus className="w-3.5 h-3.5 mr-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise) : t('workout.addSet')}
         </Button>
       </motion.div>
+
+      {/* Per-exercise tempo + notes — both optional, both hidden behind
+          a single collapsed chevron so the default ExerciseLogger
+          stays compact. Each persists onto the exercise object via
+          the existing onChange path and lands in the JSONB exercises
+          column on save. */}
+      <ExerciseExtras exercise={exercise} onChange={onChange} />
     </Card>
+  );
+}
+
+// ── Tempo + notes drawer ──────────────────────────────────────────────────────
+function ExerciseExtras({ exercise, onChange }) {
+  const hasExtras = !!(exercise?.tempo || exercise?.notes);
+  const [open, setOpen] = React.useState(hasExtras);
+  return (
+    <div className="mt-3 pt-2 border-t border-border/40">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className={`text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
+          hasExtras ? 'text-primary' : 'text-muted-foreground hover:text-foreground'
+        }`}
+      >
+        {open ? '▾' : '▸'} Tempo · notes {hasExtras && <span className="opacity-70">·</span>}
+        {exercise?.tempo && <span className="font-mono text-[10px] opacity-80">{exercise.tempo}</span>}
+      </button>
+      {open && (
+        <div className="mt-2 space-y-2">
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Tempo</label>
+            <input
+              type="text"
+              value={exercise?.tempo || ''}
+              onChange={(e) => onChange({ ...exercise, tempo: e.target.value.slice(0, 12) || null })}
+              placeholder="3-1-2  (ecc-pause-conc)"
+              maxLength={12}
+              className="w-full mt-0.5 px-2 py-1 text-xs font-mono bg-secondary/40 border border-border rounded-md outline-none focus:border-primary/50"
+            />
+          </div>
+          <div>
+            <label className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Notes</label>
+            <textarea
+              value={exercise?.notes || ''}
+              onChange={(e) => onChange({ ...exercise, notes: e.target.value.slice(0, 240) || null })}
+              placeholder="Felt weak today, lower the working weight next time…"
+              rows={2}
+              maxLength={240}
+              className="w-full mt-0.5 px-2 py-1.5 text-xs bg-secondary/40 border border-border rounded-md outline-none focus:border-primary/50 resize-none"
+            />
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

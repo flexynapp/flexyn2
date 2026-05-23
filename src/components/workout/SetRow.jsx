@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Trophy, X, Flame } from 'lucide-react';
+import { Trophy, X, Flame, Gauge } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -28,6 +28,14 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   const { t } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
   const maxReps = getMaxRealisticReps(exerciseName, set.weight || 0, userProfile);
+
+  // Effort-tracking fields (RPE / RIR) are stored on the set object
+  // alongside weight + reps. Hidden by default behind a small chevron
+  // so the row stays compact for users who don't track effort. The
+  // expand-state persists across sets via a session-only flag that
+  // lights up when ANY of the fields has a value.
+  const hasEffortData = (set.rpe != null && set.rpe !== '') || (set.rir != null && set.rir !== '');
+  const [effortOpen, setEffortOpen] = useState(hasEffortData);
 
   // Plate calculator — shown for barbell exercises when weight ≥ bar weight
   // set.weight is always stored internally in lbs
@@ -142,10 +150,74 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       >
         <Flame className={`w-3.5 h-3.5 ${set.is_warmup ? 'fill-orange-500' : ''}`} />
       </button>
+      {/* Effort tracking toggle — opens an inline RPE/RIR row. Active
+          (tinted) when any effort field has a value so the user sees
+          at-a-glance which sets carry effort data. */}
+      <button
+        type="button"
+        onClick={() => setEffortOpen(o => !o)}
+        aria-label={effortOpen ? 'Hide effort fields' : 'Show effort fields'}
+        title="RPE / RIR"
+        className={[
+          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors',
+          hasEffortData
+            ? 'bg-blue-500/15 text-blue-500'
+            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+        ].join(' ')}
+      >
+        <Gauge className="w-3.5 h-3.5" />
+      </button>
       <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRemove}>
         <X className="w-3.5 h-3.5 text-muted-foreground" />
       </Button>
     </div>
+    {/* RPE / RIR inline row — optional per-set effort data. RPE is the
+        canonical "1-10 how hard was that?" scale; RIR is its mirror
+        ("how many more reps could you have done"). Standard in
+        evidence-based programming (Renaissance Periodization, etc.). */}
+    {effortOpen && (
+      <div className="flex items-center gap-2 mt-1.5 pl-8 pr-2">
+        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          RPE
+        </label>
+        <Input
+          type="number"
+          min="1"
+          max="10"
+          step="0.5"
+          inputMode="decimal"
+          value={set.rpe ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === '') return onChange({ ...set, rpe: null });
+            const num = parseFloat(v);
+            if (Number.isNaN(num)) return;
+            onChange({ ...set, rpe: Math.max(1, Math.min(10, num)) });
+          }}
+          placeholder="1–10"
+          className="h-7 text-center text-xs flex-1"
+        />
+        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          RIR
+        </label>
+        <Input
+          type="number"
+          min="0"
+          max="10"
+          inputMode="numeric"
+          value={set.rir ?? ''}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v === '') return onChange({ ...set, rir: null });
+            const num = parseInt(v, 10);
+            if (Number.isNaN(num)) return;
+            onChange({ ...set, rir: Math.max(0, Math.min(10, num)) });
+          }}
+          placeholder="0–5"
+          className="h-7 text-center text-xs flex-1"
+        />
+      </div>
+    )}
     {/* PR proximity bar — visible at >=70% of PR. Renders nothing
         below that threshold so warmup sets stay quiet. */}
     <PRProximityBar
