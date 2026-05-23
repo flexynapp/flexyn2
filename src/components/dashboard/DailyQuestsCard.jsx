@@ -4,7 +4,7 @@
 // (idempotent), polls for progress changes, and lets the user claim coin
 // rewards when quests complete.
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -56,11 +56,29 @@ export default function DailyQuestsCard({ onNavigated }) {
     return () => clearInterval(id);
   }, [refetch]);
 
+  // Per-quest in-flight guard. claim_quest_atomic IS server-side
+  // idempotent (the second call returns success=false with
+  // already_claimed=true), but a rapid double-tap would still flash
+  // an error toast on the second click. Using a Set in a ref so we
+  // don't trigger a re-render on every claim — just block the
+  // duplicate before it leaves the client.
+  const claimingRef = useRef(new Set());
+
   const handleClaim = async (questRow) => {
     if (questRow.claimed_at) return;
     if (!questRow.completed_at) return;
+    if (claimingRef.current.has(questRow.id)) return; // already claiming this row
+    claimingRef.current.add(questRow.id);
     triggerHaptic('primary');
-    const result = await quests.claimQuest(user, questRow.id);
+    try {
+      const result = await quests.claimQuest(user, questRow.id);
+      await handleClaimResult(result, questRow);
+    } finally {
+      claimingRef.current.delete(questRow.id);
+    }
+  };
+
+  const handleClaimResult = async (result, questRow) => {
     if (result.success) {
       toast.success(t('dashboard.coinsClaimedToast').replace('{coins}', result.coinsAwarded), { icon: '🪙' });
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });

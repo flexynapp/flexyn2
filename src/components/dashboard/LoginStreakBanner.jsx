@@ -111,10 +111,10 @@ export default function LoginStreakBanner() {
           <span className="font-heading font-bold tabular-nums">{streak}</span>
           {/* Milestone flame — visually richer as the streak grows.
               See StreakFlame for tier definitions. */}
-          <StreakFlame days={streak} size={14} className="ml-1" />
+          <StreakFlame days={streak} size={14} className="ms-1" />
           <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
-            <span className="ml-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
+            <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
               {t('dashboard.best')}
             </span>
           )}

@@ -169,7 +169,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               className="flex-1"
               disabled={!value || !date || saveMutation.isPending}
             >
-              {saveMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              {saveMutation.isPending && <Loader2 className="w-4 h-4 me-2 animate-spin" />}
               {tFallback('dashboard.logWeight.cta', 'Log weight')}
             </Button>
           </div>

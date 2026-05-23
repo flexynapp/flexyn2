@@ -62,7 +62,7 @@ export default function LeagueCard({ onClick }) {
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      className="block w-full text-left"
+      className="block w-full text-start"
     >
       <Card className="overflow-hidden border-border/60 theme-card-accent">
         {/* Top stripe — gradient by tier */}
@@ -95,7 +95,7 @@ export default function LeagueCard({ onClick }) {
                 </span>
               </p>
             </div>
-            <div className="text-right">
+            <div className="text-end">
               <p className="text-[10px] uppercase tracking-wider opacity-80">
                 {tFallback('league.daysLeft', 'Days left')}
               </p>

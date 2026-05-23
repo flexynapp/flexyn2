@@ -160,7 +160,7 @@ function Body({ data, userId, t, tFallback }) {
                           : (m.user_email?.split('@')[0] || 'Athlete')}
                       </p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-end">
                       <p className="font-heading font-bold text-sm tabular-nums">
                         {fmt(m.weekly_xp || 0)} XP
                       </p>

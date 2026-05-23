@@ -145,7 +145,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
                       style={{ width: `${Math.min(pct, 100)}%`, background: m.color }}
                     />
                   </div>
-                  <span className="text-[11px] font-semibold w-16 text-right tabular-nums">
+                  <span className="text-[11px] font-semibold w-16 text-end tabular-nums">
                     {consumed}{m.unit !== 'kcal' ? `/${goal}${m.unit}` : ''}
                   </span>
                 </div>

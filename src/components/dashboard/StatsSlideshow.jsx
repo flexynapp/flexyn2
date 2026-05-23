@@ -55,7 +55,7 @@ function WeeklyVolumeChart({ logs }) {
         <div className="w-8 h-8 rounded-xl bg-blue-500/10 flex items-center justify-center">
           <BarChart2 className="w-4 h-4 text-blue-500" />
         </div>
-        <div className="text-left">
+        <div className="text-start">
           <p className="text-sm font-heading font-bold">{t('widgets.weeklyVolume')}</p>
           <p className="text-xs text-muted-foreground">{t('stats.lbsPerSession')}</p>
         </div>
@@ -112,7 +112,7 @@ function TopExerciseChart({ logs }) {
         <div className="w-8 h-8 rounded-xl bg-accent/10 flex items-center justify-center">
           <TrendingUp className="w-4 h-4 text-accent" />
         </div>
-        <div className="text-left">
+        <div className="text-start">
           <p className="text-sm font-heading font-bold truncate max-w-[180px]">{translateExerciseName(exName, language)}</p>
           <p className="text-xs text-muted-foreground">{t('stats.maxWeightTrend')}</p>
         </div>
