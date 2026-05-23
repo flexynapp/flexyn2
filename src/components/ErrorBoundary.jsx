@@ -53,6 +53,44 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import * as Sentry from '@sentry/react';
 import { LanguageContext } from '@/lib/LanguageContext';
 
+// A "chunk load" error means the user's cached index bundle points at a
+// hash-named chunk URL that no longer exists on the CDN — almost always
+// because the user has an outdated index.html / service-worker cache
+// while a new deploy has replaced the chunk hashes. The fix is a hard
+// reload to fetch the fresh index.html that references current chunks.
+// One-shot reload guarded by sessionStorage so we never loop forever
+// if the underlying cause is a real bug rather than stale cache.
+const CHUNK_RELOAD_FLAG = 'flexyn.chunkReloadAttemptedAt';
+function isChunkLoadError(error) {
+  if (!error) return false;
+  const msg = (error.message || String(error)).toLowerCase();
+  return (
+    msg.includes('dynamically imported module') ||
+    msg.includes('failed to fetch dynamically imported module') ||
+    msg.includes('loading chunk') ||
+    msg.includes('loading css chunk') ||
+    msg.includes('importing a module script failed')
+  );
+}
+function tryChunkReload() {
+  try {
+    const last = Number(sessionStorage.getItem(CHUNK_RELOAD_FLAG) || '0');
+    // Only reload once per ~minute — if the error fires again within
+    // that window, the cause isn't stale cache and the user should see
+    // the regular boundary so they can copy details / report it.
+    if (Date.now() - last < 60_000) return false;
+    sessionStorage.setItem(CHUNK_RELOAD_FLAG, String(Date.now()));
+  } catch { /* private mode / quota — proceed without the guard */ }
+  // Bypass the SW + HTTP caches by forcing a hard reload of the entry.
+  try {
+    if (typeof window !== 'undefined') {
+      window.location.reload();
+      return true;
+    }
+  } catch { /* ignore */ }
+  return false;
+}
+
 class ErrorBoundaryClass extends React.Component {
   constructor(props) {
     super(props);
@@ -72,6 +110,15 @@ class ErrorBoundaryClass extends React.Component {
       '\nComponent stack:',
       info.componentStack
     );
+
+    // Stale-deploy / dynamic-import-chunk failure path. Auto-reload once
+    // to pick up the new index.html. If we DO trigger the reload, we
+    // skip Sentry capture — repeated stale-cache events would otherwise
+    // swamp the error budget with non-actionable noise.
+    if (isChunkLoadError(error) && tryChunkReload()) {
+      return;
+    }
+
     Sentry.captureException(error, {
       contexts: {
         react: { componentStack: info.componentStack },
