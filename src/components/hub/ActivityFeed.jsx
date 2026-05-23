@@ -13,21 +13,25 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 
-// Maps notification type → icon + color
-const TYPE_CONFIG = {
-  hub_like:      { Icon: ThumbsUp,      color: 'text-primary',     bg: 'bg-primary/10' },
-  hub_comment:   { Icon: MessageCircle, color: 'text-blue-500',    bg: 'bg-blue-500/10' },
-  follow:        { Icon: UserPlus,      color: 'text-green-500',   bg: 'bg-green-500/10' },
-  friend_follow: { Icon: UserPlus,      color: 'text-green-500',   bg: 'bg-green-500/10' },
-  hub_repost:    { Icon: Repeat2,       color: 'text-primary',     bg: 'bg-primary/10' },
-  friend_post:   { Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
-};
+// Maps notification type → icon + color.
+// Checked against live DB: types are post_like, post_reaction, friend_follow, friend_post.
+const TYPE_CONFIG = [
+  { match: 'post_like',     Icon: ThumbsUp,      color: 'text-primary',     bg: 'bg-primary/10' },
+  { match: 'hub_like',      Icon: ThumbsUp,      color: 'text-primary',     bg: 'bg-primary/10' },
+  { match: 'post_reaction', Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
+  { match: 'hub_reaction',  Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
+  { match: 'post_comment',  Icon: MessageCircle, color: 'text-blue-500',    bg: 'bg-blue-500/10' },
+  { match: 'hub_comment',   Icon: MessageCircle, color: 'text-blue-500',    bg: 'bg-blue-500/10' },
+  { match: 'follow',        Icon: UserPlus,      color: 'text-green-500',   bg: 'bg-green-500/10' },
+  { match: 'hub_repost',    Icon: Repeat2,       color: 'text-primary',     bg: 'bg-primary/10' },
+  { match: 'friend_post',   Icon: Heart,         color: 'text-rose-500',    bg: 'bg-rose-500/10' },
+];
 
 function getConfig(type) {
   if (!type) return null;
-  for (const [key, cfg] of Object.entries(TYPE_CONFIG)) {
-    if (type.toLowerCase().includes(key)) return cfg;
-  }
+  const lc = type.toLowerCase();
+  const found = TYPE_CONFIG.find(c => lc.includes(c.match));
+  if (found) return found;
   return { Icon: Activity, color: 'text-muted-foreground', bg: 'bg-secondary' };
 }
 
@@ -60,13 +64,14 @@ function ActivityRow({ item, index }) {
           <span className="font-semibold">{item.title || 'Someone'}</span>{' '}
           <span className="text-muted-foreground">{item.body || ''}</span>
         </p>
-        <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(item.created_at || item.created_date)}</p>
+        <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(item.created_at)}</p>
       </div>
     </motion.div>
   );
 }
 
-const SOCIAL_TYPES = ['hub_like', 'hub_comment', 'follow', 'friend_follow', 'hub_repost', 'friend_post', 'social'];
+// Includes both legacy "hub_*" names and actual DB names (post_like, post_reaction, etc.)
+const SOCIAL_TYPES = ['post_like', 'post_reaction', 'post_comment', 'friend_follow', 'friend_post', 'hub_like', 'hub_comment', 'hub_repost', 'follow'];
 
 export default function ActivityFeed() {
   const { user } = useAuth();
@@ -76,24 +81,28 @@ export default function ActivityFeed() {
     queryKey: ['activityFeed', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Fetch recent social notifications for this user
+      // Fetch recent social notifications for this user.
+      // Only select columns that exist in the notifications table.
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, type, title, body, created_at, created_date, category')
+        .select('id, type, title, body, created_at')
         .eq('user_id', user.id)
         .or(SOCIAL_TYPES.map(t => `type.ilike.%${t}%`).join(','))
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) {
-        // Fallback: query without type filter if the ilike array isn't supported
+        // Fallback: return all recent notifications for this user
+        // (the ilike OR chain failed — likely PostgREST version mismatch)
         const { data: all } = await supabase
           .from('notifications')
-          .select('id, type, title, body, created_at, created_date, category')
+          .select('id, type, title, body, created_at')
           .eq('user_id', user.id)
-          .in('category', ['social', 'engagement'])
           .order('created_at', { ascending: false })
           .limit(50);
-        return all || [];
+        // Filter social types client-side
+        return (all || []).filter(n =>
+          SOCIAL_TYPES.some(t => (n.type || '').toLowerCase().includes(t))
+        );
       }
       return data || [];
     },
