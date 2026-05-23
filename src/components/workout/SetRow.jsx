@@ -50,8 +50,24 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   const liveEstimate = epleyOneRepMax(set.weight, set.reps);
   const isPRSet = priorBest > 0 && liveEstimate > priorBest;
 
+  // Flash a prominent "NEW PR 🎉" pill on the false→true edge so the
+  // user sees the win in real time. We keep the small inline trophy
+  // too for the at-a-glance read once the flash fades.
+  const wasPRRef = React.useRef(isPRSet);
+  const [showPRFlash, setShowPRFlash] = useState(false);
+  React.useEffect(() => {
+    if (!wasPRRef.current && isPRSet) {
+      setShowPRFlash(true);
+      const id = setTimeout(() => setShowPRFlash(false), 2500);
+      wasPRRef.current = true;
+      return () => clearTimeout(id);
+    }
+    if (!isPRSet) wasPRRef.current = false;
+    return undefined;
+  }, [isPRSet]);
+
   return (
-    <div>
+    <div className="relative">
     <div className="flex items-center gap-2">
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
       <div className="flex-1">
@@ -118,6 +134,23 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           className="h-9 text-center"
         />
       </div>
+      {/* Prominent "NEW PR" flash — slides in for ~2.5s on the
+          false→true PR edge, then fades back to the tiny inline
+          trophy below for at-a-glance reads. The two are layered:
+          flash is absolute-positioned above the row, the trophy
+          stays inline so the post-flash state still reads as PR. */}
+      {showPRFlash && (
+        <motion.span
+          initial={{ x: -10, opacity: 0, scale: 0.9 }}
+          animate={{ x: 0, opacity: 1, scale: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 380, damping: 18 }}
+          className="absolute -top-3 right-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-amber-500/30 pointer-events-none"
+          aria-live="polite"
+        >
+          🎉 New PR
+        </motion.span>
+      )}
       {/* PR auto-tag — inline trophy between reps and delete. Springs
           in when the set crosses the all-time PR threshold. */}
       {isPRSet && (
