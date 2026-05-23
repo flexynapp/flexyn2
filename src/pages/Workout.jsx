@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2 } from 'lucide-react';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -41,6 +41,7 @@ import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
 import ExerciseAutocomplete, { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
 import GroupBlock from '@/components/workout/GroupBlock';
+import WorkoutElapsedChip from '@/components/workout/WorkoutElapsedChip';
 import InjuryBanner from '@/components/workout/InjuryBanner';
 // InjuryForm is lazy in BOTH places it mounts (ProfileMenu + here)
 // so the chunk only loads when the user actually opens the form.
@@ -105,6 +106,11 @@ export default function Workout() {
   const { weightUnit } = useWeightUnit();
   const [started, setStarted] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState(null);
+  // Workout start time (ISO). Set when a session starts, persisted in
+  // the paused-workout localStorage so resuming after a refresh keeps
+  // the timer continuous. Drives the live MM:SS clock in the header
+  // AND the auto-filled duration field on save.
+  const [startedAt, setStartedAt] = useState(null);
 
   // Live-activity presence (migration 088). When the user starts a
   // workout, mark them active for 90 min so followers see a green dot
@@ -170,12 +176,27 @@ export default function Workout() {
   const location = useLocation();
   const navigate  = useNavigate();
 
+  // One-shot: when a session starts and no startedAt is set yet
+  // (i.e. this is a NEW session, not a resume), stamp the current
+  // time so the elapsed-timer can run from this moment. A resume
+  // path sets startedAt explicitly from the paused snapshot.
+  useEffect(() => {
+    if (started && !startedAt) {
+      setStartedAt(new Date().toISOString());
+    }
+    if (!started && startedAt) {
+      // Workout reset / saved — clear the start so a fresh session
+      // doesn't inherit the old timer value.
+      setStartedAt(null);
+    }
+  }, [started, startedAt]);
+
   const workoutStateRef = React.useRef({});
-  workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes };
+  workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt };
 
   useEffect(() => {
     return () => {
-      const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes } = workoutStateRef.current;
+      const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt } = workoutStateRef.current;
       if (started && activeSessionId) {
         pauseWorkoutSync({
           id: activeSessionId,
@@ -184,6 +205,7 @@ export default function Workout() {
           date,
           duration,
           notes,
+          startedAt,
           // Timestamp powers the "Resume Chest Day · 14 min ago" banner
           // on the Dashboard. Without it the banner can't show relative
           // age and can't auto-evict stale (>24h) drafts.
@@ -215,6 +237,10 @@ export default function Workout() {
         if (session.date) setDate(session.date);
         if (typeof session.duration === 'number') setDuration(session.duration);
         if (typeof session.notes === 'string') setNotes(session.notes);
+        // Resume the elapsed-time counter from the saved start. Without
+        // this the clock would reset to 0 on reload mid-session, which
+        // would lie about how long the workout has been running.
+        if (typeof session.startedAt === 'string') setStartedAt(session.startedAt);
         setStarted(true);
         navigate(location.pathname, { replace: true, state: null });
       } catch { /* corrupted localStorage — ignore */ }
@@ -1139,11 +1165,21 @@ export default function Workout() {
         : null,
     }));
 
+    // Auto-fill duration from the live elapsed timer when the user
+    // didn't supply a manual value. Strong / Hevy / Jefit all default
+    // to "real session time" — counting yourself is awful UX.
+    const elapsedMin = startedAt
+      ? Math.max(1, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000))
+      : null;
+    const effectiveDuration = duration
+      ? Math.min(parseInt(duration) || 0, 360)
+      : (elapsedMin ? Math.min(elapsedMin, 360) : null);
+
     const pendingPayload = {
       regimen_id: selectedRegimen?.id || '',
       regimen_name: selectedRegimen?.name || t('workout.freestyle'),
       date,
-      duration_minutes: duration ? Math.min(parseInt(duration) || 0, 360) : null,
+      duration_minutes: effectiveDuration,
       exercises: pendingExercises,
       notes,
     };
@@ -1951,9 +1987,14 @@ export default function Workout() {
     >
       <div className="flex items-center justify-between mb-2">
         <div>
-          <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight">
-            {selectedRegimen?.name || t('workout.freestyle')}
-          </h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight">
+              {selectedRegimen?.name || t('workout.freestyle')}
+            </h1>
+            {/* Live elapsed timer — counts up from session start. The
+                chip clears on workout reset / save (startedAt nulls). */}
+            <WorkoutElapsedChip startedAt={startedAt} />
+          </div>
           <p className="text-muted-foreground text-sm mt-0.5">{t('workout.logSetsReps')}</p>
         </div>
         <Button variant="outline" size="sm" onClick={() => resetWorkout(activeSessionId)}>{t('common.cancel')}</Button>
@@ -2053,17 +2094,57 @@ export default function Workout() {
                   workoutLogs={rawLogs}
                 />
                 <div className="absolute top-3 right-3 flex items-center gap-1">
-                  {!selectedRegimen && (
+                  {/* Group with previous as a superset — one-tap pairing
+                      that fills in group_id on both exercises so the
+                      GroupBlock renderer picks them up on next render.
+                      Only meaningful when the previous exercise exists
+                      AND neither is already in a group. */}
+                  {i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && (
                     <button
                       type="button"
-                      onClick={() => setExercises(exercises.filter((_, idx) => idx !== i))}
-                      className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                      aria-label="Remove exercise"
-                      title="Remove exercise"
+                      onClick={() => {
+                        const gid = `group_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+                        const next = exercises.map((e, idx) => {
+                          if (idx === i || idx === i - 1) {
+                            return { ...e, group_id: gid, group_meta: { type: 'superset' } };
+                          }
+                          return e;
+                        });
+                        setExercises(next);
+                        toast.success('Paired as superset with the previous exercise.');
+                      }}
+                      className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-colors"
+                      aria-label="Pair with previous exercise as superset"
+                      title="Pair as superset"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Link2 className="w-3.5 h-3.5" />
                     </button>
                   )}
+                  {/* Skip / remove. Always visible during an active
+                      session — if a machine is taken, the user shouldn't
+                      have to dig through a menu to move on. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const removed = exercises[i];
+                      setExercises(exercises.filter((_, idx) => idx !== i));
+                      toast.success(`Skipped ${removed?.displayName || removed?.name || 'exercise'}.`, {
+                        action: {
+                          label: 'Undo',
+                          onClick: () => setExercises(prev => {
+                            const next = [...prev];
+                            next.splice(i, 0, removed);
+                            return next;
+                          }),
+                        },
+                      });
+                    }}
+                    className="p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                    aria-label="Skip this exercise"
+                    title="Skip exercise"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
                 </div>
               </motion.div>
             );
