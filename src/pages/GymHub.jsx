@@ -51,6 +51,11 @@ export default function GymHub() {
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('feed');
   const [signageOpen, setSignageOpen] = useState(false);
+  // Membership check — false until proven true so we don't flash the
+  // full member-only feed/leaderboard to a non-member on first render.
+  const [isMember, setIsMember] = useState(false);
+  const [membershipChecked, setMembershipChecked] = useState(false);
+  const [joining, setJoining] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -58,7 +63,44 @@ export default function GymHub() {
     getGym(id).then(g => { setGym(g); setLoading(false); });
   }, [id]);
 
+  // Check membership separately so the gym detail can render while
+  // membership resolves. The gym_members table has a public-read RLS
+  // so this query is allowed for any authenticated user.
+  useEffect(() => {
+    if (!id || !user?.id) { setMembershipChecked(true); return; }
+    let cancelled = false;
+    (async () => {
+      const { supabase } = await import('@/api/supabaseClient');
+      const { data } = await supabase
+        .from('gym_members')
+        .select('id')
+        .eq('gym_id', id)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      if (!cancelled) {
+        setIsMember(!!data);
+        setMembershipChecked(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [id, user?.id]);
+
   const isOwner = !!(gym && user?.id && gym.owner_id === user.id);
+
+  // Join from the hub itself (used by the "Join this gym" preview CTA).
+  const handleJoinHere = async () => {
+    if (!gym || joining) return;
+    setJoining(true);
+    const { joinByCode } = await import('@/lib/data/gymBusinesses');
+    const res = await joinByCode(gym.flexyn_code);
+    setJoining(false);
+    if (res.ok) {
+      toast.success(`Joined ${gym.name}.`);
+      setIsMember(true);
+    } else {
+      toast.error("Couldn't join — try again.");
+    }
+  };
 
   if (loading) {
     return (
@@ -167,7 +209,7 @@ export default function GymHub() {
             >
               <Share2 className="w-3.5 h-3.5" /> Share
             </Button>
-            {isOwner ? (
+            {isOwner && (
               <Button
                 variant="outline"
                 size="sm"
@@ -176,7 +218,8 @@ export default function GymHub() {
               >
                 <Pencil className="w-3.5 h-3.5" /> Edit
               </Button>
-            ) : (
+            )}
+            {!isOwner && isMember && (
               <Button
                 variant="outline"
                 size="sm"
@@ -199,27 +242,50 @@ export default function GymHub() {
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-border mb-4">
-        {TABS.map(({ id: tid, label, Icon }) => (
-          <button
-            key={tid}
-            type="button"
-            onClick={() => setTab(tid)}
-            className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === tid
-                ? 'border-primary text-primary'
-                : 'border-transparent text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" /> {label}
-          </button>
-        ))}
-      </div>
+      {/* Non-member preview — when you arrive from the map or a
+          shared link without belonging to the gym yet, the feed /
+          events / leaderboard are RLS-empty anyway. Skip the tabs
+          entirely and render a clean "join to unlock" preview
+          instead. Owners always count as members for this check. */}
+      {membershipChecked && !isMember && !isOwner && (
+        <div className="rounded-2xl border border-dashed border-primary/40 bg-primary/5 p-5 text-center">
+          {gym.description && (
+            <p className="text-sm text-foreground/85 mb-4 leading-relaxed">{gym.description}</p>
+          )}
+          <p className="text-xs text-muted-foreground mb-3">
+            Join to access the local feed, events, and member leaderboard.
+          </p>
+          <Button onClick={handleJoinHere} disabled={joining} className="gap-2 px-6">
+            {joining ? <Loader2 className="w-4 h-4 animate-spin" /> : <Building2 className="w-4 h-4" />}
+            {joining ? 'Joining…' : 'Join this gym'}
+          </Button>
+        </div>
+      )}
 
-      {tab === 'feed'        && <FeedTab        gymId={id} />}
-      {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} />}
-      {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
+      {(isMember || isOwner) && (
+        <>
+          <div className="flex gap-1 border-b border-border mb-4">
+            {TABS.map(({ id: tid, label, Icon }) => (
+              <button
+                key={tid}
+                type="button"
+                onClick={() => setTab(tid)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  tab === tid
+                    ? 'border-primary text-primary'
+                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" /> {label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'feed'        && <FeedTab        gymId={id} />}
+          {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} />}
+          {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
+        </>
+      )}
 
       {signageOpen && (
         <Suspense fallback={null}>

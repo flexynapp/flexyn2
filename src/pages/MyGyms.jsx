@@ -20,7 +20,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
-import { listMyGyms, joinByCode } from '@/lib/data/gymBusinesses';
+import { listMyGyms, joinByCode, getGymsInBbox } from '@/lib/data/gymBusinesses';
 
 export default function MyGyms() {
   const { user } = useAuth();
@@ -30,6 +30,10 @@ export default function MyGyms() {
   const [codeInput, setCodeInput] = useState('');
   const [joining, setJoining] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  // Discovery rail when the user has no joined gyms — uses browser
+  // geolocation to pull the 6 nearest demo + real gyms in a ~50km
+  // radius. Soft-fails on permission denial; the rail simply hides.
+  const [nearby, setNearby] = useState([]);
 
   // Shared join handler — used by both the typed-code form submit and
   // the QR scanner's onDetect. Wraps the same joinByCode + UX flow so
@@ -65,6 +69,33 @@ export default function MyGyms() {
   };
 
   useEffect(() => { refresh(); }, [user?.id]);
+
+  // When the user has no joined gyms yet, try to pull a handful of
+  // nearby ones using their current location. Doesn't run if they
+  // already joined gyms (those are the priority surface) OR if they
+  // deny location. ~50km bbox = roughly "your metro."
+  useEffect(() => {
+    if (loading || gyms.length > 0) { setNearby([]); return; }
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude, lng = pos.coords.longitude;
+        // ~0.5° lat × 0.5° lng ≈ 55 km × (40-55 km depending on
+        // latitude). Wider than the user's neighborhood, narrow
+        // enough to feel local.
+        const rows = await getGymsInBbox({
+          minLat: lat - 0.5, maxLat: lat + 0.5,
+          minLng: lng - 0.5, maxLng: lng + 0.5,
+          limit: 6,
+        });
+        if (!cancelled) setNearby(rows);
+      },
+      () => { /* permission denied — rail stays hidden */ },
+      { timeout: 5_000, maximumAge: 600_000 },
+    );
+    return () => { cancelled = true; };
+  }, [loading, gyms.length]);
 
   const handleJoin = (e) => {
     e?.preventDefault?.();
@@ -144,12 +175,42 @@ export default function MyGyms() {
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
       ) : gyms.length === 0 ? (
-        <EmptyState
-          icon={Building2}
-          title="No gyms joined yet"
-          body="Scan the QR code or type the Flexyn Code at your gym to join its community, or browse the map to find one near you."
-          action={{ label: 'Browse map', onClick: () => navigate('/gym-map') }}
-        />
+        <>
+          <EmptyState
+            icon={Building2}
+            title="No gyms joined yet"
+            body="Scan the QR code or type the Flexyn Code at your gym to join its community, or browse the map to find one near you."
+            action={{ label: 'Browse map', onClick: () => navigate('/gym-map') }}
+          />
+          {nearby.length > 0 && (
+            <div className="mt-4">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2 px-1">
+                Near you
+              </p>
+              <div className="space-y-2">
+                {nearby.map(g => (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => navigate(`/gym/${g.id}`)}
+                    className="w-full text-left rounded-2xl border border-border bg-card p-3 hover:border-primary/30 transition-colors flex items-center gap-3"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <Building2 className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-heading font-bold text-sm truncate">{g.name}</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {[g.city, g.state_code].filter(Boolean).join(', ')} · {g.member_count ?? 0} members
+                      </p>
+                    </div>
+                    <ArrowRight className="w-4 h-4 text-muted-foreground" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       ) : (
         <div className="space-y-2">
           {gyms.map(g => (
