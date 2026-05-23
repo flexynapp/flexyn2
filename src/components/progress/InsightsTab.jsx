@@ -13,8 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Clock, Flame, Target, BarChart3, Download,
-  ChevronDown, ChevronUp, TrendingDown, TrendingUp,
-  Scale, Activity, Dumbbell, CheckCircle2, Info,
+  TrendingDown, TrendingUp,
+  Scale, Activity, Dumbbell, Info,
 } from 'lucide-react';
 import { format, differenceInDays, differenceInWeeks, addDays } from 'date-fns';
 import { useWeightUnit } from '@/lib/WeightUnitContext';

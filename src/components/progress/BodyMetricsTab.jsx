@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
+import CycleTrackerCard from '@/components/wellness/CycleTrackerCard';
 import { motion } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -319,6 +320,12 @@ export default function BodyMetricsTab() {
 
   return (
     <div className="space-y-6">
+      {/* Cycle tracker — opt-in, owner-only. Sits at the top of the
+          body-metrics surface where the user is already looking at
+          private health data. Mig 128 ships the cycle_logs table +
+          cycle_tracking_enabled flag (off by default). */}
+      <CycleTrackerCard profile={profile} />
+
       {/* Profile stats: height, weight, age */}
        {editingProfile === null ? (
          <div className="w-full grid grid-cols-3 gap-3 md:gap-4">
