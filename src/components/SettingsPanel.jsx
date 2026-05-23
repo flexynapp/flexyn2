@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon } from 'lucide-react';
+import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon, BellOff } from 'lucide-react';
 import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
 import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
@@ -334,6 +334,57 @@ export default function SettingsPanel() {
    
   }, [profile?.notification_prefs]);
 
+  // ── Per-category temporary snooze (mig 127) ─────────────────────────
+  // Local mirror of profile.notification_snoozes. Optimistic on change;
+  // re-fetches on profile invalidation. Auto-prunes expired entries on
+  // load so a stale snooze never shows as still-active.
+  const [snoozes, setSnoozes] = useState({});
+  const [snoozeOpenFor, setSnoozeOpenFor] = useState(null);
+  useEffect(() => {
+    const raw = profile?.notification_snoozes;
+    if (raw && typeof raw === 'object') {
+      const live = {};
+      const now = Date.now();
+      for (const [k, v] of Object.entries(raw)) {
+        const t = Date.parse(v);
+        if (Number.isFinite(t) && t > now) live[k] = v;
+      }
+      setSnoozes(live);
+    } else {
+      setSnoozes({});
+    }
+  }, [profile?.notification_snoozes]);
+
+  const handleSnoozeCategory = async (category, minutes) => {
+    const { snoozeCategory } = await import('@/lib/data/notificationSnooze');
+    const prev = snoozes;
+    const optimistic = { ...snoozes };
+    if (!minutes) {
+      delete optimistic[category];
+    } else {
+      optimistic[category] = new Date(Date.now() + minutes * 60_000).toISOString();
+    }
+    setSnoozes(optimistic);
+    setSnoozeOpenFor(null);
+    const expiry = await snoozeCategory(category, minutes);
+    if (minutes && !expiry) {
+      // RPC failed silently — revert.
+      setSnoozes(prev);
+      toast.error(tFallback('settings.snooze.failed', 'Could not snooze — try again.'));
+      return;
+    }
+    queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+  };
+
+  const formatSnoozeLeft = (iso) => {
+    const ms = Date.parse(iso) - Date.now();
+    if (!Number.isFinite(ms) || ms <= 0) return null;
+    const mins = Math.ceil(ms / 60_000);
+    if (mins < 60) return `${mins}m`;
+    const hrs = Math.ceil(mins / 60);
+    return `${hrs}h`;
+  };
+
   const handlePrefToggle = async (category) => {
     if (!prefs) return;
     const next = !prefs[category];
@@ -600,17 +651,65 @@ export default function SettingsPanel() {
             { key: 'engagement',   icon: Heart,  label: tFallback('settings.push.engagement',   'Welcome back') },
           ].map(({ key, icon: Icon, label }) => {
             const labelId = `settings-push-pref-label-${key}`;
+            const snoozeExpiry = snoozes[key];
+            const snoozeLeft = snoozeExpiry ? formatSnoozeLeft(snoozeExpiry) : null;
+            const isOn = prefs[key] !== false;
+            const snoozeOpen = snoozeOpenFor === key;
             return (
-              <div key={key} className="flex items-center justify-between gap-3">
+              <div key={key} className="relative flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <Icon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
                   <p id={labelId} className="text-[11px] text-muted-foreground leading-tight">{label}</p>
                 </div>
-                <ToggleSwitch
-                  checked={prefs[key] !== false}
-                  onChange={() => handlePrefToggle(key)}
-                  labelledBy={labelId}
-                />
+                <div className="flex items-center gap-1.5">
+                  {isOn && (
+                    <button
+                      type="button"
+                      onClick={() => setSnoozeOpenFor(snoozeOpen ? null : key)}
+                      className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide transition-colors ${
+                        snoozeLeft
+                          ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                          : 'text-muted-foreground/70 hover:bg-secondary/50 hover:text-foreground'
+                      }`}
+                      aria-label={tFallback('settings.snooze.label', 'Snooze')}
+                    >
+                      <BellOff className="w-2.5 h-2.5" />
+                      {snoozeLeft || ''}
+                    </button>
+                  )}
+                  <ToggleSwitch
+                    checked={isOn}
+                    onChange={() => handlePrefToggle(key)}
+                    labelledBy={labelId}
+                  />
+                </div>
+                {snoozeOpen && (
+                  <div className="absolute right-12 top-6 z-30 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-card border border-border shadow-xl">
+                    {[
+                      { mins: 60,    label: '1h' },
+                      { mins: 240,   label: '4h' },
+                      { mins: 1440,  label: '24h' },
+                    ].map(opt => (
+                      <button
+                        key={opt.mins}
+                        type="button"
+                        onClick={() => handleSnoozeCategory(key, opt.mins)}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-secondary/60 hover:bg-secondary text-foreground"
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                    {snoozeLeft && (
+                      <button
+                        type="button"
+                        onClick={() => handleSnoozeCategory(key, 0)}
+                        className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide text-destructive hover:bg-destructive/10"
+                      >
+                        {tFallback('settings.snooze.clear', 'Clear')}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}
