@@ -233,8 +233,20 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
 /**
  * Mark all unread incoming messages in a conversation as read.
  * localStorage is updated immediately so the badge clears instantly.
- * DB read_at is also updated — works once migration 011 is applied (which
- * broadens the hub_messages UPDATE policy to allow participants, not just sender).
+ *
+ * DB read_at is set via the `mark_message_read` SECURITY DEFINER RPC
+ * (migration 141). The previous version called .update({read_at}) on
+ * each row directly, which required the over-broad hub_messages UPDATE
+ * RLS policy from mig 011 — that policy was tightened in 141 because
+ * it also permitted recipients to rewrite sender content. The RPC is
+ * column-scoped (only flips read_at) and gates on conversation
+ * membership server-side.
+ *
+ * The post-migration RPC path is the primary write. If a host hasn't
+ * yet applied 141 the RPC isn't defined and the direct UPDATE is
+ * attempted as a one-shot fallback; both failures are swallowed
+ * because read_at drift is a soft UX issue (the badge clears via the
+ * localStorage write above either way).
  */
 export const markRead = async (conversationId, myEmail) => {
   if (!conversationId || !myEmail) return;
@@ -252,12 +264,20 @@ export const markRead = async (conversationId, myEmail) => {
     m.sender_email?.toLowerCase() !== myEmailLc && !m.read_at
   );
 
-  const now = new Date().toISOString();
-  // These updates succeed after migration 011; silently ignored if RLS still blocks.
+  // RPC fan-out — server validates membership + column-restricts to read_at.
+  // Pre-141 fallback: try the direct UPDATE so the soft UX path doesn't
+  // regress on hosts that haven't applied the migration yet. Both swallow
+  // errors; the localStorage badge clear above is the source of truth
+  // for the immediate UI.
   await Promise.all(
-    unread.map(m =>
-      msg().update(m.id, { read_at: now }).catch(() => {})
-    )
+    unread.map(async (m) => {
+      const { error } = await supabase.rpc('mark_message_read', { p_message_id: m.id });
+      if (error && (error.code === '42883' || error.code === '42P01')) {
+        // Pre-141 host — RPC not deployed. Direct update succeeds while
+        // the old broad RLS policy is still in place.
+        await msg().update(m.id, { read_at: new Date().toISOString() }).catch(() => {});
+      }
+    })
   );
 };
 
