@@ -10,6 +10,7 @@ import { toLbs, formatWeightNumber } from '../../lib/weightUnit';
 import { useLanguage } from '@/lib/LanguageContext';
 import { parseSetInput } from '@/lib/parseSetInput';
 import { epleyOneRepMax } from '@/lib/oneRepMax';
+import { triggerHaptic } from '@/lib/haptic';
 import PRProximityBar from './PRProximityBar';
 import PlateDiagram from './PlateDiagram';
 import { getActiveBarLbs, platesPerSide } from '@/lib/barInventory';
@@ -120,8 +121,20 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               onChange({ ...set, weight: null });
             } else {
               const val = parseFloat(raw);
-              const lbs = isNaN(val) ? null : toLbs(Math.max(0, val), weightUnit);
-              onChange({ ...set, weight: lbs == null ? null : Math.min(maxWeight, lbs) });
+              if (isNaN(val)) { onChange({ ...set, weight: null }); return; }
+              const lbs = toLbs(Math.max(0, val), weightUnit);
+              const clamped = Math.min(maxWeight, lbs);
+              // Audit B-1 — silent clamp was opaque ("I typed 5000 and
+              // it shows 500"). Surface a one-shot toast naming the cap
+              // so the user knows the system corrected them on purpose.
+              if (lbs > maxWeight + 0.5) {
+                const capDisplay = formatWeightNumber(maxWeight, weightUnit);
+                toast.message(`Capped at ${capDisplay} ${weightUnit}`, {
+                  description: 'Anti-cheat: weight exceeds realistic limit for your profile.',
+                  duration: 2200,
+                });
+              }
+              onChange({ ...set, weight: clamped });
             }
           }}
           onPaste={e => {
@@ -141,8 +154,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             const clampedWeight = Math.min(maxWeight, Math.max(0, lbs));
             const clampedReps = Math.min(maxReps, Math.max(0, parsed.reps));
             onChange({ ...set, weight: clampedWeight, reps: clampedReps });
-            try { navigator.vibrate?.(10); } catch { /* ignore */ }
-            toast.success('Set parsed', { duration: 1200 });
+            triggerHaptic?.('light'); // respects per-device haptics toggle (audit B-5)
+            toast.success(`Set parsed — ${formatWeightNumber(clampedWeight, weightUnit)} ${weightUnit} × ${clampedReps}`, { duration: 1500 });
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
@@ -183,7 +196,17 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
               onChange({ ...set, reps: null });
             } else {
               const val = parseInt(raw);
-              onChange({ ...set, reps: isNaN(val) ? null : Math.min(maxReps, Math.max(0, val)) });
+              if (isNaN(val)) { onChange({ ...set, reps: null }); return; }
+              const clean = Math.max(0, val);
+              const clamped = Math.min(maxReps, clean);
+              // Audit B-1 — surface the rep clamp the same way as weight.
+              if (clean > maxReps) {
+                toast.message(`Capped at ${maxReps} reps`, {
+                  description: 'Anti-cheat: rep count exceeds realistic limit at that weight.',
+                  duration: 2200,
+                });
+              }
+              onChange({ ...set, reps: clamped });
             }
           }}
           onKeyDown={e => {

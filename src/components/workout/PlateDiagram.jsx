@@ -14,14 +14,17 @@
 
 import React from 'react';
 
+// White-on-white was invisible in light-mode cards (audit B-7) — the
+// 20/15/10 lb plates disappeared against bg-card. Switched to a muted
+// slate that reads in both themes.
 const PLATE_STYLE = {
   55:  { color: '#dc2626', h: 56 }, // red
   45:  { color: '#2563eb', h: 56 }, // blue
   35:  { color: '#eab308', h: 46 }, // yellow
   25:  { color: '#16a34a', h: 38 }, // green
-  20:  { color: '#fff', h: 38 },    // white
-  15:  { color: '#fff', h: 32 },    // white-ish small
-  10:  { color: '#f5f5f5', h: 30 },
+  20:  { color: '#cbd5e1', h: 38 }, // slate-300 — visible in both themes
+  15:  { color: '#cbd5e1', h: 32 },
+  10:  { color: '#94a3b8', h: 30 }, // slate-400
   5:   { color: '#94a3b8', h: 22 },
   2.5: { color: '#64748b', h: 16 },
   1.25:{ color: '#475569', h: 12 },

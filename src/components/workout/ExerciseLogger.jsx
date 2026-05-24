@@ -14,6 +14,7 @@ import { useRestTimer } from '@/lib/RestTimerContext';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '../../lib/weightUnit';
+import { triggerHaptic } from '@/lib/haptic';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -70,7 +71,9 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     }
     if (best > 0 && best > sessionBest1RMRef.current) {
       sessionBest1RMRef.current = best;
-      try { if (navigator.vibrate) navigator.vibrate([50, 30, 100]); } catch {}
+      // Audit B-5 — route through triggerHaptic so the user's
+      // per-device haptics-disabled setting is respected.
+      triggerHaptic?.('success');
     }
   };
 
@@ -79,12 +82,14 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       toast.info(t('workout.maxSetsToast').replace('{count}', maxSetsPerExercise));
       return;
     }
-    const lastSet = sets[sets.length - 1] || { weight: null, reps: null };
-    // Only start the rest timer if the previous set has actually been logged
-    // (has weight or reps) — otherwise the user is just preparing the first
-    // set and doesn't need to rest yet.
-    const previousSetLogged = !!(lastSet.weight || lastSet.reps);
-    onChange({ ...exercise, sets: [...sets, { weight: lastSet.weight, reps: lastSet.reps }] });
+    // Inherit from the last NON-warmup set so a warmup→working transition
+    // doesn't carry warmup weight into the working set silently (audit
+    // C-13). Falls back to the last set when no working set exists yet.
+    const lastWorking = [...sets].reverse().find(s => !s.is_warmup);
+    const seed = lastWorking || sets[sets.length - 1] || { weight: null, reps: null };
+    const previousSetLogged = !!(seed.weight || seed.reps);
+    // is_warmup explicitly false so the new set never inherits the flag.
+    onChange({ ...exercise, sets: [...sets, { weight: seed.weight, reps: seed.reps, is_warmup: false }] });
     if (previousSetLogged) {
       startRestTimer();
     }
@@ -97,13 +102,18 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
     // Auto-start the rest timer the moment a set transitions to
-    // "fully logged" (both weight + reps present) when it wasn't
-    // before. Previously the timer only started on Add Set — a user
-    // who finished their last set without immediately adding a new
-    // row got no rest cue at all.
-    const wasComplete = !!(prev.weight && prev.reps);
-    const isNowComplete = !!(updated.weight && updated.reps);
-    if (!wasComplete && isNowComplete && !updated.is_warmup) {
+    // "fully logged". For barbell/DB lifts that means both weight + reps;
+    // for bodyweight exercises (pushups, pullups), weight = 0 is the
+    // valid normal state — gating on (weight > 0) suppressed the
+    // timer entirely for bodyweight users (audit C-14). Use reps as
+    // the canonical completion signal, augmented by weight for loaded
+    // exercises.
+    const repsBecameValid = !(prev.reps > 0) && (updated.reps > 0);
+    const weightBecameValid = !(prev.weight > 0) && (updated.weight > 0);
+    const justCompleted = isBodyweight
+      ? repsBecameValid
+      : (repsBecameValid || weightBecameValid) && !!(updated.weight && updated.reps);
+    if (justCompleted && !updated.is_warmup) {
       startRestTimer();
     }
   };

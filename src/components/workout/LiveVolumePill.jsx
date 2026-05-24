@@ -13,7 +13,7 @@
 // — counts up smoothly rather than snapping. Colors shift at volume
 // thresholds (orange tint past 5k, gold pulse past 15k).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight, fromLbs } from '@/lib/weightUnit';
@@ -35,7 +35,11 @@ function totalVolumeLbs(exercises = []) {
 
 export default function LiveVolumePill({ exercises = [] }) {
   const { weightUnit } = useWeightUnit();
-  const totalLbs = useMemo(() => totalVolumeLbs(exercises), [exercises]);
+  // Recompute totalVolumeLbs every render — the parent's `exercises`
+  // is a new reference on every keystroke so useMemo with [exercises]
+  // never memoized anyway (audit A-9). Direct compute is cheaper than
+  // the memo bookkeeping.
+  const totalLbs = totalVolumeLbs(exercises);
 
   // Tween the rendered number toward `totalLbs` so the pill counts
   // UP / DOWN smoothly rather than snapping. Motion-value-driven so

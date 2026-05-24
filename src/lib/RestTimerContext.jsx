@@ -62,6 +62,10 @@ export function RestTimerProvider({ children }) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   const tickRef = useRef(null);
   const completedFiredRef = useRef(false);
+  // Audit A-2 — track the auto-dismiss timeout so a new timer starting
+  // within the 2s dismiss window doesn't get killed by the prior
+  // completion's stale setTimeout.
+  const autoDismissRef = useRef(null);
 
   // Persist preferences
   useEffect(() => {
@@ -97,11 +101,15 @@ export function RestTimerProvider({ children }) {
         completedFiredRef.current = true;
         fireCompletionFeedback(soundEnabled);
         if (voiceCuesEnabled) speakRestComplete();
-        // Auto-dismiss after 2 seconds at zero
-        setTimeout(() => {
+        // Auto-dismiss after 2s. Tracked so start()/addTime() can cancel
+        // it — otherwise a new timer started within the window gets
+        // killed by this stale callback (audit A-2).
+        if (autoDismissRef.current) clearTimeout(autoDismissRef.current);
+        autoDismissRef.current = setTimeout(() => {
           setActive(false);
           setEndsAt(null);
           completedFiredRef.current = false;
+          autoDismissRef.current = null;
         }, 2000);
       }
     };
@@ -114,6 +122,12 @@ export function RestTimerProvider({ children }) {
   const start = useCallback((seconds) => {
     if (!restTimerEnabled) return;
     const dur = Number.isFinite(seconds) && seconds > 0 ? seconds : defaultDuration;
+    // Cancel any pending auto-dismiss from a just-completed timer so
+    // this new one isn't killed by a stale callback (audit A-2).
+    if (autoDismissRef.current) {
+      clearTimeout(autoDismissRef.current);
+      autoDismissRef.current = null;
+    }
     completedFiredRef.current = false;
     lastSpokenSecRef.current = null;
     setTotalSeconds(dur);
@@ -124,6 +138,10 @@ export function RestTimerProvider({ children }) {
   }, [defaultDuration, restTimerEnabled, voiceCuesEnabled]);
 
   const stop = useCallback(() => {
+    if (autoDismissRef.current) {
+      clearTimeout(autoDismissRef.current);
+      autoDismissRef.current = null;
+    }
     setActive(false);
     setEndsAt(null);
     setSecondsLeft(0);
@@ -133,6 +151,17 @@ export function RestTimerProvider({ children }) {
   const addTime = useCallback((deltaSeconds) => {
     if (!active || endsAt == null) return;
     const newEnd = Math.max(Date.now() + 1000, endsAt + deltaSeconds * 1000);
+    // Audit A-3 — extending past completion re-arms the countdown.
+    // Cancel the auto-dismiss and reset the fired flag so the next
+    // zero-crossing fires completion feedback again.
+    if (autoDismissRef.current) {
+      clearTimeout(autoDismissRef.current);
+      autoDismissRef.current = null;
+    }
+    if (newEnd > Date.now()) {
+      completedFiredRef.current = false;
+      lastSpokenSecRef.current = null;
+    }
     setEndsAt(newEnd);
     setTotalSeconds(prev => Math.max(prev, Math.ceil((newEnd - Date.now()) / 1000)));
   }, [active, endsAt]);
@@ -184,12 +213,25 @@ export function useRestTimer() {
 
 /* ── Audio + haptic feedback ─────────────────────────────────────────── */
 
+// Pool of pending audio contexts so we can both close them on the
+// 1s timeout AND forcibly close stragglers when a new completion
+// fires. Browser AudioContext quota is typically 6; aggressive HIIT
+// intervals can race through that without this cap (audit A-11).
+const _pendingAudioContexts = new Set();
+
 function fireCompletionFeedback(soundEnabled) {
   if (soundEnabled) {
     try {
       const AC = window.AudioContext || window.webkitAudioContext;
       if (AC) {
+        // Forcibly close oldest contexts if we're at the cap.
+        while (_pendingAudioContexts.size >= 4) {
+          const oldest = _pendingAudioContexts.values().next().value;
+          try { oldest.close(); } catch {}
+          _pendingAudioContexts.delete(oldest);
+        }
         const ctx = new AC();
+        _pendingAudioContexts.add(ctx);
         // Three short rising beeps
         const tones = [880, 1108, 1318];
         const startTime = ctx.currentTime;
@@ -207,8 +249,11 @@ function fireCompletionFeedback(soundEnabled) {
           osc.start(t0);
           osc.stop(t0 + 0.18);
         });
-        // Auto-close context after the last beep
-        setTimeout(() => { try { ctx.close(); } catch {} }, 1000);
+        // Auto-close after the last beep (~540ms of audio + buffer).
+        setTimeout(() => {
+          try { ctx.close(); } catch {}
+          _pendingAudioContexts.delete(ctx);
+        }, 1000);
       }
     } catch {}
   }

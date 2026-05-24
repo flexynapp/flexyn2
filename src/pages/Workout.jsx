@@ -499,13 +499,20 @@ export default function Workout() {
             p_delta: sessionVolume,
           });
           if (rpcErr) {
-            // RPC missing or denied — fall back to non-atomic update so
-            // the count at least advances on this device. Migration 023
-            // adds the RPC; this fallback exists for pre-migration users.
-            reportError(rpcErr, { feature: 'workout.volume-rpc', level: 'warning', userEmail: user?.email, sessionVolume, note: 'falling back to read-modify-write' });
-            const me = await db.auth.me();
-            const prev = Number(me?.total_volume_lbs) || 0;
-            await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
+            // Only fall back to read-modify-write when the RPC is
+            // confirmed-missing (function not found / table not found
+            // on pre-migration hosts). Falling back on ANY error — as
+            // we used to — re-introduces the lost-update race that
+            // mig 023's atomic UPDATE was designed to eliminate
+            // (audit A-12). Transient network/auth failures now
+            // surface as warnings instead of silently losing volume.
+            const isMissing = rpcErr.code === '42883' || rpcErr.code === '42P01';
+            reportError(rpcErr, { feature: 'workout.volume-rpc', level: 'warning', userEmail: user?.email, sessionVolume, isMissing });
+            if (isMissing) {
+              const me = await db.auth.me();
+              const prev = Number(me?.total_volume_lbs) || 0;
+              await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
+            }
           }
         } catch (volErr) {
           reportError(volErr, { feature: 'workout.volume-accumulate', level: 'warning', userEmail: user?.email, sessionVolume });
@@ -2273,7 +2280,7 @@ export default function Workout() {
       <motion.div whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className="mt-6">
         <Button
           className="w-full h-12 font-heading font-bold text-base mb-8"
-          onClick={saveWorkout}
+          onClick={() => saveWorkout()}
           disabled={exercises.length === 0 || saveMutation.isPending}
         >
           <Save className="w-5 h-5 mr-2" />
