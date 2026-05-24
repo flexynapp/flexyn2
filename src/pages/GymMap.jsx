@@ -94,32 +94,38 @@ const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 
 // ── OpenStreetMap gym layer ───────────────────────────────────────────
 // Queries the free Overpass API for fitness_centre / gym nodes in the
-// current bounding box. Only fires at zoom ≥ 8 — below that we'd ask
-// for hundreds of thousands of points and crash the browser.
-// No API key required. Rate-limited client-side: min 800ms between requests.
+// current bounding box. Fires at zoom ≥ 5 (state/region level) so you
+// get a Google-Maps-style dense view of all gyms globally.
+// No API key required. AbortController prevents stale concurrent requests.
+//
+// Result cap scales with zoom so the API isn't overloaded at wide view:
+//   zoom 5-6 → 600   (regional, sparse dots)
+//   zoom 7+  → 1200  (city/neighborhood, dense dots)
 
-const OSM_ZOOM_THRESHOLD = 8;
-const OSM_RESULT_CAP     = 400;
-let   lastOsmFetch       = 0;
+const OSM_ZOOM_THRESHOLD = 5;
 
-async function fetchOsmGyms(bounds, signal) {
-  const now = Date.now();
-  if (now - lastOsmFetch < 800) return null; // client-side throttle
-  lastOsmFetch = now;
+function osmResultCap(zoom) {
+  return zoom >= 7 ? 1200 : 600;
+}
 
-  const s = bounds.getSouth().toFixed(5);
-  const w = bounds.getWest().toFixed(5);
-  const n = bounds.getNorth().toFixed(5);
-  const e = bounds.getEast().toFixed(5);
+async function fetchOsmGyms(bounds, zoom, signal) {
+  const s = bounds.getSouth().toFixed(4);
+  const w = bounds.getWest().toFixed(4);
+  const n = bounds.getNorth().toFixed(4);
+  const e = bounds.getEast().toFixed(4);
   const bbox = `${s},${w},${n},${e}`;
+  const cap  = osmResultCap(zoom);
 
+  // Two-union query: leisure=fitness_centre (most common OSM tag for gyms)
+  // and amenity=gym (older/US convention). Ways include `out center` so we
+  // get a single lat/lon even for polygon-mapped buildings.
   const query =
-    `[out:json][timeout:15];` +
+    `[out:json][timeout:25];` +
     `(node["leisure"="fitness_centre"](${bbox});` +
     ` node["amenity"="gym"](${bbox});` +
     ` way["leisure"="fitness_centre"](${bbox});` +
     ` way["amenity"="gym"](${bbox}););` +
-    `out center ${OSM_RESULT_CAP};`;
+    `out center ${cap};`;
 
   const res = await fetch(
     `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
@@ -130,35 +136,39 @@ async function fetchOsmGyms(bounds, signal) {
 
   return (json.elements || []).map(el => ({
     osmId:   el.id,
-    name:    el.tags?.name || el.tags?.['name:en'] || 'Unnamed gym',
+    name:    el.tags?.name || el.tags?.['name:en'] || 'Gym',
     lat:     el.type === 'node' ? el.lat : el.center?.lat,
     lon:     el.type === 'node' ? el.lon : el.center?.lon,
-    brand:   el.tags?.brand || null,
+    brand:   el.tags?.brand   || null,
     website: el.tags?.website || null,
-    phone:   el.tags?.phone || null,
+    phone:   el.tags?.phone   || null,
   })).filter(g => g.lat && g.lon);
 }
 
-// Tiny grey dot for OSM gyms — muted so they don't compete with
-// the Flexyn purple pins or the orange Camp Quannapowitt pin.
+// Grey teardrop pinpoint for unregistered OSM gyms — same SVG shape as
+// the orange Flexyn pin but smaller (18×26) and desaturated so Flexyn
+// pins always win visually. Hover brightens + lifts.
 function buildOsmDotElement({ gym, onClick }) {
   const el = document.createElement('button');
   el.type = 'button';
   el.title = gym.name;
   el.style.cssText = [
-    'width:8px;height:8px;border-radius:50%;',
-    'background:#9ca3af;border:1.5px solid rgba(255,255,255,0.7);',
-    'cursor:pointer;padding:0;',
-    'box-shadow:0 1px 3px rgba(0,0,0,0.2);',
-    'transition:transform 100ms ease-out, background 100ms;',
+    'background:none;border:none;padding:0;cursor:pointer;',
+    'display:block;transition:transform 120ms ease-out;',
+    'filter:drop-shadow(0 1px 2px rgba(0,0,0,0.30));',
   ].join('');
+  el.innerHTML = `<svg width="14" height="20" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
+          fill="#9ca3af" stroke="#ffffff" stroke-width="2.5"/>
+    <circle cx="16" cy="15" r="6" fill="rgba(255,255,255,0.35)"/>
+  </svg>`;
   el.onmouseenter = () => {
-    el.style.background = '#6b7280';
-    el.style.transform = 'scale(1.8)';
+    el.style.transform = 'scale(1.5) translateY(-2px)';
+    el.querySelector('path').setAttribute('fill', '#6b7280');
   };
   el.onmouseleave = () => {
-    el.style.background = '#9ca3af';
-    el.style.transform = 'scale(1)';
+    el.style.transform = 'scale(1) translateY(0)';
+    el.querySelector('path').setAttribute('fill', '#9ca3af');
   };
   el.onclick = (e) => { e.stopPropagation(); onClick?.(gym); };
   return el;
@@ -262,19 +272,20 @@ export default function GymMap() {
     setGyms(rows);
     setLoading(false);
 
-    // ── OSM gyms (only when zoomed to city level) ─────────────────
+    // ── OSM gyms (all real-world gyms as grey pinpoints) ─────────
     if (zoom < OSM_ZOOM_THRESHOLD) {
-      // Clear dots when zoomed out — too many to render meaningfully
       setOsmGyms([]);
       return;
     }
-    // Cancel any in-flight OSM request before starting a new one
+    // Cancel any in-flight OSM request before starting a new one.
+    // AbortController is the sole concurrency guard — no module-level
+    // timestamp throttle needed (the debounce above handles frequency).
     osmAbortRef.current?.abort();
     const controller = new AbortController();
     osmAbortRef.current = controller;
     try {
-      const dots = await fetchOsmGyms(b, controller.signal);
-      if (dots) setOsmGyms(dots);
+      const dots = await fetchOsmGyms(b, zoom, controller.signal);
+      if (dots && !controller.signal.aborted) setOsmGyms(dots);
     } catch (err) {
       if (err.name !== 'AbortError') {
         console.warn('[GymMap] OSM fetch failed:', err.message);
@@ -475,16 +486,29 @@ export default function GymMap() {
               <Loader2 className="w-3 h-3 animate-spin text-muted-foreground" />
               <span className="text-muted-foreground">Loading…</span>
             </>
-          ) : visibleCount === 0 ? (
+          ) : visibleCount === 0 && osmGyms.length === 0 ? (
             <span className="text-muted-foreground">
               {search ? 'No matches — try a different city' : 'No gyms here — pinch out to find some'}
             </span>
           ) : (
             <>
-              <span className="text-primary text-sm">{visibleCount}</span>
-              <span className="text-muted-foreground">
-                gym{visibleCount === 1 ? '' : 's'} {isCountryView ? 'nationwide' : 'in view'}
-              </span>
+              {visibleCount > 0 && (
+                <>
+                  <span className="text-primary text-sm">{visibleCount}</span>
+                  <span className="text-muted-foreground">
+                    Flexyn{visibleCount === 1 ? '' : ''}
+                  </span>
+                </>
+              )}
+              {visibleCount > 0 && osmGyms.length > 0 && (
+                <span className="text-muted-foreground">·</span>
+              )}
+              {osmGyms.length > 0 && (
+                <>
+                  <span className="text-muted-foreground text-sm">{osmGyms.length}</span>
+                  <span className="text-muted-foreground">nearby gyms</span>
+                </>
+              )}
             </>
           )}
         </div>
