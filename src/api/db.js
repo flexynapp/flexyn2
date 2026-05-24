@@ -488,7 +488,10 @@ async function _invokeDeleteAccount() {
     'hub_posts', 'hub_comments', 'hub_comment_likes', 'hub_reactions',
     'hub_messages',
   ];
-  // Newer tables (migrations 009, 010, 014, 016, 017, 007) — user_id only.
+  // user_id-owned tables across every migration up to 141. ADD ANY
+  // NEW USER-OWNED TABLE HERE WHEN ITS MIGRATION LANDS — see
+  // _audit_schema_drift.sql for a query that lists user_id columns
+  // present in the schema.
   const tables_with_user_id_only = [
     'user_inventory',           // loot owned
     'user_capsules',            // earned capsules
@@ -496,33 +499,78 @@ async function _invokeDeleteAccount() {
     'notifications',            // inbox
     'post_sticker_reactions',   // sticker reactions on posts
     'user_daily_quests',        // daily quest history
+    // ── Wellness / tracking (mig 094-097, 128, 129, 133)
+    'sleep_logs',
+    'mood_logs',
+    'recovery_scores',
+    'hydration_logs',
+    'cycle_logs',
+    'fitness_assessments',
+    'body_metrics_measurements',
+    // ── Crews & competition (mig 130, 132)
+    'crew_message_reactions',
+    'monthly_league_members',
+    // ── Injuries (mig 052) — was already covered via user_id; explicit here
+    'injury_logs',
+    // ── Gym ecosystem (mig 135-141)
+    'gym_members',
+    'gym_event_rsvps',
+    'gym_feed_post_reactions',
+    // ── Notification snoozes / push subscriptions (mig 033, 127)
+    'push_subscriptions',
+    // ── User mutes / blocks
+    'user_mutes',
+    'user_blocks',
   ];
 
-  await Promise.allSettled([
-    // created_by + user_id variants for the legacy tables
-    ...tables_with_created_by.map(t => supabase.from(t).delete().eq('created_by', email)),
-    ...tables_with_created_by.map(t => supabase.from(t).delete().eq('user_id', user.id)),
+  // PII-bearing tables where the user is the author/creator/owner.
+  // Each row contains identifying data (email, phone, address, body).
+  // We delete by user_id AND by the email-bearing column.
+  const pii_tables = [
+    // [table, idCol, emailCol]
+    ['gym_feed_posts',    'author_id',  'author_email'],
+    ['gym_feed_comments', 'author_id',  'author_email'],
+    ['gym_events',        'created_by', null],
+    ['gym_verification_queue', 'owner_id', null],
+    ['gym_businesses',    'owner_id',   null],
+  ];
 
-    // user_id-only newer tables
-    ...tables_with_user_id_only.map(t => supabase.from(t).delete().eq('user_id', user.id)),
+  // Run all deletes; collect any per-row failures. We previously used
+  // Promise.allSettled and ignored failures wholesale; that masked
+  // partial deletions (audit B-2/B-5). Now we report any non-empty
+  // failure list back to the caller.
+  const ops = [
+    ...tables_with_created_by.map(t => ({ name: t + '.created_by', p: supabase.from(t).delete().eq('created_by', email) })),
+    ...tables_with_created_by.map(t => ({ name: t + '.user_id',    p: supabase.from(t).delete().eq('user_id', user.id) })),
+    ...tables_with_user_id_only.map(t => ({ name: t + '.user_id',  p: supabase.from(t).delete().eq('user_id', user.id) })),
+    ...pii_tables.flatMap(([t, idCol, emailCol]) => {
+      const ops = [{ name: `${t}.${idCol}`, p: supabase.from(t).delete().eq(idCol, user.id) }];
+      if (emailCol) ops.push({ name: `${t}.${emailCol}`, p: supabase.from(t).delete().eq(emailCol, email) });
+      return ops;
+    }),
+    { name: 'marketplace_listings.seller_user_id', p: supabase.from('marketplace_listings').delete().eq('seller_user_id', user.id) },
+    { name: 'marketplace_listings.seller_email',   p: supabase.from('marketplace_listings').delete().eq('seller_email', email) },
+    { name: 'hub_reports.reporter_user_id',        p: supabase.from('hub_reports').delete().eq('reporter_user_id', user.id) },
+    { name: 'hub_reports.reporter_email',          p: supabase.from('hub_reports').delete().eq('reporter_email', email) },
+    { name: 'hub_posts.author_email',              p: supabase.from('hub_posts').delete().eq('author_email', email) },
+    { name: 'hub_follows.both',                    p: supabase.from('hub_follows').delete().or(`follower_email.eq.${email},followee_email.eq.${email}`) },
+    { name: 'hub_conversations.participant_emails', p: supabase.from('hub_conversations').delete().contains('participant_emails', [email]) },
+  ];
 
-    // marketplace_listings — owned via seller_user_id + seller_email
-    supabase.from('marketplace_listings').delete().eq('seller_user_id', user.id),
-    supabase.from('marketplace_listings').delete().eq('seller_email', email),
-
-    // hub_reports — owned via reporter_user_id + reporter_email
-    supabase.from('hub_reports').delete().eq('reporter_user_id', user.id),
-    supabase.from('hub_reports').delete().eq('reporter_email', email),
-
-    // hub_posts also has an `author_email` column distinct from `created_by`.
-    supabase.from('hub_posts').delete().eq('author_email', email),
-
-    // hub_follows uses two distinct identity columns.
-    supabase.from('hub_follows').delete().or(`follower_email.eq.${email},followee_email.eq.${email}`),
-
-    // hub_conversations is participant-based; delete any conversation we're in.
-    supabase.from('hub_conversations').delete().contains('participant_emails', [email]),
-  ]);
+  const results = await Promise.allSettled(ops.map(o => o.p));
+  const failures = [];
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      failures.push({ table: ops[i].name, error: r.reason?.message || String(r.reason) });
+    } else if (r.value?.error) {
+      // PostgREST returns 42P01 (table missing) on hosts that haven't run
+      // every migration — that's expected, not a deletion failure.
+      const code = r.value.error.code;
+      if (code !== '42P01' && code !== 'PGRST205' && code !== 'PGRST204') {
+        failures.push({ table: ops[i].name, error: r.value.error.message, code });
+      }
+    }
+  });
 
   // 3. Reset every cumulative / denormalized field on the user_profiles row
   //    AND clear every onboarding-collected field so a fresh start is truly
@@ -584,6 +632,14 @@ async function _invokeDeleteAccount() {
   });
 
   _clearProfile();
+
+  if (failures.length > 0) {
+    const err = new Error(`Partial deletion — ${failures.length} table(s) failed`);
+    err.failures = failures;
+    err.partial = true;
+    throw err;
+  }
+  return { success: true };
 }
 
 async function _invokeBarcodeLookup({ barcode } = {}) {

@@ -71,6 +71,44 @@
       the main bundle fails to load.
     -->
     <script>
+      // Theme bootstrap — must run BEFORE first paint so dark-mode and
+      // theme-color users don't see a one-frame light-theme flash. The
+      // ThemeContext effect applies these values after React mounts; this
+      // inline copy primes the DOM in the prior tick. Mirrors the same
+      // localStorage keys / THEMES table used by src/lib/ThemeContext.jsx
+      // (kept in sync by convention).
+      (function () {
+        try {
+          var saved = localStorage.getItem('fn-dark-mode');
+          if (saved === 'true') document.documentElement.classList.add('dark');
+        } catch (_) {}
+        try {
+          // Minimal subset — primary + ring vars for first paint. Full
+          // theme application happens once React mounts ThemeContext.
+          var THEME_VARS = {
+            'orange-slate':   { '--primary':'26 90% 50%',  '--ring':'26 90% 50%'  },
+            'electric-blue':  { '--primary':'221 83% 53%', '--ring':'221 83% 53%' },
+            'emerald':        { '--primary':'160 84% 39%', '--ring':'160 84% 39%' },
+            'crimson':        { '--primary':'0 72% 51%',   '--ring':'0 72% 51%'   },
+            'violet':         { '--primary':'263 70% 50%', '--ring':'263 70% 50%' },
+            'gold':           { '--primary':'38 92% 50%',  '--ring':'38 92% 50%'  },
+            'neon':           { '--primary':'142 76% 45%', '--ring':'142 76% 45%' },
+            'midnight':       { '--primary':'210 55% 49%', '--ring':'210 55% 49%' },
+            'plasma':         { '--primary':'329 81% 52%', '--ring':'329 81% 52%' },
+            'arctic':         { '--primary':'192 91% 42%', '--ring':'192 91% 42%' },
+            'brushed-steel':  { '--primary':'215 20% 55%', '--ring':'215 20% 55%' },
+          };
+          var id = localStorage.getItem('fn-theme') || 'orange-slate';
+          var vars = THEME_VARS[id];
+          if (vars) {
+            var root = document.documentElement;
+            for (var k in vars) root.style.setProperty(k, vars[k]);
+          }
+        } catch (_) {}
+      })();
+    </script>
+
+    <script>
       (function () {
         try {
           var params = new URLSearchParams(window.location.search);

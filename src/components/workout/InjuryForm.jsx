@@ -153,12 +153,15 @@ export default function InjuryForm({ onClose }) {
       setNotes('');
       setRecoveryDate('');
     },
-    onError: (e) => toast.error(e.message),
+    onError: (err) => {
+      reportError(err, { feature: 'injuries.log', level: 'warning', userEmail: user?.email });
+      toast.error('Could not log injury. Try again.');
+    },
   });
 
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,
-    onSuccess: () => { invalidate(); toast.success('Injury cleared. Volume reintroduction starts at 50% for 2 weeks.'); },
+    onSuccess: () => { invalidate(); toast.success('Injury cleared.'); },
     onError: (err) => {
       reportError(err, { feature: 'injuries.clear', level: 'warning', userEmail: user?.email });
       toast.error('Could not clear injury. Try again.');
@@ -285,6 +288,7 @@ export default function InjuryForm({ onClose }) {
                     <button
                       key={mg}
                       onClick={() => setMuscleGroup(mg)}
+                      aria-pressed={muscleGroup === mg}
                       className={`px-3 py-1.5 rounded-full text-sm font-medium border transition-colors ${
                         muscleGroup === mg
                           ? 'bg-primary text-primary-foreground border-primary'
@@ -325,6 +329,7 @@ export default function InjuryForm({ onClose }) {
                     value={injuredAt}
                     onChange={e => setInjuredAt(e.target.value)}
                     max={format(new Date(), 'yyyy-MM-dd')}
+                    min={format(addDays(new Date(), -3650), 'yyyy-MM-dd')}
                     className="w-full h-9 text-sm rounded-md border border-border bg-background px-2"
                   />
                 </div>

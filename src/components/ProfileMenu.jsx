@@ -18,7 +18,7 @@ import SettingsPanel from './SettingsPanel';
 import AccountDeletedScreen from './AccountDeletedScreen';
 import { OPEN_ACHIEVEMENTS_EVENT } from '@/lib/achievementsFlow';
 import { isVerified } from '@/lib/verifiedUsers';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 // DebriefVault + InjuryForm + AchievementsVault are modals that ONLY
 // mount when the user explicitly opens them from this menu — no reason
@@ -126,9 +126,31 @@ function JournalView({ userEmail, onClose }) {
   );
 }
 
-function wipeLocalClientState() {
+// preserveKeys: when true (Sign Out), journal entries and a small set
+// of per-device preferences survive so the same user logging back in
+// doesn't lose work (audit B-3). When false (Delete Account), wipe
+// everything.
+function wipeLocalClientState({ preserveKeys = false } = {}) {
   clearFirstLaunch();
-  try { localStorage.clear(); } catch {}
+  try {
+    if (preserveKeys) {
+      // Snapshot keys we want to keep, then restore after clear.
+      const snapshot = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (!k) continue;
+        if (k.startsWith('journal_') || k === 'fn-theme' || k === 'fn-dark-mode' || k === 'fn-loot-theme') {
+          snapshot[k] = localStorage.getItem(k);
+        }
+      }
+      localStorage.clear();
+      for (const [k, v] of Object.entries(snapshot)) {
+        try { localStorage.setItem(k, v); } catch {}
+      }
+    } else {
+      localStorage.clear();
+    }
+  } catch {}
   try { sessionStorage.clear(); } catch {}
   try {
     if (indexedDB.databases) {
@@ -137,10 +159,25 @@ function wipeLocalClientState() {
       }).catch(() => {});
     }
   } catch {}
+  // Cookie clear — sweep across the most common path/domain combos
+  // so subdomain-scoped or subpath-scoped cookies (audit B-22) are
+  // not missed. We can't enumerate every path the server set, but
+  // covering `/`, `/api`, the current path, and a leading-dot domain
+  // catches the realistic cases.
   try {
+    const paths = ['/', '/api', window.location.pathname];
+    const host = window.location.hostname;
+    const domains = [host, `.${host}`, host.split('.').slice(-2).join('.')];
     document.cookie.split(';').forEach(cookie => {
       const name = cookie.split('=')[0].trim();
-      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      if (!name) return;
+      const expired = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      for (const p of paths) {
+        document.cookie = `${expired}; path=${p}`;
+        for (const d of domains) {
+          document.cookie = `${expired}; path=${p}; domain=${d}`;
+        }
+      }
     });
   } catch {}
 }
@@ -157,6 +194,9 @@ export default function ProfileMenu() {
   const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [achievementsOpen, setAchievementsOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [signOutOpen, setSignOutOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const ref = useRef(null);
 
   useEffect(() => {
@@ -164,20 +204,53 @@ export default function ProfileMenu() {
     setView('main');
   }, [location.pathname]);
 
+  // Esc-to-close on the open drawer (audit C-14).
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => { if (e.key === 'Escape') { setOpen(false); setView('main'); } };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const handleDeleteAccount = async () => {
     setIsDeleting(true);
+    let succeeded = false;
     try {
+      // Run server-side deletion FIRST so we can detect partial failures
+      // BEFORE wiping local state (audit B-5, C-27). Then revoke auth
+      // session BEFORE clearing localStorage so Supabase can read the
+      // refresh token to invalidate it server-side (audit B-26, C-11).
+      // The shim returns the function's value directly (not wrapped).
+      // Throw is now the canonical failure signal — _invokeDeleteAccount
+      // throws an Error with .partial=true on partial deletion (audit
+      // B-5 / C-27).
       const result = await db.functions.invoke('deleteAccountData', {});
-      if (result?.data?.success === false || result?.data?.error) {
-        throw new Error(result?.data?.error || 'Delete failed');
+      if (result && result.success === false) {
+        throw new Error(result.error || 'Delete failed');
       }
-      wipeLocalClientState();
-      try { db.auth.logout(); } catch {}
+      try { await db.auth.logout(); } catch {}
+      wipeLocalClientState({ preserveKeys: false });
+      succeeded = true;
       setAccountDeleted(true);
     } catch (err) {
       setIsDeleting(false);
-      toast.error(t('profile.deleteError'));
+      if (err?.partial) {
+        const tableList = (err.failures || []).slice(0, 3).map(f => f.table).join(', ');
+        toast.error(`Deletion incomplete. Some data could not be removed (${tableList}…). Contact support.`);
+      } else {
+        toast.error(t('profile.deleteError'));
+      }
     }
+    if (!succeeded) setDeleteOpen(false);
+  };
+
+  const handleSignOut = async () => {
+    // Sign-out preserves journal entries + per-device theme preferences
+    // so the same user signing back in doesn't lose work (audit B-3).
+    // Logout first so Supabase can revoke the session server-side
+    // before localStorage is touched (audit B-26).
+    try { await db.auth.logout('/'); } catch {}
+    wipeLocalClientState({ preserveKeys: true });
   };
 
   const { user: authUser } = useAuth();
@@ -220,8 +293,14 @@ export default function ProfileMenu() {
       setOpen(false);
       setView('main');
     };
+    // iOS Safari doesn't reliably synthesize `mousedown` on background
+    // taps; listen to `touchstart` in parallel (audit B-14).
     document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
+    document.addEventListener('touchstart', handler, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', handler);
+      document.removeEventListener('touchstart', handler);
+    };
   }, []);
 
   // Listen for the global "open achievements" event so external
@@ -464,52 +543,20 @@ export default function ProfileMenu() {
                     </button>
                     <ThemePicker />
                     <button
-                      onClick={() => {
-                        // Sign-out MUST clear local state too — without this,
-                        // the next user on the same device inherits the
-                        // previous user's localStorage settings, IndexedDB
-                        // caches, react-query cache, and onboarding drafts.
-                        // The audit caught this as a privacy issue.
-                        wipeLocalClientState();
-                        db.auth.logout('/');
-                      }}
+                      onClick={() => { setOpen(false); setSignOutOpen(true); }}
                       className="w-full flex items-center gap-2 px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
                     >
                       <LogOut className="w-4 h-4" />
                       {t('profile.signOut')}
                     </button>
                     <div className="border-t border-border">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <button className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                            {t('profile.deleteAccount')}
-                          </button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent
-                          onEscapeKeyDown={(e) => { if (isDeleting) e.preventDefault(); }}
-                          onPointerDownOutside={(e) => { if (isDeleting) e.preventDefault(); }}
-                          onInteractOutside={(e) => { if (isDeleting) e.preventDefault(); }}
-                        >
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>{t('profile.deleteTitle')}</AlertDialogTitle>
-                            <AlertDialogDescription>{t('profile.deleteDesc')}</AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel')}</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={(e) => {
-                                e.preventDefault();
-                                handleDeleteAccount();
-                              }}
-                              disabled={isDeleting}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              {isDeleting ? t('profile.deletingLabel') : t('profile.confirmDeletion')}
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
+                      <button
+                        onClick={() => { setOpen(false); setDeleteConfirmText(''); setDeleteOpen(true); }}
+                        className="w-full flex items-center gap-2 px-4 py-3 text-sm text-destructive hover:bg-destructive/10 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {t('profile.deleteAccount')}
+                      </button>
                     </div>
                   </motion.div>
                 )}
@@ -590,6 +637,70 @@ export default function ProfileMenu() {
           </Suspense>
         )}
       </AnimatePresence>
+
+      {/* Sign-Out confirmation (audit C-24). Sign-out is destructive
+          on shared devices because it clears app caches; a one-tap
+          path was inconsistent with the Delete Account safeguard. */}
+      <AlertDialog open={signOutOpen} onOpenChange={setSignOutOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tFallback('profile.signOutTitle', 'Sign out?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tFallback('profile.signOutDesc', "You'll be returned to the sign-in screen. Your journal entries and theme preferences stay on this device.")}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); setSignOutOpen(false); handleSignOut(); }}
+            >
+              {tFallback('profile.signOut', 'Sign out')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Account — requires typed confirmation (audit B-1). */}
+      <AlertDialog open={deleteOpen} onOpenChange={(o) => { if (!isDeleting) setDeleteOpen(o); }}>
+        <AlertDialogContent
+          onEscapeKeyDown={(e) => { if (isDeleting) e.preventDefault(); }}
+          onPointerDownOutside={(e) => { if (isDeleting) e.preventDefault(); }}
+          onInteractOutside={(e) => { if (isDeleting) e.preventDefault(); }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('profile.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('profile.deleteDesc')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-2 pt-1">
+            <label className="text-xs text-muted-foreground block">
+              {tFallback('profile.deleteTypePrompt', 'Type')} <span className="font-mono font-bold text-destructive">DELETE</span> {tFallback('profile.deleteTypePromptCont', 'to confirm:')}
+            </label>
+            <input
+              type="text"
+              autoComplete="off"
+              autoCorrect="off"
+              spellCheck={false}
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              disabled={isDeleting}
+              placeholder="DELETE"
+              className="w-full h-9 rounded-md border border-border bg-background px-3 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-destructive/40"
+            />
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>{t('common.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleDeleteAccount(); }}
+              disabled={isDeleting || deleteConfirmText.trim() !== 'DELETE'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40"
+            >
+              {isDeleting ? t('profile.deletingLabel') : t('profile.confirmDeletion')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

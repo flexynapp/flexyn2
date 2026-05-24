@@ -4,7 +4,7 @@
 // Stickers are grouped by item_id so duplicates are visible and sellable.
 // Titles / Frames update equipped_title_id / equipped_frame_id on user_profiles.
 
-import { useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square } from 'lucide-react';
@@ -89,13 +89,21 @@ function StickerGroupCard({ group, onSell, selling }) {
 
   // Two-step confirm: first click arms the button, second executes.
   const [armed, setArmed] = useState(false);
+  const disarmTimerRef = useRef(null);
+
+  // Audit B-21 — clear any pending disarm on unmount so the bag-modal
+  // close mid-armed doesn't fire setState on an unmounted card.
+  useEffect(() => () => {
+    if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+  }, []);
 
   const handleSellClick = useCallback(() => {
     if (!armed) {
       setArmed(true);
-      // Auto-disarm after 3 s.
-      setTimeout(() => setArmed(false), 3000);
+      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
+      disarmTimerRef.current = setTimeout(() => setArmed(false), 3000);
     } else {
+      if (disarmTimerRef.current) clearTimeout(disarmTimerRef.current);
       setArmed(false);
       onSell(unlisted[unlisted.length - 1], price); // sell the last-acquired copy
     }

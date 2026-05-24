@@ -11,9 +11,10 @@ export default function ThemePicker() {
   return (
     <div className="px-4 py-3 border-t border-border">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Appearance</p>
-      <div className="flex rounded-lg border border-border overflow-hidden">
+      <div className="flex rounded-lg border border-border overflow-hidden" role="group" aria-label="Light or dark appearance">
         <button
           onClick={() => setDarkMode(false)}
+          aria-pressed={!darkMode}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
             !darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-muted-foreground'
           }`}
@@ -22,6 +23,7 @@ export default function ThemePicker() {
         </button>
         <button
           onClick={() => setDarkMode(true)}
+          aria-pressed={darkMode}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-xs font-medium transition-colors ${
             darkMode ? 'bg-primary text-primary-foreground' : 'hover:bg-secondary text-muted-foreground'
           }`}

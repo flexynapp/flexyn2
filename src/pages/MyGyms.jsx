@@ -48,8 +48,11 @@ export default function MyGyms() {
       else toast.success('Joined! Welcome to the local community.');
       setCodeInput('');
       setScannerOpen(false);
-      refresh();
+      // Navigate first so we don't fire a refresh on a soon-to-unmount
+      // page (audit B-19). The destination's own data fetch handles the
+      // joined state.
       if (res.gymId) navigate(`/gym/${res.gymId}`);
+      else refresh();
     } else {
       const map = {
         INVALID_CODE: "That code doesn't look right (8 letters/numbers).",

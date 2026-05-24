@@ -195,11 +195,13 @@ export default function DebriefVault({ onClose }) {
     onError: () => {}, // silent — vault still usable with cached data
   });
 
+  const autoGenRanRef = useRef(false);
   useEffect(() => {
-    if (!user?.id) return;
-    // Generate this week silently
+    if (!user?.id || autoGenRanRef.current) return;
+    autoGenRanRef.current = true;
+    // Generate this week silently (audit B-29 — was firing on every mount)
     genMut.mutate(thisWeek);
-    // Also generate last week if it doesn't exist yet (catches Sunday-close edge case)
+    // Also generate last week if it doesn't exist yet (Sunday-close edge case)
     const hasLast = debriefs.some(d => d.week_label?.includes(lastWeek.slice(0, 7)));
     if (!hasLast) genMut.mutate(lastWeek);
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -228,12 +230,11 @@ export default function DebriefVault({ onClose }) {
       toast.success('Summary refreshed.');
     },
     onError: (err) => {
-      // Was: silent failure. The refresh button spun forever and the
-      // user thought nothing happened. Now surface it.
+      // Duplicate `onError` key was silently shadowing the reportError
+      // call (audit B-6) — one handler, both jobs.
       toast.error('Could not refresh — try again.');
       reportError(err, { feature: 'debrief.refresh', userEmail: user?.email });
     },
-    onError: () => toast.error('Could not refresh summary.'),
   });
 
   const epochs   = [...new Set(debriefs.map(d => d.epoch_name).filter(Boolean))];
@@ -309,7 +310,7 @@ export default function DebriefVault({ onClose }) {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {visible.map(debrief => {
               const ws = debrief.data?.week_start;
               const isThis = ws === thisWeek;
