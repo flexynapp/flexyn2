@@ -55,8 +55,14 @@ function buildPinElement({ gym, compact, onClick }) {
     'transition:transform 120ms ease-out;',
   ].join('');
   el.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
+  const reset = () => { el.style.transform = 'scale(1)'; };
   el.onmouseenter = () => { el.style.transform = 'scale(1.18)'; };
-  el.onmouseleave = () => { el.style.transform = 'scale(1)'; };
+  el.onmouseleave = reset;
+  // iOS Safari emulates hover on touch but never fires mouseleave —
+  // explicitly reset on touch-end so pins don't stay enlarged after
+  // tap (audit C-18).
+  el.ontouchend = reset;
+  el.ontouchcancel = reset;
   el.onclick = (e) => { e.stopPropagation(); onClick?.(gym); };
   return el;
 }
@@ -72,9 +78,20 @@ export default function GymMap() {
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [searchOpen, setSearchOpen] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(US_ZOOM);
+  const [matchIndex, setMatchIndex] = useState(0);
+  // Monotonic request id so a slow refresh never overwrites a fresh one.
+  const refreshIdRef = useRef(0);
+
+  // Debounce the search input so a 500-pin viewport doesn't rebuild
+  // every marker on every keystroke (audit C-5).
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search), 150);
+    return () => clearTimeout(t);
+  }, [search]);
 
   // ── Map init (once on mount) ───────────────────────────────────────
   useEffect(() => {
@@ -137,6 +154,7 @@ export default function GymMap() {
   const refreshFromBounds = async () => {
     const map = mapRef.current;
     if (!map) return;
+    const myId = ++refreshIdRef.current;
     const b = map.getBounds();
     setLoading(true);
     const rows = await getGymsInBbox({
@@ -144,29 +162,38 @@ export default function GymMap() {
       minLng: b.getWest(),  maxLng: b.getEast(),
       limit: 500,
     });
+    // Stale-response guard — if a newer refresh has fired, drop this one.
+    if (myId !== refreshIdRef.current) return;
     setGyms(rows);
     setLoading(false);
+    // Clear the selected pin card when the user pans away from it —
+    // otherwise it floats over an empty region of the map (audit C-4).
+    setSelected(s => (s && rows.some(g => g.id === s.id) ? s : null));
   };
 
   // ── Pin rendering (on gyms / zoom change) ──────────────────────────
   // At zoom < 5 (~ country view), pins shrink + drop the member count
   // so the map doesn't look like a sea of small numbers. At zoom ≥ 5
   // (city view), pins are full-size with the count baked in.
+  // Cancellation guard prevents stale marker accumulation when rapid
+  // pan/zoom/search keystrokes overlap (audit A-1).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    let cancelled = false;
     (async () => {
       const maplibregl = (await import('maplibre-gl')).default;
+      if (cancelled || !mapRef.current) return;
       markersRef.current.forEach(m => { try { m.remove(); } catch {} });
       markersRef.current = [];
       const compact = currentZoom < 5;
-      // Apply search filter if present
-      const filter = search.trim().toLowerCase();
+      const filter = debouncedSearch.trim().toLowerCase();
       const visible = filter
         ? gyms.filter(g => (g.name || '').toLowerCase().includes(filter) ||
                             (g.city || '').toLowerCase().includes(filter))
         : gyms;
       for (const g of visible) {
+        if (cancelled) return;
         const el = buildPinElement({ gym: g, compact, onClick: setSelected });
         const marker = new maplibregl.Marker({ element: el })
           .setLngLat([g.longitude, g.latitude])
@@ -174,23 +201,31 @@ export default function GymMap() {
         markersRef.current.push(marker);
       }
     })();
-  }, [gyms, currentZoom, search]);
+    return () => { cancelled = true; };
+  }, [gyms, currentZoom, debouncedSearch]);
 
-  // When a search match exists, smooth-pan to it.
+  // When a search match exists, smooth-pan to it. Pressing Enter
+  // again cycles through additional matches (audit C-15).
   const flyToSearchMatch = () => {
     const map = mapRef.current;
     if (!map || !search.trim()) return;
     const filter = search.trim().toLowerCase();
-    const match = gyms.find(g =>
+    const matches = gyms.filter(g =>
       (g.name || '').toLowerCase().includes(filter) ||
       (g.city || '').toLowerCase().includes(filter));
-    if (match) {
-      map.flyTo({ center: [match.longitude, match.latitude], zoom: 13, duration: 1200 });
-    }
+    if (matches.length === 0) return;
+    const idx = matchIndex % matches.length;
+    const match = matches[idx];
+    map.flyTo({ center: [match.longitude, match.latitude], zoom: 13, duration: 1200 });
+    setMatchIndex(idx + 1);
   };
 
+  // Reset cycle index when search text changes so Enter always starts
+  // at the first match.
+  useEffect(() => { setMatchIndex(0); }, [debouncedSearch]);
+
   const visibleCount = (() => {
-    const filter = search.trim().toLowerCase();
+    const filter = debouncedSearch.trim().toLowerCase();
     if (!filter) return gyms.length;
     return gyms.filter(g => (g.name || '').toLowerCase().includes(filter) ||
                              (g.city || '').toLowerCase().includes(filter)).length;

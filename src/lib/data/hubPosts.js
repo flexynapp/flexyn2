@@ -175,3 +175,35 @@ export const fetchFollowingWindow = async (followingEmails = []) => {
     .catch(() => []);
   return rows;
 };
+
+/**
+ * Older-than-cursor fetch for "load more" pagination (audit B-9 —
+ * the FETCH_WINDOW cap previously made posts past the 100th
+ * permanently unreachable).
+ */
+export const fetchOlderGlobal = async (cursorIso, pageSize = 50) => {
+  if (!cursorIso) return [];
+  const { data, error } = await supabase
+    .from('hub_posts')
+    .select('*')
+    .eq('privacy', 'public')
+    .lt('created_date', cursorIso)
+    .order('created_date', { ascending: false })
+    .limit(pageSize);
+  if (error) return [];
+  return data || [];
+};
+
+export const fetchOlderFollowing = async (followingEmails = [], cursorIso, pageSize = 50) => {
+  if (!cursorIso || !followingEmails || followingEmails.length === 0) return [];
+  const emails = followingEmails.slice(0, 100);
+  const { data, error } = await supabase
+    .from('hub_posts')
+    .select('*')
+    .in('author_email', emails)
+    .lt('created_date', cursorIso)
+    .order('created_date', { ascending: false })
+    .limit(pageSize);
+  if (error) return [];
+  return data || [];
+};

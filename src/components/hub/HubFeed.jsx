@@ -1,5 +1,5 @@
 // src/components/hub/HubFeed.jsx
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -101,26 +101,34 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   // ── "X new posts" Realtime pill ────────────────────────────────────────────
   const [pendingNewCount, setPendingNewCount] = useState(0);
+  // Filter snapshot for the realtime callback. Updated on every render
+  // so the callback can drop posts the viewer wouldn't see anyway
+  // (audit C-6: previously the pill counted every INSERT regardless of
+  // mute/block/follow/privacy).
+  const realtimeFilterRef = useRef({
+    feedTab: 'pump',
+    followingLc: new Set(),
+    mutedLc: new Set(),
+    blockedLc: new Set(),
+  });
 
   useEffect(() => {
     if (!user?.email) return;
-    // Per-mount unique channel name. Supabase's channel registry is keyed
-    // by name — re-using the same string across re-mounts (React 18
-    // StrictMode double-mount, fast nav-away-then-back, tab refocus that
-    // re-runs the effect) hands back the ALREADY-subscribed channel
-    // from a prior mount. Calling .on() on a subscribed channel throws
-    // "cannot add `postgres_changes` callbacks after subscribe()" and
-    // takes the whole Hub page down. Unique per-mount channel name
-    // sidesteps the cache so each mount gets a fresh, never-subscribed
-    // channel.
     const channelName = `hub_feed_new_posts_${user.email}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const myEmailLc = user.email.toLowerCase();
     const ch = supabase.channel(channelName)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_posts' }, (payload) => {
-        // Only count if payload is a different user's post (avoid counting own)
-        if (payload.new?.author_email?.toLowerCase() !== myEmailLc) {
-          setPendingNewCount(c => c + 1);
-        }
+        const row = payload.new;
+        if (!row) return;
+        const authorLc = row.author_email?.toLowerCase();
+        if (!authorLc || authorLc === myEmailLc) return;
+        const f = realtimeFilterRef.current;
+        if (f.blockedLc.has(authorLc)) return;
+        if (f.mutedLc.has(authorLc))   return;
+        if (row.privacy && row.privacy !== 'public' && row.privacy !== 'followers') return;
+        if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return;
+        if (f.feedTab === 'squad' && !f.followingLc.has(authorLc)) return;
+        setPendingNewCount(c => c + 1);
       })
       .subscribe();
     return () => { supabase.removeChannel(ch).catch(() => {}); };
@@ -144,7 +152,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
       });
   }, [user?.email]);
 
-  const { data: allPosts = [], isLoading, isFetching, refetch } = useQuery({
+  const { data: windowPosts = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hubFeed', feedTab, user?.email, following.length],
     queryFn: async () => {
       if (feedTab === 'pump') {
@@ -160,6 +168,41 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     // (every tab switch back from a profile/composer overlay).
     staleTime: 30_000,
   });
+
+  // ── Older-than-cursor pagination (audit B-9) ─────────────────────────
+  // FETCH_WINDOW caps the live query at 100 rows. When the user scrolls
+  // past it we extend the array by fetching older posts than the
+  // current oldest cursor.
+  const [olderPosts, setOlderPosts] = useState([]);
+  const [olderExhausted, setOlderExhausted] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+
+  // Reset the older-cache whenever the query key effectively changes
+  // (feed tab swap, refetch, follow-graph mutation).
+  useEffect(() => {
+    setOlderPosts([]);
+    setOlderExhausted(false);
+  }, [feedTab, user?.email, following.length]);
+
+  const allPosts = useMemo(
+    () => (olderPosts.length ? [...windowPosts, ...olderPosts] : windowPosts),
+    [windowPosts, olderPosts],
+  );
+
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || olderExhausted) return;
+    const combined = olderPosts.length ? olderPosts : windowPosts;
+    const last = combined[combined.length - 1];
+    const cursor = last?.created_date || last?.created_at;
+    if (!cursor) { setOlderExhausted(true); return; }
+    setLoadingOlder(true);
+    const more = feedTab === 'pump'
+      ? await hubPosts.fetchOlderGlobal(cursor, 50)
+      : await hubPosts.fetchOlderFollowing(following, cursor, 50);
+    setLoadingOlder(false);
+    if (more.length === 0) setOlderExhausted(true);
+    else setOlderPosts(prev => [...prev, ...more]);
+  }, [feedTab, following, loadingOlder, olderExhausted, olderPosts, windowPosts]);
 
   // Remember scroll position per feed-tab so navigating into a post
   // detail / profile and back lands the user where they were.
@@ -191,6 +234,16 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     enabled: !!user?.id,
     staleTime: 60_000,
   });
+
+  // Keep the realtime filter ref in sync with current state.
+  useEffect(() => {
+    realtimeFilterRef.current = {
+      feedTab,
+      followingLc: new Set((following || []).map(e => e?.toLowerCase()).filter(Boolean)),
+      mutedLc:     new Set(mutedEmails),
+      blockedLc:   new Set(blockedEmails),
+    };
+  }, [feedTab, following, mutedEmails, blockedEmails]);
 
   // Filter out crew-private posts the current user doesn't belong to,
   // posts from muted/blocked users, scheduled posts not yet published,
@@ -269,22 +322,29 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     [filteredPosts, visibleCount]
   );
 
-  const hasMore = visibleCount < filteredPosts.length;
+  const hasMoreLocal  = visibleCount < filteredPosts.length;
+  const hasMoreServer = !olderExhausted && !hasMoreLocal && filteredPosts.length > 0;
+  const hasMore = hasMoreLocal || hasMoreServer;
 
-  // Auto-load more when sentinel scrolls into view.
+  // Auto-load more when sentinel scrolls into view. When the local
+  // window is exhausted, request an older-than-cursor page from the
+  // server so posts past FETCH_WINDOW remain reachable (audit B-9).
   useEffect(() => {
     if (!hasMore || !sentinelRef.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) {
+        if (!entries[0]?.isIntersecting) return;
+        if (hasMoreLocal) {
           setVisibleCount(c => Math.min(c + PAGE_SIZE, filteredPosts.length));
+        } else if (hasMoreServer) {
+          loadOlder();
         }
       },
       { rootMargin: '200px' } // pre-load slightly before the user reaches it
     );
     observer.observe(sentinelRef.current);
     return () => observer.disconnect();
-  }, [hasMore, filteredPosts.length]);
+  }, [hasMore, hasMoreLocal, hasMoreServer, filteredPosts.length, loadOlder]);
 
   // ── Activity tab — render ActivityFeed instead of posts ──────────────────
   if (feedTab === 'activity') {

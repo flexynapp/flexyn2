@@ -164,13 +164,24 @@ export async function getLeaderboard(gymId, { mode = 'volume', limit = 50 } = {}
   return Array.isArray(data) ? data : [];
 }
 
-export async function listEvents(gymId) {
+/**
+ * List events for a gym. Defaults to "upcoming" (starts_at >= now - 4h
+ * so an in-progress event still shows). Pass `scope: 'past'` for the
+ * archived view, `scope: 'all'` for owner moderation.
+ */
+export async function listEvents(gymId, { scope = 'upcoming' } = {}) {
   if (!gymId) return [];
-  const { data, error } = await supabase
-    .from('gym_events')
-    .select('*')
-    .eq('gym_id', gymId)
-    .order('starts_at', { ascending: true });
+  let q = supabase.from('gym_events').select('*').eq('gym_id', gymId);
+  const ascending = scope !== 'past';
+  if (scope === 'upcoming') {
+    const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    q = q.gte('starts_at', cutoff);
+  } else if (scope === 'past') {
+    const cutoff = new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString();
+    q = q.lt('starts_at', cutoff);
+  }
+  q = q.order('starts_at', { ascending });
+  const { data, error } = await q;
   if (error) return [];
   return data || [];
 }
@@ -179,15 +190,31 @@ export async function createEvent(gymId, payload) {
   if (!gymId) return { ok: false };
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false };
+  // Reject obviously-bad timestamps (empty string passes truthy checks
+  // upstream; a stale "0000-..." paste lands an event the UI will then
+  // render as Invalid Date).
+  const startsAt = payload.starts_at ? new Date(payload.starts_at) : null;
+  if (!startsAt || Number.isNaN(startsAt.getTime()) || startsAt.getUTCFullYear() < 2020) {
+    return { ok: false, error: 'INVALID_START' };
+  }
   const { error } = await supabase.from('gym_events').insert({
     gym_id:     gymId,
     created_by: user.id,
     title:      payload.title,
     body:       payload.body        || null,
-    starts_at:  payload.starts_at,
-    ends_at:    payload.ends_at     || null,
+    // Send a full ISO string with offset so a "datetime-local" value
+    // (no TZ) gets serialized as the user's local instant, not UTC.
+    starts_at:  startsAt.toISOString(),
+    ends_at:    payload.ends_at ? new Date(payload.ends_at).toISOString() : null,
     location_note: payload.location_note || null,
   });
+  return { ok: !error, error: error?.message };
+}
+
+/** Delete an event the caller created (or owns the gym for). */
+export async function deleteEvent(eventId) {
+  if (!eventId) return { ok: false };
+  const { error } = await supabase.from('gym_events').delete().eq('id', eventId);
   return { ok: !error, error: error?.message };
 }
 
@@ -224,34 +251,25 @@ export async function deleteFeedPost(postId) {
   return { ok: !error };
 }
 
-// ── Feed reactions (mig 138) ───────────────────────────────────────
-/** Toggle a single emoji reaction on a feed post for the current user. */
+// ── Feed reactions (mig 138 + atomic RPC mig 141) ──────────────────
+/**
+ * Toggle a single emoji reaction on a feed post for the current user.
+ * Uses the mig-141 atomic RPC so rapid double-taps can't produce
+ * duplicate inserts or ghost-state drift.
+ */
 export async function toggleFeedReaction(postId, emoji) {
   if (!postId || !emoji) return { ok: false };
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user?.id) return { ok: false };
-  // Try-delete first; if nothing was deleted, insert. Two round-trips
-  // is fine for a tap-driven action.
-  const { data: existing } = await supabase
-    .from('gym_feed_post_reactions')
-    .select('id')
-    .eq('post_id', postId)
-    .eq('user_id', user.id)
-    .eq('emoji', emoji)
-    .maybeSingle();
-  if (existing?.id) {
-    const { error } = await supabase
-      .from('gym_feed_post_reactions')
-      .delete()
-      .eq('id', existing.id);
-    if (error) return { ok: false, error: error.message };
-    return { ok: true, removed: true };
+  const { data, error } = await supabase.rpc('toggle_gym_feed_reaction', {
+    p_post_id: postId,
+    p_emoji:   emoji,
+  });
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') {
+      return { ok: false, error: 'PIPELINE_MISSING' };
+    }
+    return { ok: false, error: error.message };
   }
-  const { error } = await supabase
-    .from('gym_feed_post_reactions')
-    .insert({ post_id: postId, user_id: user.id, emoji });
-  if (error) return { ok: false, error: error.message };
-  return { ok: true, added: true };
+  return data || { ok: false };
 }
 
 /** Per-emoji counts + the current user's set of reacted emojis. */

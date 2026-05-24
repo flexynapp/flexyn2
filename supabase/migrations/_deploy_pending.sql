@@ -2,7 +2,7 @@
 -- _deploy_pending.sql — ONE-SHOT DEPLOY BUNDLE
 --
 -- Paste this entire file into the Supabase SQL Editor and click Run.
--- Migrations 124-140 stitched together. Every statement is
+-- Migrations 124-141 stitched together. Every statement is
 -- idempotent so re-running is safe.
 --
 -- After this lands:
@@ -1998,5 +1998,205 @@ ALTER TABLE public.gym_businesses
   ADD COLUMN IF NOT EXISTS hours      JSONB    NOT NULL DEFAULT '{}'::jsonb,
   ADD COLUMN IF NOT EXISTS amenities  TEXT[]   NOT NULL DEFAULT '{}',
   ADD COLUMN IF NOT EXISTS photo_urls TEXT[]   NOT NULL DEFAULT '{}';
+
+NOTIFY pgrst, 'reload schema';
+
+-- ── 141_gym_integrity_fixes.sql ──
+-- 141_gym_integrity_fixes.sql
+--
+-- Hardens gym social/competition surfaces against the defects surfaced
+-- in the May 2026 QA audit. All changes are server-side and idempotent.
+--
+-- 1. Reactions INSERT policy now gates on gym membership (audit B-2 —
+--    non-members could write reactions to arbitrary post_ids).
+-- 2. New `toggle_gym_feed_reaction` RPC — atomic single round-trip
+--    that prevents the SELECT-then-INSERT race in the JS client
+--    (audit B-1, A-4).
+-- 3. `toggle_pin_gym_post` now atomically unpins any other pinned post
+--    in the gym before pinning the target — eliminates the "no pin"
+--    transient and 23505 errors (audit C-11).
+-- 4. Leaderboard gets a deterministic tie-breaker (joined_at ASC) so
+--    duplicate #1s no longer flap between requests (audit B-4).
+-- 5. Leaderboard no longer filters `value > 0` — members appear
+--    immediately on join so the "Your rank: #N" banner can render
+--    for fresh members (audit B-5).
+-- 6. gym_events DELETE policy added for the row's creator (audit C-8).
+
+-- ── 1. Reactions: members-only INSERT ──────────────────────────────
+DROP POLICY IF EXISTS "gym_feed_rxn: own write" ON public.gym_feed_post_reactions;
+
+CREATE POLICY "gym_feed_rxn: members write"
+  ON public.gym_feed_post_reactions FOR INSERT TO authenticated
+  WITH CHECK (
+    user_id = auth.uid() AND
+    EXISTS (
+      SELECT 1 FROM public.gym_feed_posts gfp
+        JOIN public.gym_members gm ON gm.gym_id = gfp.gym_id
+       WHERE gfp.id = gym_feed_post_reactions.post_id
+         AND gm.user_id = auth.uid()
+    )
+  );
+
+-- ── 2. Atomic reaction toggle ──────────────────────────────────────
+CREATE OR REPLACE FUNCTION public.toggle_gym_feed_reaction(
+  p_post_id UUID,
+  p_emoji   TEXT
+) RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id UUID := auth.uid();
+  v_gym_id  UUID;
+  v_deleted INT;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'not authenticated' USING ERRCODE = '42501';
+  END IF;
+  IF p_emoji IS NULL OR char_length(p_emoji) > 10 OR char_length(p_emoji) = 0 THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'INVALID_EMOJI');
+  END IF;
+
+  SELECT gym_id INTO v_gym_id
+    FROM public.gym_feed_posts WHERE id = p_post_id;
+  IF v_gym_id IS NULL THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'POST_NOT_FOUND');
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM public.gym_members
+     WHERE gym_id = v_gym_id AND user_id = v_user_id
+  ) THEN
+    RETURN jsonb_build_object('ok', false, 'error', 'NOT_MEMBER');
+  END IF;
+
+  DELETE FROM public.gym_feed_post_reactions
+   WHERE post_id = p_post_id AND user_id = v_user_id AND emoji = p_emoji;
+  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+
+  IF v_deleted > 0 THEN
+    RETURN jsonb_build_object('ok', true, 'removed', true);
+  END IF;
+
+  INSERT INTO public.gym_feed_post_reactions (post_id, user_id, emoji)
+    VALUES (p_post_id, v_user_id, p_emoji)
+    ON CONFLICT (post_id, user_id, emoji) DO NOTHING;
+
+  RETURN jsonb_build_object('ok', true, 'added', true);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.toggle_gym_feed_reaction(UUID, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.toggle_gym_feed_reaction(UUID, TEXT) TO authenticated;
+
+-- ── 3. Atomic pin/unpin (replaces mig 138's version) ───────────────
+CREATE OR REPLACE FUNCTION public.toggle_pin_gym_post(p_post_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user_id   UUID := auth.uid();
+  v_gym_id    UUID;
+  v_owner     UUID;
+  v_is_pinned BOOLEAN;
+BEGIN
+  IF v_user_id IS NULL THEN
+    RAISE EXCEPTION 'not authenticated' USING ERRCODE = '42501';
+  END IF;
+
+  SELECT gfp.gym_id, gb.owner_id, gfp.is_pinned
+    INTO v_gym_id, v_owner, v_is_pinned
+    FROM public.gym_feed_posts gfp
+    JOIN public.gym_businesses gb ON gb.id = gfp.gym_id
+   WHERE gfp.id = p_post_id;
+
+  IF v_gym_id IS NULL THEN
+    RAISE EXCEPTION 'post not found';
+  END IF;
+  IF v_owner IS NULL OR v_owner <> v_user_id THEN
+    RAISE EXCEPTION 'not owner' USING ERRCODE = '42501';
+  END IF;
+
+  IF v_is_pinned THEN
+    UPDATE public.gym_feed_posts SET is_pinned = FALSE WHERE id = p_post_id;
+    RETURN FALSE;
+  END IF;
+
+  -- One-pin invariant: unpin any other pin in the same gym first.
+  UPDATE public.gym_feed_posts SET is_pinned = FALSE
+   WHERE gym_id = v_gym_id AND is_pinned = TRUE AND id <> p_post_id;
+
+  UPDATE public.gym_feed_posts SET is_pinned = TRUE WHERE id = p_post_id;
+  RETURN TRUE;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.toggle_pin_gym_post(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.toggle_pin_gym_post(UUID) TO authenticated;
+
+-- ── 4 + 5. Leaderboard: deterministic tie-break + include zero-stat ─
+-- Tie-break by gym_members.joined_at ASC (first-to-the-gym wins on
+-- equal stat); falls back to user_id for further determinism. We keep
+-- RANK() for the displayed rank (so ties show shared #1) but the
+-- ORDER BY at the outer query uses the deterministic tiebreaker so
+-- repeat-fetch row order is stable.
+CREATE OR REPLACE FUNCTION public.get_gym_leaderboard(
+  p_gym_id UUID,
+  p_mode   TEXT DEFAULT 'volume',
+  p_limit  INT  DEFAULT 50
+) RETURNS TABLE (
+  user_id     UUID,
+  username    TEXT,
+  avatar_url  TEXT,
+  value       NUMERIC,
+  rank        INT
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+STABLE
+AS $$
+DECLARE
+  v_mode TEXT := COALESCE(p_mode, 'volume');
+BEGIN
+  IF v_mode NOT IN ('volume', 'xp', 'streak') THEN
+    RAISE EXCEPTION 'invalid mode' USING ERRCODE = '22023';
+  END IF;
+
+  RETURN QUERY
+    WITH ranked AS (
+      SELECT
+        p.id          AS user_id,
+        p.username,
+        p.avatar_url,
+        gm.joined_at,
+        CASE v_mode
+          WHEN 'volume' THEN COALESCE(p.total_volume_lbs, 0)::NUMERIC
+          WHEN 'xp'     THEN COALESCE(p.total_xp,         0)::NUMERIC
+          WHEN 'streak' THEN COALESCE(p.workout_streak,   0)::NUMERIC
+        END AS value
+      FROM public.gym_members gm
+      JOIN public.user_profiles p ON p.id = gm.user_id
+      WHERE gm.gym_id = p_gym_id
+    )
+    SELECT user_id, username, avatar_url, value,
+           RANK() OVER (ORDER BY value DESC)::INT AS rank
+      FROM ranked
+     ORDER BY value DESC, joined_at ASC, user_id ASC
+     LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.get_gym_leaderboard(UUID, TEXT, INT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_gym_leaderboard(UUID, TEXT, INT) TO authenticated;
+
+-- ── 6. gym_events: creator may delete their own row ─────────────────
+DROP POLICY IF EXISTS "gym_events: creator delete" ON public.gym_events;
+CREATE POLICY "gym_events: creator delete"
+  ON public.gym_events FOR DELETE TO authenticated
+  USING (created_by = auth.uid());
 
 NOTIFY pgrst, 'reload schema';

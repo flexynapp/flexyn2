@@ -12,7 +12,7 @@
 // Member-only by RLS — non-members hit the "Join this gym" preview
 // gate one level up in GymHub.
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
@@ -52,21 +52,25 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
   });
 
   // Reactions — fetched in one batch query for the visible post set.
-  // Re-fetched on the same key cadence as the post list itself.
-  const postIds = posts.map(p => p.id);
+  // Cache key keyed by gymId + post count so a single new arrival
+  // doesn't invalidate the whole reaction map (audit C-2). The
+  // post-id list is passed at fetch time, not embedded in the key.
+  const postIds = useMemo(() => posts.map(p => p.id), [posts]);
   const { data: reactionMap = {} } = useQuery({
-    queryKey: ['gymFeedReactions', gymId, postIds.join(',')],
+    queryKey: ['gymFeedReactions', gymId, postIds.length],
     queryFn:  () => listReactionsForPosts(postIds, user?.id),
     enabled:  !!gymId && postIds.length > 0,
     staleTime: 30_000,
   });
 
   // Pinned post (if any) bubbled to the top of the rendered order.
-  const sortedPosts = (() => {
+  // Memoized so typing in the composer doesn't recompute on every
+  // keystroke (audit C-3).
+  const sortedPosts = useMemo(() => {
     const pinned = posts.filter(p => p.is_pinned);
     const rest   = posts.filter(p => !p.is_pinned);
     return [...pinned, ...rest];
-  })();
+  }, [posts]);
 
   // ── Composer state ────────────────────────────────────────────────
   const [body, setBody] = useState('');
@@ -205,7 +209,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
               onDelete={handleDeletePost}
               onTogglePin={handleTogglePin}
               onReactionChange={() =>
-                qc.invalidateQueries({ queryKey: ['gymFeedReactions', gymId, postIds.join(',')] })}
+                qc.invalidateQueries({ queryKey: ['gymFeedReactions', gymId] })}
               onCommentChange={() =>
                 qc.invalidateQueries({ queryKey: ['gymFeed', gymId] })}
             />
@@ -222,21 +226,31 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
   const [menuOpen, setMenuOpen] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // In-flight guard — without it rapid double-taps fire overlapping
+  // toggles and the server-side atomic guard ends up oscillating
+  // (audit C-1).
+  const rxnBusyRef = useRef(false);
 
   // Long-press the heart to open the emoji picker; tap = toggle 🔥.
   const longPress = useLongPress(() => setPickerOpen(true), { ms: 320 });
 
   const handleQuickTap = async () => {
     if (pickerOpen) { setPickerOpen(false); return; }
+    if (rxnBusyRef.current) return;
+    rxnBusyRef.current = true;
     triggerHaptic?.('light');
-    await toggleFeedReaction(post.id, DEFAULT_EMOJI);
+    try { await toggleFeedReaction(post.id, DEFAULT_EMOJI); }
+    finally { rxnBusyRef.current = false; }
     onReactionChange?.();
   };
 
   const handlePick = async (emoji) => {
     setPickerOpen(false);
+    if (rxnBusyRef.current) return;
+    rxnBusyRef.current = true;
     triggerHaptic?.('light');
-    await toggleFeedReaction(post.id, emoji);
+    try { await toggleFeedReaction(post.id, emoji); }
+    finally { rxnBusyRef.current = false; }
     onReactionChange?.();
   };
 

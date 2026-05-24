@@ -13,7 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut,
+  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2,
 } from 'lucide-react';
 import { leaveGym } from '@/lib/data/gymBusinesses';
 
@@ -298,7 +298,7 @@ export default function GymHub() {
               <GymFeedTab gymId={id} gymOwnerId={gym?.owner_id} />
             </Suspense>
           )}
-          {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} />}
+          {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} gymOwnerId={gym?.owner_id} />}
           {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
         </>
       )}
@@ -327,18 +327,20 @@ export default function GymHub() {
 }
 
 // ── Events Tab ──────────────────────────────────────────────────────
-function EventsTab({ gymId, canCreate }) {
+function EventsTab({ gymId, canCreate, gymOwnerId }) {
   const { user } = useAuth();
+  const isOwner = !!(user?.id && gymOwnerId && user.id === gymOwnerId);
   const [events, setEvents] = useState([]);
   const [rsvps, setRsvps] = useState({}); // eventId → { going, maybe, cant, byUser }
   const [loading, setLoading] = useState(true);
   const [composing, setComposing] = useState(false);
   const [form, setForm] = useState({ title: '', body: '', starts_at: '', location_note: '' });
   const [rsvpBusy, setRsvpBusy] = useState(null);
+  const [scope, setScope] = useState('upcoming'); // 'upcoming' | 'past'
 
   const refresh = async () => {
     setLoading(true);
-    const rows = await listEvents(gymId);
+    const rows = await listEvents(gymId, { scope });
     setEvents(rows);
     if (rows.length > 0) {
       const { listEventRsvps } = await import('@/lib/data/gymBusinesses');
@@ -348,19 +350,44 @@ function EventsTab({ gymId, canCreate }) {
     }
     setLoading(false);
   };
-  useEffect(() => { refresh(); }, [gymId]);
+  useEffect(() => { refresh(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [gymId, scope]);
 
   const handleRsvp = async (eventId, nextStatus) => {
     if (rsvpBusy === eventId) return;
     setRsvpBusy(eventId);
     const { setEventRsvp } = await import('@/lib/data/gymBusinesses');
-    // Toggle off if tapping the same status they already have.
     const currentStatus = rsvps[eventId]?.byUser?.[user?.id];
     const targetStatus = currentStatus === nextStatus ? null : nextStatus;
+    // Optimistic local update so the chip responds instantly even on
+    // slow networks (audit C-12).
+    setRsvps(prev => {
+      const next = { ...prev };
+      const slot = { ...(next[eventId] || { going: 0, maybe: 0, cant: 0, byUser: {} }) };
+      slot.byUser = { ...slot.byUser };
+      if (currentStatus) slot[currentStatus] = Math.max(0, (slot[currentStatus] || 0) - 1);
+      if (targetStatus) {
+        slot[targetStatus] = (slot[targetStatus] || 0) + 1;
+        slot.byUser[user?.id] = targetStatus;
+      } else {
+        delete slot.byUser[user?.id];
+      }
+      next[eventId] = slot;
+      return next;
+    });
     const res = await setEventRsvp(eventId, targetStatus);
     setRsvpBusy(null);
+    if (!res.ok) {
+      toast.error("Couldn't RSVP.");
+      refresh();
+    }
+  };
+
+  const handleDeleteEvent = async (eventId) => {
+    if (!confirm('Delete this event?')) return;
+    const { deleteEvent } = await import('@/lib/data/gymBusinesses');
+    const res = await deleteEvent(eventId);
     if (res.ok) refresh();
-    else toast.error("Couldn't RSVP.");
+    else toast.error("Couldn't delete event.");
   };
 
   const handleCreate = async () => {
@@ -370,6 +397,8 @@ function EventsTab({ gymId, canCreate }) {
       setForm({ title: '', body: '', starts_at: '', location_note: '' });
       setComposing(false);
       refresh();
+    } else if (res.error === 'INVALID_START') {
+      toast.error('Pick a valid date and time.');
     } else {
       toast.error(res.error || "Couldn't create event.");
     }
@@ -377,7 +406,27 @@ function EventsTab({ gymId, canCreate }) {
 
   return (
     <div>
-      {canCreate && !composing && (
+      {/* Upcoming / Past scope toggle (audit C-7) */}
+      <div className="flex gap-1 mb-3">
+        {[
+          { id: 'upcoming', label: 'Upcoming' },
+          { id: 'past',     label: 'Past' },
+        ].map(opt => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setScope(opt.id)}
+            className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
+              scope === opt.id
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary/60 text-foreground hover:bg-secondary'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      {canCreate && !composing && scope === 'upcoming' && (
         <Button variant="outline" onClick={() => setComposing(true)} className="w-full mb-3 gap-1.5">
           <Plus className="w-4 h-4" /> New event
         </Button>
@@ -422,15 +471,34 @@ function EventsTab({ gymId, canCreate }) {
             const slot = rsvps[e.id] || { going: 0, maybe: 0, cant: 0, byUser: {} };
             const myStatus = slot.byUser?.[user?.id] || null;
             const busy = rsvpBusy === e.id;
+            const canDelete = isOwner || (user?.id && e.created_by === user.id);
+            const parsed = (() => {
+              try { const d = parseISO(e.starts_at); return Number.isNaN(d.getTime()) ? null : d; }
+              catch { return null; }
+            })();
+            const isPast = parsed ? parsed.getTime() < Date.now() : false;
             return (
-              <div key={e.id} className="rounded-xl border border-border bg-card p-3">
-                <p className="font-heading font-bold text-sm">{e.title}</p>
+              <div key={e.id} className={`rounded-xl border bg-card p-3 ${isPast ? 'border-border/60 opacity-80' : 'border-border'}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <p className="font-heading font-bold text-sm">{e.title}</p>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteEvent(e.id)}
+                      className="w-6 h-6 rounded-full text-muted-foreground hover:text-destructive flex items-center justify-center"
+                      aria-label="Delete event"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground">
-                  {format(parseISO(e.starts_at), "EEE MMM d 'at' h:mm a")}
+                  {parsed ? format(parsed, "EEE MMM d 'at' h:mm a") : 'Date unavailable'}
                   {e.location_note && ` · ${e.location_note}`}
+                  {isPast && ' · ended'}
                 </p>
                 {e.body && <p className="text-sm text-foreground/85 mt-1.5 whitespace-pre-wrap">{e.body}</p>}
-                {/* RSVP row */}
+                {/* RSVP row — disabled on past events */}
                 <div className="flex items-center gap-1.5 mt-3">
                   {[
                     { id: 'going', label: 'Going',   activeClass: 'bg-emerald-500 text-white border-emerald-500' },
@@ -438,17 +506,18 @@ function EventsTab({ gymId, canCreate }) {
                     { id: 'cant',  label: "Can't",   activeClass: 'bg-secondary text-foreground border-border' },
                   ].map(opt => {
                     const isActive = myStatus === opt.id;
+                    const disabled = busy || isPast;
                     return (
                       <button
                         key={opt.id}
                         type="button"
-                        disabled={busy}
+                        disabled={disabled}
                         onClick={() => handleRsvp(e.id, opt.id)}
                         className={`px-2.5 py-1 rounded-full border text-[11px] font-bold uppercase tracking-wider transition-colors ${
                           isActive
                             ? opt.activeClass
                             : 'border-border text-muted-foreground hover:bg-secondary'
-                        } ${busy ? 'opacity-60' : ''}`}
+                        } ${disabled ? 'opacity-60' : ''}`}
                       >
                         {opt.label}
                       </button>
@@ -505,14 +574,23 @@ function LeaderboardTab({ gymId, meUserId }) {
         ))}
       </div>
 
-      {myRow && myRow.rank > 3 && (
-        <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
-          <span className="flex items-center gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Your rank</span>
-            <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
-          </span>
-          <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>
-        </div>
+      {/* Always show "Your rank" banner so users in the top 3 see their
+          standing too, and unranked members get a clear nudge (audit
+          C-10, B-5 client side). */}
+      {meUserId && !loading && (
+        myRow ? (
+          <div className="rounded-xl bg-primary/10 border border-primary/30 p-3 mb-3 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-primary">Your rank</span>
+              <span className="font-heading font-bold tabular-nums">#{myRow.rank}</span>
+            </span>
+            <span className="font-bold tabular-nums">{Math.round(myRow.value).toLocaleString()} {modeMeta?.suffix}</span>
+          </div>
+        ) : rows.length > 0 ? (
+          <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-3 text-xs text-muted-foreground">
+            Log a {mode === 'streak' ? 'workout' : mode === 'xp' ? 'workout' : 'lift'} to appear on the board.
+          </div>
+        ) : null
       )}
 
       {loading ? (
