@@ -23,10 +23,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Building2, MapPin, Users, X, Loader2, Search } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Users, X, Loader2, Search, Trophy, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { getGymsInBbox } from '@/lib/data/gymBusinesses';
+import GymLeaderboard from '@/components/gyms/GymLeaderboard';
+import { useAuth } from '@/lib/AuthContext';
 
 const US_CENTER = [-98.5795, 39.8283];
 const US_ZOOM   = 3.6;
@@ -63,11 +65,13 @@ function buildPinElement({ gym, compact, onClick }) {
 
 export default function GymMap() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const markersRef = useRef([]);
   const debounceRef = useRef(null);
 
+  const [view, setView] = useState('map'); // 'map' | 'leaderboard'
   const [gyms, setGyms] = useState([]);
   const [selected, setSelected] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -218,16 +222,42 @@ export default function GymMap() {
           <MapPin className="w-4 h-4 text-primary" />
           Flexyn Gym Map
         </h1>
-        <button
-          type="button"
-          onClick={() => setSearchOpen(o => !o)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-            searchOpen ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
-          }`}
-          aria-label="Search"
-        >
-          <Search className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Leaderboard toggle */}
+          <button
+            type="button"
+            onClick={() => setView(v => v === 'leaderboard' ? 'map' : 'leaderboard')}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+              view === 'leaderboard' ? 'bg-yellow-500 text-white' : 'bg-secondary text-foreground'
+            }`}
+            aria-label="Toggle leaderboard"
+          >
+            <Trophy className="w-4 h-4" />
+          </button>
+          {/* Search (only relevant in map view) */}
+          {view === 'map' && (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(o => !o)}
+              className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
+                searchOpen ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground'
+              }`}
+              aria-label="Search"
+            >
+              <Search className="w-4 h-4" />
+            </button>
+          )}
+          {view === 'leaderboard' && (
+            <button
+              type="button"
+              onClick={() => setView('map')}
+              className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center transition-colors"
+              aria-label="Back to map"
+            >
+              <Map className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Search bar — slides in when toggled */}
@@ -256,8 +286,25 @@ export default function GymMap() {
         )}
       </AnimatePresence>
 
+      {/* Leaderboard panel — slides over the map */}
+      <AnimatePresence>
+        {view === 'leaderboard' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="flex-1 overflow-y-auto bg-background"
+          >
+              <GymLeaderboard
+                isAuthed={!!user}
+                onGymPress={(gymId) => navigate(`/gym/${gymId}`)}
+              />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Map container */}
-      <div className="flex-1 relative">
+      <div className={`flex-1 relative ${view === 'leaderboard' ? 'hidden' : ''}`}>
         {mapError ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center">
             <p className="text-sm text-muted-foreground">Map failed to load.</p>

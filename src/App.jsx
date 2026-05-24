@@ -47,6 +47,12 @@ import SignInToContinue from './pages/SignInToContinue';
 // because it's the destination of a viral acquisition link — any
 // loading delay here is conversion lost.
 import DuelInviteLanding from './pages/DuelInviteLanding';
+// Public surfaces — bypass the auth gate entirely so unauthenticated
+// visitors can see profile and gym pages before signing up.
+// Both components call useAuth() internally and adapt their UI based
+// on whether a session exists (action buttons vs. "Join Flexyn" CTA).
+import PublicProfile    from './pages/PublicProfile';
+import PublicGymLanding from './pages/PublicGymLanding';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
 
@@ -140,6 +146,34 @@ const AuthenticatedApp = () => {
         <Routes>
           <Route path="/duel-invite/:token" element={<DuelInviteLanding />} />
           <Route path="*" element={<DuelInviteLanding />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Public profile surface: /@username — show PublicProfile for both
+  // authed and unauthed visitors. PublicProfile handles the session
+  // check internally and shows social buttons vs. "Join Flexyn" CTA.
+  if (typeof window !== 'undefined' && /^\/@[^/]/.test(window.location.pathname)) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/@:username" element={<PublicProfile />} />
+          <Route path="*" element={<PublicProfile />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Public gym landing: /p/gym/:id — lightweight read-only gym page.
+  // Unauthenticated visitors see gym info + "Join Flexyn" CTA.
+  // Authenticated visitors see "Enter Hub" button (→ /gym/:id).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/p/gym/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/p/gym/:id" element={<PublicGymLanding />} />
+          <Route path="*" element={<PublicGymLanding />} />
         </Routes>
       </Router>
     );
