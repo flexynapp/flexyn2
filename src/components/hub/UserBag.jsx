@@ -4,7 +4,11 @@
 // Stickers are grouped by item_id so duplicates are visible and sellable.
 // Titles / Frames update equipped_title_id / equipped_frame_id on user_profiles.
 
-import { useState, useCallback } from 'react';
+// Needs `useRef` for the per-tab equip-intent guard in TitleList /
+// FrameList (was previously written as `React.useRef` but the React
+// namespace wasn't imported — that produced "React is not defined"
+// at render time and blanked the Titles / Frames tabs in My Bag).
+import { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square } from 'lucide-react';
@@ -246,7 +250,7 @@ function TitleList({ items, userId }) {
   // Without this, two fast taps on the same title (toggle off) could read
   // the same pre-invalidate equippedId of `null` and re-equip the title
   // instead of clearing it.
-  const intentRef = React.useRef(null);
+  const intentRef = useRef(null);
   const equippedId = intentRef.current ?? profile?.equipped_title_id;
 
   const equip = async (titleId) => {
@@ -356,7 +360,7 @@ function FrameList({ items, userId }) {
   // See TitleList for the rationale on the intent ref — prevents a fast
   // double-tap from reading the same pre-invalidate cache and re-equipping
   // a frame that the user was trying to toggle off.
-  const intentRef = React.useRef(null);
+  const intentRef = useRef(null);
   const equippedId = intentRef.current ?? profile?.equipped_frame_id;
 
   const equip = async (frameId) => {
