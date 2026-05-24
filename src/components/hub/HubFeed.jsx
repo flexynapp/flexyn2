@@ -81,7 +81,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [following, setFollowing] = useState([]);
+  // `following` is read via the canonical useQuery cache key
+  // ['hubFollowing', user?.email] — declared below alongside the feed
+  // query so they share the same invalidation cycle. The previous
+  // implementation hydrated a useState once on mount which never
+  // refreshed after follow/unfollow taps elsewhere, so the Squad feed
+  // silently missed posts from newly-followed users until full reload.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
 
@@ -131,18 +136,19 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     setVisibleCount(PAGE_SIZE);
   }, [feedTab]);
 
-  // Load following list once for Squad/Following filtering.
-  // Without the .catch(), a network blip leaves `following` permanently
-  // empty and the Squad tab silently shows nothing — the user has no
-  // idea their follow list didn't load.
-  useEffect(() => {
-    if (!user?.email) return;
-    hubFollows.listFollowing(user.email)
-      .then(setFollowing)
-      .catch((err) => {
-        reportError(err, { feature: 'hub.feed.list-following', level: 'warning', userEmail: user.email });
-      });
-  }, [user?.email]);
+  // Canonical follow-state cache key, shared with HubProfile / StoriesRow /
+  // useHubUnreadDot. When the user follows/unfollows anyone, those code
+  // paths invalidate this same key, so the Squad feed automatically
+  // refetches with the new follow set.
+  const { data: following = [] } = useQuery({
+    queryKey: ['hubFollowing', user?.email],
+    queryFn:  () => hubFollows.listFollowing(user.email),
+    enabled:  !!user?.email,
+    staleTime: 60_000,
+    onError:  (err) => reportError(err, {
+      feature: 'hub.feed.list-following', level: 'warning', userEmail: user?.email,
+    }),
+  });
 
   const { data: allPosts = [], isLoading, isFetching, refetch } = useQuery({
     queryKey: ['hubFeed', feedTab, user?.email, following.length],
