@@ -412,13 +412,22 @@ export async function postCrewStory(userId, userEmail, crewId, imageUrl, mediaTy
 export async function getCrewStoriesFeed(userId) {
   const myCrews = await getMyCrews(userId);
   if (!myCrews.length) return [];
-  const results = await Promise.all(
+  // Promise.allSettled so a single crew's getCrewStories() rejecting
+  // (transient 503, RLS edge, network blip) doesn't wipe ALL crew
+  // story circles from the row. Previously the whole Promise.all
+  // rejected and the user saw an empty feed across every crew until
+  // the next refetch. Now the bad crew is silently skipped and the
+  // rest render normally.
+  const settled = await Promise.allSettled(
     myCrews.map(async (crew) => {
       const stories = await getCrewStories(crew.id);
       return { crew, stories };
     })
   );
-  return results.filter(r => r.stories.length > 0);
+  return settled
+    .filter(s => s.status === 'fulfilled')
+    .map(s => s.value)
+    .filter(r => r.stories.length > 0);
 }
 
 // ── Image upload helper (reuses Base44 Core uploader) ─────────────────────────
