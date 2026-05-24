@@ -38,9 +38,21 @@ function mifflinStJeor({ weightKg, heightCm, age, gender }) {
 const ACTIVITY_MULTIPLIERS = { sedentary: 1.2, light: 1.375, moderate: 1.55, very: 1.725, extra: 1.9 };
 
 function computePreview({ userProfile, goal, targetLbs, targetDate, activity }) {
-  const birth = userProfile.birthday ? new Date(userProfile.birthday) : null;
+  // Parse birthday as a LOCAL date — `new Date('YYYY-MM-DD')` is UTC
+  // midnight, which for users west of UTC reads back as the previous
+  // calendar day in local time. That shifts derived age by ±1 day at
+  // the birthday boundary, which then flips BMR → wrong daily-calorie
+  // target persisted to weekly_rate_lbs / target_weight_lbs.
+  const parseLocalYMD = (s) => {
+    if (!s) return null;
+    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+    const d = new Date(s);
+    return Number.isNaN(d.getTime()) ? null : d;
+  };
+  const birth = parseLocalYMD(userProfile.birthday);
   const age = (() => {
-    if (!birth || isNaN(birth.getTime())) return userProfile.age || 30;
+    if (!birth) return userProfile.age || 30;
     const now = new Date();
     let years = now.getFullYear() - birth.getFullYear();
     const m = now.getMonth() - birth.getMonth();

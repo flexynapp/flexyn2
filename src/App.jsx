@@ -243,7 +243,11 @@ const AuthenticatedApp = () => {
       // Everyone else — brand-new visitors AND users who just deleted their account
       // (which clears `fn-returning-user`) — sees the full Onboarding flow starting
       // at the Welcome screen.
-      return isReturningUser() ? <SignInToContinue /> : <Onboarding />;
+      // Brand-new visitor path also gets ErrorBoundary — same rationale
+      // as the post-auth Onboarding render below.
+      return isReturningUser()
+        ? <SignInToContinue />
+        : <ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>;
     }
   }
 
@@ -260,7 +264,15 @@ const AuthenticatedApp = () => {
   const onboardingDone = !isDeletedPlaceholder &&
     (user?.onboarding_complete || user?.onboarding_completed || hasRealUsername);
   if (user && !onboardingDone && !isLoadingAuth) {
-    return <Onboarding />;
+    // Onboarding is the first flow a new user sees — a render throw
+    // here would white-screen the entire account. Wrap in ErrorBoundary
+    // so a single bug doesn't strand the user mid-flow without a
+    // recovery affordance (Go to Home / Try again / Copy details).
+    return (
+      <ErrorBoundary label="Onboarding">
+        <Onboarding />
+      </ErrorBoundary>
+    );
   }
 
   // Post-auth resume for the viral duel-invite flow: if the user just
@@ -286,7 +298,7 @@ const AuthenticatedApp = () => {
     <>
       <Routes>
         <Route path="/" element={<Splash />} />
-        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/onboarding" element={<ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Suspense fallback={<PageLoader />}><Dashboard /></Suspense></ErrorBoundary>} />
           <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
