@@ -58,7 +58,7 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
         }}
         {...longPress.bind}
         className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
-          ${isActive ? (isHubItem ? 'text-blue-500' : 'text-primary') : 'text-muted-foreground'}`}
+          ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
       >
         <motion.div
           animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
@@ -68,8 +68,8 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
             isHubItem
               ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
                   isActive
-                    ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/40'
-                    : 'border-2 border-blue-500 text-blue-500 bg-blue-500/5'
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
+                    : 'border-2 border-primary text-primary bg-primary/5'
                 }`
               : '',
           ].join(' ')}
@@ -80,7 +80,7 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
               Hidden when they're on the Hub route (being there clears it). */}
           {isHubItem && hubHasNewFollowingPost && !isActive && (
             <span
-              className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-blue-500 border-2 border-card pointer-events-none"
+              className="absolute -top-0.5 -end-0.5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-card pointer-events-none"
               aria-label="New posts in Hub"
             />
           )}
@@ -306,11 +306,9 @@ export default function Layout() {
                   onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
                   className={`flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 select-none-ui
                     ${isActive
-                      ? isHubItem
-                        ? 'bg-blue-500 text-white shadow-md shadow-blue-500/30'
-                        : 'bg-primary text-primary-foreground shadow-md'
+                      ? 'bg-primary text-primary-foreground shadow-md'
                       : isHubItem
-                        ? 'text-blue-500 border-2 border-blue-500/40 hover:bg-blue-500/5 hover:border-blue-500'
+                        ? 'text-primary border-2 border-primary/40 hover:bg-primary/5 hover:border-primary'
                         : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
                     }`}
                 >
