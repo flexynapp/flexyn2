@@ -63,6 +63,35 @@ function buildPinElement({ gym, compact, onClick }) {
   return el;
 }
 
+// Orange teardrop pinpoint for special/featured gyms (e.g. Camp Quannapowitt).
+// Always full-size regardless of zoom — stands out even at country view.
+// anchor: 'bottom' on the Marker so the pointed tip sits exactly on the coords.
+function buildOrangePinElement({ gym, onClick }) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.className = 'gym-map-pin-special';
+  el.title = gym.name;
+  el.style.cssText = 'background:none;border:none;padding:0;cursor:pointer;transition:transform 140ms ease-out;display:block;';
+  el.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <filter id="pin-shadow" x="-40%" y="-20%" width="180%" height="180%">
+        <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="rgba(0,0,0,0.40)"/>
+      </filter>
+    </defs>
+    <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
+          fill="#f97316" stroke="#ffffff" stroke-width="2" filter="url(#pin-shadow)"/>
+    <circle cx="16" cy="15" r="7" fill="rgba(255,255,255,0.28)"/>
+    <circle cx="16" cy="15" r="4" fill="rgba(255,255,255,0.55)"/>
+  </svg>`;
+  el.onmouseenter = () => { el.style.transform = 'scale(1.2) translateY(-3px)'; };
+  el.onmouseleave = () => { el.style.transform = 'scale(1) translateY(0)'; };
+  el.onclick = (e) => { e.stopPropagation(); onClick?.(gym); };
+  return el;
+}
+
+// Gyms that get the special orange pin treatment (by flexyn_code).
+const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
+
 export default function GymMap() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -171,8 +200,14 @@ export default function GymMap() {
                             (g.city || '').toLowerCase().includes(filter))
         : gyms;
       for (const g of visible) {
-        const el = buildPinElement({ gym: g, compact, onClick: setSelected });
-        const marker = new maplibregl.Marker({ element: el })
+        const isSpecial = SPECIAL_PIN_CODES.has(g.flexyn_code);
+        const el = isSpecial
+          ? buildOrangePinElement({ gym: g, onClick: setSelected })
+          : buildPinElement({ gym: g, compact, onClick: setSelected });
+        const marker = new maplibregl.Marker({
+          element: el,
+          anchor: isSpecial ? 'bottom' : 'center',
+        })
           .setLngLat([g.longitude, g.latitude])
           .addTo(map);
         markersRef.current.push(marker);
