@@ -23,6 +23,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import 'maplibre-gl/dist/maplibre-gl.css';
 import { ArrowLeft, Building2, MapPin, Users, X, Loader2, Search, Trophy, Map } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
