@@ -92,6 +92,78 @@ function buildOrangePinElement({ gym, onClick }) {
 // Gyms that get the special orange pin treatment (by flexyn_code).
 const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 
+// ── OpenStreetMap gym layer ───────────────────────────────────────────
+// Queries the free Overpass API for fitness_centre / gym nodes in the
+// current bounding box. Only fires at zoom ≥ 8 — below that we'd ask
+// for hundreds of thousands of points and crash the browser.
+// No API key required. Rate-limited client-side: min 800ms between requests.
+
+const OSM_ZOOM_THRESHOLD = 8;
+const OSM_RESULT_CAP     = 400;
+let   lastOsmFetch       = 0;
+
+async function fetchOsmGyms(bounds, signal) {
+  const now = Date.now();
+  if (now - lastOsmFetch < 800) return null; // client-side throttle
+  lastOsmFetch = now;
+
+  const s = bounds.getSouth().toFixed(5);
+  const w = bounds.getWest().toFixed(5);
+  const n = bounds.getNorth().toFixed(5);
+  const e = bounds.getEast().toFixed(5);
+  const bbox = `${s},${w},${n},${e}`;
+
+  const query =
+    `[out:json][timeout:15];` +
+    `(node["leisure"="fitness_centre"](${bbox});` +
+    ` node["amenity"="gym"](${bbox});` +
+    ` way["leisure"="fitness_centre"](${bbox});` +
+    ` way["amenity"="gym"](${bbox}););` +
+    `out center ${OSM_RESULT_CAP};`;
+
+  const res = await fetch(
+    `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(query)}`,
+    { signal },
+  );
+  if (!res.ok) throw new Error(`OSM ${res.status}`);
+  const json = await res.json();
+
+  return (json.elements || []).map(el => ({
+    osmId:   el.id,
+    name:    el.tags?.name || el.tags?.['name:en'] || 'Unnamed gym',
+    lat:     el.type === 'node' ? el.lat : el.center?.lat,
+    lon:     el.type === 'node' ? el.lon : el.center?.lon,
+    brand:   el.tags?.brand || null,
+    website: el.tags?.website || null,
+    phone:   el.tags?.phone || null,
+  })).filter(g => g.lat && g.lon);
+}
+
+// Tiny grey dot for OSM gyms — muted so they don't compete with
+// the Flexyn purple pins or the orange Camp Quannapowitt pin.
+function buildOsmDotElement({ gym, onClick }) {
+  const el = document.createElement('button');
+  el.type = 'button';
+  el.title = gym.name;
+  el.style.cssText = [
+    'width:8px;height:8px;border-radius:50%;',
+    'background:#9ca3af;border:1.5px solid rgba(255,255,255,0.7);',
+    'cursor:pointer;padding:0;',
+    'box-shadow:0 1px 3px rgba(0,0,0,0.2);',
+    'transition:transform 100ms ease-out, background 100ms;',
+  ].join('');
+  el.onmouseenter = () => {
+    el.style.background = '#6b7280';
+    el.style.transform = 'scale(1.8)';
+  };
+  el.onmouseleave = () => {
+    el.style.background = '#9ca3af';
+    el.style.transform = 'scale(1)';
+  };
+  el.onclick = (e) => { e.stopPropagation(); onClick?.(gym); };
+  return el;
+}
+
 export default function GymMap() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -108,6 +180,12 @@ export default function GymMap() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mapError, setMapError] = useState(null);
   const [currentZoom, setCurrentZoom] = useState(US_ZOOM);
+
+  // OSM gym layer
+  const [osmGyms, setOsmGyms] = useState([]);
+  const [selectedOsm, setSelectedOsm] = useState(null);
+  const osmMarkersRef = useRef([]);
+  const osmAbortRef   = useRef(null);
 
   // ── Map init (once on mount) ───────────────────────────────────────
   useEffect(() => {
@@ -162,6 +240,7 @@ export default function GymMap() {
     return () => {
       cancelled = true;
       if (debounceRef.current) clearTimeout(debounceRef.current);
+      osmAbortRef.current?.abort();
       try { map?.remove(); } catch { /* ignore */ }
       mapRef.current = null;
     };
@@ -171,6 +250,9 @@ export default function GymMap() {
     const map = mapRef.current;
     if (!map) return;
     const b = map.getBounds();
+    const zoom = map.getZoom();
+
+    // ── Flexyn gyms ───────────────────────────────────────────────
     setLoading(true);
     const rows = await getGymsInBbox({
       minLat: b.getSouth(), maxLat: b.getNorth(),
@@ -179,6 +261,25 @@ export default function GymMap() {
     });
     setGyms(rows);
     setLoading(false);
+
+    // ── OSM gyms (only when zoomed to city level) ─────────────────
+    if (zoom < OSM_ZOOM_THRESHOLD) {
+      // Clear dots when zoomed out — too many to render meaningfully
+      setOsmGyms([]);
+      return;
+    }
+    // Cancel any in-flight OSM request before starting a new one
+    osmAbortRef.current?.abort();
+    const controller = new AbortController();
+    osmAbortRef.current = controller;
+    try {
+      const dots = await fetchOsmGyms(b, controller.signal);
+      if (dots) setOsmGyms(dots);
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.warn('[GymMap] OSM fetch failed:', err.message);
+      }
+    }
   };
 
   // ── Pin rendering (on gyms / zoom change) ──────────────────────────
@@ -214,6 +315,24 @@ export default function GymMap() {
       }
     })();
   }, [gyms, currentZoom, search]);
+
+  // ── OSM dot rendering ──────────────────────────────────────────────
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    (async () => {
+      const maplibregl = (await import('maplibre-gl')).default;
+      osmMarkersRef.current.forEach(m => { try { m.remove(); } catch {} });
+      osmMarkersRef.current = [];
+      for (const g of osmGyms) {
+        const el = buildOsmDotElement({ gym: g, onClick: setSelectedOsm });
+        const marker = new maplibregl.Marker({ element: el, anchor: 'center' })
+          .setLngLat([g.lon, g.lat])
+          .addTo(map);
+        osmMarkersRef.current.push(marker);
+      }
+    })();
+  }, [osmGyms]);
 
   // When a search match exists, smooth-pan to it.
   const flyToSearchMatch = () => {
@@ -370,7 +489,7 @@ export default function GymMap() {
           )}
         </div>
 
-        {/* Selected pin card */}
+        {/* Selected pin card — Flexyn gym */}
         <AnimatePresence>
           {selected && (
             <motion.div
@@ -404,6 +523,61 @@ export default function GymMap() {
               </div>
               <Button onClick={() => navigate(`/gym/${selected.id}`)} className="w-full">
                 View hub
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Selected OSM gym popup card */}
+        <AnimatePresence>
+          {selectedOsm && !selected && (
+            <motion.div
+              initial={{ y: 80, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 80, opacity: 0 }}
+              className="absolute bottom-20 left-3 right-3 rounded-2xl border border-border bg-card shadow-2xl p-4"
+            >
+              <button
+                type="button"
+                onClick={() => setSelectedOsm(null)}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
+                aria-label="Close"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+              <div className="flex items-start gap-3 pr-6 mb-3">
+                <div className="w-11 h-11 rounded-xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-xl">
+                  🏋
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-heading font-bold text-base truncate">{selectedOsm.name}</p>
+                  <span className="inline-flex items-center gap-1 mt-0.5 px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-xs text-muted-foreground font-medium">
+                    Not on Flexyn yet
+                  </span>
+                  {selectedOsm.brand && (
+                    <p className="text-xs text-muted-foreground mt-1 truncate">{selectedOsm.brand}</p>
+                  )}
+                  {selectedOsm.website && (
+                    <a
+                      href={selectedOsm.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary underline underline-offset-2 mt-1 block truncate"
+                    >
+                      {selectedOsm.website.replace(/^https?:\/\//, '')}
+                    </a>
+                  )}
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full text-sm"
+                onClick={() => {
+                  setSelectedOsm(null);
+                  navigate('/gyms/register');
+                }}
+              >
+                Add this gym to Flexyn 🚀
               </Button>
             </motion.div>
           )}
