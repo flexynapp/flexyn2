@@ -23,6 +23,7 @@ import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
+import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
 
@@ -272,15 +273,18 @@ function TitleList({ items, userId }) {
       .update({ equipped_title_id: newId })
       .eq('id', id);
     if (error) {
-      // Surface the real cause so missing-column / RLS issues are diagnosable
-      // instead of all looking like generic "Could not save".
-      console.error('[TitleList] equip failed:', error);
+      // Route to Sentry with full detail (feature tag + error). The user
+      // toast is intentionally generic — surfacing raw error.message
+      // leaks Postgres error codes / column names / RLS hints that aid
+      // attackers mapping the schema. The two diagnosable cases keep
+      // their actionable copy.
+      reportError(error, { feature: 'userBag.equip-title', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
         toast.error('Database not migrated — run migration 019');
       } else if (error.code === '42501') {
         toast.error('Permission denied — sign in again');
       } else {
-        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+        toast.error('Could not save — try again.');
       }
       return;
     }
@@ -380,13 +384,14 @@ function FrameList({ items, userId }) {
       .update({ equipped_frame_id: newId })
       .eq('id', id);
     if (error) {
-      console.error('[FrameList] equip failed:', error);
+      // See TitleList equip for the rationale on generic toast + Sentry routing.
+      reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
         toast.error('Database not migrated — run migration 019');
       } else if (error.code === '42501') {
         toast.error('Permission denied — sign in again');
       } else {
-        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+        toast.error('Could not save — try again.');
       }
       return;
     }

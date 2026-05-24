@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
 import EmojiReactionButton from './EmojiReactionButton';
+import { reportError } from '@/lib/reportError';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as stickerReactions from '@/lib/data/stickerReactions';
 import HubCommentsInline from './HubCommentsInline';
@@ -168,33 +169,44 @@ function PollCard({ post, userEmail }) {
   const [timelineVotes, setTimelineVotes] = useState([]);
 
   // Fetch existing votes from Supabase (graceful fallback if table missing).
+  // Guard the resolved setState with a `cancelled` flag — without it, a
+  // user scrolling past a poll mid-flight unmounts the card before the
+  // promise resolves, and the setState fires on an unmounted component
+  // (React dev warning + slow leak in prod).
   useEffect(() => {
     if (!isValid || !post.id) return;
+    let cancelled = false;
     supabase
       .from('poll_votes')
       .select('option_index')
       .eq('post_id', post.id)
       .then(({ data, error }) => {
+        if (cancelled) return;
         if (error || !data) return; // table might not exist yet
         const c = Array.from({ length: optionCount }, () => 0);
         data.forEach(r => { if (r.option_index >= 0 && r.option_index < optionCount) c[r.option_index]++; });
         setCounts(c);
         setTotalVotes(data.length);
       });
+    return () => { cancelled = true; };
   }, [post.id, optionCount, isValid]);
 
-  // Fetch vote timeline when showTimeline is toggled on
+  // Fetch vote timeline when showTimeline is toggled on. Same
+  // cancelled-flag pattern as the votes-fetch above.
   useEffect(() => {
     if (!showTimeline || !post.id) return;
+    let cancelled = false;
     supabase
       .from('poll_votes')
       .select('option_index, created_at')
       .eq('post_id', post.id)
       .order('created_at', { ascending: true })
       .then(({ data }) => {
+        if (cancelled) return;
         if (data) setTimelineVotes(data);
       })
       .catch(() => {});
+    return () => { cancelled = true; };
   }, [showTimeline, post.id]);
 
   if (!isValid) return null;
@@ -820,7 +832,8 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
                   toast.success(`Muted @${post.author_name?.replace(/^@/, '') || 'user'}. Their posts won't appear in your feed.`);
                   queryClient.invalidateQueries({ queryKey: ['userMutes', user?.id] });
                 } catch (err) {
-                  toast.error(`Could not mute: ${err.message || 'try again'}`);
+                  reportError(err, { feature: 'hub.mute-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+                  toast.error('Could not mute — try again.');
                 }
               }}
               className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
@@ -839,7 +852,8 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
                   queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
                   queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
                 } catch (err) {
-                  toast.error(`Could not block: ${err.message || 'try again'}`);
+                  reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
+                  toast.error('Could not block — try again.');
                 }
               }}
               className="relative p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-destructive transition-colors"

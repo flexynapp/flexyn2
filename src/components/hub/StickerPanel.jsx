@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as inventory from '@/lib/data/inventory';
 import * as stickerReactions from '@/lib/data/stickerReactions';
+import { reportError } from '@/lib/reportError';
 import StickerDisplay from './StickerDisplay';
 import { RARITY } from '@/lib/lootCatalog';
 
@@ -91,7 +92,10 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
       qc.invalidateQueries({ queryKey: ['stickerReactions', postId] });
       setTab('reactions');
     } catch (err) {
-      toast.error('Could not react: ' + err.message);
+      // Generic toast — raw Postgres error.message can leak column / RLS
+      // hints. Full detail still goes to Sentry via reportError.
+      reportError(err, { feature: 'stickerPanel.react', level: 'warning', userEmail: user?.email, postId });
+      toast.error('Could not react — try again.');
     } finally {
       setBusy(false);
     }
