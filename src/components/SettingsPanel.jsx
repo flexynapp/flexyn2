@@ -765,6 +765,40 @@ export default function SettingsPanel() {
         </div>
       )}
 
+      {/* Workout volume math — audit C-3. Default off so historical
+          leaderboard totals don't suddenly inflate ~20% for users who
+          never opted in. When on, barbell exercises include the bar
+          weight in volume calculation (45-lb Olympic, or whatever
+          the user's active bar is set to in barInventory). */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <Dumbbell className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+          <div className="min-w-0">
+            <p id="settings-bar-volume-label" className="text-xs text-foreground leading-tight">
+              {tFallback('settings.includeBarVolume', 'Include bar weight in volume')}
+            </p>
+            <p className="text-[10px] text-muted-foreground leading-tight mt-0.5">
+              {tFallback('settings.includeBarVolumeHint', 'Adds the bar (e.g. 45 lb) on barbell lifts')}
+            </p>
+          </div>
+        </div>
+        <ToggleSwitch
+          checked={!!profile?.include_bar_in_volume}
+          onChange={async (next) => {
+            const prev = !!profile?.include_bar_in_volume;
+            queryClient.setQueryData(['userProfile', user?.email], (old) => old ? { ...old, include_bar_in_volume: next } : old);
+            try {
+              await db.auth.updateMe({ include_bar_in_volume: next });
+              queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+            } catch {
+              queryClient.setQueryData(['userProfile', user?.email], (old) => old ? { ...old, include_bar_in_volume: prev } : old);
+              toast.error(tFallback('settings.includeBarVolume.saveFailed', 'Could not save — try again.'));
+            }
+          }}
+          labelledBy="settings-bar-volume-label"
+        />
+      </div>
+
       {/* Body Stats */}
       <div className="border-t border-border pt-3 mt-1">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Body Stats</p>

@@ -17,29 +17,15 @@ import { useEffect, useState } from 'react';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight, fromLbs } from '@/lib/weightUnit';
+import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
-function totalVolumeLbs(exercises = []) {
-  let total = 0;
-  for (const ex of exercises) {
-    const sets = ex?.sets || [];
-    for (const s of sets) {
-      const w = Number(s?.weight);
-      const r = Number(s?.reps);
-      if (Number.isFinite(w) && Number.isFinite(r) && w > 0 && r > 0) {
-        total += w * r;
-      }
-    }
-  }
-  return total;
-}
-
-export default function LiveVolumePill({ exercises = [] }) {
+export default function LiveVolumePill({ exercises = [], includeBarWeight = false }) {
   const { weightUnit } = useWeightUnit();
-  // Recompute totalVolumeLbs every render — the parent's `exercises`
-  // is a new reference on every keystroke so useMemo with [exercises]
-  // never memoized anyway (audit A-9). Direct compute is cheaper than
-  // the memo bookkeeping.
-  const totalLbs = totalVolumeLbs(exercises);
+  // Volume math lives in src/lib/workoutVolume.js so the live pill,
+  // save mutation, and downstream displays all share the same
+  // formula (audit C-3). includeBarWeight comes from the user's
+  // preference on user_profiles.include_bar_in_volume (mig 142).
+  const totalLbs = computeTotalVolume(exercises, { includeBarWeight });
 
   // Tween the rendered number toward `totalLbs` so the pill counts
   // UP / DOWN smoothly rather than snapping. Motion-value-driven so

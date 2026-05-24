@@ -103,6 +103,29 @@ function makeEntity(entityName) {
         const { data: row, error } = await supabase.from(table).insert(payload).select().single();
         if (!error) return row;
 
+        // PostgreSQL 23505 unique_violation on an idempotency key —
+        // a prior attempt of THIS save intent already landed. Fetch
+        // and return the existing row so the caller treats it as a
+        // successful save (mig 142, audit C-2). Tagged via
+        // `__duplicate = true` on the returned object so the caller
+        // can skip side-effects (XP/volume re-credit).
+        if (error.code === '23505' && payload.idempotency_key && payload.user_id) {
+          const isIdempotencyConflict = /idempotency/i.test(error.message || '')
+            || error.constraint === 'workout_logs_idempotency_idx';
+          if (isIdempotencyConflict) {
+            const { data: existing, error: fetchErr } = await supabase
+              .from(table)
+              .select('*')
+              .eq('user_id', payload.user_id)
+              .eq('idempotency_key', payload.idempotency_key)
+              .maybeSingle();
+            if (!fetchErr && existing) {
+              existing.__duplicate = true;
+              return existing;
+            }
+          }
+        }
+
         // PostgreSQL 42703 undefined_column — strip and retry
         if (error.code === '42703') {
           const match = error.message?.match(/column "([^"]+)"/);

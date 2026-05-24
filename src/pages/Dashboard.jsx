@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -262,6 +262,7 @@ export default function Dashboard() {
   const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const location = useLocation();
   const navigate = useNavigate();
   const fmt = useNumberFormatter();
@@ -333,6 +334,32 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
   }, [showWelcome]);
+
+  // Audit D-4 — best-effort reconcile pass. Fixes the case where a
+  // workout INSERT landed but the increment_user_volume RPC never
+  // ran (network died between the two). Idempotent server-side (RPC
+  // skips already-credited rows) so it's safe to fire on every mount.
+  // Gated to fire once per session via sessionStorage.
+  useEffect(() => {
+    if (!user?.id) return;
+    const sessionKey = 'flexyn.volumeReconciled';
+    try { if (sessionStorage.getItem(sessionKey)) return; } catch {}
+    let cancelled = false;
+    (async () => {
+      try {
+        const { reconcileMyVolume } = await import('@/lib/data/workouts');
+        const res = await reconcileMyVolume();
+        if (cancelled) return;
+        try { sessionStorage.setItem(sessionKey, '1'); } catch {}
+        if (res.ok && res.reconciled > 0) {
+          // Quietly refresh the profile so the leaderboard rank picks
+          // up the recovered volume on the next render.
+          queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+        }
+      } catch { /* non-critical */ }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, user?.email, queryClient]);
 
   const { data: rawLogs = [], isLoading: logsLoading, dataUpdatedAt: logsUpdatedAt } = useQuery({
     queryKey: ['workoutLogs', user?.email],

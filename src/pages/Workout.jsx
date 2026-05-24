@@ -71,6 +71,7 @@ import * as notifications from '@/lib/data/notifications';
 import { speakWorkoutComplete } from '@/lib/audioCues';
 import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
+import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -468,21 +469,29 @@ export default function Workout() {
       }
 
       const workoutLog = await db.entities.WorkoutLog.create(data);
-      const xpGained = calculateWorkoutXp(data);
-      const sessionVolume = calculateTotalVolume(data.exercises);
+      // Audit C-2 — duplicate detection. The db.js shim returns
+      // __duplicate=true when a prior attempt with the same
+      // idempotency key already landed. Skip ALL credits in that case
+      // so XP/volume/streak/leagues aren't double-counted on a retry.
+      const isDuplicateSave = workoutLog?.__duplicate === true;
+      const xpGained = isDuplicateSave ? 0 : calculateWorkoutXp(data);
+      const sessionVolume = isDuplicateSave ? 0 : calculateTotalVolume(data.exercises);
 
-      // Always fire XP + achievement check — even if XP is 0 (e.g. bodyweight-only
-      // or capped workout) so that achievement unlocks are never skipped.
-      // Wrapped in try-catch so a server-side failure never kills the mutation
-      // or prevents the success toast / workout reset from running.
-      try {
-        await db.functions.invoke('updateUserXpAndAchievements', {
-          xp_gained: xpGained,
-          action_type: 'workout_completed',
-          action_data: { totalVolume: sessionVolume, workout_date: data.date }
-        });
-      } catch (xpErr) {
-        reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
+      if (!isDuplicateSave) {
+        // Always fire XP + achievement check — even if XP is 0 (e.g.
+        // bodyweight-only or capped workout) so that achievement unlocks
+        // are never skipped. Wrapped in try-catch so a server-side
+        // failure never kills the mutation or prevents the success
+        // toast / workout reset from running.
+        try {
+          await db.functions.invoke('updateUserXpAndAchievements', {
+            xp_gained: xpGained,
+            action_type: 'workout_completed',
+            action_data: { totalVolume: sessionVolume, workout_date: data.date }
+          });
+        } catch (xpErr) {
+          reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
+        }
       }
 
       // Atomic volume accumulation via RPC (migration 023). The previous
@@ -494,6 +503,7 @@ export default function Workout() {
       // instead of overwriting. Falls back to read-modify-write only if
       // the RPC isn't available (pre-migration).
       if (sessionVolume > 0) {
+        let volumeCredited = false;
         try {
           const { error: rpcErr } = await supabase.rpc('increment_user_volume', {
             p_delta: sessionVolume,
@@ -512,10 +522,25 @@ export default function Workout() {
               const me = await db.auth.me();
               const prev = Number(me?.total_volume_lbs) || 0;
               await db.auth.updateMe({ total_volume_lbs: prev + sessionVolume });
+              volumeCredited = true;
             }
+          } else {
+            volumeCredited = true;
           }
         } catch (volErr) {
           reportError(volErr, { feature: 'workout.volume-accumulate', level: 'warning', userEmail: user?.email, sessionVolume });
+        }
+        // Audit D-4 — mark the row credited so the Dashboard's
+        // reconcile pass doesn't re-credit. If the network died
+        // between INSERT and this mark, volume_credited_at stays
+        // NULL and reconcile_my_workout_volume() will fix it up
+        // on next mount.
+        if (volumeCredited && workoutLog?.id) {
+          try {
+            await supabase.rpc('mark_workout_volume_credited', { p_workout_log_id: workoutLog.id });
+          } catch (markErr) {
+            reportError(markErr, { feature: 'workout.mark-credited', level: 'warning', userEmail: user?.email });
+          }
         }
       }
 
@@ -524,7 +549,7 @@ export default function Workout() {
       // Previously onSuccess re-called calculateWorkoutXp on the original
       // unclamped data, which could overstate the XP by up to ~30% when
       // sets had been trimmed by the per-group cap.
-      return { workoutLog, clampedData: data, xpGained, sessionVolume };
+      return { workoutLog, clampedData: data, xpGained, sessionVolume, isDuplicate: isDuplicateSave };
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -568,6 +593,17 @@ export default function Workout() {
       }
     },
     onSuccess: (result, _origData, ctx) => {
+      // Audit C-2 — duplicate-save short-circuit. A retry of a save
+      // that already landed should NOT re-fire streak/league/quests/
+      // crew wars/celebrations. We surface a quiet confirm toast and
+      // reset the editor so the user knows the prior save is intact.
+      if (result?.isDuplicate) {
+        toast.success(tFallback('workout.alreadySaved', 'Workout already saved.'));
+        if (activeSessionId) removeSession(activeSessionId);
+        resetWorkout();
+        queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+        return;
+      }
       // Read clamped data + xpGained from the mutation result, NOT recompute
       // from the original payload. Recomputing on the original input ignored
       // the per-group cap clamping inside mutationFn and could overstate the
@@ -853,15 +889,12 @@ export default function Workout() {
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] }),
   });
 
-  const calculateTotalVolume = (exList) => {
-    let total = 0;
-    exList?.forEach(ex => {
-      ex.sets?.forEach(set => {
-        total += (set.weight || 0) * (set.reps || 0);
-      });
-    });
-    return total;
-  };
+  // Centralized in src/lib/workoutVolume.js so the live pill, save
+  // mutation, and downstream displays all share the same formula
+  // (and honor the user's include_bar_in_volume preference — audit
+  // C-3).
+  const calculateTotalVolume = (exList) =>
+    computeTotalVolume(exList, { includeBarWeight: !!userProfile?.include_bar_in_volume });
 
   const getLastSetsForExercise = (exerciseName, targetSetCount) => {
     if (!logs || logs.length === 0) return null;
@@ -1223,6 +1256,15 @@ export default function Workout() {
       ? Math.min(parseInt(duration) || 0, 360)
       : (elapsedMin ? Math.min(elapsedMin, 360) : null);
 
+    // Audit C-2 — idempotency key for double-tap / network-retry
+    // protection. crypto.randomUUID is widely supported; the fallback
+    // is fine for pre-2021 browsers. The key is stable per
+    // saveWorkout INVOCATION (not per mutationFn call) so the
+    // errorToast retry button hands the same key back to the server.
+    const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID)
+      ? crypto.randomUUID()
+      : `idem-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+
     const pendingPayload = {
       regimen_id: selectedRegimen?.id || '',
       regimen_name: selectedRegimen?.name || t('workout.freestyle'),
@@ -1230,6 +1272,7 @@ export default function Workout() {
       duration_minutes: effectiveDuration,
       exercises: pendingExercises,
       notes,
+      idempotency_key: idempotencyKey,
     };
 
     if (flaggedSets.length > 0) {
@@ -2086,7 +2129,7 @@ export default function Workout() {
           Cheap dopamine — every great fitness app has a live number
           somewhere the user watches. */}
       <div className="mb-6">
-        <LiveVolumePill exercises={exercises} />
+        <LiveVolumePill exercises={exercises} includeBarWeight={!!userProfile?.include_bar_in_volume} />
       </div>
 
       <div className="mb-6">
