@@ -50,7 +50,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   );
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
-  const { start: startRestTimer } = useRestTimer();
+  const { start: startRestTimer, addTime: addRestTime, active: restActive } = useRestTimer();
   const sets = exercise.sets || [];
   const muscles = exercise.muscle_groups?.length ? exercise.muscle_groups : (exercise.muscle_group ? [exercise.muscle_group] : []);
   // Detect bodyweight exercises by name so the SetRow can label the
@@ -122,6 +122,19 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       : (repsBecameValid || weightBecameValid) && !!(updated.weight && updated.reps);
     if (justCompleted && !updated.is_warmup) {
       startRestTimer();
+    }
+
+    // Rest-timer back-off: when effort is tagged on a set mid-rest, nudge
+    // the running countdown. A brutal set (RPE>=9 / RIR<=1) earns +30s; an
+    // easy one (RIR>=4) trims 30s. Fires once on the transition into a
+    // tagged value so re-taps don't stack.
+    const hadEffort = prev.rir != null || prev.rpe != null;
+    const hasEffort = updated.rir != null || updated.rpe != null;
+    if (restActive && !hadEffort && hasEffort) {
+      const hard = (updated.rpe != null && updated.rpe >= 9) || (updated.rir != null && updated.rir <= 1);
+      const easy = (updated.rir != null && updated.rir >= 4);
+      if (hard) { addRestTime(30); triggerHaptic('warning'); }
+      else if (easy) { addRestTime(-30); }
     }
   };
 
