@@ -2,11 +2,24 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useComebackProtocol } from '../useComebackProtocol';
 
-// Compute a date N days ago in ISO format
+// Compute a date N days ago as a LOCAL-CALENDAR YYYY-MM-DD string.
+//
+// We deliberately don't use `.toISOString().split('T')[0]` here: that
+// produces a UTC date, which is 1 day AHEAD of the user's local
+// calendar date for any negative UTC offset (Americas) once the local
+// clock is late enough in the day. The hook under test parses these
+// strings as LOCAL dates (parseLocalDate in useComebackProtocol.js),
+// so a UTC-based test fixture caused `daysAgoISO(7)` to evaluate to
+// 6 days ago in local-time arithmetic — making the "7 days inclusive"
+// case fail late in the day in the Americas. The fix is to mirror the
+// hook's local-date convention here.
 function daysAgoISO(days) {
   const d = new Date();
   d.setDate(d.getDate() - days);
-  return d.toISOString().split('T')[0];
+  const yyyy = d.getFullYear();
+  const mm   = String(d.getMonth() + 1).padStart(2, '0');
+  const dd   = String(d.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
 }
 
 beforeEach(() => {
