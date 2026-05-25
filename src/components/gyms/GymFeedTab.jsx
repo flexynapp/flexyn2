@@ -14,8 +14,10 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
+import { listPublicFeed } from '@/lib/data/hubPosts';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { Button } from '@/components/ui/button';
@@ -40,6 +42,7 @@ const DEFAULT_EMOJI = '🔥';
 export default function GymFeedTab({ gymId, gymOwnerId }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  const navigate = useNavigate();
 
   const isOwner = !!(user?.id && gymOwnerId && user.id === gymOwnerId);
 
@@ -71,6 +74,23 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
     const rest   = posts.filter(p => !p.is_pinned);
     return [...pinned, ...rest];
   }, [posts]);
+
+  // Anti-"ghost gym": a brand-new local gym with a near-empty feed reads
+  // as an abandoned mall. When the feed is sparse, backfill with trending
+  // public posts from the global Hub so the social loop never collapses.
+  const feedIsSparse = !isLoading && sortedPosts.length < 3;
+  const { data: communityPosts = [] } = useQuery({
+    queryKey: ['gymGhostFallback', gymId],
+    queryFn:  () => listPublicFeed(8),
+    enabled:  !!gymId && feedIsSparse,
+    staleTime: 60_000,
+  });
+  const communityFiltered = useMemo(
+    () => communityPosts
+      .filter(p => (p.body || p.content) && p.author_email !== user?.email)
+      .slice(0, 5),
+    [communityPosts, user?.email],
+  );
 
   // ── Composer state ────────────────────────────────────────────────
   const [body, setBody] = useState('');
@@ -215,6 +235,39 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
             />
           ))}
         </AnimatePresence>
+      )}
+
+      {/* Ghost-gym backfill — trending community posts while the gym ramps up */}
+      {feedIsSparse && communityFiltered.length > 0 && (
+        <div className="mt-5">
+          <div className="flex items-center gap-1.5 mb-1 px-1">
+            <Sparkles className="w-3.5 h-3.5 text-primary" />
+            <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-primary">From the Flexyn community</h3>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-3 px-1">Trending posts while your gym gets going.</p>
+          <div className="space-y-2">
+            {communityFiltered.map(p => {
+              const handle = (p.author_name || '').replace(/^@/, '') || p.author_email?.split('@')[0] || 'athlete';
+              const text = (p.body || p.content || '').slice(0, 160);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(p.author_email || '')}`)}
+                  className="w-full text-left flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 transition-colors"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {handle.slice(0, 2).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold truncate">@{handle}</p>
+                    {text && <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{text}</p>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
       )}
     </div>
   );
