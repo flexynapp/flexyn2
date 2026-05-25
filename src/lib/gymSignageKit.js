@@ -56,11 +56,13 @@ export async function downloadSignageKit(gym) {
     return { ok: false, error: 'LIB_LOAD_FAILED' };
   }
 
-  // High-EC QR so it survives print + glare; matches GymSignageCard's
-  // deep-link encoding so a scan opens the app / shows the code.
+  // High-EC QR so it survives print + glare. Encodes the /checkin/<CODE>
+  // web URL: a phone-camera scan opens the check-in page (1.2x XP day),
+  // and the in-app scanner still extracts the 8-char code from the path.
+  const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
   let qrDataUrl;
   try {
-    qrDataUrl = await QRCode.toDataURL(`flexyn://gym/${gym.flexyn_code}`, {
+    qrDataUrl = await QRCode.toDataURL(`${origin}/checkin/${gym.flexyn_code}`, {
       errorCorrectionLevel: 'H', margin: 1, width: 900,
       color: { dark: '#0f0f2a', light: '#ffffff' },
     });

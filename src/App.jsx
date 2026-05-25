@@ -53,6 +53,7 @@ import DuelInviteLanding from './pages/DuelInviteLanding';
 // on whether a session exists (action buttons vs. "Join Flexyn" CTA).
 import PublicProfile    from './pages/PublicProfile';
 import PublicGymLanding from './pages/PublicGymLanding';
+import CheckInPage      from './pages/CheckInPage';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
 
@@ -177,6 +178,20 @@ const AuthenticatedApp = () => {
         <Routes>
           <Route path="/p/gym/:id" element={<PublicGymLanding />} />
           <Route path="*" element={<PublicGymLanding />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Gym check-in QR target: /checkin/<CODE> — checks the signed-in user
+  // into a gym for a 1.2x XP day. CheckInPage handles the signed-out case
+  // (prompts sign-in), so this bypass works for a fresh camera scan too.
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/checkin/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/checkin/:code" element={<CheckInPage />} />
+          <Route path="*" element={<CheckInPage />} />
         </Routes>
       </Router>
     );

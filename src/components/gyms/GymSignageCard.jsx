@@ -34,7 +34,8 @@ export default function GymSignageCard({ open, onClose, gym }) {
       try {
         const QRCode = (await import('qrcode')).default;
         if (cancelled) return;
-        const dataUrl = await QRCode.toDataURL(`flexyn://gym/${gym.flexyn_code}`, {
+        const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
+        const dataUrl = await QRCode.toDataURL(`${origin}/checkin/${gym.flexyn_code}`, {
           errorCorrectionLevel: 'H',
           margin: 1,
           width: 600,

@@ -63,6 +63,7 @@ import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
 import { calculateWorkoutXp } from '@/lib/xpSystem';
+import { hasCheckedInToday, GYM_CHECKIN_XP_MULTIPLIER } from '@/lib/data/gymCheckins';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import * as leagues from '@/lib/data/leagues';
@@ -474,7 +475,20 @@ export default function Workout() {
       // idempotency key already landed. Skip ALL credits in that case
       // so XP/volume/streak/leagues aren't double-counted on a retry.
       const isDuplicateSave = workoutLog?.__duplicate === true;
-      const xpGained = isDuplicateSave ? 0 : calculateWorkoutXp(data);
+      let xpGained = isDuplicateSave ? 0 : calculateWorkoutXp(data);
+      // Gym check-in 1.2x XP multiplier — sessions logged on a day the user
+      // checked into a gym via the signage QR earn boosted XP. Best-effort:
+      // the multiplier is a bonus, never a blocker, so a failed lookup just
+      // skips it without affecting the save.
+      let checkInBonus = false;
+      if (xpGained > 0) {
+        try {
+          if (await hasCheckedInToday()) {
+            xpGained = Math.round(xpGained * GYM_CHECKIN_XP_MULTIPLIER);
+            checkInBonus = true;
+          }
+        } catch { /* skip the bonus on lookup failure */ }
+      }
       const sessionVolume = isDuplicateSave ? 0 : calculateTotalVolume(data.exercises);
 
       if (!isDuplicateSave) {
@@ -549,7 +563,7 @@ export default function Workout() {
       // Previously onSuccess re-called calculateWorkoutXp on the original
       // unclamped data, which could overstate the XP by up to ~30% when
       // sets had been trimmed by the per-group cap.
-      return { workoutLog, clampedData: data, xpGained, sessionVolume, isDuplicate: isDuplicateSave };
+      return { workoutLog, clampedData: data, xpGained, sessionVolume, isDuplicate: isDuplicateSave, checkInBonus };
     },
     onMutate: async (data) => {
       await queryClient.cancelQueries({ queryKey: ['workoutLogs', user?.email] });
@@ -610,6 +624,7 @@ export default function Workout() {
       // XP by ~30% on workouts that had sets trimmed.
       const clampedData = result?.clampedData || _origData;
       const xpGained = result?.xpGained ?? calculateWorkoutXp(clampedData);
+      const checkInBonus = !!result?.checkInBonus;
       // Record exercise usage for autocomplete-ranking. Recently-
       // used exercises rise to the top of the autocomplete next
       // time the user starts a workout. Fire-and-forget — local.
@@ -675,7 +690,9 @@ export default function Workout() {
         // editor state on the next tick.
         const sessionSnapshot = clampedData;
         toast.success(t('workout.saved'), {
-          description: t('workout.savedXp').replace('{xp}', xpGained),
+          description: checkInBonus
+            ? `${t('workout.savedXp').replace('{xp}', xpGained)} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
+            : t('workout.savedXp').replace('{xp}', xpGained),
           duration: 6000,
           action: {
             label: tFallback('workout.saveTemplate', 'Save as template'),
