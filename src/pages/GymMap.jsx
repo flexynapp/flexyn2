@@ -224,10 +224,20 @@ export default function GymMap() {
       'top-right',
     );
 
+    // Mirror RouteMap.jsx's error/missing-image handling — OpenFreeMap's
+    // Liberty style fires a known-noisy "Expected value to be of type
+    // number" warning and references sprite icons that don't exist in
+    // the served sheet. Filter the warning and stub the icons so the
+    // console stays clean and the map keeps rendering.
     map.on('error', e => {
-      console.error('[GymMap] map error:', e.error);
-      // Don't setMapError here — tile 404s fire this event and we
-      // don't want to unmount the map for a single bad tile.
+      const msg = e?.error?.message || String(e?.error || e);
+      if (msg.includes('Expected value to be of type number')) return;
+      console.warn('[GymMap] map error:', e?.error || e);
+    });
+
+    map.on('styleimagemissing', ({ id }) => {
+      if (map.hasImage(id)) return;
+      map.addImage(id, { width: 1, height: 1, data: new Uint8ClampedArray(4) });
     });
 
     const scheduleRefresh = () => {
@@ -319,11 +329,16 @@ export default function GymMap() {
     : gyms.length;
 
   // ── Render ─────────────────────────────────────────────────────────────
+  // Layout: explicit 100dvh height on the outer wrapper, then header
+  // (auto height) + map area with `flex: 1 1 0` AND a hard min-height
+  // so the container never collapses to zero if the flex chain
+  // mis-resolves (the bug that gave a blank screen on Netlify).
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       className="fixed inset-0 bg-background flex flex-col"
+      style={{ height: '100dvh', zIndex: 50 }}
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card z-10 shrink-0">
@@ -395,8 +410,16 @@ export default function GymMap() {
         )}
       </AnimatePresence>
 
-      {/* Map area */}
-      <div className={`flex-1 relative overflow-hidden ${view === 'leaderboard' ? 'hidden' : ''}`}>
+      {/* Map area —
+          Explicit min-height + flex:1 belt-and-suspenders. RouteMap.jsx
+          ships an inline-style `height` because the absolute-inset-0
+          pattern collapsed to 0×0 in some flex contexts; we mirror that
+          here: the container element itself carries dimensions, so the
+          map renders even if the parent chain mis-resolves. */}
+      <div
+        className={`relative overflow-hidden ${view === 'leaderboard' ? 'hidden' : ''}`}
+        style={{ flex: '1 1 0', minHeight: '300px', isolation: 'isolate', zIndex: 0 }}
+      >
 
         {/* Error state — with retry */}
         {mapError && (
@@ -413,8 +436,14 @@ export default function GymMap() {
           </div>
         )}
 
-        {/* MapLibre canvas */}
-        <div ref={containerRef} className="absolute inset-0" />
+        {/* MapLibre canvas — explicit width:100% height:100% on the
+            ref'd element itself so MapLibre's ResizeObserver always
+            sees real dimensions, even before the parent flex resolves. */}
+        <div
+          ref={containerRef}
+          className="absolute inset-0"
+          style={{ width: '100%', height: '100%' }}
+        />
 
         {/* Count pill */}
         {!mapError && (
