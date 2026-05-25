@@ -83,9 +83,11 @@ function StickerGroupCard({ group, onSell, selling }) {
 
   // Unlisted items are the ones available to sell.
   const unlisted = group.filter(i => !i.is_listed);
-  // Can only sell if there are >1 unlisted copies (keep at least one).
-  const canSell  = unlisted.length > 1;
-  const extras   = unlisted.length - 1; // number available to sell
+  // Any unlisted copy is sellable — including the last one. (Previously
+  // we forced keeping one copy; per product the user can sell ANY item,
+  // "even if it's really small.")
+  const canSell  = unlisted.length >= 1;
+  const extras   = unlisted.length; // number available to sell
 
   // Two-step confirm: first click arms the button, second executes.
   const [armed, setArmed] = useState(false);

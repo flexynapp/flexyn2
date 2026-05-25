@@ -48,8 +48,10 @@ export default function AchievementsModal({ open, onClose, achievements = [], us
         cats[def.category].push({
           ...def,
           id: userAch?.id,
-          unlocked: userAch?.unlocked || false,
-          unlockedDate: userAch?.unlocked_date,
+          // Row presence = unlocked; table only has unlocked_at (the old
+          // unlocked/unlocked_date columns never existed → all locked).
+          unlocked: !!userAch,
+          unlockedDate: userAch?.unlocked_at,
           progress: userAch?.progress || 0,
         });
       }

@@ -22,20 +22,28 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle } from 'lucide-react';
+import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
-import { listReports, resolveReport, deleteReportedContent } from '@/lib/data/admin';
+import { listReports, resolveReport, deleteReportedContent, listBugReports, resolveBugReport } from '@/lib/data/admin';
 import { errorToast } from '@/lib/errorToast';
 import { reportError } from '@/lib/reportError';
 import PageHeader from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const TABS = [
+const CONTENT_TABS = [
   { id: 'pending',   label: 'Pending' },
   { id: 'reviewed',  label: 'Reviewed' },
   { id: 'actioned',  label: 'Actioned' },
+  { id: 'dismissed', label: 'Dismissed' },
+];
+
+// Bug reports have no "actioned" state (no content to delete) — just
+// pending → reviewed / dismissed.
+const BUG_TABS = [
+  { id: 'pending',   label: 'Pending' },
+  { id: 'reviewed',  label: 'Reviewed' },
   { id: 'dismissed', label: 'Dismissed' },
 ];
 
@@ -52,16 +60,37 @@ export default function AdminReports() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [reportKind, setReportKind] = useState('content'); // 'content' | 'bug'
   const [activeTab, setActiveTab] = useState('pending');
   const isAdmin = isAppAdmin(user);
+  const isBug = reportKind === 'bug';
+  const TABS = isBug ? BUG_TABS : CONTENT_TABS;
 
   // Hooks must run on every render — the !isAdmin early-return is
   // placed AFTER all hooks below to honor the rules-of-hooks.
   const { data: reports = [], isLoading, refetch } = useQuery({
-    queryKey: ['adminReports', activeTab],
-    queryFn:  () => listReports({ status: activeTab }),
+    queryKey: ['adminReports', reportKind, activeTab],
+    queryFn:  () => isBug
+      ? listBugReports({ status: activeTab })
+      : listReports({ status: activeTab }),
     enabled:  !!user?.id && isAdmin,
     staleTime: 15_000,
+  });
+
+  const bugResolveMut = useMutation({
+    mutationFn: ({ id, status }) => resolveBugReport(id, status),
+    onSuccess: (_d, { status }) => {
+      toast.success(`Bug report ${status}.`);
+      queryClient.invalidateQueries({ queryKey: ['adminReports'] });
+    },
+    onError: (err, vars) => {
+      reportError(err, { feature: 'admin.bugReports.resolve', userEmail: user?.email });
+      errorToast({
+        title: 'Could not update bug report',
+        description: err?.message,
+        retry: () => bugResolveMut.mutate(vars),
+      });
+    },
   });
 
   const resolveMut = useMutation({
@@ -137,6 +166,24 @@ export default function AdminReports() {
         hidePeriod
       />
 
+      {/* Kind switch — content reports vs user bug reports (mig 144). */}
+      <div className="flex gap-1 mb-4 rounded-lg bg-secondary/50 p-1 w-fit">
+        {[
+          { id: 'content', label: 'Content', Icon: ShieldAlert },
+          { id: 'bug',     label: 'Bug reports', Icon: Bug },
+        ].map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => { setReportKind(id); setActiveTab('pending'); }}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-bold transition-colors ${
+              reportKind === id ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <Icon className="w-3.5 h-3.5" /> {label}
+          </button>
+        ))}
+      </div>
+
       {/* Tabs */}
       <div className="flex items-center gap-1 border-b border-border mb-4 -mx-1">
         {TABS.map(tab => (
@@ -176,16 +223,26 @@ export default function AdminReports() {
       ) : (
         <ul className="space-y-3">
           <AnimatePresence>
-            {reports.map(r => (
-              <ReportRow
-                key={r.id}
-                report={r}
-                isPending={activeTab === 'pending'}
-                busy={resolveMut.isPending || deleteMut.isPending}
-                onResolve={(action) => resolveMut.mutate({ id: r.id, action })}
-                onDelete={() => deleteMut.mutate({ id: r.id })}
-              />
-            ))}
+            {isBug
+              ? reports.map(r => (
+                  <BugReportRow
+                    key={r.id}
+                    report={r}
+                    isPending={activeTab === 'pending'}
+                    busy={bugResolveMut.isPending}
+                    onResolve={(status) => bugResolveMut.mutate({ id: r.id, status })}
+                  />
+                ))
+              : reports.map(r => (
+                  <ReportRow
+                    key={r.id}
+                    report={r}
+                    isPending={activeTab === 'pending'}
+                    busy={resolveMut.isPending || deleteMut.isPending}
+                    onResolve={(action) => resolveMut.mutate({ id: r.id, action })}
+                    onDelete={() => deleteMut.mutate({ id: r.id })}
+                  />
+                ))}
           </AnimatePresence>
         </ul>
       )}
@@ -261,6 +318,56 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-destructive text-destructive-foreground text-xs font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
           >
             <Trash2 className="w-3.5 h-3.5" /> Delete content
+          </button>
+          <button
+            onClick={() => onResolve('dismissed')}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            <X className="w-3.5 h-3.5" /> Dismiss
+          </button>
+        </div>
+      )}
+    </motion.li>
+  );
+}
+
+function BugReportRow({ report, isPending, busy, onResolve }) {
+  return (
+    <motion.li
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.2 }}
+      className="border border-border rounded-xl p-4 bg-card"
+    >
+      <div className="flex items-start gap-3 mb-3">
+        <div className="w-8 h-8 rounded-lg bg-rose-500/15 text-rose-500 flex items-center justify-center shrink-0">
+          <Bug className="w-4 h-4" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs text-muted-foreground">
+              {report.reporter_email || 'anonymous'}
+            </span>
+            {report.page_context && (
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-secondary text-muted-foreground">
+                {report.page_context}
+              </span>
+            )}
+          </div>
+          <p className="text-sm text-foreground mt-2 whitespace-pre-wrap break-words">{report.description}</p>
+        </div>
+      </div>
+
+      {isPending && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => onResolve('reviewed')}
+            disabled={busy}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
+          >
+            <Check className="w-3.5 h-3.5" /> Mark reviewed
           </button>
           <button
             onClick={() => onResolve('dismissed')}

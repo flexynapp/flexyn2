@@ -58,3 +58,35 @@ export async function deleteReportedContent(reportId) {
   });
   if (error) throw error;
 }
+
+/**
+ * Admin-gated bug-report queue (mig 144). Bug reports filed from
+ * Settings → "Report a bug" land in `bug_reports`, which the content-
+ * report reader (list_reports_for_admin) never touched — they were
+ * invisible to admins. This reads them.
+ *
+ * @param {object} opts
+ * @param {'pending'|'reviewed'|'dismissed'} [opts.status]
+ * @param {number} [opts.limit]
+ */
+export async function listBugReports({ status = 'pending', limit = 50 } = {}) {
+  const { data, error } = await supabase.rpc('list_bug_reports_for_admin', {
+    p_status: status,
+    p_limit:  limit,
+  });
+  if (error) {
+    // Pre-migration host → empty queue rather than a thrown error.
+    if (error.code === '42883' || error.code === '42P01') return [];
+    throw error;
+  }
+  return data || [];
+}
+
+/** Transition a bug report's status (admin only, mig 144). */
+export async function resolveBugReport(reportId, status) {
+  const { error } = await supabase.rpc('resolve_bug_report', {
+    p_report_id: reportId,
+    p_status:    status,
+  });
+  if (error) throw error;
+}

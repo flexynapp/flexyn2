@@ -212,7 +212,12 @@ export default function DebriefVault({ onClose }) {
     mutationFn: (ws) => generateWeeklyDebrief(ws),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['weeklyDebriefs', user?.id] });
-      // Re-fetch the expanded card data
+      // Re-fetch the expanded card data and compare against the
+      // pre-refresh snapshot. When nothing changed (no new workouts
+      // logged since the last generation) we reassure the user that
+      // the summary is current rather than implying a failure or
+      // saying "nothing to refresh" (the wording the team rejected).
+      const before = expanded ? JSON.stringify(expanded.data || {}) : null;
       if (expanded) {
         qc.fetchQuery({ queryKey: ['weeklyDebriefs', user?.id], queryFn: listDebriefs })
           .then(data => {
@@ -220,14 +225,20 @@ export default function DebriefVault({ onClose }) {
               d.week_number === expanded.week_number && d.year === expanded.year
             );
             if (refreshed) setExpanded(refreshed);
+            const after = refreshed ? JSON.stringify(refreshed.data || {}) : null;
+            if (before !== null && after !== null && before === after) {
+              toast.success("You're all caught up — this summary already reflects your latest data.");
+            } else {
+              toast.success('Summary refreshed.');
+            }
           })
-          .catch(err => reportError(err, {
-            feature: 'debrief.refresh-fetch',
-            level: 'warning',
-            userEmail: user?.email,
-          }));
+          .catch(err => {
+            reportError(err, { feature: 'debrief.refresh-fetch', level: 'warning', userEmail: user?.email });
+            toast.success('Summary refreshed.');
+          });
+      } else {
+        toast.success('Summary refreshed.');
       }
-      toast.success('Summary refreshed.');
     },
     onError: (err) => {
       // Duplicate `onError` key was silently shadowing the reportError
@@ -239,7 +250,15 @@ export default function DebriefVault({ onClose }) {
 
   const epochs   = [...new Set(debriefs.map(d => d.epoch_name).filter(Boolean))];
   const [filter, setFilter] = useState(null);
-  const visible  = filter ? debriefs.filter(d => d.epoch_name === filter) : debriefs;
+  const [sortOrder, setSortOrder] = useState('recent'); // 'recent' | 'oldest'
+  const filtered = filter ? debriefs.filter(d => d.epoch_name === filter) : debriefs;
+  // Sort by (year, week_number) so the toggle is deterministic
+  // regardless of fetch order. 'recent' = newest first.
+  const visible = [...filtered].sort((a, b) => {
+    const av = (a.year || 0) * 100 + (a.week_number || 0);
+    const bv = (b.year || 0) * 100 + (b.week_number || 0);
+    return sortOrder === 'recent' ? bv - av : av - bv;
+  });
 
   const isGenerating = genMut.isPending;
 
@@ -289,6 +308,29 @@ export default function DebriefVault({ onClose }) {
               }`}
             >
               {ep ?? 'All'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Sort toggle — Recent ⇄ Oldest */}
+      {debriefs.length > 1 && (
+        <div className="flex items-center justify-end gap-1 px-4 py-2 shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground me-1">Sort</span>
+          {[
+            { id: 'recent', label: 'Recent' },
+            { id: 'oldest', label: 'Oldest' },
+          ].map(opt => (
+            <button
+              key={opt.id}
+              onClick={() => setSortOrder(opt.id)}
+              className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors ${
+                sortOrder === opt.id
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary/60 text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {opt.label}
             </button>
           ))}
         </div>

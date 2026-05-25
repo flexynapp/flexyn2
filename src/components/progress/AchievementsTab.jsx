@@ -27,7 +27,7 @@ const CATEGORY_COLORS = {
 };
 
 export default function AchievementsTab({ achievements = [] }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const fmtDate = useDateFormatter();
   const [activeSubTab, setActiveSubTab] = useState('active');
@@ -68,8 +68,12 @@ export default function AchievementsTab({ achievements = [] }) {
         cats[def.category].push({
           ...def,
           id: userAch?.id,
-          unlocked: userAch?.unlocked || false,
-          unlockedDate: userAch?.unlocked_date,
+          // The achievements table only has `unlocked_at` (row presence =
+          // unlocked); the old `unlocked`/`unlocked_date` columns never
+          // existed, so every badge rendered locked. Treat a fetched row
+          // as unlocked and use unlocked_at for the date.
+          unlocked: !!userAch,
+          unlockedDate: userAch?.unlocked_at,
           progress: userAch?.progress || 0,
         });
       }
@@ -253,14 +257,14 @@ export default function AchievementsTab({ achievements = [] }) {
         {activeSubTab === 'active' && Object.values(displayData).every(arr => arr.length === 0) && (
           <EmptyState
             icon={Trophy}
-            title={t('progress.allCompletedTitle') || 'Everything unlocked!'}
+            title={tFallback('progress.allCompletedTitle', 'Everything unlocked!')}
             body={t('progress.allCompleted')}
           />
         )}
         {activeSubTab === 'completed' && Object.values(displayData).every(arr => arr.length === 0) && (
           <EmptyState
             icon={Lock}
-            title={t('progress.noneCompletedTitle') || 'No badges yet'}
+            title={tFallback('progress.noneCompletedTitle', 'No badges yet')}
             body={t('progress.noneCompleted')}
           />
         )}
