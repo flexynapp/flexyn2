@@ -3,8 +3,9 @@ import { LOGO_URL } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, MessageCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { db } from '@/api/db';
+import { fireLogoTapEgg } from '@/lib/logoTapEgg';
 import { Button } from '@/components/ui/button';
 import ProfileMenu from './ProfileMenu';
 import LevelBar from './LevelBar';
@@ -66,6 +67,20 @@ export default function Header() {
   const isChildRoute = CHILD_ROUTES.includes(location.pathname);
   const title = titleOverride || ROUTE_TITLES[location.pathname] || t('app.name');
 
+  // Hidden easter egg: 7 logo taps within 2.5s → absurd confetti barrage.
+  // Each tap still navigates to /dashboard (no-op when already there), so
+  // normal use is unaffected; the streak just rides along.
+  const logoTapsRef = useRef([]);
+  const handleLogoTap = () => {
+    const now = Date.now();
+    logoTapsRef.current = [...logoTapsRef.current.filter((ts) => now - ts < 2500), now];
+    if (logoTapsRef.current.length >= 7) {
+      logoTapsRef.current = [];
+      fireLogoTapEgg();
+    }
+    navigate('/dashboard');
+  };
+
   return (
     <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/80 backdrop-blur-md border-b border-border select-none-ui"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
@@ -90,7 +105,7 @@ export default function Header() {
           </Button>
         ) : (
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={handleLogoTap}
             aria-label="Go to dashboard"
             className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
           >
