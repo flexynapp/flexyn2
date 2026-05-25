@@ -1,4 +1,4 @@
-import React, { useRef, useMemo, useState } from 'react';
+import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +69,33 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
 
   // Session-best 1RM tracking — fires haptic [50,30,100] when a new intra-session PR is hit
   const sessionBest1RMRef = useRef(0);
+
+  // Warm-up detector: seed a freshly-added exercise's first set from last
+  // session. If the lifter was working heavy (top working set > 135 lb),
+  // seed a flagged WARM-UP set at ~50% (so it never reads as a real
+  // working set / fake PR); for lighter isolation work, copy the weight
+  // straight across. Fires once, only on a pristine single empty set.
+  const prefilledRef = useRef(false);
+  useEffect(() => {
+    if (prefilledRef.current) return;
+    if (sets.length !== 1) return;
+    const s0 = sets[0] || {};
+    if (s0.weight != null || s0.reps != null || s0.is_warmup) return;
+    const lastSession = recentSessions[0] || [];
+    const working = lastSession.filter(s => !s.is_warmup && ((Number(s.weight) || 0) > 0 || (Number(s.reps) || 0) > 0));
+    if (working.length === 0) return;
+    const topW = Math.max(...working.map(s => Number(s.weight) || 0));
+    if (topW <= 0) return; // bodyweight / unloaded — leave it empty
+    prefilledRef.current = true;
+    const firstReps = Number(working[0]?.reps) || 8;
+    const HEAVY_LBS = 135;
+    if (topW > HEAVY_LBS) {
+      const warm = Math.max(45, Math.round((topW * 0.5) / 5) * 5);
+      onChange({ ...exercise, sets: [{ weight: warm, reps: Math.min(10, firstReps || 10), is_warmup: true }] });
+    } else {
+      onChange({ ...exercise, sets: [{ weight: topW, reps: firstReps, is_warmup: false }] });
+    }
+  }, [recentSessions, sets, exercise, onChange]);
 
   const checkPR = (updatedSets) => {
     let best = 0;

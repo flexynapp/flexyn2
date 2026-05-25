@@ -26,6 +26,53 @@ import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewStatsPanel from './CrewStatsPanel';
 
+// ── Crew "hype" triggers ────────────────────────────────────────────────────
+// Posting a hype phrase in crew chat pops a burst of emoji over the thread.
+const HYPE_TRIGGERS = [
+  { re: /(let'?s\s*go+|lfg|let'?s\s*get\s*it)/i, emoji: '🔥' },
+  { re: /\bbeast\b/i,                            emoji: '💪' },
+  { re: /\blight\s*weight\b/i,                   emoji: '🪶' },
+  { re: /\b(pr|p\.r\.|personal record)\b/i,      emoji: '🏆' },
+  { re: /(crush(ed|ing)?|sheesh|goat|insane)/i,  emoji: '⚡' },
+];
+function detectHype(text) {
+  if (!text) return null;
+  for (const { re, emoji } of HYPE_TRIGGERS) {
+    if (re.test(text)) return emoji;
+  }
+  return null;
+}
+
+// Lightweight emoji explosion scoped to the chat container (the parent is
+// position:relative overflow-hidden). Re-animates whenever `hype.id` changes.
+function HypeBurst({ hype }) {
+  return (
+    <div className="absolute inset-0 z-[60] pointer-events-none overflow-hidden">
+      <AnimatePresence>
+        {hype && Array.from({ length: 12 }).map((_, i) => (
+          <motion.span
+            key={`${hype.id}-${i}`}
+            className="absolute left-1/2 bottom-24"
+            style={{ fontSize: 22 + Math.random() * 16 }}
+            initial={{ opacity: 0, y: 0, x: 0, scale: 0.4 }}
+            animate={{
+              opacity: [0, 1, 1, 0],
+              y: -(200 + Math.random() * 160),
+              x: (Math.random() - 0.5) * 300,
+              scale: 1,
+              rotate: (Math.random() - 0.5) * 70,
+            }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 1.4, delay: Math.random() * 0.18, ease: 'easeOut' }}
+          >
+            {hype.emoji}
+          </motion.span>
+        ))}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 // ── Roll Call composer ────────────────────────────────────────────────────────
 
 function RollCallComposer({ onSubmit, onCancel }) {
@@ -226,6 +273,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
 
   const [draft,           setDraft]           = useState('');
   const [sending,         setSending]         = useState(false);
+  const [hype,            setHype]            = useState(null); // { id, emoji } | null
   const [memberPanelOpen, setMemberPanelOpen] = useState(false);
   const [statsPanelOpen,  setStatsPanelOpen]  = useState(false);
   const [rollCallOpen,    setRollCallOpen]    = useState(false);
@@ -351,6 +399,11 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         await crewsData.sendCrewMessage(crew.id, user.id, 'text', trimmed);
       }
       setDraft('');
+      const hypeEmoji = detectHype(trimmed);
+      if (hypeEmoji) {
+        setHype({ id: Date.now(), emoji: hypeEmoji });
+        setTimeout(() => setHype(null), 1700);
+      }
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
     } catch {
       toast.error('Could not send message — try again.');
@@ -415,6 +468,9 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
 
   return (
     <div className="flex flex-col h-full relative overflow-hidden">
+
+      {/* Hype-trigger emoji burst overlay */}
+      <HypeBurst hype={hype} />
 
       {/* Header */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border shrink-0">
