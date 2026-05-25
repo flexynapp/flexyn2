@@ -308,17 +308,22 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 <Inbox className="w-3.5 h-3.5" /> Inbox
                 {inboxConvs.length > 0 && <span className="opacity-70">({inboxConvs.length})</span>}
               </button>
-              {requestConvs.length > 0 && (
-                <button
-                  onClick={() => setDmView('requests')}
-                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
-                    dmView === 'requests' ? 'bg-primary text-primary-foreground' : 'text-amber-500 hover:bg-secondary'
-                  }`}
-                >
-                  <Mail className="w-3.5 h-3.5" /> Requests
-                  <span className="opacity-90">({requestConvs.length})</span>
-                </button>
-              )}
+              {/* Requests is always visible so message requests are never
+                  hidden behind a zero count — muted when empty, amber with a
+                  badge when someone is waiting. */}
+              <button
+                onClick={() => setDmView('requests')}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                  dmView === 'requests'
+                    ? 'bg-primary text-primary-foreground'
+                    : requestConvs.length > 0
+                    ? 'text-amber-500 hover:bg-secondary'
+                    : 'text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" /> Requests
+                {requestConvs.length > 0 && <span className="opacity-90">({requestConvs.length})</span>}
+              </button>
               {archivedConvs.length > 0 && (
                 <button
                   onClick={() => setDmView('archived')}

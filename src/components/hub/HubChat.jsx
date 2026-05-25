@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile, BarChart3 } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation } from '@/lib/data/conversationRequests';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
@@ -23,6 +23,8 @@ import { compressImage } from '@/lib/imageCompress';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';
 import CrewDMInviteCard, { parseCrewInvite } from '@/components/crews/CrewDMInviteCard';
 import DuelInviteCard, { parseDuelInvite } from '@/components/duels/DuelInviteCard';
+import { PollBubble, PollComposer } from './PollMessage';
+import { isPollVote, parsePoll, buildPollBody, buildVoteBody, buildVoteIndex, pollResults } from '@/lib/dmPolls';
 import { useSwipeToDelete } from '@/hooks/useSwipeToDelete';
 
 // Resolve the timestamp from either column (migration 004 added created_date; base schema has created_at)
@@ -158,6 +160,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const [scheduleAt, setScheduleAt] = useState('');
   const [stickerPickerOpen, setStickerPickerOpen] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [pollComposerOpen, setPollComposerOpen] = useState(false);
 
   const scrollerRef    = useRef(null);
   const textareaRef    = useRef(null);
@@ -230,14 +233,21 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   const messages = dedupeMessages(rawMessages);
 
+  // Poll vote tally — votes are control messages ([POLL_VOTE_V1]) that
+  // reference a poll's message id. Built from the full (unfiltered) list so
+  // the count is complete, then the control rows are hidden from the thread.
+  const voteIndex = useMemo(() => buildVoteIndex(messages), [messages]);
+
   // In-thread search filter (G1). Skipped to all-messages when the
   // search bar is closed; once a query exists, only matching messages
-  // (case-insensitive substring) render.
+  // (case-insensitive substring) render. Poll-vote control rows are never
+  // shown — they're an implementation detail, not chat content.
   const visibleMessages = (() => {
+    const nonControl = messages.filter(m => !isPollVote(m.body || m.content || ''));
     const q = searchQuery.trim();
-    if (!searchOpen || !q) return messages;
+    if (!searchOpen || !q) return nonControl;
     const ql = q.toLowerCase();
-    return messages.filter(m => {
+    return nonControl.filter(m => {
       const body = (m.body || m.content || '').toLowerCase();
       return body.includes(ql);
     });
@@ -587,6 +597,43 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
     } catch (err) {
       toast.error(`Could not send voice memo: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+
+  // ── Polls ───────────────────────────────────────────────────────────────
+  // A poll is a [POLL_V1] message; votes are [POLL_VOTE_V1] control messages
+  // that reference the poll's id. Both ride the normal sendMessage path — no
+  // migration. Tally is computed client-side from the vote messages.
+  const handleSendPoll = useCallback(async ({ question, options }) => {
+    if (!conversation?.id) return;
+    const body = buildPollBody({ question, options });
+    if (!body) return;
+    setPollComposerOpen(false);
+    try {
+      await hubMessages.sendMessage({
+        conversationId: conversation.id,
+        senderEmail:    user?.email || '',
+        recipientEmail: otherUser?.email || null,
+        body,
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
+    } catch (err) {
+      toast.error(`Could not create poll: ${err?.message || 'try again'}`);
+    }
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+
+  const handleVotePoll = useCallback(async (pollId, optionIndex) => {
+    if (!conversation?.id || !pollId) return;
+    try {
+      await hubMessages.sendMessage({
+        conversationId: conversation.id,
+        senderEmail:    user?.email || '',
+        recipientEmail: otherUser?.email || null,
+        body:           buildVoteBody(pollId, optionIndex),
+      });
+      queryClient.invalidateQueries({ queryKey: ['hubChat', conversation.id] });
+    } catch (err) {
+      toast.error(`Could not record vote: ${err?.message || 'try again'}`);
     }
   }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
 
@@ -1097,6 +1144,19 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                               return <span className="text-5xl leading-none">{meta?.emoji || '✨'}</span>;
                             }
                             const raw = m.body || m.content || '';
+                            const poll = parsePoll(raw);
+                            if (poll) {
+                              const results = pollResults(voteIndex.get(m.id), poll.options.length, user?.email);
+                              return (
+                                <PollBubble
+                                  poll={poll}
+                                  results={results}
+                                  onVote={(idx) => handleVotePoll(m.id, idx)}
+                                  disabled={isOptimistic}
+                                  tFallback={tFallback}
+                                />
+                              );
+                            }
                             if (parseTradeResponse(raw)) {
                               const newline = raw.indexOf('\n');
                               const visible = newline >= 0 ? raw.slice(newline + 1) : '';
@@ -1418,6 +1478,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         >
           GIF
         </button>
+        {/* Poll — in-chat poll with live vote tally. */}
+        <button
+          onClick={() => setPollComposerOpen(v => !v)}
+          aria-label={tFallback('hub.poll.create', 'Create a poll')}
+          title={tFallback('hub.poll.create', 'Create a poll')}
+          className={`p-2 rounded-lg transition-colors shrink-0 ${pollComposerOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
+        >
+          <BarChart3 className="w-4 h-4" />
+        </button>
         <textarea
           ref={textareaRef}
           value={draft}
@@ -1491,6 +1560,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
       {/* Schedule send overlay — dropdown above the composer. Uses
           datetime-local since the native control is mobile-friendly. */}
+      {/* Poll composer — slides up above the composer rail. */}
+      <AnimatePresence>
+        {pollComposerOpen && (
+          <PollComposer
+            onCreate={handleSendPoll}
+            onClose={() => setPollComposerOpen(false)}
+            tFallback={tFallback}
+          />
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {scheduleOpen && draft.trim() && (
           <motion.div

@@ -16,6 +16,7 @@
 
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { isPollVote } from '@/lib/dmPolls';
 
 const conv = () => db.entities.HubConversation;
 const msg  = () => db.entities.HubMessage;
@@ -27,8 +28,14 @@ const _key = (convId) => `fn-conv-read-${convId}`;
 const _getLastRead  = (convId) => { try { return parseInt(localStorage.getItem(_key(convId)) || '0', 10); } catch { return 0; } };
 const _setLastRead  = (convId) => { try { localStorage.setItem(_key(convId), Date.now().toString()); } catch {} };
 
+/** Poll-vote control messages are an implementation detail — never surfaced. */
+function _isControl(m) {
+  return isPollVote(m?.body || m?.content || '');
+}
+
 /** Returns true if a message is unread by myEmailLc. */
 function _isUnread(m, myEmailLc) {
+  if (_isControl(m)) return false; // votes never ping the recipient
   if (m.sender_email?.toLowerCase() === myEmailLc) return false;
   const lastRead = _getLastRead(m.conversation_id);
   if (lastRead > 0) {
@@ -122,6 +129,7 @@ export const listMyConversations = async (myEmail, limit = 50) => {
   for (const m of allMyMessages) {
     const cid = m.conversation_id;
     if (!cid) continue;
+    if (_isControl(m)) continue; // votes don't drive preview, sort, or unread
     if (!messagesByConvId.has(cid)) messagesByConvId.set(cid, []);
     messagesByConvId.get(cid).push(m);
   }
@@ -203,12 +211,17 @@ export const sendMessage = async ({ conversationId, senderEmail, recipientEmail,
     ...(stickerId   ? { sticker_id: stickerId } : {}),
     ...(durationMs != null ? { duration_ms: Math.round(durationMs) } : {}),
   });
+  // Poll votes are control messages — they neither bump the conversation
+  // nor change its preview, so a flurry of votes doesn't churn the inbox.
+  if (isPollVote(body || '')) return created;
   try {
     // Trade offers / responses embed a marker at the start of the body —
     // strip it for the conversation preview so the inbox shows the
     // human-readable text instead of the raw protocol prefix.
     let previewText = body || '';
-    if (previewText.startsWith('[TRADE_OFFER_V1]')) {
+    if (previewText.startsWith('[POLL_V1]')) {
+      previewText = '📊 Poll';
+    } else if (previewText.startsWith('[TRADE_OFFER_V1]')) {
       const newlineIdx = previewText.indexOf('\n');
       previewText = newlineIdx >= 0 ? previewText.slice(newlineIdx + 1).trim() : '';
       if (!previewText) previewText = '🔁 Trade offer';

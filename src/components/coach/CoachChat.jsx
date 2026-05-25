@@ -6,7 +6,7 @@
 
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Send, Sparkles, Loader2, Trash2, Mic, MicOff } from 'lucide-react';
+import { Send, Sparkles, Loader2, Trash2, Mic, MicOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -170,9 +170,9 @@ export default function CoachChat() {
           <button
             onClick={handleClear}
             aria-label="Clear chat"
-            className="p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors touch-manipulation"
+            className="p-2.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors touch-manipulation"
           >
-            <Trash2 className="w-5 h-5" />
+            <Trash2 className="w-6 h-6" />
           </button>
         )}
       </div>
@@ -203,6 +203,13 @@ export default function CoachChat() {
           </>
         )}
       </div>
+
+      {/* Persistent suggested prompts — once the chat has started the
+          welcome card is gone, so keep the prompts reachable as a
+          horizontally-scrollable strip with arrow controls. */}
+      {!isEmpty && (
+        <PromptStrip prompts={SUGGESTED_PROMPTS} onPick={handleSend} disabled={thinking} />
+      )}
 
       {/* Composer */}
       <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
@@ -274,6 +281,67 @@ function MessageBubble({ m }) {
         {m.text}
       </div>
     </motion.div>
+  );
+}
+
+// Horizontally-scrollable suggested-prompt chips with left/right arrow
+// controls. Arrows hide at the respective scroll extremes.
+function PromptStrip({ prompts, onPick, disabled }) {
+  const ref = useRef(null);
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+
+  const updateArrows = useCallback(() => {
+    const el = ref.current;
+    if (!el) return;
+    setAtStart(el.scrollLeft <= 2);
+    setAtEnd(el.scrollLeft + el.clientWidth >= el.scrollWidth - 2);
+  }, []);
+
+  useEffect(() => { updateArrows(); }, [updateArrows, prompts]);
+
+  const scrollByAmount = (dx) => ref.current?.scrollBy({ left: dx, behavior: 'smooth' });
+
+  return (
+    <div className="relative shrink-0 mb-2">
+      {!atStart && (
+        <button
+          type="button"
+          onClick={() => scrollByAmount(-160)}
+          aria-label="Scroll prompts left"
+          className="absolute start-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+      )}
+      <div
+        ref={ref}
+        onScroll={updateArrows}
+        className="flex gap-1.5 overflow-x-auto px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {prompts.map(p => (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onPick(p.text)}
+            disabled={disabled}
+            className="shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full bg-secondary/60 hover:bg-secondary border border-border/50 text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            {p.text}
+          </button>
+        ))}
+      </div>
+      {!atEnd && (
+        <button
+          type="button"
+          onClick={() => scrollByAmount(160)}
+          aria-label="Scroll prompts right"
+          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 p-1 rounded-full bg-card border border-border shadow-sm text-muted-foreground hover:text-foreground"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      )}
+    </div>
   );
 }
 
