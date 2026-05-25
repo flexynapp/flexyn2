@@ -290,6 +290,25 @@ export async function declineDuel(id) {
 }
 
 /**
+ * Challenger withdraws a still-pending duel they created. Guarded to
+ * status='pending' so it can't clobber a duel the opponent already
+ * accepted. Reuses the 'declined' status — the duel_status enum has no
+ * 'cancelled' value and adding one would need an ALTER TYPE migration;
+ * the duel simply moves to history as ended.
+ */
+export async function cancelDuel(id) {
+  const { data, error } = await supabase
+    .from('duels')
+    .update({ status: 'declined' })
+    .eq('id', id)
+    .eq('status', 'pending')
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+/**
  * Submit a result for the current user on a duel.
  * Auto-resolves winner if both results are in.
  * @param {string} duelId

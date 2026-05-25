@@ -16,6 +16,7 @@ import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
+import DailyChestCard from '@/components/dashboard/DailyChestCard';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuote from '@/components/dashboard/DailyQuote';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
@@ -558,6 +559,10 @@ export default function Dashboard() {
           users interrupted mid-workout. Auto-evicts drafts >24h old
           so it doesn't degrade into "you have nothing to do" noise. */}
       <ResumeWorkoutBanner />
+
+      {/* Daily chest — claimable nudge with one-tap claim + Bag open.
+          Self-hides once claimed (or already claimed today). */}
+      <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
 
       {/* "Keep your N-day streak alive — log 1 set?" — appears late in
           the day (>= 6 PM local) when the user has an active streak

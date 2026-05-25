@@ -1,11 +1,13 @@
 // src/pages/Duels.jsx
 // Full duels hub — active duels, history, challenge someone.
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
-import { listMyDuels } from '@/lib/data/duels';
+import { toast } from 'sonner';
+import { listMyDuels, cancelDuel } from '@/lib/data/duels';
+import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
@@ -27,13 +29,14 @@ const STATUS_CONFIG = {
 
 const TYPE_ICON = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 
-function DuelRow({ duel, currentUserId, onClick }) {
+function DuelRow({ duel, currentUserId, opponent, onClick }) {
   const { t, tFallback } = useLanguage();
   const isChallenger = duel.challenger_id === currentUserId;
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
   const cfg          = STATUS_CONFIG[duel.status] || STATUS_CONFIG.expired;
   const Icon         = TYPE_ICON[duel.type] || Swords;
+  const opponentName = opponent?.username ? `@${opponent.username}` : null;
 
   return (
     <button
@@ -50,7 +53,8 @@ function DuelRow({ duel, currentUserId, onClick }) {
         <p className="text-sm font-semibold truncate">
           {isChallenger
             ? (tFallback('duels.youChallenged', 'You challenged'))
-            : (tFallback('duels.challengedBy', 'Challenged by'))} ·{' '}
+            : (tFallback('duels.challengedBy', 'Challenged by'))}
+          {opponentName ? <span className="text-foreground"> {opponentName}</span> : null} ·{' '}
           <span className="text-muted-foreground capitalize">{duel.type}</span>
         </p>
         <p className="text-xs text-muted-foreground">
@@ -86,6 +90,45 @@ export default function Duels() {
     enabled:   !!user?.id,
     staleTime: 30_000,
   });
+
+  // Resolve the "other party" for each duel (the duels table only stores
+  // ids) so rows + the detail sheet can show a real @username instead of
+  // the generic "Opponent" placeholder.
+  const otherIds = useMemo(() => {
+    const ids = new Set();
+    duels.forEach((d) => {
+      const otherId = d.challenger_id === user?.id ? d.opponent_id : d.challenger_id;
+      if (otherId) ids.add(otherId);
+    });
+    return [...ids];
+  }, [duels, user?.id]);
+
+  const { data: profileMap = {} } = useQuery({
+    queryKey: ['duelOpponents', otherIds],
+    enabled: otherIds.length > 0,
+    staleTime: 60_000,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('user_profiles')
+        .select('id, username, avatar_url')
+        .in('id', otherIds);
+      const map = {};
+      (data || []).forEach((p) => { map[p.id] = p; });
+      return map;
+    },
+  });
+  const opponentFor = (d) => profileMap[d.challenger_id === user?.id ? d.opponent_id : d.challenger_id] || null;
+
+  const handleCancelDuel = async (id) => {
+    try {
+      await cancelDuel(id);
+      qc.invalidateQueries({ queryKey: ['myDuels'] });
+      setSelectedDuel(null);
+      toast.success('Challenge cancelled.');
+    } catch {
+      toast.error('Could not cancel. Try again.');
+    }
+  };
 
   const active    = duels.filter(d => ['pending', 'active'].includes(d.status));
   const history   = duels.filter(d => ['completed', 'declined', 'expired'].includes(d.status));
@@ -148,7 +191,7 @@ export default function Duels() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active</p>
             <div className="space-y-2">
               {active.map(d => (
-                <DuelRow key={d.id} duel={d} currentUserId={user?.id} onClick={() => setSelectedDuel(d)} />
+                <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
               ))}
             </div>
           </div>
@@ -160,7 +203,7 @@ export default function Duels() {
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">History</p>
             <div className="space-y-2">
               {history.map(d => (
-                <DuelRow key={d.id} duel={d} currentUserId={user?.id} onClick={() => setSelectedDuel(d)} />
+                <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
               ))}
             </div>
           </div>
@@ -195,6 +238,8 @@ export default function Duels() {
           <DuelDetailSheet
             duel={selectedDuel}
             currentUserId={user?.id}
+            opponentProfile={opponentFor(selectedDuel)}
+            onCancel={handleCancelDuel}
             onClose={() => setSelectedDuel(null)}
           />
         )}

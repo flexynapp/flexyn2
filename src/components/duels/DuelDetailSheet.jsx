@@ -18,7 +18,7 @@ function StatPill({ label, value, highlight }) {
   );
 }
 
-export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onClose }) {
+export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
   const fmt = useNumberFormatter();
   if (!duel) return null;
 
@@ -140,6 +140,17 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : 'Waiting…'}</span>
               </div>
             </div>
+          )}
+
+          {/* Cancel — challenger can withdraw a still-pending challenge */}
+          {isChallenger && duel.status === 'pending' && onCancel && (
+            <button
+              type="button"
+              onClick={() => onCancel(duel.id)}
+              className="w-full py-2.5 rounded-xl border border-rose-500/30 text-rose-500 text-sm font-semibold hover:bg-rose-500/10 transition-colors"
+            >
+              Cancel challenge
+            </button>
           )}
 
           {/* Mirror — session template */}
