@@ -2207,6 +2207,7 @@ export default function Workout() {
         };
 
         return (
+          <ErrorBoundary label="ActiveSession.ExerciseList">
           <Reorder.Group
             axis="y"
             values={orderKeys}
@@ -2308,6 +2309,7 @@ export default function Workout() {
               );
             })}
           </Reorder.Group>
+          </ErrorBoundary>
         );
       })()}
 
