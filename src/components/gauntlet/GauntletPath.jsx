@@ -1,24 +1,24 @@
 // src/components/gauntlet/GauntletPath.jsx
-// Duolingo-style winding SVG path — 10 nodes in a zigzag, colored from the
-// start up to wherever the user currently is. Tap any node to see its detail.
+// Duolingo-style winding path: raised 3D node "buttons" in a zigzag, each
+// with a per-type icon + a small number badge, colored from the start up
+// to the user's current challenge. Tap any node → detail card (handled by
+// the parent, which scrolls it into view + offers a "Go to Workout" CTA).
 
 // ── Layout constants (SVG user-units, viewBox = "0 0 320 H") ─────────────────
 const W       = 320;   // viewBox width
-const NODE_R  = 27;    // circle radius
-const V_GAP   = 118;   // vertical distance between node centres
-const PAD_TOP = 52;    // space above node 1
-const PAD_BOT = 50;    // space below node 10
+const NODE_R  = 28;    // circle radius
+const DEPTH   = 6;     // 3D base offset (how far the darker base peeks below)
+const V_GAP   = 122;   // vertical distance between node centres
+const PAD_TOP = 56;    // space above node 1
+const PAD_BOT = 56;    // space below node 10
 
-// Horizontal positions for each sequence index (0-based)
-// Even = left column, Odd = right column, last = centre
 const nodeX = (i, total) => {
-  if (i === total - 1) return W / 2;   // finale always centred
-  return i % 2 === 0 ? 82 : 238;
+  if (i === total - 1) return W / 2;
+  return i % 2 === 0 ? 84 : 236;
 };
 const nodeY = (i) => PAD_TOP + i * V_GAP;
 const totalH = (n) => PAD_TOP + (n - 1) * V_GAP + PAD_BOT;
 
-// Where to anchor the challenge-name label relative to the node
 const labelAnchor = (i, total) => {
   if (i === total - 1) return 'middle';
   return i % 2 === 0 ? 'start' : 'end';
@@ -26,10 +26,9 @@ const labelAnchor = (i, total) => {
 const labelX = (i, total) => {
   const x = nodeX(i, total);
   if (i === total - 1) return x;
-  return i % 2 === 0 ? x + NODE_R + 10 : x - NODE_R - 10;
+  return i % 2 === 0 ? x + NODE_R + 12 : x - NODE_R - 12;
 };
 
-// Cubic-bezier path between two consecutive nodes (smooth S-curve)
 const segD = (i, total) => {
   const x1 = nodeX(i, total);   const y1 = nodeY(i);
   const x2 = nodeX(i + 1, total); const y2 = nodeY(i + 1);
@@ -37,26 +36,37 @@ const segD = (i, total) => {
   return `M ${x1} ${y1} C ${x1} ${cy}, ${x2} ${cy}, ${x2} ${y2}`;
 };
 
-// Challenge-type short badge
-const TYPE_LABEL = {
-  single_session: 'Session',
-  weekly_volume:  'Weekly Vol.',
-  streak:         'Streak',
-  nutrition:      'Nutrition',
-  pr:             'PR',
-  final:          'Final',
+// Per-type icon — a little glyph on the dot so a challenge reads at a
+// glance (lifting / cardio / streak / nutrition / PR / finale), instead
+// of a bare number. The sequence number stays as a small corner badge.
+const TYPE_EMOJI = {
+  single_session: '🏋️',
+  weekly_volume:  '📈',
+  streak:         '🔥',
+  nutrition:      '🥗',
+  pr:             '🏆',
+  final:          '👑',
+  cardio:         '👟',
 };
+const emojiFor = (ch) => TYPE_EMOJI[ch?.type] || '💪';
 
-// ─────────────────────────────────────────────────────────────────────────────
+// Vibrant [top, base] colour pairs — the base is the darker 3D underside.
+// Rotated by sequence so each reached node is its own shade.
+const PALETTE = [
+  ['#58cc02', '#58a700'],
+  ['#1cb0f6', '#1899d6'],
+  ['#ce82ff', '#a568cc'],
+  ['#ff9600', '#e08600'],
+  ['#2dd4bf', '#14a89a'],
+  ['#fb6f92', '#e05680'],
+  ['#a3e635', '#7cb518'],
+  ['#ff4b4b', '#e63b3b'],
+  ['#22d3ee', '#0bb8d4'],
+  ['#f97316', '#ea580c'],
+];
+const LOCKED = ['#e5e7eb', '#cfd4da'];
+const ACTIVE = ['#ffc800', '#e6a700'];
 
-/**
- * Props:
- *   challenges       — array of gauntlet_challenges rows (ordered by sequence_number)
- *   currentSequence  — user's current_challenge_sequence (1 if never started)
- *   completedSeqs    — Set<number> of completed sequence numbers
- *   selectedId       — challenge.id currently tapped (or null)
- *   onSelectChallenge(challenge | null) — tap-to-select callback
- */
 export default function GauntletPath({
   challenges = [],
   currentSequence = 1,
@@ -75,11 +85,6 @@ export default function GauntletPath({
     return 'locked';
   };
 
-  // Fill / stroke colours per status
-  const fill   = { completed: '#059669', active: '#d97706', next: '#292932', locked: '#18181f' };
-  const stroke = { completed: '#34d399', active: '#fcd34d', next: '#3f3f50', locked: '#2a2a38' };
-  const txtClr = { completed: '#fff',    active: '#fff',    next: '#6b7280', locked: '#374151' };
-
   return (
     <svg
       viewBox={`0 0 ${W} ${svgH}`}
@@ -87,63 +92,24 @@ export default function GauntletPath({
       style={{ display: 'block' }}
     >
       <defs>
-        {/* Gradient along the completed path — vertical purple → amber */}
-        <linearGradient id="gpath" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%"   stopColor="#7c3aed" />
-          <stop offset="100%" stopColor="#f59e0b" />
-        </linearGradient>
-
-        {/* Radial glow for active node */}
-        <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%"   stopColor="#fcd34d" stopOpacity="0.35" />
-          <stop offset="100%" stopColor="#fcd34d" stopOpacity="0" />
+        <radialGradient id="gauntletGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%"   stopColor="#ffc800" stopOpacity="0.45" />
+          <stop offset="100%" stopColor="#ffc800" stopOpacity="0" />
         </radialGradient>
-
-        {/* Drop shadow filter for completed nodes */}
-        <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" floodColor="#059669" floodOpacity="0.45" />
-        </filter>
-        <filter id="shadowAmber" x="-30%" y="-30%" width="160%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="4" floodColor="#f59e0b" floodOpacity="0.55" />
-        </filter>
       </defs>
 
-      {/* ── Path segments ──────────────────────────────────────────────────── */}
+      {/* ── Connecting path segments ──────────────────────────────────────── */}
       {challenges.slice(0, -1).map((ch, i) => {
-        const status = getStatus(ch.sequence_number);
+        const done = getStatus(ch.sequence_number) === 'completed';
         const d = segD(i, n);
-        const done = status === 'completed';
-
         return (
           <g key={`seg-${i}`}>
-            {/* Base gray track (always visible — forms the "not yet reached" trail) */}
-            <path
-              d={d}
-              fill="none"
-              stroke="#23232f"
-              strokeWidth={10}
-              strokeLinecap="round"
-            />
-            {/* Dashed markers on incomplete segments */}
+            <path d={d} fill="none" stroke="#e5e7eb" strokeWidth={11} strokeLinecap="round" />
             {!done && (
-              <path
-                d={d}
-                fill="none"
-                stroke="#2e2e3e"
-                strokeWidth={6}
-                strokeLinecap="round"
-                strokeDasharray="1 14"
-              />
+              <path d={d} fill="none" stroke="#d4d4d8" strokeWidth={6} strokeLinecap="round" strokeDasharray="1 15" />
             )}
-            {/* Coloured overlay on completed segments */}
             {done && (
-              <path
-                d={d}
-                fill="none"
-                stroke="url(#gpath)"
-                strokeWidth={7}
-                strokeLinecap="round"
-              />
+              <path d={d} fill="none" stroke="#58cc02" strokeWidth={8} strokeLinecap="round" />
             )}
           </g>
         );
@@ -151,13 +117,15 @@ export default function GauntletPath({
 
       {/* ── Nodes ──────────────────────────────────────────────────────────── */}
       {challenges.map((ch, i) => {
-        const seq    = ch.sequence_number;
-        const status = getStatus(seq);
-        const cx     = nodeX(i, n);
-        const cy     = nodeY(i);
-        const isSel  = ch.id === selectedId;
+        const seq      = ch.sequence_number;
+        const status   = getStatus(seq);
+        const cx       = nodeX(i, n);
+        const cy       = nodeY(i);
+        const isSel    = ch.id === selectedId;
         const isActive = status === 'active';
-        const isDone   = status === 'completed';
+        const isLocked = status === 'locked';
+        const [top, base] =
+          isLocked ? LOCKED : isActive ? ACTIVE : PALETTE[i % PALETTE.length];
 
         return (
           <g
@@ -165,97 +133,72 @@ export default function GauntletPath({
             onClick={() => onSelectChallenge?.(isSel ? null : ch)}
             style={{ cursor: 'pointer' }}
           >
-            {/* Pulsing glow ring on active node */}
+            {/* Active node bobs gently + glows (the "you are here" beacon). */}
             {isActive && (
               <>
-                <circle cx={cx} cy={cy} r={NODE_R + 14} fill="url(#glow)">
-                  <animate
-                    attributeName="r"
-                    values={`${NODE_R + 10};${NODE_R + 20};${NODE_R + 10}`}
-                    dur="2.2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.7;0;0.7"
-                    dur="2.2s"
-                    repeatCount="indefinite"
-                  />
+                <circle cx={cx} cy={cy} r={NODE_R + 16} fill="url(#gauntletGlow)">
+                  <animate attributeName="r" values={`${NODE_R + 10};${NODE_R + 20};${NODE_R + 10}`} dur="2.2s" repeatCount="indefinite" />
+                  <animate attributeName="opacity" values="0.8;0.2;0.8" dur="2.2s" repeatCount="indefinite" />
                 </circle>
+                <animateTransform attributeName="transform" type="translate" values="0 0; 0 -3.5; 0 0" dur="1.7s" repeatCount="indefinite" />
               </>
             )}
 
             {/* Selection ring */}
             {isSel && (
-              <circle
-                cx={cx} cy={cy}
-                r={NODE_R + 6}
-                fill="none"
-                stroke="rgba(255,255,255,0.25)"
-                strokeWidth={2}
-              />
+              <circle cx={cx} cy={cy} r={NODE_R + 7} fill="none" stroke={base} strokeWidth={3} strokeOpacity={0.6} />
             )}
 
-            {/* Node circle */}
-            <circle
-              cx={cx} cy={cy}
-              r={NODE_R}
-              fill={fill[status]}
-              stroke={stroke[status]}
-              strokeWidth={isDone ? 2.5 : 2}
-              filter={isDone ? 'url(#shadow)' : isActive ? 'url(#shadowAmber)' : undefined}
-            />
+            {/* 3D base (darker underside) */}
+            <circle cx={cx} cy={cy + DEPTH} r={NODE_R} fill={base} />
+            {/* Main top face */}
+            <circle cx={cx} cy={cy} r={NODE_R} fill={top} />
+            {/* Top sheen */}
+            <ellipse cx={cx} cy={cy - NODE_R * 0.34} rx={NODE_R * 0.62} ry={NODE_R * 0.3} fill="#ffffff" opacity={isLocked ? 0.25 : 0.22} />
 
-            {/* Centre glyph: ✓ for done, sequence number otherwise */}
+            {/* Center icon */}
             <text
               x={cx} y={cy + 1}
               textAnchor="middle"
-              dominantBaseline="middle"
-              fontSize={isDone ? 15 : 13}
-              fontWeight="700"
-              fill={txtClr[status]}
-              style={{ fontFamily: 'system-ui, sans-serif', letterSpacing: '-0.5px' }}
+              dominantBaseline="central"
+              fontSize={26}
+              opacity={isLocked ? 0.45 : 1}
+              style={{ pointerEvents: 'none' }}
             >
-              {isDone ? '✓' : seq}
+              {emojiFor(ch)}
             </text>
 
-            {/* ── Challenge name label ───────────────────────────────────── */}
+            {/* Number badge (top-right) — keeps the path numbered */}
+            <g style={{ pointerEvents: 'none' }}>
+              <circle cx={cx + NODE_R * 0.74} cy={cy - NODE_R * 0.74} r={10} fill="#ffffff" stroke={base} strokeWidth={2} />
+              <text
+                x={cx + NODE_R * 0.74} y={cy - NODE_R * 0.74 + 0.5}
+                textAnchor="middle" dominantBaseline="central"
+                fontSize={11} fontWeight="800"
+                fill={isLocked ? '#9ca3af' : base}
+                style={{ fontFamily: 'system-ui, sans-serif' }}
+              >
+                {status === 'completed' ? '✓' : seq}
+              </text>
+            </g>
+
+            {/* Challenge name label */}
             <text
-              x={labelX(i, n)}
-              y={cy}
+              x={labelX(i, n)} y={cy}
               textAnchor={labelAnchor(i, n)}
-              dominantBaseline="middle"
-              fontSize={9.5}
-              fontWeight={isActive ? '700' : '500'}
+              dominantBaseline="central"
+              fontSize={10}
+              fontWeight={isActive ? '800' : '600'}
               fill={
-                isDone
-                  ? '#34d399'
-                  : isActive
-                    ? '#fcd34d'
-                    : status === 'next'
-                      ? '#4b5563'
-                      : '#2e2e3e'
+                status === 'completed' ? '#16a34a'
+                : isActive ? '#d97706'
+                : status === 'next' ? '#6b7280'
+                : '#9ca3af'
               }
               style={{ fontFamily: 'system-ui, sans-serif' }}
             >
               {ch.title.length > 14 ? ch.title.slice(0, 13) + '…' : ch.title}
             </text>
-
-            {/* Type badge below label on active + next */}
-            {(isActive || status === 'next') && (
-              <text
-                x={labelX(i, n)}
-                y={cy + 13}
-                textAnchor={labelAnchor(i, n)}
-                dominantBaseline="middle"
-                fontSize={8}
-                fontWeight="600"
-                fill={isActive ? '#b45309' : '#374151'}
-                style={{ fontFamily: 'system-ui, sans-serif' }}
-              >
-                {TYPE_LABEL[ch.type] ?? ch.type}
-              </text>
-            )}
           </g>
         );
       })}
