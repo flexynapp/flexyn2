@@ -606,7 +606,7 @@ export default function Nutrition() {
             <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
               style={{ background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)' }} />
             <ScanLine className="w-4 h-4 shrink-0" />
-            Scan Food
+            {tFallback('nutrition.scanFood', 'Scan Food')}
           </motion.button>
 
           {/* Photo-AI recognition trigger — hidden file input behind
@@ -632,7 +632,7 @@ export default function Nutrition() {
             {photoRecognizing
               ? <Loader2 className="w-4 h-4 animate-spin" />
               : <span className="text-base leading-none">📸</span>}
-            {photoRecognizing ? 'Reading…' : 'Photo-AI'}
+            {photoRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </motion.button>
 
           {/* Scanner history toggle */}
@@ -676,7 +676,7 @@ export default function Nutrition() {
                     }}
                     className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
                   >
-                    Clear all
+                    {tFallback('nutrition.clearAll', 'Clear all')}
                   </button>
                 )}
               </div>
@@ -1239,7 +1239,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           )}
           <button
             onClick={() => onDelete(g.latestId)}
-            className="ml-0.5 p-0.5 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="ml-0.5 p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Remove one"
             aria-label={`Remove one ${g.label}`}
           >

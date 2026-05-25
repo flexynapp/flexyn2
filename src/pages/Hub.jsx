@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Bell } from 'lucide-react';
+import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -159,6 +159,21 @@ export default function Hub() {
                 <Search className="w-5 h-5" />
               </button>
 
+              {/* Activity — lives in the corner (not a sub-tab) so the feed
+                  row stays a clean Pump | Squad | Crews. */}
+              <button
+                type="button"
+                onClick={() => { setSection('feed'); setProfileTarget(null); setFeedTab('activity'); }}
+                aria-label={tFallback('hub.feed.activity', 'Activity')}
+                className={`p-2 rounded-lg transition-colors ${
+                  section === 'feed' && feedTab === 'activity'
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-secondary'
+                }`}
+              >
+                <Activity className="w-5 h-5" />
+              </button>
+
               {/* Profile (self/other) */}
               <button
                 type="button"
@@ -214,25 +229,12 @@ export default function Hub() {
                 onClick={() => setFeedTab('crews')}
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'crews'
-                    ? 'text-white shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-                style={feedTab === 'crews' ? { background: 'hsl(var(--primary))' } : {}}
-              >
-                <Shield className="w-3.5 h-3.5" />
-                Crews
-              </button>
-              <button
-                type="button"
-                onClick={() => setFeedTab('activity')}
-                className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
-                  feedTab === 'activity'
                     ? 'bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <Bell className="w-3.5 h-3.5" />
-                Activity
+                <Shield className="w-3.5 h-3.5" />
+                {tFallback('hub.feed.crews', 'Crews')}
               </button>
             </div>
           )}

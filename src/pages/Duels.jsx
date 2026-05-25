@@ -143,27 +143,27 @@ export default function Duels() {
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <Swords className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-black">Duels</h1>
+            <h1 className="text-xl font-black">{tFallback('duels.title', 'Duels')}</h1>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowInviteLink(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-foreground text-xs font-bold border border-border hover:bg-secondary/70 transition-colors"
-              aria-label="Challenge someone by link"
+              aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
             >
               <LinkIcon className="w-3.5 h-3.5" />
-              Invite link
+              {tFallback('duels.inviteLink', 'Invite link')}
             </button>
             <button
               onClick={() => setShowCreate(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
             >
               <Plus className="w-3.5 h-3.5" />
-              Challenge
+              {tFallback('duels.challenge', 'Challenge')}
             </button>
           </div>
         </div>
-        <p className="text-sm text-muted-foreground">Head-to-head workout battles</p>
+        <p className="text-sm text-muted-foreground">{tFallback('duels.subtitle', 'Head-to-head workout battles')}</p>
       </div>
 
       {/* W/L record */}

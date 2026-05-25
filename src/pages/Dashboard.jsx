@@ -178,6 +178,7 @@ function HeroCard({ streak, hasWorkedOutToday, daysSinceLast, onPrimary, t }) {
 }
 
 function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false, trend = null }) {
+  const { tFallback } = useLanguage();
   // trend: positive number = up, negative = down, 0 or null = no arrow
   const showTrend = trend !== null && trend !== 0;
   const isUp = trend > 0;
@@ -213,14 +214,14 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
           <div className={`flex items-center gap-0.5 mt-1.5 ${trendColor}`}>
             <TrendIcon className="w-3 h-3" />
             <span className="text-[10px] font-semibold">
-              {isUp ? '+' : ''}{trend} vs last wk
+              {isUp ? '+' : ''}{trend} {tFallback('dashboard.stats.vsLastWeek', 'vs last wk')}
             </span>
           </div>
         )}
         {trend === 0 && (
           <div className="flex items-center gap-0.5 mt-1.5 text-muted-foreground/60">
             <Minus className="w-3 h-3" />
-            <span className="text-[10px]">same as last wk</span>
+            <span className="text-[10px]">{tFallback('dashboard.stats.sameAsLastWeek', 'same as last wk')}</span>
           </div>
         )}
       </Card>
