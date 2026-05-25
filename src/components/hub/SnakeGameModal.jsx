@@ -4,9 +4,10 @@
 // profile (gated in HubProfile). Lazy-loaded so its canvas/game code
 // never enters the entry/Hub bundles for everyone else.
 //
-// THEME: retro arcade. A chrome "iron" snake rendered as ONE solid
-// rounded line that grows, collecting gold coins, over a soft purple
-// space backdrop with drifting embers. Title/score use a pixel font.
+// THEME: retro arcade. A solid rounded snake (tinted to the player's
+// equipped theme color, metallic fallback) collecting gold coins over a
+// soft purple space backdrop with drifting embers. Title/score use a
+// pixel font. Rare golden coins are worth 5x and pop confetti.
 //
 // STATE MACHINE (only legal states):
 //   'ready' | 'playing' | 'paused' | 'game_over'
@@ -33,6 +34,8 @@ const MIN_INTERVAL = 70;
 const STEP_MS_PER_LEVEL = 12;
 const FOODS_PER_SPEEDUP = 5;
 const POINTS_PER_FOOD = 10;
+const GOLDEN_CHANCE = 0.12;       // ~1 in 8 spawns is a bonus coin
+const GOLDEN_POINTS = 50;
 
 // ── Directions (frozen so a stray write can't corrupt the vectors) ──────
 const DIRECTIONS = Object.freeze({
@@ -42,54 +45,78 @@ const DIRECTIONS = Object.freeze({
   right: Object.freeze({ x: 1, y: 0 }),
 });
 
-// Confetti — metallic + gold signature; two-wave burst mirrors
-// firePRCelebration's behavior. Fires only on a new high score.
 const CONFETTI_COLORS = ['#cbd5e1', '#e2e8f0', '#f59e0b', '#fbbf24', '#a855f7', '#fde68a'];
+const GOLDEN_CONFETTI = ['#f59e0b', '#fbbf24', '#d946ef', '#c084fc', '#fde68a'];
 
 const storageKeyFor = (userId) => `flexyn.snakeHighScore.${userId || 'anon'}`;
 const intervalForLevel = (level) => Math.max(MIN_INTERVAL, BASE_INTERVAL - level * STEP_MS_PER_LEVEL);
 const randCell = () => Math.floor(Math.random() * GRID);
 const cellCenter = (c) => ({ x: c.x * CELL + CELL / 2, y: c.y * CELL + CELL / 2 });
 
-function spawnFood(snake) {
+function makeFood(snake) {
   let f;
   let guard = 0;
   do {
     f = { x: randCell(), y: randCell() };
     guard += 1;
   } while (guard < 500 && snake.some((s) => s.x === f.x && s.y === f.y));
+  f.golden = Math.random() < GOLDEN_CHANCE;
   return f;
 }
 
+// Read the player's equipped theme color from the global --primary CSS
+// var (HSL components, e.g. "24 90% 50%") so the snake adopts it; null →
+// metallic chrome fallback.
+function readThemeColor() {
+  try {
+    const raw = getComputedStyle(document.documentElement).getPropertyValue('--primary').trim();
+    const parts = raw.split(/\s+/);
+    if (parts.length < 3) return null;
+    const [h, s, l] = parts;
+    const lNum = parseFloat(l) || 50;
+    return {
+      base: `hsl(${h}, ${s}, ${l})`,
+      light: `hsl(${h}, ${s}, ${Math.min(88, lNum + 30)}%)`,
+      head: `hsl(${h}, ${s}, ${Math.min(92, lNum + 38)}%)`,
+      glow: `hsla(${h}, ${s}, 72%, 0.55)`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 // ── Canvas drawing (pure; reads only its args) ──────────────────────────
-function drawCoin(ctx, cell) {
+function drawCoin(ctx, cell, golden) {
   const { x: cx, y: cy } = cellCenter(cell);
-  const r = CELL * 0.4;
+  const r = CELL * (golden ? 0.43 : 0.4);
   ctx.save();
-  ctx.shadowColor = 'rgba(245,158,11,0.6)';
-  ctx.shadowBlur = 8;
-  // Coin body
+  ctx.shadowColor = golden ? 'rgba(217,70,239,0.75)' : 'rgba(245,158,11,0.6)';
+  ctx.shadowBlur = golden ? 11 : 8;
   const g = ctx.createRadialGradient(cx - 2, cy - 2, 1, cx, cy, r);
-  g.addColorStop(0, '#fde68a');
-  g.addColorStop(0.6, '#f59e0b');
-  g.addColorStop(1, '#b45309');
+  if (golden) {
+    g.addColorStop(0, '#fef3c7');
+    g.addColorStop(0.5, '#fbbf24');
+    g.addColorStop(1, '#a21caf');
+  } else {
+    g.addColorStop(0, '#fde68a');
+    g.addColorStop(0.6, '#f59e0b');
+    g.addColorStop(1, '#b45309');
+  }
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
   ctx.fillStyle = g;
   ctx.fill();
   ctx.shadowBlur = 0;
-  // Rim
   ctx.lineWidth = 1.2;
-  ctx.strokeStyle = '#92400e';
+  ctx.strokeStyle = golden ? '#86198f' : '#92400e';
   ctx.stroke();
-  // Inner ring
   ctx.beginPath();
   ctx.arc(cx, cy, r * 0.62, 0, Math.PI * 2);
-  ctx.strokeStyle = 'rgba(146,64,14,0.7)';
+  ctx.strokeStyle = golden ? 'rgba(134,25,143,0.7)' : 'rgba(146,64,14,0.7)';
   ctx.lineWidth = 1;
   ctx.stroke();
   // Embossed star
-  ctx.fillStyle = '#fef3c7';
+  ctx.fillStyle = golden ? '#fdf4ff' : '#fef3c7';
   const spikes = 5;
   const outer = r * 0.4;
   const inner = r * 0.17;
@@ -103,7 +130,7 @@ function drawCoin(ctx, cell) {
   }
   ctx.closePath();
   ctx.fill();
-  // Shine highlight
+  // Shine
   ctx.beginPath();
   ctx.arc(cx - r * 0.32, cy - r * 0.34, r * 0.16, 0, Math.PI * 2);
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
@@ -111,20 +138,22 @@ function drawCoin(ctx, cell) {
   ctx.restore();
 }
 
-// Draw the snake as a single continuous rounded chrome line.
-function drawSnake(ctx, snake, dir) {
+function drawSnake(ctx, snake, dir, theme) {
   if (!snake.length) return;
   const pts = snake.map(cellCenter);
+  const body0 = theme?.light || '#f1f5f9';
+  const body1 = theme?.base || '#94a3b8';
+  const glow = theme?.glow || 'rgba(186,230,253,0.5)';
+  const headColor = theme?.head || '#e2e8f0';
 
-  // Outer body line with a soft cyan-white glow.
   ctx.save();
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
-  ctx.shadowColor = 'rgba(186,230,253,0.5)';
+  ctx.shadowColor = glow;
   ctx.shadowBlur = 7;
   const grad = ctx.createLinearGradient(0, 0, SIZE, SIZE);
-  grad.addColorStop(0, '#f1f5f9');
-  grad.addColorStop(1, '#94a3b8');
+  grad.addColorStop(0, body0);
+  grad.addColorStop(1, body1);
   ctx.strokeStyle = grad;
   ctx.lineWidth = CELL * 0.74;
   if (pts.length === 1) {
@@ -139,7 +168,7 @@ function drawSnake(ctx, snake, dir) {
   }
   ctx.restore();
 
-  // Inner highlight ridge — gives the tube a metallic spine.
+  // Inner highlight ridge — kept white so the line always reads metallic.
   if (pts.length > 1) {
     ctx.save();
     ctx.lineJoin = 'round';
@@ -152,11 +181,11 @@ function drawSnake(ctx, snake, dir) {
     ctx.restore();
   }
 
-  // Head knob + eyes (oriented by travel direction).
+  // Head knob + eyes
   const head = pts[0];
   ctx.beginPath();
   ctx.arc(head.x, head.y, CELL * 0.42, 0, Math.PI * 2);
-  ctx.fillStyle = '#e2e8f0';
+  ctx.fillStyle = headColor;
   ctx.fill();
   const perp = { x: -dir.y, y: dir.x };
   const fwd = CELL * 0.1;
@@ -171,16 +200,19 @@ function drawSnake(ctx, snake, dir) {
   });
 }
 
-function fireHighScoreConfetti() {
+function fireConfetti(colors, big) {
   const reduced =
     typeof window !== 'undefined' &&
     window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
   if (reduced) return;
-  try { navigator.vibrate?.([30, 60, 30, 60, 90]); } catch { /* ignore */ }
   import('canvas-confetti')
     .then(({ default: confetti }) => {
-      confetti({ particleCount: 140, spread: 90, startVelocity: 42, origin: { x: 0.5, y: 0.42 }, colors: CONFETTI_COLORS, ticks: 200, zIndex: 130 });
-      setTimeout(() => confetti({ particleCount: 60, spread: 60, startVelocity: 30, origin: { x: 0.5, y: 0.5 }, colors: CONFETTI_COLORS, zIndex: 130 }), 160);
+      if (big) {
+        confetti({ particleCount: 140, spread: 90, startVelocity: 42, origin: { x: 0.5, y: 0.42 }, colors, ticks: 200, zIndex: 130 });
+        setTimeout(() => confetti({ particleCount: 60, spread: 60, startVelocity: 30, origin: { x: 0.5, y: 0.5 }, colors, zIndex: 130 }), 160);
+      } else {
+        confetti({ particleCount: 50, spread: 70, startVelocity: 32, origin: { x: 0.5, y: 0.5 }, colors, ticks: 120, zIndex: 130 });
+      }
     })
     .catch(() => { /* decorative — skip */ });
 }
@@ -190,18 +222,20 @@ export default function SnakeGameModal({ open, onClose, userId }) {
   const snakeRef = useRef([]);
   const dirRef = useRef(DIRECTIONS.right);
   const nextDirRef = useRef(DIRECTIONS.right);
-  const foodRef = useRef({ x: 0, y: 0 });
+  const foodRef = useRef({ x: 0, y: 0, golden: false });
   const foodCountRef = useRef(0);
   const levelRef = useRef(0);
   const scoreRef = useRef(0);
+  const themeRef = useRef(null);
+  const floaterIdRef = useRef(0);
 
   const [gameState, setGameState] = useState('ready');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [isNewHigh, setIsNewHigh] = useState(false);
   const [shake, setShake] = useState(false);
+  const [floaters, setFloaters] = useState([]); // [{ id, x%, y%, amount, golden }]
 
-  // Ambient space layer — purple embers + faint stars (decorative).
   const embers = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
     id: i,
     x: Math.random() * 100,
@@ -224,6 +258,15 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     try { setHighScore(Number(localStorage.getItem(storageKeyFor(userId))) || 0); } catch { /* ignore */ }
   }, [userId]);
 
+  const pushFloater = useCallback((cell, amount, golden) => {
+    const id = floaterIdRef.current;
+    floaterIdRef.current += 1;
+    const x = ((cell.x * CELL + CELL / 2) / SIZE) * 100;
+    const y = ((cell.y * CELL + CELL / 2) / SIZE) * 100;
+    setFloaters((list) => [...list, { id, x, y, amount, golden }]);
+    setTimeout(() => setFloaters((list) => list.filter((it) => it.id !== id)), 760);
+  }, []);
+
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -231,17 +274,15 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    // Transparent — the DOM space layer behind shows through.
     ctx.clearRect(0, 0, SIZE, SIZE);
-    // Faint purple grid
     ctx.strokeStyle = 'rgba(168,139,250,0.08)';
     ctx.lineWidth = 1;
     for (let i = 1; i < GRID; i += 1) {
       ctx.beginPath(); ctx.moveTo(i * CELL, 0); ctx.lineTo(i * CELL, SIZE); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(0, i * CELL); ctx.lineTo(SIZE, i * CELL); ctx.stroke();
     }
-    drawCoin(ctx, foodRef.current);
-    drawSnake(ctx, snakeRef.current, dirRef.current);
+    drawCoin(ctx, foodRef.current, foodRef.current.golden);
+    drawSnake(ctx, snakeRef.current, dirRef.current, themeRef.current);
   }, []);
 
   const endGame = useCallback(() => {
@@ -253,7 +294,8 @@ export default function SnakeGameModal({ open, onClose, userId }) {
       if (finalScore > prev) {
         try { localStorage.setItem(storageKeyFor(userId), String(finalScore)); } catch { /* ignore */ }
         setIsNewHigh(true);
-        fireHighScoreConfetti();
+        try { navigator.vibrate?.([30, 60, 30, 60, 90]); } catch { /* ignore */ }
+        fireConfetti(CONFETTI_COLORS, true); // keep the game-over celebration
         return finalScore;
       }
       return prev;
@@ -268,11 +310,13 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     snakeRef.current = snake;
     dirRef.current = d;
     nextDirRef.current = d;
-    foodRef.current = spawnFood(snake);
+    themeRef.current = readThemeColor();
+    foodRef.current = makeFood(snake);
     foodCountRef.current = 0;
     levelRef.current = 0;
     scoreRef.current = 0;
     setScore(0);
+    setFloaters([]);
     setIsNewHigh(false);
     setGameState('playing');
   }, []);
@@ -290,14 +334,19 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     if (!ate) newSnake.pop();
     snakeRef.current = newSnake;
     if (ate) {
+      const eaten = foodRef.current;
+      const gain = eaten.golden ? GOLDEN_POINTS : POINTS_PER_FOOD;
       foodCountRef.current += 1;
-      scoreRef.current += POINTS_PER_FOOD;
+      scoreRef.current += gain;
       setScore(scoreRef.current);
+      pushFloater(eaten, gain, eaten.golden);
+      try { navigator.vibrate?.(eaten.golden ? [20, 40, 20] : 15); } catch { /* ignore */ }
+      if (eaten.golden) fireConfetti(GOLDEN_CONFETTI, false);
       if (foodCountRef.current % FOODS_PER_SPEEDUP === 0) levelRef.current += 1;
-      foodRef.current = spawnFood(newSnake);
+      foodRef.current = makeFood(newSnake);
     }
     draw();
-  }, [draw, endGame]);
+  }, [draw, endGame, pushFloater]);
 
   useEffect(() => {
     if (!open || gameState !== 'playing') return undefined;
@@ -321,11 +370,13 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     setGameState('ready');
     setScore(0);
     scoreRef.current = 0;
+    setFloaters([]);
     setIsNewHigh(false);
+    themeRef.current = readThemeColor();
     const mid = Math.floor(GRID / 2);
     snakeRef.current = [{ x: mid, y: mid }, { x: mid - 1, y: mid }, { x: mid - 2, y: mid }];
     dirRef.current = DIRECTIONS.right;
-    foodRef.current = { x: mid + 4, y: mid };
+    foodRef.current = { x: mid + 4, y: mid, golden: false };
     const id = requestAnimationFrame(() => draw());
     return () => cancelAnimationFrame(id);
   }, [open, draw]);
@@ -333,6 +384,20 @@ export default function SnakeGameModal({ open, onClose, userId }) {
   const togglePause = useCallback(() => {
     setGameState((s) => (s === 'playing' ? 'paused' : s === 'paused' ? 'playing' : s));
   }, []);
+
+  // Auto-pause when the tab is hidden or the window loses focus, so a run
+  // doesn't silently die in the background. Manual resume only.
+  useEffect(() => {
+    if (!open) return undefined;
+    const pauseIfPlaying = () => setGameState((s) => (s === 'playing' ? 'paused' : s));
+    const onVisibility = () => { if (document.hidden) pauseIfPlaying(); };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('blur', pauseIfPlaying);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('blur', pauseIfPlaying);
+    };
+  }, [open]);
 
   const handleDir = useCallback((name) => {
     const nd = DIRECTIONS[name];
@@ -360,7 +425,6 @@ export default function SnakeGameModal({ open, onClose, userId }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [open, handleDir, togglePause, onClose]);
 
-  // ── Game Boy D-pad pieces ─────────────────────────────────────────────
   const dpadArm =
     'absolute flex items-center justify-center text-slate-400 active:bg-white/10 ' +
     'transition-colors touch-manipulation focus:outline-none';
@@ -380,7 +444,6 @@ export default function SnakeGameModal({ open, onClose, userId }) {
           onClick={onClose}
           role="presentation"
         >
-          {/* Pixel font — loaded only while the game is open. */}
           <style>{"@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap'); .snake-pixel{font-family:'Press Start 2P',ui-monospace,monospace;}"}</style>
 
           <motion.div
@@ -432,12 +495,10 @@ export default function SnakeGameModal({ open, onClose, userId }) {
               className="relative rounded-xl overflow-hidden border border-purple-500/20"
               style={{ width: SIZE, height: SIZE, maxWidth: '100%' }}
             >
-              {/* Space backdrop */}
               <div
                 className="absolute inset-0"
                 style={{ background: 'radial-gradient(circle at 50% 38%, #241a40 0%, #0c0818 62%, #050208 100%)' }}
               />
-              {/* Stars */}
               {stars.map((s) => (
                 <motion.span
                   key={`star-${s.id}`}
@@ -447,7 +508,6 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                   transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: 'easeInOut' }}
                 />
               ))}
-              {/* Purple embers */}
               {embers.map((e) => (
                 <motion.span
                   key={`ember-${e.id}`}
@@ -466,16 +526,30 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 style={{ width: SIZE, height: SIZE, display: 'block' }}
               />
 
+              {/* Score floaters — rise + fade where a coin was grabbed */}
+              {floaters.map((f) => (
+                <motion.span
+                  key={`fl-${f.id}`}
+                  className={`absolute z-20 pointer-events-none snake-pixel text-[10px] ${f.golden ? 'text-fuchsia-300' : 'text-amber-300'}`}
+                  style={{ left: `${f.x}%`, top: `${f.y}%`, transform: 'translate(-50%,-50%)', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}
+                  initial={{ opacity: 0, y: 0, scale: 0.7 }}
+                  animate={{ opacity: [0, 1, 1, 0], y: -22, scale: 1 }}
+                  transition={{ duration: 0.75, ease: 'easeOut' }}
+                >
+                  +{f.amount}
+                </motion.span>
+              ))}
+
               {/* Overlays */}
               {gameState === 'ready' && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/45 backdrop-blur-[2px]">
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/45 backdrop-blur-[2px]">
                   <p className="text-xs text-slate-300 px-6 text-center">Collect coins. Don't hit the walls or your own tail.</p>
                   <button type="button" onClick={() => startGame('right')} className="snake-pixel text-[11px] px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity leading-none">START</button>
                   <p className="text-[10px] text-slate-400">Arrows / WASD / D-pad</p>
                 </div>
               )}
               {gameState === 'paused' && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-[2px]">
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-3 bg-black/50 backdrop-blur-[2px]">
                   <p className="snake-pixel text-base text-white leading-none">PAUSED</p>
                   <button type="button" onClick={togglePause} className="snake-pixel text-[10px] px-5 py-3 rounded-xl bg-primary text-primary-foreground hover:opacity-90 transition-opacity flex items-center gap-1.5 leading-none">
                     <Play className="w-3.5 h-3.5" /> RESUME
@@ -483,7 +557,7 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 </div>
               )}
               {gameState === 'game_over' && (
-                <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px]">
+                <div className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/60 backdrop-blur-[2px]">
                   <p className="snake-pixel text-base text-white leading-tight text-center">GAME<br />OVER</p>
                   {isNewHigh ? (
                     <p className="text-sm font-semibold text-amber-400 flex items-center gap-1"><Trophy className="w-4 h-4" /> New best!</p>
@@ -499,13 +573,10 @@ export default function SnakeGameModal({ open, onClose, userId }) {
 
             {/* Game Boy D-pad */}
             <div className="relative" style={{ width: 150, height: 150 }}>
-              {/* Connected plus base */}
               <div className="absolute rounded-[14px]" style={{ left: 50, top: 0, width: 50, height: 150, ...crossBar }} />
               <div className="absolute rounded-[14px]" style={{ left: 0, top: 50, width: 150, height: 50, ...crossBar }} />
-              {/* subtle center dish */}
               <div className="absolute rounded-full" style={{ left: 54, top: 54, width: 42, height: 42, background: 'radial-gradient(circle at 50% 40%, #2a3140, #0c1018)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.6)' }} />
 
-              {/* Direction arms */}
               <button type="button" aria-label="Up"    className={`${dpadArm} rounded-t-[14px]`} style={{ left: 50, top: 0, width: 50, height: 50 }} onClick={() => handleDir('up')}>
                 <ChevronUp className="w-6 h-6" />
               </button>
@@ -519,7 +590,6 @@ export default function SnakeGameModal({ open, onClose, userId }) {
                 <ChevronRight className="w-6 h-6" />
               </button>
 
-              {/* Center pause (the only pause control) */}
               <button
                 type="button"
                 aria-label={gameState === 'paused' ? 'Resume' : 'Pause'}
