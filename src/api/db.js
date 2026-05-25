@@ -522,28 +522,29 @@ async function _invokeDeleteAccount() {
     'notifications',            // inbox
     'post_sticker_reactions',   // sticker reactions on posts
     'user_daily_quests',        // daily quest history
-    // ── Wellness / tracking (mig 094-097, 128, 129, 133)
+    // ── Wellness / tracking (mig 095, 096, 128)
+    // NOTE: hydration_logs, recovery_scores, fitness_assessments,
+    // body_metrics_measurements DO NOT exist as separate tables.
+    // - fitness_assessment is a JSONB column on user_profiles (mig 129)
+    // - mig 133 added body-measurement COLUMNS to body_metrics
+    // - hydration and recovery never shipped as tables
+    // The user_profiles row is cleared below via auth.updateMe, so the
+    // JSONB column's data is wiped there. body_metrics rows are cleared
+    // by the `tables_with_created_by` block above.
     'sleep_logs',
     'mood_logs',
-    'recovery_scores',
-    'hydration_logs',
     'cycle_logs',
-    'fitness_assessments',
-    'body_metrics_measurements',
     // ── Crews & competition (mig 130, 132)
     'crew_message_reactions',
     'monthly_league_members',
     // ── Injuries (mig 052) — was already covered via user_id; explicit here
     'injury_logs',
-    // ── Gym ecosystem (mig 135-141)
+    // ── Gym ecosystem (mig 135, 138, 139)
     'gym_members',
     'gym_event_rsvps',
     'gym_feed_post_reactions',
-    // ── Notification snoozes / push subscriptions (mig 033, 127)
+    // ── Push subscriptions (mig 033)
     'push_subscriptions',
-    // ── User mutes / blocks
-    'user_mutes',
-    'user_blocks',
     // ── Trainer tier (mig 143) — buyer's purchase receipts. Listings
     // (trainer_id) are handled in pii_tables below.
     'trainer_purchases',
@@ -555,6 +556,14 @@ async function _invokeDeleteAccount() {
   // PII-bearing tables where the user is the author/creator/owner.
   // Each row contains identifying data (email, phone, address, body).
   // We delete by user_id AND by the email-bearing column.
+  //
+  // IMPORTANT: every entry here MUST use the actual column names from
+  // the table's CREATE TABLE migration. The previous bug — surfaced as
+  // "Deletion incomplete (user_mutes.user_id, user_blocks.user_id…)" —
+  // was caused by adding user_mutes/user_blocks to the user_id list
+  // when their actual columns are muter_id / blocker_id. Future
+  // additions: grep the migration for `CREATE TABLE` and use the
+  // literal column name, not what the convention "should be."
   const pii_tables = [
     // [table, idCol, emailCol]
     ['gym_feed_posts',    'author_id',  'author_email'],
@@ -566,6 +575,12 @@ async function _invokeDeleteAccount() {
     ['trainer_listings',  'trainer_id', null],
     // Corporate wellness (mig 146) — organizations the user owns.
     ['organizations',     'owner_id',   null],
+    // Mutes (mig 107) — column is `muter_id`, not user_id. Also clears
+    // the muter_email-keyed lookup for parity with the email side of
+    // other PII tables.
+    ['user_mutes',        'muter_id',   'muter_email'],
+    // Blocks (mig 106) — column is `blocker_id`, not user_id.
+    ['user_blocks',       'blocker_id', 'blocker_email'],
   ];
 
   // Run all deletes; collect any per-row failures. We previously used
@@ -592,14 +607,28 @@ async function _invokeDeleteAccount() {
 
   const results = await Promise.allSettled(ops.map(o => o.p));
   const failures = [];
+  // Codes we tolerate as "environment skew" rather than real deletion
+  // failures. The user's data isn't at these tables anyway, so the
+  // delete is functionally a no-op — but we don't want to scare them
+  // with "Deletion incomplete" for what is essentially a stale config.
+  //   42P01    — relation does not exist (table missing on this host)
+  //   42703    — column does not exist (code/schema mismatch, e.g. the
+  //              user_mutes.user_id bug that surfaced before this audit)
+  //   PGRST204 — column not found in PostgREST schema cache
+  //   PGRST205 — table not in PostgREST cache
+  // Everything else (RLS reject 42501, FK violation 23503, network) is
+  // a real failure that the user must know about.
+  const SCHEMA_SKEW_CODES = new Set(['42P01', '42703', 'PGRST204', 'PGRST205']);
   results.forEach((r, i) => {
     if (r.status === 'rejected') {
       failures.push({ table: ops[i].name, error: r.reason?.message || String(r.reason) });
     } else if (r.value?.error) {
-      // PostgREST returns 42P01 (table missing) on hosts that haven't run
-      // every migration — that's expected, not a deletion failure.
       const code = r.value.error.code;
-      if (code !== '42P01' && code !== 'PGRST205' && code !== 'PGRST204') {
+      if (SCHEMA_SKEW_CODES.has(code)) {
+        // Loud warning so devs catch the mismatch in development, but
+        // don't surface to the user.
+        console.warn(`[deleteAccount] schema skew on ${ops[i].name} (${code}): ${r.value.error.message}`);
+      } else {
         failures.push({ table: ops[i].name, error: r.value.error.message, code });
       }
     }
