@@ -67,6 +67,37 @@ const PALETTE = [
 const LOCKED = ['#e5e7eb', '#cfd4da'];
 const ACTIVE = ['#ffc800', '#e6a700'];
 
+// Reward-chest milestones sit BETWEEN challenges (Duolingo treasure-chest
+// vibe). Value = the sequence number after which a chest appears, so [3,6]
+// puts chests between 3–4 and 6–7. Visual for now: gold + glowing once the
+// preceding challenge is cleared, gray + closed while still locked.
+const CHEST_AFTER = [3, 6];
+
+function ChestNode({ cx, cy, available }) {
+  const lid  = available ? '#fcd34d' : '#e5e7eb';
+  const body = available ? '#f59e0b' : '#d1d5db';
+  const edge = available ? '#b45309' : '#9ca3af';
+  const w = 32;
+  const h = 26;
+  const x = cx - w / 2;
+  const y = cy - h / 2;
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {available && (
+        <>
+          <animateTransform attributeName="transform" type="translate" values="0 0; 0 -2.5; 0 0" dur="2s" repeatCount="indefinite" />
+          <circle cx={cx} cy={cy} r={23} fill="url(#gauntletGlow)">
+            <animate attributeName="opacity" values="0.75;0.2;0.75" dur="2s" repeatCount="indefinite" />
+          </circle>
+        </>
+      )}
+      <rect x={x} y={y + 8} width={w} height={h - 8} rx={3} fill={body} stroke={edge} strokeWidth={1.5} />
+      <rect x={x} y={y} width={w} height={11} rx={3} fill={lid} stroke={edge} strokeWidth={1.5} />
+      <rect x={cx - 3.5} y={cy - 1} width={7} height={8} rx={1.5} fill={edge} />
+    </g>
+  );
+}
+
 export default function GauntletPath({
   challenges = [],
   currentSequence = 1,
@@ -113,6 +144,15 @@ export default function GauntletPath({
             )}
           </g>
         );
+      })}
+
+      {/* ── Reward chests between challenges (3–4, 6–7) ───────────────────── */}
+      {CHEST_AFTER.map((afterSeq) => {
+        const i = challenges.findIndex(c => c.sequence_number === afterSeq);
+        if (i < 0 || i + 1 >= n) return null;
+        const mx = (nodeX(i, n) + nodeX(i + 1, n)) / 2;
+        const my = (nodeY(i) + nodeY(i + 1)) / 2;
+        return <ChestNode key={`chest-${afterSeq}`} cx={mx} cy={my} available={completedSeqs.has(afterSeq)} />;
       })}
 
       {/* ── Nodes ──────────────────────────────────────────────────────────── */}
