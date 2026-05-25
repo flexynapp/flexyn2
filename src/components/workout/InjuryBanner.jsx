@@ -64,14 +64,20 @@ export default function InjuryBanner({ onOpenForm }) {
   const { user } = useAuth();
   const qc = useQueryClient();
 
+  // Key MUST be distinct from InjuryForm's ['injuries','all',uid] query.
+  // They previously shared ['injuries', uid] with DIFFERENT queryFns
+  // (active-only here vs. all-including-cleared in the form), so the
+  // form's full list would land in the shared cache and the banner would
+  // count cleared injuries as active ("3 active injuries" after clearing
+  // all of them). Distinct keys + prefix invalidation fixes it.
   const { data: activeInjuries = [] } = useQuery({
-    queryKey: ['injuries', user?.id],
+    queryKey: ['injuries', 'active', user?.id],
     queryFn: injuries.listActiveInjuries,
     enabled: !!user?.id,
     staleTime: 60_000,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['injuries', user?.id] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['injuries'] });
 
   const clearMutation = useMutation({
     mutationFn: injuries.clearInjury,

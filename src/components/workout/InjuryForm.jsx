@@ -126,13 +126,18 @@ export default function InjuryForm({ onClose }) {
   const [recoveryDate, setRecoveryDate] = useState('');
 
   // ── Data ───────────────────────────────────────────────────────────────────
+  // Distinct key from InjuryBanner's ['injuries','active',uid]: this query
+  // returns ALL injuries (incl. cleared, for the history list); sharing a
+  // key with the active-only banner query corrupted both caches.
   const { data: injuryList = [], isLoading } = useQuery({
-    queryKey: ['injuries', user?.id],
+    queryKey: ['injuries', 'all', user?.id],
     queryFn: injuries.listInjuries,
     enabled: !!user?.id,
   });
 
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['injuries', user?.id] });
+  // Prefix invalidation refreshes BOTH the form's ['injuries','all',uid]
+  // and the banner's ['injuries','active',uid] after any mutation.
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['injuries'] });
 
   const logMutation = useMutation({
     mutationFn: () => injuries.logInjury({

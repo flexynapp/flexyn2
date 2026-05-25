@@ -2,10 +2,10 @@
 // The Gauntlet screen: community weekly challenge at top, personal 10-challenge
 // winding path below. Tap any node to see its detail card. Completion triggers
 // the stats modal with share.
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Swords, ChevronLeft, X, Zap, Lock } from 'lucide-react';
+import { Trophy, Swords, ChevronLeft, X, Zap, Lock, Dumbbell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter } from '@/lib/intl';
@@ -53,7 +53,7 @@ function metricHint(challenge, t) {
 }
 
 // ── Challenge detail card (shown when node is tapped) ────────────────────────
-function ChallengeDetail({ challenge, status, completedAt, onClose }) {
+function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorkout }) {
   const { t } = useLanguage();
   const fmtDate = useDateFormatter();
   const hint = metricHint(challenge, t);
@@ -162,12 +162,21 @@ function ChallengeDetail({ challenge, status, completedAt, onClose }) {
               {challenge.coin_reward} coins
             </span>
           </div>
-          {status === 'active' && (
-            <span className="ml-auto text-xs text-muted-foreground">
-              Complete in your next workout →
-            </span>
-          )}
         </div>
+
+        {/* Go to Workout — gauntlet challenges complete passively when you
+            log a qualifying workout, so the actionable step is to start
+            one. Shown for the challenges you can actually attempt now. */}
+        {!isLocked && status !== 'completed' && onStartWorkout && (
+          <button
+            type="button"
+            onClick={onStartWorkout}
+            className="mt-4 w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+          >
+            <Dumbbell className="w-4 h-4" />
+            {status === 'active' ? 'Start this challenge' : 'Go to Workout'}
+          </button>
+        )}
       </div>
     </motion.div>
   );
@@ -180,6 +189,18 @@ export default function Gauntlet() {
   const qc       = useQueryClient();
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [statsModal, setStatsModal]               = useState(null);
+  const detailRef = useRef(null);
+
+  // Tapping a path node renders the detail card BELOW the (tall) path, so
+  // without this the card lands off-screen and the tap feels like a no-op.
+  // Scroll it into view so the selection is always visible.
+  useEffect(() => {
+    if (!selectedChallenge) return undefined;
+    const id = requestAnimationFrame(() => {
+      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    return () => cancelAnimationFrame(id);
+  }, [selectedChallenge]);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: challenges = [] } = useQuery({
@@ -332,7 +353,7 @@ export default function Gauntlet() {
       {/* ── Challenge detail card — slides in below the path on tap ──────── */}
       <AnimatePresence>
         {selectedChallenge && (
-          <div className="pb-4">
+          <div className="pb-4" ref={detailRef}>
             <ChallengeDetail
               key={selectedChallenge.id}
               challenge={selectedChallenge}
@@ -341,6 +362,7 @@ export default function Gauntlet() {
                 completions.find(c => c.challenge_id === selectedChallenge.id)?.completed_at
               }
               onClose={() => setSelectedChallenge(null)}
+              onStartWorkout={() => navigate('/workout')}
             />
           </div>
         )}
