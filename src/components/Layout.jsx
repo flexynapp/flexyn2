@@ -330,8 +330,13 @@ export default function Layout() {
         </div>
       </aside>
 
-      {/* Main content */}
-      <main className="lg:ms-64 min-h-[100dvh] flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
+      {/* Main content.
+          No min-height here: the outer wrapper already paints a full-
+          viewport bg-background, so forcing main to 100dvh only created a
+          scrollable empty void below short pages (Marketplace, Workout,
+          etc.). Letting main size to its content removes that dead space;
+          short pages simply end and the fixed bottom nav stays put. */}
+      <main className="lg:ms-64 flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
           <AnimatedRoutes>

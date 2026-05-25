@@ -137,7 +137,7 @@ export default function Duels() {
 
   return (
     <ErrorBoundary label="Duels">
-    <div className="min-h-screen bg-background pb-24">
+    <div className="bg-background pb-6">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-1">
