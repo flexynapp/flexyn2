@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import {
   listMyOrganizations, createOrganization, joinOrganizationByCode, leaveOrganization,
   listChallenges, createChallenge, deleteChallenge, getOrgAnalytics, getMemberCount,
@@ -161,15 +162,21 @@ export default function CorporatePortal() {
             </div>
           )}
 
-          {activeOrg && <OrgHub org={activeOrg} isAdmin={isAdmin} onLeave={handleLeave}
-            onNewChallenge={() => setChallengeOpen(true)} />}
+          {activeOrg && (
+            <ErrorBoundary label="OrgHub">
+              <OrgHub org={activeOrg} isAdmin={isAdmin} onLeave={handleLeave}
+                onNewChallenge={() => setChallengeOpen(true)} />
+            </ErrorBoundary>
+          )}
 
           {challengeOpen && (
-            <ChallengeFormModal
-              orgId={activeOrg.id}
-              onClose={() => setChallengeOpen(false)}
-              onSaved={() => { setChallengeOpen(false); qc.invalidateQueries({ queryKey: ['orgChallenges', activeOrg.id] }); }}
-            />
+            <ErrorBoundary label="ChallengeFormModal">
+              <ChallengeFormModal
+                orgId={activeOrg.id}
+                onClose={() => setChallengeOpen(false)}
+                onSaved={() => { setChallengeOpen(false); qc.invalidateQueries({ queryKey: ['orgChallenges', activeOrg.id] }); }}
+              />
+            </ErrorBoundary>
           )}
         </>
       )}

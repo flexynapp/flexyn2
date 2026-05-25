@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import EmptyState from '@/components/EmptyState';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { formatCents, calculateSplit } from '@/lib/trainerSplit';
 import {
   getMyListings, getMyRevenue, setPublished, deleteListing, becomeTrainer,
@@ -84,7 +85,19 @@ export default function TrainerStudio() {
   };
 
   const handleDelete = async (listing) => {
-    if (!confirm(`Delete "${listing.title}"? Existing buyers keep access.`)) return;
+    // Refuse to delete a listing that has sales. Buyers' regimen-access
+    // policy joins trainer_purchases.listing_id → trainer_listings.id; once
+    // the listing row is gone the join fails and buyers lose access to
+    // the program they paid for. The right path for a trainer who wants
+    // to stop selling is Unpublish (sets is_published=false, keeps the
+    // row + buyer access intact). After mig 147 lands the listing_id FK
+    // is ON DELETE SET NULL so the purchase row survives the delete,
+    // but the access lookup still breaks — so we still block here.
+    if ((listing.sales_count ?? 0) > 0) {
+      toast.error('Has existing buyers — unpublish instead. (Delete would revoke their access.)');
+      return;
+    }
+    if (!confirm(`Delete "${listing.title}"? This program has no buyers, so removal is safe.`)) return;
     const res = await deleteListing(listing.id);
     if (res.ok) { toast.success('Listing deleted.'); refresh(); }
     else toast.error(res.error || "Couldn't delete.");
@@ -119,7 +132,7 @@ export default function TrainerStudio() {
           action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
         />
       ) : (
-        <>
+        <ErrorBoundary label="TrainerStudio.body">
           {/* Revenue summary */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
@@ -231,20 +244,22 @@ export default function TrainerStudio() {
               })}
             </div>
           )}
-        </>
+        </ErrorBoundary>
       )}
 
       {formOpen && (
-        <Suspense fallback={null}>
-          <ListingFormModal
-            open={formOpen}
-            onClose={() => { setFormOpen(false); setEditingListing(null); }}
-            listing={editingListing}
-            trainerId={user?.id}
-            userEmail={user?.email}
-            onSaved={() => { setFormOpen(false); setEditingListing(null); refresh(); }}
-          />
-        </Suspense>
+        <ErrorBoundary label="ListingFormModal">
+          <Suspense fallback={null}>
+            <ListingFormModal
+              open={formOpen}
+              onClose={() => { setFormOpen(false); setEditingListing(null); }}
+              listing={editingListing}
+              trainerId={user?.id}
+              userEmail={user?.email}
+              onSaved={() => { setFormOpen(false); setEditingListing(null); refresh(); }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </motion.div>
   );
