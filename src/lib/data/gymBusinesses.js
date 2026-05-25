@@ -159,6 +159,15 @@ export async function getGym(id) {
 // ── Leaderboard / events / feed ────────────────────────────────────
 export async function getLeaderboard(gymId, { mode = 'volume', limit = 50 } = {}) {
   if (!gymId) return [];
+  // Consistency mode ranks by active days this week — a separate RPC
+  // (mig 150) since it aggregates workout_logs, not profile stats.
+  if (mode === 'consistency') {
+    const { data, error } = await supabase.rpc('get_gym_consistency_leaderboard', {
+      p_gym_id: gymId, p_limit: limit,
+    });
+    if (error) return [];
+    return Array.isArray(data) ? data : [];
+  }
   const { data, error } = await supabase.rpc('get_gym_leaderboard', {
     p_gym_id: gymId, p_mode: mode, p_limit: limit,
   });

@@ -39,9 +39,10 @@ const TABS = [
 ];
 
 const LB_MODES = [
-  { id: 'volume', label: 'Volume',  suffix: 'lb' },
-  { id: 'xp',     label: 'XP',      suffix: 'xp' },
-  { id: 'streak', label: 'Streak',  suffix: 'd' },
+  { id: 'volume',      label: 'Volume',      suffix: 'lb' },
+  { id: 'consistency', label: 'Consistency', suffix: 'days' },
+  { id: 'xp',          label: 'XP',          suffix: 'xp' },
+  { id: 'streak',      label: 'Streak',      suffix: 'd' },
 ];
 
 export default function GymHub() {
@@ -588,7 +589,7 @@ function LeaderboardTab({ gymId, meUserId }) {
           </div>
         ) : rows.length > 0 ? (
           <div className="rounded-xl bg-secondary/40 border border-border p-3 mb-3 text-xs text-muted-foreground">
-            Log a {mode === 'streak' ? 'workout' : mode === 'xp' ? 'workout' : 'lift'} to appear on the board.
+            Log a {mode === 'volume' ? 'lift' : 'workout'} to appear on the board.
           </div>
         ) : null
       )}
