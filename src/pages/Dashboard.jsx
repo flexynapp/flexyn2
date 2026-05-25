@@ -555,6 +555,16 @@ export default function Dashboard() {
       transition={{ duration: 0.4 }}
       className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
     >
+      {/* ── Stories ──────────────────────────────────────────────
+           Pinned to the very top (above the greeting) to maximize
+           social engagement — the one card kept out of the priority
+           tiering below by product decision. */}
+      <StoriesRow
+        onViewProfile={(u) =>
+          navigate('/hub?profile=' + encodeURIComponent(u.email))
+        }
+      />
+
       {/* ═══ TIER 1 · Orient & act ════════════════════════════════ */}
 
       {/* ── Greeting block ─────────────────────────────────────── */}
@@ -928,13 +938,6 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ═══ TIER 6 · Social & ambient discovery ══════════════════ */}
-
-      {/* ── Stories ─────────────────────────────────────────────── */}
-      <StoriesRow
-        onViewProfile={(u) =>
-          navigate('/hub?profile=' + encodeURIComponent(u.email))
-        }
-      />
 
       {/* ── Discovery cards ─────────────────────────────────────
            Single-slot, prioritized: starter plan → Form Coach → AI Coach.
