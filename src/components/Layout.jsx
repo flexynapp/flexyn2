@@ -30,7 +30,7 @@ import { TOOLTIP } from '@/lib/tooltipRegistry';
 //   • Long-press detection (consumed via onLongPress with the DOM ref
 //     so the menu popover can anchor above this exact tab)
 //   • Hub-tab special-case styling + the unread dot
-function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
+function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
 
@@ -67,9 +67,13 @@ function NavTab({ item, isActive, isHubItem, hubHasNewFollowingPost, hasQuickAct
             'relative',
             isHubItem
               ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
-                  isActive
-                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                    : 'border-2 border-primary text-primary bg-primary/5'
+                  hubBlue
+                    ? (isActive
+                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
+                        : 'border-2 border-blue-600 text-blue-600 bg-blue-600/10')
+                    : (isActive
+                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
+                        : 'border-2 border-primary text-primary bg-primary/5')
                 }`
               : '',
           ].join(' ')}
@@ -360,6 +364,7 @@ export default function Layout() {
                 item={item}
                 isActive={isActive}
                 isHubItem={isHubItem}
+                hubBlue={isHubItem && user?.username === 'sean'}
                 hubHasNewFollowingPost={hubHasNewFollowingPost}
                 hasQuickActions={hasQuickActions}
                 showLongPressHint={idx === 0}
