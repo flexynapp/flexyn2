@@ -32,6 +32,7 @@ import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
+import MuscleGroupHeatmap from '@/components/progress/MuscleGroupHeatmap';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
@@ -284,6 +285,13 @@ function AnalyticsTab({ logs }) {
           </ResponsiveContainer>
         )}
       </Card>
+
+      {/* Muscle-split volume heatmap — anatomical body map colored by
+          training intensity per group. Complements the volume bar chart
+          above with the "what am I neglecting?" read at a glance. */}
+      <ErrorBoundary label="MuscleGroupHeatmap">
+        <MuscleGroupHeatmap logs={logs} />
+      </ErrorBoundary>
 
       <Card className="p-5 border-none shadow-sm">
         <div className="flex items-center justify-between mb-1">
