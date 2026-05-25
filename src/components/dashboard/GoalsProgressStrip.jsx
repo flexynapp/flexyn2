@@ -30,7 +30,7 @@ import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 // Cardio goals get 0% from the shared module too — strip stays simple.
 
 export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
-  const { t, tFallback } = useLanguage();
+  const { tFallback } = useLanguage();
 
   const view = useMemo(() => {
     const active = goals.filter(g => g.status !== 'completed');
@@ -48,9 +48,15 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
 
     // Show the closest goal — most motivating to nudge toward completion.
     enriched.sort((a, b) => b.progress - a.progress);
+    const top = enriched[0];
+    // Don't surface a goal with no measurable progress yet — a bare
+    // "Exercise · 0%" reads like placeholder/dummy data (cardio goals also
+    // compute as 0% from the strength module). The strip is for the
+    // mid-journey gap, so hide until there's real progress to nudge.
+    if (!top || top.progress <= 0) return null;
     return {
       activeCount: active.length,
-      top: enriched[0],
+      top,
     };
   }, [goals, logs]);
 
@@ -58,9 +64,13 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
 
   const pct = Math.round(view.top.progress);
   const goal = view.top.goal;
+  // tFallback (not `t(k) || …`): a missing key makes t() return the key
+  // string itself, which is truthy, so the `|| fallback` never fired and
+  // the raw "goals.strip.nActive" leaked into the UI. tFallback detects
+  // the key-as-result case and interpolates {n}.
   const countLabel = view.activeCount === 1
-    ? (tFallback('goals.strip.oneActive', '1 active goal'))
-    : (t('goals.strip.nActive') || `${view.activeCount} active goals`).replace('{n}', view.activeCount);
+    ? tFallback('goals.strip.oneActive', '1 active goal')
+    : tFallback('goals.strip.nActive', '{n} active goals', { n: view.activeCount });
   const detailLabel = goal.exercise_name
     ? `${goal.exercise_name} · ${pct}%`
     : `${pct}%`;

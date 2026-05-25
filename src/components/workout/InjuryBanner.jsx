@@ -114,7 +114,21 @@ export default function InjuryBanner({ onOpenForm }) {
     }
   }, [activeInjuries]);
 
-  if (activeInjuries.length === 0) return null;
+  // De-dupe the DISPLAY count by muscle group so the same body part
+  // logged more than once (or stale duplicate rows) doesn't inflate the
+  // banner to "3 active injuries" when it's really one bad shoulder.
+  // (Exclusion logic in getExcludedMuscleGroups already works off the
+  // full set — this only affects what the banner shows.)
+  const distinctInjuries = [];
+  const seenGroups = new Set();
+  for (const inj of activeInjuries) {
+    const key = (inj.muscle_group || inj.id || '').toString().toLowerCase();
+    if (seenGroups.has(key)) continue;
+    seenGroups.add(key);
+    distinctInjuries.push(inj);
+  }
+
+  if (distinctInjuries.length === 0) return null;
 
   return (
     <div className="mb-3">
@@ -138,9 +152,9 @@ export default function InjuryBanner({ onOpenForm }) {
         <div className="flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-orange-500 shrink-0" />
           <span className="text-sm font-medium text-orange-500">
-            {activeInjuries.length === 1
-              ? `Recovery Mode — ${activeInjuries[0].muscle_group}`
-              : `Recovery Mode — ${activeInjuries.length} active injuries`}
+            {distinctInjuries.length === 1
+              ? `Recovery Mode — ${distinctInjuries[0].muscle_group}`
+              : `Recovery Mode — ${distinctInjuries.length} active injuries`}
           </span>
         </div>
         <span className="text-xs text-muted-foreground">Manage →</span>

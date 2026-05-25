@@ -12,7 +12,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square } from 'lucide-react';
+import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -467,6 +467,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const [activeTab, setActiveTab] = useState('capsules');
   const [selling, setSelling] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   const handleApplyTheme = useCallback((itemId) => {
     if (lootThemeId === itemId) {
@@ -513,6 +514,17 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const titles     = inventoryItems.filter(i => i.item_type === 'title');
   const frames     = inventoryItems.filter(i => i.item_type === 'frame');
   const isLoading  = capsLoading || invLoading;
+
+  // ── Search filter (My Bag search) ───────────────────────────────────
+  // Filters the ACTIVE tab's items by name (capsules by their type label).
+  // Empty query → everything. Tab count badges keep showing totals.
+  const q = query.trim().toLowerCase();
+  const nameMatch = (i) => !q || (i?.item_name || '').toLowerCase().includes(q);
+  const fStickerGroups = q ? stickerGroups.filter(g => nameMatch(g[0])) : stickerGroups;
+  const fTitles = q ? titles.filter(nameMatch) : titles;
+  const fFrames = q ? frames.filter(nameMatch) : frames;
+  const fThemes = q ? themes.filter(nameMatch) : themes;
+  const fCapsules = q ? capsuleRows.filter(r => (r?.capsule_type || '').toLowerCase().includes(q)) : capsuleRows;
 
   // Flex coins from auth user profile
   const flexCoins = Number(user?.flex_coins ?? 0);
@@ -647,6 +659,31 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
               presence of duplicates and the action available. A
               full-width banner repeating the count read as noise. */}
 
+          {/* Search */}
+          <div className="px-5 pt-3">
+            <div className="relative">
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" aria-hidden="true" />
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search your bag…"
+                aria-label="Search your bag"
+                className="w-full bg-white/5 border border-white/10 rounded-lg ps-9 pe-8 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400/50"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Content */}
           <div className="flex-1 overflow-y-auto p-5">
             {isLoading ? (
@@ -654,21 +691,21 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 <div className="w-8 h-8 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
               </div>
             ) : activeTab === 'capsules' ? (
-              capsuleRows.length === 0 ? (
-                <EmptyState icon={Package} label="No capsules yet — level up to earn them!" />
+              fCapsules.length === 0 ? (
+                <EmptyState icon={Package} label={q ? `No capsules match "${query}".` : 'No capsules yet — level up to earn them!'} />
               ) : (
                 <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {capsuleRows.map(row => (
+                  {fCapsules.map(row => (
                     <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
                   ))}
                 </motion.div>
               )
             ) : activeTab === 'stickers' ? (
-              stickerGroups.length === 0 ? (
-                <EmptyState icon={Sparkles} label="No stickers yet — open a capsule!" />
+              fStickerGroups.length === 0 ? (
+                <EmptyState icon={Sparkles} label={q ? `No stickers match "${query}".` : 'No stickers yet — open a capsule!'} />
               ) : (
                 <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {stickerGroups.map(group => (
+                  {fStickerGroups.map(group => (
                     <StickerGroupCard
                       key={group[0].item_id}
                       group={group}
@@ -679,23 +716,23 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 </motion.div>
               )
             ) : activeTab === 'titles' ? (
-              titles.length === 0 ? (
-                <EmptyState icon={Crown} label="No titles yet — open capsules to earn them!" />
+              fTitles.length === 0 ? (
+                <EmptyState icon={Crown} label={q ? `No titles match "${query}".` : 'No titles yet — open capsules to earn them!'} />
               ) : (
-                <TitleList items={titles} userId={user?.id} />
+                <TitleList items={fTitles} userId={user?.id} />
               )
             ) : activeTab === 'frames' ? (
-              frames.length === 0 ? (
-                <EmptyState icon={Square} label="No frames yet — open capsules to earn them!" />
+              fFrames.length === 0 ? (
+                <EmptyState icon={Square} label={q ? `No frames match "${query}".` : 'No frames yet — open capsules to earn them!'} />
               ) : (
-                <FrameList items={frames} userId={user?.id} />
+                <FrameList items={fFrames} userId={user?.id} />
               )
             ) : (
-              themes.length === 0 ? (
-                <EmptyState icon={Palette} label="No themes yet — open Elite capsules!" />
+              fThemes.length === 0 ? (
+                <EmptyState icon={Palette} label={q ? `No themes match "${query}".` : 'No themes yet — open Elite capsules!'} />
               ) : (
                 <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {themes.map(item => (
+                  {fThemes.map(item => (
                     <ThemeCard
                       key={item.id}
                       item={item}

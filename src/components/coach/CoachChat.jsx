@@ -170,9 +170,9 @@ export default function CoachChat() {
           <button
             onClick={handleClear}
             aria-label="Clear chat"
-            className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            className="p-2 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors touch-manipulation"
           >
-            <Trash2 className="w-3.5 h-3.5" />
+            <Trash2 className="w-5 h-5" />
           </button>
         )}
       </div>
