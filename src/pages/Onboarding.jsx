@@ -17,6 +17,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
 import { reportError } from '@/lib/reportError';
+import { todayLocalDateString } from '@/lib/dateUtils';
 
 /* ═══════════════════════════════════════════════════════════════
    CONSTANTS
@@ -2327,9 +2328,15 @@ export default function Onboarding() {
 
   // Persist in-flight onboarding state to localStorage so a refresh / tab
   // close mid-flow doesn't lose 6 steps of input. Cleared on successful
-  // submit (handleRevealNext). Keyed independent of user id so unauthed
-  // users persist too; on auth, the same value carries through.
-  const ONBOARDING_DRAFT_KEY = 'fn-onboarding-draft-v1';
+  // submit (handleRevealNext).
+  //
+  // Namespaced by user.id so a shared/family device doesn't leak User A's
+  // draft (DOB, height, weight, goals) into User B's onboarding form when
+  // B logs in fresh. The pre-auth window uses an `anon` bucket; once
+  // user.id resolves the effect below migrates the anon draft over so
+  // someone who hit "Get Started" → filled a couple of steps → signed in
+  // doesn't lose what they typed.
+  const ONBOARDING_DRAFT_KEY = `fn-onboarding-draft-v1.${user?.id || 'anon'}`;
 
   const DEFAULT_DATA = {
     username: '',
@@ -2375,7 +2382,27 @@ export default function Onboarding() {
     try {
       localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(data));
     } catch { /* private mode / quota */ }
-  }, [data]);
+  }, [data, ONBOARDING_DRAFT_KEY]);
+
+  // Anon → authed key migration. When `user.id` first appears mid-flow
+  // (user signed up after typing a few answers), copy any draft from
+  // the anon bucket into the now-user-keyed bucket and clear the anon
+  // slot so it can't leak into the next person to log in on this
+  // device. No-op if the user-keyed slot already has data (avoid
+  // clobbering a returning user's saved progress).
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const anonKey = 'fn-onboarding-draft-v1.anon';
+      const anonRaw = localStorage.getItem(anonKey);
+      if (!anonRaw) return;
+      const userKey = `fn-onboarding-draft-v1.${user.id}`;
+      if (!localStorage.getItem(userKey)) {
+        localStorage.setItem(userKey, anonRaw);
+      }
+      localStorage.removeItem(anonKey);
+    } catch { /* private mode / quota */ }
+  }, [user?.id]);
 
   const [usernameError, setUsernameError] = useState('');
 
@@ -2383,13 +2410,19 @@ export default function Onboarding() {
   // AND the one we'll actually persist on submit — same object both places,
   // so the preview can't lie about what the user is getting. Pure function,
   // safe to recompute on every relevant input change.
+  // The persisted regimen at submit time passes `assessment` to
+  // buildStarterRegimen — keep this preview in sync so the Reveal screen
+  // can't lie about what the user is getting. Comment at the call site
+  // promised "same object both places" and that promise was broken
+  // until this dep was added.
   const previewRegimen = useMemo(
     () => buildStarterRegimen({
       goals: data.goal,
       level: data.level,
       daysCount: Array.isArray(data.days) ? data.days.length : 0,
+      assessment: data.assessment || null,
     }),
-    [data.goal, data.level, data.days]
+    [data.goal, data.level, data.days, data.assessment]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -2419,7 +2452,10 @@ export default function Onboarding() {
   // If already authenticated with a complete profile, redirect to dashboard.
   // Accounts with a deleted_ username placeholder (from account reset) must NOT
   // be skipped — they need to re-onboard and pick a real username.
+  // Gate on !isLoadingAuth so we don't briefly show the welcome step
+  // during the auth-hydration window for a returning user.
   useEffect(() => {
+    if (isLoadingAuth) return;
     const isDeletedPlaceholder = !!(user?.username?.startsWith('deleted_'));
     const hasRealUsername = !!(user?.username && !isDeletedPlaceholder);
     // Never skip onboarding for deleted_ placeholder accounts — stale
@@ -2427,14 +2463,17 @@ export default function Onboarding() {
     if (!isDeletedPlaceholder && (user?.onboarding_complete || hasRealUsername)) {
       navigate('/dashboard', { replace: true });
     }
-  }, [user?.onboarding_complete, user?.username]);
+  }, [user?.onboarding_complete, user?.username, isLoadingAuth, navigate]);
 
-  // If they authenticated via the "get started" flow, skip to goal step
+  // If they authenticated via the "get started" flow, skip to goal step.
+  // stepIdx is intentionally read freshly via the dep array so a future
+  // change that lands the user on `welcome` while authed re-fires the
+  // skip (e.g. browser back to step 0).
   useEffect(() => {
     if (isAuthenticated && stepIdx === 0) {
       goTo(1);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, stepIdx]);
 
   const goTo = (idx) => {
     setDirection(idx > stepIdx ? 1 : -1);
@@ -2468,6 +2507,15 @@ export default function Onboarding() {
   // it. Without this, a "name1 → name2" sequence where name1's reply
   // returns after name2's could falsely flag name2 as taken.
   const usernameCheckSeqRef = useRef(0);
+  // In-flight guard against rapid double-tap on the final "Enter Flexyn"
+  // button. The visible `saving` state DOES disable the button, but it's
+  // set AFTER handleRevealNext's first await — between the click and
+  // React's next render a fast second tap slips through and fires the
+  // whole submit pipeline twice. Symptoms: two starter regimens
+  // (ensureStarterRegimen sees "no regimens" on both racing reads),
+  // two body_metrics rows for the same date, two injury_logs batches.
+  // Ref-based guard takes effect synchronously inside the click handler.
+  const submittingRef = useRef(false);
   useEffect(() => {
     const u = (data.username || '').trim();
     if (u.length < 3) return;
@@ -2495,6 +2543,10 @@ export default function Onboarding() {
   }, [data.username, user?.id, usernameError]);
 
   const handleRevealNext = async () => {
+    // Synchronous ref guard — see submittingRef declaration for why this
+    // is needed in addition to the `saving` state.
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     setSaving(true);
     const s = data.stats;
     const weightUnit = s.weightUnit === 'kg' ? 'kg' : 'lbs';
@@ -2559,7 +2611,10 @@ export default function Onboarding() {
         supabase.from('body_metrics').insert({
           created_by: user.email,
           user_id:    user.id,
-          date:       new Date().toISOString().split('T')[0],
+          // Local date — `.toISOString().split('T')[0]` is UTC, which writes
+          // tomorrow's date for users east of UTC during their evening (and
+          // yesterday's for users west of UTC during their early morning).
+          date:       todayLocalDateString(),
           weight_lbs: s.weightUnit === 'lb' ? s.weightLb : Math.round(s.weightKg / 0.453592),
           body_fat_pct: bb.bodyFatPct ?? null,
           waist_cm:   bb.waistCm   ?? null,
@@ -2578,7 +2633,8 @@ export default function Onboarding() {
           muscle_group: inj.muscleGroup,
           severity:     inj.severity,
           notes:        'Logged during onboarding',
-          injured_at:   new Date().toISOString().split('T')[0],
+          // Local date — see body_metrics insert above for the UTC rationale.
+          injured_at:   todayLocalDateString(),
           status:       'active',
         }));
         supabase.from('injury_logs').insert(injuryRows).then(() => {}).catch(err => {
@@ -2696,6 +2752,7 @@ export default function Onboarding() {
       }
     } finally {
       setSaving(false);
+      submittingRef.current = false;
       // Only navigate away if at least the minimal save succeeded.
       if (saved) {
         // Clear the persisted draft now that the profile is in the DB.

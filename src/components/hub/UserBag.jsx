@@ -4,7 +4,12 @@
 // Stickers are grouped by item_id so duplicates are visible and sellable.
 // Titles / Frames update equipped_title_id / equipped_frame_id on user_profiles.
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+// useRef serves two needs: the per-tab equip-intent guard in
+// TitleList / FrameList (origin/main fix — was `React.useRef` without
+// the React import, which blanked the Titles / Frames tabs), and the
+// sell-confirm disarm timer cleanup in StickerGroupCard (needs
+// useEffect too).
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square } from 'lucide-react';
@@ -19,6 +24,7 @@ import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
+import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
 
@@ -256,7 +262,7 @@ function TitleList({ items, userId }) {
   // Without this, two fast taps on the same title (toggle off) could read
   // the same pre-invalidate equippedId of `null` and re-equip the title
   // instead of clearing it.
-  const intentRef = React.useRef(null);
+  const intentRef = useRef(null);
   const equippedId = intentRef.current ?? profile?.equipped_title_id;
 
   const equip = async (titleId) => {
@@ -278,15 +284,18 @@ function TitleList({ items, userId }) {
       .update({ equipped_title_id: newId })
       .eq('id', id);
     if (error) {
-      // Surface the real cause so missing-column / RLS issues are diagnosable
-      // instead of all looking like generic "Could not save".
-      console.error('[TitleList] equip failed:', error);
+      // Route to Sentry with full detail (feature tag + error). The user
+      // toast is intentionally generic — surfacing raw error.message
+      // leaks Postgres error codes / column names / RLS hints that aid
+      // attackers mapping the schema. The two diagnosable cases keep
+      // their actionable copy.
+      reportError(error, { feature: 'userBag.equip-title', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_title_id/i.test(error.message || '')) {
         toast.error('Database not migrated — run migration 019');
       } else if (error.code === '42501') {
         toast.error('Permission denied — sign in again');
       } else {
-        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+        toast.error('Could not save — try again.');
       }
       return;
     }
@@ -366,7 +375,7 @@ function FrameList({ items, userId }) {
   // See TitleList for the rationale on the intent ref — prevents a fast
   // double-tap from reading the same pre-invalidate cache and re-equipping
   // a frame that the user was trying to toggle off.
-  const intentRef = React.useRef(null);
+  const intentRef = useRef(null);
   const equippedId = intentRef.current ?? profile?.equipped_frame_id;
 
   const equip = async (frameId) => {
@@ -386,13 +395,14 @@ function FrameList({ items, userId }) {
       .update({ equipped_frame_id: newId })
       .eq('id', id);
     if (error) {
-      console.error('[FrameList] equip failed:', error);
+      // See TitleList equip for the rationale on generic toast + Sentry routing.
+      reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
         toast.error('Database not migrated — run migration 019');
       } else if (error.code === '42501') {
         toast.error('Permission denied — sign in again');
       } else {
-        toast.error(`Could not save: ${error.message || 'unknown error'}`);
+        toast.error('Could not save — try again.');
       }
       return;
     }

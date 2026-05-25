@@ -31,6 +31,7 @@ import { isVerified } from '@/lib/verifiedUsers';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
+import { reportError } from '@/lib/reportError';
 
 // ── Video duration guard ──────────────────────────────────────────────────────
 
@@ -387,8 +388,15 @@ export default function StoriesRow({ onViewProfile } = {}) {
 
   const notePillRef = useRef(null);
 
+  // Canonical follow-state cache key — shared with HubProfile, HubFeed,
+  // QuickAddSection, and useHubUnreadDot. The list of emails the user
+  // follows is a single piece of state; before this unification each
+  // surface had its own key (this one was 'following', HubProfile was
+  // 'hubFollowing') so a follow tap in one place didn't invalidate the
+  // others, and the new friend's stories silently failed to appear in
+  // this row until full page reload.
   const { data: followingEmails = [] } = useQuery({
-    queryKey: ['following', user?.email],
+    queryKey: ['hubFollowing', user?.email],
     queryFn:  () => hubFollows.listFollowing(user.email),
     enabled:  !!user?.email,
     staleTime: 60_000,
@@ -550,10 +558,21 @@ export default function StoriesRow({ onViewProfile } = {}) {
   const handleNoteLike = useCallback(async (note) => {
     if (!user) return;
     const already = likedNoteIds.has(note.id);
-    setLikedNoteIds(prev => { const n = new Set(prev); already ? n.delete(note.id) : n.add(note.id); return n; });
-    if (already) await statusNotesData.unlikeStatusNote(note.id, user.id);
-    else         await statusNotesData.likeStatusNote(note.id, user);
-    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    // Optimistic toggle. We need an explicit rollback on failure
+    // because the heart icon is the user's only feedback that the
+    // tap was registered — without rollback, a network blip leaves
+    // the icon in the wrong state forever (heart filled but server
+    // never recorded the like, or vice versa).
+    setLikedNoteIds(prev => { const n = new Set(prev); if (already) n.delete(note.id); else n.add(note.id); return n; });
+    try {
+      if (already) await statusNotesData.unlikeStatusNote(note.id, user.id);
+      else         await statusNotesData.likeStatusNote(note.id, user);
+      queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    } catch (err) {
+      // Revert to the pre-tap state so the heart matches server truth.
+      setLikedNoteIds(prev => { const n = new Set(prev); if (already) n.add(note.id); else n.delete(note.id); return n; });
+      reportError(err, { feature: 'stories.note-like', level: 'warning', userEmail: user?.email, noteId: note.id });
+    }
   }, [likedNoteIds, user, queryClient]);
 
   const handleOpenNoteEditor = useCallback(() => {
@@ -593,7 +612,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       qaSave(user?.id, cache);
     }
     await hubFollows.follow(user.email, email);
-    queryClient.invalidateQueries({ queryKey: ['following'] });
+    queryClient.invalidateQueries({ queryKey: ['hubFollowing'] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
   }, [user, queryClient]);
 

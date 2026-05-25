@@ -42,9 +42,16 @@ function isDailyChestClaimedLocally(userId) {
   if (!userId) return false;
   const val = localStorage.getItem(CHEST_KEY(userId));
   if (!val) return false;
-  const claimedDate = new Date(val).toDateString();
-  const today = new Date().toDateString();
-  return claimedDate === today;
+  // Compare on UTC date — server-side claim_daily_chest (mig 068) gates
+  // on `(last_daily_chest_at AT TIME ZONE 'UTC')::DATE < v_today_utc`,
+  // so the client MUST use the same axis. Previous local-TZ comparison
+  // disagreed with the server during the user's late evening (local
+  // calendar already tomorrow, UTC still today → UI said "claimed" but
+  // server hadn't reset) and again during their early morning (local
+  // still yesterday, UTC already today → UI said "available" but the
+  // last claim already counted for today).
+  const utcDate = (iso) => new Date(iso).toISOString().slice(0, 10);
+  return utcDate(val) === utcDate(new Date().toISOString());
 }
 
 function markDailyChestClaimedLocally(userId) {
@@ -330,7 +337,10 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
       handleClose();
       onSuccess?.();
     } catch (err) {
-      toast.error('Failed to list item: ' + err.message);
+      // Generic toast, full detail to Sentry. Raw error.message can
+      // leak Postgres column / RLS hints that aid schema mapping.
+      reportError(err, { feature: 'marketplace.list', level: 'warning', userEmail: user?.email, itemId: selectedItem?.id });
+      toast.error('Could not list item — try again.');
     } finally {
       setBusy(false);
     }
@@ -541,7 +551,8 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
       toast.success('Trade offer sent — watch your messages.');
       onClose();
     } catch (err) {
-      toast.error('Could not send trade offer: ' + err.message);
+      reportError(err, { feature: 'marketplace.trade-offer', level: 'warning', userEmail: user?.email, listingId: listing?.id });
+      toast.error('Could not send trade offer — try again.');
     } finally {
       setBusy(false);
     }
@@ -1114,7 +1125,8 @@ export default function MarketplaceFeed() {
       await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
       toast.success('Pulled it back.');
     } catch (err) {
-      toast.error('Could not cancel: ' + err.message);
+      reportError(err, { feature: 'marketplace.cancel-listing', level: 'warning', userEmail: user?.email, listingId: listing?.id });
+      toast.error('Could not cancel — try again.');
     }
   }, [qc, user?.email]);
 

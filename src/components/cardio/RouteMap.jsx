@@ -30,7 +30,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
+// maplibre-gl/dist/maplibre-gl.css is imported globally in main.jsx
 
 // Tile source resolution — two providers, picked at build time:
 //

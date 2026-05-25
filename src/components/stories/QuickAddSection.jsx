@@ -99,7 +99,8 @@ export default function QuickAddSection({ userEmail, followingEmails }) {
   });
 
   const handleAdded = useCallback((email) => {
-    queryClient.invalidateQueries({ queryKey: ['following'] });
+    // Canonical follow-state cache key — see StoriesRow.jsx for context.
+    queryClient.invalidateQueries({ queryKey: ['hubFollowing'] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     queryClient.invalidateQueries({ queryKey: ['quickAdd'] });
   }, [queryClient]);

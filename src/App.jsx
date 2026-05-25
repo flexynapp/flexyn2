@@ -47,6 +47,12 @@ import SignInToContinue from './pages/SignInToContinue';
 // because it's the destination of a viral acquisition link — any
 // loading delay here is conversion lost.
 import DuelInviteLanding from './pages/DuelInviteLanding';
+// Public surfaces — bypass the auth gate entirely so unauthenticated
+// visitors can see profile and gym pages before signing up.
+// Both components call useAuth() internally and adapt their UI based
+// on whether a session exists (action buttons vs. "Join Flexyn" CTA).
+import PublicProfile    from './pages/PublicProfile';
+import PublicGymLanding from './pages/PublicGymLanding';
 import { readPendingToken, clearPendingToken } from './lib/data/duelInvites';
 import { supabase } from '@/api/supabaseClient';
 
@@ -148,6 +154,34 @@ const AuthenticatedApp = () => {
     );
   }
 
+  // Public profile surface: /@username — show PublicProfile for both
+  // authed and unauthed visitors. PublicProfile handles the session
+  // check internally and shows social buttons vs. "Join Flexyn" CTA.
+  if (typeof window !== 'undefined' && /^\/@[^/]/.test(window.location.pathname)) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/@:username" element={<PublicProfile />} />
+          <Route path="*" element={<PublicProfile />} />
+        </Routes>
+      </Router>
+    );
+  }
+
+  // Public gym landing: /p/gym/:id — lightweight read-only gym page.
+  // Unauthenticated visitors see gym info + "Join Flexyn" CTA.
+  // Authenticated visitors see "Enter Hub" button (→ /gym/:id).
+  if (typeof window !== 'undefined' && window.location.pathname.startsWith('/p/gym/')) {
+    return (
+      <Router>
+        <Routes>
+          <Route path="/p/gym/:id" element={<PublicGymLanding />} />
+          <Route path="*" element={<PublicGymLanding />} />
+        </Routes>
+      </Router>
+    );
+  }
+
   // Auto-heal: if the user has a fully-populated profile but the onboarding
   // flags are false, silently set the flags so they land on dashboard.
   //
@@ -212,7 +246,11 @@ const AuthenticatedApp = () => {
       // Everyone else — brand-new visitors AND users who just deleted their account
       // (which clears `fn-returning-user`) — sees the full Onboarding flow starting
       // at the Welcome screen.
-      return isReturningUser() ? <SignInToContinue /> : <Onboarding />;
+      // Brand-new visitor path also gets ErrorBoundary — same rationale
+      // as the post-auth Onboarding render below.
+      return isReturningUser()
+        ? <SignInToContinue />
+        : <ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>;
     }
   }
 
@@ -229,7 +267,15 @@ const AuthenticatedApp = () => {
   const onboardingDone = !isDeletedPlaceholder &&
     (user?.onboarding_complete || user?.onboarding_completed || hasRealUsername);
   if (user && !onboardingDone && !isLoadingAuth) {
-    return <Onboarding />;
+    // Onboarding is the first flow a new user sees — a render throw
+    // here would white-screen the entire account. Wrap in ErrorBoundary
+    // so a single bug doesn't strand the user mid-flow without a
+    // recovery affordance (Go to Home / Try again / Copy details).
+    return (
+      <ErrorBoundary label="Onboarding">
+        <Onboarding />
+      </ErrorBoundary>
+    );
   }
 
   // Post-auth resume for the viral duel-invite flow: if the user just
@@ -255,7 +301,7 @@ const AuthenticatedApp = () => {
     <>
       <Routes>
         <Route path="/" element={<Splash />} />
-        <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/onboarding" element={<ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Suspense fallback={<PageLoader />}><Dashboard /></Suspense></ErrorBoundary>} />
           <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
