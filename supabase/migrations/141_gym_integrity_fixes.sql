@@ -21,15 +21,20 @@
 -- ── 1. Reactions: members-only INSERT ──────────────────────────────
 DROP POLICY IF EXISTS "gym_feed_rxn: own write" ON public.gym_feed_post_reactions;
 
+-- Alias-free form: nested IN subqueries instead of an aliased JOIN, so
+-- the SQL carries no short `alias.column` tokens (which the deploy-paste
+-- pipeline mangles). Each subquery scopes a single table, so bare column
+-- names are unambiguous. Semantics unchanged: the reacted-to post must
+-- belong to a gym the caller is a member of.
 CREATE POLICY "gym_feed_rxn: members write"
   ON public.gym_feed_post_reactions FOR INSERT TO authenticated
   WITH CHECK (
     user_id = auth.uid() AND
-    EXISTS (
-      SELECT 1 FROM public.gym_feed_posts gfp
-        JOIN public.gym_members gm ON gm.gym_id = gfp.gym_id
-       WHERE gfp.id = gym_feed_post_reactions.post_id
-         AND gm.user_id = auth.uid()
+    post_id IN (
+      SELECT id FROM public.gym_feed_posts
+       WHERE gym_id IN (
+         SELECT gym_id FROM public.gym_members WHERE user_id = auth.uid()
+       )
     )
   );
 
@@ -103,15 +108,21 @@ BEGIN
     RAISE EXCEPTION 'not authenticated' USING ERRCODE = '42501';
   END IF;
 
-  SELECT gfp.gym_id, gb.owner_id, gfp.is_pinned
-    INTO v_gym_id, v_owner, v_is_pinned
-    FROM public.gym_feed_posts gfp
-    JOIN public.gym_businesses gb ON gb.id = gfp.gym_id
-   WHERE gfp.id = p_post_id;
+  -- Split the post→gym→owner join into two single-table lookups so the
+  -- body carries no short `alias.column` tokens.
+  SELECT gym_id, is_pinned
+    INTO v_gym_id, v_is_pinned
+    FROM public.gym_feed_posts
+   WHERE id = p_post_id;
 
   IF v_gym_id IS NULL THEN
     RAISE EXCEPTION 'post not found';
   END IF;
+
+  SELECT owner_id INTO v_owner
+    FROM public.gym_businesses
+   WHERE id = v_gym_id;
+
   IF v_owner IS NULL OR v_owner <> v_user_id THEN
     RAISE EXCEPTION 'not owner' USING ERRCODE = '42501';
   END IF;
@@ -155,6 +166,10 @@ SECURITY DEFINER
 SET search_path = public
 STABLE
 AS $$
+-- use_column: the RETURNS TABLE OUT params (user_id, username, value…)
+-- share names with base columns; resolve bare names to the column so the
+-- query needs no disambiguating table aliases.
+#variable_conflict use_column
 DECLARE
   v_mode TEXT := COALESCE(p_mode, 'volume');
 BEGIN
@@ -163,25 +178,29 @@ BEGIN
   END IF;
 
   RETURN QUERY
-    WITH ranked AS (
+    WITH membership AS (
+      SELECT user_id AS member_user_id, joined_at AS member_joined_at
+        FROM public.gym_members
+       WHERE gym_id = p_gym_id
+    ),
+    ranked AS (
       SELECT
-        p.id          AS user_id,
-        p.username,
-        p.avatar_url,
-        gm.joined_at,
+        id               AS lb_user_id,
+        username         AS lb_username,
+        avatar_url       AS lb_avatar_url,
+        member_joined_at AS lb_joined_at,
         CASE v_mode
-          WHEN 'volume' THEN COALESCE(p.total_volume_lbs, 0)::NUMERIC
-          WHEN 'xp'     THEN COALESCE(p.total_xp,         0)::NUMERIC
-          WHEN 'streak' THEN COALESCE(p.workout_streak,   0)::NUMERIC
-        END AS value
-      FROM public.gym_members gm
-      JOIN public.user_profiles p ON p.id = gm.user_id
-      WHERE gm.gym_id = p_gym_id
+          WHEN 'volume' THEN COALESCE(total_volume_lbs, 0)::NUMERIC
+          WHEN 'xp'     THEN COALESCE(total_xp,         0)::NUMERIC
+          WHEN 'streak' THEN COALESCE(workout_streak,   0)::NUMERIC
+        END AS lb_value
+      FROM public.user_profiles
+      JOIN membership ON member_user_id = id
     )
-    SELECT user_id, username, avatar_url, value,
-           RANK() OVER (ORDER BY value DESC)::INT AS rank
+    SELECT lb_user_id, lb_username, lb_avatar_url, lb_value,
+           RANK() OVER (ORDER BY lb_value DESC)::INT
       FROM ranked
-     ORDER BY value DESC, joined_at ASC, user_id ASC
+     ORDER BY lb_value DESC, lb_joined_at ASC, lb_user_id ASC
      LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
 END;
 $$;

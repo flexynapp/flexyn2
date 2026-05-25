@@ -71,51 +71,69 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public
 AS $func$
+-- use_column: several RETURNS TABLE OUT params (gym_id, city, member_count…)
+-- share names with base columns. Resolving bare names to the column lets the
+-- whole query drop short `alias.column` tokens (which the deploy-paste
+-- pipeline mangles). Every join key is renamed inside a CTE so the ON
+-- clauses compare globally-unique bare names — no qualification needed.
+#variable_conflict use_column
 BEGIN
   RETURN QUERY
-  WITH workout_window AS (
+  WITH member_map AS (
+    SELECT gym_id AS m_gym_id, user_id AS m_user_id
+      FROM public.gym_members
+  ),
+  recent_workouts AS (
+    SELECT user_id AS w_user_id
+      FROM public.workout_logs
+     WHERE date >= CURRENT_DATE - 7
+  ),
+  member_workouts AS (
+    SELECT m_gym_id, m_user_id
+      FROM member_map
+      JOIN recent_workouts ON w_user_id = m_user_id
+  ),
+  workout_window AS (
     SELECT
-      gm.gym_id,
-      COUNT(w.id)               AS workout_count,
-      COUNT(DISTINCT w.user_id) AS active_members
-    FROM  gym_members  gm
-    JOIN  workout_logs w  ON w.user_id = gm.user_id
-    WHERE w.date >= CURRENT_DATE - 7
-    GROUP BY gm.gym_id
+      m_gym_id                  AS ww_gym_id,
+      COUNT(*)                  AS ww_workout_count,
+      COUNT(DISTINCT m_user_id) AS ww_active_members
+    FROM member_workouts
+    GROUP BY m_gym_id
   ),
   scored AS (
     SELECT
-      gb.id                                                       AS gym_id,
-      gb.name                                                     AS gym_name,
-      gb.logo_url,
-      gb.city,
-      gb.state_code,
-      gb.member_count::BIGINT                                     AS member_count,
-      COALESCE(ww.active_members, 0)::BIGINT                     AS active_members,
-      COALESCE(ww.workout_count,  0)::BIGINT                     AS workout_count,
+      id                                       AS s_gym_id,
+      name                                     AS s_gym_name,
+      logo_url                                 AS s_logo_url,
+      city                                     AS s_city,
+      state_code                               AS s_state_code,
+      member_count::BIGINT                     AS s_member_count,
+      COALESCE(ww_active_members, 0)::BIGINT   AS s_active_members,
+      COALESCE(ww_workout_count,  0)::BIGINT   AS s_workout_count,
       ROUND(
-        COALESCE(ww.workout_count, 0) *
-        LOG(COALESCE(ww.active_members, 0) + 1)::NUMERIC,
+        COALESCE(ww_workout_count, 0) *
+        LOG(COALESCE(ww_active_members, 0) + 1)::NUMERIC,
         2
-      )                                                           AS score
-    FROM  gym_businesses gb
-    LEFT JOIN workout_window ww ON ww.gym_id = gb.id
-    WHERE gb.is_active = TRUE
-      AND COALESCE(ww.workout_count, 0) > 0
+      )                                        AS s_score
+    FROM public.gym_businesses
+    LEFT JOIN workout_window ON ww_gym_id = id
+    WHERE is_active = TRUE
+      AND COALESCE(ww_workout_count, 0) > 0
   )
   SELECT
-    ROW_NUMBER() OVER (ORDER BY s.score DESC, s.workout_count DESC),
-    s.gym_id,
-    s.gym_name,
-    s.logo_url,
-    s.city,
-    s.state_code,
-    s.member_count,
-    s.active_members,
-    s.workout_count,
-    s.score
-  FROM scored s
-  ORDER BY s.score DESC, s.workout_count DESC
+    ROW_NUMBER() OVER (ORDER BY s_score DESC, s_workout_count DESC),
+    s_gym_id,
+    s_gym_name,
+    s_logo_url,
+    s_city,
+    s_state_code,
+    s_member_count,
+    s_active_members,
+    s_workout_count,
+    s_score
+  FROM scored
+  ORDER BY s_score DESC, s_workout_count DESC
   LIMIT p_limit;
 END;
 $func$;
