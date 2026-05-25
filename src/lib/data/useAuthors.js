@@ -65,5 +65,6 @@ export function resolveAuthor(byEmail, authorEmail, snapshot = {}) {
   // Falls through to null when the user list hasn't loaded yet.
   const equippedTitleId = live?.equipped_title_id || null;
   const equippedFrameId = live?.equipped_frame_id || null;
-  return { handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId };
+  const signatureTrophy = live?.signature_trophy || null;
+  return { handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId, signatureTrophy };
 }

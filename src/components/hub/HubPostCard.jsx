@@ -737,6 +737,11 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             <p className={`font-heading font-bold text-sm truncate ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
               {author.handle}
             </p>
+            {author.signatureTrophy && (
+              <span className="text-sm leading-none shrink-0" title="Signature trophy" aria-label="Signature trophy">
+                {author.signatureTrophy}
+              </span>
+            )}
             {author.equippedTitleId && (() => {
               const title = getLootTitleById(author.equippedTitleId);
               if (!title) return null;

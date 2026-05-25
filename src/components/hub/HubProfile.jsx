@@ -346,7 +346,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
           'trophy_case', 'trophy_case_visible',
-          'website_url',
+          'website_url', 'signature_trophy',
         ],
         build: (cols) => supabase
           .from('user_profiles')
@@ -648,6 +648,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     }
   };
 
+  // ── Signature trophy — pin one trophy-case emoji next to your name ──────────
+  const handleSetSignature = async (emoji) => {
+    const next = signatureTrophy === emoji ? null : emoji;
+    try {
+      await me.update({ signature_trophy: next });
+      await checkUserAuth?.();
+      queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
+      queryClient.invalidateQueries({ queryKey: ['hubAuthorsList'] });
+    } catch {
+      toast.error('Could not update signature');
+    }
+  };
+
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
     setSavingProfile(true);
@@ -738,6 +751,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const rawTrophy    = isSelf ? (user?.trophy_case ?? [])   : (targetProfile?.trophy_case ?? []);
   const trophyCase   = Array.isArray(rawTrophy) ? rawTrophy : [];
   const trophyVisible = isSelf ? (user?.trophy_case_visible ?? true) : (targetProfile?.trophy_case_visible ?? true);
+  const signatureTrophy = isSelf ? (user?.signature_trophy ?? '') : (targetProfile?.signature_trophy ?? '');
   const isVerifiedUser = isVerified(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
 
@@ -942,9 +956,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               rows (status / title / location / bio) each get mt-1.5
               for clear separation. */}
           <div className="flex-1 min-w-0">
-            {/* Username (main profile name) */}
+            {/* Username (main profile name) + signature trophy */}
             <h2 className="font-heading font-bold text-xl leading-tight truncate">
               {displayUsername ? displayUsername.charAt(0).toUpperCase() + displayUsername.slice(1) : ''}
+              {signatureTrophy && (
+                <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
+              )}
             </h2>
             {/* @handle row — visually paired with the username, no extra mt */}
             <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
@@ -1163,6 +1180,32 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     {countryFlag ? 'Change flag' : 'Pick country flag →'}
                   </button>
                 </div>
+                {/* Signature trophy — pin one trophy-case emoji next to
+                    your name on the feed + profile. */}
+                {trophyCase.some(tt => tt?.value) && (
+                  <div className="border-t border-border/40 pt-2">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Signature trophy</p>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {trophyCase.filter(tt => tt?.value).map((tt, i) => {
+                        const active = signatureTrophy === tt.value;
+                        return (
+                          <button
+                            key={`${tt.value}-${i}`}
+                            type="button"
+                            onClick={() => handleSetSignature(tt.value)}
+                            aria-pressed={active}
+                            className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-colors ${
+                              active ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary/60 hover:bg-secondary'
+                            }`}
+                          >
+                            {tt.value}
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">Tap the active one to remove it.</p>
+                  </div>
+                )}
                 <div className="flex gap-2 pt-1">
                   <button
                     type="button"

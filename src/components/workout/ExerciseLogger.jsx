@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
+import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -56,6 +57,12 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // weight input "+lb" instead of just "lb" (added weight on top of
   // bodyweight). Pure name regex — no library tag needed.
   const isBodyweight = isBodyweightExercise(exercise.name || exercise.displayName || '');
+  // Barbell movements get a quick bar-weight toggle so the plate math uses
+  // the right tare (Olympic 45 / women's 35 / EZ 25 / trap 60 …). Sets the
+  // app-wide active bar, which SetRow's plate diagram + the calculator read.
+  const isBarbell = !isBodyweight
+    && /barbell|squat|deadlift|bench|press|row|clean|snatch|overhead|ohp/i.test(exercise.name || exercise.displayName || '');
+  const [barLbs, setBarLbs] = useState(() => getActiveBarLbs());
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);
   const maxSetsPerExercise = getMaxSetsPerExercise(userProfile);
   const atSetLimit = sets.length >= maxSetsPerExercise;
@@ -132,6 +139,21 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               {muscles.map(m => (
                 <Badge key={m} variant="secondary" className="text-xs">{t(`muscleGroups.${muscleKey(m)}`)}</Badge>
               ))}
+            </div>
+          )}
+          {isBarbell && (
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Bar</span>
+              <select
+                value={barLbs}
+                onChange={(e) => { const v = Number(e.target.value); setActiveBarLbs(v); setBarLbs(v); }}
+                aria-label="Barbell weight"
+                className="text-xs bg-secondary/60 border border-border rounded-md px-1.5 py-0.5 focus:outline-none focus:border-primary/50"
+              >
+                {BAR_PRESETS.map(b => (
+                  <option key={b.id} value={b.lbs}>{b.label}</option>
+                ))}
+              </select>
             </div>
           )}
           {/* Last-session sidebar — "Last: 185×8, 185×8, 185×7".
