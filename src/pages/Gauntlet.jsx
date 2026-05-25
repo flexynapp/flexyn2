@@ -2,7 +2,7 @@
 // The Gauntlet screen: community weekly challenge at top, personal 10-challenge
 // winding path below. Tap any node to see its detail card. Completion triggers
 // the stats modal with share.
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Swords, ChevronLeft, X, Zap, Lock, Dumbbell } from 'lucide-react';
@@ -65,7 +65,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: 16, scale: 0.97 }}
       transition={{ type: 'spring', stiffness: 420, damping: 30 }}
-      className="mx-4 rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
+      className="rounded-2xl border border-border bg-card shadow-2xl overflow-hidden"
     >
       {/* Status strip at top */}
       <div className={`px-4 py-2.5 flex items-center justify-between ${
@@ -189,18 +189,6 @@ export default function Gauntlet() {
   const qc       = useQueryClient();
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [statsModal, setStatsModal]               = useState(null);
-  const detailRef = useRef(null);
-
-  // Tapping a path node renders the detail card BELOW the (tall) path, so
-  // without this the card lands off-screen and the tap feels like a no-op.
-  // Scroll it into view so the selection is always visible.
-  useEffect(() => {
-    if (!selectedChallenge) return undefined;
-    const id = requestAnimationFrame(() => {
-      detailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    return () => cancelAnimationFrame(id);
-  }, [selectedChallenge]);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: challenges = [] } = useQuery({
@@ -350,21 +338,29 @@ export default function Gauntlet() {
         />
       </ErrorBoundary>
 
-      {/* ── Challenge detail card — slides in below the path on tap ──────── */}
+      {/* ── Challenge detail — centered overlay; tap the backdrop to dismiss ── */}
       <AnimatePresence>
         {selectedChallenge && (
-          <div className="pb-4" ref={detailRef}>
-            <ChallengeDetail
-              key={selectedChallenge.id}
-              challenge={selectedChallenge}
-              status={getStatus(selectedChallenge.sequence_number)}
-              completedAt={
-                completions.find(c => c.challenge_id === selectedChallenge.id)?.completed_at
-              }
-              onClose={() => setSelectedChallenge(null)}
-              onStartWorkout={() => navigate('/workout')}
-            />
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setSelectedChallenge(null)}
+          >
+            <div className="w-full max-w-sm" onClick={(e) => e.stopPropagation()}>
+              <ChallengeDetail
+                key={selectedChallenge.id}
+                challenge={selectedChallenge}
+                status={getStatus(selectedChallenge.sequence_number)}
+                completedAt={
+                  completions.find(c => c.challenge_id === selectedChallenge.id)?.completed_at
+                }
+                onClose={() => setSelectedChallenge(null)}
+                onStartWorkout={() => navigate('/workout')}
+              />
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
