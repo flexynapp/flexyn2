@@ -59,6 +59,10 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // note like "watch elbow flare" stays in front of the lifter for the
   // rest of the exercise without retyping.
   const [feelOpen, setFeelOpen] = useState(hasFeelData || !!prevFeelNote);
+
+  // Auto-advance: confirming the weight (Enter / keyboard "next") jumps
+  // focus to reps so the logging flow keeps moving when hands are sweaty.
+  const repsRef = React.useRef(null);
   const FEEL_EMOJI_SET = ['💪', '🔥', '😤', '😐', '😩', '💀', '🤕'];
 
   // Plate calculator — shown for barbell exercises when weight ≥ bar weight
@@ -174,9 +178,11 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+            if (e.key === 'Enter') { e.preventDefault(); repsRef.current?.focus(); }
           }}
+          enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className="h-9 text-center"
+          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
         {(() => {
@@ -227,8 +233,10 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
           }}
+          ref={repsRef}
+          enterKeyHint="done"
           placeholder={t('common.reps')}
-          className="h-9 text-center"
+          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
         />
       </div>
       {/* Prominent "NEW PR" flash — slides in for ~2.5s on the
