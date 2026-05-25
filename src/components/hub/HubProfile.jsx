@@ -43,6 +43,10 @@ import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
+// Hidden easter-egg Snake game — only mounted on the @sean admin profile
+// (gated by showSnakeEgg below). Lazy so its canvas/game code stays out
+// of the entry + Hub bundles for everyone else.
+const SnakeGameModal = lazy(() => import('./SnakeGameModal'));
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -274,6 +278,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  const [snakeOpen, setSnakeOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const storyFileRef = useRef(null);
@@ -736,6 +741,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const isVerifiedUser = isVerified(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
 
+  // Hidden easter egg — only on the @sean admin profile. isVerified() is
+  // the app's admin signal (maps to the spec's is_admin), so this is the
+  // strict "@sean + admin" gate. Visible to any viewer of that profile.
+  const showSnakeEgg =
+    (ownerUsername === 'sean' || displayHandle === '@sean') && isVerified(ownerUsername);
+
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
@@ -909,6 +920,21 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     </svg>
                   </button>
                 </>
+              )}
+
+              {/* 👾 Hidden easter-egg trigger — only on the @sean admin
+                  profile. Subtle until hover; opens the Iron Snake game. */}
+              {showSnakeEgg && (
+                <button
+                  type="button"
+                  onClick={(e) => { e.stopPropagation(); setSnakeOpen(true); }}
+                  aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+                  title="???"
+                  className="absolute -top-2 -right-2 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-card/85 border border-border/60 text-sm leading-none opacity-60 hover:opacity-100 hover:scale-110 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:opacity-100"
+                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}
+                >
+                  <span aria-hidden="true">👾</span>
+                </button>
               )}
             </div>
 
@@ -1730,6 +1756,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 👾 Iron Snake — easter egg, only mounted on the @sean profile.
+          The modal manages its own enter/exit + portal internally. */}
+      {showSnakeEgg && (
+        <Suspense fallback={null}>
+          <SnakeGameModal
+            open={snakeOpen}
+            onClose={() => setSnakeOpen(false)}
+            userId={user?.id}
+          />
+        </Suspense>
+      )}
     </ThemedScope>
   );
 }
