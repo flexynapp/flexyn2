@@ -2535,13 +2535,13 @@ SET search_path = public
 STABLE
 AS $$
   SELECT jsonb_build_object(
-    'gross_cents',  COALESCE(SUM(tp.amount_paid_cents), 0),
-    'payout_cents', COALESCE(SUM(tp.trainer_payout_cents), 0),
-    'fee_cents',    COALESCE(SUM(tp.platform_fee_cents), 0),
+    'gross_cents',  COALESCE(SUM(amount_paid_cents), 0),
+    'payout_cents', COALESCE(SUM(trainer_payout_cents), 0),
+    'fee_cents',    COALESCE(SUM(platform_fee_cents), 0),
     'sales',        COUNT(*)
   )
-  FROM public.trainer_purchases tp
-  WHERE tp.trainer_id = auth.uid();
+  FROM public.trainer_purchases
+  WHERE trainer_id = auth.uid();
 $$;
 
 REVOKE ALL ON FUNCTION public.get_my_trainer_revenue() FROM PUBLIC;
@@ -2594,15 +2594,7 @@ CREATE OR REPLACE FUNCTION public.list_bug_reports_for_admin(
   p_status TEXT DEFAULT 'pending',
   p_limit  INT  DEFAULT 50
 )
-RETURNS TABLE (
-  id               UUID,
-  reporter_email   TEXT,
-  reporter_user_id UUID,
-  description      TEXT,
-  page_context     TEXT,
-  status           TEXT,
-  created_at       TIMESTAMPTZ
-)
+RETURNS SETOF public.bug_reports
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -2613,11 +2605,9 @@ BEGIN
     RAISE EXCEPTION 'admin_only' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
-    SELECT b.id, b.reporter_email, b.reporter_user_id, b.description,
-           b.page_context, b.status, b.created_at
-      FROM public.bug_reports b
-     WHERE b.status = p_status
-     ORDER BY b.created_at DESC
+    SELECT * FROM public.bug_reports
+     WHERE status = p_status
+     ORDER BY created_at DESC
      LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
 END;
 $$;

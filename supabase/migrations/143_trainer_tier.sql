@@ -201,13 +201,13 @@ SET search_path = public
 STABLE
 AS $$
   SELECT jsonb_build_object(
-    'gross_cents',  COALESCE(SUM(tp.amount_paid_cents), 0),
-    'payout_cents', COALESCE(SUM(tp.trainer_payout_cents), 0),
-    'fee_cents',    COALESCE(SUM(tp.platform_fee_cents), 0),
+    'gross_cents',  COALESCE(SUM(amount_paid_cents), 0),
+    'payout_cents', COALESCE(SUM(trainer_payout_cents), 0),
+    'fee_cents',    COALESCE(SUM(platform_fee_cents), 0),
     'sales',        COUNT(*)
   )
-  FROM public.trainer_purchases tp
-  WHERE tp.trainer_id = auth.uid();
+  FROM public.trainer_purchases
+  WHERE trainer_id = auth.uid();
 $$;
 
 REVOKE ALL ON FUNCTION public.get_my_trainer_revenue() FROM PUBLIC;

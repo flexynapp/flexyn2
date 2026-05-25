@@ -38,19 +38,15 @@ CREATE INDEX IF NOT EXISTS bug_reports_status_idx
   ON public.bug_reports (status, created_at DESC);
 
 -- ── 2. Admin reader ─────────────────────────────────────────────────
+-- RETURNS SETOF the table rowtype (not a TABLE(...) spec) so the body
+-- can use bare column names with no alias.column references — keeps the
+-- SQL free of short-alias-dot tokens that some copy/transcription
+-- pipelines mangle.
 CREATE OR REPLACE FUNCTION public.list_bug_reports_for_admin(
   p_status TEXT DEFAULT 'pending',
   p_limit  INT  DEFAULT 50
 )
-RETURNS TABLE (
-  id               UUID,
-  reporter_email   TEXT,
-  reporter_user_id UUID,
-  description      TEXT,
-  page_context     TEXT,
-  status           TEXT,
-  created_at       TIMESTAMPTZ
-)
+RETURNS SETOF public.bug_reports
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
@@ -61,11 +57,9 @@ BEGIN
     RAISE EXCEPTION 'admin_only' USING ERRCODE = '42501';
   END IF;
   RETURN QUERY
-    SELECT b.id, b.reporter_email, b.reporter_user_id, b.description,
-           b.page_context, b.status, b.created_at
-      FROM public.bug_reports b
-     WHERE b.status = p_status
-     ORDER BY b.created_at DESC
+    SELECT * FROM public.bug_reports
+     WHERE status = p_status
+     ORDER BY created_at DESC
      LIMIT LEAST(GREATEST(COALESCE(p_limit, 50), 1), 200);
 END;
 $$;
