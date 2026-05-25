@@ -276,12 +276,18 @@ export async function equipRegimen(regimenId, user) {
     .single();
   if (copyError) throw copyError;
 
-  // Increment clone_count on the original — but ONLY if the cloner is NOT the creator.
+  // Increment copy_count on the original — but ONLY if the cloner is NOT the creator.
   // This prevents creators from inflating their own adoption count.
+  //
+  // NOTE: column is `copy_count` (added by mig 005, also incremented by the
+  // server-side `increment_copy_count()` RPC in mig 042). The previous
+  // `clone_count` reference here was a code-vs-schema drift bug surfaced
+  // by the 2026-05-25 audit — the .catch swallowed the PGRST204 error so
+  // the badge silently showed "0 clones" on every regimen.
   if (user.email !== source.created_by) {
     await supabase
       .from('regimens')
-      .update({ clone_count: (source.clone_count ?? 0) + 1 })
+      .update({ copy_count: (source.copy_count ?? 0) + 1 })
       .eq('id', source.id)
       .catch(() => {}); // non-fatal
   }
@@ -290,18 +296,20 @@ export async function equipRegimen(regimenId, user) {
 }
 
 /**
- * Fetch the clone_count for a single regimen (used by RegimenMessage UI).
+ * Fetch the copy_count for a single regimen (used by RegimenMessage UI).
+ * The function name keeps "Clone" for caller compatibility — only the
+ * DB column name changes.
  */
 export async function getRegimenCloneCount(regimenId) {
   if (!regimenId) return 0;
   try {
     const { data, error } = await supabase
       .from('regimens')
-      .select('clone_count')
+      .select('copy_count')
       .eq('id', regimenId)
       .single();
     if (error) return 0;
-    return data?.clone_count ?? 0;
+    return data?.copy_count ?? 0;
   } catch {
     return 0;
   }
