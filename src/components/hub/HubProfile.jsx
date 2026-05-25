@@ -47,6 +47,8 @@ const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 // (gated by showSnakeEgg below). Lazy so its canvas/game code stays out
 // of the entry + Hub bundles for everyone else.
 const SnakeGameModal = lazy(() => import('./SnakeGameModal'));
+// Hidden easter-egg "Heavy Bird" — only on the @keganbergeron profile.
+const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -279,6 +281,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [qrOpen, setQrOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
   const [snakeOpen, setSnakeOpen] = useState(false);
+  const [birdOpen, setBirdOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const storyFileRef = useRef(null);
@@ -761,6 +764,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const showSnakeEgg =
     (ownerUsername === 'sean' || displayHandle === '@sean') && isVerified(ownerUsername);
 
+  // Second hidden egg — "Heavy Bird", only on the @keganbergeron profile.
+  const showBirdEgg =
+    ownerUsername === 'keganbergeron' || ownerUsername === 'kegan' || displayHandle === '@keganbergeron';
+
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
@@ -1063,6 +1070,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <button
               type="button"
               onClick={() => setSnakeOpen(true)}
+              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+              title="???"
+              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span aria-hidden="true">👾</span>
+            </button>
+          )}
+
+          {/* 👾 Hidden easter-egg trigger — only on the @keganbergeron
+              profile. Opens Heavy Bird. */}
+          {showBirdEgg && (
+            <button
+              type="button"
+              onClick={() => setBirdOpen(true)}
               aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
               title="???"
               className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -1807,6 +1828,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             open={snakeOpen}
             onClose={() => setSnakeOpen(false)}
             userId={user?.id}
+          />
+        </Suspense>
+      )}
+
+      {/* 👾 Heavy Bird — easter egg, only on the @keganbergeron profile.
+          Mounted on open (the canvas engine runs only while shown). */}
+      {showBirdEgg && birdOpen && (
+        <Suspense fallback={null}>
+          <HeavyBirdModal
+            onClose={() => setBirdOpen(false)}
+            userId={user?.id}
+            onUnlockCosmetic={() => toast.success('🏆 315 lb Club unlocked!')}
           />
         </Suspense>
       )}
