@@ -1,0 +1,398 @@
+// src/components/journal/JournalView.jsx
+//
+// "My Journal" — server-backed daily journal (migration 145). Replaces
+// the old localStorage textarea. Features:
+//   • Title per entry
+//   • Markdown body with a formatting toolbar (bold / bullets)
+//   • Voice-to-text dictation that appends to the body
+//   • Attachments (images + files) via the avatars Storage bucket
+//   • Left/right swipe between days (+ arrow buttons)
+//   • A "Log" button → scrollable history of every day written
+//   • Debounced autosave; flush on day-change / close
+//
+// One-time migration of legacy localStorage entries runs on first open.
+
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { format, subDays, addDays } from 'date-fns';
+import {
+  ChevronLeft, ChevronRight, Book, List, Bold, Mic, MicOff,
+  Paperclip, X, Loader2, History, FileText,
+} from 'lucide-react';
+import { toast } from 'sonner';
+import { useLanguage } from '@/lib/LanguageContext';
+import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
+import {
+  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries,
+} from '@/lib/data/journal';
+import JournalHistoryModal from './JournalHistoryModal';
+
+const todayStr = () => format(new Date(), 'yyyy-MM-dd');
+
+export default function JournalView({ userId, userEmail, onClose }) {
+  const { tFallback } = useLanguage();
+  const [activeDate, setActiveDate] = useState(() => new Date());
+  const dateStr = format(activeDate, 'yyyy-MM-dd');
+  const isToday = dateStr === todayStr();
+  const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
+
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const [attachments, setAttachments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const bodyRef = useRef(null);
+  const fileRef = useRef(null);
+  const dictationRef = useRef(null);
+  const dirtyRef = useRef(false);
+  // Holds the values + date currently in the editor so flush() can save
+  // the OUTGOING day's content before we load a different day.
+  const snapshotRef = useRef({ dateStr, title: '', body: '', attachments: [] });
+  snapshotRef.current = { dateStr, title, body, attachments };
+
+  // ── Save / flush ────────────────────────────────────────────────────
+  const flush = useCallback(async () => {
+    if (!dirtyRef.current || !userId) return;
+    const snap = snapshotRef.current;
+    dirtyRef.current = false;
+    setSaving(true);
+    await upsertEntry(userId, userEmail, {
+      entryDate: snap.dateStr,
+      title: snap.title,
+      body: snap.body,
+      attachments: snap.attachments,
+    });
+    setSaving(false);
+  }, [userId, userEmail]);
+
+  // Debounced autosave whenever content changes (and it's dirty).
+  useEffect(() => {
+    if (!dirtyRef.current) return;
+    const t = setTimeout(() => { flush(); }, 800);
+    return () => clearTimeout(t);
+  }, [title, body, attachments, flush]);
+
+  // ── Load a day's entry ────────────────────────────────────────────────
+  const loadDay = useCallback(async (d) => {
+    if (!userId) return;
+    setLoading(true);
+    const entry = await getEntry(userId, format(d, 'yyyy-MM-dd'));
+    setTitle(entry?.title || '');
+    setBody(entry?.body || '');
+    setAttachments(Array.isArray(entry?.attachments) ? entry.attachments : []);
+    dirtyRef.current = false;
+    setLoading(false);
+  }, [userId]);
+
+  // One-time localStorage migration, then load today.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (userId && userEmail) {
+        const n = await migrateLocalEntries(userId, userEmail).catch(() => 0);
+        if (!cancelled && n > 0) {
+          toast.success(tFallback('journal.migrated', `Imported ${n} past ${n === 1 ? 'entry' : 'entries'}.`));
+        }
+      }
+      if (!cancelled) loadDay(new Date());
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, userEmail]);
+
+  // Flush pending save on unmount + stop any dictation.
+  useEffect(() => () => {
+    flush();
+    try { dictationRef.current?.stop(); } catch { /* ignore */ }
+  }, [flush]);
+
+  // ── Navigation between days ───────────────────────────────────────────
+  const goToDay = useCallback(async (d) => {
+    if (format(d, 'yyyy-MM-dd') === dateStr) return;
+    await flush();              // save outgoing day first
+    stopDictation();
+    setActiveDate(d);
+    loadDay(d);
+  }, [dateStr, flush, loadDay]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const goPrev = () => goToDay(subDays(activeDate, 1));
+  const goNext = () => { if (!isToday) goToDay(addDays(activeDate, 1)); };
+
+  // Swipe between days. Attached to the card but ignores swipes that
+  // start inside the textarea / inputs so text selection still works.
+  const touchStart = useRef(null);
+  const onTouchStart = (e) => {
+    if (e.target.closest('textarea, input, button, a, [data-no-swipe]')) { touchStart.current = null; return; }
+    const t = e.touches[0];
+    touchStart.current = { x: t.clientX, y: t.clientY };
+  };
+  const onTouchEnd = (e) => {
+    if (!touchStart.current) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStart.current.x;
+    const dy = t.clientY - touchStart.current.y;
+    touchStart.current = null;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      if (dx > 0) goPrev();        // swipe right → previous day
+      else goNext();               // swipe left → next day
+    }
+  };
+
+  // ── Editing helpers ───────────────────────────────────────────────────
+  const onBodyChange = (v) => { setBody(v); dirtyRef.current = true; };
+  const onTitleChange = (v) => { setTitle(v.slice(0, 120)); dirtyRef.current = true; };
+
+  // Insert/transform markdown at the textarea selection.
+  const applyFormat = (kind) => {
+    const ta = bodyRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart ?? body.length;
+    const end = ta.selectionEnd ?? body.length;
+    const before = body.slice(0, start);
+    const sel = body.slice(start, end);
+    const after = body.slice(end);
+    let next = body;
+    let caret = end;
+    if (kind === 'bold') {
+      next = `${before}**${sel || 'bold text'}**${after}`;
+      caret = start + 2 + (sel || 'bold text').length + 2;
+    } else if (kind === 'bullet') {
+      // Prefix each selected line (or the current line) with "- ".
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const block = body.slice(lineStart, end) || '';
+      const bulleted = block
+        .split('\n')
+        .map(l => (l.startsWith('- ') ? l : `- ${l}`))
+        .join('\n');
+      next = body.slice(0, lineStart) + bulleted + after;
+      caret = lineStart + bulleted.length;
+    }
+    onBodyChange(next);
+    requestAnimationFrame(() => {
+      ta.focus();
+      try { ta.setSelectionRange(caret, caret); } catch { /* ignore */ }
+    });
+  };
+
+  // ── Voice dictation ───────────────────────────────────────────────────
+  const stopDictation = () => {
+    try { dictationRef.current?.stop(); } catch { /* ignore */ }
+    dictationRef.current = null;
+    setListening(false);
+  };
+  const toggleDictation = () => {
+    if (listening) { stopDictation(); return; }
+    if (!isToday) { toast.message(tFallback('journal.readOnlyPast', 'Switch to today to write.')); return; }
+    setListening(true);
+    let finalChunk = '';
+    dictationRef.current = startDictation({
+      onResult: ({ transcript, isFinal }) => {
+        if (isFinal) {
+          finalChunk = transcript.trim();
+          if (finalChunk) {
+            setBody(prev => {
+              const sep = prev && !prev.endsWith(' ') && !prev.endsWith('\n') ? ' ' : '';
+              return prev + sep + finalChunk;
+            });
+            dirtyRef.current = true;
+          }
+        }
+      },
+      onError: (reason) => {
+        stopDictation();
+        if (reason === 'permission') toast.error(tFallback('journal.micDenied', 'Microphone permission denied.'));
+        else if (reason === 'unsupported') toast.error(tFallback('journal.micUnsupported', 'Voice input not supported on this browser.'));
+      },
+      onEnd: () => setListening(false),
+    });
+  };
+
+  // ── Attachments ───────────────────────────────────────────────────────
+  const onPickFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    e.target.value = '';
+    if (files.length === 0) return;
+    if (!isToday) { toast.message(tFallback('journal.readOnlyPast', 'Switch to today to write.')); return; }
+    setUploading(true);
+    for (const file of files.slice(0, 12 - attachments.length)) {
+      if (file.size > 10 * 1024 * 1024) { toast.error(tFallback('journal.fileTooBig', `${file.name} is over 10 MB.`)); continue; }
+      const att = await uploadAttachment(userId, file);
+      if (att) { setAttachments(prev => [...prev, att]); dirtyRef.current = true; }
+      else toast.error(tFallback('journal.uploadFailed', `Couldn't upload ${file.name}.`));
+    }
+    setUploading(false);
+  };
+  const removeAttachment = (url) => {
+    setAttachments(prev => prev.filter(a => a.url !== url));
+    dirtyRef.current = true;
+  };
+
+  const readOnly = !isToday;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 32 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 32 }}
+      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
+      className="fixed inset-0 z-[200] bg-background flex flex-col"
+      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
+      onTouchStart={onTouchStart}
+      onTouchEnd={onTouchEnd}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="w-4 h-4" /> {tFallback('profile.journal.back', 'Back')}
+        </button>
+        <div className="flex items-center gap-1.5">
+          <Book className="w-4 h-4 text-primary" />
+          <span className="font-heading font-bold text-base">{tFallback('profile.journal.title', 'My Journal')}</span>
+        </div>
+        <button
+          onClick={() => setHistoryOpen(true)}
+          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          data-no-swipe
+        >
+          <History className="w-4 h-4" /> {tFallback('journal.log', 'Log')}
+        </button>
+      </div>
+
+      {/* Date navigation */}
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border shrink-0 bg-secondary/20">
+        <button onClick={goPrev} className="p-1.5 rounded-lg hover:bg-secondary transition-colors" aria-label="Previous day" data-no-swipe>
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <div className="text-center">
+          <p className="text-sm font-bold text-foreground">{displayDate}</p>
+          <div className="flex items-center justify-center gap-2 mt-0.5">
+            {isToday && <span className="text-[11px] text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</span>}
+            {saving && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Loader2 className="w-2.5 h-2.5 animate-spin" /> {tFallback('journal.saving', 'Saving…')}</span>}
+          </div>
+        </div>
+        <button onClick={goNext} disabled={isToday} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30" aria-label="Next day" data-no-swipe>
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex-1 flex items-center justify-center"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+      ) : (
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Title */}
+          <div className="px-4 pt-3 shrink-0">
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => onTitleChange(e.target.value)}
+              readOnly={readOnly}
+              placeholder={readOnly ? (title ? '' : tFallback('journal.noTitle', 'Untitled')) : tFallback('journal.titlePlaceholder', 'Title your day…')}
+              className="w-full bg-transparent font-heading font-bold text-lg text-foreground focus:outline-none placeholder:text-muted-foreground/40"
+              data-no-swipe
+            />
+          </div>
+
+          {/* Formatting toolbar — today only */}
+          {!readOnly && (
+            <div className="flex items-center gap-1 px-4 py-2 shrink-0" data-no-swipe>
+              <button onClick={() => applyFormat('bullet')} title="Bullet list" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+                <List className="w-4 h-4" />
+              </button>
+              <button onClick={() => applyFormat('bold')} title="Bold" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+                <Bold className="w-4 h-4" />
+              </button>
+              {isVoiceInputSupported() && (
+                <button
+                  onClick={toggleDictation}
+                  title="Dictate"
+                  className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
+                    listening ? 'bg-red-500/15 text-red-500' : 'hover:bg-secondary text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {listening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              )}
+              <button onClick={() => fileRef.current?.click()} title="Attach" className="w-8 h-8 rounded-md hover:bg-secondary flex items-center justify-center text-muted-foreground hover:text-foreground">
+                {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+              </button>
+              <input ref={fileRef} type="file" multiple accept="image/*,.pdf,.txt,.heic" className="hidden" onChange={onPickFiles} />
+              {listening && <span className="text-[11px] text-red-500 font-semibold ms-1 animate-pulse">{tFallback('journal.listening', 'Listening…')}</span>}
+            </div>
+          )}
+
+          {/* Body */}
+          <div className="flex-1 px-4 overflow-y-auto">
+            <textarea
+              ref={bodyRef}
+              value={body}
+              onChange={(e) => onBodyChange(e.target.value)}
+              readOnly={readOnly}
+              placeholder={readOnly
+                ? (body ? '' : tFallback('profile.journal.placeholderPast', 'No entry for this day.'))
+                : tFallback('profile.journal.placeholderToday', 'How was your session today? Use the toolbar for bullets, bold, voice, or attachments…')}
+              className="w-full min-h-[40vh] bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
+              style={{ fontFamily: 'inherit' }}
+              data-no-swipe
+            />
+
+            {/* Attachments */}
+            {attachments.length > 0 && (
+              <div className="flex flex-wrap gap-2 py-3" data-no-swipe>
+                {attachments.map(att => {
+                  const isImg = (att.type || '').startsWith('image/');
+                  return (
+                    <div key={att.url} className="relative group">
+                      {isImg ? (
+                        <a href={att.url} target="_blank" rel="noreferrer">
+                          <img src={att.url} alt={att.name} className="w-20 h-20 rounded-lg object-cover border border-border" loading="lazy" />
+                        </a>
+                      ) : (
+                        <a href={att.url} target="_blank" rel="noreferrer" className="w-20 h-20 rounded-lg border border-border bg-secondary/40 flex flex-col items-center justify-center gap-1 p-1 text-center">
+                          <FileText className="w-5 h-5 text-muted-foreground" />
+                          <span className="text-[9px] text-muted-foreground truncate w-full">{att.name}</span>
+                        </a>
+                      )}
+                      {!readOnly && (
+                        <button
+                          onClick={() => removeAttachment(att.url)}
+                          className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center"
+                          aria-label="Remove attachment"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Footer hint */}
+          <div className="px-4 py-2 border-t border-border shrink-0">
+            <p className="text-[11px] text-muted-foreground text-center">
+              {readOnly
+                ? tFallback('journal.footerPast', 'Read-only · swipe or use ← → to browse · tap Log for history')
+                : tFallback('journal.footerToday', 'Auto-saved · swipe left/right to change days · tap Log for history')}
+            </p>
+          </div>
+        </div>
+      )}
+
+      <AnimatePresence>
+        {historyOpen && (
+          <JournalHistoryModal
+            userId={userId}
+            activeDate={dateStr}
+            onClose={() => setHistoryOpen(false)}
+            onPick={(d) => { setHistoryOpen(false); goToDay(new Date(d + 'T00:00:00')); }}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+}

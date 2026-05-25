@@ -157,3 +157,48 @@ export function startVoiceCapture({ lang = 'en-US', onResult, onError } = {}) {
 
   return { stop: () => { try { rec.stop(); } catch { /* ignore */ } } };
 }
+
+/**
+ * Generic free-text dictation (for the journal, not set-parsing).
+ * Continuous by default so a user can dictate a full entry; emits
+ * interim + final transcripts. Returns { stop() }.
+ *
+ *   onResult({ transcript, isFinal })  — fired on each result chunk
+ *   onError(reason)                    — 'permission' | 'unsupported' | 'aborted' | 'other'
+ *   onEnd()                            — recognition ended (mic released)
+ */
+export function startDictation({ lang = 'en-US', continuous = true, onResult, onError, onEnd } = {}) {
+  if (!SR) {
+    onError?.('unsupported');
+    return { stop: () => {} };
+  }
+  const rec = new SR();
+  rec.lang = lang;
+  rec.continuous = continuous;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
+
+  rec.onresult = (e) => {
+    try {
+      // Emit only the latest result segment; the caller appends finals.
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const res = e.results[i];
+        const transcript = res?.[0]?.transcript || '';
+        onResult?.({ transcript, isFinal: !!res.isFinal });
+      }
+    } catch {
+      onError?.('other');
+    }
+  };
+  rec.onerror = (e) => {
+    if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') onError?.('permission');
+    else if (e?.error === 'aborted') onError?.('aborted');
+    else onError?.('other');
+  };
+  rec.onend = () => { onEnd?.(); };
+
+  try { rec.start(); }
+  catch { onError?.('aborted'); }
+
+  return { stop: () => { try { rec.stop(); } catch { /* ignore */ } } };
+}

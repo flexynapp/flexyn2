@@ -3,8 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
-import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, ChevronLeft, Trophy, ShieldAlert, Building2 } from 'lucide-react';
-import { format, subDays, addDays } from 'date-fns';
+import { LogOut, User, Trash2, Settings, ChevronRight, ArrowLeft, X, ShoppingBag, UserCircle, Book, Trophy, ShieldAlert, Building2 } from 'lucide-react';
 import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
@@ -30,101 +29,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 const DebriefVault       = lazy(() => import('./debrief/DebriefVault'));
 const InjuryForm         = lazy(() => import('./workout/InjuryForm'));
 const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault'));
-
-// ─── My Journal ───────────────────────────────────────────────────────────────
-const JOURNAL_KEY = (email, dateStr) => `journal_${email}_${dateStr}`;
-
-function JournalView({ userEmail, onClose }) {
-  const { t, tFallback } = useLanguage();
-  const [activeDate, setActiveDate] = useState(new Date());
-  const dateStr = format(activeDate, 'yyyy-MM-dd');
-  const displayDate = format(activeDate, 'EEEE, MMMM d yyyy');
-  const isToday = dateStr === format(new Date(), 'yyyy-MM-dd');
-
-  const [text, setText] = useState(() => {
-    try { return localStorage.getItem(JOURNAL_KEY(userEmail, format(new Date(), 'yyyy-MM-dd'))) || ''; } catch { return ''; }
-  });
-
-  useEffect(() => {
-    try {
-      setText(localStorage.getItem(JOURNAL_KEY(userEmail, dateStr)) || '');
-    } catch { setText(''); }
-  }, [dateStr, userEmail]);
-
-  const handleChange = (e) => {
-    if (!isToday) return;
-    const val = e.target.value;
-    setText(val);
-    try { localStorage.setItem(JOURNAL_KEY(userEmail, dateStr), val); } catch {}
-  };
-
-  const goBack = () => setActiveDate(d => subDays(d, 1));
-  const goForward = () => {
-    const next = addDays(activeDate, 1);
-    if (next <= new Date()) setActiveDate(next);
-  };
-  const canGoForward = !isToday;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 32 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 32 }}
-      transition={{ type: 'spring', stiffness: 340, damping: 32 }}
-      className="fixed inset-0 z-[200] bg-background flex flex-col"
-      style={{ paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' }}
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <button onClick={onClose} className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-          <ChevronLeft className="w-4 h-4" /> {tFallback('profile.journal.back', 'Back')}
-        </button>
-        <div className="flex items-center gap-1.5">
-          <Book className="w-4 h-4 text-primary" />
-          <span className="font-heading font-bold text-base">{tFallback('profile.journal.title', 'My Journal')}</span>
-        </div>
-        <div className="w-16" />
-      </div>
-
-      {/* Date navigation */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0 bg-secondary/20">
-        <button onClick={goBack} className="p-1.5 rounded-lg hover:bg-secondary transition-colors">
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <div className="text-center">
-          <p className="text-sm font-bold text-foreground">{displayDate}</p>
-          {isToday && <p className="text-[11px] text-primary font-semibold">{tFallback('profile.journal.today', 'Today')}</p>}
-        </div>
-        <button onClick={goForward} disabled={!canGoForward} className="p-1.5 rounded-lg hover:bg-secondary transition-colors disabled:opacity-30">
-          <ChevronRight className="w-4 h-4" />
-        </button>
-      </div>
-
-      {/* Journal text area */}
-      <div className="flex-1 flex flex-col px-4 py-4 overflow-hidden">
-        <textarea
-          value={text}
-          onChange={handleChange}
-          readOnly={!isToday}
-          placeholder={isToday
-            ? (tFallback('profile.journal.placeholderToday', 'How was your session today? Log your lifts, notes, or how you felt…'))
-            : (tFallback('profile.journal.placeholderPast', 'No entry for this day.'))}
-          className="flex-1 w-full bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
-          style={{ fontFamily: 'inherit' }}
-        />
-      </div>
-
-      {/* Footer hint */}
-      <div className="px-4 py-2 border-t border-border shrink-0">
-        <p className="text-[11px] text-muted-foreground text-center">
-          {isToday
-            ? (tFallback('profile.journal.footerToday', 'Auto-saved · Use ← to browse past entries'))
-            : (tFallback('profile.journal.footerPast', 'Read-only · Navigate to today to write'))}
-        </p>
-      </div>
-    </motion.div>
-  );
-}
+// My Journal — overhauled into a server-backed editor (title, markdown
+// formatting + voice, attachments, swipe-between-days, scrollable
+// history log). Lazy so its deps stay out of the entry bundle.
+const JournalView        = lazy(() => import('./journal/JournalView'));
 
 // preserveKeys: when true (Sign Out), journal entries and a small set
 // of per-device preferences survive so the same user logging back in
@@ -598,10 +506,13 @@ export default function ProfileMenu() {
       {/* My Journal — global overlay, accessible from any page */}
       <AnimatePresence>
         {journalOpen && user && (
-          <JournalView
-            userEmail={user?.email}
-            onClose={() => setJournalOpen(false)}
-          />
+          <Suspense fallback={null}>
+            <JournalView
+              userId={user?.id}
+              userEmail={user?.email}
+              onClose={() => setJournalOpen(false)}
+            />
+          </Suspense>
         )}
       </AnimatePresence>
 
