@@ -19,7 +19,10 @@
 -- 6. gym_events DELETE policy added for the row's creator (audit C-8).
 
 -- ── 1. Reactions: members-only INSERT ──────────────────────────────
-DROP POLICY IF EXISTS "gym_feed_rxn: own write" ON public.gym_feed_post_reactions;
+-- Drop BOTH the pre-rename name ("own write") and the current name so a
+-- re-run is idempotent — Postgres has no CREATE POLICY IF NOT EXISTS.
+DROP POLICY IF EXISTS "gym_feed_rxn: own write"     ON public.gym_feed_post_reactions;
+DROP POLICY IF EXISTS "gym_feed_rxn: members write" ON public.gym_feed_post_reactions;
 
 -- Alias-free form: nested IN subqueries instead of an aliased JOIN, so
 -- the SQL carries no short `alias.column` tokens (which the deploy-paste
