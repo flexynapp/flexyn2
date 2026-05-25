@@ -622,109 +622,113 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Today's scheduled plan (PPL / split inference) ──────────── */}
-      <div className="mb-4 md:mb-5">
-        <ErrorBoundary label="TodaysPlanCard">
-          <TodaysPlanCard
-            regimens={regimens}
-            logs={logs}
-            hasWorkedOutToday={hasWorkedOutToday}
-          />
-        </ErrorBoundary>
+      {/* ── Today's plan / repeat / rest-day — paired bento row ──────
+           flex-wrap + flex-1 + empty:hidden: present cards split the
+           row, a lone card grows to fill it, and any that self-hide
+           drop out with no gap. min-w forces a single column on phones
+           so text-heavy rows never get cramped. */}
+      <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          <ErrorBoundary label="TodaysPlanCard">
+            <TodaysPlanCard
+              regimens={regimens}
+              logs={logs}
+              hasWorkedOutToday={hasWorkedOutToday}
+            />
+          </ErrorBoundary>
+        </div>
+
+        {/* Repeat Last Workout — most returning users want to repeat
+             exactly what they did last. */}
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
+            const last = logs[0];
+            const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.05 }}
+              >
+                <button
+                  onClick={() => navigate('/workout', { state: { repeatLog: last } })}
+                  className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Repeat2 className="w-4.5 h-4.5 text-primary" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
+                    <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
+                </button>
+              </motion.div>
+            );
+          })()}
+        </div>
+
+        {/* Rest day declaration */}
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          {!hasWorkedOutToday && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.35, delay: 0.08 }}
+            >
+              {isRestDay ? (
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/5">
+                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
+                    <p className="text-[11px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe. Recovery is training too.')}</p>
+                  </div>
+                  <button
+                    onClick={handleUndoRestDay}
+                    className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
+                  >
+                    {tFallback('dashboard.restDay.undo', 'Undo')}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleDeclareRestDay}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
+                >
+                  <Moon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                    {tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
+                  </span>
+                </button>
+              )}
+            </motion.div>
+          )}
+        </div>
       </div>
 
-      {/* ── Repeat Last Workout — near the top for returning users ──────
-           Highest-priority quick action: most returning users want to
-           repeat exactly what they did last. Shown before discovery
-           cards so it's always visible without scrolling. */}
-      {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
-        const last = logs[0];
-        const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
-        return (
-          <motion.div
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-            className="mb-4 md:mb-5"
-          >
-            <button
-              onClick={() => navigate('/workout', { state: { repeatLog: last } })}
-              className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
-            >
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <Repeat2 className="w-4.5 h-4.5 text-primary" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
-                <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
-              </div>
-              <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
-            </button>
-          </motion.div>
-        );
-      })()}
-
-      {/* ── Rest day declaration ─────────────────────────────────────── */}
-      {!hasWorkedOutToday && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.35, delay: 0.08 }}
-          className="mb-4 md:mb-5"
-        >
-          {isRestDay ? (
-            <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/5">
-              <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
-                <p className="text-[11px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe. Recovery is training too.')}</p>
-              </div>
-              <button
-                onClick={handleUndoRestDay}
-                className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
-              >
-                {tFallback('dashboard.restDay.undo', 'Undo')}
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleDeclareRestDay}
-              className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
-            >
-              <Moon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-              <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
-                {tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
-              </span>
-            </button>
-          )}
-        </motion.div>
-      )}
-
-      {/* ═══ TIER 2 · Today's readiness & body trackers ═══════════ */}
+      {/* ═══ TIER 2 · Recovery & body trackers ════════════════════ */}
+      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+        {tFallback('dashboard.section.recovery', 'Recovery')}
+      </p>
 
       {/* Readiness Score — composite of sleep + mood + recent-workout
-          recency. Drives the daily train/maintain/deload/rest decision.
-          Hidden when no user. */}
-      <div className="mb-5 md:mb-6">
+          recency. Drives the daily train/maintain/deload/rest decision. */}
+      <div className="mb-3">
         <ErrorBoundary label="ReadinessCard">
           <ReadinessCard logs={logs} />
         </ErrorBoundary>
       </div>
 
-      {/* Daily mood + hydration ring — quick-tap micro-trackers that
-          double as data sources for cross-domain correlations on the
-          Progress page (mood-vs-volume, hydration-vs-PRs, etc.). */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 md:mb-6">
+      {/* Mood · Hydration · Calories · Macros — compact daily trackers
+          unified into one bento grid (2-up on phones, 4-up on desktop).
+          These never self-hide, so a plain grid is safe here. */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 md:mb-6">
         <ErrorBoundary label="MoodLogCard">
           <MoodLogCard />
         </ErrorBoundary>
         <ErrorBoundary label="HydrationRing">
           <HydrationRing />
         </ErrorBoundary>
-      </div>
-
-      {/* ── Calorie progress + Macro ring ──────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 md:mb-6">
         <ErrorBoundary label="CalorieProgressWidget">
           <CalorieProgressWidget userProfile={userProfile} />
         </ErrorBoundary>
@@ -733,33 +737,39 @@ export default function Dashboard() {
         </ErrorBoundary>
       </div>
 
-      {/* ═══ TIER 3 · Daily engagement & rewards ══════════════════ */}
+      {/* ═══ TIER 3 · Challenges & rewards ════════════════════════ */}
+      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+        {tFallback('dashboard.section.challenges', 'Challenges')}
+      </p>
 
       {/* ── Daily quests card ───────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="mb-5 md:mb-6"
+        className="mb-3"
       >
         <ErrorBoundary label="DailyQuestsCard">
           <DailyQuestsCard />
         </ErrorBoundary>
       </motion.div>
 
-      {/* Daily chest — claimable nudge with one-tap claim + Bag open.
-          Self-hides once claimed (or already claimed today). */}
-      <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
-
-      {/* "Keep your N-day streak alive — log 1 set?" — appears late in
-          the day (>= 6 PM local) when the user has an active streak
-          but hasn't logged a workout/meal yet. Suppressed on rest days. */}
-      {!isRestDay && (
-        <StreakRescueCard
-          streakDays={streak}
-          lastWorkoutDate={lastWorkoutDate?.toISOString()}
-        />
-      )}
+      {/* Daily chest + streak rescue — paired reward banners. Both
+          self-hide (chest once claimed, rescue outside its window), so
+          empty:hidden drops whichever is absent and the other fills. */}
+      <div className="flex flex-wrap items-start gap-3 mb-3">
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+        </div>
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          {!isRestDay && (
+            <StreakRescueCard
+              streakDays={streak}
+              lastWorkoutDate={lastWorkoutDate?.toISOString()}
+            />
+          )}
+        </div>
+      </div>
 
       {/* ── Weekly League card ──────────────────────────────────── */}
       <motion.div
@@ -785,6 +795,9 @@ export default function Dashboard() {
       )}
 
       {/* ═══ TIER 4 · Progress & reflection ═══════════════════════ */}
+      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+        {tFallback('dashboard.section.progress', 'Your progress')}
+      </p>
 
       {/* ── Stats strip ────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
@@ -864,22 +877,20 @@ export default function Dashboard() {
         </ErrorBoundary>
       </div>
 
-      {/* Tomorrow's focus suggestion — deterministic heuristic against
-          this week's logs. Self-hides when there's less than 2 workouts
-          of data so we don't surface a guess based on noise. */}
-      <div className="mb-5 md:mb-6">
-        <ErrorBoundary label="WorkoutSuggestionCard">
-          <WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} />
-        </ErrorBoundary>
-      </div>
-
-      {/* "This day last year" memory — evergreen delight for users with
-          historical data. Self-hides when no past-year match for today
-          or already dismissed for this date. */}
-      <div className="mb-5 md:mb-6">
-        <ErrorBoundary label="WorkoutMemoryCard">
-          <WorkoutMemoryCard logs={logs} />
-        </ErrorBoundary>
+      {/* Suggestion + memory — paired compact cards. Both self-hide
+          (suggestion needs ≥2 workouts, memory needs a past-year match),
+          so empty:hidden + flex-1 keeps whichever survives full-width. */}
+      <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          <ErrorBoundary label="WorkoutSuggestionCard">
+            <WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} />
+          </ErrorBoundary>
+        </div>
+        <div className="flex-1 min-w-[15rem] empty:hidden">
+          <ErrorBoundary label="WorkoutMemoryCard">
+            <WorkoutMemoryCard logs={logs} />
+          </ErrorBoundary>
+        </div>
       </div>
 
       {/* ═══ TIER 5 · Quick actions ═══════════════════════════════ */}
@@ -889,9 +900,9 @@ export default function Dashboard() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.4, delay: 0.15 }}
-        className="mb-5 md:mb-6"
+        className="mb-5 md:mb-6 mt-7"
       >
-        <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-3 px-1">
+        <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1">
           {t('dashboard.quickActions')}
         </span>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -938,6 +949,9 @@ export default function Dashboard() {
       </motion.div>
 
       {/* ═══ TIER 6 · Social & ambient discovery ══════════════════ */}
+      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+        {tFallback('dashboard.section.discover', 'Discover')}
+      </p>
 
       {/* ── Discovery cards ─────────────────────────────────────
            Single-slot, prioritized: starter plan → Form Coach → AI Coach.
