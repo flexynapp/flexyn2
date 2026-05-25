@@ -413,6 +413,19 @@ export default function ProfileMenu() {
                     <button
                       onClick={() => {
                         setOpen(false);
+                        navigate('/corporate');
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-emerald-500" />
+                        {tFallback('profile.corporate', 'Corporate Wellness')}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOpen(false);
                         setJournalOpen(true);
                       }}
                       className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors border-t border-border"

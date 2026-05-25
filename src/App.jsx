@@ -99,6 +99,7 @@ const Messages  = lazy(() => import('./pages/Messages'));
 const Market    = lazy(() => import('./pages/Market'));
 const TrainerStudio = lazy(() => import('./pages/TrainerStudio'));
 const TrainerMarket = lazy(() => import('./pages/TrainerMarket'));
+const CorporatePortal = lazy(() => import('./pages/CorporatePortal'));
 const Coach     = lazy(() => import('./pages/Coach'));
 const Notifications = lazy(() => import('./pages/Notifications'));
 const AdminReports = lazy(() => import('./pages/AdminReports'));
@@ -272,6 +273,7 @@ const AuthenticatedApp = () => {
           <Route path="/market/trades" element={<ErrorBoundary label="TradeHistory"><Suspense fallback={<PageLoader />}><TradeHistory /></Suspense></ErrorBoundary>} />
           <Route path="/trainer/studio" element={<ErrorBoundary label="TrainerStudio"><Suspense fallback={<PageLoader />}><TrainerStudio /></Suspense></ErrorBoundary>} />
           <Route path="/trainer/market" element={<ErrorBoundary label="TrainerMarket"><Suspense fallback={<PageLoader />}><TrainerMarket /></Suspense></ErrorBoundary>} />
+          <Route path="/corporate" element={<ErrorBoundary label="CorporatePortal"><Suspense fallback={<PageLoader />}><CorporatePortal /></Suspense></ErrorBoundary>} />
           <Route path="/register-gym" element={<ErrorBoundary label="RegisterGym"><Suspense fallback={<PageLoader />}><RegisterGym /></Suspense></ErrorBoundary>} />
           <Route path="/my-gyms"      element={<ErrorBoundary label="MyGyms"><Suspense fallback={<PageLoader />}><MyGyms /></Suspense></ErrorBoundary>} />
           <Route path="/gym/:id"      element={<ErrorBoundary label="GymHub"><Suspense fallback={<PageLoader />}><GymHub /></Suspense></ErrorBoundary>} />

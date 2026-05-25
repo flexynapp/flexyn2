@@ -547,6 +547,9 @@ async function _invokeDeleteAccount() {
     // ── Trainer tier (mig 143) — buyer's purchase receipts. Listings
     // (trainer_id) are handled in pii_tables below.
     'trainer_purchases',
+    // ── Corporate wellness (mig 146) — the user's org memberships.
+    // Owned organizations (owner_id) are handled in pii_tables.
+    'organization_members',
   ];
 
   // PII-bearing tables where the user is the author/creator/owner.
@@ -561,6 +564,8 @@ async function _invokeDeleteAccount() {
     ['gym_businesses',    'owner_id',   null],
     // Trainer tier (mig 143) — the user's own listings as a creator.
     ['trainer_listings',  'trainer_id', null],
+    // Corporate wellness (mig 146) — organizations the user owns.
+    ['organizations',     'owner_id',   null],
   ];
 
   // Run all deletes; collect any per-row failures. We previously used
