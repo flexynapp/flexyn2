@@ -198,18 +198,16 @@ BEGIN
     );
   END IF;
 
-  SELECT COUNT(DISTINCT wl.user_id), COUNT(*)
+  SELECT COUNT(DISTINCT user_id), COUNT(*)
     INTO v_active_7d, v_workouts_7d
-    FROM public.workout_logs wl
-    JOIN public.organization_members om ON om.user_id = wl.user_id
-   WHERE om.org_id = p_org_id
-     AND wl.created_at > now() - INTERVAL '7 days';
+    FROM public.workout_logs
+   WHERE created_at > now() - INTERVAL '7 days'
+     AND user_id IN (SELECT user_id FROM public.organization_members WHERE org_id = p_org_id);
 
-  SELECT COALESCE(AVG(COALESCE(up.workout_streak, 0)), 0)
+  SELECT COALESCE(AVG(COALESCE(workout_streak, 0)), 0)
     INTO v_avg_streak
-    FROM public.organization_members om
-    JOIN public.user_profiles up ON up.id = om.user_id
-   WHERE om.org_id = p_org_id;
+    FROM public.user_profiles
+   WHERE id IN (SELECT user_id FROM public.organization_members WHERE org_id = p_org_id);
 
   RETURN jsonb_build_object(
     'members',           v_members,
