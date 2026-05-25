@@ -90,10 +90,7 @@ CREATE POLICY "trainer_listings: trainer insert own"
   ON public.trainer_listings FOR INSERT TO authenticated
   WITH CHECK (
     trainer_id = auth.uid()
-    AND EXISTS (
-      SELECT 1 FROM public.user_profiles up
-       WHERE up.id = auth.uid() AND up.is_trainer = TRUE
-    )
+    AND COALESCE((SELECT is_trainer FROM public.user_profiles WHERE id = auth.uid()), FALSE)
   );
 
 CREATE POLICY "trainer_listings: trainer update own"
@@ -162,12 +159,10 @@ CREATE POLICY "regimens: gated marketplace read"
   ON public.regimens FOR SELECT TO authenticated
   USING (
     is_public_free = TRUE
-    OR EXISTS (
-      SELECT 1
-        FROM public.trainer_listings tl
-        JOIN public.trainer_purchases tp ON tp.listing_id = tl.id
-       WHERE tl.regimen_id = public.regimens.id
-         AND tp.user_id = auth.uid()
+    OR id IN (
+      SELECT regimen_id FROM public.trainer_listings
+       WHERE regimen_id IS NOT NULL
+         AND id IN (SELECT listing_id FROM public.trainer_purchases WHERE user_id = auth.uid())
     )
   );
 
