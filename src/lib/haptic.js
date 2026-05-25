@@ -31,6 +31,8 @@ const PATTERNS = {
   success: [18, 60, 18],
   warning: [28],
   subtle:  [6],
+  // Tiny high-frequency "ready to go" tickle — fast rapid pulses.
+  buzz:    [8, 8, 8, 8, 8],
 };
 
 let lastFiredAt = 0;

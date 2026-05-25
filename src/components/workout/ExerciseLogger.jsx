@@ -196,7 +196,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               transition={{ duration: 0.2, ease: 'easeOut' }}
               style={{ overflow: 'hidden' }}
             >
-              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} />
+              <SetRow set={set} index={i} onChange={(s) => updateSet(i, s)} onRemove={() => removeSet(i)} exerciseName={exercise.name} userProfile={userProfile} prIndex={prIndex} isBodyweight={isBodyweight} prevFeelNote={i > 0 ? (sets[i - 1]?.feel_note || '') : ''} />
             </motion.div>
           ))}
         </AnimatePresence>

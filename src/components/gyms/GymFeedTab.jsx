@@ -194,8 +194,8 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
       ) : sortedPosts.length === 0 ? (
         <EmptyState
           icon={Sparkles}
-          title="Be the first to post"
-          body="Welcome to your gym's social space. Share PRs, organize meetups, or just say hi."
+          title="Quiet hours at the gym"
+          body="Be the first to drop a post — share a PR, organize a meetup, or just say hi."
         />
       ) : (
         <AnimatePresence initial={false}>

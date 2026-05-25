@@ -12,12 +12,12 @@
 
 export const dashboardRedesignI18n = {
   en: {
-    // ── Time-aware greetings ──────────────────────────────────────────────
-    'dashboard.greeting.lateNight':  'Up late',
-    'dashboard.greeting.morning':    'Good morning',
-    'dashboard.greeting.afternoon':  'Good afternoon',
-    'dashboard.greeting.evening':    'Good evening',
-    'dashboard.greeting.night':      'Late night',
+    // ── Time-aware greetings — atmospheric, session-framed copy ───────────
+    'dashboard.greeting.lateNight':  'Late-night grit',
+    'dashboard.greeting.morning':    'Rise and grind',
+    'dashboard.greeting.afternoon':  'Midday momentum',
+    'dashboard.greeting.evening':    'Evening work',
+    'dashboard.greeting.night':      'Night shift',
 
     // ── Hero card kickers (small uppercase label above the streak) ───────
     'dashboard.hero.kicker.done':       'Locked in today',

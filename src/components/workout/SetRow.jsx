@@ -36,7 +36,7 @@ const RIR_OPTIONS = [
   { v: 5, label: '5+' },
 ];
 
-export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false }) {
+export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false, prevFeelNote = '' }) {
   const { weightUnit } = useWeightUnit();
   const { t } = useLanguage();
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
@@ -54,7 +54,11 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // object alongside RPE/RIR. Hidden behind a toggle to keep the
   // collapsed row scannable.
   const hasFeelData = !!(set.feel_emoji || set.feel_note);
-  const [feelOpen, setFeelOpen] = useState(hasFeelData);
+  // Auto-open the feel row (and surface the previous set's note as
+  // placeholder) when an earlier set carried a cue — so an execution
+  // note like "watch elbow flare" stays in front of the lifter for the
+  // rest of the exercise without retyping.
+  const [feelOpen, setFeelOpen] = useState(hasFeelData || !!prevFeelNote);
   const FEEL_EMOJI_SET = ['💪', '🔥', '😤', '😐', '😩', '💀', '🤕'];
 
   // Plate calculator — shown for barbell exercises when weight ≥ bar weight
@@ -418,7 +422,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           type="text"
           value={set.feel_note ?? ''}
           onChange={(e) => onChange({ ...set, feel_note: e.target.value.slice(0, 80) || null })}
-          placeholder="Note (optional)"
+          placeholder={prevFeelNote || 'Note (optional)'}
           maxLength={80}
           className="h-7 text-xs flex-1"
         />

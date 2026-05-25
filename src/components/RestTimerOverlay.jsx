@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Minus, X, Volume2, VolumeX, Settings2, Check, Mic, MicOff } from 'lucide-react';
 import { useRestTimer } from '@/lib/RestTimerContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { triggerHaptic } from '@/lib/haptic';
 
 /**
  * RestTimerOverlay — a fixed-position floating pill that appears when the
@@ -30,6 +31,13 @@ export default function RestTimerOverlay() {
     const m = Math.floor(s / 60);
     const r = s % 60;
     return `${m}:${String(r).padStart(2, '0')}`;
+  };
+
+  // Skipping with lots of time left = high energy. Reward it with a tiny
+  // high-frequency buzz that acknowledges "you're ready to go again."
+  const handleSkip = () => {
+    if (secondsLeft > 30) triggerHaptic('buzz');
+    stop();
   };
 
   return (
@@ -67,7 +75,7 @@ export default function RestTimerOverlay() {
               isDone={isDone}
               fmtTime={fmtTime}
               onExpand={() => setExpanded(true)}
-              onSkip={stop}
+              onSkip={handleSkip}
               onAdd={() => addTime(15)}
               onSubtract={() => addTime(-15)}
               t={t}
