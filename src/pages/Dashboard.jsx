@@ -555,32 +555,7 @@ export default function Dashboard() {
       transition={{ duration: 0.4 }}
       className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
     >
-      {/* "Continue where you left off" — only renders when there's a
-          paused workout in localStorage. Peace-of-mind affordance for
-          users interrupted mid-workout. Auto-evicts drafts >24h old
-          so it doesn't degrade into "you have nothing to do" noise. */}
-      <ResumeWorkoutBanner />
-
-      {/* Daily chest — claimable nudge with one-tap claim + Bag open.
-          Self-hides once claimed (or already claimed today). */}
-      <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
-
-      {/* "Keep your N-day streak alive — log 1 set?" — appears late in
-          the day (>= 6 PM local) when the user has an active streak
-          but hasn't logged a workout/meal yet. Suppressed on rest days. */}
-      {!isRestDay && (
-        <StreakRescueCard
-          streakDays={streak}
-          lastWorkoutDate={lastWorkoutDate?.toISOString()}
-        />
-      )}
-
-      {/* ── Stories ─────────────────────────────────────────────── */}
-      <StoriesRow
-        onViewProfile={(u) =>
-          navigate('/hub?profile=' + encodeURIComponent(u.email))
-        }
-      />
+      {/* ═══ TIER 1 · Orient & act ════════════════════════════════ */}
 
       {/* ── Greeting block ─────────────────────────────────────── */}
       <motion.div
@@ -620,6 +595,12 @@ export default function Dashboard() {
         </AnimatePresence>
       </motion.div>
 
+      {/* "Continue where you left off" — only renders when there's a
+          paused workout in localStorage. Peace-of-mind affordance for
+          users interrupted mid-workout. Auto-evicts drafts >24h old
+          so it doesn't degrade into "you have nothing to do" noise. */}
+      <ResumeWorkoutBanner />
+
       {/* ── Hero ───────────────────────────────────────────────── */}
       <div className="mb-4 md:mb-5">
         <HeroCard
@@ -629,6 +610,17 @@ export default function Dashboard() {
           onPrimary={() => navigate('/workout')}
           t={t}
         />
+      </div>
+
+      {/* ── Today's scheduled plan (PPL / split inference) ──────────── */}
+      <div className="mb-4 md:mb-5">
+        <ErrorBoundary label="TodaysPlanCard">
+          <TodaysPlanCard
+            regimens={regimens}
+            logs={logs}
+            hasWorkedOutToday={hasWorkedOutToday}
+          />
+        </ErrorBoundary>
       </div>
 
       {/* ── Repeat Last Workout — near the top for returning users ──────
@@ -698,31 +690,91 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* ── Today's scheduled plan (PPL / split inference) ──────────── */}
-      <div className="mb-4 md:mb-5">
-        <ErrorBoundary label="TodaysPlanCard">
-          <TodaysPlanCard
-            regimens={regimens}
-            logs={logs}
-            hasWorkedOutToday={hasWorkedOutToday}
-          />
+      {/* ═══ TIER 2 · Today's readiness & body trackers ═══════════ */}
+
+      {/* Readiness Score — composite of sleep + mood + recent-workout
+          recency. Drives the daily train/maintain/deload/rest decision.
+          Hidden when no user. */}
+      <div className="mb-5 md:mb-6">
+        <ErrorBoundary label="ReadinessCard">
+          <ReadinessCard logs={logs} />
         </ErrorBoundary>
       </div>
 
-      {/* ── Discovery cards ─────────────────────────────────────
-           Single-slot, prioritized: starter plan → Form Coach → AI Coach.
-           Wrapped in its own ErrorBoundary so a card-level bug never
-           kills the whole Dashboard. Dismissals persist via
-           discoveryPrefs. */}
-      <div className="mb-4 md:mb-5">
-        <ErrorBoundary label="DiscoveryCards">
-          <DiscoveryCards
-            logs={rawLogs}
-            regimens={rawRegimens}
-            isLoading={logsLoading || regimensLoading}
-          />
+      {/* Daily mood + hydration ring — quick-tap micro-trackers that
+          double as data sources for cross-domain correlations on the
+          Progress page (mood-vs-volume, hydration-vs-PRs, etc.). */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 md:mb-6">
+        <ErrorBoundary label="MoodLogCard">
+          <MoodLogCard />
+        </ErrorBoundary>
+        <ErrorBoundary label="HydrationRing">
+          <HydrationRing />
         </ErrorBoundary>
       </div>
+
+      {/* ── Calorie progress + Macro ring ──────────────────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 md:mb-6">
+        <ErrorBoundary label="CalorieProgressWidget">
+          <CalorieProgressWidget userProfile={userProfile} />
+        </ErrorBoundary>
+        <ErrorBoundary label="MacroRingWidget">
+          <MacroRingWidget userProfile={userProfile} />
+        </ErrorBoundary>
+      </div>
+
+      {/* ═══ TIER 3 · Daily engagement & rewards ══════════════════ */}
+
+      {/* ── Daily quests card ───────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.15 }}
+        className="mb-5 md:mb-6"
+      >
+        <ErrorBoundary label="DailyQuestsCard">
+          <DailyQuestsCard />
+        </ErrorBoundary>
+      </motion.div>
+
+      {/* Daily chest — claimable nudge with one-tap claim + Bag open.
+          Self-hides once claimed (or already claimed today). */}
+      <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+
+      {/* "Keep your N-day streak alive — log 1 set?" — appears late in
+          the day (>= 6 PM local) when the user has an active streak
+          but hasn't logged a workout/meal yet. Suppressed on rest days. */}
+      {!isRestDay && (
+        <StreakRescueCard
+          streakDays={streak}
+          lastWorkoutDate={lastWorkoutDate?.toISOString()}
+        />
+      )}
+
+      {/* ── Weekly League card ──────────────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.10 }}
+        className="mb-3"
+      >
+        <ErrorBoundary label="LeagueCard">
+          <LeagueCard onClick={() => setLeagueModalOpen(true)} />
+        </ErrorBoundary>
+      </motion.div>
+
+      {/* Weekly nemesis snapshot — drives competitive identity on the
+          Dashboard surface (rather than only on Workout). Hidden when
+          there's no active assignment. */}
+      {user?.id && (
+        <div className="mb-5 md:mb-6">
+          <ErrorBoundary label="NemesisCard">
+            <NemesisCard currentUserId={user.id} />
+          </ErrorBoundary>
+        </div>
+      )}
+
+      {/* ═══ TIER 4 · Progress & reflection ═══════════════════════ */}
 
       {/* ── Stats strip ────────────────────────────────────────── */}
       <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
@@ -760,13 +812,31 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Calorie progress + Macro ring ──────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5 md:mb-6">
-        <ErrorBoundary label="CalorieProgressWidget">
-          <CalorieProgressWidget userProfile={userProfile} />
+      {/* ── Goals row ─────────────────────────────────────────────
+           Two cooperating components:
+             1. GoalsAlmostComplete — for any goal ≥75%, shows the
+                full-size "Push to Complete" card.
+             2. GoalsProgressStrip — for users whose best active goal
+                is <75%, shows a one-line nudge so the home screen
+                isn't silent about progress in the middle range.
+           They auto-hide via their own filters: the strip checks "no
+           goal ≥75%" before rendering, so they never both show. */}
+      <div className="mb-5 md:mb-6 space-y-3">
+        <ErrorBoundary label="GoalsAlmostComplete">
+          <GoalsAlmostComplete
+            goals={goals}
+            logs={logs}
+            limit={1}
+            compact={false}
+            onOpen={() => setGoalsModalOpen(true)}
+          />
         </ErrorBoundary>
-        <ErrorBoundary label="MacroRingWidget">
-          <MacroRingWidget userProfile={userProfile} />
+        <ErrorBoundary label="GoalsProgressStrip">
+          <GoalsProgressStrip
+            goals={goals}
+            logs={logs}
+            onOpen={() => setGoalsModalOpen(true)}
+          />
         </ErrorBoundary>
       </div>
 
@@ -802,124 +872,7 @@ export default function Dashboard() {
         </ErrorBoundary>
       </div>
 
-      {/* Daily mood + hydration ring — quick-tap micro-trackers that
-          double as data sources for cross-domain correlations on the
-          Progress page (mood-vs-volume, hydration-vs-PRs, etc.). */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-5 md:mb-6">
-        <ErrorBoundary label="MoodLogCard">
-          <MoodLogCard />
-        </ErrorBoundary>
-        <ErrorBoundary label="HydrationRing">
-          <HydrationRing />
-        </ErrorBoundary>
-      </div>
-
-      {/* Readiness Score — composite of sleep + mood + recent-workout
-          recency. Drives the daily train/maintain/deload/rest decision.
-          Hidden when no user. */}
-      <div className="mb-5 md:mb-6">
-        <ErrorBoundary label="ReadinessCard">
-          <ReadinessCard logs={logs} />
-        </ErrorBoundary>
-      </div>
-
-      {/* Weekly nemesis snapshot — drives competitive identity on the
-          Dashboard surface (rather than only on Workout). Hidden when
-          there's no active assignment. */}
-      {user?.id && (
-        <div className="mb-5 md:mb-6">
-          <ErrorBoundary label="NemesisCard">
-            <NemesisCard currentUserId={user.id} />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* ── Daily quote ────────────────────────────────────────── */}
-      <div className="mb-5 md:mb-6">
-        <DailyQuote />
-      </div>
-
-      {/* ── Prestige prompt — only when at max level ───────────── */}
-      {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
-        <ErrorBoundary label="PrestigePrompt">
-          <PrestigePrompt currentPrestige={userProfile.prestige_level || 0} />
-        </ErrorBoundary>
-      )}
-
-      {/* ── Login + Workout streak banners + push opt-in ──────────── */}
-      {/* Each widget wrapped in its own ErrorBoundary so a missing migration
-          or DB error in one doesn't take down the whole Dashboard.
-          PushOptInBanner self-gates: only renders for engaged users
-          (hasWorkouts) on supported devices who haven't subscribed or
-          dismissed. */}
-      <div className="mb-3 space-y-2">
-        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
-        <ErrorBoundary label="PushOptInBanner">
-          <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
-        </ErrorBoundary>
-        <ErrorBoundary label="IosInstallBanner">
-          <IosInstallBanner />
-        </ErrorBoundary>
-        {/* Onboarding nudge — at most one card per day for the first
-            5-7 days. Self-hides once all relevant nudges are completed
-            (or were never relevant to begin with for veterans). */}
-        <ErrorBoundary label="OnboardingNudgeCard">
-          <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
-        </ErrorBoundary>
-      </div>
-
-      {/* ── Weekly League card ──────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.10 }}
-        className="mb-3"
-      >
-        <ErrorBoundary label="LeagueCard">
-          <LeagueCard onClick={() => setLeagueModalOpen(true)} />
-        </ErrorBoundary>
-      </motion.div>
-
-      {/* ── Daily quests card ───────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="mb-5 md:mb-6"
-      >
-        <ErrorBoundary label="DailyQuestsCard">
-          <DailyQuestsCard />
-        </ErrorBoundary>
-      </motion.div>
-
-      {/* ── Goals row ─────────────────────────────────────────────
-           Two cooperating components:
-             1. GoalsAlmostComplete — for any goal ≥75%, shows the
-                full-size "Push to Complete" card.
-             2. GoalsProgressStrip — for users whose best active goal
-                is <75%, shows a one-line nudge so the home screen
-                isn't silent about progress in the middle range.
-           They auto-hide via their own filters: the strip checks "no
-           goal ≥75%" before rendering, so they never both show. */}
-      <div className="mb-5 md:mb-6 space-y-3">
-        <ErrorBoundary label="GoalsAlmostComplete">
-          <GoalsAlmostComplete
-            goals={goals}
-            logs={logs}
-            limit={1}
-            compact={false}
-            onOpen={() => setGoalsModalOpen(true)}
-          />
-        </ErrorBoundary>
-        <ErrorBoundary label="GoalsProgressStrip">
-          <GoalsProgressStrip
-            goals={goals}
-            logs={logs}
-            onOpen={() => setGoalsModalOpen(true)}
-          />
-        </ErrorBoundary>
-      </div>
+      {/* ═══ TIER 5 · Quick actions ═══════════════════════════════ */}
 
       {/* ── Quick Actions ──────────────────────────────────────── */}
       <motion.div
@@ -974,6 +927,35 @@ export default function Dashboard() {
         </div>
       </motion.div>
 
+      {/* ═══ TIER 6 · Social & ambient discovery ══════════════════ */}
+
+      {/* ── Stories ─────────────────────────────────────────────── */}
+      <StoriesRow
+        onViewProfile={(u) =>
+          navigate('/hub?profile=' + encodeURIComponent(u.email))
+        }
+      />
+
+      {/* ── Discovery cards ─────────────────────────────────────
+           Single-slot, prioritized: starter plan → Form Coach → AI Coach.
+           Wrapped in its own ErrorBoundary so a card-level bug never
+           kills the whole Dashboard. Dismissals persist via
+           discoveryPrefs. */}
+      <div className="mb-4 md:mb-5">
+        <ErrorBoundary label="DiscoveryCards">
+          <DiscoveryCards
+            logs={rawLogs}
+            regimens={rawRegimens}
+            isLoading={logsLoading || regimensLoading}
+          />
+        </ErrorBoundary>
+      </div>
+
+      {/* ── Daily quote ────────────────────────────────────────── */}
+      <div className="mb-5 md:mb-6">
+        <DailyQuote />
+      </div>
+
       {/* ── Widgets ────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -982,6 +964,38 @@ export default function Dashboard() {
       >
         <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
       </motion.div>
+
+      {/* ═══ TIER 7 · System prompts (least intrusive, bottom) ════ */}
+
+      {/* ── Login + Workout streak banners + push opt-in ──────────── */}
+      {/* Each widget wrapped in its own ErrorBoundary so a missing migration
+          or DB error in one doesn't take down the whole Dashboard.
+          PushOptInBanner self-gates: only renders for engaged users
+          (hasWorkouts) on supported devices who haven't subscribed or
+          dismissed. */}
+      <div className="mb-3 space-y-2 mt-1">
+        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
+        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
+        <ErrorBoundary label="PushOptInBanner">
+          <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
+        </ErrorBoundary>
+        <ErrorBoundary label="IosInstallBanner">
+          <IosInstallBanner />
+        </ErrorBoundary>
+        {/* Onboarding nudge — at most one card per day for the first
+            5-7 days. Self-hides once all relevant nudges are completed
+            (or were never relevant to begin with for veterans). */}
+        <ErrorBoundary label="OnboardingNudgeCard">
+          <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
+        </ErrorBoundary>
+      </div>
+
+      {/* ── Prestige prompt — only when at max level ───────────── */}
+      {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
+        <ErrorBoundary label="PrestigePrompt">
+          <PrestigePrompt currentPrestige={userProfile.prestige_level || 0} />
+        </ErrorBoundary>
+      )}
 
       <GoalsModal
         open={goalsModalOpen}
