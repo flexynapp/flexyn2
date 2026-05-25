@@ -25,6 +25,17 @@ function plateCalc(weightLbs) {
   return result;
 }
 
+// RIR (reps-in-reserve) quick-tag chips. One-tap labeling instead of
+// typing a number — 0 = taken to failure, 5+ = plenty left in the tank.
+const RIR_OPTIONS = [
+  { v: 0, label: '0' },
+  { v: 1, label: '1' },
+  { v: 2, label: '2' },
+  { v: 3, label: '3' },
+  { v: 4, label: '4' },
+  { v: 5, label: '5+' },
+];
+
 export default function SetRow({ set, index, onChange, onRemove, exerciseName = '', userProfile = {}, prIndex = {}, isBodyweight = false }) {
   const { weightUnit } = useWeightUnit();
   const { t } = useLanguage();
@@ -326,46 +337,57 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         ("how many more reps could you have done"). Standard in
         evidence-based programming (Renaissance Periodization, etc.). */}
     {effortOpen && (
-      <div className="flex items-center gap-2 mt-1.5 pl-8 pr-2">
-        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          RPE
-        </label>
-        <Input
-          type="number"
-          min="1"
-          max="10"
-          step="0.5"
-          inputMode="decimal"
-          value={set.rpe ?? ''}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === '') return onChange({ ...set, rpe: null });
-            const num = parseFloat(v);
-            if (Number.isNaN(num)) return;
-            onChange({ ...set, rpe: Math.max(1, Math.min(10, num)) });
-          }}
-          placeholder="1–10"
-          className="h-7 text-center text-xs flex-1"
-        />
-        <label className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          RIR
-        </label>
-        <Input
-          type="number"
-          min="0"
-          max="10"
-          inputMode="numeric"
-          value={set.rir ?? ''}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === '') return onChange({ ...set, rir: null });
-            const num = parseInt(v, 10);
-            if (Number.isNaN(num)) return;
-            onChange({ ...set, rir: Math.max(0, Math.min(10, num)) });
-          }}
-          placeholder="0–5"
-          className="h-7 text-center text-xs flex-1"
-        />
+      <div className="mt-1.5 pl-8 pr-2 space-y-1.5">
+        {/* RIR — one-tap chips (reps in reserve). Tap to tag, tap the
+            active chip again to clear. Feeds intensity into the Nemesis
+            / auto-pilot engines, not just raw volume. */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RIR</span>
+          <div className="flex gap-1 flex-1">
+            {RIR_OPTIONS.map(({ v, label }) => {
+              const active = set.rir != null && Number(set.rir) === v;
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => { triggerHaptic?.('light'); onChange({ ...set, rir: active ? null : v }); }}
+                  aria-pressed={active}
+                  aria-label={`RIR ${label}`}
+                  className={[
+                    'flex-1 h-7 rounded-md text-xs font-bold transition-colors',
+                    active
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-secondary/60 text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  ].join(' ')}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        {/* RPE — precise optional input (1–10, half-steps) for lifters who
+            prefer the perceived-exertion scale. */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground w-8 shrink-0">RPE</span>
+          <Input
+            type="number"
+            min="1"
+            max="10"
+            step="0.5"
+            inputMode="decimal"
+            value={set.rpe ?? ''}
+            onChange={(e) => {
+              const v = e.target.value;
+              if (v === '') return onChange({ ...set, rpe: null });
+              const num = parseFloat(v);
+              if (Number.isNaN(num)) return;
+              onChange({ ...set, rpe: Math.max(1, Math.min(10, num)) });
+            }}
+            placeholder="1–10 (optional)"
+            className="h-7 text-center text-xs flex-1"
+          />
+        </div>
       </div>
     )}
     {/* Per-set feel — quick emoji palette + freeform note. Stored as
