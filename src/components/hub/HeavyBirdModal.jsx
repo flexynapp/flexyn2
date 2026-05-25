@@ -9,6 +9,17 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 
+// Ambient white embers drifting up over the blue gym backdrop.
+function makeEmbers() {
+  return Array.from({ length: 18 }, () => ({
+    x: Math.random() * 360,
+    y: Math.random() * 640,
+    r: Math.random() * 1.6 + 0.5,
+    vy: Math.random() * 0.4 + 0.15,
+    a: Math.random() * 0.4 + 0.2,
+  }));
+}
+
 export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
   const canvasRef = useRef(null);
   const storageKey = `flexyn.heavyBirdHighScore.${userId || 'anon'}`;
@@ -29,12 +40,19 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
     frameCounter: 0,
     score: 0,
     isFlexing: 0,
+    embers: makeEmbers(),
   });
+
+  // A touchstart on mobile is immediately followed by a synthetic mousedown;
+  // without this guard a single tap registered two hops. Swallow the
+  // mousedown if a real touch fired within the debounce window.
+  const lastTouchRef = useRef(0);
 
   const resetGameState = () => {
     state.current = {
       birdY: 250, velocity: 0, gravity: 0.38, jumpForce: -6.8,
       obstacles: [], frameCounter: 0, score: 0, isFlexing: 0,
+      embers: makeEmbers(),
     };
     setGameOver(false);
     setCurrentWeight(0);
@@ -46,6 +64,16 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
     if (gameOver) { resetGameState(); return; }
     state.current.velocity = state.current.jumpForce;
     state.current.isFlexing = 10;
+  };
+
+  const handleTouch = (e) => {
+    lastTouchRef.current = Date.now();
+    triggerJump(e);
+  };
+
+  const handleMouse = (e) => {
+    if (Date.now() - lastTouchRef.current < 600) return;
+    triggerJump(e);
   };
 
   useEffect(() => {
@@ -93,13 +121,26 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
 
       // 2. Rendering
       ctx.clearRect(0, 0, 360, 640);
-      ctx.fillStyle = '#18181b';
+      const sky = ctx.createLinearGradient(0, 0, 0, 640);
+      sky.addColorStop(0, '#0a2a5e');
+      sky.addColorStop(1, '#071a3a');
+      ctx.fillStyle = sky;
       ctx.fillRect(0, 0, 360, 640);
 
-      ctx.strokeStyle = '#27272a';
+      ctx.strokeStyle = 'rgba(255,255,255,0.05)';
       ctx.lineWidth = 1;
       for (let x = 0; x < 360; x += 40) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 640); ctx.stroke();
+      }
+
+      // Ambient white embers drifting upward.
+      for (const em of s.embers) {
+        em.y -= em.vy;
+        if (em.y < -4) { em.y = 644; em.x = Math.random() * 360; }
+        ctx.beginPath();
+        ctx.arc(em.x, em.y, em.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${em.a})`;
+        ctx.fill();
       }
 
       s.obstacles.forEach((obs) => {
@@ -130,9 +171,9 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
       });
 
       // Floor
-      ctx.fillStyle = '#09090b';
+      ctx.fillStyle = '#06142e';
       ctx.fillRect(0, 580, 360, 60);
-      ctx.fillStyle = '#27272a';
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
       ctx.fillRect(0, 580, 360, 4);
 
       // Swole pigeon
@@ -141,17 +182,17 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
       const tilt = Math.min(Math.max(s.velocity * 0.05, -0.4), 0.7);
       ctx.rotate(tilt);
       if (s.isFlexing > 0) {
-        ctx.fillStyle = '#e4e4e7';
+        ctx.fillStyle = '#fdba74';
         ctx.fillRect(-17, -17, 34, 34);
-        ctx.fillStyle = '#ef4444';
+        ctx.fillStyle = '#dc2626';
         ctx.fillRect(-27, -12, 10, 14);
         ctx.fillRect(17, -12, 10, 14);
         ctx.fillStyle = '#000000';
         ctx.fillRect(6, -8, 4, 4);
       } else {
-        ctx.fillStyle = '#a1a1aa';
+        ctx.fillStyle = '#f97316';
         ctx.fillRect(-17, -17, 34, 34);
-        ctx.fillStyle = '#f59e0b';
+        ctx.fillStyle = '#b45309';
         ctx.beginPath();
         ctx.moveTo(17, -4); ctx.lineTo(25, 0); ctx.lineTo(17, 4);
         ctx.fill();
@@ -184,8 +225,8 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
       {/* Canvas */}
       <div
         className="relative overflow-hidden rounded-xl border-2 border-zinc-800 shadow-2xl active:scale-[0.99] transition-transform"
-        onTouchStart={triggerJump}
-        onMouseDown={triggerJump}
+        onTouchStart={handleTouch}
+        onMouseDown={handleMouse}
       >
         <canvas ref={canvasRef} width="360" height="640" className="block max-w-full" />
 
