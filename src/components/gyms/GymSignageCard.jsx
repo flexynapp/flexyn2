@@ -15,8 +15,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Printer, Download, Loader2 } from 'lucide-react';
+import { X, Printer, Download, Loader2, FileText } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { downloadSignageKit, SIGNAGE_PLACEMENT_COUNT } from '@/lib/gymSignageKit';
 
 export default function GymSignageCard({ open, onClose, gym }) {
   const canvasRef = useRef(null);
@@ -51,7 +53,21 @@ export default function GymSignageCard({ open, onClose, gym }) {
     return () => { cancelled = true; };
   }, [open, gym?.flexyn_code]);
 
+  const [buildingKit, setBuildingKit] = useState(false);
+
   if (!open || !gym) return null;
+
+  const handleKit = async () => {
+    if (buildingKit) return;
+    setBuildingKit(true);
+    const res = await downloadSignageKit(gym);
+    setBuildingKit(false);
+    if (res.ok) {
+      toast.success(`Signage kit downloaded — ${SIGNAGE_PLACEMENT_COUNT} posters.`);
+    } else {
+      toast.error("Couldn't build the PDF kit — try again.");
+    }
+  };
 
   const handlePrint = () => window.print();
   const handleDownload = () => {
@@ -129,15 +145,22 @@ export default function GymSignageCard({ open, onClose, gym }) {
         </div>
 
         {/* Actions — hidden on print */}
-        <div className="flex gap-2 p-4 print:hidden">
-          <Button variant="outline" onClick={handleDownload} disabled={!pngUrl} className="flex-1 gap-2">
-            <Download className="w-4 h-4" />
-            Download PNG
+        <div className="p-4 print:hidden space-y-2">
+          {/* Primary: one-click multi-poster PDF kit */}
+          <Button onClick={handleKit} disabled={generating || buildingKit} className="w-full gap-2">
+            {buildingKit ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+            {buildingKit ? 'Building kit…' : `Download print kit (PDF · ${SIGNAGE_PLACEMENT_COUNT} posters)`}
           </Button>
-          <Button onClick={handlePrint} disabled={generating} className="flex-1 gap-2">
-            <Printer className="w-4 h-4" />
-            Print
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={handleDownload} disabled={!pngUrl} className="flex-1 gap-2">
+              <Download className="w-4 h-4" />
+              PNG
+            </Button>
+            <Button variant="outline" onClick={handlePrint} disabled={generating} className="flex-1 gap-2">
+              <Printer className="w-4 h-4" />
+              Print
+            </Button>
+          </div>
         </div>
       </motion.div>
 
