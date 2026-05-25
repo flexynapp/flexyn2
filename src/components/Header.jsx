@@ -107,7 +107,7 @@ export default function Header() {
           <button
             onClick={handleLogoTap}
             aria-label="Go to dashboard"
-            className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:opacity-80 transition-opacity"
+            className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
             <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
           </button>
@@ -121,8 +121,8 @@ export default function Header() {
             + truncate, the title ellipsizes and the right-side
             icons stay fully visible. */}
         <button
-          onClick={() => navigate('/dashboard')}
-          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-left hover:opacity-80 transition-opacity px-2"
+          onClick={handleLogoTap}
+          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-left hover:opacity-80 transition-opacity px-2 touch-manipulation"
         >
           {isChildRoute ? title : t('app.name')}
         </button>
