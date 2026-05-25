@@ -921,21 +921,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                   </button>
                 </>
               )}
-
-              {/* 👾 Hidden easter-egg trigger — only on the @sean admin
-                  profile. Subtle until hover; opens the Iron Snake game. */}
-              {showSnakeEgg && (
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setSnakeOpen(true); }}
-                  aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-                  title="???"
-                  className="absolute -top-2 -right-2 z-30 w-6 h-6 flex items-center justify-center rounded-full bg-card/85 border border-border/60 text-sm leading-none opacity-60 hover:opacity-100 hover:scale-110 transition-transform focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:opacity-100"
-                  style={{ boxShadow: '0 1px 4px rgba(0,0,0,0.25)' }}
-                >
-                  <span aria-hidden="true">👾</span>
-                </button>
-              )}
             </div>
 
             {/* Add status note trigger — own profile, no active note */}
@@ -1054,6 +1039,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             })()}
 
           </div>
+
+          {/* 👾 Hidden easter-egg trigger — standalone button (NOT on the
+              avatar), only on the @sean admin profile. Opens Iron Snake. */}
+          {showSnakeEgg && (
+            <button
+              type="button"
+              onClick={() => setSnakeOpen(true)}
+              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+              title="???"
+              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span aria-hidden="true">👾</span>
+            </button>
+          )}
 
           {/* Edit profile — single entry point, always visible for self so
               bio / location / link / avatar are all editable even before
