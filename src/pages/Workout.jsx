@@ -12,7 +12,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2 } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator } from 'lucide-react';
+import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import CardioSection from '@/components/cardio/CardioSection';
@@ -191,6 +192,7 @@ export default function Workout() {
   const [missingDataWarning, setMissingDataWarning] = useState(null);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
+  const [plateCalcOpen, setPlateCalcOpen] = useState(false);
 
   const guard = useMultiProfanityGuard();
   const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
@@ -2178,6 +2180,15 @@ export default function Workout() {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
+        {/* Plate calculator — type any weight, see what to load per side. */}
+        <button
+          type="button"
+          onClick={() => setPlateCalcOpen(true)}
+          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+        >
+          <Calculator className="w-4 h-4" />
+          {tFallback('workout.plateCalc', 'Plate calculator')}
+        </button>
       </Card>
 
       {(() => {
@@ -2569,6 +2580,9 @@ export default function Workout() {
           <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
         )}
       </AnimatePresence>
+
+      {/* Plate calculator — on-demand "what to load per side" sheet */}
+      <PlateCalculatorModal open={plateCalcOpen} onClose={() => setPlateCalcOpen(false)} />
     </motion.div>
   );
 }
