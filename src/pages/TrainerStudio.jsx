@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import EmptyState from '@/components/EmptyState';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { formatCents, calculateSplit } from '@/lib/trainerSplit';
 import {
   getMyListings, getMyRevenue, setPublished, deleteListing, becomeTrainer,
@@ -131,7 +132,7 @@ export default function TrainerStudio() {
           action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
         />
       ) : (
-        <>
+        <ErrorBoundary label="TrainerStudio.body">
           {/* Revenue summary */}
           <div className="grid grid-cols-3 gap-3 mb-4">
             {[
@@ -243,20 +244,22 @@ export default function TrainerStudio() {
               })}
             </div>
           )}
-        </>
+        </ErrorBoundary>
       )}
 
       {formOpen && (
-        <Suspense fallback={null}>
-          <ListingFormModal
-            open={formOpen}
-            onClose={() => { setFormOpen(false); setEditingListing(null); }}
-            listing={editingListing}
-            trainerId={user?.id}
-            userEmail={user?.email}
-            onSaved={() => { setFormOpen(false); setEditingListing(null); refresh(); }}
-          />
-        </Suspense>
+        <ErrorBoundary label="ListingFormModal">
+          <Suspense fallback={null}>
+            <ListingFormModal
+              open={formOpen}
+              onClose={() => { setFormOpen(false); setEditingListing(null); }}
+              listing={editingListing}
+              trainerId={user?.id}
+              userEmail={user?.email}
+              onSaved={() => { setFormOpen(false); setEditingListing(null); refresh(); }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
     </motion.div>
   );

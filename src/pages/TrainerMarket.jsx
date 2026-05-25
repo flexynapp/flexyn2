@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { formatCents } from '@/lib/trainerSplit';
 import {
   listPublishedListings, listMyPurchasedListingIds, startCheckout,
@@ -117,6 +118,7 @@ export default function TrainerMarket() {
           action={{ label: 'Open creator studio', onClick: () => navigate('/trainer/studio') }}
         />
       ) : (
+        <ErrorBoundary label="TrainerMarket.grid">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {listings.map(listing => {
             const owned = ownedIds.has(listing.id);
@@ -157,6 +159,7 @@ export default function TrainerMarket() {
             );
           })}
         </div>
+        </ErrorBoundary>
       )}
     </motion.div>
   );

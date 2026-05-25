@@ -56,13 +56,18 @@ export async function listMyVerifications(userId) {
 }
 
 // ── Admin: list pending + approve/reject ───────────────────────────
+// Both paths route through SECURITY DEFINER RPCs gated on is_app_admin
+// (mig 148). Previously listPending used a direct SELECT that the
+// "read own" RLS policy clamped to zero rows (admins saw an empty
+// queue); reject used a direct UPDATE with no UPDATE policy/grant
+// (button did nothing). Both are server-gated now.
 export async function listPendingVerifications() {
-  const { data, error } = await supabase
-    .from('gym_verification_queue')
-    .select('*')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true });
-  if (error) return [];
+  const { data, error } = await supabase.rpc('list_pending_gym_verifications', { p_limit: 200 });
+  if (error) {
+    // Fail closed: if the migration hasn't deployed yet, return [] so
+    // the admin queue UI shows "no pending" rather than crashing.
+    return [];
+  }
   return data || [];
 }
 
@@ -75,15 +80,12 @@ export async function approveVerification(verificationId) {
 }
 
 export async function rejectVerification(verificationId, reason) {
-  const { error } = await supabase
-    .from('gym_verification_queue')
-    .update({
-      status: 'rejected',
-      reviewed_at: new Date().toISOString(),
-      rejection_reason: reason || null,
-    })
-    .eq('id', verificationId);
-  return { ok: !error };
+  const { error } = await supabase.rpc('reject_gym_verification', {
+    p_id: verificationId,
+    p_reason: reason || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 // ── User side: join + list ─────────────────────────────────────────
