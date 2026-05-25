@@ -244,7 +244,7 @@ function flagUrl(emoji) {
 
 export default function HubProfile({ targetUser = null, onSelectUser = null, onStartConversation = null }) {
   const { t, tFallback, language } = useLanguage();
-  const { user } = useAuth();
+  const { user, checkUserAuth } = useAuth();
   // Read the user's currently-equipped theme from ThemeContext (always fresh)
   // instead of useAuth().user, which only loads once at bootstrap and doesn't
   // refresh when the user equips a new theme — that's why a freshly-applied
@@ -269,6 +269,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [noteLocalLiked, setNoteLocalLiked] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [cityDraft, setCityDraft] = useState('');
+  const [bioDraft, setBioDraft] = useState('');
   const [websiteUrlDraft, setWebsiteUrlDraft] = useState('');
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
@@ -646,7 +647,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      const updates = { city: cityDraft.trim() };
+      const updates = { city: cityDraft.trim(), bio: bioDraft.trim() || null };
       // website_url: normalise — prepend https:// if the user omitted a scheme
       const rawUrl = websiteUrlDraft.trim();
       if (rawUrl) {
@@ -655,6 +656,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         updates.website_url = null;
       }
       await me.update(updates);
+      // For the OWN profile the card reads from useAuth().user (not the
+      // hubProfileLookup cache, which is null for self), so refresh the
+      // auth user to reflect the new bio / city / link immediately.
+      await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
       setEditProfileOpen(false);
       toast.success('Saved. Looking sharp.');
@@ -1022,26 +1027,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               );
             })()}
 
-            {/* Edit profile (own, no city/flag yet) */}
-            {isSelf && !city && !countryFlag && (
-              <button
-                type="button"
-                onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
-                className="flex items-center gap-1 mt-1 text-[11px] text-muted-foreground hover:text-primary transition-colors"
-              >
-                <MapPin className="w-3 h-3" />
-                Add location
-              </button>
-            )}
           </div>
 
-          {/* Edit pencil (own profile, city already set) */}
-          {isSelf && (city || countryFlag) && (
+          {/* Edit profile — single entry point, always visible for self so
+              bio / location / link / avatar are all editable even before
+              anything's been filled in. */}
+          {isSelf && (
             <button
               type="button"
-              onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
+              onClick={() => { setCityDraft(city); setBioDraft(bio); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
               className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors shrink-0"
-              aria-label="Edit location"
+              aria-label={tFallback('hub.profile.editProfile', 'Edit profile')}
             >
               <Pencil className="w-3.5 h-3.5" />
             </button>
@@ -1091,6 +1087,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     size={44}
                   />
                   <span className="text-xs text-muted-foreground">Tap to change avatar</span>
+                </div>
+                {/* Bio */}
+                <div className="flex items-start gap-2 pt-1 border-t border-border/40">
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1.5" />
+                  <div className="flex-1">
+                    <textarea
+                      value={bioDraft}
+                      onChange={e => setBioDraft(e.target.value.slice(0, 160))}
+                      placeholder={tFallback('hub.profile.bioPlaceholder', 'Write a short bio…')}
+                      rows={3}
+                      className="w-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50 resize-none leading-relaxed"
+                    />
+                    <div className="text-[10px] text-muted-foreground/60 text-end">{bioDraft.length}/160</div>
+                  </div>
                 </div>
                 <div className="flex items-center gap-2 pt-1 border-t border-border/40">
                   <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />

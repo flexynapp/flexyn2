@@ -324,11 +324,11 @@ export default function ProfileMenu() {
                         <LanguagePicker variant="compact" iconOnly />
                       </div>
                     </div>
-                    {/* Account — routes to own public profile */}
+                    {/* Account — routes to own profile via the clean /profile URL */}
                     <button
                       onClick={() => {
                         setOpen(false);
-                        navigate(`/hub?profile=${encodeURIComponent(user?.email || '')}`);
+                        navigate('/profile');
                       }}
                       className="w-full flex items-center justify-between px-4 py-3 text-sm hover:bg-secondary transition-colors"
                     >

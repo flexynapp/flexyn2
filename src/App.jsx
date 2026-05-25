@@ -307,6 +307,9 @@ const AuthenticatedApp = () => {
           <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
           <Route path="/workout"   element={<ErrorBoundary label="Workout"><Suspense fallback={<PageLoader />}><Workout /></Suspense></ErrorBoundary>} />
           <Route path="/hub"       element={<ErrorBoundary label="Hub"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
+          {/* Clean own-profile URL — renders Hub, which opens the profile
+              sub-view for the signed-in user when the path is /profile. */}
+          <Route path="/profile"   element={<ErrorBoundary label="Profile"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
           <Route path="/messages"  element={<ErrorBoundary label="Messages"><Suspense fallback={<PageLoader />}><Messages /></Suspense></ErrorBoundary>} />
           <Route path="/market"    element={<ErrorBoundary label="Market"><Suspense fallback={<PageLoader />}><Market /></Suspense></ErrorBoundary>} />
           <Route path="/coach"     element={<ErrorBoundary label="Coach"><Suspense fallback={<PageLoader />}><Coach /></Suspense></ErrorBoundary>} />

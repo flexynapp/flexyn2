@@ -38,14 +38,28 @@ const EMBERS = [
 export default function Hub() {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
-  const [section, setSection] = useState('feed');
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  // Resolve any deep-link target up front (lazy state init) so a
+  // `?profile=<email>` link OR the /profile route lands directly on the
+  // profile view. Previously a mount effect reset section→'feed' AFTER
+  // the deep-link effect set it to 'profile', so the first tap landed on
+  // the feed and you had to navigate again — the "double-click to open
+  // profile" bug. Reading the URL here removes that race entirely.
+  const initialProfileEmail = new URLSearchParams(location.search).get('profile');
+  const isProfilePath = location.pathname === '/profile';
+
+  const [section, setSection] = useState(
+    (initialProfileEmail || isProfilePath) ? 'profile' : 'feed'
+  );
   const [feedTab, setFeedTab] = useState('pump');
   const [composerOpen, setComposerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [profileTarget, setProfileTarget] = useState(null);
+  const [profileTarget, setProfileTarget] = useState(
+    initialProfileEmail ? { email: decodeURIComponent(initialProfileEmail) } : null
+  );
   const [pendingCrewId, setPendingCrewId] = useState(null);
-  const location = useLocation();
-  const navigate = useNavigate();
 
   const startConversation = useStartConversation();
 
@@ -89,11 +103,6 @@ export default function Hub() {
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
   }, [location.search, navigate]);
-
-  useEffect(() => {
-    setSection('feed');
-    setProfileTarget(null);
-  }, []);
 
   // flexyn:open-crew — fired by CrewDMInviteCard when user accepts a DM invite
   useEffect(() => {
