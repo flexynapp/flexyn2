@@ -13,11 +13,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import {
   X, Send, Check, Link2,
-  ExternalLink,
+  ExternalLink, Shield,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
+import { getMyCrews, sendCrewMessage } from '@/lib/data/crews';
 import { toast } from 'sonner';
 
 // ── Twitter/X SVG icon ───────────────────────────────────────────────────────
@@ -41,9 +42,10 @@ function WhatsAppIcon({ size = 16 }) {
 export default function ShareSheetModal({ post, open, onClose }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
-  const [tab, setTab]         = useState('external'); // 'dm' | 'external'
+  const [tab, setTab]         = useState('external'); // 'dm' | 'crew' | 'external'
   const [copied, setCopied]   = useState(false);
   const [dmSending, setDmSending] = useState(null); // email being sent to
+  const [crewSending, setCrewSending] = useState(null); // crew id being sent to
 
   const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
   const postUrl = post.author_email
@@ -52,11 +54,23 @@ export default function ShareSheetModal({ post, open, onClose }) {
   const postText = (post.body || post.content || 'Check out this post on Flexyn').slice(0, 200);
   const shareTitle = post.author_name ? `${post.author_name} on Flexyn` : 'Flexyn';
 
+  // Shared forward body — same format for DM + Crew so a forwarded post
+  // reads consistently in either chat.
+  const forwardBody = `📤 Shared a post:\n${postUrl}\n\n"${postText.slice(0, 100)}${postText.length > 100 ? '…' : ''}"`;
+
   // Load conversation list for DM tab
   const { data: conversations = [] } = useQuery({
     queryKey: ['hubConversations', user?.email],
     queryFn: () => hubMessages.listMyConversations(user.email),
     enabled: !!user?.email && tab === 'dm',
+    staleTime: 60_000,
+  });
+
+  // Load the user's crews for the Crew tab
+  const { data: crews = [] } = useQuery({
+    queryKey: ['myCrews', user?.id],
+    queryFn: () => getMyCrews(user.id),
+    enabled: !!user?.id && tab === 'crew',
     staleTime: 60_000,
   });
 
@@ -93,7 +107,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
         conversationId: conv.id,
         senderEmail: user.email,
         recipientEmail: otherEmail,
-        body: `📤 Shared a post:\n${postUrl}\n\n"${postText.slice(0, 100)}${postText.length > 100 ? '…' : ''}"`,
+        body: forwardBody,
       });
       toast.success('Sent in DM!');
       onClose();
@@ -101,6 +115,20 @@ export default function ShareSheetModal({ post, open, onClose }) {
       toast.error('Could not send — try again.');
     } finally {
       setDmSending(null);
+    }
+  };
+
+  const handleSendCrew = async (crew) => {
+    if (!user?.id || crewSending) return;
+    setCrewSending(crew.id);
+    try {
+      await sendCrewMessage(crew.id, user.id, 'text', forwardBody);
+      toast.success(`Sent to ${crew.name}!`);
+      onClose();
+    } catch {
+      toast.error('Could not send — try again.');
+    } finally {
+      setCrewSending(null);
     }
   };
 
@@ -134,15 +162,19 @@ export default function ShareSheetModal({ post, open, onClose }) {
 
             {/* Tab switcher */}
             <div className="flex gap-1 mx-4 mb-3 p-1 rounded-lg bg-secondary/50">
-              {['dm', 'external'].map(t => (
+              {[
+                { id: 'dm', label: '💬 DM' },
+                { id: 'crew', label: '🛡️ Crew' },
+                { id: 'external', label: '🌐 Other' },
+              ].map(t => (
                 <button
-                  key={t}
-                  onClick={() => setTab(t)}
+                  key={t.id}
+                  onClick={() => setTab(t.id)}
                   className={`flex-1 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                    tab === t ? 'bg-card shadow text-foreground' : 'text-muted-foreground'
+                    tab === t.id ? 'bg-card shadow text-foreground' : 'text-muted-foreground'
                   }`}
                 >
-                  {t === 'dm' ? '💬 Send in DM' : '🌐 Share to...'}
+                  {t.label}
                 </button>
               ))}
             </div>
@@ -178,6 +210,36 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       </button>
                     );
                   })
+                )}
+              </div>
+            )}
+
+            {/* Crew tab */}
+            {tab === 'crew' && (
+              <div className="px-4 max-h-64 overflow-y-auto space-y-1">
+                {crews.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">
+                    You're not in any crews yet.
+                  </p>
+                ) : (
+                  crews.map(crew => (
+                    <button
+                      key={crew.id}
+                      onClick={() => handleSendCrew(crew)}
+                      disabled={!!crewSending}
+                      className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-secondary transition-colors disabled:opacity-60"
+                    >
+                      <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                        <Shield className="w-4 h-4" />
+                      </div>
+                      <span className="flex-1 text-sm font-medium text-left truncate">{crew.name}</span>
+                      {crewSending === crew.id ? (
+                        <span className="text-xs text-muted-foreground">Sending…</span>
+                      ) : (
+                        <Send className="w-4 h-4 text-muted-foreground shrink-0" />
+                      )}
+                    </button>
+                  ))
                 )}
               </div>
             )}
