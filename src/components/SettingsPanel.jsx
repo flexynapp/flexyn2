@@ -162,14 +162,20 @@ export default function SettingsPanel() {
         // but profile-level values were unguarded.
         if (editingStat === 'weight_lbs') {
           const lbs = toLbs(parsed, weightUnit);
-          if (lbs < 50 || lbs > 800) {
-            toast.error(tFallback('settings.validation.weightRange', 'Weight must be between 50 and 800 lb (23–363 kg).'));
+          // Range tightened to 70-700 lb (32-318 kg) — the prior 50 lb
+          // lower bound let a fat-finger entry corrupt the profile to a
+          // small-child-sized weight that makes no sense for an adult
+          // fitness app. (Audit 14 #11.)
+          if (lbs < 70 || lbs > 700) {
+            toast.error(tFallback('settings.validation.weightRange', 'Weight must be between 70 and 700 lb (32–318 kg).'));
             return;
           }
           await db.auth.updateMe({ weight_lbs: lbs });
         } else if (editingStat === 'height_inches') {
-          if (parsed < 24 || parsed > 96) {
-            toast.error(tFallback('settings.validation.heightRange', 'Height must be between 24 and 96 inches (61–244 cm).'));
+          // Tightened from 24-96 to 48-90 in (122-229 cm) for the same
+          // reason — 24 inches is a toddler. (Audit 14 #11.)
+          if (parsed < 48 || parsed > 90) {
+            toast.error(tFallback('settings.validation.heightRange', 'Height must be between 48 and 90 inches (122–229 cm).'));
             return;
           }
           await db.auth.updateMe({ height_inches: parsed });
@@ -267,7 +273,16 @@ export default function SettingsPanel() {
     try {
       const { error } = await supabase.from('user_profiles').update({ [column]: next }).eq('id', user.id);
       if (error) throw error;
+      // Invalidate every query whose visibility is gated on this
+      // profile flag — without this, other-profile views and the
+      // hub feed stay stale until their staleTime expires (up to 5m).
+      // (Audit 14 #10.)
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+      queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['hubProfilePosts'] });
+      queryClient.invalidateQueries({ queryKey: ['profileStories'] });
+      queryClient.invalidateQueries({ queryKey: ['hubProfile'] });
+      queryClient.invalidateQueries({ queryKey: ['hubSearch'] });
     } catch {
       setLocal(prev);
       toast.error('Could not update privacy. Try again.');
@@ -282,7 +297,7 @@ export default function SettingsPanel() {
     try {
       const mod = await import('@/lib/data/dataExport');
       const data = await mod.buildExport(user);
-      mod.downloadExport(data);
+      await mod.downloadExport(data);
       toast.success('Data export downloaded.');
     } catch (err) {
       toast.error(`Export failed: ${err?.message || 'try again'}`);
@@ -660,23 +675,37 @@ export default function SettingsPanel() {
 
       {/* Haptic feedback — per-device. When on, primary actions fire a
           short tick. The toggle itself fires a sample haptic when
-          enabled so the user immediately feels what it's controlling. */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Vibrate className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
-          <p id="settings-haptics-label" className="text-xs text-foreground leading-tight">
-            {tFallback('settings.haptics', 'Haptic feedback')}
-          </p>
+          enabled so the user immediately feels what it's controlling.
+          We detect whether the browser exposes navigator.vibrate at
+          all — on desktops and iOS-without-permission the API is
+          missing and flipping the toggle does nothing, so we surface
+          a hint instead of leaving the user wondering. (Audit 14 #15.) */}
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Vibrate className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
+            <p id="settings-haptics-label" className="text-xs text-foreground leading-tight">
+              {tFallback('settings.haptics', 'Haptic feedback')}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={hapticsEnabled}
+            onChange={(next) => {
+              setHapticsEnabledLocal(next);
+              setHapticsDisabled(!next);
+              if (next) triggerHaptic('primary'); // sample feel
+            }}
+            labelledBy="settings-haptics-label"
+          />
         </div>
-        <ToggleSwitch
-          checked={hapticsEnabled}
-          onChange={(next) => {
-            setHapticsEnabledLocal(next);
-            setHapticsDisabled(!next);
-            if (next) triggerHaptic('primary'); // sample feel
-          }}
-          labelledBy="settings-haptics-label"
-        />
+        {typeof navigator !== 'undefined' && !('vibrate' in navigator) && (
+          <p className="pl-5 text-[10px] text-muted-foreground/80 leading-tight mt-0.5">
+            {tFallback(
+              'settings.haptics.unsupported',
+              'Vibration is not supported on this device.'
+            )}
+          </p>
+        )}
       </div>
 
       {/* Sound effects — opt-in, default off. When on, primary actions

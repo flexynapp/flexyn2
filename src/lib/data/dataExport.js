@@ -34,6 +34,28 @@ const EXPORT_TABLES = [
   { name: 'hub_posts',        table: 'hub_posts',      column: 'author_email', via: 'email' },
   { name: 'hub_comments',     table: 'hub_comments',   column: 'created_by',   via: 'email' },
   { name: 'hub_messages_sent',table: 'hub_messages',   column: 'sender_email', via: 'email' },
+  // Health / wellness logs — GDPR Article 20 (right to data portability)
+  // covers ALL user-furnished data. The export previously omitted these
+  // even though _invokeDeleteAccount knew about them. (Audit 14 #20.)
+  { name: 'injury_logs',      table: 'injury_logs',    column: 'created_by',   via: 'email' },
+  { name: 'sleep_logs',       table: 'sleep_logs',     column: 'user_id',      via: 'id' },
+  { name: 'mood_logs',        table: 'mood_logs',      column: 'user_id',      via: 'id' },
+  { name: 'cycle_logs',       table: 'cycle_logs',     column: 'user_id',      via: 'id' },
+  // Social membership + interactions
+  { name: 'gym_members',          table: 'gym_members',          column: 'user_id',      via: 'id' },
+  { name: 'gym_event_rsvps',      table: 'gym_event_rsvps',      column: 'user_id',      via: 'id' },
+  { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_email', via: 'email' },
+  { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'created_by',   via: 'email' },
+  { name: 'crew_messages_sent',   table: 'crew_messages',        column: 'sender_email', via: 'email' },
+  { name: 'crew_message_reactions', table: 'crew_messages_reactions', column: 'user_email', via: 'email' },
+  // Marketplace + trainer purchase history
+  { name: 'marketplace_listings', table: 'marketplace_listings', column: 'seller_email', via: 'email' },
+  { name: 'trainer_purchases',    table: 'trainer_purchases',    column: 'buyer_email',  via: 'email' },
+  { name: 'organization_members', table: 'organization_members', column: 'user_id',      via: 'id' },
+  // Privacy-list and device subs
+  { name: 'user_blocks',          table: 'user_blocks',          column: 'blocker_id',   via: 'id' },
+  { name: 'user_mutes',           table: 'user_mutes',           column: 'muter_id',     via: 'id' },
+  { name: 'push_subscriptions',   table: 'push_subscriptions',   column: 'user_id',      via: 'id' },
 ];
 
 /**
@@ -82,14 +104,34 @@ export async function buildExport(user) {
  * @param {object} exportData  the result of buildExport()
  * @param {string} [filename]  override the default filename
  */
-export function downloadExport(exportData, filename) {
+export async function downloadExport(exportData, filename) {
   const json = JSON.stringify(exportData, null, 2);
   const blob = new Blob([json], { type: 'application/json' });
+  const stamp = (exportData?.exported_at || new Date().toISOString()).replace(/[:.]/g, '-').slice(0, 19);
+  const name = filename || `flexyn-data-${stamp}.json`;
+
+  // iOS Safari quirk: `<a download>` opens the JSON inline in a new
+  // tab rather than saving it. Try the Web Share API first so the
+  // user gets a real share sheet (Files / iCloud / Mail). Fall back
+  // to the `<a download>` path on other browsers. (Audit 14 #21.)
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !/Edg|Chrome/.test(ua);
+  if (isIOS && typeof navigator !== 'undefined' && navigator.canShare) {
+    try {
+      const file = new File([blob], name, { type: 'application/json' });
+      if (navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Flexyn data export' });
+        return;
+      }
+    } catch {
+      // user cancelled or share failed — fall through to download path
+    }
+  }
+
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  const stamp = (exportData?.exported_at || new Date().toISOString()).replace(/[:.]/g, '-').slice(0, 19);
   a.href = url;
-  a.download = filename || `flexyn-data-${stamp}.json`;
+  a.download = name;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

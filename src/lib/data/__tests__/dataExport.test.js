@@ -95,7 +95,7 @@ describe('buildExport', () => {
 });
 
 describe('downloadExport', () => {
-  it('triggers an <a download> click with a sensible filename', () => {
+  it('triggers an <a download> click with a sensible filename', async () => {
     const origCreate = document.createElement.bind(document);
     const click = vi.fn();
     const anchor = origCreate('a');
@@ -107,7 +107,7 @@ describe('downloadExport', () => {
     URL.createObjectURL = vi.fn(() => 'blob:mock');
     URL.revokeObjectURL = vi.fn();
 
-    downloadExport({ exported_at: '2025-05-21T19:00:00Z', sections: {} });
+    await downloadExport({ exported_at: '2025-05-21T19:00:00Z', sections: {} });
 
     expect(click).toHaveBeenCalled();
     expect(anchor.download).toMatch(/flexyn-data-/);
