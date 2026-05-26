@@ -405,34 +405,40 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
           ctaLabel={tFallback('discovery.pushOptIn.cta', 'Enable reminders')}
           dismissAriaLabel={tFallback('discovery.pushOptIn.dismissLabel', 'Not now')}
           onCta={async () => {
-            // CTA flow: dismiss the card first (so it disappears on
-            // tap regardless of permission outcome), then call
-            // push.subscribe() which triggers the browser's native
-            // Notification.requestPermission(). Sonner toast on
-            // every outcome so the user never wonders what happened.
-            handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
+            // AWAIT the subscribe before dismissing so we know what to
+            // do based on the outcome:
+            //   - ok       → dismiss permanently
+            //   - default  → user dismissed the native prompt; KEEP the
+            //                card visible so they can try again later
+            //   - denied   → dismiss (we can't request again from a denied state)
+            //   - other err → dismiss + log
+            // Previously the card was dismissed BEFORE the await, so a
+            // user who closed the native prompt by accident had no path
+            // back to enable. (Audit 08 #4.)
             try {
               const res = await push.subscribe();
               if (res.ok) {
+                handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
                 toast.success(
                   tFallback('discovery.pushOptIn.toastEnabled', 'Reminders enabled — change anytime in Settings.')
                 );
               } else if (res.reason === 'denied') {
+                handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
                 toast.error(
                   tFallback('discovery.pushOptIn.toastDenied', 'Notifications blocked at the browser level. Re-enable from your browser settings if you change your mind.')
                 );
               } else if (res.reason === 'unsupported') {
+                handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN);
                 toast.error(
                   t('discovery.pushOptIn.toastUnsupported') ||
                   "This device doesn't support push notifications yet."
                 );
               }
-              // 'default' (dismissed the native prompt) or 'server_error'
-              // → no toast; we already updated localStorage so the card
-              // won't immediately reappear, and a generic error here would
-              // be confusing.
+              // 'default' / 'server_error' / no outcome — leave the
+              // card visible so the user can retry.
             } catch (err) {
               reportError(err, { feature: 'dashboard.push-optin', userEmail: user?.email });
+              // Don't dismiss on unknown error — let the user try again.
             }
           }}
           onDismiss={() => handleDismiss(DISCOVERY_CARDS.PUSH_OPTIN)}

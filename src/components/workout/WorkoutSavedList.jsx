@@ -13,6 +13,12 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { getDateLocale } from '@/lib/dateLocales';
 import { useNumberFormatter } from '@/lib/intl';
+// Shared volume calculator used everywhere else (LiveVolumePill, save
+// mutation, WorkoutShareCard). Importing here closes the drift bug
+// where the Saved Workouts list showed a DIFFERENT total volume than
+// the rest of the app for the same workout because it ignored the
+// user's bar-weight inclusion preference. (Audit 09 #H-6.)
+import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,6 +54,16 @@ export default function WorkoutSavedList({ onSelectLog }) {
     enabled: !!user?.email,
   });
 
+  // Read the user's bar-weight inclusion preference so the volume math
+  // here matches LiveVolumePill / save / share card exactly.
+  const { data: userProfile = {} } = useQuery({
+    queryKey: ['userProfile', user?.email],
+    queryFn: () => db.auth.me(),
+    enabled: !!user?.email,
+    staleTime: 60_000,
+  });
+  const includeBar = !!userProfile?.include_bar_in_volume;
+
   if (isLoading) {
     return (
       <div className="space-y-3">
@@ -77,9 +93,12 @@ export default function WorkoutSavedList({ onSelectLog }) {
       {logs.map(log => {
         const exercises = log.exercises || [];
         const totalSets = exercises.reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
-        const totalVolumeLbs = exercises.reduce((sum, ex) =>
-          sum + (ex.sets || []).reduce((s, set) =>
-            s + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0), 0);
+        // Use the shared totalVolume calculator so this number matches
+        // the LiveVolumePill, save mutation, and share card. Previously
+        // an inline `weight * reps` ignored the user's include_bar
+        // preference — kg users with bar inclusion on saw the saved
+        // list under-count relative to the active session pill.
+        const totalVolumeLbs = computeTotalVolume(exercises, { includeBarWeight: includeBar });
         const totalVolumeDisplay = totalVolumeLbs > 0
           ? `${fmt(Math.round(fromLbs(totalVolumeLbs, weightUnit)))} ${weightUnit}`
           : '';
