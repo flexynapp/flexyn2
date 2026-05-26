@@ -626,9 +626,14 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
 
   // ── Repost ───────────────────────────────────────────────────────────────────
   const [reposting, setReposting] = useState(false);
+  // Synchronous in-flight guard. `reposting` state is set
+  // asynchronously, so a fast double-tap on the repost button could
+  // enter handleRepost twice and produce two duplicate reposts. Same
+  // pattern fixed in HubComposer + Workout save.
+  const repostInFlightRef = useRef(false);
   const handleRepost = async (e) => {
     e.stopPropagation();
-    if (!user?.email || reposting) return;
+    if (!user?.email || reposting || repostInFlightRef.current) return;
     // Privacy clamp: a public repost of a non-public original would
     // expose the original to viewers the author never opted-in to share
     // with. Block reposts of followers/private posts entirely and toast
@@ -641,6 +646,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
       );
       return;
     }
+    repostInFlightRef.current = true;
     setReposting(true);
     try {
       await hubPosts.create({
@@ -656,6 +662,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     } catch {
       toast.error(tFallback('hub.post.repostError', 'Could not repost'));
     } finally {
+      repostInFlightRef.current = false;
       setReposting(false);
     }
   };
