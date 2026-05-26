@@ -29,9 +29,15 @@ function isWaterEntry(e) {
   return e?.food_name === 'Water' || e?.food_name?.startsWith?.('Water|') || e?.water_oz != null;
 }
 function waterEntryOz(e) {
-  if (e?.water_oz != null) return Number(e.water_oz) || 0;
+  // Number.isFinite-based guards instead of `|| N` so a legitimate
+  // zero-oz row doesn't get silently bumped to 8oz. (Audit 08 #18.)
+  if (e?.water_oz != null) {
+    const n = Number(e.water_oz);
+    return Number.isFinite(n) ? n : 0;
+  }
   if (e?.food_name?.startsWith?.('Water|')) {
-    return Number(e.food_name.split('|')[1]) || 8;
+    const n = Number(e.food_name.split('|')[1]);
+    return Number.isFinite(n) && n > 0 ? n : 8;
   }
   return 8; // default cup size when only "Water" was logged
 }

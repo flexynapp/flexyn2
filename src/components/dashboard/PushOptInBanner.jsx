@@ -61,12 +61,23 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
 
   // Initialize the dismissed state from localStorage once the user is
   // known. We start `true` (hidden) so a flash of the banner doesn't
-  // appear before we've read the flag — a known UX paper cut on
-  // initial-mount async-readable state.
+  // appear before we've read the flag.
+  //
+  // ALSO: if the browser permission is currently 'default' (the user
+  // hasn't been asked, or they backed out of the native prompt last
+  // time), treat the prior dismissal as expired. Previously we
+  // perma-dismissed on any "denied" outcome including the native
+  // prompt being closed — users who later enabled notifications in
+  // browser settings could never see the banner again from Dashboard.
+  // (Audit 08 #23.)
   useEffect(() => {
     if (!user?.id) return;
+    if (push.permission === 'default') {
+      setDismissed(false);
+      return;
+    }
     setDismissed(readDismissed(user.id));
-  }, [user?.id]);
+  }, [user?.id, push.permission]);
 
   // Gate all the show conditions in one place. Each is intentionally
   // explicit (rather than collapsing) so a future reader can read the

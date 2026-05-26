@@ -151,11 +151,19 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
       icon:  Share2,
       accent: 'rose',
       onAct: () => {
-        // Scroll the weekly recap into view + open share card. The
-        // recap card has its own share button; we just route there.
+        // Scroll the weekly recap into view. If the recap card isn't
+        // mounted (no workouts in the last 7 days = no recap to share),
+        // surface a friendly toast instead of the previous silent
+        // navigate('/dashboard') which left users tapping into nothing.
+        // (Audit 08 #28.)
         const el = document.querySelector('[data-recap-card]');
-        if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        else navigate('/dashboard');
+        if (el?.scrollIntoView) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        } else {
+          toast.info(
+            tFallback('onboarding.share_week.notReady', 'Log a workout this week first, then come back here to share your recap.')
+          );
+        }
       },
     },
     {

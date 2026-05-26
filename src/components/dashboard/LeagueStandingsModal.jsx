@@ -97,7 +97,14 @@ function Body({ data, userId, t, tFallback }) {
             <div className="flex items-center gap-1 text-emerald-100">
               <ArrowUp className="w-3.5 h-3.5" />
               <span className="text-xs">
-                {tFallback('league.topPromoted', `Top ${promoteN} promoted`).replace('{n}', promoteN)}
+                {/* The {n} placeholder in the fallback string is
+                    substituted by tFallback's vars argument. The
+                    previous code template-literal'd promoteN INTO the
+                    fallback, baked the number into the English copy,
+                    AND tried to replace {n} which wasn't there — so
+                    translators using {n} got "{n}" rendered verbatim.
+                    (Audit 08 #22.) */}
+                {tFallback('league.topPromoted', 'Top {n} promoted', { n: promoteN })}
               </span>
             </div>
           )}
@@ -105,7 +112,7 @@ function Body({ data, userId, t, tFallback }) {
             <div className="flex items-center gap-1 text-rose-100">
               <ArrowDown className="w-3.5 h-3.5" />
               <span className="text-xs">
-                {tFallback('league.bottomDemoted', `Bottom ${demoteN} demoted`).replace('{n}', demoteN)}
+                {tFallback('league.bottomDemoted', 'Bottom {n} demoted', { n: demoteN })}
               </span>
             </div>
           )}

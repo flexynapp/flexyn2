@@ -80,9 +80,12 @@ export default function ReadinessCard({ logs = [] }) {
   // mood 1 = drained. We pass it through as soreness=6-mood so the
   // existing computeRecoveryScore math handles it without a new branch.
   // Soreness 1 = no soreness (best). Mood 5 → soreness 1.
+  // Clamp the mood-derived soreness to 1-5 so a corrupt mood=0 row
+  // doesn't produce soreness=6 which overshoots the recovery scale.
+  // (Audit 08 #27.)
   const sorenessProxy = sleep?.soreness != null
     ? sleep.soreness
-    : (mood?.mood != null ? 6 - mood.mood : undefined);
+    : (mood?.mood != null ? Math.max(1, Math.min(5, 6 - mood.mood)) : undefined);
 
   const { score, label } = computeRecoveryScore({
     sleepHours:    sleep?.hours,

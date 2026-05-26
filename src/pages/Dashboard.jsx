@@ -433,8 +433,8 @@ export default function Dashboard() {
     const groups = new Set();
     thisWeekLogs.forEach(log => {
       log.exercises?.forEach(ex => {
-        if (ex.muscle_group) groups.add(ex.muscle_group);
-        if (ex.muscle_groups?.length) ex.muscle_groups.forEach(g => groups.add(g));
+        if (ex.muscle_group?.trim?.()) groups.add(ex.muscle_group.trim());
+        if (ex.muscle_groups?.length) ex.muscle_groups.forEach(g => { if (g && g.trim()) groups.add(g.trim()); });
       });
     });
     return groups.size;
@@ -456,8 +456,8 @@ export default function Dashboard() {
     const groups = new Set();
     lastWeekLogs.forEach(log => {
       log.exercises?.forEach(ex => {
-        if (ex.muscle_group) groups.add(ex.muscle_group);
-        if (ex.muscle_groups?.length) ex.muscle_groups.forEach(g => groups.add(g));
+        if (ex.muscle_group?.trim?.()) groups.add(ex.muscle_group.trim());
+        if (ex.muscle_groups?.length) ex.muscle_groups.forEach(g => { if (g && g.trim()) groups.add(g.trim()); });
       });
     });
     return groups.size;
@@ -666,7 +666,12 @@ export default function Dashboard() {
              exactly what they did last. */}
         <div className="flex-1 min-w-[15rem] empty:hidden">
           {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
-            const last = logs[0];
+            // Pick the most-recent log with actual exercises. logs[0] could
+            // be an empty-exercises row from a crashed mid-save; repeating
+            // it lands the user in an empty workout screen with nothing
+            // to repeat. (Audit 08 #13.)
+            const last = logs.find(l => Array.isArray(l.exercises) && l.exercises.length > 0);
+            if (!last) return null;
             const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
             return (
               <motion.div

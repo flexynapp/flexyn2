@@ -104,7 +104,13 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Apple className="w-3 h-3" />
-            <span>{todayLogs.filter(l => !/water/i.test(l.food_name || '')).length} logged</span>
+            {/* Exact-match check so "watermelon" / "Bottled water flavored"
+                aren't excluded by an overly-broad /water/i regex.
+                Matches the HydrationRing isWaterEntry contract. (Audit 08 #19.) */}
+            <span>{todayLogs.filter(l => {
+              const name = l.food_name || '';
+              return name !== 'Water' && !name.startsWith('Water|');
+            }).length} logged</span>
           </div>
         </div>
 

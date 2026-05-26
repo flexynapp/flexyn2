@@ -65,9 +65,13 @@ export default function LeagueCard({ onClick }) {
   const me = members.find(m => m && m.user_id === user.id);
   const myXp = me?.weekly_xp || 0;
 
-  // Days left in the week (week_end is a YYYY-MM-DD string)
-  const endDate = parseISO(league.week_end + 'T23:59:59');
-  const daysLeft = Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1);
+  // Days left in the week. Guard against missing week_end — without
+  // this the card rendered "NaN days left" if the data was malformed
+  // (e.g. a partially-applied migration). (Audit 08 #17.)
+  const endDate = league.week_end ? parseISO(league.week_end + 'T23:59:59') : null;
+  const daysLeft = endDate && !isNaN(endDate.getTime())
+    ? Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1)
+    : 0;
 
   // Promotion / demotion zones
   const promoteRank = tier.promote;

@@ -89,9 +89,14 @@ export default function MoodLogCard() {
               {tFallback('mood.kicker', 'Today')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight mt-0.5">
-              {current
-                ? tFallback(`mood.label.${current}`, MOOD_LABELS[current - 1])
-                : tFallback('mood.prompt', 'How are you feeling?')}
+              {(() => {
+                // Clamp current to 1-5 before lookup so corrupt rows
+                // (e.g. mood=0 or mood=7) don't index out of bounds and
+                // render the literal i18n key string. (Audit 08 #31.)
+                if (!current) return tFallback('mood.prompt', 'How are you feeling?');
+                const safe = Math.max(1, Math.min(5, Math.round(current)));
+                return tFallback(`mood.label.${safe}`, MOOD_LABELS[safe - 1] || 'Logged');
+              })()}
             </p>
           </div>
           <div
