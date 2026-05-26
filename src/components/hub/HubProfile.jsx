@@ -37,7 +37,7 @@ import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
 import { useTheme } from '@/lib/ThemeContext';
-import { isVerified } from '@/lib/verifiedUsers';
+import { isVerified, isPoop } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
@@ -112,6 +112,13 @@ function SteelUsaProfileOverlay() {
         />
       ))}
     </div>
+  );
+}
+
+// Poop badge — shown on certain special users
+function PoopBadge({ size = 22 }) {
+  return (
+    <span style={{ fontSize: size, lineHeight: 1, display: 'block' }} aria-label="💩" title="💩">💩</span>
   );
 }
 
@@ -759,6 +766,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const trophyVisible = isSelf ? (user?.trophy_case_visible ?? true) : (targetProfile?.trophy_case_visible ?? true);
   const signatureTrophy = isSelf ? (user?.signature_trophy ?? '') : (targetProfile?.signature_trophy ?? '');
   const isVerifiedUser = isVerified(displayUsername);
+  const isPoopUser = isPoop(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
 
   // Hidden easter egg — only on the @sean admin profile. isVerified() is
@@ -901,6 +909,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               {isVerifiedUser && (
                 <div style={{ position: 'absolute', top: -8, left: -8, lineHeight: 0, zIndex: 10, transform: 'rotate(-25deg)' }}>
                   <CrownBadge size={22} />
+                </div>
+              )}
+
+              {/* Poop badge — replaces crown for special users */}
+              {isPoopUser && (
+                <div style={{ position: 'absolute', top: -10, left: -10, lineHeight: 0, zIndex: 10 }}>
+                  <PoopBadge size={24} />
                 </div>
               )}
 
