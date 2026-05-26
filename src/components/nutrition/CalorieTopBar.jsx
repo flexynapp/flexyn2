@@ -24,16 +24,26 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
   const dv = calculateDailyValues(userProfile);
   const goal = Number(dv?.calories) || 2000;
   const remaining = Math.round(goal - consumed);
-  const pct = goal > 0 ? Math.min((consumed / goal) * 100, 150) : 0;
+  // Cap pct at 200 so the "far over" tier can still distinguish a
+  // 1000-kcal-over from a 50-kcal-over user. Previously capped at 150
+  // and tier only had three buckets — at 150% and at 250% you got the
+  // same amber color, so visually a user couldn't tell. (Audit 11 #10.)
+  const pct = goal > 0 ? Math.min((consumed / goal) * 100, 200) : 0;
 
-  const tier = pct < 80 ? 'muted' : pct <= 100 ? 'primary' : 'over';
+  const tier =
+    pct < 80          ? 'muted'   :
+    pct <= 100        ? 'primary' :
+    pct <= 150        ? 'over'    :
+                        'overFar';
   const fillColor =
-    tier === 'over' ? 'bg-amber-500' :
-    tier === 'primary' ? 'bg-primary' :
+    tier === 'overFar' ? 'bg-red-500'    :
+    tier === 'over'    ? 'bg-amber-500'  :
+    tier === 'primary' ? 'bg-primary'    :
                          'bg-muted-foreground/60';
   const numColor =
-    tier === 'over' ? 'text-amber-500' :
-    tier === 'primary' ? 'text-primary' :
+    tier === 'overFar' ? 'text-red-500'    :
+    tier === 'over'    ? 'text-amber-500'  :
+    tier === 'primary' ? 'text-primary'    :
                          'text-foreground';
 
   return (
@@ -48,6 +58,7 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
           </span>
         </div>
         <span className={`text-xs font-bold tabular-nums ${
+          tier === 'overFar' ? 'text-red-500' :
           remaining < 0 ? 'text-amber-500' : 'text-muted-foreground'
         }`}>
           {remaining >= 0

@@ -2,6 +2,7 @@ import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Droplet, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 /* ── Smooth count-up from previous value ──────────────────────────────── */
 function useAnimatedValue(target, duration = 550) {
@@ -48,7 +49,11 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
     const gender = userProfile?.gender || 'male';
     let age = 30;
     if (userProfile?.birthday) {
-      const birth = new Date(userProfile.birthday);
+      // parseLocalDate interprets `YYYY-MM-DD` in the user's local zone.
+      // `new Date('1985-04-15')` would parse as UTC midnight, which for
+      // anyone west of UTC ticks the birthday boundary a day early and
+      // ages users 0-365 days off. (Audit 11 #40.)
+      const birth = parseLocalDate(userProfile.birthday) || new Date(userProfile.birthday);
       const now = new Date();
       age = now.getFullYear() - birth.getFullYear();
       const m = now.getMonth() - birth.getMonth();

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -112,11 +112,25 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
 
   const foodNameGuard = useProfanityGuard((val) => handleChange('food_name', val));
 
+  // Ref-based in-flight guard. The parent's `isLogging` prop comes
+  // from the React Query mutation's `isPending`, which flips true
+  // asynchronously — a rapid double-tap could fire `onLog()` twice
+  // before the disabled state propagated, creating two identical
+  // meal entries. The ref guard ignores the second tap immediately
+  // and clears once the parent confirms isLogging dropped back to
+  // false. (Audit 11 #9.)
+  const submittingRef = useRef(false);
+  useEffect(() => {
+    if (!isLogging) submittingRef.current = false;
+  }, [isLogging]);
+
   const handleLog = () => {
+    if (submittingRef.current || isLogging) return;
     if (hasAnyProfanity(newEntry.food_name)) {
       toast.error('Please remove inappropriate language from food name before saving.');
       return;
     }
+    submittingRef.current = true;
     onLog();
   };
 

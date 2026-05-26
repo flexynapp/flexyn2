@@ -72,13 +72,26 @@ function empty() {
 
 function num(v) { const n = parseFloat(v); return isNaN(n) ? undefined : n; }
 
-function EntryForm({ initial, onSave, onCancel, t }) {
-  const [form, setForm] = useState(initial || empty());
+function EntryForm({ initial, onSave, onCancel, t, weightUnit }) {
+  // Weight is stored as lbs in the DB. The form's `weight_lbs` slot
+  // holds the *display-unit* string the user sees; we convert at the
+  // boundary (prefill in, save out). Previously the form stored the
+  // typed value verbatim — a kg user saw a lbs number in the input
+  // and any edit corrupted weight to ~2.2× the intended value.
+  // (Audit 11 #4 + #5.)
+  const seed = initial || empty();
+  const seedWeightDisplay = (seed.weight_lbs !== '' && seed.weight_lbs != null)
+    ? String(formatWeightNumber(Number(seed.weight_lbs), weightUnit))
+    : '';
+  const [form, setForm] = useState({ ...seed, weight_lbs: seedWeightDisplay });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = () => {
     const payload = { date: form.date };
-    if (form.weight_lbs !== '') payload.weight_lbs = num(form.weight_lbs);
+    if (form.weight_lbs !== '') {
+      const parsed = parseFloat(form.weight_lbs);
+      if (Number.isFinite(parsed)) payload.weight_lbs = toLbs(parsed, weightUnit);
+    }
     if (form.body_fat_pct !== '') payload.body_fat_pct = num(form.body_fat_pct);
     MEASUREMENTS.forEach(m => { if (form[m.key] !== '') payload[m.key] = num(form[m.key]); });
     if (form.notes) payload.notes = form.notes;
@@ -87,10 +100,24 @@ function EntryForm({ initial, onSave, onCancel, t }) {
 
   return (
     <Card className="p-4 border-primary/30 border-2">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('bodyMetrics.dateRequired')}</label>
           <Input type="date" value={form.date} onChange={e => set('date', e.target.value)} />
+        </div>
+        <div>
+          <label className="text-xs font-medium text-muted-foreground mb-1 block">
+            {t('bodyMetrics.weight', { defaultValue: 'Weight' })} ({weightUnit})
+          </label>
+          <Input
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="0"
+            placeholder={weightUnit === 'kg' ? 'e.g. 75' : 'e.g. 165'}
+            value={form.weight_lbs}
+            onChange={e => set('weight_lbs', e.target.value)}
+          />
         </div>
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('bodyMetrics.bodyFatPct')}</label>
@@ -389,7 +416,7 @@ export default function BodyMetricsTab() {
             <Input
               type={editingProfile === 'birthday' ? 'date' : 'number'}
               step={editingProfile === 'birthday' ? undefined : '0.1'}
-              placeholder={editingProfile === 'height_inches' ? 'e.g. 70' : editingProfile === 'birthday' ? '' : 'e.g. 175'}
+              placeholder={editingProfile === 'height_inches' ? 'e.g. 70' : editingProfile === 'birthday' ? '' : (weightUnit === 'kg' ? 'e.g. 80' : 'e.g. 175')}
               value={editValue}
               onChange={e => setEditValue(e.target.value)}
               className="h-10"
@@ -441,7 +468,7 @@ export default function BodyMetricsTab() {
 
         {/* Add Entry Button / Form */}
         {showForm ? (
-        <EntryForm initial={initialForm ? { ...empty(), ...initialForm } : undefined} onSave={d => createMutation.mutate(d)} onCancel={() => setShowForm(false)} t={t} />
+        <EntryForm initial={initialForm ? { ...empty(), ...initialForm } : undefined} onSave={d => createMutation.mutate(d)} onCancel={() => setShowForm(false)} t={t} weightUnit={weightUnit} />
         ) : (
           <Button variant="outline" className="w-full" onClick={() => setShowForm(true)}>
             <Plus className="w-4 h-4 mr-2" /> {t('progress.bodyMetrics.addEntry')}
@@ -570,6 +597,7 @@ export default function BodyMetricsTab() {
                    onSave={d => updateMutation.mutate({ id: entry.id, data: d })}
                    onCancel={() => setEditingId(null)}
                    t={t}
+                   weightUnit={weightUnit}
                   />
                 </div>
               ) : (
@@ -583,7 +611,10 @@ export default function BodyMetricsTab() {
                       {entry.weight_lbs != null && <span className="text-xs text-muted-foreground">{formatWeight(entry.weight_lbs, weightUnit)}</span>}
                       {entry.body_fat_pct != null && <span className="text-xs text-muted-foreground">{entry.body_fat_pct}% BF</span>}
                       {MEASUREMENTS.filter(m => entry[m.key] != null).map(m => (
-                        <span key={m.key} className="text-xs text-muted-foreground">{m.label}: {entry[m.key]}"</span>
+                        // MEASUREMENTS rows expose `labelKey`, not `label` —
+                        // the old `{m.label}` rendered as `undefined: 17"`.
+                        // (Audit 11 #29.)
+                        <span key={m.key} className="text-xs text-muted-foreground">{t(m.labelKey)}: {entry[m.key]}"</span>
                       ))}
                     </div>
                     {entry.notes && <p className="text-xs text-muted-foreground italic mt-1">{entry.notes}</p>}

@@ -12,7 +12,11 @@ export default function AdvancedAnalytics({ open, onClose, logs }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const stats = useMemo(() => {
-    if (logs.length === 0) return [];
+    // Hard-guard empty logs at the top of the memo. The parent's early
+    // return at the JSX level still runs this useMemo on the first
+    // empty paint — without this guard, `Math.round(0/0)` produced
+    // `NaN min` displayed for one frame. (Audit 11 #13.)
+    if (!Array.isArray(logs) || logs.length === 0) return [];
 
     // Calculate various interesting stats
     const allExercises = new Map();
@@ -60,8 +64,12 @@ export default function AdvancedAnalytics({ open, onClose, logs }) {
       // (Audit 11 #5.)
       { label: t('analytics.totalVolume'), value: formatWeight(totalVolume, weightUnit), icon: TrendingUp, color: 'text-primary' },
       { label: t('analytics.totalTime'), value: `${Math.round(totalWorkoutDuration)} min`, icon: Trophy, color: 'text-amber-500' },
-      { label: t('analytics.favoriteExercise'), value: favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A', icon: Zap, color: 'text-accent' },
+      // "Favorite" = most-performed (count), not heaviest. Previously
+      // `favoriteEn` was the heaviest, so "Favorite exercise" and
+      // "Strongest lift" labelled the same row twice. (Audit 11 #14.)
+      { label: t('analytics.favoriteExercise'), value: mostPerformedEn ? translateExerciseName(mostPerformedEn, language) : 'N/A', icon: Zap, color: 'text-accent' },
       // Same double-conversion bug as totalVolume — pass lbs directly.
+      // Strongest lift stays sorted by maxWeight via sortedExercises[0].
       { label: t('analytics.strongestLift'), value: `${formatWeight(sortedExercises[0]?.maxWeight || 0, weightUnit)} (${favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A'})`, icon: Trophy, color: 'text-purple-500' },
       { label: t('analytics.mostReps'), value: `${Math.max(...Array.from(allExercises.values()).map(e => e.maxReps), 0)} reps`, icon: TrendingUp, color: 'text-emerald-500' },
       { label: t('analytics.uniqueExercises'), value: allExercises.size.toString(), icon: Zap, color: 'text-cyan-500' },

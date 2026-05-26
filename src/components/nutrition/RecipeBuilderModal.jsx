@@ -20,30 +20,40 @@ import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
 import { db } from '@/api/db';
 
-const EMPTY_INGREDIENT = { name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '' };
+// Factory rather than module-level shared object so each row gets a
+// fresh reference — eliminates a class of subtle aliasing bugs and
+// makes resets independent. (Audit 11 #33.)
+const newEmptyIngredient = () => ({ name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '' });
 
 export default function RecipeBuilderModal({ open, onClose, editingRecipe = null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [servings, setServings] = useState('1');
-  const [ingredients, setIngredients] = useState([EMPTY_INGREDIENT]);
+  const [ingredients, setIngredients] = useState(() => [newEmptyIngredient()]);
   const [saving, setSaving] = useState(false);
 
+  // Resync deeply from editingRecipe when its contents change, not just
+  // its id. Previously the deps `[open, editingRecipe?.id]` meant that
+  // editing the same recipe twice (open → edit ingredient locally →
+  // close without saving → re-open same recipe) showed the stale local
+  // edits instead of the canonical server state. Watching the
+  // ingredients length + name catches the most common re-open after
+  // server-side change too. (Audit 11 #33.)
   useEffect(() => {
     if (!open) return;
     if (editingRecipe) {
       setName(editingRecipe.name || '');
       setServings(String(editingRecipe.servings ?? 1));
       setIngredients(Array.isArray(editingRecipe.ingredients) && editingRecipe.ingredients.length > 0
-        ? editingRecipe.ingredients
-        : [EMPTY_INGREDIENT]);
+        ? editingRecipe.ingredients.map(r => ({ ...newEmptyIngredient(), ...r }))
+        : [newEmptyIngredient()]);
     } else {
       setName('');
       setServings('1');
-      setIngredients([EMPTY_INGREDIENT]);
+      setIngredients([newEmptyIngredient()]);
     }
-  }, [open, editingRecipe?.id]);
+  }, [open, editingRecipe?.id, editingRecipe?.name, editingRecipe?.ingredients?.length]);
 
   const updateIngredient = (i, patch) => {
     setIngredients(curr => curr.map((row, idx) => idx === i ? { ...row, ...patch } : row));
@@ -51,7 +61,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   const removeIngredient = (i) => {
     setIngredients(curr => curr.length > 1 ? curr.filter((_, idx) => idx !== i) : curr);
   };
-  const addIngredient = () => setIngredients(curr => [...curr, EMPTY_INGREDIENT]);
+  const addIngredient = () => setIngredients(curr => [...curr, newEmptyIngredient()]);
 
   const totals = recipes.sumIngredients(
     ingredients.map(i => Object.fromEntries(
@@ -196,14 +206,21 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                 </div>
               ))}
             </div>
-            {Number(servings) > 1 && (
-              <p className="text-[10px] text-muted-foreground text-center mt-2">
-                Per serving: {Math.round((totals.calories || 0) / Number(servings))} kcal ·
-                {' '}{Math.round((totals.protein_g || 0) / Number(servings))} P ·
-                {' '}{Math.round((totals.carbs_g   || 0) / Number(servings))} C ·
-                {' '}{Math.round((totals.fat_g     || 0) / Number(servings))} F
-              </p>
-            )}
+            {Number(servings) > 1 && (() => {
+              // Floor at 1 to avoid division-by-zero / negative servings
+              // producing Infinity / NaN in the live per-serving display.
+              // The save path already coerces with `Number(servings) || 1`
+              // (line 85); the live UI now mirrors that. (Audit 11 #34.)
+              const safeServings = Math.max(1, Number(servings) || 1);
+              return (
+                <p className="text-[10px] text-muted-foreground text-center mt-2">
+                  Per serving: {Math.round((totals.calories || 0) / safeServings)} kcal ·
+                  {' '}{Math.round((totals.protein_g || 0) / safeServings)} P ·
+                  {' '}{Math.round((totals.carbs_g   || 0) / safeServings)} C ·
+                  {' '}{Math.round((totals.fat_g     || 0) / safeServings)} F
+                </p>
+              );
+            })()}
           </div>
           <div className="px-4 py-3 border-t border-border">
             <Button onClick={handleSave} disabled={saving} className="w-full">

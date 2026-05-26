@@ -6,7 +6,9 @@
  *   • Muscle imbalance analysis (push/pull/legs ratio)
  *   • Data export (CSV)
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -194,10 +196,23 @@ function InsightSection({ icon: Icon, title, color, bg, children }) {
 
 export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile }) {
   const { weightUnit } = useWeightUnit();
+  const { language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const [goalWeightInput, setGoalWeightInput] = useState(() => {
     const stored = loadGoalWeight();
     return stored ? String(Math.round(fromLbs(stored, weightUnit) * 10) / 10) : '';
   });
+
+  // If the user flips lb ↔ kg after opening Insights, re-format the
+  // input from the stored lbs value so the displayed goal matches the
+  // current unit. Without this, input box and "Goal" pill below
+  // disagreed for the rest of the session. (Audit 11 #7.)
+  useEffect(() => {
+    const stored = loadGoalWeight();
+    if (stored) {
+      setGoalWeightInput(String(Math.round(fromLbs(stored, weightUnit) * 10) / 10));
+    }
+  }, [weightUnit]);
 
   // ── Training Age ───────────────────────────────────────────────────────────
   const trainingAge = useMemo(() => calcTrainingAge(logs), [logs]);
@@ -295,6 +310,16 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
     const storedGoalLbs    = loadGoalWeight();
     if (!storedGoalLbs) return { needsGoal: true, currentWeightLbs, reg, firstDate };
 
+    // Detect direction mismatch: if the trend slope is positive (gaining)
+    // but the user's goal is below current weight (or vice versa), the
+    // projection date math produces a date in the past, which the old
+    // code mis-labeled as "Already reached 🎉". Now we flag the trend
+    // as trending-away-from-goal so the user sees "Trending the wrong
+    // direction" instead of a false celebration. (Audit 11 #23.)
+    const goalDirection = Math.sign(storedGoalLbs - currentWeightLbs); // +1 = need to gain, -1 = need to lose
+    const slopeDirection = Math.sign(reg.slope);
+    const directionMismatch = goalDirection !== 0 && slopeDirection !== 0 && goalDirection !== slopeDirection;
+
     const daysToGoal = (storedGoalLbs - reg.intercept) / reg.slope;
     const projectedDate = addDays(firstDate, Math.round(daysToGoal));
     const daysFromNow   = differenceInDays(projectedDate, new Date());
@@ -306,6 +331,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
       daysFromNow,
       ratePerWeek: Math.abs(reg.slope * 7),
       losing: reg.slope < 0,
+      directionMismatch,
       reg,
       firstDate,
       needsGoal: false,
@@ -338,7 +364,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               <div>
                 <p className="font-heading font-black text-3xl text-violet-500">{trainingAge.label}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Training since {format(trainingAge.firstDate, 'MMMM d, yyyy')}
+                  Training since {format(trainingAge.firstDate, 'MMMM d, yyyy', { locale: dateLocale })}
                 </p>
               </div>
               <div className="ml-auto text-right pb-1">
@@ -478,12 +504,18 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
               <div className="space-y-3">
                 <div className="flex items-end gap-3">
                   <div>
-                    <p className="font-heading font-black text-2xl text-emerald-500">
-                      {projection.daysFromNow > 0
-                        ? format(projection.projectedDate, 'MMM d, yyyy')
-                        : 'Already reached! 🎉'}
+                    <p className={`font-heading font-black text-2xl ${projection.directionMismatch ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      {projection.directionMismatch
+                        ? 'Trending wrong way'
+                        : projection.daysFromNow > 0
+                          ? format(projection.projectedDate, 'MMM d, yyyy', { locale: dateLocale })
+                          : 'Already reached! 🎉'}
                     </p>
-                    {projection.daysFromNow > 0 && (
+                    {projection.directionMismatch ? (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Your weight is moving away from your goal at {formatWeight(projection.ratePerWeek, weightUnit)}/week.
+                      </p>
+                    ) : projection.daysFromNow > 0 && (
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {projection.daysFromNow} days away ·{' '}
                         {formatWeight(projection.ratePerWeek, weightUnit)}/week pace
@@ -584,7 +616,16 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             {/* Left/right arm asymmetry from body metrics if available */}
             {bodyMetrics?.length > 0 && (() => {
-              const latest = [...bodyMetrics].filter(m => m.left_arm_in && m.right_arm_in).sort((a, b) => b.date?.localeCompare(a.date || ''))[0];
+              // Tiebreak on created_at desc so two same-day entries
+              // pick the more-recently-logged one, not whichever the
+              // server returned first. (Audit 11 #24.)
+              const latest = [...bodyMetrics]
+                .filter(m => m.left_arm_in && m.right_arm_in)
+                .sort((a, b) => {
+                  const dCmp = (b.date || '').localeCompare(a.date || '');
+                  if (dCmp !== 0) return dCmp;
+                  return (b.created_at || '').localeCompare(a.created_at || '');
+                })[0];
               if (!latest) return null;
               const diff = Math.abs(latest.left_arm_in - latest.right_arm_in);
               if (diff < 0.1) return null;
@@ -593,7 +634,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                 <div className="mt-2 p-3 rounded-xl bg-secondary/50">
                   <p className="text-xs font-semibold mb-0.5">Arm circumference asymmetry</p>
                   <p className="text-xs text-muted-foreground">
-                    {dominant} arm is {diff.toFixed(1)}" larger · as of {format(new Date(latest.date), 'MMM d, yyyy')}
+                    {dominant} arm is {diff.toFixed(1)}" larger · as of {format(new Date(latest.date), 'MMM d, yyyy', { locale: dateLocale })}
                   </p>
                 </div>
               );
