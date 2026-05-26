@@ -33,23 +33,40 @@ const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 
 // ── Pin DOM builders ───────────────────────────────────────────────────
 
+// IMPORTANT: MapLibre owns the OUTER element's `transform` — it sets
+// `translate(...)` on the marker root every frame to position the pin
+// at its lng/lat. If hover handlers wrote `transform: scale(...)` to
+// the same element they CLOBBERED the translate and the pin jumped to
+// the top-left corner of the map container (the reported bug).
+// All hover scaling is now applied to an INNER wrapper so the outer
+// transform stays MapLibre's exclusive property.
 function buildFlexynPin({ gym, compact, onClick }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
   const sz = compact ? 20 : 34;
   Object.assign(el.style, {
-    width: `${sz}px`, height: `${sz}px`, borderRadius: '50%',
+    width: `${sz}px`, height: `${sz}px`,
+    background: 'none', border: 'none', padding: '0',
+    cursor: 'pointer', display: 'block',
+  });
+  // Inner wrapper carries the visual styling AND the hover transform.
+  const inner = document.createElement('div');
+  Object.assign(inner.style, {
+    width: '100%', height: '100%', borderRadius: '50%',
     background: 'linear-gradient(135deg,#7c3aed,#4338ca)',
-    border: '2.5px solid #fff', cursor: 'pointer',
+    border: '2.5px solid #fff',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     color: '#fff', fontSize: `${compact ? 10 : 12}px`, fontWeight: '700',
     boxShadow: '0 3px 10px rgba(0,0,0,0.3)',
-    transition: 'transform 120ms ease-out', padding: '0',
+    transition: 'transform 120ms ease-out',
+    transform: 'scale(1)',
+    willChange: 'transform',
   });
-  el.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+  inner.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
+  el.appendChild(inner);
+  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; });
+  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
   el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
   return el;
 }
@@ -61,17 +78,26 @@ function buildOrangePin({ gym, onClick }) {
   Object.assign(el.style, {
     background: 'none', border: 'none', padding: '0',
     cursor: 'pointer', display: 'block',
-    transition: 'transform 140ms ease-out',
   });
-  el.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  // Inner wrapper carries the hover transform — see buildFlexynPin
+  // for the rationale (MapLibre owns the outer element's transform).
+  const inner = document.createElement('div');
+  Object.assign(inner.style, {
+    display: 'block',
+    transition: 'transform 140ms ease-out',
+    transform: 'scale(1)',
+    willChange: 'transform',
+  });
+  inner.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
       fill="#f97316" stroke="#fff" stroke-width="2"
       style="filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35))"/>
     <circle cx="16" cy="15" r="7" fill="rgba(255,255,255,0.25)"/>
     <circle cx="16" cy="15" r="4" fill="rgba(255,255,255,0.55)"/>
   </svg>`;
-  el.addEventListener('mouseenter', () => { el.style.transform = 'scale(1.2) translateY(-3px)'; });
-  el.addEventListener('mouseleave', () => { el.style.transform = 'scale(1)'; });
+  el.appendChild(inner);
+  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2) translateY(-3px)'; });
+  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
   el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
   return el;
 }
@@ -83,21 +109,30 @@ function buildOsmPin({ gym, onClick }) {
   Object.assign(el.style, {
     background: 'none', border: 'none', padding: '0',
     cursor: 'pointer', display: 'block',
-    transition: 'transform 120ms ease-out',
     filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))',
   });
-  el.innerHTML = `<svg width="12" height="17" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  // Inner wrapper for hover transform — MapLibre owns el.style.transform.
+  const inner = document.createElement('div');
+  Object.assign(inner.style, {
+    display: 'block',
+    transition: 'transform 120ms ease-out',
+    transform: 'scale(1)',
+    transformOrigin: 'center bottom',
+    willChange: 'transform',
+  });
+  inner.innerHTML = `<svg width="12" height="17" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
     <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
       fill="#9ca3af" stroke="#fff" stroke-width="3"/>
     <circle cx="16" cy="15" r="5" fill="rgba(255,255,255,0.4)"/>
   </svg>`;
-  const path = el.querySelector('path');
+  el.appendChild(inner);
+  const path = inner.querySelector('path');
   el.addEventListener('mouseenter', () => {
-    el.style.transform = 'scale(1.6) translateY(-2px)';
+    inner.style.transform = 'scale(1.6) translateY(-2px)';
     if (path) path.setAttribute('fill', '#6b7280');
   });
   el.addEventListener('mouseleave', () => {
-    el.style.transform = 'scale(1)';
+    inner.style.transform = 'scale(1)';
     if (path) path.setAttribute('fill', '#9ca3af');
   });
   el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
