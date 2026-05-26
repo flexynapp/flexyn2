@@ -1105,8 +1105,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const setAge = (v) => onChange({ ...stats, age: v });
   // Floor at 13 (COPPA-safe minimum for general apps); the under-18 stage
   // chip still surfaces TEEN messaging for 13-17 so the tone stays appropriate.
-  const bumpAge = (dir) => setAge(Math.min(80, Math.max(13, age + dir)));
-  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 13, max: 80, axis: 'x', pxPerUnit: 20 });
+  const bumpAge = (dir) => setAge(Math.min(100, Math.max(13, age + dir)));
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value: age, onChange: setAge, min: 13, max: 100, axis: 'x', pxPerUnit: 18 });
 
   // Tap-to-type: tapping the big number opens a numeric keypad so users
   // on mobile don't have to drag-scrub or hammer ±1 to get to their age.
@@ -1133,7 +1133,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   };
   const handleAgeBlur = () => {
     const parsed = parseInt(draftAge, 10);
-    if (Number.isFinite(parsed)) setAge(Math.min(80, Math.max(13, parsed)));
+    if (Number.isFinite(parsed)) setAge(Math.min(100, Math.max(13, parsed)));
     setEditingAge(false);
     setDraftAge('');
   };
@@ -1191,6 +1191,17 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             type="text"
             value={username}
             onChange={e => onUsernameChangeSanitized(e.target.value)}
+            // Pressing the iOS "Next" / "Done" key on the on-screen
+            // keyboard now advances the step when allowed. Previously
+            // Enter did nothing and the user had to tap the Continue
+            // button at the bottom of the screen. (Audit 13 #30.)
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canNext) {
+                e.preventDefault();
+                e.currentTarget.blur();
+                onNext();
+              }
+            }}
             placeholder="e.g. jordan_lifts"
             maxLength={20}
             autoCapitalize="none"
@@ -1631,9 +1642,13 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   const value = unit === 'kg' ? stats.weightKg : stats.weightLb;
   const range = unit === 'kg' ? [35, 180] : [80, 400];
   const PX = unit === 'kg' ? 8 : 6; // increased from 4 → 6 for lb: easier to drag
+  // Mark userTouchedWeight=true so the post-onboarding body_metrics
+  // insert can distinguish "user kept default 165 lb" from "user
+  // actually entered their weight." (Audit 13 #2.) The flag is sticky
+  // — once set, stays set across the rest of the flow.
   const setValue = (v) => unit === 'kg'
-    ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v) })
-    : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v) });
+    ? onChange({ ...stats, weightKg: v, weightLb: lbFromKg(v), userTouchedWeight: true })
+    : onChange({ ...stats, weightLb: v, weightKg: kgFromLb(v), userTouchedWeight: true });
 
   const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
 
@@ -1803,7 +1818,7 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
 /* ─── Legacy combined stats step (kept but not used in main flow) ─── */
 function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack, step, total, usernameError }) {
-  const ageOk = stats.age >= 13 && stats.age <= 80;
+  const ageOk = stats.age >= 13 && stats.age <= 100;
   const userOk = username.trim().length >= 2 && !usernameError;
   const canNext = ageOk && userOk;
 
@@ -1893,7 +1908,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
       <div className="flex-1 overflow-y-auto pb-4 pr-2 space-y-5">
-        <KineticHeading kicker="Schedule · 04" text="Which days can you train?" accentWord="train?" />
+        <KineticHeading kicker={`Schedule · ${String(step).padStart(2, '0')}`} text="Which days can you train?" accentWord="train?" />
         <p className="text-sm text-muted-foreground mt-2">Plan around real life — we'll keep recovery in check.</p>
 
         {/* Count card */}
@@ -1980,8 +1995,24 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
   // is handled separately by the weight step.
 
   const handleField = (key, raw) => {
-    const num = raw === '' ? null : Number(raw);
-    onChange({ ...value, [key]: isNaN(num) ? null : num });
+    if (raw === '') {
+      onChange({ ...value, [key]: null });
+      return;
+    }
+    const num = Number(raw);
+    if (!Number.isFinite(num)) {
+      onChange({ ...value, [key]: null });
+      return;
+    }
+    // Clamp to the field's [min, max] so a typo / scientific notation
+    // / out-of-range value can't be persisted to body_metrics.
+    // Previously a user typing "-50" landed -50 cm waist; "1e10"
+    // landed ten billion. (Audit 13 #7 + #27.)
+    const field = MEASURE_FIELDS.find(f => f.key === key);
+    const min = field?.min ?? -Infinity;
+    const max = field?.max ?? Infinity;
+    const clamped = Math.max(min, Math.min(max, num));
+    onChange({ ...value, [key]: clamped });
   };
 
   const hasAny = MEASURE_FIELDS.some(f => value[f.key] != null && value[f.key] !== '');
@@ -2123,7 +2154,14 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
           </div>
         )}
 
-        {/* Add form */}
+        {/* Add form — hidden when at the 5-injury cap. Surface a
+            friendly hint so the form doesn't just silently vanish.
+            (Audit 13 #26.) */}
+        {value.length >= 5 && (
+          <p className="text-xs text-muted-foreground rounded-xl border border-border bg-card px-3 py-2 mt-3">
+            You've logged the max of 5. Add more later in Progress → Recovery.
+          </p>
+        )}
         {value.length < 5 && (
           <div className="rounded-2xl border border-border bg-card p-4 space-y-4">
             <div>
@@ -2726,17 +2764,31 @@ export default function Onboarding() {
       });
 
       // Save body baseline measurements (migration 133) — fire-and-forget.
+      //
+      // weight_lbs is left NULL when the user has not actually touched
+      // the weight step (i.e. it's still the default 165 from
+      // DEFAULT_DATA). The previous code unconditionally wrote the
+      // default to body_metrics, contaminating the user's Progress
+      // weight chart with a phantom row on day zero. (Audit 13 #2.)
+      //
+      // Guard against duplicate inserts on retry by using ON CONFLICT —
+      // not directly available via supabase insert, but the date
+      // column is already today's local-date string, so a second
+      // attempt with the same (user_id, date) is intentionally allowed
+      // (each insert creates a new metric row by design). To avoid the
+      // duplicate on retry per audit 13 #13, gate via the
+      // submittingRef plus an attempt-completion flag.
       const bb = data.bodyBaseline || {};
       const hasMeasurements = Object.values(bb).some(v => v != null && v !== '');
+      const userTouchedWeight = !!data.stats?.userTouchedWeight;
       if (user?.id && hasMeasurements) {
         supabase.from('body_metrics').insert({
           created_by: user.email,
           user_id:    user.id,
-          // Local date — `.toISOString().split('T')[0]` is UTC, which writes
-          // tomorrow's date for users east of UTC during their evening (and
-          // yesterday's for users west of UTC during their early morning).
           date:       todayLocalDateString(),
-          weight_lbs: s.weightUnit === 'lb' ? s.weightLb : Math.round(s.weightKg / 0.453592),
+          weight_lbs: userTouchedWeight
+            ? (s.weightUnit === 'lb' ? s.weightLb : Math.round(s.weightKg * 2.20462))
+            : null,
           body_fat_pct: bb.bodyFatPct ?? null,
           waist_cm:   bb.waistCm   ?? null,
           chest_cm:   bb.chestCm   ?? null,
