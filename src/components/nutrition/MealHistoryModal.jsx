@@ -136,9 +136,19 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
   });
 
   const mealLogs = useMemo(() => {
-    const filtered = filterAfterReset(rawLogs, userProfile)
-      .filter(e => !(e.food_name === 'Water' && e.water_oz > 0));
-    return filtered;
+    // Filter out water-glass rows from the meal history. The legacy
+    // encoding was { food_name: 'Water', water_oz: N } but the new
+    // glasses-counter encoding stores { food_name: 'Water|N' } with
+    // calories = 0. Both shapes must be excluded — previously only
+    // the legacy shape was filtered, so post-migration water entries
+    // showed up in history as "Water|3 — 0 cal meal". (Audit 11 #3.)
+    const isWaterRow = (e) => {
+      const name = (e?.food_name || '').toString();
+      if (name === 'Water' && e?.water_oz > 0) return true;
+      if (/^Water\|/.test(name)) return true;
+      return false;
+    };
+    return filterAfterReset(rawLogs, userProfile).filter(e => !isWaterRow(e));
   }, [rawLogs, userProfile]);
 
   const grouped = useMemo(() => {

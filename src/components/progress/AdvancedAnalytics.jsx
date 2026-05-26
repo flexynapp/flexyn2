@@ -5,7 +5,7 @@ import { Trophy, Zap, TrendingUp } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { fromLbs, formatWeight } from '@/lib/weightUnit';
+import { formatWeight } from '@/lib/weightUnit';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 
 export default function AdvancedAnalytics({ open, onClose, logs }) {
@@ -54,10 +54,15 @@ export default function AdvancedAnalytics({ open, onClose, logs }) {
 
     return [
       { label: t('widgets.totalWorkouts'), value: logs.length.toString(), icon: Zap, color: 'text-orange-500' },
-      { label: t('analytics.totalVolume'), value: formatWeight(fromLbs(totalVolume, weightUnit), weightUnit), icon: TrendingUp, color: 'text-primary' },
+      // formatWeight already converts lbs → display unit internally.
+      // The previous `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
+      // converted twice — kg users saw roughly half their actual volume.
+      // (Audit 11 #5.)
+      { label: t('analytics.totalVolume'), value: formatWeight(totalVolume, weightUnit), icon: TrendingUp, color: 'text-primary' },
       { label: t('analytics.totalTime'), value: `${Math.round(totalWorkoutDuration)} min`, icon: Trophy, color: 'text-amber-500' },
       { label: t('analytics.favoriteExercise'), value: favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A', icon: Zap, color: 'text-accent' },
-      { label: t('analytics.strongestLift'), value: `${formatWeight(fromLbs(sortedExercises[0]?.maxWeight || 0, weightUnit), weightUnit)} (${favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A'})`, icon: Trophy, color: 'text-purple-500' },
+      // Same double-conversion bug as totalVolume — pass lbs directly.
+      { label: t('analytics.strongestLift'), value: `${formatWeight(sortedExercises[0]?.maxWeight || 0, weightUnit)} (${favoriteEn ? translateExerciseName(favoriteEn, language) : 'N/A'})`, icon: Trophy, color: 'text-purple-500' },
       { label: t('analytics.mostReps'), value: `${Math.max(...Array.from(allExercises.values()).map(e => e.maxReps), 0)} reps`, icon: TrendingUp, color: 'text-emerald-500' },
       { label: t('analytics.uniqueExercises'), value: allExercises.size.toString(), icon: Zap, color: 'text-cyan-500' },
       { label: t('analytics.topMuscle'), value: topMuscleEn ? t(`muscleGroups.${muscleKey(topMuscleEn)}`) : 'N/A', icon: Trophy, color: 'text-rose-500' },

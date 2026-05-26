@@ -131,6 +131,22 @@ export default function Nutrition() {
   // <input type="file"> behind the "Photo-AI" button. `photoRecognizing`
   // shows a spinner on the button while the Edge Function round-trips.
   const photoInputRef = useRef(null);
+  // Synchronous double-submit guard for the water + meal log buttons.
+  // saveMutation.isPending is updated asynchronously after the mutation
+  // starts, so two clicks within ~50ms can both fire before React
+  // re-renders with `disabled`. This ref flips synchronously inside
+  // the click handler. (Audit 11 #7.)
+  const submitInFlightRef = useRef(false);
+  const guardSubmit = (fn) => {
+    if (submitInFlightRef.current) return;
+    submitInFlightRef.current = true;
+    try { fn(); } finally {
+      // Re-arm after the mutation has had a chance to flip isPending.
+      // Mutation onSettled also clears in case the mutation completes
+      // before this timeout fires.
+      setTimeout(() => { submitInFlightRef.current = false; }, 400);
+    }
+  };
   const [photoRecognizing, setPhotoRecognizing] = useState(false);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
@@ -308,6 +324,12 @@ export default function Nutrition() {
       }
       reportError(err, { feature: 'nutrition.save', userEmail: user?.email });
       toast.error(t('nutrition.toast.saveError'));
+    },
+    onSettled: () => {
+      // Clear the synchronous double-submit guard regardless of
+      // success/failure so a legit retry after a network error
+      // works without a 400ms wait.
+      submitInFlightRef.current = false;
     },
   });
 
@@ -978,13 +1000,13 @@ export default function Nutrition() {
               {/* Add Glass Button */}
               <Button
                 className="text-xs md:text-sm"
-                onClick={() => {
+                onClick={() => guardSubmit(() => {
                   if (waterOz + 8 > WATER_DAILY_CAP_OZ) {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                     return;
                   }
                   saveMutation.mutate({ date, food_name: waterFoodName(8), calories: 0, created_by: user?.email, user_id: user?.id });
-                }}
+                })}
                 disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
                 <Droplet className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{getGlassLabel()}</span><span className="sm:hidden">Glass (8 oz)</span>
@@ -1001,13 +1023,13 @@ export default function Nutrition() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={() => {
+                    onClick={() => guardSubmit(() => {
                       if (waterOz + bottle.oz > WATER_DAILY_CAP_OZ) {
                         toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
                         return;
                       }
                       saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
-                    }}
+                    })}
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
                     className="pr-8 text-xs"
                   >

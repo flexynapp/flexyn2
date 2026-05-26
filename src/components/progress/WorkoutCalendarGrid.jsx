@@ -22,19 +22,24 @@ const WEEKS = 26;            // ~6 months
 const DAYS_PER_WEEK = 7;
 const TOTAL_DAYS = WEEKS * DAYS_PER_WEEK;
 
-// Volume thresholds (in user's display unit) → intensity buckets 1-4.
-// Day with 0 volume gets bucket 0 (gray).
-const INTENSITY_THRESHOLDS = [
+// Volume thresholds in LBS (stored unit) → intensity buckets 1-4.
+// Day with 0 volume gets bucket 0 (gray). The previous version had the
+// comment claim "user's display unit" but compared lbs-derived
+// thresholds against user-unit volume, so kg users saw a permanently-
+// cold heatmap (8000 kg ≈ 17.6k lbs as a threshold — basically
+// unreachable). Now we bucket by LBS so the heatmap matches the
+// app's actual data scale regardless of unit. (Audit 11 #6.)
+const INTENSITY_THRESHOLDS_LBS = [
   { min: 1,     bucket: 1 },
   { min: 3000,  bucket: 2 },
   { min: 8000,  bucket: 3 },
   { min: 15000, bucket: 4 },
 ];
 
-function volumeToBucket(volume) {
+function volumeToBucket(volumeLbs) {
   let bucket = 0;
-  for (const { min, bucket: b } of INTENSITY_THRESHOLDS) {
-    if (volume >= min) bucket = b;
+  for (const { min, bucket: b } of INTENSITY_THRESHOLDS_LBS) {
+    if (volumeLbs >= min) bucket = b;
   }
   return bucket;
 }
@@ -121,7 +126,10 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
         date: d,
         key,
         volume: userUnitVol,
-        bucket: isFuture ? -1 : volumeToBucket(userUnitVol),
+        // Bucket by LBS (stored unit) so the heatmap looks identical
+        // for lbs and kg users — the underlying intensity is the
+        // same, only the displayed number changes.
+        bucket: isFuture ? -1 : volumeToBucket(lbs),
         isFuture,
       });
     }
