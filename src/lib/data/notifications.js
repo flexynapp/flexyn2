@@ -78,9 +78,10 @@ export async function unreadCount(user) {
   return count ?? 0;
 }
 
-/** Mark a single notification read. */
+/** Mark a single notification read. Returns `{ ok }` so the caller can
+ * distinguish success from silent failure if needed. (Audit 17 #F35.) */
 export async function markRead(notificationId) {
-  if (!notificationId) return;
+  if (!notificationId) return { ok: false };
   const { error } = await supabase
     .from('notifications')
     .update({ is_read: true })
@@ -91,7 +92,9 @@ export async function markRead(notificationId) {
     import('@/lib/reportError').then(({ reportError }) => {
       reportError(error, { feature: 'notifications.markRead', level: 'warning' });
     }).catch(() => { /* reporter unavailable — best-effort */ });
+    return { ok: false, error };
   }
+  return { ok: true };
 }
 
 /** Mark all of the user's notifications as read. */

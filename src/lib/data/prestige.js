@@ -49,11 +49,15 @@ export const PRESTIGE_COLOR = [
 /** Get prestige stats for a user (public-facing) */
 export async function getPrestigeProfile(userId) {
   if (!userId) return null;
+  // maybeSingle() returns null without erroring when the row doesn't
+  // exist — new users without a profile row yet (mid-onboarding) used
+  // to surface a PGRST116 error from .single() which the caller had to
+  // swallow. (Audit 17 #F37.)
   const { data, error } = await supabase
     .from('user_profiles')
     .select('prestige_level, lifetime_xp, prestiged_at, prestige_dismissed')
     .eq('id', userId)
-    .single();
+    .maybeSingle();
   return error ? null : data;
 }
 

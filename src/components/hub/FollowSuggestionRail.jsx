@@ -144,12 +144,33 @@ export default function FollowSuggestionRail() {
   const respectsDismissal = !isEmptyFeedTrap;
   const dismissed = respectsDismissal && isDismissedFresh(user?.id);
 
-  const { data: suggestions = [] } = useQuery({
+  const { data: rawSuggestions = [] } = useQuery({
     queryKey: ['suggestedFollowees', user?.id],
     queryFn: () => hubFollows.getSuggestedFollowees(8),
     enabled: !!user?.id && !dismissed,
     staleTime: 5 * 60_000,
   });
+
+  // Pull the viewer's current following set so we can filter out rows
+  // that the RPC didn't already exclude (it's unclear from the client
+  // contract). Without this, an already-followed user could show up
+  // in the rail with a "Follow" button that tap-toggles to no visible
+  // change — the underlying `follow()` is idempotent but `justFollowed`
+  // is session-only. (Audit 10 #61.)
+  const { data: followingEmails = [] } = useQuery({
+    queryKey: ['hubFollowing', user?.email],
+    queryFn: () => hubFollows.listFollowing(user.email),
+    enabled: !!user?.email,
+    staleTime: 5 * 60_000,
+  });
+  const followingSet = React.useMemo(
+    () => new Set((followingEmails || []).map(e => String(e).toLowerCase())),
+    [followingEmails]
+  );
+  const suggestions = React.useMemo(
+    () => (rawSuggestions || []).filter(s => !followingSet.has(String(s.email || '').toLowerCase())),
+    [rawSuggestions, followingSet]
+  );
 
   const handleDismiss = () => {
     writeDismissedAt(user?.id);

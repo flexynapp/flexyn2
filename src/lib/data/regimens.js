@@ -46,7 +46,11 @@ export const copyTemplate = async (original, user) => {
     is_public: false,
     copy_count: 0,
     original_template_id: original.id,
-    original_author_username: original.author_username || original.created_by?.split('@')[0] || 'Unknown',
+    // Prefer the original's explicit username; only fall back to
+    // "Unknown" if it's missing. The previous email-prefix fallback
+    // leaked the original user's email local-part as the author
+    // attribution on every copy. (Audit 17 #F28.)
+    original_author_username: original.author_username || 'Unknown',
   });
   // Bump the source template's copy count via a security-definer RPC that
   // bypasses RLS (direct cross-user update is rejected by Postgres policies).

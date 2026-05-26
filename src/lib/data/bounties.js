@@ -78,13 +78,30 @@ export const METRIC_LABEL = {
  * pass `useLanguage().language`; legacy callers omit it and fall back to
  * 'en' formatting (still better than uncontrolled browser locale).
  */
-export function bountyDescription(bounty, language) {
+export function bountyDescription(bounty, language, weightUnit = 'lbs') {
   const metric = METRIC_LABEL[bounty.metric] || bounty.metric;
-  const target = formatNumber(Math.round(bounty.target_value), language);
-  if (bounty.exercise_name) {
-    return `${metric} ${bounty.exercise_name} — beat ${target}${bounty.metric === 'single_lift_weight' ? ' lbs' : ' reps'}`;
+  // For weight-based metrics, convert the stored lbs target to the
+  // caller's unit so kg users don't see "beat 315 lbs" everywhere.
+  // Rep-based metrics ignore unit. (Audit 17 #F30.)
+  const isWeightMetric = bounty.metric === 'single_lift_weight' || bounty.metric === 'weekly_volume';
+  const isRepsMetric   = bounty.metric === 'single_lift_reps';
+  let target;
+  let unitLabel = '';
+  if (isWeightMetric) {
+    const factor = weightUnit === 'kg' ? 1 / 2.20462 : weightUnit === 'stone' ? 1 / 14 : 1;
+    target = formatNumber(Math.round((bounty.target_value || 0) * factor), language);
+    unitLabel = weightUnit;
+  } else if (isRepsMetric) {
+    target = formatNumber(Math.round(bounty.target_value), language);
+    unitLabel = 'reps';
+  } else {
+    target = formatNumber(Math.round(bounty.target_value), language);
+    unitLabel = weightUnit;
   }
-  return `${metric} — beat ${target} lbs`;
+  if (bounty.exercise_name) {
+    return `${metric} ${bounty.exercise_name} — beat ${target} ${unitLabel}`;
+  }
+  return `${metric} — beat ${target} ${unitLabel}`;
 }
 
 // ── Queries ───────────────────────────────────────────────────────────────────
