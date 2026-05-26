@@ -222,6 +222,14 @@ export default function Workout() {
   // the 'anon' bucket or the wrong user's namespace.
   const workoutStateRef = React.useRef({});
   workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId: user?.id };
+  // Ref-based synchronous in-flight guard for saveWorkout. The
+  // existing `saveMutation.isPending` check at line 1181 catches the
+  // common case but the comment there acknowledges a race: when the
+  // user taps "Save anyway" inside the missing-data warning dialog,
+  // two rapid taps can enter saveWorkout() twice BEFORE React's
+  // pending-state propagates, producing two WorkoutLog rows + two XP
+  // grants. The ref flips synchronously on first call.
+  const saveInFlightRef = React.useRef(false);
 
   useEffect(() => {
     return () => {
@@ -587,6 +595,10 @@ export default function Workout() {
       return { previous };
     },
     onError: (err, _data, ctx) => {
+      // Clear the in-flight guard so the user can retry. Without this
+      // a save failure would leave the synchronous ref stuck true and
+      // every subsequent saveWorkout() would silently bail.
+      saveInFlightRef.current = false;
       // Roll back the optimistic insert AND tell the user something went
       // wrong — previously this swallowed the failure and the row just
       // disappeared with no toast, which is the worst possible UX.
@@ -614,6 +626,8 @@ export default function Workout() {
       }
     },
     onSuccess: (result, _origData, ctx) => {
+      // Clear in-flight guard on success too. (Wave 45.)
+      saveInFlightRef.current = false;
       // Audit C-2 — duplicate-save short-circuit. A retry of a save
       // that already landed should NOT re-fire streak/league/quests/
       // crew wars/celebrations. We surface a quiet confirm toast and
@@ -1177,8 +1191,14 @@ export default function Workout() {
     // Guard against double-tap. saveMutation.isPending isn't true during the
     // warning-dialog detour, so a fast double-tap on "Save anyway" could fire
     // .mutate() twice in the same tick, producing two WorkoutLog rows AND
-    // two XP grants. This early-return is the actual safety net.
-    if (saveMutation.isPending) return;
+    // two XP grants. Both the state-based and the synchronous ref-based
+    // checks run — the ref is the actual safety net for within-tick races.
+    if (saveInFlightRef.current || saveMutation.isPending) return;
+    // NOTE: don't set saveInFlightRef.current = true here — saveWorkout
+    // has many validation early-returns that don't call .mutate(), and
+    // setting the ref here would strand it on the failing path. We
+    // flip the ref right BEFORE the actual mutate() call below so
+    // only successful entries through validation lock further taps.
     const exerciseStrings = (exercises || []).flatMap(ex => [ex.name, ex.displayName]);
     if (hasAnyProfanity(notes, exerciseStrings)) {
       toast.error('Please remove inappropriate language before saving.');
@@ -1352,6 +1372,10 @@ export default function Workout() {
       return;
     }
 
+    // Flip the synchronous in-flight guard right before firing the
+    // mutation so a double-tap can't enter again until onSuccess /
+    // onError clears it.
+    saveInFlightRef.current = true;
     saveMutation.mutate(pendingPayload);
   };
 
