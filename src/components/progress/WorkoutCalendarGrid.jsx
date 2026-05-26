@@ -14,6 +14,7 @@ import { motion } from 'framer-motion';
 import { format, subDays, startOfDay } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
@@ -83,7 +84,8 @@ function buildVolumeMap(logs) {
 }
 
 export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
   const [tooltip, setTooltip] = useState(null);
@@ -201,10 +203,10 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
                     }}
                     aria-label={
                       day.isFuture
-                        ? `${format(day.date, 'MMM d, yyyy')}: ${tFallback('calendar.future', 'future')}`
+                        ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.future', 'future')}`
                         : day.volume > 0
-                          ? `${format(day.date, 'MMM d, yyyy')}: ${fmt(day.volume)} ${unitSuffix}`
-                          : `${format(day.date, 'MMM d, yyyy')}: ${tFallback('calendar.noWorkout', 'no workout')}`
+                          ? `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${fmt(day.volume)} ${unitSuffix}`
+                          : `${format(day.date, 'MMM d, yyyy', { locale: dateLocale })}: ${tFallback('calendar.noWorkout', 'no workout')}`
                     }
                     className={[
                       'w-3 h-3 rounded-[3px] transition-transform',
@@ -225,7 +227,7 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
             {tooltip && !tooltip.isFuture && (
               <span className="tabular-nums">
                 <span className="font-semibold text-foreground">
-                  {format(tooltip.date, 'MMM d, yyyy')}
+                  {format(tooltip.date, 'MMM d, yyyy', { locale: dateLocale })}
                 </span>
                 {' · '}
                 {tooltip.volume > 0

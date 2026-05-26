@@ -124,8 +124,21 @@ export default function MacroRingWidget({ userProfile = {} }) {
                   />
                 );
               })}
-              {/* Center label */}
-              <text x="60" y="57" textAnchor="middle" className="fill-foreground" style={{ fontSize: 13, fontWeight: 700, fontFamily: 'var(--font-heading, sans-serif)' }}>
+              {/* Center label. Scale the font down for 4+ digit
+                  values so a heavy-eater's "3500" doesn't overflow
+                  the 60-unit ring center. (Audit 08 #M-3.) */}
+              <text
+                x="60"
+                y="57"
+                textAnchor="middle"
+                className="fill-foreground"
+                style={{
+                  fontSize: Math.round(totals.calories) >= 10000 ? 9 :
+                             Math.round(totals.calories) >= 1000 ? 12 : 13,
+                  fontWeight: 700,
+                  fontFamily: 'var(--font-heading, sans-serif)',
+                }}
+              >
                 {Math.round(totals.calories)}
               </text>
               <text x="60" y="70" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 9 }}>

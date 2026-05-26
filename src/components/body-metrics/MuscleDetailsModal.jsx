@@ -5,6 +5,7 @@ import { Dumbbell } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { MUSCLE_CATEGORIES } from './MuscleDiagram';
 import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 
@@ -15,7 +16,8 @@ const MUSCLE_LABELS_FALLBACK = {
 };
 
 export default function MuscleDetailsModal({ open, onClose, muscleId, category, workoutHistory = [] }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const { weightUnit } = useWeightUnit();
   const label = muscleId ? (t(`muscleGroups.${muscleId}`) !== `muscleGroups.${muscleId}` ? t(`muscleGroups.${muscleId}`) : (MUSCLE_LABELS_FALLBACK[muscleId] || muscleId)) : '';
   const categoryLabel = category ? t(`muscleGroups.${category}`) : '';
@@ -125,7 +127,7 @@ export default function MuscleDetailsModal({ open, onClose, muscleId, category, 
                 <div>
                   <p className="font-medium text-sm">{ex.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {format(new Date(ex.date), 'MMM d, yyyy')}
+                    {format(new Date(ex.date), 'MMM d, yyyy', { locale: dateLocale })}
                   </p>
                 </div>
                 <div className="text-right text-xs text-muted-foreground shrink-0">

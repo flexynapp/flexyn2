@@ -17,8 +17,14 @@ import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  // Ensure every set has a stable _key so removing one in the middle
+  // doesn't re-key sets below it — the same key={i} bug pattern fixed
+  // in ExerciseLogger (audit 09 #C-5). Without this, mid-typing a
+  // weight while another set is removed could jump focus / snap the
+  // input's rendered value to the next row's value.
+  const ensureKeys = (arr) => arr.map(s => s._key ? s : { ...s, _key: `s-${Math.random().toString(36).slice(2, 10)}` });
   const updateSet = (i, field, val) => {
-    const updated = [...sets];
+    const updated = ensureKeys(sets);
     updated[i] = { ...updated[i], [field]: val };
     onChange(updated);
   };
@@ -27,14 +33,14 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   const addSet = () => {
     if (atSetLimit) return;
     const last = sets[sets.length - 1] || { weight: null, reps: null };
-    onChange([...sets, { weight: last.weight, reps: last.reps }]);
+    onChange([...ensureKeys(sets), { weight: last.weight, reps: last.reps, _key: `s-${Math.random().toString(36).slice(2, 10)}` }]);
   };
   const removeSet = (i) => onChange(sets.filter((_, idx) => idx !== i));
 
   return (
     <div className="space-y-2">
       {sets.map((s, i) => (
-        <div key={i} className="flex items-center gap-2">
+        <div key={s._key || `s-${i}`} className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
           <Input
             type="number" min="0" step="0.5"

@@ -11,6 +11,8 @@
 import React, { useMemo } from 'react';
 import { format, subDays, parseISO } from 'date-fns';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 
 function daysBack(n, now = new Date()) {
   const arr = [];
@@ -77,6 +79,8 @@ function MiniSeries({ label, values, goal, color, unit = 'g' }) {
 }
 
 export default function NutritionTrendsChart({ entries = [], userProfile = {}, days = 7 }) {
+  const { language } = useLanguage();
+  const dateLocale = getDateLocale(language);
   const dateKeys = useMemo(() => daysBack(days), [days]);
   const series = useMemo(() => aggregate(entries, dateKeys), [entries, dateKeys]);
   const dv = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
@@ -107,7 +111,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
         <div className="flex justify-between mt-2 px-0.5">
           {series.map(s => (
             <span key={s.date} className="text-[9px] text-muted-foreground/70 tabular-nums">
-              {(() => { try { return format(parseISO(s.date), 'EEE'); } catch { return ''; } })()}
+              {(() => { try { return format(parseISO(s.date), 'EEE', { locale: dateLocale }); } catch { return ''; } })()}
             </span>
           ))}
         </div>
