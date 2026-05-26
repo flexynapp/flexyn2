@@ -323,10 +323,16 @@ export default function StoryViewer({
     // count silently disagreed with the visible heart. (Audit 10 #65.)
     setLocalLiked(prev => { const n = new Set(prev); already ? n.delete(currentStory.id) : n.add(currentStory.id); return n; });
     try {
-      const res = already
+      // likeStory / unlikeStory return a plain boolean — true on
+      // success, false on RLS rejection / network failure. The
+      // previous `res.ok === false` check assumed an `{ ok }` shape
+      // that the helpers don't return, so failure was never detected
+      // and the optimistic heart stayed lit even when the server
+      // rejected. Fix from my own wave-30 work — caught in self-audit.
+      const ok = already
         ? await storiesData.unlikeStory(currentStory.id, user.id)
         : await storiesData.likeStory(currentStory.id, user);
-      if (res && res.ok === false) throw new Error(res.error || 'like_failed');
+      if (ok !== true) throw new Error('like_failed');
       try { navigator.vibrate?.(already ? 6 : 12); } catch {}
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
     } catch {

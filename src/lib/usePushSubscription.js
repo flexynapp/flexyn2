@@ -138,14 +138,45 @@ export function usePushSubscription() {
     try {
       const reg = await navigator.serviceWorker.ready;
       const subscription = await reg.pushManager.getSubscription();
+      // Capture the endpoint BEFORE unsubscribing so we can still
+      // delete the matching server row even if subscription.unsubscribe
+      // throws (PushManager state desync). Audit 14 #35.
+      const endpoint = subscription ? subscriptionKeys(subscription).endpoint : null;
+
       if (subscription) {
-        const { endpoint } = subscriptionKeys(subscription);
-        // Remove the browser-side subscription first. If this fails we
-        // bail before touching the server row.
-        await subscription.unsubscribe();
-        // Then delete the server row (RLS allows the owner to delete).
-        await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+        // Browser-side unsubscribe — tolerate failure. If the browser
+        // refuses to revoke, we'd rather still delete the server row
+        // (which is the canonical "is this device subscribed" record)
+        // so the next push doesn't go to a stale endpoint.
+        try { await subscription.unsubscribe(); }
+        catch (e) { console.warn('[push] browser unsubscribe threw:', e); }
       }
+
+      // ALWAYS attempt to delete the server row. The previous code
+      // skipped this when subscription was null (browser sub already
+      // gone) — but that's the WORST case: the server still has the
+      // row and keeps trying to push to a dead endpoint until the
+      // 410-Gone cleanup eventually catches it. If we have an
+      // endpoint, delete by endpoint; otherwise fall back to deleting
+      // any rows for the current user_agent (best-effort cleanup).
+      if (endpoint) {
+        await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
+      } else {
+        // No active browser subscription — try a UA-based cleanup so a
+        // user who lost their browser sub (cleared site data, switched
+        // browsers) can still purge their server-side row.
+        try {
+          const { data: { user: authUser } } = await supabase.auth.getUser();
+          if (authUser) {
+            await supabase
+              .from('push_subscriptions')
+              .delete()
+              .eq('user_id', authUser.id)
+              .eq('user_agent', navigator.userAgent || '');
+          }
+        } catch { /* best-effort */ }
+      }
+
       setIsSubscribed(false);
       return { ok: true };
     } catch (err) {
