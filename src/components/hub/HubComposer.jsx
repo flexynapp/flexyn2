@@ -259,6 +259,13 @@ export default function HubComposer({ onClose }) {
   const [privacy, setPrivacy] = useState('public');
   const [selectedCrewId, setSelectedCrewId] = useState(null);
   const [posting, setPosting] = useState(false);
+  // Ref-based in-flight guard. The `disabled={posting}` gate on the
+  // Post button is asynchronous — a rapid double-tap could fire
+  // handlePost twice before `setPosting(true)` lands in state, racing
+  // two creates of the same post (and two image uploads). The ref
+  // flips synchronously inside handlePost. Same pattern as
+  // DailyQuestsCard / LogMealForm / MoodLogCard.
+  const postingRef = useRef(false);
 
   // Content warning state. NULL by default — most posts don't need one.
   // `cwType` is one of the catalog keys; `cwLabel` is freeform text
@@ -470,7 +477,7 @@ export default function HubComposer({ onClose }) {
   // ── Posting ──
   // Defensive submit-time profanity check — even if onChange interception
   // was bypassed (paste, autofill, programmatic injection), this catches it.
-  const handlePost = async () => {
+  const _handlePostInner = async () => {
     if (!selected) return;
     // Primary-action haptic — posting to Hub is one of the highest-
     // intent moments in the social surface. The centralized util
@@ -784,6 +791,21 @@ export default function HubComposer({ onClose }) {
       }
     } finally {
       setPosting(false);
+    }
+  };
+
+  // Public entry point — synchronous ref guard against double-tap on
+  // the Post button. The disabled-on-`posting` gate alone races a
+  // fast double-tap because the state setter is asynchronous, so the
+  // second tap could enter _handlePostInner and create a duplicate
+  // post (with two image uploads).
+  const handlePost = async () => {
+    if (postingRef.current) return;
+    postingRef.current = true;
+    try {
+      await _handlePostInner();
+    } finally {
+      postingRef.current = false;
     }
   };
 

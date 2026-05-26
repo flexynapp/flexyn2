@@ -70,7 +70,16 @@ function WeeklyVolumeChart({ logs = [] }) {
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
           <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
           <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-          <Tooltip {...CHART_TOOLTIP_STYLE} formatter={v => [formatWeight(v, weightUnit), t('widgets.weeklyVolume')]} />
+          {/* `v` here is the Y-axis value, which is already converted
+              into display units via `fromLbs(vol, weightUnit)` in the
+              chart data above. The previous `formatWeight(v, weightUnit)`
+              re-converted as if it were lbs, halving the tooltip value
+              for kg users. Now we render the already-converted number
+              with the unit suffix directly. */}
+          <Tooltip
+            {...CHART_TOOLTIP_STYLE}
+            formatter={v => [`${Math.round(Number(v) || 0).toLocaleString()} ${weightUnit}`, t('widgets.weeklyVolume')]}
+          />
           <Bar dataKey="volumeDisplay" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={900} animationEasing="ease-out" />
         </BarChart>
       </ResponsiveContainer>
@@ -127,7 +136,12 @@ function TopExerciseChart({ logs = [] }) {
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
           <XAxis dataKey="date" tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
           <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-          <Tooltip {...CHART_TOOLTIP_STYLE} formatter={v => [formatWeight(v, weightUnit), t('progress.maxWeightLbs')]} />
+          {/* Same double-convert avoidance as the volume chart — `v` is
+              already the converted display-unit weight, not lbs. */}
+          <Tooltip
+            {...CHART_TOOLTIP_STYLE}
+            formatter={v => [`${(Math.round((Number(v) || 0) * 10) / 10).toLocaleString()} ${weightUnit}`, t('progress.maxWeightLbs')]}
+          />
           <Line type="monotone" dataKey="Weight" stroke="hsl(var(--accent))" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: 'hsl(var(--accent))' }} activeDot={{ r: 6, strokeWidth: 0 }} isAnimationActive animationDuration={1000} animationEasing="ease-out" />
         </LineChart>
       </ResponsiveContainer>
