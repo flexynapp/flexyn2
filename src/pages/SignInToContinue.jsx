@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LOGO_URL } from '@/lib/constants';
-import { LogIn, ArrowRight, Mail, Loader2, Check } from 'lucide-react';
+import { LogIn, ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -28,7 +28,11 @@ function AppleGlyph(props) {
   );
 }
 
-export default function SignInToContinue() {
+export default function SignInToContinue({
+  onBack = null,
+  heading = 'Sign in to continue',
+  subtext = 'Pick up right where you left off — your workouts, streaks, and progress are waiting.',
+}) {
   const [email, setEmail] = useState('');
   const [emailSent, setEmailSent] = useState(false);
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
@@ -80,6 +84,16 @@ export default function SignInToContinue() {
 
   return (
     <div className="fixed inset-0 bg-background flex flex-col items-center justify-between p-6 pb-10 overflow-y-auto">
+      {onBack && (
+        <button
+          type="button"
+          onClick={onBack}
+          aria-label="Back"
+          className="absolute top-5 start-5 z-20 w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
+        >
+          <ArrowLeft className="w-4 h-4" />
+        </button>
+      )}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -101,9 +115,9 @@ export default function SignInToContinue() {
         <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
           <LogIn className="w-10 h-10 text-primary" />
         </div>
-        <h2 className="font-heading text-2xl font-bold tracking-tight mb-3">Sign in to continue</h2>
+        <h2 className="font-heading text-2xl font-bold tracking-tight mb-3">{heading}</h2>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
-          Pick up right where you left off — your workouts, streaks, and progress are waiting.
+          {subtext}
         </p>
       </motion.div>
 

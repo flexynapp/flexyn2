@@ -5,6 +5,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import SignInToContinue from './SignInToContinue';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
@@ -2484,6 +2485,12 @@ export default function Onboarding() {
   const [stepIdx, setStepIdx] = useState(0);
   const [direction, setDirection] = useState(1);
   const [saving, setSaving] = useState(false);
+  // New users sign in from the welcome screen via the full SignInToContinue
+  // gate (Google + Apple + email magic-link, all with error handling) rather
+  // than being force-redirected to Google with no fallback. Toggled by the
+  // welcome CTAs; the OAuth/magic-link round-trip reloads the app, so this
+  // flag doesn't need to survive the redirect.
+  const [showSignIn, setShowSignIn] = useState(false);
 
   // Persist in-flight onboarding state to localStorage so a refresh / tab
   // close mid-flow doesn't lose 6 steps of input. Cleared on successful
@@ -2943,6 +2950,20 @@ export default function Onboarding() {
     );
   }
 
+  // New user tapped a welcome CTA → show the full sign-in gate (Google +
+  // Apple + email magic-link with error handling) instead of force-pushing
+  // Google with no fallback. Once authenticated the round-trip reloads the
+  // app and the welcome→goal auto-advance takes over.
+  if (showSignIn && !isAuthenticated) {
+    return (
+      <SignInToContinue
+        onBack={() => setShowSignIn(false)}
+        heading="Let's get you set up"
+        subtext="Create an account or sign in — it saves your plan and syncs your progress across devices."
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-background overflow-hidden">
       <Aurora />
@@ -2960,9 +2981,9 @@ export default function Onboarding() {
                 <WelcomeStep
                   onNext={() => {
                     if (isAuthenticated) { next(); }
-                    else { db.auth.redirectToLogin('/'); }
+                    else { setShowSignIn(true); }
                   }}
-                  onSignIn={() => db.auth.redirectToLogin('/')}
+                  onSignIn={() => setShowSignIn(true)}
                 />
               )}
 
