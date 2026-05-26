@@ -178,14 +178,36 @@ async function fetchOsmGyms(bounds, zoom, signal) {
   const w   = bounds.getWest().toFixed(4);
   const n   = bounds.getNorth().toFixed(4);
   const e   = bounds.getEast().toFixed(4);
-  const cap = zoom >= 7 ? 1000 : 500;
+  // Higher cap on closer zooms so dense international cities (Tokyo,
+  // London, Berlin, São Paulo, Seoul) aren't truncated to the first
+  // ~1000 results. At zoom >= 11 (neighborhood level) we expect to
+  // see every gym in view.
+  const cap = zoom >= 11 ? 2500 : zoom >= 7 ? 1000 : 500;
+  // Multi-tag query covers the variations international mappers use:
+  //   leisure=fitness_centre — the OSM canonical tag (most common)
+  //   amenity=gym            — historical / American convention
+  //   sport=fitness          — used in parts of Europe + Latin America
+  //   leisure=sports_centre + sport=fitness — combo used in Germany,
+  //                                            Netherlands, Scandinavia
+  //   leisure=fitness_station — outdoor calisthenics parks (visible
+  //                              at higher zoom only to avoid clutter)
+  // Increased timeout to 25s — dense urban queries (central Tokyo,
+  // Manhattan) frequently exceeded the previous 20s on overpass-api.de.
+  const includeOutdoor = zoom >= 13;
   const q   =
-    `[out:json][timeout:20];` +
-    `(node["leisure"="fitness_centre"](${s},${w},${n},${e});` +
-    ` node["amenity"="gym"](${s},${w},${n},${e});` +
-    ` way["leisure"="fitness_centre"](${s},${w},${n},${e});` +
-    ` way["amenity"="gym"](${s},${w},${n},${e}););` +
-    `out center ${cap};`;
+    `[out:json][timeout:25];(` +
+    `node["leisure"="fitness_centre"](${s},${w},${n},${e});` +
+    `way["leisure"="fitness_centre"](${s},${w},${n},${e});` +
+    `node["amenity"="gym"](${s},${w},${n},${e});` +
+    `way["amenity"="gym"](${s},${w},${n},${e});` +
+    `node["sport"="fitness"]["leisure"!="fitness_station"](${s},${w},${n},${e});` +
+    `way["sport"="fitness"]["leisure"!="fitness_station"](${s},${w},${n},${e});` +
+    `node["leisure"="sports_centre"]["sport"~"fitness"](${s},${w},${n},${e});` +
+    `way["leisure"="sports_centre"]["sport"~"fitness"](${s},${w},${n},${e});` +
+    (includeOutdoor
+      ? `node["leisure"="fitness_station"](${s},${w},${n},${e});`
+      : '') +
+    `);out center ${cap};`;
 
   let lastErr = null;
   for (const mirror of OVERPASS_MIRRORS) {
@@ -197,6 +219,11 @@ async function fetchOsmGyms(bounds, zoom, signal) {
       );
       if (!res.ok) throw new Error(`OSM ${res.status}`);
       const json = await res.json();
+      // Dedupe by `osmId` — a single gym tagged with BOTH
+      // leisure=fitness_centre AND amenity=gym (common pattern) would
+      // otherwise return as two records and render two overlapping
+      // pins. Use the first occurrence so the most-canonical tag wins.
+      const seenIds = new Set();
       return (json.elements || []).map(el => ({
         osmId:   el.id,
         name:    el.tags?.name || 'Gym',
@@ -204,7 +231,12 @@ async function fetchOsmGyms(bounds, zoom, signal) {
         lon:     el.type === 'node' ? el.lon : el.center?.lon,
         brand:   el.tags?.brand   || null,
         website: el.tags?.website || null,
-      })).filter(g => g.lat && g.lon);
+      })).filter(g => {
+        if (!g.lat || !g.lon) return false;
+        if (seenIds.has(g.osmId)) return false;
+        seenIds.add(g.osmId);
+        return true;
+      });
     } catch (err) {
       if (err?.name === 'AbortError') throw err;
       lastErr = err;
