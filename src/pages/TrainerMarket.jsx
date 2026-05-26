@@ -157,6 +157,15 @@ export default function TrainerMarket() {
                     <Button variant="outline" className="w-full gap-1.5" onClick={() => navigate('/trainer/studio')}>
                       <Sparkles className="w-4 h-4" /> Edit in Studio
                     </Button>
+                  ) : !listing.regimen_id ? (
+                    // The trainer published the listing but never linked
+                    // a regimen — purchasing would charge (in mock mode,
+                    // create a row) for nothing accessible. Block the
+                    // CTA + show a clear "not ready" label so the user
+                    // doesn't pay for an empty product. (Audit 12 #16.)
+                    <Button variant="outline" className="w-full gap-1.5" disabled>
+                      <Lock className="w-4 h-4" /> Coming soon
+                    </Button>
                   ) : (
                     <Button
                       className="w-full gap-1.5 font-bold"

@@ -340,7 +340,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
               </span>
             )}
             <span className="text-sm font-semibold truncate">
-              @{post.author_email?.split('@')[0] || 'member'}
+              @{post.author_username || post.author_email?.split('@')[0] || 'member'}
             </span>
           </div>
           <span className="text-[11px] text-muted-foreground">{timeLabel}</span>
@@ -510,7 +510,7 @@ function FeedComments({ postId, meId, isPostAuthorOrGymOwner, onChange }) {
                 <div className="w-6 h-6 rounded-full bg-secondary shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0 rounded-xl bg-secondary/40 px-2.5 py-1.5">
                   <p className="text-[11px] text-muted-foreground">
-                    @{c.author_email?.split('@')[0]} ·{' '}
+                    @{c.author_username || c.author_email?.split('@')[0]} ·{' '}
                     {(() => { try { return formatDistanceToNow(parseISO(c.created_at), { addSuffix: true }); } catch { return ''; } })()}
                   </p>
                   <p className="text-xs whitespace-pre-wrap">{c.body}</p>

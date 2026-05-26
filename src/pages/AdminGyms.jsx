@@ -84,8 +84,12 @@ export default function AdminGyms() {
 
   const handleConfirmReject = async (v) => {
     if (actingId) return;
+    // Trim the reason so whitespace-only doesn't land as a literal
+    // "   " in the DB and confuse the submitter into thinking no
+    // reason was given. (Audit 12 #5.)
+    const reason = (rejectReason || '').trim() || null;
     setActingId(v.id);
-    const res = await rejectVerification(v.id, rejectReason || null);
+    const res = await rejectVerification(v.id, reason);
     setActingId(null);
     if (res.ok) {
       toast.success('Rejected.');

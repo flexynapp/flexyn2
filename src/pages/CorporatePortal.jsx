@@ -76,9 +76,15 @@ export default function CorporatePortal() {
   };
 
   const handleJoin = async () => {
-    if (busy || joinCode.trim().length < 4) return;
+    // Codes are exactly 8 characters (mig 146's mint loop produces 8-char
+    // codes from the unambiguous alphabet). Previously the gate was
+    // length >= 4, so "ABCD" or "ABCDE" would submit, hit the server,
+    // and bounce with a generic CODE_NOT_FOUND — looked like a bug to
+    // users who fat-fingered a partial paste. (Audit 12 #25.)
+    const cleaned = joinCode.trim().toUpperCase();
+    if (busy || cleaned.length !== 8) return;
     setBusy(true);
-    const res = await joinOrganizationByCode(joinCode);
+    const res = await joinOrganizationByCode(cleaned);
     setBusy(false);
     if (res.ok) {
       toast.success('Joined your organization.');
@@ -146,9 +152,9 @@ export default function CorporatePortal() {
             <p className="text-sm font-semibold mb-1">Join your company</p>
             <p className="text-xs text-muted-foreground mb-3">Enter the code your wellness admin shared.</p>
             <div className="flex gap-2">
-              <Input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().slice(0, 8))}
+              <Input value={joinCode} onChange={(e) => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8))}
                 placeholder="ORG CODE" className="font-mono tracking-[0.2em] text-center uppercase" maxLength={8} />
-              <Button onClick={handleJoin} disabled={busy || joinCode.trim().length < 4}>
+              <Button onClick={handleJoin} disabled={busy || joinCode.trim().length !== 8}>
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Join'}
               </Button>
             </div>

@@ -77,17 +77,23 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                 {members.map(m => {
                   const isOwner = m.user_id === gymOwnerId;
                   const handle = m.username || 'member';
+                  // Members who haven't set a username can't be linked
+                  // to via the /@:username route. Disable the button so
+                  // the row still shows the user's info but doesn't
+                  // look broken when tapped. (Audit 12 #46.)
+                  const hasUsername = !!m.username;
                   return (
                     <li key={m.user_id}>
                       <button
                         type="button"
+                        disabled={!hasUsername}
                         onClick={() => {
+                          if (!hasUsername) return;
                           onClose();
-                          // Route to the user's hub profile via the
-                          // existing /@:username deep link.
-                          if (m.username) navigate(`/@${m.username}`);
+                          navigate(`/@${m.username}`);
                         }}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-secondary/40 transition-colors text-left"
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors ${hasUsername ? 'hover:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
+                        title={hasUsername ? `Open @${m.username}` : 'This member hasn’t set a username yet'}
                       >
                         {m.avatar_url
                           ? <img src={m.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />

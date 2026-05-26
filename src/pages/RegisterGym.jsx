@@ -86,20 +86,62 @@ export default function RegisterGym() {
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
     if (submitting) return;
-    if (!form.business_name.trim()) {
+    const name = form.business_name.trim();
+    if (!name) {
       toast.error('Business name required.');
       return;
     }
+
+    // Dedupe guard: refuse to submit if a pending row already exists
+    // for the same business name (case-insensitive). Previously a
+    // double-tap (or returning to the page after an earlier submit
+    // and tapping again) created multiple pending rows for the same
+    // gym. (Audit 12 #1.)
+    const lowerName = name.toLowerCase();
+    const dupe = (submissions || []).find(
+      (s) => s.status === 'pending' && (s.business_name || '').trim().toLowerCase() === lowerName,
+    );
+    if (dupe) {
+      toast.error(`"${name}" is already pending review — no need to resubmit.`);
+      return;
+    }
+
+    // Strict numeric guard on lat/lng — `Number('abc')` is NaN and the
+    // previous code sent NaN through to the RPC, which returned an
+    // opaque error. Refuse to submit if either coord is unparseable.
+    // (Audit 12 #3.)
+    let lat = null, lng = null;
+    if (form.latitude?.toString().trim() !== '') {
+      const v = Number(form.latitude);
+      if (!Number.isFinite(v) || v < -90 || v > 90) {
+        toast.error('Latitude must be a number between -90 and 90.');
+        return;
+      }
+      lat = v;
+    }
+    if (form.longitude?.toString().trim() !== '') {
+      const v = Number(form.longitude);
+      if (!Number.isFinite(v) || v < -180 || v > 180) {
+        toast.error('Longitude must be a number between -180 and 180.');
+        return;
+      }
+      lng = v;
+    }
+
     setSubmitting(true);
-    const res = await submitVerification({
-      ...form,
-      latitude:  form.latitude  ? Number(form.latitude)  : null,
-      longitude: form.longitude ? Number(form.longitude) : null,
-    });
+    const res = await submitVerification({ ...form, business_name: name, latitude: lat, longitude: lng });
     setSubmitting(false);
     if (res.ok) {
       toast.success('Submitted — Flexyn will review and reach out shortly.');
-      setForm(f => ({ ...f, business_name: '' })); // reset name to allow next submission
+      // Clear EVERY field so a subsequent submission for a different
+      // gym starts from a clean slate. Previously only business_name
+      // was cleared, so a user adding a second gym carried the first
+      // gym's address by default — easy to send a wrong duplicate.
+      setForm({
+        business_name: '', street_address: '', city: '', state_code: '',
+        postal_code: '', country_code: 'US', phone: '', website_url: '',
+        proof_url: '', latitude: '', longitude: '',
+      });
       // Refresh list
       const fresh = await listMyVerifications(user.id);
       setSubmissions(fresh);

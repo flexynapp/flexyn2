@@ -231,14 +231,37 @@ export async function deleteEvent(eventId) {
 
 export async function listFeedPosts(gymId, limit = 30) {
   if (!gymId) return [];
+  // Embed the author's user_profiles row so the UI can show
+  // @username instead of the email local-part. Previously the
+  // GymFeedTab fell back to `author_email.split('@')[0]` which leaked
+  // the email username portion (a corporate user signing up as
+  // "j.smith.cfo@acme.com" had their work email handle posted on
+  // every gym feed). (Audit 12 #42 + #43.)
   const { data, error } = await supabase
     .from('gym_feed_posts')
-    .select('*')
+    .select(`
+      *,
+      author:user_profiles!author_id ( username, avatar_url )
+    `)
     .eq('gym_id', gymId)
     .order('created_at', { ascending: false })
     .limit(limit);
-  if (error) return [];
-  return data || [];
+  if (error) {
+    // PostgREST embed failure (older schema cache or RLS): fall back
+    // to the plain select so the feed still renders.
+    const { data: fallback } = await supabase
+      .from('gym_feed_posts')
+      .select('*')
+      .eq('gym_id', gymId)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    return fallback || [];
+  }
+  return (data || []).map(r => ({
+    ...r,
+    author_username: r.author?.username || null,
+    author_avatar_url: r.author?.avatar_url || null,
+  }));
 }
 
 export async function postToFeed(gymId, body, mediaUrl = null) {
@@ -305,13 +328,29 @@ export async function listReactionsForPosts(postIds, userId) {
 // ── Feed comments (mig 138) ────────────────────────────────────────
 export async function listFeedComments(postId) {
   if (!postId) return [];
+  // Same email-leak guard as listFeedPosts — embed the author profile
+  // so the UI can show @username instead of the email local-part.
   const { data, error } = await supabase
     .from('gym_feed_comments')
-    .select('id, author_id, author_email, body, created_at, parent_id')
+    .select(`
+      id, author_id, author_email, body, created_at, parent_id,
+      author:user_profiles!author_id ( username, avatar_url )
+    `)
     .eq('post_id', postId)
     .order('created_at', { ascending: true });
-  if (error) return [];
-  return data || [];
+  if (error) {
+    const { data: fallback } = await supabase
+      .from('gym_feed_comments')
+      .select('id, author_id, author_email, body, created_at, parent_id')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: true });
+    return fallback || [];
+  }
+  return (data || []).map(c => ({
+    ...c,
+    author_username:   c.author?.username   || null,
+    author_avatar_url: c.author?.avatar_url || null,
+  }));
 }
 
 export async function postFeedComment(postId, body, parentId = null) {
