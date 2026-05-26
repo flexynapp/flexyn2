@@ -121,7 +121,13 @@ function TradeRow({ trade }) {
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
             {trade.iAmSender ? 'You offered' : `${counterparty?.split('@')[0] || 'Someone'} offered`}
           </p>
-          <p className="text-xs text-muted-foreground truncate">{counterparty}</p>
+          {/* Show only the email local-part as a degraded handle to
+              avoid leaking the full counterparty address to the screen.
+              A proper user_profiles lookup would let us show the
+              actual @username — TODO. */}
+          <p className="text-xs text-muted-foreground truncate">
+            @{counterparty?.split('@')[0] || 'unknown'}
+          </p>
         </div>
         <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusMeta.bg} ${statusMeta.color}`}>
           <statusMeta.Icon className="w-3 h-3" /> {statusMeta.label}

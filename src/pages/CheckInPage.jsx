@@ -17,12 +17,19 @@ export default function CheckInPage() {
   const { user, isLoadingAuth } = useAuth();
   const [status, setStatus] = useState('pending'); // pending | ok | already | error | unauth
   const [gymName, setGymName] = useState('');
-  const ran = useRef(false);
+  const ran = useRef(null);
 
+  // Re-run when `code` changes (SPA nav between two checkin URLs)
+  // while still guarding against the same code being re-checked-in
+  // within the same mount. The previous boolean ran-ref was sticky
+  // forever after the first code, so a second scan never registered.
   useEffect(() => {
-    if (isLoadingAuth || ran.current) return;
+    if (isLoadingAuth) return;
     if (!user) { setStatus('unauth'); return; }
-    ran.current = true;
+    if (ran.current === code) return;
+    ran.current = code;
+    setStatus('pending');
+    setGymName('');
     (async () => {
       try {
         const res = await checkInWithCode(code);
