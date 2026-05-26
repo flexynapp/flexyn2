@@ -303,10 +303,23 @@ export default function StoryViewer({
     e.stopPropagation();
     if (!currentStory || !user) return;
     const already = localLiked.has(currentStory.id);
+    // Optimistic toggle + revert-on-failure. The previous version had
+    // no catch, so an RLS rejection / network blip left the local
+    // state liked while the server had nothing — the InsightsPanel
+    // count silently disagreed with the visible heart. (Audit 10 #65.)
     setLocalLiked(prev => { const n = new Set(prev); already ? n.delete(currentStory.id) : n.add(currentStory.id); return n; });
-    if (already) await storiesData.unlikeStory(currentStory.id, user.id);
-    else         await storiesData.likeStory(currentStory.id, user);
-    queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    try {
+      const res = already
+        ? await storiesData.unlikeStory(currentStory.id, user.id)
+        : await storiesData.likeStory(currentStory.id, user);
+      if (res && res.ok === false) throw new Error(res.error || 'like_failed');
+      try { navigator.vibrate?.(already ? 6 : 12); } catch {}
+      queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
+    } catch {
+      // Revert and surface a toast so the user knows the heart didn't stick.
+      setLocalLiked(prev => { const n = new Set(prev); already ? n.add(currentStory.id) : n.delete(currentStory.id); return n; });
+      toast.error('Could not update like — try again.');
+    }
   };
 
   const handleSendReply = async () => {

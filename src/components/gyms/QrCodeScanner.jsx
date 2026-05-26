@@ -49,6 +49,13 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
   const readerRef   = useRef(null);
   const controlsRef = useRef(null);
   const detectedRef = useRef(false); // guard against multi-fire
+  // Keep the latest onDetect in a ref so the camera-start effect only
+  // depends on `open`. Previously `onDetect` was a fresh closure every
+  // parent render (it captures the `joining` state via joinWithCode),
+  // tearing down and re-initializing the camera on every parent
+  // re-render. (Audit 12 #14.)
+  const onDetectRef = useRef(onDetect);
+  useEffect(() => { onDetectRef.current = onDetect; }, [onDetect]);
 
   const [status, setStatus] = useState('idle'); // idle | initializing | scanning | error
   const [error,  setError]  = useState(null);
@@ -88,7 +95,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
               if (code) {
                 detectedRef.current = true;
                 try { controls.stop(); } catch { /* ignore */ }
-                onDetect?.(code);
+                onDetectRef.current?.(code);
               }
             }
           },
@@ -96,7 +103,20 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
       } catch (e) {
         if (!cancelled) {
           setStatus('error');
-          setError(e?.message || 'Camera failed to start.');
+          // Map common DOMException names to friendly copy. The native
+          // .message varies by browser ("Permission denied" on Chrome,
+          // "The request is not allowed..." on Safari, etc.) and isn't
+          // helpful. (Audit 12 #15.)
+          const name = e?.name || '';
+          if (name === 'NotAllowedError' || name === 'SecurityError') {
+            setError('Camera permission denied — enable camera access in your browser settings to scan.');
+          } else if (name === 'NotFoundError' || name === 'OverconstrainedError') {
+            setError('No camera found on this device.');
+          } else if (name === 'NotReadableError') {
+            setError('Camera is in use by another app. Close it and try again.');
+          } else {
+            setError(e?.message || 'Camera failed to start.');
+          }
         }
       }
     })();
@@ -107,7 +127,7 @@ export default function QrCodeScanner({ open, onClose, onDetect }) {
       controlsRef.current = null;
       readerRef.current = null;
     };
-  }, [open, onDetect]);
+  }, [open]);
 
   if (!open) return null;
 

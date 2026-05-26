@@ -101,6 +101,15 @@ export default function GymEdit() {
   // up later + simple RLS by owner_id is straightforward via prefix).
   const uploadImage = async (file, kind) => {
     if (!file || !user?.id) return null;
+    // Hard cap at 5 MB so a 12 MB phone photo doesn't get served
+    // unscaled to every visiting gym member. The Supabase Storage
+    // bucket default may be higher; this is the user-friendly limit.
+    // (Audit 12 #32.)
+    const MAX_BYTES = 5 * 1024 * 1024;
+    if (file.size > MAX_BYTES) {
+      toast.error('Image too large — keep it under 5 MB.');
+      return null;
+    }
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
     const path = `gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage

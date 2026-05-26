@@ -395,7 +395,14 @@ function EventsTab({ gymId, canCreate, gymOwnerId }) {
   };
 
   const handleCreate = async () => {
-    if (!form.title.trim() || !form.starts_at) return;
+    // The disabled-button gate covers most paths, but if the user
+    // clears the title after enabling the button via focus changes,
+    // the silent return surprises. Surface a toast so the tap always
+    // produces feedback. (Audit 12 #8.)
+    if (!form.title.trim() || !form.starts_at) {
+      toast.error('Add a title and start time before creating the event.');
+      return;
+    }
     const res = await createEvent(gymId, form);
     if (res.ok) {
       setForm({ title: '', body: '', starts_at: '', location_note: '' });

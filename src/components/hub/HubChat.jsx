@@ -393,6 +393,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   // Reset fade state when conversation changes
   useEffect(() => { setReadReceiptFaded(false); }, [conversation?.id]);
+  // Also reset when the most-recent sent message id changes — otherwise
+  // the 4s fade hid the read receipt permanently after the first sight,
+  // and any new message the user sent afterwards never showed its own
+  // "Read" indicator even when the recipient marked it read. (Audit 10 #77.)
+  useEffect(() => { setReadReceiptFaded(false); }, [lastSentMsg?.id]);
 
   // ── Scroll management ─────────────────────────────────────────────────────
   const handleScroll = useCallback(() => {

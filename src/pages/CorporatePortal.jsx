@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
@@ -237,9 +238,22 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
     staleTime: 30_000,
   });
 
+  // Persistent "show code" modal — opened when the clipboard API is
+  // unavailable (insecure context, iframe) so the user can manually
+  // select + copy the code instead of seeing it flash by in an
+  // auto-dismissing toast. (Audit 12 #24.)
+  const [showCodeOpen, setShowCodeOpen] = useState(false);
   const copyCode = async () => {
-    try { await navigator.clipboard.writeText(org.join_code); toast.success('Join code copied.'); }
-    catch { toast.message(`Code: ${org.join_code}`); }
+    if (!navigator?.clipboard?.writeText) {
+      setShowCodeOpen(true);
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(org.join_code);
+      toast.success('Join code copied.');
+    } catch {
+      setShowCodeOpen(true);
+    }
   };
 
   const handleDeleteChallenge = async (id) => {
@@ -280,6 +294,22 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
             <Copy className="w-4 h-4 text-primary" />
           </button>
         )}
+        <Dialog open={showCodeOpen} onOpenChange={setShowCodeOpen}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Team join code</DialogTitle>
+            </DialogHeader>
+            <p className="text-xs text-muted-foreground">
+              Clipboard access isn't available here. Press and hold to copy the code:
+            </p>
+            <input
+              readOnly
+              value={org.join_code}
+              onFocus={(e) => e.target.select()}
+              className="mt-3 w-full font-mono text-xl tracking-[0.3em] font-bold text-center bg-secondary/50 border border-border rounded-lg py-3 px-2 select-all"
+            />
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* HR analytics — admin only, aggregate only */}
@@ -338,7 +368,23 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
           <div className="space-y-2">
             {challenges.map(c => {
               const metric = METRICS.find(m => m.id === c.metric);
-              const ended = c.ends_at && new Date(c.ends_at) < new Date();
+              // Treat the ends_at date in the user's LOCAL timezone:
+              // a challenge "ending today" was previously shown as
+              // ended at midnight UTC, which for users in negative
+              // offsets flagged the challenge as over before their
+              // day finished. Now we shift to end-of-local-day.
+              // (Audit 12 #29.)
+              const ended = (() => {
+                if (!c.ends_at) return false;
+                const endLocalEod = new Date(c.ends_at);
+                if (!Number.isFinite(endLocalEod.getTime())) return false;
+                // Only shift to EOD when the value is a date-only string;
+                // a full ISO timestamp respects the embedded time.
+                if (/^\d{4}-\d{2}-\d{2}$/.test(String(c.ends_at))) {
+                  endLocalEod.setHours(23, 59, 59, 999);
+                }
+                return endLocalEod < new Date();
+              })();
               return (
                 <div key={c.id} className="rounded-xl border border-border bg-card p-3">
                   <div className="flex items-start justify-between gap-2">

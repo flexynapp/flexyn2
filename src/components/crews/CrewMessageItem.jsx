@@ -475,6 +475,17 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
     return results.votes.find(v => v.user_id === currentUserId)?.vote ?? null;
   });
 
+  // Resync from results once they hydrate. The initializer only runs
+  // ONCE — when the component first mounts results is still undefined
+  // and myVote latches to null, so even after the query resolved with
+  // the user's existing vote the UI showed them as unselected.
+  // (Audit 10 #66.)
+  useEffect(() => {
+    if (!results) return;
+    const serverVote = results.votes.find(v => v.user_id === currentUserId)?.vote ?? null;
+    setMyVote(prev => (prev === null ? serverVote : prev));
+  }, [results, currentUserId]);
+
   const total = (results?.yes ?? 0) + (results?.no ?? 0);
   const yesPct = total > 0 ? Math.round(((results?.yes ?? 0) / total) * 100) : 0;
   const noPct  = total > 0 ? Math.round(((results?.no  ?? 0) / total) * 100) : 0;
