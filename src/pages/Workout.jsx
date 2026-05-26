@@ -2565,14 +2565,37 @@ export default function Workout() {
           cardioLogs={cardioLogs}
           open={!!editingLog}
           onClose={() => setEditingLog(null)}
+          // Mirror the idle-view handlers EXACTLY so editing a workout
+          // from inside an active session applies the same volume
+          // delta math to total_volume_lbs / leaderboards. Previously
+          // this active-session copy of the modal skipped the delta,
+          // so the same edit produced different leaderboard outcomes
+          // depending on which view was open when the user tapped Edit.
+          // (Audit 09 #C-1, H-7.)
           onSave={async (id, data) => {
+            const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
+            const newVolume = calculateTotalVolume(data?.exercises || []);
+            const delta = newVolume - oldVolume;
             await db.entities.WorkoutLog.update(id, data);
+            if (delta !== 0) {
+              try {
+                await supabase.rpc('increment_user_volume', { p_delta: delta });
+              } catch (err) { reportError(err, { feature: 'workout.edit-volume-delta-active', level: 'warning', userEmail: user?.email, delta }); }
+            }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+            queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);
           }}
           onDelete={async (id) => {
+            const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
             await db.entities.WorkoutLog.delete(id);
+            if (deletedVolume > 0) {
+              try {
+                await supabase.rpc('increment_user_volume', { p_delta: -deletedVolume });
+              } catch (err) { reportError(err, { feature: 'workout.delete-volume-delta-active', level: 'warning', userEmail: user?.email, deletedVolume }); }
+            }
             queryClient.invalidateQueries({ queryKey: ['workoutLogs', user?.email] });
+            queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
             setEditingLog(null);
           }}
         />

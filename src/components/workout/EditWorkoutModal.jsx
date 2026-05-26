@@ -137,14 +137,37 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
       return;
     }
 
-    const normalizedExercises = exercises.map(ex => ({
-      ...ex,
-      sets: (ex.sets || []).map(s => ({
-        weight: Number(s.weight) || 0,
-        reps: Number(s.reps) || 0,
-      })),
-      duration_minutes: ex.duration_minutes != null ? (Number(ex.duration_minutes) || null) : null,
-    }));
+    // Normalize each set: parse numbers, treat blank/NaN as 0. Then
+    // strip entirely-empty sets (no weight AND no reps) so a blanked
+    // row doesn't get saved as a 0×0 contribution to volume.
+    // Previously blanks → 0×0 sets persisted, inflating the set count
+    // for an exercise without adding any volume. (Audit 09 #H-5.)
+    const normalizedExercises = exercises
+      .map(ex => {
+        const sets = (ex.sets || [])
+          .map(s => ({
+            weight: Number(s.weight) || 0,
+            reps:   Number(s.reps)   || 0,
+            // Preserve set metadata that the edit modal already supports
+            // (warmup, failed, RPE, RIR, feel_emoji, feel_note) instead
+            // of dropping it silently — same concern as repeat-from-log.
+            ...(s.is_warmup    !== undefined ? { is_warmup: s.is_warmup } : {}),
+            ...(s.is_failed    !== undefined ? { is_failed: s.is_failed } : {}),
+            ...(s.rpe          !== undefined ? { rpe: s.rpe } : {}),
+            ...(s.rir          !== undefined ? { rir: s.rir } : {}),
+            ...(s.feel_emoji   !== undefined ? { feel_emoji: s.feel_emoji } : {}),
+            ...(s.feel_note    !== undefined ? { feel_note: s.feel_note } : {}),
+          }))
+          .filter(s => s.weight > 0 || s.reps > 0);
+        return {
+          ...ex,
+          sets,
+          duration_minutes: ex.duration_minutes != null ? (Number(ex.duration_minutes) || null) : null,
+        };
+      })
+      // If editing strips every set from an exercise (user blanked them
+      // all), drop the exercise too — same pattern as the main save flow.
+      .filter(ex => (ex.sets && ex.sets.length > 0) || ex.duration_minutes != null);
 
     if (!forceSkipChecks) {
       // Layer 1: hard-stop on unrealistic weights (same as saveWorkout)

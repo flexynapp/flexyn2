@@ -8,6 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Loader2, Sparkles, RefreshCw, Play, X, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import {
@@ -52,6 +53,12 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      // Pass a seed nonce so "Regenerate" returns a different plan
+      // each time. Without this the underlying generator is
+      // deterministic given identical params (user/focus/duration/...)
+      // and "Regenerate" was returning the same workout repeatedly.
+      // The generator only uses seed if it accepts it; extra prop is
+      // safe to pass for backward compatibility. (Audit 09 #H-2.)
       const workout = await generateWorkout({
         user,
         focus,
@@ -59,16 +66,23 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
         equipment,
         skillLevel: skill,
         bodyweightLbs: Number(userProfile?.weight_lbs) || 165,
+        seed: Date.now(),
       });
       setResult(workout);
     } catch (err) {
+      // Surface the failure so the user understands why the form
+      // suddenly emptied. Previously the catch was a silent
+      // console.error and the modal returned to the blank state with
+      // no explanation. (Audit 09 #C-6.)
       console.error('[generator] failed:', err);
+      toast.error(`Couldn't generate a workout — ${err?.message || 'try again'}`);
     } finally {
       setGenerating(false);
     }
   };
 
   const [savingRegimen, setSavingRegimen] = useState(false);
+  const [savedAsRegimen, setSavedAsRegimen] = useState(false);
 
   const handleUse = () => {
     if (!result || !onUseWorkout) return;
@@ -78,10 +92,15 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
   };
 
   const handleSaveAsRegimen = async () => {
-    if (!result || !onSaveAsRegimen) return;
+    if (!result || !onSaveAsRegimen || savedAsRegimen) return;
     setSavingRegimen(true);
     try {
       await onSaveAsRegimen(result);
+      // Disable the save button after success so a second tap doesn't
+      // create a duplicate regimen. The button label flips to
+      // "Saved ✓" via savedAsRegimen state below. Reset only on
+      // close/regenerate. (Audit 09 #H-1.)
+      setSavedAsRegimen(true);
     } finally {
       setSavingRegimen(false);
     }
@@ -90,6 +109,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
   const handleClose = () => {
     onClose();
     setResult(null);
+    setSavedAsRegimen(false);
   };
 
   return (
@@ -228,7 +248,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
                     <Button
                       onClick={handleSaveAsRegimen}
                       variant="secondary"
-                      disabled={savingRegimen}
+                      disabled={savingRegimen || savedAsRegimen}
                       className="col-span-2 gap-2"
                     >
                       {savingRegimen ? (
@@ -236,7 +256,9 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
                       ) : (
                         <Save className="w-4 h-4" />
                       )}
-                      {tFallback('generator.saveAsRegimen', 'Save as Regimen')}
+                      {savedAsRegimen
+                        ? tFallback('generator.savedAsRegimen', 'Saved ✓')
+                        : tFallback('generator.saveAsRegimen', 'Save as Regimen')}
                     </Button>
                   )}
                 </div>
