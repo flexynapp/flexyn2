@@ -10,10 +10,12 @@ import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
 
 export default function BountyCard({ bounty, hasActiveClaim = false, compact = false }) {
   const qc = useQueryClient();
   const { language } = useLanguage();
+  const { weightUnit } = useWeightUnit();
   const [busy, setBusy] = useState(false);
   const [claimed, setClaimed] = useState(false);
 
@@ -28,7 +30,11 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
     ? formatDistanceToNow(new Date(bounty.expires_at), { addSuffix: false })
     : 'Expired';
 
-  const description = bountyDescription(bounty, language);
+  // Pass weightUnit so weight-based bounties render their target in
+  // the user's preferred unit. The helper signature gained the param
+  // in wave 27 but BountyCard hadn't been wired up to provide it, so
+  // kg users still saw "beat 315 lbs" everywhere.
+  const description = bountyDescription(bounty, language, weightUnit);
 
   const handleClaim = async () => {
     if (!canClaim || busy) return;

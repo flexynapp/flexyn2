@@ -85,7 +85,13 @@ export default function AchievementsModal({ open, onClose, achievements = [], us
   }, [categorized]);
 
   const displayData = activeTab === 'active' ? activeAchievements : completedAchievements;
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  // The `achievements` table has no `unlocked` boolean — row presence
+  // means the achievement was unlocked (only `unlocked_at` exists).
+  // The previous filter on `a.unlocked` always returned 0, so the
+  // header counter read "0 / N" no matter how many badges the user
+  // had. Same bug pattern was already fixed in AchievementsTab.jsx
+  // (audit 11 #2); the modal counterpart had it too.
+  const unlockedCount = achievements.length;
   const totalCount = ACHIEVEMENT_DEFINITIONS.length;
 
   return (

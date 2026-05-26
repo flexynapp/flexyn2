@@ -123,6 +123,32 @@ export default function Layout() {
   const { user } = useAuth();
   const chestReady = useDailyChestReady(user?.id);
 
+  // Ping `last_active_at` once per session so a user who never visits
+  // their own profile but uses the app daily doesn't appear "last
+  // active 6 months ago" to others. (Audit 10 #98.) Layout is the
+  // single always-mounted shell for the authenticated app, so this
+  // is the right place — fires on mount + once a day if the session
+  // stays alive across midnight. Wrapped in a sessionStorage gate so
+  // SPA navigation doesn't spam the DB.
+  useEffect(() => {
+    if (!user?.email) return;
+    const todayKey = `flexyn.lastActivePinged.${user.email}`;
+    const today = new Date().toISOString().slice(0, 10);
+    try {
+      const prev = sessionStorage.getItem(todayKey);
+      if (prev === today) return;
+    } catch { /* sessionStorage unavailable — fall through and ping */ }
+    import('@/api/supabaseClient').then(({ supabase }) => {
+      supabase
+        .from('user_profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('email', user.email)
+        .then(() => {
+          try { sessionStorage.setItem(todayKey, today); } catch {}
+        }, () => {});
+    }).catch(() => {});
+  }, [user?.email]);
+
   // Single source of truth for the DM badge — also read by Header.jsx.
   // No longer attached to the Hub nav item; lives on dedicated Messages
   // surfaces (header icon on mobile, sidebar icon on desktop).

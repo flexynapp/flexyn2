@@ -309,11 +309,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const { data: targetLastActive } = useQuery({
     queryKey: ['lastActive', email],
     queryFn: async () => {
+      // maybeSingle so a missing row returns null cleanly instead of
+      // throwing PGRST116, which the surrounding try-less code path
+      // would surface to the user as a broken activity pill.
       const { data } = await supabase
         .from('user_profiles')
         .select('last_active_at')
         .eq('email', email)
-        .single();
+        .maybeSingle();
       return data?.last_active_at || null;
     },
     enabled: !isSelf && !!email,

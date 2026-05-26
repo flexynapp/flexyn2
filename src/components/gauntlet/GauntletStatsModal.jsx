@@ -173,15 +173,21 @@ export default function GauntletStatsModal({
                   )}
                 </div>
 
-                {/* Contextual quip */}
+                {/* Contextual quip. The "Less than 5%" branch used to
+                    fire for `completion_rate_pct === 0` too, which is
+                    actually a more notable moment (literally first) —
+                    surface it with a "You're the FIRST" copy instead.
+                    (Audit 15 #M18.) */}
                 <p className="text-xs text-muted-foreground text-center mt-3 italic">
-                  {completion_rate_pct <= 5
-                    ? 'Less than 5% of athletes have done this. Rare.'
-                    : completion_rate_pct <= 20
-                      ? `Only ${completion_rate_pct}% of athletes have cleared this.`
-                      : completion_rate_pct <= 50
-                        ? `${completion_rate_pct}% completion rate. You're in the majority — keep climbing.`
-                        : `${completion_rate_pct}% of athletes cleared this. Solid.`}
+                  {completion_rate_pct === 0
+                    ? "You're the FIRST to clear this. Legendary."
+                    : completion_rate_pct <= 5
+                      ? 'Less than 5% of athletes have done this. Rare.'
+                      : completion_rate_pct <= 20
+                        ? `Only ${completion_rate_pct}% of athletes have cleared this.`
+                        : completion_rate_pct <= 50
+                          ? `${completion_rate_pct}% completion rate. You're in the majority — keep climbing.`
+                          : `${completion_rate_pct}% of athletes cleared this. Solid.`}
                 </p>
               </div>
 

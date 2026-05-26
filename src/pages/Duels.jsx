@@ -138,7 +138,12 @@ export default function Duels() {
 
   const active    = duels.filter(d => ['pending', 'active'].includes(d.status));
   const history   = duels.filter(d => ['completed', 'declined', 'expired'].includes(d.status));
-  const wins      = duels.filter(d => d.winner_id === user?.id).length;
+  // Gate wins on `status === 'completed'` so an in-flight duel whose
+  // winner_id was preemptively set (legacy submit fallback writes
+  // winner_id on the first result before the second lands) doesn't
+  // inflate the W column. The losses calc already required completed;
+  // wins didn't and was asymmetric. (Audit 15 #L2.)
+  const wins      = duels.filter(d => d.status === 'completed' && d.winner_id === user?.id).length;
   const losses    = duels.filter(d => d.status === 'completed' && d.winner_id && d.winner_id !== user?.id).length;
 
   return (
@@ -172,8 +177,10 @@ export default function Duels() {
         <p className="text-sm text-muted-foreground">{tFallback('duels.subtitle', 'Head-to-head workout battles')}</p>
       </div>
 
-      {/* W/L record */}
-      {(wins > 0 || losses > 0) && (
+      {/* W/L record. Also surface for tie-only records so a user
+          whose history is all draws still sees their participation
+          stats. (Audit 15 #L1.) */}
+      {(wins > 0 || losses > 0 || duels.some(d => d.status === 'completed' && !d.winner_id)) && (
         <div className="mx-4 mb-4 flex gap-3">
           <div className="flex-1 rounded-xl bg-primary/8 border border-primary/20 p-3 text-center">
             <p className="text-2xl font-black text-primary">{wins}</p>

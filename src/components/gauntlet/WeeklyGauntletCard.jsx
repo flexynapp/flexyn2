@@ -32,8 +32,30 @@ export default function WeeklyGauntletCard({ gauntlet, attempt, onStart }) {
   const passed   = attempt?.status === 'completed';
   const failed   = attempt?.status === 'failed';
   const started  = !!attempt;
-  const timeLeft = timeUntil(gauntlet.week_end + 'T23:59:59');
+  // Build the end-of-week timestamp defensively: only append the
+  // T23:59:59 suffix when week_end is a bare YYYY-MM-DD. If the column
+  // ever ships as a full ISO timestamp, the prior concat produced
+  // `2026-05-25T00:00:00ZT23:59:59` which parses to NaN and rendered
+  // a permanent "Ended" pill. (Audit 15 #M9.)
+  const weekEndIso = (() => {
+    const raw = String(gauntlet.week_end || '');
+    if (!raw) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return `${raw}T23:59:59`;
+    return raw;
+  })();
+  const timeLeft = weekEndIso ? timeUntil(weekEndIso) : '—';
   const ending   = timeLeft.includes('d') ? false : true;
+  // Unit suffix depends on what the gauntlet measures. Previously
+  // hardcoded "lbs" so a consecutive_days / sessions_in_7_days
+  // gauntlet displayed "7 lbs". (Audit 15 #M10.)
+  const metric = String(gauntlet.metric || 'volume');
+  const goalUnit =
+    metric === 'consecutive_days'   ? 'days'     :
+    metric === 'sessions_in_7_days' ? 'sessions' :
+    metric === 'reps'               ? 'reps'     :
+    metric === 'minutes'            ? 'min'      :
+    metric === 'distance_meters'    ? 'm'        :
+    'lbs';
 
   return (
     <motion.div
@@ -84,7 +106,7 @@ export default function WeeklyGauntletCard({ gauntlet, attempt, onStart }) {
         <div className="flex-1 flex flex-col items-center py-3 gap-0.5">
           <span className="text-xs text-muted-foreground">Goal</span>
           <span className="text-sm font-bold text-foreground">
-            {formatVolume(gauntlet.passing_threshold)} lbs
+            {formatVolume(gauntlet.passing_threshold)} {goalUnit}
           </span>
         </div>
         <div className="flex-1 flex flex-col items-center py-3 gap-0.5">

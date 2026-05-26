@@ -237,7 +237,16 @@ export default function GauntletPath({
               }
               style={{ fontFamily: 'system-ui, sans-serif' }}
             >
-              {ch.title.length > 14 ? ch.title.slice(0, 13) + '…' : ch.title}
+              {(() => {
+                // Slice by Unicode code points, not JS string units —
+                // a naive `.slice(0, 13)` cut multi-code-unit emoji
+                // (flags, ZWJ sequences) in half and rendered the
+                // replacement character. (Audit 15 #L5.)
+                const codePoints = Array.from(ch.title || '');
+                return codePoints.length > 14
+                  ? codePoints.slice(0, 13).join('') + '…'
+                  : ch.title;
+              })()}
             </text>
           </g>
         );
