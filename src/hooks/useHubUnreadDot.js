@@ -63,13 +63,19 @@ export function useHubUnreadDot(userEmail) {
     staleTime: 5 * 60_000,
   });
 
+  // Cache key includes a stable hash of the FOLLOWING SET so an
+  // unfollow-then-follow swap (same count but different membership)
+  // invalidates the cache. Previously the key used .length only —
+  // user followed Alice (count=1), unfollowed Alice + followed Bob
+  // (count=1) → cache still served Alice's posts as the "newest from
+  // friends" signal, so the unread dot never fired for Bob's posts
+  // until the 60s stale-time elapsed.
+  const followingKey = [...followingEmails].sort().join('|');
   const { data: latestFollowingPosts = [] } = useQuery({
-    queryKey: ['hubFollowingLatest', userEmail, followingEmails.length],
+    queryKey: ['hubFollowingLatest', userEmail, followingKey],
     queryFn: () => hubPosts.fetchFollowingWindow(followingEmails),
     enabled: !!userEmail && followingEmails.length > 0,
     staleTime: 60_000,
-    // Don't refetch on every focus — the 60s stale-time is plenty
-    // for an unread-dot signal.
     refetchOnWindowFocus: false,
   });
 
