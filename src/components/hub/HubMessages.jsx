@@ -141,11 +141,24 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
 
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.
+  //
+  // listFollowing returns Array<string> (the follow-target emails), NOT
+  // an array of row objects. The previous .map(f => f?.followee_email...)
+  // pulled .followee_email OFF EACH STRING — always undefined — so
+  // followingEmails was permanently []. Every conversation with a
+  // followed friend was being mis-partitioned into Requests instead of
+  // Inbox. (Audit 10 #1, the highest-impact Hub bug.)
   const { data: followingEmails = [] } = useQuery({
     queryKey: ['myFollowsForDMs', user?.email],
     queryFn: async () => {
       const list = await hubFollows.listFollowing(user.email).catch(() => []);
-      return (list || []).map(f => f?.followee_email || f?.followed_email || f?.email).filter(Boolean);
+      // Accept either the canonical string-array shape OR a future
+      // row-object shape (defensive). Trim + lowercase for consistent
+      // membership checks in partitionConversations.
+      return (list || [])
+        .map(item => (typeof item === 'string' ? item : (item?.followee_email || item?.followed_email || item?.email)))
+        .filter(Boolean)
+        .map(e => String(e).trim().toLowerCase());
     },
     enabled: !!user?.email,
     staleTime: 5 * 60_000,

@@ -97,7 +97,12 @@ export default function AchievementsTab({ achievements = [] }) {
   }, [categorized]);
 
   const displayData = activeSubTab === 'active' ? activeAch : completedAch;
-  const unlockedCount = achievements.filter((a) => a.unlocked).length;
+  // The achievements table stores ONLY unlocked rows (presence = unlocked,
+  // there's no `unlocked` boolean column). The previous version filtered
+  // by `a.unlocked` which is undefined on every row, so the header
+  // permanently showed "0 / total" even when the user had unlocks.
+  // (Audit 11 #2.)
+  const unlockedCount = achievements.length;
   const totalCount = ACHIEVEMENT_DEFINITIONS.length;
   const progressPct = totalCount > 0 ? Math.round((unlockedCount / totalCount) * 100) : 0;
 

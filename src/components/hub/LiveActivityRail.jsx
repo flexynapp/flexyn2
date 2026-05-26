@@ -109,7 +109,21 @@ export default function LiveActivityRail() {
             <ActiveAvatar
               key={u.user_id}
               user={u}
-              onClick={() => navigate(`/hub/profile/${u.user_id}`)}
+              onClick={() => {
+                // Canonical profile route is /hub?profile=<email>. The
+                // original code routed to /hub/profile/<user_id> which
+                // doesn't exist anywhere in App.jsx — every tap landed
+                // on a blank page. (Audit 10 #2.)
+                //
+                // Migration 149 added `email` to get_active_followees
+                // return. If the user has applied 149: u.email is set
+                // and we navigate cleanly. If they haven't: fall back
+                // to username — the search/profile resolver tolerates
+                // either as a fuzzy match (better than 404).
+                const target = u.email || u.username;
+                if (!target) return;
+                navigate(`/hub?profile=${encodeURIComponent(target)}`);
+              }}
             />
           ))}
         </div>

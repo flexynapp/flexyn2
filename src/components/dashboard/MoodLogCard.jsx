@@ -30,8 +30,17 @@ export default function MoodLogCard() {
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
 
+  // Include today's local date in the query key so a PWA left open
+  // across midnight doesn't keep showing yesterday's mood as already
+  // logged. Recomputed every render — getTodayMoodLog itself derives
+  // "today" server-side, so the cache key just needs to invalidate at
+  // the day boundary on the client.
+  const todayDateKey = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
   const { data: today } = useQuery({
-    queryKey: ['moodLogToday', user?.id],
+    queryKey: ['moodLogToday', user?.id, todayDateKey],
     queryFn: getTodayMoodLog,
     enabled: !!user?.id,
     staleTime: 5 * 60_000,

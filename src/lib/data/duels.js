@@ -424,16 +424,25 @@ export async function submitDuelResult(duelId, result, duel) {
   return data;
 }
 
-/** Get active duel (if any) for the current user — shown as workout banner */
+/** Get active duel (if any) for the current user — shown as workout banner.
+ *
+ *  Filters by status AND expires_at — a duel can still have status='active'
+ *  in the row even though its expires_at is in the past (no cron flips it
+ *  to 'expired' until someone submits / the rollover runs). Without the
+ *  expires_at filter the workout banner kept showing "Active Duel vs.
+ *  @Opponent · Expired · Open duel" for stale rows — confusing and ugly.
+ */
 export async function getActiveDuel() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
+  const nowISO = new Date().toISOString();
   const { data, error } = await supabase
     .from('duels')
     .select('*')
     .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
     .in('status', ['pending', 'active'])
+    .gt('expires_at', nowISO)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle();

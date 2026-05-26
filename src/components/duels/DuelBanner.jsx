@@ -34,11 +34,23 @@ export default function DuelBanner({ duel, currentUserId, opponentProfile }) {
 
   if (!duel) return null;
 
+  // Defensive belt — even though getActiveDuel filters by expires_at,
+  // a stale React Query cache or a clock skew could still hand us an
+  // expired row. Hide the banner so the user never sees "Active Duel ·
+  // Expired" again (which was the bug captured in the 2026-05-25
+  // overnight audit screenshot).
+  if (duel.expires_at && new Date(duel.expires_at) <= new Date()) return null;
+
   const isChallenger = duel.challenger_id === currentUserId;
   const isPending    = duel.status === 'pending';
   const isActive     = duel.status === 'active';
 
-  const opponentName = opponentProfile?.username || 'Opponent';
+  // Use the username when we have it, fall back to a friendly generic
+  // when the profile hasn't loaded yet. The previous "Opponent" fallback
+  // rendered as the literal string "@Opponent" in the UI — ugly +
+  // confusing.
+  const hasOpponentName = !!opponentProfile?.username;
+  const opponentName    = opponentProfile?.username || null;
   const challengerAlreadyDone = !!duel.challenger_result;
   const targetVolume = isChallenger ? duel.opponent_result?.volume : duel.challenger_result?.volume;
 
@@ -87,8 +99,8 @@ export default function DuelBanner({ duel, currentUserId, opponentProfile }) {
             <div>
               <p className="text-xs font-bold">
                 {isPending && !isChallenger
-                  ? `@${opponentName} challenged you`
-                  : `Active Duel vs. @${opponentName}`}
+                  ? (hasOpponentName ? `@${opponentName} challenged you` : 'You were challenged to a duel')
+                  : (hasOpponentName ? `Active Duel vs. @${opponentName}` : 'Active Duel')}
               </p>
               <div className="flex items-center gap-1 mt-0.5">
                 <Clock className="w-2.5 h-2.5 text-muted-foreground" />

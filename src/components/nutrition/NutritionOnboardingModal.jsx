@@ -191,16 +191,26 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
     }
   };
 
+  // EXPLICIT Skip — the user actively chose to defer setup. Marks
+  // onboarding as complete so the modal won't auto-open again.
   const handleSkip = async () => {
-    // localStorage fallback so the modal won't re-open even if the DB column
-    // is missing (e.g. migration 004 not yet applied to this Supabase project).
     try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
     try { await db.auth.updateMe({ nutrition_onboarding_complete: true }); } catch { /* ignore */ }
     onComplete?.();
   };
 
+  // Dismiss WITHOUT marking complete — for accidental backdrop / Esc /
+  // top-right X taps. Previously every dismissal called handleSkip
+  // which permanently flipped nutrition_onboarding_complete=true, so a
+  // single misclick locked the user into the default 2000 kcal goals
+  // FOREVER with no path back to onboarding. The modal can re-open on
+  // next visit if completion never happened. (Audit 11 #1.)
+  const handleDismissWithoutCompleting = () => {
+    onComplete?.();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleSkip(); }}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleDismissWithoutCompleting(); }}>
       <DialogContent className="max-w-md p-0 overflow-hidden">
         {/* Progress bar */}
         <div className="w-full h-1 bg-secondary">

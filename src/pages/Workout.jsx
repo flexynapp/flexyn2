@@ -300,7 +300,12 @@ export default function Workout() {
       if (typeof repeatLog.notes === 'string') setNotes(repeatLog.notes);
       navigate(location.pathname, { replace: true, state: null });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // Dep on location.state (not []) so the effect re-fires when the
+    // user is ALREADY on /workout and the saved-workouts modal calls
+    // navigate('/workout', { state: { repeatFromLog } }). Previously the
+    // mount-only effect made the "Repeat" button a silent dead button —
+    // the URL changed but no session ever started. (Audit 09 #C-2.)
+  }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: rawRegimens = [], isLoading } = useQuery({
     queryKey: ['regimens', user?.email],
