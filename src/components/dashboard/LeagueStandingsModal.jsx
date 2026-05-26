@@ -158,9 +158,18 @@ function Body({ data, userId, t, tFallback }) {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm truncate">
+                        {/* Prefer username over email-local-part. The
+                            previous fallback to `user_email.split('@')[0]`
+                            leaked the email username portion to every
+                            other league member — a corporate signup like
+                            "j.smith.cfo@acme.com" exposed the user's work
+                            handle to ~29 strangers each week. Username
+                            comes from the league_members + user_profiles
+                            embed; falls through to "Athlete" if neither
+                            is set. (Audit 15 #H5.) */}
                         {isMe
                           ? tFallback('progress.you', 'You')
-                          : (m.user_email?.split('@')[0] || 'Athlete')}
+                          : (m.username || m.user?.username || 'Athlete')}
                       </p>
                     </div>
                     <div className="text-end">

@@ -214,16 +214,35 @@ export async function recordWeeklyXp(user, amount) {
  */
 export async function listLeagueMembers(leagueId) {
   if (!leagueId) return [];
+  // Embed user_profiles row so the standings UI can show @username
+  // instead of leaking email-local-part. The original `select('*')`
+  // only returned league_members columns (user_id + user_email +
+  // weekly_xp), forcing the UI to fall back to email.split('@')[0]
+  // which leaked corporate handles to every other league member.
+  // (Audit 15 #H5.)
   const { data, error } = await supabase
     .from('league_members')
-    .select('*')
+    .select(`
+      *,
+      user:user_profiles!user_id ( username, avatar_url )
+    `)
     .eq('league_id', leagueId)
     .order('weekly_xp', { ascending: false });
   if (error) {
-    console.warn('[leagues] listLeagueMembers failed:', error);
-    return [];
+    // Embed failure (older PostgREST cache or RLS): fall back to a
+    // plain select so the standings still render.
+    const { data: fallback } = await supabase
+      .from('league_members')
+      .select('*')
+      .eq('league_id', leagueId)
+      .order('weekly_xp', { ascending: false });
+    return fallback ?? [];
   }
-  return data ?? [];
+  return (data ?? []).map(m => ({
+    ...m,
+    username:   m.user?.username   || null,
+    avatar_url: m.user?.avatar_url || null,
+  }));
 }
 
 /**

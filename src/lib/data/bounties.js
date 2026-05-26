@@ -236,7 +236,11 @@ export async function checkAndCompleteBounty(workoutLog) {
       }
     }
 
-    if (achieved === null || achieved <= target_value) return false;
+    // Use >= so HITTING the target counts as completion. The previous
+    // `> target_value` strict comparison meant a bounty of "beat 315"
+    // failed when the user lifted exactly 315 — they'd done the work
+    // but got no credit. (Audit 15 #H3.)
+    if (achieved === null || achieved < target_value) return false;
 
     await completeBountyClaim(claim.id, workoutLog?.id ?? null, bounty?.id ?? null);
     return true;
