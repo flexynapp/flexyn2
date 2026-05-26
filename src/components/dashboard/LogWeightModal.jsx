@@ -30,7 +30,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { toLbs, fromLbs } from '@/lib/weightUnit';
+import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import UnitPill from '@/components/UnitPill';
 import { reportError } from '@/lib/reportError';
 
@@ -50,8 +50,11 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
     if (!open) return;
     setDate(format(new Date(), 'yyyy-MM-dd'));
     if (profile?.weight_lbs) {
-      const displayValue = fromLbs(profile.weight_lbs, weightUnit);
-      setValue(String(displayValue));
+      // formatWeightNumber rounds to a sensible decimal (1 for kg, 0
+      // for lbs, 2 for stone). The previous `String(fromLbs(...))`
+      // showed kg users a raw "74.84274..." which made the input look
+      // sloppy on open.
+      setValue(formatWeightNumber(profile.weight_lbs, weightUnit));
     } else {
       setValue('');
     }
@@ -67,9 +70,10 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
       if (!isFinite(parsed)) throw new Error('invalid_number');
       const lbs = toLbs(parsed, weightUnit);
       // Realistic-range guard — matches the inline-edit guard in
-      // BodyMetricsTab so the two paths reject the same fat-finger
-      // values (50–700 lbs covers everyone from a toddler to a Strongman).
-      if (lbs < 50 || lbs > 700) throw new Error('out_of_range');
+      // BodyMetricsTab (which was tightened from 50 to 70 in wave 22
+      // because a toddler-sized weight isn't a meaningful profile
+      // value for an adult fitness app). Keep both paths in sync.
+      if (lbs < 70 || lbs > 700) throw new Error('out_of_range');
 
       // Two writes: a BodyMetric row AND a mirror onto user_profiles.
       // Previously these ran SEQUENTIALLY with no compensation — if the
@@ -143,7 +147,7 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
               inputMode="decimal"
               step="0.1"
               min="0"
-              // Mirror the server-side guard (50-700 lbs / 23-318 kg) on
+              // Mirror the server-side guard (70-700 lbs / 32-318 kg) on
               // the HTML5 input so iOS users see native validation
               // before submitting, and the input loses focus instead of
               // accepting a 4-digit junk value and showing a toast.
