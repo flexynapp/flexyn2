@@ -30,6 +30,23 @@ export default function EmojiReactionButton({
   const inFlightRef = useRef(false);
   const rootRef = useRef(null);
 
+  // Resync local state when the parent re-fetches. Previously the
+  // button captured initialEmoji / initialCount once on mount and
+  // never refreshed — so when the parent feed refetched and the
+  // server's truth changed (other viewers reacted, or the user's own
+  // reaction was rolled back), the button kept showing stale state.
+  // Skip the re-sync while a tap is mid-flight so we don't clobber
+  // the local optimistic update before the server roundtrip resolves.
+  // (Audit 10 #8.)
+  useEffect(() => {
+    if (inFlightRef.current) return;
+    setMyEmoji(initialEmoji);
+  }, [initialEmoji]);
+  useEffect(() => {
+    if (inFlightRef.current) return;
+    setCount(initialCount);
+  }, [initialCount]);
+
   // Close the picker on outside click.
   useEffect(() => {
     if (!pickerOpen) return undefined;

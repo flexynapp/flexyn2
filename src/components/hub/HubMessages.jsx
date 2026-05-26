@@ -52,19 +52,53 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const [dmView, setDmView] = useState('inbox');
   const [newGroupOpen, setNewGroupOpen] = useState(false);
 
-  // Desktop three-dot quick-action state
+  // Desktop three-dot quick-action state.
+  //
+  // Pin / mute state lives in per-user-namespaced localStorage keys so
+  // shared devices (gym demo iPad, family device) don't leak the
+  // previous user's lists into the next user's session. Legacy keys
+  // (`fn_*`) are migrated below the first time this user signs in on a
+  // device that holds them. (Audit 07 + audit 10 #3 #4.)
+  const userScope = user?.id || user?.email || 'anon';
+  const LS_KEYS = {
+    pinnedConvs:  `flexyn.pinnedConvs.${userScope}`,
+    mutedConvs:   `flexyn.mutedConvs.${userScope}`,
+    pinnedCrews:  `flexyn.pinnedCrews.${userScope}`,
+    mutedCrews:   `flexyn.mutedCrews.${userScope}`,
+  };
+  // One-time migration from the legacy unscoped keys → namespaced keys.
+  // After the first sign-in the legacy keys are removed so a different
+  // user signing in on the same device doesn't inherit them. Idempotent.
+  useEffect(() => {
+    if (!user?.id && !user?.email) return;
+    try {
+      const migrate = (legacy, scoped) => {
+        const v = localStorage.getItem(legacy);
+        if (v && !localStorage.getItem(scoped)) {
+          localStorage.setItem(scoped, v);
+        }
+        localStorage.removeItem(legacy);
+      };
+      migrate('fn_pinned_convs', LS_KEYS.pinnedConvs);
+      migrate('fn_muted_convs',  LS_KEYS.mutedConvs);
+      migrate('fn_pinned_crews', LS_KEYS.pinnedCrews);
+      migrate('fn_muted_crews',  LS_KEYS.mutedCrews);
+    } catch { /* best-effort */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.email]);
+
   const [openMenuId, setOpenMenuId] = useState(null); // conv.id or crew.id
   const [pinnedConvIds, setPinnedConvIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('fn_pinned_convs') || '[]')); } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.pinnedConvs) || localStorage.getItem('fn_pinned_convs') || '[]')); } catch { return new Set(); }
   });
   const [mutedConvIds, setMutedConvIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('fn_muted_convs') || '[]')); } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.mutedConvs) || localStorage.getItem('fn_muted_convs') || '[]')); } catch { return new Set(); }
   });
   const [pinnedCrewIds, setPinnedCrewIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('fn_pinned_crews') || '[]')); } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.pinnedCrews) || localStorage.getItem('fn_pinned_crews') || '[]')); } catch { return new Set(); }
   });
   const [mutedCrewIds, setMutedCrewIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('fn_muted_crews') || '[]')); } catch { return new Set(); }
+    try { return new Set(JSON.parse(localStorage.getItem(LS_KEYS.mutedCrews) || localStorage.getItem('fn_muted_crews') || '[]')); } catch { return new Set(); }
   });
   const menuRef = useRef(null);
 
@@ -82,43 +116,43 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     setPinnedConvIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('fn_pinned_convs', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(LS_KEYS.pinnedConvs, JSON.stringify([...next])); } catch {}
       return next;
     });
     setOpenMenuId(null);
-  }, []);
+  }, [LS_KEYS.pinnedConvs]);
 
   const toggleMuteConv = useCallback((id) => {
     setMutedConvIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('fn_muted_convs', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(LS_KEYS.mutedConvs, JSON.stringify([...next])); } catch {}
       return next;
     });
     setOpenMenuId(null);
     toast.success(mutedConvIds.has(id) ? 'Chat unmuted' : 'Chat muted');
-  }, [mutedConvIds]);
+  }, [mutedConvIds, LS_KEYS.mutedConvs]);
 
   const togglePinCrew = useCallback((id) => {
     setPinnedCrewIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('fn_pinned_crews', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(LS_KEYS.pinnedCrews, JSON.stringify([...next])); } catch {}
       return next;
     });
     setOpenMenuId(null);
-  }, []);
+  }, [LS_KEYS.pinnedCrews]);
 
   const toggleMuteCrew = useCallback((id) => {
     setMutedCrewIds(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      try { localStorage.setItem('fn_muted_crews', JSON.stringify([...next])); } catch {}
+      try { localStorage.setItem(LS_KEYS.mutedCrews, JSON.stringify([...next])); } catch {}
       return next;
     });
     setOpenMenuId(null);
     toast.success(mutedCrewIds.has(id) ? 'Crew unmuted' : 'Crew muted');
-  }, [mutedCrewIds]);
+  }, [mutedCrewIds, LS_KEYS.mutedCrews]);
 
   const handleLeaveCrew = useCallback(async (crew) => {
     setOpenMenuId(null);
@@ -177,13 +211,24 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     return { archivedConvs: archived, inboxConvs: inbox, requestConvs: requests };
   }, [conversations, user?.email, followingEmails]);
 
-  // The list rendered in the current dmView. Single source of truth for
-  // the conversations rail below — keeps the existing render JSX
-  // unchanged.
-  const visibleConvs =
-    dmView === 'requests' ? requestConvs :
-    dmView === 'archived' ? archivedConvs :
-    inboxConvs;
+  // The list rendered in the current dmView. Pinned conversations sort
+  // to the top within the inbox view (audit 10 #4 — pin used to be a
+  // no-op visually; toast lied about effect). Requests + archived
+  // ignore pin state since they're niche views.
+  const visibleConvs = useMemo(() => {
+    const base =
+      dmView === 'requests' ? requestConvs :
+      dmView === 'archived' ? archivedConvs :
+      inboxConvs;
+    if (dmView !== 'inbox' || pinnedConvIds.size === 0) return base;
+    // Stable sort: pinned first (preserving inter-pin order), unpinned
+    // second (preserving the underlying last-message-time order).
+    return [...base].sort((a, b) => {
+      const aPin = pinnedConvIds.has(a.id) ? 1 : 0;
+      const bPin = pinnedConvIds.has(b.id) ? 1 : 0;
+      return bPin - aPin;
+    });
+  }, [dmView, inboxConvs, requestConvs, archivedConvs, pinnedConvIds]);
 
   // Auto-select a conversation from a `?conv=<id>` query param. Used by
   // the story-reply "Open" toast action to land the user directly in
@@ -450,7 +495,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   const skipYouPrefix = isDuelInvite || isCrewInvite;
                   preview = (isMine && !skipYouPrefix) ? `You: ${displayText}` : displayText;
                 }
-                const unread = (c.unreadCount || 0) > 0;
+                const isMuted = mutedConvIds.has(c.id);
+                const isPinned = pinnedConvIds.has(c.id);
+                // Muted conversations DON'T count toward the unread dot.
+                // Previously, muting was a no-op visually + the unread
+                // pip kept appearing on muted threads. (Audit 10 #3.)
+                const unread = !isMuted && (c.unreadCount || 0) > 0;
                 const timeStr = formatInboxTime(lastMsg?.created_date || lastMsg?.created_at || c.last_message_at);
 
                 return (
@@ -459,7 +509,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     initial={{ opacity: 0, y: 4 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.03 }}
-                    className="relative group"
+                    className={`relative group ${isMuted ? 'opacity-60' : ''}`}
                   >
                     <button
                       onClick={() => {
@@ -475,8 +525,10 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-2">
-                          <p className={`font-heading text-sm truncate ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
-                            {handle}
+                          <p className={`font-heading text-sm truncate flex items-center gap-1.5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
+                            {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label="Pinned" />}
+                            <span className="truncate">{handle}</span>
+                            {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label="Muted" />}
                           </p>
                         </div>
                         <div className="flex items-center justify-between gap-2 mt-0.5">

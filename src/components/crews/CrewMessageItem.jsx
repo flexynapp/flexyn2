@@ -84,9 +84,33 @@ const markOtViewed = (msgId, userId) => {
   try { localStorage.setItem(otKey(msgId, userId), '1'); } catch {}
 };
 
-const fireKey = (id) => `fire_${id}`;
-const loadFire = (id) => { try { return localStorage.getItem(fireKey(id)) === '1'; } catch { return false; } };
-const saveFire = (id, val) => { try { val ? localStorage.setItem(fireKey(id), '1') : localStorage.removeItem(fireKey(id)); } catch {} };
+// Per-user-namespaced localStorage so a shared device doesn't leak
+// reaction state between accounts. The legacy `fire_<msgId>` keys
+// from earlier shipped versions are accepted as a fallback inside
+// loadFire (first read after migration) so an existing user's fire
+// reactions survive the rename. (Audit 10 #17 + audit 07.)
+const fireKey = (id, userId) => `flexyn.crewFire.${userId || 'anon'}.${id}`;
+const legacyFireKey = (id) => `fire_${id}`;
+const loadFire = (id, userId) => {
+  try {
+    const v = localStorage.getItem(fireKey(id, userId));
+    if (v !== null) return v === '1';
+    // Fall back to legacy unscoped key once; this preserves the user's
+    // reactions across the rename. We don't migrate eagerly because
+    // we don't know which userId the legacy key belonged to.
+    return localStorage.getItem(legacyFireKey(id)) === '1';
+  } catch { return false; }
+};
+const saveFire = (id, val, userId) => {
+  try {
+    if (val) localStorage.setItem(fireKey(id, userId), '1');
+    else localStorage.removeItem(fireKey(id, userId));
+    // Always strip the legacy key now that we own a namespaced one,
+    // so the unscoped value can't be inherited by the next account
+    // on this device.
+    localStorage.removeItem(legacyFireKey(id));
+  } catch {}
+};
 
 function Avatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
@@ -126,7 +150,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
   const qc = useQueryClient();
   const lastTapRef = useRef(0);
   const longPressTimer = useRef(null);
-  const [reacted, setReacted] = useState(() => loadFire(msg.id));
+  const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
   const [showContext, setShowContext] = useState(false);
   // Optimistic emoji reactions state: { [emoji]: { count, myReacted } }
@@ -161,7 +185,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
 
   const setReactedPersisted = (val) => {
     setReacted(val);
-    saveFire(msg.id, val);
+    saveFire(msg.id, val, currentUserId);
     writeFireReaction(msg.id, currentUserId, val);
   };
 
@@ -173,6 +197,12 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
         setAnimating(false);
         setReactedPersisted(true);
       }, 500);
+      // Reset so a third tap within 320ms doesn't immediately fire a
+      // SECOND reaction. Previously the timestamp lingered, letting
+      // a finger-bounce-fast triple-tap register as two double-taps.
+      // (Audit 10 #16.)
+      lastTapRef.current = 0;
+      return;
     }
     lastTapRef.current = now;
   };
@@ -610,10 +640,10 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
   const [viewed,   setViewed]   = useState(() => isOtViewed(msg.id, currentUserId));
   const [open,     setOpen]     = useState(false);
   const lastTapRef = useRef(0);
-  const [reacted, setReacted] = useState(() => loadFire(msg.id));
+  const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
 
-  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
+  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val, currentUserId); };
 
   // When the overlay closes (or the component unmounts while open), commit the
   // viewed state to localStorage immediately so the media URL is blocked forever.
@@ -713,12 +743,12 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
 
 // ── Timed Image ───────────────────────────────────────────────────────────────
 
-function TimedImageMessage({ msg, senderProfile, isOwn }) {
+function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
   const lastTapRef = useRef(0);
-  const [reacted, setReacted] = useState(() => loadFire(msg.id));
+  const [reacted, setReacted] = useState(() => loadFire(msg.id, currentUserId));
   const [animating, setAnimating] = useState(false);
 
-  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val); };
+  const setReactedPersisted = (val) => { setReacted(val); saveFire(msg.id, val, currentUserId); };
 
   const handleTap = () => {
     const now = Date.now();
@@ -789,7 +819,7 @@ export default function CrewMessageItem({ msg, senderProfile, currentUserId, use
     case 'image_one_time':
       return <OneTimeImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
     case 'image_one_hour':
-      return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} />;
+      return <TimedImageMessage msg={msg} senderProfile={senderProfile} isOwn={isOwn} currentUserId={currentUserId} />;
     default:
       return (
         <TextMessage

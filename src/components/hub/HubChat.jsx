@@ -337,13 +337,29 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   }, [conversation?.id, user?.id]);
 
   // ── Mark read + invalidate badge ──────────────────────────────────────────
+  // Only mark messages read when the user's tab is actually VISIBLE.
+  // Previously this effect fired whenever messages.length changed
+  // including on background tabs — the sender saw a "Read" indicator
+  // even though the recipient had never actually opened the chat
+  // (their tab was inactive when a new message arrived). Now we gate
+  // on document.visibilityState and re-check when the tab becomes
+  // visible again. (Audit 10 #6.)
   useEffect(() => {
-    if (conversation?.id && user?.email) {
+    if (!conversation?.id || !user?.email) return;
+
+    const tryMark = () => {
+      if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       hubMessages.markRead(conversation.id, user.email).then(() => {
         queryClient.invalidateQueries({ queryKey: ['hubUnreadCount', user.email] });
       }).catch(() => {});
-    }
-  }, [conversation?.id, user?.email, messages.length]);
+    };
+
+    tryMark();
+
+    const onVisibilityChange = () => { if (document.visibilityState === 'visible') tryMark(); };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [conversation?.id, user?.email, messages.length, queryClient]);
 
   // ── Read receipt fade (4 s after read_at appears) ─────────────────────────
   const lastSentIndex = messages.reduce((acc, m, i) =>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, X, Users, SearchX, Trash2, UserPlus, Loader2, MessageSquare, Hash } from 'lucide-react';
+import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
@@ -393,12 +394,19 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                           setLocalAdded(prev => new Set([...prev, user.email]));
                           try {
                             await hubFollows.follow(currentUser.email, user.email, { t });
-                          } catch {
+                          } catch (err) {
+                            // Revert the optimistic check AND surface
+                            // an error toast so the user understands
+                            // why the button reverted. Previous code
+                            // silently reverted with zero feedback —
+                            // looked like the button was buggy.
+                            // (Audit 10 #11.)
                             setLocalAdded(prev => {
                               const next = new Set(prev);
                               next.delete(user.email);
                               return next;
                             });
+                            toast.error(`Couldn't follow @${user.username || user.email}. Try again.`);
                           }
                         }}
                       />
