@@ -101,9 +101,25 @@ export default function Notifications() {
 
   const handleRowClick = (n) => {
     if (!n.is_read) {
-      notifications.markRead(n.id).catch(() => {});
+      notifications.markRead(n.id)
+        .then(() => {
+          // Refresh the bell-badge query so the count drops as soon as
+          // the user taps a notification, not on next mount. Same fix
+          // applied to ActivityFeed.
+          queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] });
+          queryClient.invalidateQueries({ queryKey: ['notificationsListFull', user?.id] });
+        })
+        .catch(() => {});
     }
-    if (n.link_url) navigate(n.link_url);
+    if (!n.link_url) return;
+    // Distinguish absolute URLs (open in new tab) from in-app routes.
+    // navigate('https://...') would treat the URL as a path and produce
+    // a /https:// route.
+    if (/^https?:\/\//i.test(n.link_url)) {
+      window.open(n.link_url, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(n.link_url);
+    }
   };
 
   const handleClearAll = async () => {

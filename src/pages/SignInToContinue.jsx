@@ -48,16 +48,34 @@ export default function SignInToContinue() {
 
   const handleMagicLink = async (e) => {
     e?.preventDefault?.();
-    if (!email.trim() || sendingMagicLink) return;
+    const trimmed = email.trim();
+    if (!trimmed || sendingMagicLink) return;
+    // Basic email format check so users get an inline error before we
+    // round-trip to Supabase Auth and back with an opaque "invalid
+    // grant" message. Catches typos like "youexample.com" or "you@"
+    // without trying to validate every RFC quirk.
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      toast.error("That doesn't look like a valid email address.");
+      return;
+    }
     setSendingMagicLink(true);
     try {
-      await db.auth.signInWithMagicLink(email, '/');
+      await db.auth.signInWithMagicLink(trimmed, '/');
       setEmailSent(true);
     } catch (err) {
       toast.error(err?.message || 'Could not send magic link. Try again.');
     } finally {
       setSendingMagicLink(false);
     }
+  };
+
+  // Reset the "Check your inbox" state so the user can re-send to a
+  // corrected email. Previously emailSent=true was terminal — the form
+  // disappeared with no way to fix a typo'd address without navigating
+  // away and back.
+  const handleResetEmail = () => {
+    setEmailSent(false);
+    setEmail('');
   };
 
   return (
@@ -128,9 +146,18 @@ export default function SignInToContinue() {
 
         {/* Magic link */}
         {emailSent ? (
-          <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-sm">
-            <Check className="w-4 h-4 shrink-0" />
-            <span>Check your inbox — we sent a sign-in link to <strong>{email}</strong>.</span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 text-sm">
+              <Check className="w-4 h-4 shrink-0" />
+              <span>Check your inbox — we sent a sign-in link to <strong>{email}</strong>.</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleResetEmail}
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition-colors py-1.5"
+            >
+              Wrong email? Send another link
+            </button>
           </div>
         ) : (
           <form onSubmit={handleMagicLink} className="flex flex-col gap-2">
