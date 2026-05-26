@@ -111,6 +111,13 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     }
   };
 
+  // Mint a stable id for each new set so AnimatePresence can track
+  // which set was removed without reassigning identity to the wrong
+  // row. Using array index as key caused focus jumps + mid-typed
+  // digits landing on the wrong row when a middle set was deleted.
+  // (Audit 09 #C-5.)
+  const newSetId = () => `s_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   const addSet = () => {
     if (atSetLimit) {
       toast.info(t('workout.maxSetsToast').replace('{count}', maxSetsPerExercise));
@@ -123,7 +130,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     const seed = lastWorking || sets[sets.length - 1] || { weight: null, reps: null };
     const previousSetLogged = !!(seed.weight || seed.reps);
     // is_warmup explicitly false so the new set never inherits the flag.
-    onChange({ ...exercise, sets: [...sets, { weight: seed.weight, reps: seed.reps, is_warmup: false }] });
+    onChange({ ...exercise, sets: [...sets, { _key: newSetId(), weight: seed.weight, reps: seed.reps, is_warmup: false }] });
     if (previousSetLogged) {
       startRestTimer();
     }
@@ -132,7 +139,11 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   const updateSet = (index, updated) => {
     const newSets = [...sets];
     const prev = newSets[index] || {};
-    newSets[index] = updated;
+    // Preserve the row's stable _key across updates. If this row was
+    // hydrated from legacy data (regimen template, repeat-from-log)
+    // without an _key, mint one on first update so all subsequent
+    // edits + the eventual removal track to the right row.
+    newSets[index] = { ...updated, _key: prev._key || updated._key || newSetId() };
     checkPR(newSets);
     onChange({ ...exercise, sets: newSets });
     // Auto-start the rest timer the moment a set transitions to
@@ -251,7 +262,11 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         <AnimatePresence initial={false}>
           {sets.map((set, i) => (
             <motion.div
-              key={i}
+              // Use the stable _key minted at addSet time. Falls back to
+              // index for legacy regimen/log-cloned data that predates
+              // the minted-id pattern — but those rows mint a key on
+              // first updateSet via the updateSet handler below.
+              key={set?._key || `legacy_${i}`}
               initial={{ opacity: 0, height: 0, y: -6 }}
               animate={{ opacity: 1, height: 'auto', y: 0 }}
               exit={{ opacity: 0, height: 0, y: -6 }}

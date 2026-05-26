@@ -123,6 +123,12 @@ export default function TrainerMarket() {
           {listings.map(listing => {
             const owned = ownedIds.has(listing.id);
             const busy = buyingId === listing.id;
+            // A trainer shouldn't be able to "Unlock" their own listing
+            // (the server bounces it anyway, but the button was being
+            // rendered + clickable + only error-toasting at server
+            // round-trip). Detect own listing + render an "Edit"
+            // CTA pointing back to the studio. (Audit 12 #17.)
+            const isOwn = !!user?.id && listing.trainer_id === user.id;
             return (
               <motion.div
                 key={listing.id}
@@ -132,6 +138,9 @@ export default function TrainerMarket() {
                 <div className="flex items-start justify-between gap-2 mb-1">
                   <p className="font-heading font-bold text-base leading-tight">{listing.title}</p>
                   {owned && <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />}
+                  {isOwn && !owned && (
+                    <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary shrink-0">Your listing</span>
+                  )}
                 </div>
                 {listing.description && (
                   <p className="text-xs text-muted-foreground line-clamp-3 mb-2">{listing.description}</p>
@@ -143,6 +152,10 @@ export default function TrainerMarket() {
                   {owned ? (
                     <Button variant="outline" className="w-full gap-1.5" onClick={() => openProgram(listing)}>
                       <CheckCircle2 className="w-4 h-4" /> Open program
+                    </Button>
+                  ) : isOwn ? (
+                    <Button variant="outline" className="w-full gap-1.5" onClick={() => navigate('/trainer/studio')}>
+                      <Sparkles className="w-4 h-4" /> Edit in Studio
                     </Button>
                   ) : (
                     <Button

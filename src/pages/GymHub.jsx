@@ -299,7 +299,10 @@ export default function GymHub() {
               <GymFeedTab gymId={id} gymOwnerId={gym?.owner_id} />
             </Suspense>
           )}
-          {tab === 'events'      && <EventsTab      gymId={id} canCreate={true} gymOwnerId={gym?.owner_id} />}
+          {/* Only the gym owner can create/delete events. The previous
+              hardcoded canCreate={true} let every member spin up + delete
+              events — confusing at best, abusable at worst. (Audit 12 #7.) */}
+          {tab === 'events'      && <EventsTab      gymId={id} canCreate={!!user?.id && gym?.owner_id === user.id} gymOwnerId={gym?.owner_id} />}
           {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
         </>
       )}

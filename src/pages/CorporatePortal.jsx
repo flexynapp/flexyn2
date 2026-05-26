@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { supabase } from '@/api/supabaseClient';
 import EmptyState from '@/components/EmptyState';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import {
@@ -91,6 +92,32 @@ export default function CorporatePortal() {
 
   const handleLeave = async () => {
     if (!activeOrg) return;
+    // Last-admin guard. The CASCADE on the FK + RLS happily let the
+    // sole admin DELETE their membership row, orphaning every other
+    // member of the org with no path back to admin. We block the
+    // self-leave for sole admins with a clear path forward: transfer
+    // (TBD product decision) or delete the entire org instead.
+    // (Audit 12 #23.)
+    if (isAdmin) {
+      try {
+        const { data, error } = await supabase
+          .from('organization_members')
+          .select('user_id', { count: 'exact', head: false })
+          .eq('org_id', activeOrg.id)
+          .eq('role', 'admin');
+        const adminCount = error ? null : (data || []).length;
+        if (adminCount === 1) {
+          toast.error(
+            'You are the only admin. Promote another member first, or delete the organization in Settings.'
+          );
+          return;
+        }
+      } catch {
+        // Network failure on the guard — fall through to the delete
+        // attempt; the RPC/RLS will still cascade-protect data even
+        // if our guard couldn't confirm.
+      }
+    }
     if (!confirm(`Leave ${activeOrg.name}?`)) return;
     const res = await leaveOrganization(activeOrg.id, user.id);
     if (res.ok) { toast.success('Left organization.'); setSelectedId(null); refresh(); }
