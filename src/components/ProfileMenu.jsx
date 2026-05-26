@@ -47,7 +47,23 @@ function wipeLocalClientState({ preserveKeys = false } = {}) {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
         if (!k) continue;
-        if (k.startsWith('journal_') || k === 'fn-theme' || k === 'fn-dark-mode' || k === 'fn-loot-theme') {
+        // Per-device preferences that should survive sign-out so the
+        // next sign-in on the same device doesn't reset them. The
+        // server-mirrored prefs (theme, language) hydrate from the
+        // user_profile on next mount anyway; the device-local ones
+        // (haptics, sounds, weight unit, distance unit) live only
+        // here and would be lost forever otherwise. (Audit 14 #14.)
+        if (
+          k.startsWith('journal_') ||
+          k === 'fn-theme' ||
+          k === 'fn-dark-mode' ||
+          k === 'fn-loot-theme' ||
+          k === 'fn-language' ||
+          k === 'fn-distance-unit' ||
+          k === 'flexyn_weight_unit' ||
+          k === 'flexyn.hapticsDisabled' ||
+          k === 'flexyn.soundsEnabled'
+        ) {
           snapshot[k] = localStorage.getItem(k);
         }
       }
@@ -155,10 +171,21 @@ export default function ProfileMenu() {
   const handleSignOut = async () => {
     // Sign-out preserves journal entries + per-device theme preferences
     // so the same user signing back in doesn't lose work (audit B-3).
-    // Logout first so Supabase can revoke the session server-side
-    // before localStorage is touched (audit B-26).
-    try { await db.auth.logout('/'); } catch {}
-    wipeLocalClientState({ preserveKeys: true });
+    // Order: signOut (Supabase) → wipe localStorage → navigate. The
+    // previous `await db.auth.logout('/')` triggered `window.location.href = '/'`
+    // INSIDE the logout finally-block, racing the wipe to completion.
+    // On a fast network the redirect won the race and per-device-scoped
+    // keys (flexyn.pushOptInDismissed.<uid>, flexyn.iosInstallDismissed.<uid>,
+    // flexyn.celebratedCrewWars.<uid>) stayed on the device so a second
+    // user inherited the first user's UX-state flags. Now we call
+    // logout WITHOUT a redirectUrl param (it still defaults to '/'),
+    // but we wipe before navigating ourselves to guarantee ordering.
+    // (Audit 14 #3.)
+    // `null` suppresses the redirect inside db.auth.logout so we can
+    // wipe BEFORE navigating ourselves — guaranteeing ordering.
+    try { await db.auth.logout(null); } catch {}
+    try { wipeLocalClientState({ preserveKeys: true }); } catch {}
+    try { window.location.href = '/'; } catch {}
   };
 
   const { user: authUser } = useAuth();
@@ -195,6 +222,11 @@ export default function ProfileMenu() {
       const t = e.target;
       if (t?.closest?.('[data-portal-ignore-outside-click]')) return;
       if (t?.closest?.('[role="dialog"]')) return;
+      // Sonner toasts (e.g. an Undo toast from a sibling action) are
+      // also portaled; clicking them shouldn't close the menu.
+      // (Audit 14 #29.)
+      if (t?.closest?.('[data-sonner-toast]')) return;
+      if (t?.closest?.('[data-sonner-toaster]')) return;
       if (t?.closest?.('[data-radix-dialog-overlay]')) return;
       if (t?.closest?.('[data-radix-popper-content-wrapper]')) return;
 

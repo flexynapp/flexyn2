@@ -320,7 +320,16 @@ const auth = {
     _clearProfile();
     await unsubscribePushOnLogout();
     try { await supabase.auth.signOut(); }
-    finally { window.location.href = redirectUrl ?? '/'; }
+    finally {
+      // Pass `null` to suppress the auto-redirect — used by ProfileMenu
+      // sign-out so the caller can wipe localStorage AFTER signOut has
+      // had a chance to read the session, but BEFORE the page reloads.
+      // Otherwise the redirect raced the localStorage clear and
+      // per-device-scoped UX flags persisted across users. (Audit 14 #3.)
+      if (redirectUrl !== null) {
+        window.location.href = redirectUrl ?? '/';
+      }
+    }
   },
 
   /** Returns true if there is an active session. */

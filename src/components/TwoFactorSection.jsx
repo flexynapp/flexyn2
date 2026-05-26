@@ -14,12 +14,16 @@
 //   3. User types the 6-digit code → verifyEnrollment(code)
 //   4. On success → mark enabled, refetch list, close modal
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Shield, ShieldCheck, Loader2, X, Check } from 'lucide-react';
 import { toast } from 'sonner';
 import { listFactors, enrollTotp, verifyEnrollment, unenroll } from '@/lib/data/twoFactor';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function TwoFactorSection() {
   const [loading, setLoading] = useState(true);
@@ -29,6 +33,9 @@ export default function TwoFactorSection() {
   const [enrollment, setEnrollment] = useState(null); // { factorId, qr, secret }
   const [code, setCode] = useState('');
   const [verifying, setVerifying] = useState(false);
+  const [disableOpen, setDisableOpen] = useState(false);
+  const [disableFactorId, setDisableFactorId] = useState(null);
+  const codeInputRef = useRef(null);
 
   const refresh = async () => {
     setLoading(true);
@@ -63,6 +70,10 @@ export default function TwoFactorSection() {
     if (!res.ok) {
       const msg = res.reason === 'invalid_code' ? 'Wrong code — try again.' : 'Verification failed.';
       toast.error(msg);
+      // Clear the input and refocus so the user can paste a fresh code
+      // without first selecting the stale 6 digits. (Audit 14 #23.)
+      setCode('');
+      setTimeout(() => { codeInputRef.current?.focus(); }, 20);
       return;
     }
     toast.success('Two-factor authentication enabled.');
@@ -72,8 +83,20 @@ export default function TwoFactorSection() {
     refresh();
   };
 
-  const disable = async (factorId) => {
-    if (!confirm('Turn off two-factor authentication? Your account will be less protected.')) return;
+  // Replaced the native `confirm()` dialog with the AlertDialog used
+  // elsewhere in Settings so the disable flow matches the rest of the
+  // visual language and works correctly inside iOS PWA standalone mode
+  // (where native confirm has historically been janky). (Audit 14 #22.)
+  const requestDisable = (factorId) => {
+    setDisableFactorId(factorId);
+    setDisableOpen(true);
+  };
+
+  const confirmDisable = async () => {
+    const factorId = disableFactorId;
+    setDisableOpen(false);
+    setDisableFactorId(null);
+    if (!factorId) return;
     const res = await unenroll(factorId);
     if (!res.ok) {
       toast.error(`Couldn't disable: ${res.message || 'try again'}`);
@@ -112,7 +135,7 @@ export default function TwoFactorSection() {
         </div>
         {!loading && (enabled ? (
           <button
-            onClick={() => disable(factors[0].id)}
+            onClick={() => requestDisable(factors[0].id)}
             className="px-2.5 py-1 rounded-md border border-border text-[11px] font-bold uppercase tracking-wide hover:bg-secondary"
           >
             Disable
@@ -171,10 +194,12 @@ export default function TwoFactorSection() {
                 </div>
               )}
               <input
+                ref={codeInputRef}
                 value={code}
                 onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
                 placeholder="123 456"
                 inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
                 className="w-full text-center text-2xl tracking-[0.4em] tabular-nums py-2 bg-secondary/40 border border-border rounded-lg outline-none focus:border-primary/50 mb-3"
               />
@@ -191,6 +216,26 @@ export default function TwoFactorSection() {
           document.body
         )}
       </AnimatePresence>
+
+      {/* Disable confirmation — Radix AlertDialog so it matches the
+          rest of Settings' visual language and behaves correctly on
+          iOS PWA standalone. (Audit 14 #22.) */}
+      <AlertDialog open={disableOpen} onOpenChange={setDisableOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Turn off two-factor authentication?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your account will be less protected. You can re-enable 2FA at any time.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep on</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDisable} className="bg-destructive hover:bg-destructive/90">
+              Turn off
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

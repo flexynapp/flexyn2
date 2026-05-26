@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon, BellOff } from 'lucide-react';
@@ -36,7 +36,7 @@ export default function SettingsPanel() {
   const { distanceUnit, setDistanceUnit } = useDistanceUnit();
   const [bugReportOpen, setBugReportOpen] = useState(false);
   const { user } = useAuth();
-  const { weightUnit } = useWeightUnit();
+  const { weightUnit, setWeightUnit } = useWeightUnit();
   const queryClient = useQueryClient();
   const [editingStat, setEditingStat] = useState(null); // 'weight_lbs' | 'height_inches' | 'birthday'
   const [statValue, setStatValue] = useState('');
@@ -218,6 +218,9 @@ export default function SettingsPanel() {
   // UI feedback; the RPC update_notification_pref is fire-and-forget on
   // toggle. We revert + toast on failure rather than blocking the UI.
   const [prefs, setPrefs] = useState(null);
+  // Per-category in-flight ref so a double-tap on the same notification
+  // toggle doesn't fire two RPCs whose responses race. (Audit 14 #13.)
+  const prefSavingRef = useRef({});
   // Quiet hours — null means "always on". When the user enables
   // quiet hours we default the window to 22 → 7 (overnight).
   const [quietHours, setQuietHours] = useState({ start: null, end: null });
@@ -297,6 +300,19 @@ export default function SettingsPanel() {
   const handleBlockAdd = async () => {
     const email = blockEmail.trim().toLowerCase();
     if (!email || !user) return;
+    // Reject malformed emails up-front so users don't see a fake
+    // "Blocked asdf@asdf" toast for an entry that won't actually
+    // protect them. Also reject self-blocking — blocking yourself
+    // breaks story visibility queries in confusing ways. (Audit 14 #4.)
+    const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!EMAIL_RE.test(email)) {
+      toast.error(tFallback('settings.block.invalidEmail', 'Enter a valid email address.'));
+      return;
+    }
+    if (email === (user?.email || '').toLowerCase()) {
+      toast.error(tFallback('settings.block.selfBlock', "You can't block your own email."));
+      return;
+    }
     setBlockSaving(true);
     const ok = await blockUser(user, email);
     setBlockSaving(false);
@@ -387,6 +403,11 @@ export default function SettingsPanel() {
 
   const handlePrefToggle = async (category) => {
     if (!prefs) return;
+    // Per-category in-flight guard. A double-tap on the same toggle
+    // would otherwise fire two RPCs whose responses can land out of
+    // order, leaving the toggle in the wrong state. (Audit 14 #13.)
+    if (prefSavingRef.current[category]) return;
+    prefSavingRef.current[category] = true;
     const next = !prefs[category];
     const prev = prefs;
     // Optimistic update so the switch flips instantly.
@@ -395,10 +416,25 @@ export default function SettingsPanel() {
       p_category: category,
       p_enabled:  next,
     });
+    prefSavingRef.current[category] = false;
     if (error) {
       // Revert.
       setPrefs(prev);
-      toast.error(tFallback('settings.prefs.saveFailed', 'Could not save preference — try again.'));
+      // Detect "RPC missing" (pre-mig-036 environments) and surface a
+      // useful toast rather than the generic "try again" loop a user
+      // would otherwise see forever. (Audit 14 #9.)
+      const isMissingFn =
+        error?.code === '42883' ||
+        /update_notification_pref/i.test(String(error?.message || '')) &&
+          /does not exist|not found/i.test(String(error?.message || ''));
+      if (isMissingFn) {
+        toast.error(tFallback(
+          'settings.prefs.unavailable',
+          'Notification preferences are not configured on this deployment.'
+        ));
+      } else {
+        toast.error(tFallback('settings.prefs.saveFailed', 'Could not save preference — try again.'));
+      }
       return;
     }
     queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -491,6 +527,39 @@ export default function SettingsPanel() {
               aria-pressed={distanceUnit === opt.value}
               className={`flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors ${
                 distanceUnit === opt.value
+                  ? 'border-primary bg-primary/10 text-primary font-medium'
+                  : 'border-border text-muted-foreground hover:bg-secondary'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {/* Weight unit toggle — previously the only way to change this
+          after onboarding was via the inline UnitPill on log-weight
+          modals, which most users never opened. The asymmetry with
+          the distance unit toggle right above this read as broken.
+          (Audit 14 #1.) */}
+      <div className="space-y-1.5">
+        <div className="flex items-center gap-2">
+          <Scale className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+          <p className="text-xs text-foreground leading-tight">
+            {tFallback('settings.weightUnit', 'Weight unit')}
+          </p>
+        </div>
+        <div role="group" aria-label={tFallback('settings.weightUnit', 'Weight unit')} className="flex gap-1.5">
+          {[
+            { value: 'lbs',   label: tFallback('settings.weightUnit.lbs',   'lbs') },
+            { value: 'kg',    label: tFallback('settings.weightUnit.kg',    'kg') },
+            { value: 'stone', label: tFallback('settings.weightUnit.stone', 'st') },
+          ].map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => setWeightUnit(opt.value)}
+              aria-pressed={weightUnit === opt.value}
+              className={`flex-1 px-2 py-1.5 text-xs rounded-md border transition-colors ${
+                weightUnit === opt.value
                   ? 'border-primary bg-primary/10 text-primary font-medium'
                   : 'border-border text-muted-foreground hover:bg-secondary'
               }`}
@@ -738,29 +807,43 @@ export default function SettingsPanel() {
             />
           </div>
           {quietEnabled && (
-            <div className="flex items-center gap-2 pl-5">
-              <select
-                value={quietHours.start ?? 22}
-                onChange={(e) => updateQuietHours({ ...quietHours, start: Number(e.target.value) })}
-                className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
-                aria-label="Quiet hours start"
-              >
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{formatHour12(h)}</option>
-                ))}
-              </select>
-              <span className="text-[11px] text-muted-foreground">→</span>
-              <select
-                value={quietHours.end ?? 7}
-                onChange={(e) => updateQuietHours({ ...quietHours, end: Number(e.target.value) })}
-                className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
-                aria-label="Quiet hours end"
-              >
-                {Array.from({ length: 24 }, (_, h) => (
-                  <option key={h} value={h}>{formatHour12(h)}</option>
-                ))}
-              </select>
-            </div>
+            <>
+              <div className="flex items-center gap-2 pl-5">
+                <select
+                  value={quietHours.start ?? 22}
+                  onChange={(e) => updateQuietHours({ ...quietHours, start: Number(e.target.value) })}
+                  className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  aria-label="Quiet hours start (24-hour clock)"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{formatHour12(h)}</option>
+                  ))}
+                </select>
+                <span className="text-[11px] text-muted-foreground" aria-hidden="true">→</span>
+                <select
+                  value={quietHours.end ?? 7}
+                  onChange={(e) => updateQuietHours({ ...quietHours, end: Number(e.target.value) })}
+                  className="px-2 py-1 rounded-md bg-secondary text-xs font-medium border border-border focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  aria-label="Quiet hours end (24-hour clock)"
+                >
+                  {Array.from({ length: 24 }, (_, h) => (
+                    <option key={h} value={h}>{formatHour12(h)}</option>
+                  ))}
+                </select>
+              </div>
+              {quietHours.start != null && quietHours.end != null && quietHours.start === quietHours.end && (
+                // The push trigger (mig 098) treats start == end as
+                // "no quiet hours" — surface the degenerate state to
+                // the user so they don't think DND is active when it
+                // silently isn't. (Audit 14 #18.)
+                <p className="pl-5 text-[10px] text-amber-500/90 leading-tight">
+                  {tFallback(
+                    'settings.quiet.equalWarn',
+                    'Start and end are the same — quiet hours are effectively off. Pick different times.'
+                  )}
+                </p>
+              )}
+            </>
           )}
         </div>
       )}
@@ -966,6 +1049,10 @@ export default function SettingsPanel() {
                   onChange={e => setBlockEmail(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleBlockAdd()}
                   placeholder="Email to block…"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  autoComplete="off"
+                  spellCheck={false}
                   className="flex-1 h-7 rounded-md border border-border bg-secondary/50 px-2 text-[11px] text-foreground placeholder-muted-foreground/60 focus:outline-none focus:border-primary/50"
                 />
                 <button
@@ -1084,8 +1171,17 @@ export default function SettingsPanel() {
       <button
         type="button"
         onClick={async () => {
+          // Explicitly detect missing clipboard API rather than letting
+          // `navigator.clipboard?.writeText(...)` silently no-op into a
+          // resolved Promise<undefined> — that path used to surface a
+          // false "Copied!" toast on insecure-context HTTP and on
+          // browsers without the API. (Audit 14 #30.)
+          if (!navigator?.clipboard?.writeText) {
+            toast.error('Clipboard not available — copy from the diagnostic dialog below.');
+            return;
+          }
           try {
-            await navigator.clipboard?.writeText(diagnosticString());
+            await navigator.clipboard.writeText(diagnosticString());
             toast.success('Copied build info to clipboard.');
           } catch {
             toast.error('Could not copy — your browser blocked clipboard access.');
