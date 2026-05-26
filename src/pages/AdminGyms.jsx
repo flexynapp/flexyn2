@@ -189,8 +189,8 @@ export default function AdminGyms() {
                   <div className="mt-3 rounded-lg bg-amber-500/10 border border-amber-500/30 p-2 text-xs text-amber-600 dark:text-amber-300 flex items-start gap-2">
                     <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
                     <span>
-                      No lat/lng provided. The approval RPC requires geo coords — ask the owner to
-                      re-submit or geocode the address manually before approving.
+                      No lat/lng provided. The gym will be approved but won't appear on the
+                      discovery map until the owner sets coordinates from Edit Gym.
                     </span>
                   </div>
                 )}
@@ -226,7 +226,7 @@ export default function AdminGyms() {
                       <Button
                         size="sm"
                         onClick={() => handleApprove(v)}
-                        disabled={acting || !hasGeo}
+                        disabled={acting}
                         className="flex-1"
                       >
                         {acting

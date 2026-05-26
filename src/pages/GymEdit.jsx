@@ -155,11 +155,31 @@ export default function GymEdit() {
   const handleSave = async () => {
     if (saving) return;
     if (!form.name.trim()) { toast.error('Name required.'); return; }
-    const lat = form.latitude  ? Number(form.latitude)  : null;
-    const lng = form.longitude ? Number(form.longitude) : null;
-    if (lat == null || lng == null || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-      toast.error('Valid latitude + longitude required.');
-      return;
+    // Lat/lng are OPTIONAL. After mig 150 these columns are nullable
+    // on gym_businesses, so gyms without coords can still save changes
+    // (hours, description, photos). Previously the form blocked ALL
+    // saves until the user entered valid coords — even unrelated
+    // fields like the description couldn't be edited. (Audit 12 #30.)
+    //
+    // Still validates: if the user TYPED something, it must be numeric
+    // and in-range — refuse to save partial garbage. Blank inputs save
+    // as NULL.
+    let lat = null, lng = null;
+    if (form.latitude?.toString().trim() !== '') {
+      const v = Number(form.latitude);
+      if (!Number.isFinite(v) || v < -90 || v > 90) {
+        toast.error('Latitude must be a number between -90 and 90.');
+        return;
+      }
+      lat = v;
+    }
+    if (form.longitude?.toString().trim() !== '') {
+      const v = Number(form.longitude);
+      if (!Number.isFinite(v) || v < -180 || v > 180) {
+        toast.error('Longitude must be a number between -180 and 180.');
+        return;
+      }
+      lng = v;
     }
     setSaving(true);
     // RLS allows owner-only updates; UPDATE policy already gates on

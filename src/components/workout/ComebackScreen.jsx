@@ -71,7 +71,16 @@ function buildComebackSession(workoutLogs, daysSince) {
     const avgWeight      = entry.sumWeight / Math.max(1, entry.totalSets);
     const avgReps        = Math.round(entry.sumReps / Math.max(1, entry.totalSets));
 
-    const scaledWeight = Math.max(0, Math.round((avgWeight * SCALE) / 5) * 5);
+    // Round scaled weight to a sensible plate step. Stored unit is
+    // LBS, so for lbs users we round to the nearest 5 lb plate; for
+    // KG users we round to the nearest 2.5 kg (≈ 5.5 lb) so the
+    // displayed kg value lands on a clean half-kilo. Previously the
+    // round was always to nearest 5 lb regardless of unit, so kg
+    // users saw ugly fractional values like 59.0 kg, 70.3 kg.
+    // (Audit 09 #H-10.)
+    const KG_STEP_LBS = 2.5 * 2.20462;          // 5.51155 lbs ≈ 2.5 kg
+    const step = userProfile?.weight_unit === 'kg' ? KG_STEP_LBS : 5;
+    const scaledWeight = Math.max(0, Math.round((avgWeight * SCALE) / step) * step);
     const scaledSets   = Math.max(2, Math.min(3, setsPerSession)); // cap at 3 sets
     const scaledReps   = Math.max(8, avgReps); // don't go lower than 8 reps
 
