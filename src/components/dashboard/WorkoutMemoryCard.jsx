@@ -64,11 +64,16 @@ export default function WorkoutMemoryCard({ logs = [] }) {
   };
 
   const handleTap = () => {
-    // No "replay this workout" RPC yet — for V1, just navigate the
-    // user to the workout page. Future enhancement: pre-fill the
-    // workout exercises from this log so the user can repeat the
-    // session with one tap.
-    navigate('/workout');
+    // Forward the memory log via location state so the Workout page
+    // can seed the active session with the same exercises — closes the
+    // UX gap where the card said "Hit the gym today to top it" but
+    // delivered a blank Workout screen with no link to the log it
+    // referenced. (Audit 08 #M-5.)
+    if (memory?.log) {
+      navigate('/workout', { state: { repeatLog: memory.log } });
+    } else {
+      navigate('/workout');
+    }
   };
 
   return (

@@ -178,7 +178,13 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
             open={shareOpen}
             onClose={() => setShareOpen(false)}
             recap={recap}
-            username={user?.user_metadata?.username || user?.email?.split('@')[0] || 'Athlete'}
+            // Match the same name-chain Dashboard uses elsewhere:
+            // canonical `username` first, then full_name's first word,
+            // then the email local-part. The previous chain looked for
+            // `user_metadata.username` which doesn't exist on the
+            // user object Flexyn renders against — so virtually every
+            // user got "Athlete" on their share card. (Audit 08 #L-4.)
+            username={user?.username || user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Athlete'}
           />
         </Suspense>
       )}

@@ -21,7 +21,7 @@ import { reportError } from '@/lib/reportError';
 
 export default function DailyQuestsCard({ onNavigated }) {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -82,7 +82,15 @@ export default function DailyQuestsCard({ onNavigated }) {
 
   const handleClaimResult = async (result, questRow) => {
     if (result.success) {
-      toast.success(t('dashboard.coinsClaimedToast').replace('{coins}', result.coinsAwarded), { icon: '🪙' });
+      // tFallback handles placeholder substitution + missing-key fallback
+       // in one call — the prior `t('...').replace('{coins}', ...)` left the
+       // raw key visible when the language file didn't have the entry,
+       // and the substitution silently no-op'd when the translator used a
+       // different placeholder name. (Audit 08 #M-1.)
+      toast.success(
+        tFallback('dashboard.coinsClaimedToast', '+{coins} coins claimed!', { coins: result.coinsAwarded }),
+        { icon: '🪙' }
+      );
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       // In-app notification — non-blocking
@@ -217,7 +225,7 @@ function QuestRow({ quest, onClaim, onGo, t }) {
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground tabular-nums">
-            {quest.progress}/{quest.target} · {quest.coin_reward} {t('hub.coins') !== 'hub.coins' ? t('hub.coins') : 'coins'}
+            {quest.progress}/{quest.target} · {quest.coin_reward} {tFallback('hub.coins', 'coins')}
           </p>
         </div>
 

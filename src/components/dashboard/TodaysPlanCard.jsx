@@ -152,7 +152,7 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
             </div>
             <p className="text-sm font-heading font-bold leading-tight mt-0.5">
               {doneToday
-                ? `${info.emoji} ${tFallback('todaysPlan.doneFmt', '{label} — done!').replace('{label}', translatedLabel)}`
+                ? `${info.emoji} ${tFallback('todaysPlan.doneFmt', '{label} — done!', { label: translatedLabel })}`
                 : `${info.emoji} ${translatedLabel}`}
             </p>
             <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate">
