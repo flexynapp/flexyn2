@@ -92,7 +92,14 @@ async function _enhanceWithClaude({ apiKey, message, baseReply, intent }) {
       // ephemeral marker = cache hit on the second-onward call.
       body: JSON.stringify({
         model:       'claude-sonnet-4-5-20250929',
-        max_tokens:  600,
+        // 350-token cap aligns the budget with the system prompt's
+        // "stay under 150 words" guidance (roughly 200 tokens of
+        // English text + headroom). The previous 600-token cap let
+        // the model write 400+ words and then get sliced mid-sentence
+        // at the hard limit, leaving the user staring at a sentence
+        // ending in "... because" with no signal it was truncated.
+        // (Audit 16 F11.)
+        max_tokens:  350,
         // Multi-block system with cache_control on the stable prefix.
         // Anthropic requires the cached block(s) to be >= 1024 tokens
         // for the smaller models or >= 2048 for some others; our

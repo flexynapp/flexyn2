@@ -16,27 +16,32 @@
 import React, { useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { CheckCircle2, ArrowRight, X } from 'lucide-react';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const LS_KEY = (userId) => `flexyn.profileCompletionDismissed.${userId || 'anon'}`;
 
-function buildTasks(user, targetProfile) {
+function buildTasks(user, targetProfile, tFallback) {
   // Profile data on `user` (auth) supplements targetProfile, but on
   // self-view both have the same fields. Read from either.
   const p = targetProfile || {};
   const u = user || {};
   const has = (v) => typeof v === 'string' ? v.trim().length > 0 : !!v;
   const hasArr = (v) => Array.isArray(v) && v.length > 0;
+  // Pulled through tFallback so non-English users see localized labels.
+  // Previously every step in the completion meter rendered in English
+  // regardless of the user's app language.
   return [
-    { id: 'avatar',   label: 'Add a profile photo',     done: has(u.avatar_url || p.avatar_url) },
-    { id: 'username', label: 'Pick a username',         done: has(u.username || p.username) },
-    { id: 'bio',      label: 'Write a short bio',       done: has(u.bio || p.bio) },
-    { id: 'city',     label: 'Add your city',           done: has(u.city || p.city) },
-    { id: 'goal',     label: 'Choose a fitness goal',   done: hasArr(u.fitness_goals_arr) || has(u.fitness_goals) },
-    { id: 'workout',  label: 'Log your first workout',  done: (Number(u.total_xp) || 0) > 0 },
+    { id: 'avatar',   label: tFallback('profile.completion.avatar',   'Add a profile photo'),    done: has(u.avatar_url || p.avatar_url) },
+    { id: 'username', label: tFallback('profile.completion.username', 'Pick a username'),        done: has(u.username || p.username) },
+    { id: 'bio',      label: tFallback('profile.completion.bio',      'Write a short bio'),      done: has(u.bio || p.bio) },
+    { id: 'city',     label: tFallback('profile.completion.city',     'Add your city'),          done: has(u.city || p.city) },
+    { id: 'goal',     label: tFallback('profile.completion.goal',     'Choose a fitness goal'),  done: hasArr(u.fitness_goals_arr) || has(u.fitness_goals) },
+    { id: 'workout',  label: tFallback('profile.completion.workout',  'Log your first workout'), done: (Number(u.total_xp) || 0) > 0 },
   ];
 }
 
 export default function ProfileCompletionMeter({ user, targetProfile }) {
+  const { tFallback } = useLanguage();
   const userId = user?.id;
   const [dismissed, setDismissed] = useState(() => {
     try { return localStorage.getItem(LS_KEY(userId)) === '1'; }
@@ -44,8 +49,8 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
   });
 
   const tasks = useMemo(
-    () => buildTasks(user, targetProfile),
-    [user, targetProfile],
+    () => buildTasks(user, targetProfile, tFallback),
+    [user, targetProfile, tFallback],
   );
 
   const done = tasks.filter(t => t.done).length;
@@ -75,7 +80,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       <div className="flex items-center justify-between gap-2 mb-1.5">
         <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
           <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-          Profile completion
+          {tFallback('profile.completion.title', 'Profile completion')}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold tabular-nums text-foreground">
@@ -104,12 +109,12 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       {pct < 100 && nextStep && (
         <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <ArrowRight className="w-3 h-3 text-primary" />
-          <span>Next: <span className="text-foreground font-medium">{nextStep.label}</span></span>
+          <span>{tFallback('profile.completion.nextLabel', 'Next:')} <span className="text-foreground font-medium">{nextStep.label}</span></span>
         </div>
       )}
       {pct === 100 && (
         <p className="mt-2 text-[11px] text-emerald-500 font-medium">
-          Looking sharp — all set!
+          {tFallback('profile.completion.allSet', 'Looking sharp — all set!')}
         </p>
       )}
     </motion.div>

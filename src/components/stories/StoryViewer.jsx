@@ -281,7 +281,21 @@ export default function StoryViewer({
     }
   }, [groupIdx, storyIdx, groups]);
 
-  const paused = insightsOpen || deletePrompt || replyFocused;
+  // Tap-to-pause / hold-to-pause for the center area (Instagram
+  // pattern). The previous tap-zone layout had a dead 30% center
+  // strip that landed on the media with no handler. Now press-and-
+  // hold or single-tap on center toggles a manual pause flag.
+  // (Audit 10 #75, #76.)
+  const [manuallyPaused, setManuallyPaused] = useState(false);
+  const [holdPaused, setHoldPaused] = useState(false);
+  // Reset pause flags whenever the user navigates to a different
+  // story so a paused story doesn't keep a stuck-paused state for the
+  // NEXT story they advance to.
+  useEffect(() => {
+    setManuallyPaused(false);
+    setHoldPaused(false);
+  }, [storyIdx, groupIdx]);
+  const paused = insightsOpen || deletePrompt || replyFocused || manuallyPaused || holdPaused;
 
   useEffect(() => {
     if (!open || !currentStory || paused) return;
@@ -640,6 +654,20 @@ export default function StoryViewer({
               onClick={goBack} aria-label="Previous story" />
             <div className="absolute right-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
               onClick={goNext} aria-label="Next story" />
+            {/* Center 30% — tap to toggle pause, hold to pause for as
+                long as the press is held. Matches Instagram /
+                Snapchat conventions; the previous dead-center strip
+                surprised every user who came from those apps. */}
+            <div
+              className="absolute top-0 cursor-pointer"
+              style={{ left: '35%', right: '35%', bottom: '90px' }}
+              onClick={() => setManuallyPaused(p => !p)}
+              onPointerDown={() => setHoldPaused(true)}
+              onPointerUp={() => setHoldPaused(false)}
+              onPointerCancel={() => setHoldPaused(false)}
+              onPointerLeave={() => setHoldPaused(false)}
+              aria-label="Tap to pause"
+            />
 
             {/* ── Delete confirm ───────────────────────────────────────── */}
             {deletePrompt && (

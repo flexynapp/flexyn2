@@ -42,6 +42,12 @@ const FRIEND_TYPES = new Set([
   // Competitive notifications (migration 069)
   'bounty_claim', 'bounty_beaten',
   'crew_war_started', 'crew_war_resolved',
+  // Newer competitive types (mig 081, 102, 103) — every audit 16 F23
+  // type that's "triggered by another human" belongs in the Friends
+  // filter. Without these the rival overthrow + crew challenge
+  // notifications only show under "All".
+  'nemesis_assigned', 'nemesis_overthrown',
+  'crew_challenge_started', 'crew_challenge_completed',
 ]);
 
 export default function NotificationPanel({ open, onClose }) {
