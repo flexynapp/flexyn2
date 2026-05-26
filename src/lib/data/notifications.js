@@ -156,7 +156,13 @@ async function _create({ userId, userEmail, type, title, body, icon, linkUrl, me
   if (!userId || !type || !title) return null;
 
   if (crossUser) {
-    // Server-side validated cross-user dispatch.
+    // Server-side validated cross-user dispatch ONLY. Mig 026 is in
+    // production; the old "fall through to a direct INSERT on RPC
+    // missing" branch was a latent phishing surface — any client
+    // could write a notification row attributed to themselves on
+    // arbitrary recipients on a pre-026 host. With 026 universally
+    // deployed the fallback is dead-weight + attack surface. Refuse
+    // cross-user without the RPC. (Audit 17 #T4.)
     try {
       const { data: id, error } = await supabase.rpc('create_notification_for', {
         p_user_id:  userId,
@@ -168,20 +174,11 @@ async function _create({ userId, userEmail, type, title, body, icon, linkUrl, me
         p_metadata: metadata ?? {},
       });
       if (!error) return id ? { id, user_id: userId, type, title } : null;
-      // Pre-migration: function not found. Fall through to the legacy
-      // direct-insert path, which will hit the new RLS check and fail
-      // — but only on hosts that haven't applied migration 026 yet.
-      if (error.code !== '42883' && error.code !== '42P01') {
-        console.warn('[notifications] cross-user RPC failed:', error);
-        return null;
-      }
+      console.warn('[notifications] cross-user RPC failed:', error);
     } catch (err) {
-      if (err?.code !== '42883' && err?.code !== '42P01') {
-        console.warn('[notifications] cross-user RPC threw:', err);
-        return null;
-      }
+      console.warn('[notifications] cross-user RPC threw:', err);
     }
-    // Fall through to legacy path for pre-migration hosts.
+    return null;
   }
 
   const { data, error } = await supabase

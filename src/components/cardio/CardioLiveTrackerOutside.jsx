@@ -290,21 +290,28 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       return;
     }
 
-    // Auto-pause logic
+    // Auto-pause logic. Some GPS hardware (notably iOS Safari, certain
+    // Android browsers) returns speed = null instead of a numeric
+    // value — the previous `|| 0` collapsed those into "still" and
+    // wrongly auto-paused a legit run. Now we IGNORE the auto-pause
+    // tick when speed is null/undefined and wait for a real reading.
+    // (Audit 16 F1.)
     if (autoPauseEnabled && status === 'tracking') {
-      const speed = fix.speed_mps || 0;
-      if (speed < STILL_SPEED_THRESHOLD_MPS) {
-        if (!stillSinceRef.current) stillSinceRef.current = Date.now();
-        else if (Date.now() - stillSinceRef.current > STILL_DURATION_MS) {
-          wasAutoPausedRef.current = true;
-          pause();
-          toast.info(t('cardio.live.autoPaused'));
-          try { navigator.vibrate?.(60); } catch {}
-          if (voiceEnabled) speak(buildPauseText(t), language);
-          return;
+      const rawSpeed = fix.speed_mps;
+      if (rawSpeed != null && Number.isFinite(rawSpeed)) {
+        if (rawSpeed < STILL_SPEED_THRESHOLD_MPS) {
+          if (!stillSinceRef.current) stillSinceRef.current = Date.now();
+          else if (Date.now() - stillSinceRef.current > STILL_DURATION_MS) {
+            wasAutoPausedRef.current = true;
+            pause();
+            toast.info(t('cardio.live.autoPaused'));
+            try { navigator.vibrate?.(60); } catch {}
+            if (voiceEnabled) speak(buildPauseText(t), language);
+            return;
+          }
+        } else {
+          stillSinceRef.current = null;
         }
-      } else {
-        stillSinceRef.current = null;
       }
     }
 
