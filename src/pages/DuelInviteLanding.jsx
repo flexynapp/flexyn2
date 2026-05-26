@@ -20,11 +20,13 @@
 // can reach it without being bounced to the sign-in screen first.
 
 import React, { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Swords, AlertTriangle, Trophy, Copy, Share2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
 import {
   getInvitePublic,
   claimInvite,
@@ -43,6 +45,17 @@ export default function DuelInviteLanding() {
   const { token } = useParams();
   const navigate = useNavigate();
   const { user, isLoadingAuth } = useAuth();
+  // Pull the canonical user profile so we can compare usernames the
+  // server actually has, not whatever the auth user object provides.
+  // The previous check read `user.username` (Supabase auth user has
+  // no such field) so `isOwnInvite` was always false, and a challenger
+  // opening their own invite saw the Accept button + a server error.
+  // (Audit 15 #M14.)
+  const { data: myProfile } = useQuery({
+    queryKey: ['userProfile', user?.email],
+    queryFn: () => db.auth.me(),
+    enabled: !!user?.email,
+  });
 
   const [invite, setInvite]   = useState(null);
   const [loading, setLoading] = useState(true);
@@ -165,8 +178,14 @@ export default function DuelInviteLanding() {
     );
   }
 
-  const isOwnInvite = user?.username && invite.challenger_username
-    && user.username.toLowerCase() === invite.challenger_username.toLowerCase();
+  const isOwnInvite = (
+    // Match by id when the invite carries challenger_id (preferred —
+    // immune to username changes).
+    (invite.challenger_id && user?.id && invite.challenger_id === user.id) ||
+    // Fallback: case-insensitive username from the canonical profile.
+    (myProfile?.username && invite.challenger_username &&
+      myProfile.username.toLowerCase() === invite.challenger_username.toLowerCase())
+  );
 
   return (
     <Shell>

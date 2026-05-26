@@ -29,7 +29,11 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const won          = duel.winner_id === currentUserId;
   const lost         = duel.winner_id && duel.winner_id !== currentUserId;
   const tied         = duel.status === 'completed' && !duel.winner_id;
-  const opponentName = opponentProfile?.username || 'Opponent';
+  // When the opponent profile fails to load (deleted account, RLS
+  // scoping, network blip) we previously rendered the literal string
+  // "@Opponent Won" which read as a bug. Track whether the username is
+  // real so the result line can switch to "Your rival won". (Audit 15 #M2.)
+  const opponentName = opponentProfile?.username || null;
 
   const fmtVol = (v) => v != null ? `${fmt(Number(v))} lbs` : '—';
 
@@ -78,7 +82,11 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               <div className="flex items-center gap-2 mb-4">
                 <Crown className={`w-5 h-5 ${won ? 'text-primary' : tied ? 'text-amber-500' : 'text-muted-foreground'}`} />
                 <span className="font-black text-base">
-                  {won ? 'You Won!' : tied ? "It's a Tie" : `@${opponentName} Won`}
+                  {won
+                    ? 'You Won!'
+                    : tied
+                      ? "It's a Tie"
+                      : opponentName ? `@${opponentName} Won` : 'Your rival won'}
                 </span>
               </div>
 
@@ -97,7 +105,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                   <span className="text-xs font-black text-muted-foreground">VS</span>
                 </div>
                 <div className="flex-1 rounded-xl bg-secondary/60 p-3 text-center">
-                  <p className="text-[10px] text-muted-foreground mb-1">@{opponentName}</p>
+                  <p className="text-[10px] text-muted-foreground mb-1">{opponentName ? `@${opponentName}` : 'Rival'}</p>
                   <p className="text-xl font-black tabular-nums">{fmtVol(theirResult?.volume)}</p>
                   {theirResult?.sets_completed != null && (
                     <p className="text-[10px] text-muted-foreground mt-1">
@@ -116,7 +124,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
               {/* Share line */}
               {won && (
                 <p className="text-center text-[10px] text-muted-foreground mt-2 italic">
-                  "I beat @{opponentName} by {fmt((myResult?.volume || 0) - (theirResult?.volume || 0))} lbs. Flexyn."
+                  "I beat {opponentName ? `@${opponentName}` : 'my rival'} by {fmt((myResult?.volume || 0) - (theirResult?.volume || 0))} lbs. Flexyn."
                 </p>
               )}
             </div>
@@ -136,7 +144,7 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <span className="font-semibold">{myResult ? fmtVol(myResult.volume) : 'Not submitted'}</span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-muted-foreground">@{opponentName}</span>
+                <span className="text-muted-foreground">{opponentName ? `@${opponentName}` : 'Rival'}</span>
                 <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : 'Waiting…'}</span>
               </div>
             </div>

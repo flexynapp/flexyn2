@@ -197,6 +197,13 @@ export function resolveDuelWinner(duel) {
 export async function createDuel({ opponentId, type = 'open', sessionTemplate = null, targetExerciseId = null, windowHours = 24 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
+  // Reject self-duels at the data-layer entry point so every caller is
+  // covered — CreateDuelModal's search already excludes self, but the
+  // Nemesis challenge button and the duel-invite landing both bypass
+  // that filter. `challenger_id === opponent_id` rows otherwise break
+  // resolveDuelWinner. (Audit 15 #H8.)
+  if (!opponentId) throw new Error('opponent_required');
+  if (opponentId === user.id) throw new Error('cannot_duel_self');
 
   const expiresAt = new Date(Date.now() + windowHours * 60 * 60 * 1000).toISOString();
 

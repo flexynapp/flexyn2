@@ -28,8 +28,26 @@ export default function DuelBanner({ duel, currentUserId, opponentProfile }) {
 
   useEffect(() => {
     if (!duel?.expires_at) return;
-    const iv = setInterval(() => setRemaining(timeRemaining(duel.expires_at)), 60_000);
-    return () => clearInterval(iv);
+    // Dynamic tick rate — coarse 60s ticks while there's plenty of
+    // time left, but 5s ticks in the last 5 minutes so a user finishing
+    // a duel at T-30s doesn't see "1m remaining" frozen until the
+    // banner suddenly vanishes at the next minute boundary.
+    // (Audit 15 #M19.)
+    let iv = null;
+    const tick = () => {
+      const next = timeRemaining(duel.expires_at);
+      setRemaining(next);
+      const msLeft = new Date(duel.expires_at).getTime() - Date.now();
+      const desiredMs = msLeft < 5 * 60_000 ? 5_000 : 60_000;
+      // Reschedule if we crossed the threshold so the cadence speeds up.
+      if (!iv || iv.delay !== desiredMs) {
+        if (iv?.id) clearInterval(iv.id);
+        const id = setInterval(tick, desiredMs);
+        iv = { id, delay: desiredMs };
+      }
+    };
+    tick();
+    return () => { if (iv?.id) clearInterval(iv.id); };
   }, [duel?.expires_at]);
 
   if (!duel) return null;

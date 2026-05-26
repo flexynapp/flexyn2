@@ -103,8 +103,12 @@ export default function NemesisCard({ currentUserId }) {
   const avatar = profile?.avatar_url;
   const level  = profile?.current_level;
 
-  // Show skeleton if profile still loading
-  if (profileLoading || !name) {
+  // Show skeleton ONLY while the profile fetch is in-flight. If the
+  // fetch resolved to a row but `username` is null (deleted-but-not-
+  // cascaded, profile with avatar only), surface a "no longer available"
+  // state with a reroll affordance instead of an infinite skeleton.
+  // (Audit 15 #M3.)
+  if (profileLoading) {
     return (
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
         <div className="flex items-center gap-3">
@@ -114,6 +118,23 @@ export default function NemesisCard({ currentUserId }) {
             <div className="h-2.5 w-16 rounded bg-secondary" />
           </div>
         </div>
+      </div>
+    );
+  }
+  if (!name) {
+    return (
+      <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 mb-4">
+        <p className="text-sm text-muted-foreground mb-3">
+          Your nemesis is no longer available. Reroll to get a new rival.
+        </p>
+        <button
+          type="button"
+          onClick={() => assignMut.mutate()}
+          disabled={assignMut.isPending}
+          className="px-3 py-1.5 rounded-md bg-rose-500/10 border border-rose-500/30 text-xs font-semibold text-rose-500 hover:bg-rose-500/20 disabled:opacity-50"
+        >
+          {assignMut.isPending ? 'Finding someone…' : 'Reroll'}
+        </button>
       </div>
     );
   }

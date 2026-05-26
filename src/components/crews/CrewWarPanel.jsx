@@ -217,7 +217,11 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
   const myScore    = getWarScore(war, crewId);
   const theirScore = getOpponentScore(war, crewId);
   const hoursLeft  = differenceInHours(new Date(war.ends_at), new Date());
-  const winning    = myScore >= theirScore;
+  // Distinguish leading from tied so a 1000-vs-1000 score doesn't
+  // render the "Leading" badge + primary-color score bar. (Audit 15 #M6.)
+  const winning    = myScore >  theirScore;
+  const tied       = myScore === theirScore;
+  const completed  = war.status === 'completed';
 
   const myContribs    = contributions.filter(c => c.crew_id === crewId).sort((a, b) => b.xp_contributed - a.xp_contributed);
   const theirContribs = contributions.filter(c => c.crew_id !== crewId).sort((a, b) => b.xp_contributed - a.xp_contributed);
@@ -229,16 +233,22 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
       className="rounded-2xl border border-border overflow-hidden mb-4"
     >
       {/* Header */}
-      <div className={`px-4 py-3 flex items-center justify-between ${winning ? 'bg-primary/8' : 'bg-rose-500/5'}`}>
+      <div className={`px-4 py-3 flex items-center justify-between ${winning ? 'bg-primary/8' : tied ? 'bg-amber-500/5' : 'bg-rose-500/5'}`}>
         <div className="flex items-center gap-2">
-          <Shield className={`w-4 h-4 ${winning ? 'text-primary' : 'text-rose-500'}`} />
+          <Shield className={`w-4 h-4 ${winning ? 'text-primary' : tied ? 'text-amber-500' : 'text-rose-500'}`} />
           <span className="font-black text-sm">Crew War</span>
           {winning && <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Leading</span>}
+          {tied && !completed && <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Tied</span>}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Clock className="w-3 h-3" />
-          <span>{hoursLeft > 0 ? `${hoursLeft}h left` : 'Ending soon'}</span>
-        </div>
+        {/* Hide the running countdown on completed wars — otherwise
+            "5h left" and "Victory!" both render simultaneously and
+            read as broken. (Audit 15 #M7.) */}
+        {!completed && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Clock className="w-3 h-3" />
+            <span>{hoursLeft > 0 ? `${hoursLeft}h left` : 'Ending soon'}</span>
+          </div>
+        )}
       </div>
 
       <div className="p-4 space-y-4">
@@ -265,10 +275,12 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
           )}
         </div>
 
-        {/* End date */}
-        <p className="text-[10px] text-muted-foreground text-center">
-          War ends {formatDistanceToNow(new Date(war.ends_at), { addSuffix: true })} · XP earned this week counts
-        </p>
+        {/* End date — only show while the war is in flight. */}
+        {!completed && (
+          <p className="text-[10px] text-muted-foreground text-center">
+            War ends {formatDistanceToNow(new Date(war.ends_at), { addSuffix: true })} · XP earned this week counts
+          </p>
+        )}
       </div>
 
       {/* Completed state */}
