@@ -66,6 +66,7 @@ export default function RestTimerOverlay() {
               voiceCuesEnabled={voiceCuesEnabled}
               setVoiceCuesEnabled={setVoiceCuesEnabled}
               t={t}
+              tFallback={tFallback}
             />
           ) : (
             <CollapsedPill
@@ -154,7 +155,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
   );
 }
 
-function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundEnabled, setSoundEnabled, voiceCuesEnabled, setVoiceCuesEnabled, t }) {
+function ExpandedPanel({ onCollapse, defaultDuration, setDefaultDuration, soundEnabled, setSoundEnabled, voiceCuesEnabled, setVoiceCuesEnabled, t, tFallback }) {
   const PRESETS = [30, 60, 90, 120, 180, 300];
   return (
     <motion.div

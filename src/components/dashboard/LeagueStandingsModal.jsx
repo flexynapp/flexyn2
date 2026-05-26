@@ -48,14 +48,14 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} userId={user?.id} t={t} tFallback={tFallback} />
+          <Body data={data} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Body({ data, userId, t, tFallback }) {
+function Body({ data, userId, t, tFallback, fmt }) {
   // Defensive: if anything's missing, render an empty-state instead of crashing
   if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return (
