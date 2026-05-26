@@ -71,18 +71,24 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
       // values (50–700 lbs covers everyone from a toddler to a Strongman).
       if (lbs < 50 || lbs > 700) throw new Error('out_of_range');
 
-      // Create the body-metric row.
+      // Two writes: a BodyMetric row AND a mirror onto user_profiles.
+      // Previously these ran SEQUENTIALLY with no compensation — if the
+      // updateMe failed (network blip after the BodyMetric INSERT
+      // landed), the user saw an error but the body-metric row was
+      // already committed. Tapping Save again created a SECOND
+      // body-metric row for the same date because there's no unique
+      // constraint. (Audit 08 #3.)
+      //
+      // Fix: try the profile mirror FIRST (no row creation, just an
+      // UPDATE — idempotent). Only if that succeeds, create the
+      // BodyMetric row. If the row INSERT fails, the user can retry
+      // and we'll only have one row. If the mirror fails, no row
+      // exists yet so a retry doesn't duplicate.
+      await db.auth.updateMe({ weight_lbs: lbs });
       await db.entities.BodyMetric.create({
         date,
         weight_lbs: lbs,
       });
-
-      // Mirror to user_profiles.weight_lbs — global weight is read by
-      // XP formulas, leaderboards, and the Reveal step. Without this
-      // mirror, the dashboard quick action would feel disconnected:
-      // weight history updates but the user's headline weight never
-      // moves.
-      await db.auth.updateMe({ weight_lbs: lbs });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bodyMetrics', user?.email] });

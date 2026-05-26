@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -106,6 +106,24 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
+
+  // Resync state when the parent passes a different log without
+  // unmounting the modal (e.g. the user opens a log, closes WITHOUT
+  // unmount, then opens a different log from the same list). The
+  // useState(log?.exercises || []) initializer only runs on FIRST
+  // mount; without this effect the modal kept showing the previous
+  // log's data and saving would overwrite the new log with the old
+  // one's exercise list. (Audit 09 #C-3.)
+  useEffect(() => {
+    if (!log) return;
+    setExercises(log.exercises || []);
+    setDate(log.date || '');
+    setDuration(log.duration_minutes || '');
+    setNotes(log.notes || '');
+    setConfirmDelete(false);
+    setCheatWarningData(null);
+    setImplausibleWarning(null);
+  }, [log?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateExerciseSets = (i, sets) => {
     const updated = [...exercises];

@@ -11,7 +11,7 @@
 // after the first session, even if the user cancels mid-flow without
 // saving.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronRight, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -36,11 +36,15 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
   const { tFallback } = useLanguage();
   const [step, setStep] = useState(0);
   const [visible, setVisible] = useState(true);
+  // Track whether the dismiss was EXPLICIT (user finished steps OR
+  // tapped X) vs. INCIDENTAL (parent route-change unmount, StrictMode
+  // double-mount). The previous version persisted dismissal on EVERY
+  // unmount via the effect-cleanup pattern, so a user who navigated
+  // away mid-step-1 permanently lost steps 2 + 3. (Audit 09 #C-4.)
+  const dismissedExplicitlyRef = useRef(false);
 
-  // Persist dismissal once — covers both "Got it" on the last step and
-  // any other dismiss path (X button, Skip). Effect (not callback) so a
-  // parent forcibly unmounting us still records the flag.
   useEffect(() => () => {
+    if (!dismissedExplicitlyRef.current) return;
     try { localStorage.setItem(LS_KEY(userId), 'dismissed'); } catch { /* ignore */ }
   }, [userId]);
 
@@ -50,6 +54,7 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
   };
 
   const handleDismiss = () => {
+    dismissedExplicitlyRef.current = true;
     setVisible(false);
     setTimeout(() => onClose?.(), 250);
   };

@@ -387,6 +387,18 @@ export default function Dashboard() {
     enabled: !!user?.email,
   });
 
+  // Lightweight meal-log query for the StreakRescueCard. Only needs the
+  // date column — small payload, generous staleTime since the rescue
+  // card only checks "logged anything today?" not specific entries.
+  // Without this query the streak-rescue card would fire on users who
+  // logged a meal today but not a workout. (Audit 08 #1.)
+  const { data: rawNutritionLogs = [] } = useQuery({
+    queryKey: ['nutritionLogsRecent', user?.email],
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-date', 20),
+    enabled: !!user?.email,
+    staleTime: 5 * 60_000,
+  });
+
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
@@ -510,6 +522,18 @@ export default function Dashboard() {
     if (all.length === 0) return null;
     return new Date(Math.max(...all.map(d => d.getTime())));
   }, [logs, cardioLogs]);
+
+  // Most-recent meal date for the StreakRescueCard's "logged anything
+  // today?" check. Same parseLocalDate convention as workout dates so
+  // the late-evening / timezone-edge cases line up.
+  const lastMealDate = useMemo(() => {
+    const all = rawNutritionLogs
+      .map(l => l.date)
+      .map(parseLocalDate)
+      .filter(d => d && !isNaN(d.getTime()));
+    if (all.length === 0) return null;
+    return new Date(Math.max(...all.map(d => d.getTime())));
+  }, [rawNutritionLogs]);
 
   const daysSinceLast = useMemo(() => {
     if (!lastWorkoutDate) return null;
@@ -766,6 +790,7 @@ export default function Dashboard() {
             <StreakRescueCard
               streakDays={streak}
               lastWorkoutDate={lastWorkoutDate?.toISOString()}
+              lastMealDate={lastMealDate?.toISOString()}
             />
           )}
         </div>
