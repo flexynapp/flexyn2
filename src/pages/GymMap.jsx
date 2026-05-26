@@ -176,21 +176,7 @@ async function fetchOsmGyms(bounds, zoom, signal) {
   const w   = bounds.getWest().toFixed(4);
   const n   = bounds.getNorth().toFixed(4);
   const e   = bounds.getEast().toFixed(4);
-  // Higher cap on closer zooms so dense international cities (Tokyo,
-  // London, Berlin, São Paulo, Seoul) aren't truncated to the first
-  // ~1000 results. At zoom >= 11 (neighborhood level) we expect to
-  // see every gym in view.
   const cap = zoom >= 11 ? 2500 : zoom >= 7 ? 1000 : 500;
-  // Multi-tag query covers the variations international mappers use:
-  //   leisure=fitness_centre — the OSM canonical tag (most common)
-  //   amenity=gym            — historical / American convention
-  //   sport=fitness          — used in parts of Europe + Latin America
-  //   leisure=sports_centre + sport=fitness — combo used in Germany,
-  //                                            Netherlands, Scandinavia
-  //   leisure=fitness_station — outdoor calisthenics parks (visible
-  //                              at higher zoom only to avoid clutter)
-  // Increased timeout to 25s — dense urban queries (central Tokyo,
-  // Manhattan) frequently exceeded the previous 20s on overpass-api.de.
   const includeOutdoor = zoom >= 13;
   const q   =
     `[out:json][timeout:25];(` +
@@ -207,55 +193,63 @@ async function fetchOsmGyms(bounds, zoom, signal) {
       : '') +
     `);out center ${cap};`;
 
-  let lastErr = null;
-  for (const mirror of OVERPASS_MIRRORS) {
-    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-    // Per-mirror timeout: a hung mirror used to keep the await open for
-    // many minutes because the outer AbortController only fires on map
-    // pan/zoom. Now each mirror gets 12s before we move on. Combined
-    // with 3 mirrors that's a 36s worst-case before we throw.
-    const perAttemptCtrl = new AbortController();
-    const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(), 12_000);
-    // Forward the outer abort to the per-attempt controller too.
-    const onOuterAbort = () => perAttemptCtrl.abort();
-    signal?.addEventListener?.('abort', onOuterAbort);
+  // Fire all mirrors in PARALLEL — first success wins via Promise.any.
+  // Previous sequential approach took 36s worst-case before reporting
+  // failure (12s × 3 mirrors). Parallel + Promise.any returns as soon
+  // as the FASTEST mirror responds with valid JSON — typically 1-3s.
+  // Each individual fetch gets a hard 20s cap and propagates the
+  // outer abort signal, so map pan/zoom still cancels immediately.
+  const tryMirror = async (mirror) => {
+    // Combined per-mirror AbortController: aborts on 20s timeout AND
+    // when the outer signal aborts.
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort('timeout'), 20_000);
+    const forwardAbort = () => ctrl.abort('outer-aborted');
+    if (signal?.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
+    signal?.addEventListener?.('abort', forwardAbort);
     try {
       const res = await fetch(
         `${mirror}?data=${encodeURIComponent(q)}`,
-        { signal: perAttemptCtrl.signal },
+        { signal: ctrl.signal },
       );
       if (!res.ok) throw new Error(`OSM ${res.status}`);
-      const json = await res.json();
-      // Dedupe by `osmId` — a single gym tagged with BOTH
-      // leisure=fitness_centre AND amenity=gym (common pattern) would
-      // otherwise return as two records and render two overlapping
-      // pins. Use the first occurrence so the most-canonical tag wins.
-      const seenIds = new Set();
-      return (json.elements || []).map(el => ({
-        osmId:   el.id,
-        name:    el.tags?.name || 'Gym',
-        lat:     el.type === 'node' ? el.lat : el.center?.lat,
-        lon:     el.type === 'node' ? el.lon : el.center?.lon,
-        brand:   el.tags?.brand   || null,
-        website: el.tags?.website || null,
-      })).filter(g => {
-        if (!g.lat || !g.lon) return false;
-        if (seenIds.has(g.osmId)) return false;
-        seenIds.add(g.osmId);
-        return true;
-      });
-    } catch (err) {
-      // Distinguish OUTER abort (user moved the map → cancel everything)
-      // from PER-ATTEMPT abort (just this mirror timed out, try next).
-      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
-      lastErr = err;
-      // Try the next mirror
+      return await res.json();
     } finally {
-      clearTimeout(perAttemptTimer);
-      signal?.removeEventListener?.('abort', onOuterAbort);
+      clearTimeout(timer);
+      signal?.removeEventListener?.('abort', forwardAbort);
     }
+  };
+
+  let json;
+  try {
+    json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
+  } catch (err) {
+    // Promise.any throws AggregateError when ALL mirrors fail. If the
+    // OUTER signal aborted, surface AbortError to the caller so the
+    // catch path can distinguish "user moved" from "all servers down."
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    // Otherwise propagate the first underlying error for the toast.
+    const inner = err?.errors?.[0] || err;
+    throw inner;
   }
-  throw lastErr || new Error('All Overpass mirrors failed');
+
+  // Dedupe by `osmId` — a single gym tagged with BOTH
+  // leisure=fitness_centre AND amenity=gym (common pattern) would
+  // otherwise render as two overlapping pins.
+  const seenIds = new Set();
+  return (json.elements || []).map(el => ({
+    osmId:   el.id,
+    name:    el.tags?.name || 'Gym',
+    lat:     el.type === 'node' ? el.lat : el.center?.lat,
+    lon:     el.type === 'node' ? el.lon : el.center?.lon,
+    brand:   el.tags?.brand   || null,
+    website: el.tags?.website || null,
+  })).filter(g => {
+    if (!g.lat || !g.lon) return false;
+    if (seenIds.has(g.osmId)) return false;
+    seenIds.add(g.osmId);
+    return true;
+  });
 }
 
 // ── Component ──────────────────────────────────────────────────────────
@@ -328,19 +322,31 @@ export default function GymMap() {
         if (!ctrl.signal.aborted) {
           setOsmGyms(dots);
           setOsmError(null);
-          // Successful fetch — hide the "Search this area" button.
           setHasMovedSinceFetch(false);
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
           console.warn('[GymMap] OSM:', err.message);
-          // Surface the failure to the user instead of leaving the
-          // grey-pin layer silently empty. The count pill in the
-          // bottom-left now shows the error + a retry button.
           if (!ctrl.signal.aborted) setOsmError(err.message || 'Could not load nearby gyms');
         }
       } finally {
-        if (!ctrl.signal.aborted) setOsmLoading(false);
+        // ALWAYS clear loading, abort or not. The previous version
+        // only cleared when ctrl wasn't aborted, on the theory that
+        // an in-flight superseding fetch would clear it later. But
+        // if the superseding fetch never resolved (timeout, network
+        // dead, code crash), the user was stuck on "Finding nearby
+        // gyms…" forever. Only the LATEST fetch's value actually
+        // gets applied to the UI; clearing loading from an aborted
+        // earlier fetch is harmless because the next fetch
+        // immediately sets it true again before the user sees the
+        // transition.
+        //
+        // Sequence-guard via the `osmAbortRef === ctrl` check: only
+        // clear loading if THIS invocation is still the active one.
+        // If a newer fetch took over, IT owns the loading state now.
+        if (osmAbortRef.current === ctrl) {
+          setOsmLoading(false);
+        }
       }
     };
   });
