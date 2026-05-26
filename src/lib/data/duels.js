@@ -245,7 +245,8 @@ export async function createDuel({ opponentId, type = 'open', sessionTemplate = 
   return data;
 }
 
-/** Fetch all duels (pending + active + recent completed) for the current user */
+/** Fetch all duels (pending + active + recent completed) for the current user,
+ *  enriched with challenger_username and opponent_username from user_profiles. */
 export async function listMyDuels() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return [];
@@ -258,7 +259,36 @@ export async function listMyDuels() {
     .order('created_at', { ascending: false })
     .limit(50);
 
-  return error ? [] : (data ?? []);
+  if (error || !data?.length) return data ?? [];
+
+  // Collect unique user IDs to look up
+  const ids = [...new Set(data.flatMap(d => [d.challenger_id, d.opponent_id]).filter(Boolean))];
+  const { data: profiles } = await supabase
+    .from('user_profiles')
+    .select('id, username, avatar_url')
+    .in('id', ids);
+
+  const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
+
+  return data.map(d => ({
+    ...d,
+    challenger_username: profileMap[d.challenger_id]?.username ?? null,
+    opponent_username:   profileMap[d.opponent_id]?.username   ?? null,
+    challenger_avatar:   profileMap[d.challenger_id]?.avatar_url ?? null,
+    opponent_avatar:     profileMap[d.opponent_id]?.avatar_url   ?? null,
+  }));
+}
+
+/** Cancel a pending duel (challenger only) */
+export async function cancelDuel(id) {
+  const { data, error } = await supabase
+    .from('duels')
+    .update({ status: 'declined' })
+    .eq('id', id)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 /** Get a single duel by id */

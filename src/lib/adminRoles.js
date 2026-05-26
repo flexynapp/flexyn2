@@ -8,7 +8,7 @@
 //   • CoinShopModal — admin gets infinite balance for testing.
 //   • AdminReports  — gates the moderator view.
 
-export const ADMIN_USERNAMES = ['sean', 'seanj', 'kegan', 'admin'];
+export const ADMIN_USERNAMES = ['sean', 'seanj', 'kegan', 'keganbergeron', 'admin'];
 
 /**
  * Check whether a user is an app admin by username OR email prefix.

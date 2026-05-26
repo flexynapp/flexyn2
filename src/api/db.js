@@ -226,8 +226,24 @@ const auth = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
     let payload = { id: user.id, email: user.email, ...data, updated_at: new Date().toISOString() };
-    // 20 attempts so we can strip several one-off newer columns
-    // (fitness_goals_arr, milestone_capsules_awarded, etc.) without
+
+    // Columns that are always safe — never strip these even in nuclear mode.
+    const CORE_KEYS = new Set(['id', 'email', 'updated_at', 'username',
+      'onboarding_complete', 'onboarding_completed', 'onboarding_completed_at']);
+
+    // Helper: extract the offending column name from various PostgREST /
+    // Postgres error message formats.
+    const extractCol = (msg = '') => {
+      const m =
+        msg.match(/the '([^']+)' column/) ||   // PGRST204 standard
+        msg.match(/column '([^']+)'/)        ||  // PGRST204 alt
+        msg.match(/column "([^"]+)"/)        ||  // 42703 postgres
+        msg.match(/"([^"]+)" column/)        ||  // reversed form
+        msg.match(/'([^']+)' of relation/);      // another PostgREST variant
+      return m?.[1] ?? null;
+    };
+
+    // 20 attempts so we can strip several one-off newer columns without
     // exhausting the retry budget. Onboarding sends a wide payload.
     for (let attempt = 0; attempt < 20; attempt++) {
       const { data: row, error } = await supabase
@@ -239,32 +255,62 @@ const auth = {
         _profile = { id: user.id, email: user.email, ...row };
         return _profile;
       }
+
       // PostgreSQL 42703 undefined_column — strip and retry
       if (error.code === '42703') {
-        const match = error.message?.match(/column "([^"]+)"/);
-        if (match?.[1] && match[1] in payload) {
-          console.warn(`[Supabase] column "${match[1]}" not in user_profiles yet — skipping`);
-          delete payload[match[1]];
+        const col = extractCol(error.message);
+        if (col && col in payload && !CORE_KEYS.has(col)) {
+          console.warn(`[Supabase] 42703: column "${col}" not in user_profiles — skipping`);
+          delete payload[col];
           continue;
         }
       }
+
       // PostgREST PGRST204 schema-cache miss — same fix, different shape.
-      // PostgREST caches table schemas; when a newer-migration column is
-      // in our payload but not yet in the cached schema, we get PGRST204
-      // instead of 42703. Without this branch, onboarding fails on any
-      // environment where the cache is stale on, e.g., fitness_goals_arr
-      // (migration 006) — which is the bug users currently hit.
       if (error.code === 'PGRST204') {
-        const match = error.message?.match(/the '([^']+)' column/);
-        if (match?.[1] && match[1] in payload) {
-          console.warn(`[Supabase] PGRST204: column "${match[1]}" not in PostgREST schema cache for user_profiles — skipping`);
-          delete payload[match[1]];
+        const col = extractCol(error.message);
+        if (col && col in payload && !CORE_KEYS.has(col)) {
+          console.warn(`[Supabase] PGRST204: column "${col}" not in PostgREST schema cache — skipping`);
+          delete payload[col];
           continue;
         }
+        // Column name not extractable from message — nuclear: strip everything
+        // non-core and retry once. Prevents a bad PGRST204 from hard-blocking.
+        const stripped = Object.fromEntries(
+          Object.entries(payload).filter(([k]) => CORE_KEYS.has(k))
+        );
+        console.warn('[Supabase] PGRST204: could not extract column — nuclear strip, retrying with core fields only');
+        const { data: row2, error: err2 } = await supabase
+          .from('user_profiles')
+          .upsert(stripped, { onConflict: 'id' })
+          .select()
+          .single();
+        if (!err2) {
+          _profile = { id: user.id, email: user.email, ...row2 };
+          return _profile;
+        }
+        throw err2;
       }
+
       throw error;
     }
-    throw new Error('[Supabase] updateMe failed after stripping unknown columns');
+
+    // Last resort: send only the absolute minimum fields needed to mark
+    // onboarding complete. Prevents users from being permanently stuck
+    // on the onboarding screen due to schema drift on non-essential cols.
+    console.warn('[Supabase] updateMe: 20-attempt budget exhausted — nuclear fallback with core fields only');
+    const nuclear = { id: user.id, email: user.email, updated_at: new Date().toISOString() };
+    for (const k of CORE_KEYS) { if (k in payload) nuclear[k] = payload[k]; }
+    const { data: finalRow, error: finalErr } = await supabase
+      .from('user_profiles')
+      .upsert(nuclear, { onConflict: 'id' })
+      .select()
+      .single();
+    if (!finalErr) {
+      _profile = { id: user.id, email: user.email, ...finalRow };
+      return _profile;
+    }
+    throw finalErr;
   },
 
   /** Kick off Google OAuth — kept as the default for legacy call sites. */

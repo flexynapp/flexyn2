@@ -130,7 +130,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
             exit={{ opacity: 0, y: 40, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 360, damping: 32 }}
             onClick={(e) => e.stopPropagation()}
-            className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl"
+            className="relative bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[90vh] overflow-y-auto shadow-2xl overflow-x-hidden"
           >
             <button
               onClick={handleClose}
@@ -139,7 +139,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
             >
               <X className="w-4 h-4" />
             </button>
-            <div className="p-4 sm:p-6">
+            <div className="p-4 sm:p-6 pb-4 sm:pb-5">
               <div className="mb-4 pr-8">
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">

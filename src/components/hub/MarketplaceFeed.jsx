@@ -831,6 +831,10 @@ function DailyChestBlock({ user, onClaimed }) {
   // different browser / device.
   const [claimed, setClaimed] = useState(() => isDailyChestClaimedLocally(user?.id));
   const [loading, setLoading] = useState(false);
+  // After a successful claim we prompt the user to open their new capsule
+  // right away for instant gratification. If they decline, the capsule
+  // sits in My Bag for later.
+  const [showOpenPrompt, setShowOpenPrompt] = useState(false);
 
   const handleClaim = async () => {
     if (claimed || loading || !user) return;
@@ -852,8 +856,9 @@ function DailyChestBlock({ user, onClaimed }) {
       // refetch chain.
       markDailyChestClaimedLocally(user.id);
       setClaimed(true);
-      toast.success(tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'));
       onClaimed?.();
+      // Prompt to open immediately instead of navigating to bag later.
+      setShowOpenPrompt(true);
     } catch (err) {
       // Pre-migration host (RPC missing) or network error. Do NOT
       // mark claimed locally — let the user retry. The previous code
@@ -920,6 +925,33 @@ function DailyChestBlock({ user, onClaimed }) {
       >
         {loading ? '…' : claimed ? (tFallback('marketplace.dailyChest.claimed', 'Claimed')) : (tFallback('marketplace.dailyChest.claim', 'Claim'))}
       </button>
+
+      {/* Instant-open prompt — slides in after a successful claim */}
+      {showOpenPrompt && (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="absolute inset-x-0 bottom-0 rounded-b-2xl bg-purple-950/95 backdrop-blur-sm px-4 py-3 flex items-center justify-between gap-3 z-10"
+        >
+          <p className="text-sm font-semibold text-white leading-tight">
+            🎁 Open your capsule now?
+          </p>
+          <div className="flex gap-2 shrink-0">
+            <button
+              onClick={() => setShowOpenPrompt(false)}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold text-purple-300 bg-purple-800/60 hover:bg-purple-700/60 transition-colors"
+            >
+              Later
+            </button>
+            <button
+              onClick={() => { setShowOpenPrompt(false); requestOpenBag(); }}
+              className="px-3 py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-purple-500 to-violet-600 hover:opacity-90 transition-opacity shadow-md"
+            >
+              Open Now! ✨
+            </button>
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
 }
@@ -1391,7 +1423,7 @@ export default function MarketplaceFeed() {
           </div>
         )}
 
-        <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-start">
           <AnimatePresence>
             {/* Live listings — wrap onBuy/onOfferTrade to record the
                 tap in the recently-viewed log so the rail can show

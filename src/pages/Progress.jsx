@@ -67,6 +67,11 @@ const MUSCLE_PILL = {
 };
 const MUSCLE_PILL_DEFAULT = 'bg-primary/15 text-primary border-primary/25';
 
+// Timeframe constants (used by the stats-frame toggle in the hero card)
+const FRAME_DAYS   = { week: 7, month: 30, year: 365, all: Infinity };
+const FRAME_LABELS = { week: 'This Week', month: 'This Month', year: 'This Year', all: 'All Time' };
+const FRAME_PREV   = { week: 7, month: 30, year: 365, all: null };
+
 // Achievements removed from this strip — it lives in ProfileMenu now.
 // See src/components/achievements/AchievementsVault.jsx.
 const TAB_META = [
@@ -347,6 +352,8 @@ export default function Progress() {
   const [selectedRegimen,       setSelectedRegimen]         = useState('all');
   const [timeRange,             setTimeRange]               = useState('90');
   const [selectedMuscleGroup,   setSelectedMuscleGroup]     = useState('all');
+  // Timeframe toggle for the hero metrics strip (Week / Month / Year / All Time)
+  const [statsFrame,            setStatsFrame]              = useState('week');
 
   const tabsBarRef = React.useRef(null);
   const contentRef = React.useRef(null);
@@ -398,7 +405,23 @@ export default function Progress() {
     staleTime: 5 * 60_000,
   });
 
-  // ── Derived stats ─────────────────────────────────────────────────────────
+  // ── Derived stats (timeframe-aware) ───────────────────────────────────────
+
+  const frameLogs = useMemo(() => {
+    const days = FRAME_DAYS[statsFrame];
+    if (!isFinite(days)) return logs;
+    const cutoff = subDays(new Date(), days);
+    return logs.filter(l => l.date && new Date(l.date) >= cutoff);
+  }, [logs, statsFrame]);
+
+  const prevFrameLogs = useMemo(() => {
+    const days = FRAME_PREV[statsFrame];
+    if (!days) return [];
+    const end   = subDays(new Date(), days);
+    const start = subDays(new Date(), days * 2);
+    return logs.filter(l => l.date && new Date(l.date) >= start && new Date(l.date) < end);
+  }, [logs, statsFrame]);
+
   const thisWeekLogs = useMemo(() => {
     const cutoff = subDays(new Date(), 7);
     return logs.filter(l => l.date && new Date(l.date) >= cutoff);
@@ -410,30 +433,30 @@ export default function Progress() {
     return logs.filter(l => l.date && new Date(l.date) >= start && new Date(l.date) < end);
   }, [logs]);
 
+  const frameVolume    = useMemo(() => calcVolume(frameLogs),    [frameLogs]);
+  const prevVolume     = useMemo(() => calcVolume(prevFrameLogs), [prevFrameLogs]);
   const thisWeekVolume = useMemo(() => calcVolume(thisWeekLogs), [thisWeekLogs]);
   const lastWeekVolume = useMemo(() => calcVolume(lastWeekLogs), [lastWeekLogs]);
-  const volumeDelta    = lastWeekVolume > 0 ? ((thisWeekVolume - lastWeekVolume) / lastWeekVolume) * 100 : null;
+  const volumeDelta    = prevVolume > 0 ? ((frameVolume - prevVolume) / prevVolume) * 100 : null;
 
-  const weeklyCardio = useMemo(() => {
-    const inWindow = cardioLogs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), 7));
+  const frameCardio = useMemo(() => {
+    const days = FRAME_DAYS[statsFrame];
+    const inWindow = isFinite(days)
+      ? cardioLogs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), days))
+      : cardioLogs;
     return {
       sessions:        inWindow.length,
       distanceMeters:  inWindow.reduce((s, l) => s + (l.distance_meters  || 0), 0),
       durationSeconds: inWindow.reduce((s, l) => s + (l.duration_seconds || 0), 0),
       calories:        inWindow.reduce((s, l) => s + (l.calories         || 0), 0),
     };
-  }, [cardioLogs]);
+  }, [cardioLogs, statsFrame]);
 
-  const muscleGroupsThisWeek = useMemo(() => {
-    const groups = new Set();
-    thisWeekLogs.forEach(log => {
-      (log.exercises || []).forEach(ex => {
-        const arr = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
-        arr.forEach(g => groups.add(g));
-      });
-    });
-    return [...groups].filter(Boolean);
-  }, [thisWeekLogs]);
+  // Keep backward-compat name so existing references below still work
+  const weeklyCardio = frameCardio;
+
+  // (muscleGroupsThisWeek removed — muscle pills now computed inline
+  //  from frameLogs inside the timeframe-aware stats card)
 
   const totalVolume = useMemo(() => {
     const fromProfile = Number(userProfile?.total_volume_lbs);
@@ -492,7 +515,7 @@ export default function Progress() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.45, ease: 'easeOut' }}
-      className="p-4 md:p-8 max-w-5xl mx-auto"
+      className="p-4 md:p-6 pb-2 max-w-5xl mx-auto"
     >
       <PageHeader
         kicker={t('pageHeader.kicker.progress')}
@@ -552,7 +575,7 @@ export default function Progress() {
             />
           </div>
 
-          {/* ── This Week ────────────────────────────────────────────────── */}
+          {/* ── Frame Stats (This Week / Month / Year / All Time) ─────── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
@@ -564,22 +587,22 @@ export default function Progress() {
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
               <div className="flex items-center justify-between mb-4">
-                <h2 className="font-heading font-black text-base">This Week</h2>
+                <h2 className="font-heading font-black text-base">{FRAME_LABELS[statsFrame]}</h2>
                 {volumeDelta !== null && (
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${volumeDelta >= 0 ? 'bg-emerald-500/15 text-emerald-500' : 'bg-red-500/15 text-red-500'}`}>
-                    {volumeDelta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(volumeDelta))}% vs last week
+                    {volumeDelta >= 0 ? '↑' : '↓'} {Math.abs(Math.round(volumeDelta))}% vs prev
                   </span>
                 )}
               </div>
 
               <div className="grid grid-cols-3 gap-4 mb-4">
                 <div className="text-center">
-                  <p className="font-heading font-black text-2xl text-primary">{thisWeekLogs.length}</p>
+                  <p className="font-heading font-black text-2xl text-primary">{frameLogs.length}</p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">Workouts</p>
                 </div>
                 <div className="text-center">
                   <p className="font-heading font-black text-2xl text-emerald-500">
-                    {thisWeekVolume > 0 ? formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit))) : '—'}
+                    {frameVolume > 0 ? formatBigNumber(Math.round(fromLbs(frameVolume, weightUnit))) : '—'}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-0.5">{weightUnit} lifted</p>
                 </div>
@@ -589,22 +612,56 @@ export default function Progress() {
                 </div>
               </div>
 
-              {/* Muscle group pills */}
-              {muscleGroupsThisWeek.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {muscleGroupsThisWeek.map(g => {
-                    const key = g.toLowerCase();
-                    const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
-                    return (
-                      <span key={g} className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
-                        {g}
-                      </span>
-                    );
-                  })}
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">No workouts logged this week yet.</p>
-              )}
+              {/* Muscle group pills — derived from the selected frame's logs */}
+              {(() => {
+                const frameMusclePills = (() => {
+                  const groups = new Set();
+                  frameLogs.forEach(log => {
+                    (log.exercises || []).forEach(ex => {
+                      const arr = ex.muscle_groups?.length ? ex.muscle_groups : (ex.muscle_group ? [ex.muscle_group] : []);
+                      arr.forEach(g => groups.add(g));
+                    });
+                  });
+                  return [...groups].filter(Boolean);
+                })();
+                return (
+                  <>
+                    {frameMusclePills.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5 mb-3">
+                        {frameMusclePills.map(g => {
+                          const key = g.toLowerCase();
+                          const cls = MUSCLE_PILL[key] || MUSCLE_PILL_DEFAULT;
+                          return (
+                            <span key={g} className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${cls}`}>
+                              {g}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground mb-3">No workouts logged {statsFrame === 'week' ? 'this week' : statsFrame === 'month' ? 'this month' : statsFrame === 'year' ? 'this year' : 'yet'}.</p>
+                    )}
+                    {/* Timeframe toggle — below muscle pills, right-aligned */}
+                    <div className="flex justify-end">
+                      <div className="flex gap-1 bg-secondary/50 rounded-xl p-1 shadow-inner">
+                        {(['week', 'month', 'year', 'all']).map((f) => (
+                          <button
+                            key={f}
+                            onClick={() => setStatsFrame(f)}
+                            className={`px-3 py-1 rounded-lg text-[11px] font-bold uppercase tracking-wider transition-all duration-150 ${
+                              statsFrame === f
+                                ? 'bg-primary text-primary-foreground shadow-md scale-[1.04]'
+                                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
+                            }`}
+                          >
+                            {f === 'all' ? 'All' : f === 'week' ? 'Wk' : f === 'month' ? 'Mo' : 'Yr'}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </Card>
           </motion.div>
 

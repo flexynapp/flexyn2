@@ -1490,7 +1490,7 @@ export default function Workout() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="p-4 md:p-8 max-w-5xl mx-auto"
+        className="p-4 md:p-6 pb-2 max-w-5xl mx-auto"
       >
         <PageHeader
           kicker={cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
@@ -1590,49 +1590,74 @@ export default function Workout() {
               );
             })()}
 
-            {/* Primary action */}
+            {/* Primary action — Freestyle */}
             <motion.button
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+              whileHover={{ y: -3, scale: 1.005 }}
+              whileTap={{ scale: 0.975 }}
               onClick={startFreestyle}
-              className="group relative w-full mb-4 overflow-hidden rounded-2xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white p-6 md:p-7 text-left shadow-xl shadow-black/15 hover:shadow-2xl transition-shadow select-none-ui"
+              className="group relative w-full mb-4 overflow-hidden rounded-3xl text-white text-left select-none-ui"
+              style={{
+                background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)',
+                boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset',
+              }}
             >
-              <div className="absolute inset-0 pointer-events-none">
+              {/* Animated aurora blobs */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
                 <div
-                  className="absolute -top-1/2 -right-1/4 w-[80%] h-[180%] rounded-full blur-3xl opacity-80"
-                  style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.6), transparent 65%)' }}
+                  className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                  style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }}
+                />
+                <div
+                  className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30 group-hover:opacity-45 transition-opacity duration-700"
+                  style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }}
                 />
               </div>
+              {/* Fine grain overlay */}
               <div
-                className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                className="absolute inset-0 opacity-[0.04] pointer-events-none rounded-3xl"
                 style={{
                   backgroundImage:
-                    'linear-gradient(hsl(0 0% 100% / 0.6) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.6) 1px, transparent 1px)',
-                  backgroundSize: '28px 28px',
+                    'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
+                  backgroundSize: '180px',
                 }}
               />
-              <div className="relative flex items-center justify-between gap-4">
+              {/* Top highlight line */}
+              <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+
+              <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                 <div className="min-w-0">
-                  <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-primary/90 mb-1.5">
+                  <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">
                     {t('workout.startKicker')}
                   </span>
-                  <span className="font-heading font-bold text-2xl md:text-3xl leading-tight block">
+                  <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">
                     {t('workout.freestyle')}
                   </span>
-                  <span className="text-sm text-white/60 mt-1.5 block max-w-[40ch]">
+                  <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">
                     {t('workout.freestyleDesc')}
                   </span>
+                  {/* Pill badge */}
+                  <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                    Ready to go
+                  </span>
                 </div>
-                <motion.div
-                  className="shrink-0 w-14 h-14 md:w-16 md:h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/40"
-                  whileHover={{ rotate: 5 }}
-                  transition={{ type: 'spring', stiffness: 400 }}
-                >
-                  <Play className="w-6 h-6 md:w-7 md:h-7 fill-current" />
-                </motion.div>
+                <div className="shrink-0 flex flex-col items-center gap-2">
+                  <motion.div
+                    className="w-16 h-16 md:w-18 md:h-18 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                    style={{
+                      background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)',
+                      boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset',
+                    }}
+                    whileHover={{ rotate: 6 }}
+                    transition={{ type: 'spring', stiffness: 380 }}
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                    <Play className="w-7 h-7 fill-current relative z-10" />
+                  </motion.div>
+                </div>
               </div>
             </motion.button>
 
@@ -1718,7 +1743,7 @@ export default function Workout() {
 
             {/* Secondary actions */}
             <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-8"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-2"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
