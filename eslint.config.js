@@ -82,6 +82,35 @@ export default [
           allowNamedExports: true,
         },
       ],
+      // Catches free/undeclared identifiers — e.g. a sub-component using
+      // `tFallback` that was never passed down, or `userProfile` read in a
+      // helper that doesn't receive it. These build + render fine until the
+      // code path runs, then throw "Can't find variable: X" at runtime and
+      // trip the section ErrorBoundary (the DailyQuestsCard/Duels/RestTimer/
+      // LeagueStandings crashes). recommended ships this as an error, but
+      // the explicit rules block above overwrote it — re-enabled so
+      // `npm run lint` blocks the whole class before it can deploy.
+      "no-undef": "error",
+    },
+  },
+  // Test files use Vitest globals (describe/it/expect/vi/beforeEach/…) and
+  // occasional Node globals (global, process). Declare them so no-undef
+  // doesn't flag them as undeclared.
+  {
+    files: ["**/*.test.{js,mjs,cjs,jsx}", "**/__tests__/**/*.{js,mjs,cjs,jsx}"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        ...globals.browser,
+        ...globals.vitest,
+        ...globals.node,
+      },
     },
   },
 ];
