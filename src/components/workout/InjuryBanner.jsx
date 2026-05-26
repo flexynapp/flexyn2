@@ -106,16 +106,23 @@ export default function InjuryBanner({ onOpenForm }) {
   // Injuries 3 days from recovery date — show warning toast once per session
   useEffect(() => {
     const upcomingKey = 'fn_injury_warned';
-    const warned = sessionStorage.getItem(upcomingKey) || '';
+    // Store as a comma-separated list with sentinel commas at the
+    // boundaries so `id1` can't false-positive-match `id1xyz` (which
+    // the previous raw substring match did). (Audit 09 #L-6.)
+    const rawWarned = sessionStorage.getItem(upcomingKey) || '';
+    let warned = rawWarned;
+    if (warned && !warned.startsWith(',')) warned = ',' + warned + ',';
     for (const inj of activeInjuries) {
       if (!inj.estimated_recovery_date) continue;
       // Use calendar-day comparison rather than 24-hour rounding so users
       // in negative UTC offsets don't see an off-by-one countdown when
       // the recovery date is stored as UTC midnight (e.g., '2026-05-21').
       const daysLeft = differenceInCalendarDays(new Date(inj.estimated_recovery_date), new Date());
-      if (daysLeft === 3 && !warned.includes(inj.id)) {
+      const idMarker = ',' + inj.id + ',';
+      if (daysLeft === 3 && !warned.includes(idMarker)) {
         toast.info(`${inj.muscle_group} recovery date in 3 days. How are you feeling?`);
-        sessionStorage.setItem(upcomingKey, warned + inj.id);
+        warned = warned ? warned + inj.id + ',' : ',' + inj.id + ',';
+        sessionStorage.setItem(upcomingKey, warned);
       }
     }
   }, [activeInjuries]);

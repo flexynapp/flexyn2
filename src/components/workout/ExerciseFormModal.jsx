@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -74,8 +74,15 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
   const [error, setError] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [cachedId, setCachedId] = useState(null);
+  // Token to invalidate in-flight loads when the user re-opens the
+  // modal with a different exercise. Without this, the prior promise
+  // resolved AFTER the second load started and rendered images for the
+  // wrong exercise. (Audit 09 #L-5.)
+  const loadTokenRef = useRef(0);
 
   const loadOrGenerate = async () => {
+    const myToken = ++loadTokenRef.current;
+    const isStale = () => loadTokenRef.current !== myToken;
     setLoading(true);
     setError(null);
     setImageUrls([]);
@@ -86,6 +93,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
       // Always check cache first — only use if it has valid images
       // Filter by `exercise` (canonical column) OR `exercise_name` (legacy alias added in migration 004)
       const cached = await db.entities.ExerciseForm.filter({ exercise: exerciseName });
+      if (isStale()) return;
       const validCache = cached?.find(c => c.image_urls?.length > 0);
       if (validCache) {
         setImageUrls(validCache.image_urls);
@@ -111,6 +119,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
           db.integrations.Core.GenerateImage({ prompt })
         ),
       ]);
+      if (isStale()) return;
 
       const urls = imageResults.map(r => r.url);
       const newTips = tipsRes.tips || [];
@@ -122,6 +131,7 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
           tips: newTips,
           is_movement: isMovement(exerciseName),
         });
+        if (isStale()) return;
         setCachedId(cached[0].id);
       } else {
         const created = await db.entities.ExerciseForm.create({
@@ -131,14 +141,16 @@ export default function ExerciseFormModal({ exerciseName, open, onClose }) {
           tips: newTips,
           is_movement: isMovement(exerciseName),
         });
+        if (isStale()) return;
         setCachedId(created.id);
       }
       setImageUrls(urls);
       setTips(newTips);
     } catch (err) {
+      if (isStale()) return;
       setError(err?.message || 'Failed to load form guide. Please try again.');
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   };
 

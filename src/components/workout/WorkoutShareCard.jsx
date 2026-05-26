@@ -17,6 +17,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { formatNumber } from '@/lib/intl';
+import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
 const CANVAS_W = 1080;
 const CANVAS_H = 1080;
@@ -25,8 +26,12 @@ const CANVAS_H = 1080;
  * Compute headline stats from a workout payload.
  * Same shape Workout.jsx saves: { exercises: [{ name, sets: [{ weight, reps }] }], duration_minutes }.
  */
-function computeStats(workout) {
-  let totalVolume = 0;
+function computeStats(workout, opts = {}) {
+  // Volume now flows through the same workoutVolume helper that the
+  // live pill, save path, and Saved Workouts list use — including the
+  // include_bar_in_volume preference. Previously the share card used
+  // inline `w * r` and showed a smaller number than the pill for
+  // bar-included users. (Audit 09 #L-1.)
   let totalSets = 0;
   let totalReps = 0;
   let topLift = null;
@@ -34,7 +39,6 @@ function computeStats(workout) {
     for (const s of ex.sets || []) {
       const w = Number(s.weight) || 0;
       const r = Number(s.reps) || 0;
-      totalVolume += w * r;
       if (r > 0) totalSets += 1;
       totalReps += r;
       if (w > 0 && (!topLift || w > topLift.weight)) {
@@ -43,7 +47,7 @@ function computeStats(workout) {
     }
   }
   return {
-    totalVolume,
+    totalVolume: computeTotalVolume(workout?.exercises || [], opts),
     totalSets,
     totalReps,
     exercises: (workout?.exercises || []).length,
@@ -201,7 +205,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-export default function WorkoutShareCard({ open, onClose, workout, username }) {
+export default function WorkoutShareCard({ open, onClose, workout, username, includeBarWeight = false }) {
   const { tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const canvasRef = useRef(null);
@@ -218,7 +222,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
     // unit (kg / stone) so users see the share card in the unit they
     // use everywhere else. Without this, a user on kg sees "TOTAL VOLUME
     // 12500 lb" instead of the kg they actually log in.
-    const rawStats = computeStats(workout);
+    const rawStats = computeStats(workout, { includeBarWeight });
     const stats = {
       ...rawStats,
       totalVolume: Math.round(fromLbs(rawStats.totalVolume, weightUnit)),
@@ -242,7 +246,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username }) {
     canvas.toBlob((blob) => {
       if (blob) setImgUrl(URL.createObjectURL(blob));
     }, 'image/png');
-  }, [open, workout, username, language]);
+  }, [open, workout, username, language, includeBarWeight, weightUnit]);
 
   // Clean up object URL
   useEffect(() => {

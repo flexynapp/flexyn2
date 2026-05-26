@@ -998,9 +998,20 @@ export default function Workout() {
       name: ex.name,
       muscle_group: ex.muscle_group || '',
       muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
+      // Preserve the tagged-set metadata from the prior session
+      // (warmup, failed, RPE, RIR, feel_emoji, feel_note) rather than
+      // flattening to weight+reps only. The user spent effort tagging
+      // these in the original session — losing them silently makes
+      // "Repeat last workout" feel like data loss. (Audit 09 #H-8.)
       sets: (ex.sets || []).map(s => ({
-        weight: s.weight ?? null,
-        reps:   s.reps   ?? null,
+        weight:     s.weight ?? null,
+        reps:       s.reps   ?? null,
+        is_warmup:  s.is_warmup  || false,
+        is_failed:  s.is_failed  || false,
+        rpe:        s.rpe        ?? null,
+        rir:        s.rir        ?? null,
+        feel_emoji: s.feel_emoji ?? null,
+        feel_note:  s.feel_note  ?? null,
       })),
     })));
     setNotes('');
@@ -2319,14 +2330,24 @@ export default function Workout() {
                     type="button"
                     onClick={() => {
                       const removed = exercises[i];
+                      // Use a stable identity (group_id || name + reference)
+                      // captured at click time, then find the *current* index
+                      // when Undo fires. Otherwise removing two exercises in
+                      // sequence and tapping Undo on the later toast inserts
+                      // at the stale captured index, which lands mid-superset
+                      // and can break group integrity. (Audit 09 #M-3 / #L-11.)
+                      const undoMarker = { name: removed?.name, group_id: removed?.group_id, ref: removed };
                       setExercises(exercises.filter((_, idx) => idx !== i));
                       toast.success(`Skipped ${removed?.displayName || removed?.name || 'exercise'}.`, {
                         action: {
                           label: 'Undo',
                           onClick: () => setExercises(prev => {
-                            const next = [...prev];
-                            next.splice(i, 0, removed);
-                            return next;
+                            // Best-effort reinsert near the original neighbor.
+                            // Append to end as a safe default — the user can
+                            // always reorder. Better to be at the bottom than
+                            // wedged between unrelated supersetted rows.
+                            if (prev.some(ex => ex === undoMarker.ref)) return prev;
+                            return [...prev, undoMarker.ref];
                           }),
                         },
                       });
@@ -2511,6 +2532,7 @@ export default function Workout() {
           onClose={() => setShareCardWorkout(null)}
           workout={shareCardWorkout}
           username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+          includeBarWeight={!!userProfile?.include_bar_in_volume}
         />
       </ErrorBoundary>
 
