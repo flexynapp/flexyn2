@@ -879,6 +879,7 @@ export default function Dashboard() {
           <GoalsAlmostComplete
             goals={goals}
             logs={logs}
+            cardioLogs={cardioLogs}
             limit={1}
             compact={false}
             onOpen={() => setGoalsModalOpen(true)}

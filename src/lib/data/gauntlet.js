@@ -307,7 +307,14 @@ export async function checkChallenge1(workoutLog, workoutLogId) {
         s + (set.reps ?? 0) * (set.weight ?? 0), 0), 0);
 
     return await completeGauntletChallenge(1, workoutLogId, totalVolume);
-  } catch {
+  } catch (err) {
+    // Surface the silent swallow via reportError so a network blip
+    // that costs the user their First Blood completion shows up in
+    // Sentry rather than vanishing. (Audit 17 #F15.) Lazy import to
+    // avoid a circular dep with the reportError pipeline.
+    import('@/lib/reportError').then(({ reportError }) => {
+      reportError(err, { feature: 'gauntlet.check-challenge1', level: 'warning' });
+    }).catch(() => {});
     return null;
   }
 }

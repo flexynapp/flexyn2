@@ -70,7 +70,14 @@ export const getMutualFollowSince = async (emailA, emailB) => {
   const dateA = aFollowsB[0]?.created_date;
   const dateB = bFollowsA[0]?.created_date;
   if (!dateA || !dateB) return null;
-  return dateA < dateB ? dateA : dateB;
+  // Date-aware compare — a `"2026-05-25"` (date-only) vs
+  // `"2026-05-25T00:00:00Z"` (full ISO) string compare returns the
+  // shorter one as "earlier" even when they represent the same moment.
+  // (Audit 17 #F22.)
+  const a = new Date(dateA).getTime();
+  const b = new Date(dateB).getTime();
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return dateA < dateB ? dateA : dateB;
+  return a < b ? dateA : dateB;
 };
 
 /**

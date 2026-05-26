@@ -12,6 +12,10 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const MAX_HISTORY = 50;
 
@@ -163,8 +167,14 @@ export default function CoachChat() {
     }
   };
 
-  const handleClear = () => {
-    if (!confirm(tFallback('coach.clearConfirm', 'Clear chat history?'))) return;
+  // Radix AlertDialog instead of native confirm() so the destructive
+  // confirmation matches the rest of the app's visual language and
+  // doesn't block the event loop / show the URL prefix on iOS Safari.
+  // (Audit 16 F14.)
+  const [clearOpen, setClearOpen] = useState(false);
+  const handleClear = () => setClearOpen(true);
+  const confirmClear = () => {
+    setClearOpen(false);
     setMessages([]);
     if (user?.id) try { localStorage.removeItem(_historyKey(user.id)); } catch {}
   };
@@ -291,6 +301,26 @@ export default function CoachChat() {
           <Send className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Clear chat confirmation. Replaces native confirm() so the
+          destructive prompt matches the rest of the app's visual
+          language. (Audit 16 F14.) */}
+      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tFallback('coach.clearConfirm', 'Clear chat history?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tFallback('coach.clearWarn', 'All previous Coach messages on this device will be erased.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tFallback('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmClear} className="bg-destructive hover:bg-destructive/90">
+              {tFallback('common.clear', 'Clear')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

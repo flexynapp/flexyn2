@@ -17,7 +17,42 @@ import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { reportError } from '@/lib/reportError';
 import { computeStrengthGoalProgress } from '@/lib/goalProgress';
 
-export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, compact = false, onClick }) {
+// Cardio activity matcher — mirrors GoalsList.matchesActivity. Cardio
+// goals were previously filtered out entirely (#16 in audit 16) so a
+// user whose weekly run goal hit 95% never saw "Almost there!".
+function matchesActivity(logType, activity) {
+  if (activity === 'any') return true;
+  return String(logType || '').startsWith(activity + '_');
+}
+
+function computeCardioGoalProgress(goal, cardioLogs) {
+  const list = Array.isArray(cardioLogs) ? cardioLogs : [];
+  const goalCreated = goal?.created_date ? new Date(goal.created_date) : null;
+  let total = 0;
+  let target = 0;
+  for (const log of list) {
+    if (!log) continue;
+    if (goalCreated && log.created_date && new Date(log.created_date) < goalCreated) continue;
+    if (goal.period !== 'lifetime' && log.date && goal.period_start_date) {
+      if (new Date(log.date) < new Date(goal.period_start_date)) continue;
+    }
+    if (!matchesActivity(log.type, goal.cardio_activity)) continue;
+    if (goal.goal_type === 'cardio_distance') {
+      total += log.distance_meters || 0;
+    } else if (goal.goal_type === 'cardio_duration') {
+      total += log.duration_seconds || 0;
+    } else if (goal.goal_type === 'cardio_sessions') {
+      total += 1;
+    }
+  }
+  if (goal.goal_type === 'cardio_distance') target = goal.target_distance_meters;
+  else if (goal.goal_type === 'cardio_duration') target = goal.target_duration_seconds;
+  else if (goal.goal_type === 'cardio_sessions') target = goal.target_sessions;
+  if (!target || target <= 0) return { currentValue: total, progress: 0 };
+  return { currentValue: total, progress: Math.min(100, (total / target) * 100) };
+}
+
+export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOpen, limit = 3, compact = false, onClick }) {
   const { t, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const [completingId, setCompletingId] = useState(null);
@@ -29,6 +64,14 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
     return goals
       .filter(goal => goal.status !== 'completed')
       .map(goal => {
+        const isCardio = String(goal.goal_type || '').startsWith('cardio_');
+        if (isCardio) {
+          // Cardio progress branch — extends the dashboard "almost
+          // there!" surface to include running / biking / walking /
+          // swimming goals. (Audit 16 F16.)
+          const { currentValue, progress } = computeCardioGoalProgress(goal, cardioLogs);
+          return { ...goal, currentValue, progress, _isCardio: true };
+        }
         const hasWeightTarget = goal.target_weight != null && goal.target_weight > 0;
         const hasRepsTarget   = goal.target_reps   != null && goal.target_reps   > 0;
         if (!hasWeightTarget && !hasRepsTarget) return null;
@@ -43,7 +86,7 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
       .filter(goal => goal !== null && goal.progress >= 75 && !dismissedIds.includes(goal.id))
       .sort((a, b) => b.progress - a.progress)
       .slice(0, limit);
-  }, [goals, logs, limit, dismissedIds]);
+  }, [goals, logs, cardioLogs, limit, dismissedIds]);
 
   const completeMutation = useMutation({
     mutationFn: async (goalId) => {
@@ -235,7 +278,15 @@ export default function GoalsAlmostComplete({ goals, logs, onOpen, limit = 3, co
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold flex items-center gap-2 text-sm">
                         <Target className="w-4 h-4 shrink-0" />
-                        <span className="truncate">{goal.exercise_name}</span>
+                        <span className="truncate">
+                          {/* Cardio goals don't have exercise_name —
+                              fall back to a descriptive label so the
+                              row never renders blank. (Audit 16 F22.) */}
+                          {goal.exercise_name
+                            || (goal._isCardio
+                              ? tFallback('goals.cardio.label', '{activity} goal', { activity: goal.cardio_activity || 'Cardio' })
+                              : tFallback('goals.unknownLift', 'Unknown lift'))}
+                        </span>
                       </p>
                       <p className={`text-xs mt-0.5 ${isComplete ? 'text-green-600 font-semibold' : 'text-muted-foreground'}`}>
                         {progressLabel}

@@ -48,8 +48,12 @@ export function formatWeight(lbs, unit, decimals) {
 
 /** Same as formatWeight but returns just the number string (no unit suffix) */
 export function formatWeightNumber(lbs, unit, decimals) {
+  // Mirror formatWeight's empty-string guard so a blank input round-trips
+  // as '' instead of being silently coerced to '0'. (Audit 17 #T3.)
+  if (lbs == null) return '';
+  if (typeof lbs === 'string' && lbs.trim() === '') return '';
   const n = Number(lbs);
-  if (lbs == null || !Number.isFinite(n)) return '';
+  if (!Number.isFinite(n)) return '';
   const converted = fromLbs(n, unit);
   const dp = decimals ?? (unit === 'kg' ? 1 : unit === 'stone' ? 2 : 0);
   return converted.toFixed(dp);

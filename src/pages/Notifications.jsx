@@ -49,23 +49,31 @@ const TYPE_TO_TAB = {
   crew_war_started:   'competitive',
   crew_war_resolved:  'competitive',
   nemesis_assigned:   'competitive',
-  // achievements
-  pr_set:             'achievements',
-  capsule_earned:     'achievements',
-  coin_milestone:     'achievements',
-  streak_milestone:   'achievements',
-  league_promoted:    'achievements',
-  league_promotion:   'achievements',
-  league_demoted:     'achievements',
-  league_demotion:    'achievements',
-  league_held:        'achievements',
-  referral_success:   'achievements',
-  // system (engagement)
+  // achievements — includes quest claims and gauntlet completions so
+  // they don't collapse into "system" silently. (Audit 16 F23.)
+  pr_set:                 'achievements',
+  capsule_earned:         'achievements',
+  coin_milestone:         'achievements',
+  streak_milestone:       'achievements',
+  league_promoted:        'achievements',
+  league_promotion:       'achievements',
+  league_demoted:         'achievements',
+  league_demotion:        'achievements',
+  league_held:            'achievements',
+  referral_success:       'achievements',
+  quest_claimed:          'achievements',
+  gauntlet_path_completed:'achievements',
+  // competitive (additions per audit 16 F23)
+  nemesis_overthrown:     'competitive',
+  crew_challenge_started: 'competitive',
+  crew_challenge_completed:'competitive',
+  // system (engagement) + admin
   welcome_back:           'system',
   streak_break_warning:   'system',
   quest_expiry_warning:   'system',
   weekly_gauntlet_started:'system',
   memory_reengagement:    'system',
+  report_resolved:        'system',
 };
 
 export default function Notifications() {

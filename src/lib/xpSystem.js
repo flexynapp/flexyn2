@@ -158,19 +158,25 @@ export const MAX_CARDIO_XP = 600; // up from 400
 
 export function calculateCardioXp({ duration_seconds, distance_meters, calories }) {
   if (!duration_seconds || duration_seconds <= 0) return 0;
+  // Floor negative-ish inputs at zero before computing bonuses. A
+  // client-side bug or GPS noise that produced `distance_meters: -100`
+  // used to offset the duration XP. Same for negative calories.
+  // (Audit 17 #F10.)
+  const safeDistance = Math.max(0, Number(distance_meters) || 0);
+  const safeCalories = Math.max(0, Number(calories)        || 0);
   const minutes = duration_seconds / 60;
 
   // Base: 1.5 XP/min (up from 1.0 — cardio deserves more respect)
   const baseXp = minutes * 1.5;
 
   // Distance bonus: 1 XP per 200 m (was 250 m — slightly more rewarding)
-  const distanceXp = (distance_meters || 0) / 200;
+  const distanceXp = safeDistance / 200;
 
   // Calorie bonus: 1 XP per 20 kcal (was 25 — intensity bonus)
-  const calorieXp = (calories || 0) / 20;
+  const calorieXp = safeCalories / 20;
 
   // Intensity multiplier — if calories AND distance are logged, reward the data quality
-  const hasFullData = (distance_meters || 0) > 0 && (calories || 0) > 0;
+  const hasFullData = safeDistance > 0 && safeCalories > 0;
   const intensityBonus = hasFullData ? 1.10 : 1.0; // 10% bonus for complete logging
 
   const raw = (baseXp + distanceXp + calorieXp) * intensityBonus;
