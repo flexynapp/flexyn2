@@ -75,20 +75,27 @@ function buildOrangePin({ gym, onClick }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
+  // Explicit width/height + line-height:0/font-size:0 so the SVG sits
+  // flush in the button without baseline-alignment gaps. MapLibre uses
+  // the marker's offsetWidth/Height to anchor; deterministic dims
+  // guarantee correct geo-anchor positioning.
   Object.assign(el.style, {
+    width: '32px', height: '46px',
     background: 'none', border: 'none', padding: '0',
     cursor: 'pointer', display: 'block',
+    lineHeight: '0', fontSize: '0',
   });
   // Inner wrapper carries the hover transform — see buildFlexynPin
   // for the rationale (MapLibre owns the outer element's transform).
   const inner = document.createElement('div');
   Object.assign(inner.style, {
-    display: 'block',
+    width: '100%', height: '100%', display: 'block',
     transition: 'transform 140ms ease-out',
     transform: 'scale(1)',
+    transformOrigin: 'center bottom',
     willChange: 'transform',
   });
-  inner.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  inner.innerHTML = `<svg width="32" height="46" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
     <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
       fill="#f97316" stroke="#fff" stroke-width="2"
       style="filter:drop-shadow(0 3px 4px rgba(0,0,0,0.35))"/>
@@ -106,21 +113,31 @@ function buildOsmPin({ gym, onClick }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
+  // Explicit dimensions match the SVG so MapLibre's marker anchor math
+  // resolves to a deterministic geo-anchor. Without explicit width/
+  // height the button was sized by content with potential baseline
+  // gaps from the inline <svg>, which on some browsers gave the
+  // marker an offsetHeight of 0 — meaning the marker rendered
+  // off-anchor or invisible. The user reported "used to see grey
+  // pins, now I don't" after wave 37's pin refactor — restoring
+  // explicit dimensions removes that ambiguity.
   Object.assign(el.style, {
+    width: '12px', height: '17px',
     background: 'none', border: 'none', padding: '0',
     cursor: 'pointer', display: 'block',
+    lineHeight: '0', fontSize: '0',
     filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.25))',
   });
   // Inner wrapper for hover transform — MapLibre owns el.style.transform.
   const inner = document.createElement('div');
   Object.assign(inner.style, {
-    display: 'block',
+    width: '100%', height: '100%', display: 'block',
     transition: 'transform 120ms ease-out',
     transform: 'scale(1)',
     transformOrigin: 'center bottom',
     willChange: 'transform',
   });
-  inner.innerHTML = `<svg width="12" height="17" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg">
+  inner.innerHTML = `<svg width="12" height="17" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
     <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
       fill="#9ca3af" stroke="#fff" stroke-width="3"/>
     <circle cx="16" cy="15" r="5" fill="rgba(255,255,255,0.4)"/>
@@ -140,6 +157,22 @@ function buildOsmPin({ gym, onClick }) {
 }
 
 // ── OSM fetcher ────────────────────────────────────────────────────────
+//
+// Overpass-api.de is the most popular Overpass mirror and is rate-limited
+// + occasionally returns 504 Gateway Timeout. When it does, the previous
+// code threw and the catch in the caller silently logged — the grey
+// pins simply never appeared. That was the user-reported "I used to see
+// grey gym pins, now I don't" symptom.
+//
+// We now try multiple mirrors in order and return the first success.
+// kumi.systems is community-run and historically the most reliable
+// secondary; overpass.private.coffee is a CF-fronted mirror.
+const OVERPASS_MIRRORS = [
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+];
+
 async function fetchOsmGyms(bounds, zoom, signal) {
   const s   = bounds.getSouth().toFixed(4);
   const w   = bounds.getWest().toFixed(4);
@@ -154,20 +187,31 @@ async function fetchOsmGyms(bounds, zoom, signal) {
     ` way["amenity"="gym"](${s},${w},${n},${e}););` +
     `out center ${cap};`;
 
-  const res  = await fetch(
-    `https://overpass-api.de/api/interpreter?data=${encodeURIComponent(q)}`,
-    { signal },
-  );
-  if (!res.ok) throw new Error(`OSM ${res.status}`);
-  const json = await res.json();
-  return (json.elements || []).map(el => ({
-    osmId:   el.id,
-    name:    el.tags?.name || 'Gym',
-    lat:     el.type === 'node' ? el.lat : el.center?.lat,
-    lon:     el.type === 'node' ? el.lon : el.center?.lon,
-    brand:   el.tags?.brand   || null,
-    website: el.tags?.website || null,
-  })).filter(g => g.lat && g.lon);
+  let lastErr = null;
+  for (const mirror of OVERPASS_MIRRORS) {
+    if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    try {
+      const res = await fetch(
+        `${mirror}?data=${encodeURIComponent(q)}`,
+        { signal },
+      );
+      if (!res.ok) throw new Error(`OSM ${res.status}`);
+      const json = await res.json();
+      return (json.elements || []).map(el => ({
+        osmId:   el.id,
+        name:    el.tags?.name || 'Gym',
+        lat:     el.type === 'node' ? el.lat : el.center?.lat,
+        lon:     el.type === 'node' ? el.lon : el.center?.lon,
+        brand:   el.tags?.brand   || null,
+        website: el.tags?.website || null,
+      })).filter(g => g.lat && g.lon);
+    } catch (err) {
+      if (err?.name === 'AbortError') throw err;
+      lastErr = err;
+      // Try the next mirror
+    }
+  }
+  throw lastErr || new Error('All Overpass mirrors failed');
 }
 
 // ── Component ──────────────────────────────────────────────────────────
