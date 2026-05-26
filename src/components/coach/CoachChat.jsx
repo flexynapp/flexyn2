@@ -11,6 +11,7 @@ import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
+import { toast } from 'sonner';
 
 const MAX_HISTORY = 50;
 
@@ -21,7 +22,11 @@ function loadHistory(userId) {
     const raw = localStorage.getItem(_historyKey(userId));
     if (!raw) return [];
     const arr = JSON.parse(raw);
-    return Array.isArray(arr) ? arr : [];
+    // Slice on hydrate too, not just on save. A localStorage written
+    // by a prior version of the app (with a larger cap) or by a user
+    // manually editing would otherwise render every message until the
+    // next send re-trimmed. (Audit 16 F10.)
+    return Array.isArray(arr) ? arr.slice(-MAX_HISTORY) : [];
   } catch { return []; }
 }
 function saveHistory(userId, messages) {
@@ -31,9 +36,19 @@ function saveHistory(userId, messages) {
   } catch { /* ignore quota errors */ }
 }
 
+// Map app-language code → BCP-47 tag the Web Speech API understands.
+// Without this, a non-English user got `en-US` recognition and saw
+// their Spanish/German/etc. transcribed as garbled phonetic English.
+// (Audit 16 F9.)
+const SPEECH_LANG_BY_APP_LANG = {
+  en: 'en-US', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', pt: 'pt-PT',
+  it: 'it-IT', ja: 'ja-JP', ko: 'ko-KR', zh: 'zh-CN', ar: 'ar-SA',
+  hi: 'hi-IN', ru: 'ru-RU', tr: 'tr-TR', pl: 'pl-PL', nl: 'nl-NL',
+};
+
 export default function CoachChat() {
   const { user } = useAuth();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   // Voice dictation state — the Mic icon swaps to MicOff with a pulse
@@ -48,7 +63,7 @@ export default function CoachChat() {
     }
     setVoiceListening(true);
     voiceSessionRef.current = startVoiceCapture({
-      lang: 'en-US',
+      lang: SPEECH_LANG_BY_APP_LANG[language] || 'en-US',
       onResult: ({ transcript }) => {
         setVoiceListening(false);
         voiceSessionRef.current = null;
@@ -59,9 +74,26 @@ export default function CoachChat() {
           setDraft((prev) => (prev.trim() ? prev.trim() + ' ' + transcript : transcript));
         }
       },
-      onError: () => {
+      // Surface specific reasons so the user knows why dictation
+      // stopped working. Previously a permission-denied silently reset
+      // the mic icon with no toast. (Audit 16 F13.)
+      onError: (info) => {
         setVoiceListening(false);
         voiceSessionRef.current = null;
+        const reason = info?.reason || info; // accept either shape
+        if (reason === 'permission') {
+          toast.error(tFallback(
+            'coach.voice.permissionDenied',
+            'Microphone permission denied. Enable it in your browser settings.'
+          ));
+        } else if (reason === 'unsupported') {
+          toast.error(tFallback(
+            'coach.voice.unsupported',
+            "Voice dictation isn't supported in this browser."
+          ));
+        } else if (reason && reason !== 'aborted') {
+          toast.error(tFallback('coach.voice.failed', 'Voice input failed — try again.'));
+        }
       },
     });
   };

@@ -185,6 +185,15 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       toast.error('Session too short to save (under 30 seconds).');
       return;
     }
+    // Refuse 0-distance saves so a user who forgets to enter the
+    // treadmill distance doesn't accidentally credit XP / streak /
+    // quest progress for a stationary session. The outside save
+    // already enforces this — bringing indoor in line. (Audit 16 F5.)
+    if (!distanceMeters || distanceMeters <= 0) {
+      savingGuardRef.current = false;
+      toast.error('Enter the distance from your treadmill display before saving.');
+      return;
+    }
 
     setSaving(true);
     try {

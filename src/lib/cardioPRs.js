@@ -47,7 +47,11 @@ export function thresholdTimesForLog(log) {
   const family = activityFamily(log.type);
   const out = [];
   
-  if (!log.distance_meters || !log.duration_seconds || log.duration_seconds <= 0) {
+  // Range-check distance too — previously only duration was checked,
+  // which let a 0-distance session produce `NaN` thresholds that
+  // polluted the bests map. (Audit 16 F2.)
+  if (!log.distance_meters || log.distance_meters <= 0 ||
+      !log.duration_seconds || log.duration_seconds <= 0) {
     return out;
   }
 

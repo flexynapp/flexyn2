@@ -249,13 +249,13 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
               <label className="text-sm font-medium mb-1.5 block">{t('goals.cardio.targetDistance')}</label>
               <div className="relative">
                 <Input
-                  type="number" inputMode="decimal"
+                  type="number"
+                  inputMode="decimal"
                   min={0}
                   step={0.1}
                   value={cardioDistanceInput}
                   onChange={e => setCardioDistanceInput(e.target.value)}
                   placeholder="0.0"
-                  inputMode="decimal"
                 />
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   {distanceUnit}
@@ -275,14 +275,14 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
                 ].map(({ value, set, label, max }) => (
                   <div key={label} className="flex-1 text-center">
                     <Input
-                      type="number" inputMode="decimal"
+                      type="number"
+                      inputMode="numeric"
                       min={0}
                       max={max}
                       value={value}
                       onChange={e => set(e.target.value === '' ? '' : Math.min(max, Math.max(0, parseInt(e.target.value) || 0)))}
                       placeholder="0"
                       className="text-center"
-                      inputMode="numeric"
                     />
                     <span className="text-xs text-muted-foreground mt-1 block">{label}</span>
                   </div>
@@ -295,12 +295,12 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
             <div>
               <label className="text-sm font-medium mb-1.5 block">{t('goals.cardio.targetSessions')}</label>
               <Input
-                type="number" inputMode="decimal"
+                type="number"
+                inputMode="numeric"
                 min={0}
                 value={cardioSessions}
                 onChange={e => setCardioSessions(e.target.value)}
                 placeholder="0"
-                inputMode="numeric"
               />
             </div>
           )}

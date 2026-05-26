@@ -455,7 +455,18 @@ export default function CardioManualForm({
                     max={50}
                     inputMode="numeric"
                     value={poolLength}
-                    onChange={e => setPoolLength(e.target.value)}
+                    onChange={e => {
+                      // Clamp to 10-50 m on input so a fat-finger
+                      // value like "5000" can't multiply by laps into
+                      // a 10km "swim" that pollutes pace stats.
+                      // `min`/`max` on number inputs are advisory only.
+                      // (Audit 16 F6.)
+                      const raw = e.target.value;
+                      if (raw === '') { setPoolLength(''); return; }
+                      const n = Number(raw);
+                      if (!Number.isFinite(n)) return;
+                      setPoolLength(String(Math.min(50, Math.max(10, n))));
+                    }}
                     onKeyDown={blockSpecialKeys}
                     className="pr-8"
                     placeholder="25"

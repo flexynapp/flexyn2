@@ -281,7 +281,13 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       lat: pos.coords.latitude,
       lng: pos.coords.longitude,
       timestamp_ms: pos.timestamp,
-      speed_mps: pos.coords.speed ?? 0,
+      // Preserve null when the device doesn't report speed so the
+      // auto-pause logic can distinguish "device-doesn't-know" from
+      // "actually still". Collapsing to 0 caused devices that never
+      // report speed to auto-pause moments after start. (Audit 16 F1.)
+      speed_mps: (pos.coords.speed != null && Number.isFinite(pos.coords.speed))
+        ? pos.coords.speed
+        : null,
       accuracy_m: pos.coords.accuracy ?? 999,
     };
     lastFixAccuracyRef.current = fix.accuracy_m;
@@ -677,8 +683,10 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     if (navigator.geolocation) {
       detectId = navigator.geolocation.watchPosition(
         (pos) => {
-          const sp = pos.coords.speed || 0;
-          if (sp >= STILL_SPEED_THRESHOLD_MPS) {
+          // Same null-aware guard as auto-pause: only react when the
+          // device reports a real numeric speed. (Audit 16 F1.)
+          const sp = pos.coords.speed;
+          if (sp != null && Number.isFinite(sp) && sp >= STILL_SPEED_THRESHOLD_MPS) {
             wasAutoPausedRef.current = false;
             stillSinceRef.current = null;
             navigator.geolocation.clearWatch(detectId);
