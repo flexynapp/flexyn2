@@ -1119,6 +1119,14 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   const [editingAge, setEditingAge] = useState(false);
   const [draftAge,   setDraftAge]   = useState('');
   const ageInputRef = useRef(null);
+  // iOS keyboard scrolls focused input into view only when there's a
+  // scrollable ancestor — the parent already has overflow-y-auto, but
+  // we still call scrollIntoView explicitly on focus to handle the
+  // post-keyboard layout settle.
+  const scrollAgeIntoView = (el) => {
+    if (!el) return;
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+  };
   const handleAgeTap = () => {
     setDraftAge(String(age));
     setEditingAge(true);
@@ -1127,6 +1135,8 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
       if (!el) return;
       el.focus();
       el.select();
+      scrollAgeIntoView(el);
+      setTimeout(() => scrollAgeIntoView(ageInputRef.current), 250);
     }, 30);
   };
   const handleAgeInput = (e) => {
@@ -1427,6 +1437,12 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
     return null;
   };
 
+  // iOS keyboard scrolls focused input into view only when there's a
+  // scrollable ancestor — see WeightStep / AgeStep for the bug story.
+  const scrollHeightIntoView = (el) => {
+    if (!el) return;
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+  };
   const handleHeightTap = () => {
     // Pre-fill the draft with the current value in a friendly shape
     setDraftHeight(unit === 'cm' ? String(value) : `${Math.floor(value / 12)}'${value % 12}`);
@@ -1436,6 +1452,8 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
       if (!el) return;
       el.focus();
       el.select();
+      scrollHeightIntoView(el);
+      setTimeout(() => scrollHeightIntoView(heightInputRef.current), 250);
     }, 30);
   };
   const handleHeightInput = (e) => {
@@ -1470,7 +1488,11 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-hidden pb-2">
+      {/* overflow-y-auto so iOS Safari can scroll the focused input
+          into view when the keyboard appears — same fix as WeightStep
+          and AgeStep. Without this the user's number input was hidden
+          behind the keyboard. */}
+      <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
           <KineticHeading kicker={`Height · 0${step}`} text="How tall are you?" accentWord="tall" />
         </div>
@@ -1631,6 +1653,16 @@ function BarbellVisualizer({ kg }) {
 }
 
 function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
+  // Scroll-into-view ref for the tap-to-type input. iOS Safari with
+  // an `overflow-hidden` ancestor cannot auto-scroll the focused
+  // input into view when the virtual keyboard appears, so the user
+  // is typing blind behind the keyboard. We give the modal a scroll
+  // container below (overflow-y-auto) AND explicitly scroll the
+  // input into the middle of the visible area on focus.
+  const scrollIntoViewSafe = (el) => {
+    if (!el) return;
+    try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch {}
+  };
   const unit = stats.weightUnit ?? 'lb';
   const kgFromLb = (lb) => Math.round(lb / 2.20462);
   const lbFromKg = (kg) => Math.round(kg * 2.20462);
@@ -1679,6 +1711,13 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
       if (!el) return;
       el.focus();
       el.select();
+      // After the iOS keyboard begins animating up, scroll the input
+      // into the middle of the visible viewport. Without this, on
+      // small phones the input stays at its layout position which is
+      // hidden behind the keyboard. The 250ms second-pass catches the
+      // post-keyboard layout settle on iOS.
+      scrollIntoViewSafe(el);
+      setTimeout(() => scrollIntoViewSafe(weightInputRef.current), 250);
     }, 30);
   };
   const handleWeightInput = (e) => {
@@ -1720,7 +1759,14 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-hidden pb-2">
+      {/* overflow-y-auto (not overflow-hidden) so iOS Safari has a
+          scrollable ancestor to bring the focused number-input into
+          view when the keyboard appears. Previously the user could
+          tap the number, the keyboard slid up, the input was hidden
+          behind it, and they typed blind. That was the dad-can't-
+          enter-his-weight bug + the user-reported "can't get past
+          weight" complaint. */}
+      <div className="flex-1 overflow-y-auto pb-2">
         <div className="flex justify-between items-start mb-3">
           <KineticHeading kicker={`Weight · 0${step}`} text="How much do you weigh?" accentWord="weigh?" />
         </div>
@@ -2965,11 +3011,17 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="fixed inset-0 bg-background overflow-hidden">
+    // Use 100dvh (dynamic viewport height) so the layout adapts when
+    // the iOS Safari URL bar / virtual keyboard collapses or expands.
+    // Plain `fixed inset-0` resolves to 100vh which on iOS stays at
+    // pre-keyboard size — pushing the focused input behind the
+    // keyboard. dvh shrinks with the keyboard so onboarding inputs
+    // stay reachable.
+    <div className="fixed inset-0 bg-background overflow-hidden" style={{ height: '100dvh' }}>
       <Aurora />
 
       <div className="relative z-10 h-full flex items-start justify-center overflow-hidden">
-        <div className="w-full max-w-[420px] h-full px-6 py-10 flex flex-col">
+        <div className="w-full max-w-[420px] h-full px-6 py-6 sm:py-10 flex flex-col">
           <AnimatePresence mode="wait">
             <motion.div key={stepName}
               variants={buildVariants(direction > 0 ? STEP_TRANSITIONS[stepName] : 'back', direction)}
