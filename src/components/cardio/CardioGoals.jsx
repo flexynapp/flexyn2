@@ -70,21 +70,37 @@ function GoalCreateForm({ onSave, onCancel, distanceUnit }) {
       toast.error('Set at least one target: sessions OR distance');
       return;
     }
+    // Defensive parse — non-numeric paste / autofill used to land
+    // NaN in target_distance_meters and target_sessions, breaking
+    // every downstream progress calculation.
+    let distMeters = null;
+    if (targetDistKm) {
+      const d = Number(targetDistKm);
+      if (Number.isFinite(d) && d > 0) {
+        distMeters = d * (distanceUnit === 'mi' ? 1609.344 : 1000);
+      }
+    }
+    let sessionsNum = null;
+    if (targetSessions) {
+      const s = parseInt(targetSessions, 10);
+      if (Number.isFinite(s) && s > 0) sessionsNum = s;
+    }
+    if (distMeters == null && sessionsNum == null) {
+      toast.error('Enter a valid target value');
+      return;
+    }
     setSaving(true);
-    const distMeters = targetDistKm
-      ? Number(targetDistKm) * (distanceUnit === 'mi' ? 1609.344 : 1000)
-      : null;
     await onSave({
       title: title.trim(),
       goal_type: 'cardio',
       cardio_activity: activity,
       period,
       deadline: (period === 'custom' && deadline) ? deadline : null,
-      target_sessions: targetSessions ? parseInt(targetSessions, 10) : null,
+      target_sessions: sessionsNum,
       target_distance_meters: distMeters,
       status: 'active',
       current_value: 0,
-      target_value: Number(targetSessions) || 0,
+      target_value: sessionsNum || 0,
     });
     setSaving(false);
   };

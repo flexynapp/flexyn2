@@ -52,12 +52,23 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error('Give this plan a title'); return; }
+    // Defensive parse — a non-numeric string (e.g. paste from
+    // clipboard, autocomplete) used to produce NaN * 1609.344 = NaN
+    // which got persisted to distance_meters and broke downstream
+    // display + filtering. Coerce, validate, then convert.
+    let distanceMeters = null;
+    if (distance !== '' && distance != null) {
+      const n = Number(distance);
+      if (Number.isFinite(n) && n > 0) {
+        distanceMeters = n * (distanceUnit === 'mi' ? 1609.344 : 1000);
+      }
+    }
     setSaving(true);
     await onSave({
       title: title.trim(),
       type,
       planned_date: date,
-      distance_meters: distance ? Number(distance) * (distanceUnit === 'mi' ? 1609.344 : 1000) : null,
+      distance_meters: distanceMeters,
       notes: notes || null,
     });
     setSaving(false);

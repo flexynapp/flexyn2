@@ -286,9 +286,14 @@ export default function CardioManualForm({
         avg_speed_kmh: speedKmhFrom(cappedDistance, cappedDuration),
         calories: cappedCalories,
         incline_percent: env === 'treadmill' ? (Number(incline) || 0) : null,
-        elevation_gain_m: (showElevation && elevation)
-          ? (distanceUnit === 'mi' ? Number(elevation) * 0.3048 : Number(elevation))
-          : null,
+        elevation_gain_m: (() => {
+          // Defensive parse — non-numeric paste produced NaN that got
+          // saved verbatim and broke downstream pace/elevation displays.
+          if (!(showElevation && elevation)) return null;
+          const n = Number(elevation);
+          if (!Number.isFinite(n)) return null;
+          return distanceUnit === 'mi' ? n * 0.3048 : n;
+        })(),
         notes: notes || null,
         gps_track: null,
         // New fields
