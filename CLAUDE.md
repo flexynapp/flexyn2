@@ -360,7 +360,26 @@ violations of this rule.
 4. `git push origin <branch>` — push the feature branch first.
 5. `git push origin <branch>:main` — fast-forward main. Only after the
    branch push succeeds.
-6. Update tasks via `TaskUpdate` (this session uses TaskCreate /
+6. **ALWAYS, after every push, send the user the SQL to run.** This is a
+   standing instruction (kegan, 2026-05). Frontend ships via Netlify
+   auto-deploy from `main`, but the DB is deployed by the user manually
+   pasting SQL into the Supabase SQL editor — so a push is only "done"
+   once they have the matching SQL. After each push, report EITHER:
+     • the pending migration(s) as a copy-paste block, OR
+     • "No SQL needed — frontend only" when the change touched no
+       migrations / DB objects.
+   Don't wait to be asked. See the paste-safety rule below — the SQL
+   you hand over must survive the user's clipboard pipeline.
+7. **Paste-safe SQL is mandatory.** The user's paste pipeline mangles
+   short `alias.column` tokens AND record-field `.id` tokens (e.g.
+   `up.id`, `v_verif.id`, `v_capsule.id`) → `42601 syntax error at "<"`.
+   Only emit: `public.<table>`, `auth.<fn>()`, `NEW.`/`OLD.`, bare
+   columns in single-table statements, CTE-renamed join keys, and
+   `#variable_conflict use_column` for RETURNS TABLE OUT-param shadowing.
+   Prefer scalar `SELECT ... INTO v_a, v_b` over `%ROWTYPE` + dotted
+   record access. A migration that's fine for a CLI runner can still
+   mangle on paste — rewrite the bundle you hand the user accordingly.
+8. Update tasks via `TaskUpdate` (this session uses TaskCreate /
    TaskUpdate / TaskList — `TodoWrite` was deprecated mid-session).
 
 ## Things that are intentionally out of scope right now
