@@ -14,9 +14,22 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture, addDays, startOfWeek } from 'date-fns';
+import { useLanguage } from '@/lib/LanguageContext';
+import { getDateLocale } from '@/lib/dateLocales';
 
-const WEEKDAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+// Mon-start convention matches the firstDayOffset math below. We keep
+// the visual order fixed (Mon→Sun) but localize the letter via
+// date-fns so Japanese / Russian / Arabic users see their own initials
+// instead of hardcoded English. (Audit 08 #L-2.)
+function buildWeekdayLetters(language) {
+  const dateLocale = getDateLocale(language);
+  // Pick any known Monday as the anchor — 2024-01-01 is a Monday.
+  const monday = startOfWeek(new Date(2024, 0, 1), { weekStartsOn: 1 });
+  return Array.from({ length: 7 }, (_, i) =>
+    format(addDays(monday, i), 'EEEEE', { locale: dateLocale })
+  );
+}
 
 /**
  * Build the cell map for a single month: { dateStr: 'hit' | 'miss' | 'future' }
@@ -54,6 +67,8 @@ export function buildCellMap({ month = new Date(), lastLogin, streak = 0 } = {})
 }
 
 export default function StreakCalendarGrid({ profile, month = new Date() }) {
+  const { language } = useLanguage();
+  const weekdayLetters = useMemo(() => buildWeekdayLetters(language), [language]);
   const cells = useMemo(
     () => buildCellMap({
       month,
@@ -73,14 +88,14 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {format(month, 'MMMM')}
+          {format(month, 'MMMM', { locale: getDateLocale(language) })}
         </p>
         <p className="text-[10px] text-muted-foreground tabular-nums">
           <span className="font-bold text-foreground">{hitCount}</span> days hit
         </p>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1">
-        {WEEKDAYS.map((d, i) => (
+        {weekdayLetters.map((d, i) => (
           <span key={i} className="text-[9px] text-center font-bold uppercase tracking-wide text-muted-foreground/70">
             {d}
           </span>

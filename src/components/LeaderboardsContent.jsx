@@ -50,7 +50,7 @@ const PODIUM_STYLE = {
  *   query (e.g. while a containing modal is closed).
  */
 export default function LeaderboardsContent({ active = true }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const fmtNum = useNumberFormatter();
   const formatNum = (n) => fmtNum(Math.round(n));
   const { user } = useAuth();
@@ -359,7 +359,11 @@ export default function LeaderboardsContent({ active = true }) {
                 </p>
               ) : ranked.length > 5 && (
                 <p className="text-xs text-center text-muted-foreground mt-4">
-                  {t('leaderboards.allShownFooter').replace('{n}', ranked.length)}
+                  {/* tFallback with vars handles both the missing-key case
+                      (raw key showing as text) and the substitution-name
+                      mismatch (translator picks a different placeholder).
+                      The prior `t().replace('{n}', N)` failed both. */}
+                  {tFallback('leaderboards.allShownFooter', 'All {n} athletes shown.', { n: ranked.length })}
                 </p>
               )}
             </motion.div>

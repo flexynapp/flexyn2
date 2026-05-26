@@ -13,7 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useRestTimer } from '@/lib/RestTimerContext';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
-import { fromLbs, formatWeight } from '../../lib/weightUnit';
+import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
 
@@ -244,7 +244,11 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       {totalVolume > 0 && (
         <div className="flex justify-end mb-2">
           <span className="text-xs text-muted-foreground font-medium">
-            {formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)} vol
+            {/* formatWeight already converts lbs → display unit. The prior
+                `formatWeight(fromLbs(totalVolume, weightUnit), weightUnit)`
+                converted twice — kg users saw half their real per-exercise
+                volume label. Same fix family as LiveVolumePill, audit 11 #11. */}
+            {formatWeight(totalVolume, weightUnit)} vol
           </span>
         </div>
       )}

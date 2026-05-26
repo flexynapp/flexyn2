@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import { motion, useMotionValue, animate } from 'framer-motion';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { formatWeight, fromLbs } from '@/lib/weightUnit';
+import { formatWeight } from '@/lib/weightUnit';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
 export default function LiveVolumePill({ exercises = [], includeBarWeight = false }) {
@@ -89,5 +89,9 @@ function AnimatedNumber({ motionValue, unit }) {
     });
     return () => unsub();
   }, [motionValue]);
-  return <span>{formatWeight(fromLbs(display, unit), unit)}</span>;
+  // formatWeight already converts lbs → display unit internally. The
+  // prior `formatWeight(fromLbs(display, unit), unit)` converted twice
+  // — kg users saw half their real volume tweening up in the pill.
+  // Same fix already applied to AdvancedAnalytics (audit 11 #11/#12).
+  return <span>{formatWeight(display, unit)}</span>;
 }
