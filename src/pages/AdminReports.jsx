@@ -304,7 +304,12 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
       {isPending && (
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => onResolve('reviewed')}
+            onClick={() => {
+              // Confirm before flipping the status — once moved out of
+              // pending there's no UI path back to re-open. A misclick
+              // shouldn't bury a report. (Audit 12 #6.)
+              if (confirm('Mark this report as reviewed? It will leave the pending queue.')) onResolve('reviewed');
+            }}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-semibold hover:bg-secondary transition-colors disabled:opacity-50"
           >
@@ -320,7 +325,9 @@ function ReportRow({ report, isPending, busy, onResolve, onDelete }) {
             <Trash2 className="w-3.5 h-3.5" /> Delete content
           </button>
           <button
-            onClick={() => onResolve('dismissed')}
+            onClick={() => {
+              if (confirm('Dismiss this report without action? It will leave the pending queue.')) onResolve('dismissed');
+            }}
             disabled={busy}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-muted-foreground text-xs font-medium hover:text-foreground transition-colors disabled:opacity-50"
           >

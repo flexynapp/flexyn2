@@ -147,7 +147,20 @@ export default function MyGyms() {
           </Button>
           <Input
             value={codeInput}
-            onChange={(e) => setCodeInput(e.target.value.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8))}
+            onChange={(e) => {
+              // Tolerate URL-shaped pastes. If the user pastes a
+              // flexyn://gym/CODE or https://flexyn.app/g/CODE link,
+              // extract just the 8-character code. Previously the
+              // strict char-allowlist stripped to e.g. "FLXYN" from
+              // "flexyn://gym/ABCD2345" and the join failed silently.
+              // (Audit 12 #12.)
+              const raw = e.target.value || '';
+              const urlMatch = raw.match(/(?:[\\/]|^)([A-HJ-NP-Z2-9]{8})(?:[^A-Z0-9]|$)/i);
+              const next = urlMatch
+                ? urlMatch[1].toUpperCase()
+                : raw.toUpperCase().replace(/[^A-HJ-NP-Z2-9]/g, '').slice(0, 8);
+              setCodeInput(next);
+            }}
             placeholder="ABCD2345"
             maxLength={8}
             className="font-mono tracking-[0.3em] text-center text-lg uppercase"
