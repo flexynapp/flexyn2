@@ -212,10 +212,19 @@ async function fetchOsmGyms(bounds, zoom, signal) {
   let lastErr = null;
   for (const mirror of OVERPASS_MIRRORS) {
     if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+    // Per-mirror timeout: a hung mirror used to keep the await open for
+    // many minutes because the outer AbortController only fires on map
+    // pan/zoom. Now each mirror gets 12s before we move on. Combined
+    // with 3 mirrors that's a 36s worst-case before we throw.
+    const perAttemptCtrl = new AbortController();
+    const perAttemptTimer = setTimeout(() => perAttemptCtrl.abort(), 12_000);
+    // Forward the outer abort to the per-attempt controller too.
+    const onOuterAbort = () => perAttemptCtrl.abort();
+    signal?.addEventListener?.('abort', onOuterAbort);
     try {
       const res = await fetch(
         `${mirror}?data=${encodeURIComponent(q)}`,
-        { signal },
+        { signal: perAttemptCtrl.signal },
       );
       if (!res.ok) throw new Error(`OSM ${res.status}`);
       const json = await res.json();
@@ -238,9 +247,14 @@ async function fetchOsmGyms(bounds, zoom, signal) {
         return true;
       });
     } catch (err) {
-      if (err?.name === 'AbortError') throw err;
+      // Distinguish OUTER abort (user moved the map → cancel everything)
+      // from PER-ATTEMPT abort (just this mirror timed out, try next).
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
       lastErr = err;
       // Try the next mirror
+    } finally {
+      clearTimeout(perAttemptTimer);
+      signal?.removeEventListener?.('abort', onOuterAbort);
     }
   }
   throw lastErr || new Error('All Overpass mirrors failed');
@@ -266,6 +280,8 @@ export default function GymMap() {
   const [selectedOsm, setSelectedOsm] = useState(null);
   const [loading,     setLoading]     = useState(false);
   const [mapError,    setMapError]    = useState(null);
+  const [osmError,    setOsmError]    = useState(null);   // last fetchOsmGyms error message
+  const [osmLoading,  setOsmLoading]  = useState(false);  // grey-pin fetch in flight
   const [search,      setSearch]      = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [currentZoom, setCurrentZoom] = useState(US_ZOOM);
@@ -290,16 +306,29 @@ export default function GymMap() {
       } catch { setGyms([]); }
       finally  { setLoading(false); }
 
-      if (zoom < OSM_ZOOM_MIN) { setOsmGyms([]); return; }
+      if (zoom < OSM_ZOOM_MIN) { setOsmGyms([]); setOsmError(null); setOsmLoading(false); return; }
 
       osmAbortRef.current?.abort();
       const ctrl = new AbortController();
       osmAbortRef.current = ctrl;
+      setOsmLoading(true);
+      setOsmError(null);
       try {
         const dots = await fetchOsmGyms(b, zoom, ctrl.signal);
-        if (!ctrl.signal.aborted) setOsmGyms(dots);
+        if (!ctrl.signal.aborted) {
+          setOsmGyms(dots);
+          setOsmError(null);
+        }
       } catch (err) {
-        if (err.name !== 'AbortError') console.warn('[GymMap] OSM:', err.message);
+        if (err.name !== 'AbortError') {
+          console.warn('[GymMap] OSM:', err.message);
+          // Surface the failure to the user instead of leaving the
+          // grey-pin layer silently empty. The count pill in the
+          // bottom-left now shows the error + a retry button.
+          if (!ctrl.signal.aborted) setOsmError(err.message || 'Could not load nearby gyms');
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setOsmLoading(false);
       }
     };
   });
@@ -562,13 +591,32 @@ export default function GymMap() {
             {loading ? (
               <><Loader2 className="w-3 h-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Loading…</span></>
             ) : visibleCount === 0 && osmGyms.length === 0 ? (
-              <span className="text-muted-foreground">{search ? 'No matches' : 'Zoom in to find gyms'}</span>
+              <span className="text-muted-foreground">
+                {search
+                  ? 'No matches'
+                  : osmLoading
+                    ? 'Finding nearby gyms…'
+                    : osmError
+                      ? 'Nearby gyms unavailable'
+                      : 'Zoom in to find gyms'}
+              </span>
             ) : (
               <span className="text-muted-foreground">
                 {visibleCount > 0 && <><span className="text-primary font-bold">{visibleCount}</span> on Flexyn</>}
                 {visibleCount > 0 && osmGyms.length > 0 && ' · '}
                 {osmGyms.length > 0 && <><span className="font-bold">{osmGyms.length}</span> nearby</>}
+                {osmLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground inline ml-1" />}
               </span>
+            )}
+            {osmError && !osmLoading && (
+              <button
+                type="button"
+                onClick={() => refreshRef.current?.()}
+                className="ml-2 text-primary font-semibold hover:underline"
+                aria-label="Retry loading nearby gyms"
+              >
+                Retry
+              </button>
             )}
           </div>
         )}
