@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Building2, MapPin, Users, X,
-  Loader2, Search, Trophy, Map as MapIcon,
+  Loader2, Search, Trophy, Map as MapIcon, RefreshCw,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -114,15 +114,13 @@ function buildOsmPin({ gym, onClick }) {
   el.type  = 'button';
   el.title = gym.name;
   // Explicit dimensions match the SVG so MapLibre's marker anchor math
-  // resolves to a deterministic geo-anchor. Without explicit width/
-  // height the button was sized by content with potential baseline
-  // gaps from the inline <svg>, which on some browsers gave the
-  // marker an offsetHeight of 0 — meaning the marker rendered
-  // off-anchor or invisible. The user reported "used to see grey
-  // pins, now I don't" after wave 37's pin refactor — restoring
-  // explicit dimensions removes that ambiguity.
+  // resolves to a deterministic geo-anchor. Wave 37/38 history aside,
+  // the touch target is now 18×24 (was 12×17). 12px wide pins are
+  // brutally hard to tap on a phone (Apple HIG recommends 44pt
+  // minimum; we get closer with this size + the surrounding inline
+  // SVG's effective halo from the drop-shadow filter).
   Object.assign(el.style, {
-    width: '12px', height: '17px',
+    width: '18px', height: '24px',
     background: 'none', border: 'none', padding: '0',
     cursor: 'pointer', display: 'block',
     lineHeight: '0', fontSize: '0',
@@ -137,7 +135,7 @@ function buildOsmPin({ gym, onClick }) {
     transformOrigin: 'center bottom',
     willChange: 'transform',
   });
-  inner.innerHTML = `<svg width="12" height="17" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
+  inner.innerHTML = `<svg width="18" height="24" viewBox="0 0 32 46" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block">
     <path d="M16 1C7.72 1 1 7.72 1 16c0 12 15 29 15 29S31 28 31 16C31 7.72 24.28 1 16 1z"
       fill="#9ca3af" stroke="#fff" stroke-width="3"/>
     <circle cx="16" cy="15" r="5" fill="rgba(255,255,255,0.4)"/>
@@ -285,6 +283,12 @@ export default function GymMap() {
   const [search,      setSearch]      = useState('');
   const [searchOpen,  setSearchOpen]  = useState(false);
   const [currentZoom, setCurrentZoom] = useState(US_ZOOM);
+  // "Search this area" button — Google Maps / Yelp pattern. Shows
+  // when the user has moved the map since the last fetch. Tap to
+  // force a refresh, which is more reliable than waiting on the
+  // moveend auto-debounce + acts as a manual retry when the previous
+  // auto-fetch silently failed (rate-limit, transient timeout).
+  const [hasMovedSinceFetch, setHasMovedSinceFetch] = useState(false);
 
   // Keep refreshRef pointing at the latest closure every render.
   // No dep array — cheap ref assignment, runs after every render.
@@ -306,7 +310,13 @@ export default function GymMap() {
       } catch { setGyms([]); }
       finally  { setLoading(false); }
 
-      if (zoom < OSM_ZOOM_MIN) { setOsmGyms([]); setOsmError(null); setOsmLoading(false); return; }
+      if (zoom < OSM_ZOOM_MIN) {
+        setOsmGyms([]); setOsmError(null); setOsmLoading(false);
+        // We DID fetch (for the Flexyn pins); clear the "has moved"
+        // banner even though we skipped OSM at this zoom level.
+        setHasMovedSinceFetch(false);
+        return;
+      }
 
       osmAbortRef.current?.abort();
       const ctrl = new AbortController();
@@ -318,6 +328,8 @@ export default function GymMap() {
         if (!ctrl.signal.aborted) {
           setOsmGyms(dots);
           setOsmError(null);
+          // Successful fetch — hide the "Search this area" button.
+          setHasMovedSinceFetch(false);
         }
       } catch (err) {
         if (err.name !== 'AbortError') {
@@ -386,6 +398,16 @@ export default function GymMap() {
     };
 
     map.on('moveend', scheduleRefresh);
+    // Fire `hasMovedSinceFetch` immediately on user input so the
+    // "Search this area" pill is visible during the pan/zoom itself,
+    // not just after they let go. The auto-debounce still kicks off
+    // a fetch on moveend; the button is a parallel manual path.
+    // Filter to user-originated moves (originalEvent present) so the
+    // map's own programmatic moves (flyTo, GeolocateControl) don't
+    // trigger the button.
+    map.on('movestart', (e) => {
+      if (!cancelled && e.originalEvent) setHasMovedSinceFetch(true);
+    });
     map.on('zoomend', () => { if (!cancelled) setCurrentZoom(map.getZoom()); });
     map.on('load',    () => {
       if (cancelled) return;
@@ -585,6 +607,33 @@ export default function GymMap() {
           style={{ width: '100%', height: '100%' }}
         />
 
+        {/* "Search this area" pill — the Google Maps / Yelp pattern.
+            Centered at the top of the map, shown whenever the user has
+            moved the map since the last successful fetch. Hides on
+            successful fetch. The auto-debounce on moveend still fires,
+            but this gives the user explicit control + a reliable
+            manual retry when an auto-fetch silently failed. */}
+        {!mapError && hasMovedSinceFetch && view === 'map' && (
+          <motion.button
+            type="button"
+            initial={{ opacity: 0, y: -8, scale: 0.94 }}
+            animate={{ opacity: 1, y: 0,  scale: 1 }}
+            exit={{    opacity: 0, y: -8, scale: 0.94 }}
+            onClick={() => {
+              clearTimeout(debounceRef.current);
+              refreshRef.current?.();
+            }}
+            disabled={osmLoading || loading}
+            className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/30 hover:opacity-95 active:scale-[0.97] transition-all disabled:opacity-60 disabled:cursor-wait"
+            aria-label="Search this area for gyms"
+          >
+            {osmLoading || loading
+              ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              : <RefreshCw className="w-3.5 h-3.5" />}
+            {osmLoading || loading ? 'Searching…' : 'Search this area'}
+          </motion.button>
+        )}
+
         {/* Count pill */}
         {!mapError && (
           <div className="absolute bottom-24 left-3 z-10 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur border border-border shadow-md text-xs font-medium flex items-center gap-1.5">
@@ -598,7 +647,14 @@ export default function GymMap() {
                     ? 'Finding nearby gyms…'
                     : osmError
                       ? 'Nearby gyms unavailable'
-                      : 'Zoom in to find gyms'}
+                      : currentZoom < OSM_ZOOM_MIN
+                        ? 'Zoom in to find gyms'
+                        // Zoomed in but nothing found — distinguish
+                        // from "didn't even try" so the user knows
+                        // to try a different area. Tapping the
+                        // "Search this area" button at top is the
+                        // recovery path.
+                        : 'No gyms in view — pan to another area'}
               </span>
             ) : (
               <span className="text-muted-foreground">
