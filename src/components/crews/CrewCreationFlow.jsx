@@ -3,7 +3,7 @@
 // Two-step wizard: (1) pick friends to invite, (2) name the crew.
 // After submit: createCrew → DM invites to all selected friends.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ArrowLeft, ArrowRight, Shield, Check, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
@@ -57,9 +57,16 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
     });
   };
 
+  // Synchronous in-flight guard. Without this, a fast double-tap on
+  // "Create crew" could fire crewsData.createCrew twice before
+  // `submitting` state propagated, producing two duplicate crews +
+  // two sets of invite DMs to every selected friend.
+  const createRef = useRef(false);
+
   const handleCreate = async () => {
     if (!crewName.trim()) { toast('Name your crew first!'); return; }
-    if (submitting) return;
+    if (submitting || createRef.current) return;
+    createRef.current = true;
     setSubmitting(true);
     try {
       const crew = await crewsData.createCrew(user, crewName.trim());
@@ -95,6 +102,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
     } catch (err) {
       toast.error(err?.message || 'Could not create crew — try again.');
     } finally {
+      createRef.current = false;
       setSubmitting(false);
     }
   };

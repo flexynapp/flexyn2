@@ -10,7 +10,7 @@
 // Falls back to manual lat/lng entry (or skipping; admin can geocode
 // from the address later before approving).
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Building2, MapPin, Loader2, CheckCircle2, ArrowLeft, AlertTriangle } from 'lucide-react';
@@ -83,9 +83,16 @@ export default function RegisterGym() {
     );
   };
 
+  // Synchronous in-flight guard. The local-dupe-name check at line 100
+  // catches re-submits within the same mounted form, but does NOT
+  // catch a within-tick double-tap where both submissions enter
+  // handleSubmit before either lands on the server. The ref blocks
+  // the second entry until the first either succeeds or errors out.
+  const submitRef = useRef(false);
+
   const handleSubmit = async (e) => {
     e?.preventDefault?.();
-    if (submitting) return;
+    if (submitting || submitRef.current) return;
     const name = form.business_name.trim();
     if (!name) {
       toast.error('Business name required.');
@@ -128,9 +135,11 @@ export default function RegisterGym() {
       lng = v;
     }
 
+    submitRef.current = true;
     setSubmitting(true);
     const res = await submitVerification({ ...form, business_name: name, latitude: lat, longitude: lng });
     setSubmitting(false);
+    submitRef.current = false;
     if (res.ok) {
       toast.success('Submitted — Flexyn will review and reach out shortly.');
       // Clear EVERY field so a subsequent submission for a different
