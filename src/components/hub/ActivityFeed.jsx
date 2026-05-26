@@ -5,7 +5,9 @@
 // Separate from the notification bell (which shows ALL categories) — this
 // surfaces a focused view of who is interacting with your content.
 
-import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Heart, MessageCircle, UserPlus, Repeat2, ThumbsUp, Activity } from 'lucide-react';
 import { formatDistanceToNowStrict, parseISO } from 'date-fns';
@@ -44,10 +46,11 @@ function timeAgo(dateStr) {
   }
 }
 
-function ActivityRow({ item, index }) {
+function ActivityRow({ item, index, onTap }) {
   const cfg = getConfig(item.type);
   if (!cfg) return null;
   const { Icon, color, bg } = cfg;
+  const hasTarget = !!item.link_url;
 
   return (
     <motion.div
@@ -59,13 +62,18 @@ function ActivityRow({ item, index }) {
       <div className={`w-8 h-8 rounded-full ${bg} flex items-center justify-center shrink-0`}>
         <Icon className={`w-4 h-4 ${color}`} />
       </div>
-      <div className="flex-1 min-w-0">
+      <button
+        type="button"
+        onClick={() => onTap?.(item)}
+        disabled={!hasTarget}
+        className={`flex-1 min-w-0 text-left rounded-md ${hasTarget ? 'cursor-pointer hover:bg-secondary/40 -mx-1 px-1 py-0.5 transition-colors' : 'cursor-default'}`}
+      >
         <p className="text-sm leading-snug">
           <span className="font-semibold">{item.title || 'Someone'}</span>{' '}
           <span className="text-muted-foreground">{item.body || ''}</span>
         </p>
         <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(item.created_at)}</p>
-      </div>
+      </button>
     </motion.div>
   );
 }
@@ -76,30 +84,30 @@ const SOCIAL_TYPES = ['post_like', 'post_reaction', 'post_comment', 'friend_foll
 export default function ActivityFeed() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: activities = [], isLoading } = useQuery({
     queryKey: ['activityFeed', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      // Fetch recent social notifications for this user.
-      // Only select columns that exist in the notifications table.
+      // Fetch recent social notifications. link_url drives the row's
+      // tap target; previously this select omitted link_url so rows
+      // were inert (audit 10 #20).
       const { data, error } = await supabase
         .from('notifications')
-        .select('id, type, title, body, created_at')
+        .select('id, type, title, body, link_url, is_read, created_at')
         .eq('user_id', user.id)
         .or(SOCIAL_TYPES.map(t => `type.ilike.%${t}%`).join(','))
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) {
-        // Fallback: return all recent notifications for this user
-        // (the ilike OR chain failed — likely PostgREST version mismatch)
         const { data: all } = await supabase
           .from('notifications')
-          .select('id, type, title, body, created_at')
+          .select('id, type, title, body, link_url, is_read, created_at')
           .eq('user_id', user.id)
           .order('created_at', { ascending: false })
           .limit(50);
-        // Filter social types client-side
         return (all || []).filter(n =>
           SOCIAL_TYPES.some(t => (n.type || '').toLowerCase().includes(t))
         );
@@ -109,6 +117,37 @@ export default function ActivityFeed() {
     enabled: !!user?.id,
     staleTime: 60_000,
   });
+
+  // Mark every shown social notification as read on mount. Previously
+  // the bell badge stayed at the same count after opening this tab —
+  // users tapped Activity expecting it to clear the bell and it
+  // didn't. Now we eager-mark the rows we just rendered. (Audit 10 #21.)
+  useEffect(() => {
+    if (!user?.id || !activities.length) return;
+    const unreadIds = activities.filter(a => a.is_read === false).map(a => a.id);
+    if (unreadIds.length === 0) return;
+    (async () => {
+      try {
+        await supabase
+          .from('notifications')
+          .update({ is_read: true })
+          .in('id', unreadIds);
+        queryClient.invalidateQueries({ queryKey: ['unreadNotificationCount', user?.email] });
+        queryClient.invalidateQueries({ queryKey: ['unreadNotificationCount', user?.id] });
+      } catch { /* non-fatal — the bell will refetch eventually */ }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, activities.length]);
+
+  const onTapActivity = (item) => {
+    if (!item?.link_url) return;
+    if (/^https?:\/\//i.test(item.link_url)) {
+      // External link — open in new tab so the user can come back.
+      window.open(item.link_url, '_blank', 'noopener,noreferrer');
+    } else {
+      navigate(item.link_url);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -143,7 +182,7 @@ export default function ActivityFeed() {
   return (
     <div className="divide-y divide-border/50 px-4">
       {activities.map((item, i) => (
-        <ActivityRow key={item.id} item={item} index={i} />
+        <ActivityRow key={item.id} item={item} index={i} onTap={onTapActivity} />
       ))}
     </div>
   );

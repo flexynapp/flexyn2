@@ -1,4 +1,5 @@
 import { useState, useRef, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
@@ -28,6 +29,14 @@ function CrownBadge({ size = 14 }) {
 
 export default function HubCommentsInline({ post, open, onClose }) {
   const { t } = useLanguage();
+  const navigate = useNavigate();
+  // Navigate to the canonical profile route for a tapped @mention.
+  // Email is resolved by renderCommentBody via the authorsByEmail map.
+  const handleMentionClick = useCallback((email) => {
+    if (!email) return;
+    onClose?.();
+    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+  }, [navigate, onClose]);
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
@@ -276,6 +285,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   showReply
                   t={t}
                   postAuthorEmail={post.author_email}
+                  onMentionClick={handleMentionClick}
                 />
 
                 {/* Replies toggle + list */}
@@ -321,6 +331,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               showReply={false}
                               t={t}
                               postAuthorEmail={post.author_email}
+                              onMentionClick={handleMentionClick}
                             />
                           ))}
                         </motion.div>
@@ -414,20 +425,49 @@ export default function HubCommentsInline({ post, open, onClose }) {
 }
 
 // ── @mention renderer ─────────────────────────────────────────────────────────
-// Splits comment body on @username tokens and highlights each as primary text.
-function renderCommentBody(text) {
+// Splits comment body on @username tokens. Each mention becomes a button
+// that navigates to the mentioned user's profile (resolved via the
+// authorsByEmail map already passed into CommentRow). When the handle
+// can't be resolved (no map entry — comment from outside the post's
+// author cohort), falls back to a non-clickable highlight so the user
+// still sees the mention styling.
+// (Audit 10 #2 — mentions used to render as plain styled <span>, tap
+// did nothing.)
+function renderCommentBody(text, authorsByEmail, onMentionClick) {
   if (!text) return null;
   const parts = text.split(/(@\w+)/g);
-  return parts.map((part, i) =>
-    /^@\w+$/.test(part)
-      ? <span key={i} className="font-semibold text-primary">{part}</span>
-      : <span key={i}>{part}</span>
-  );
+  // Index handle (everything after @) → email for tap resolution.
+  const handleToEmail = (() => {
+    const map = new Map();
+    Object.values(authorsByEmail || {}).forEach(a => {
+      const u = (a?.username || '').toLowerCase();
+      if (u) map.set(u, a.email);
+    });
+    return map;
+  })();
+  return parts.map((part, i) => {
+    if (!/^@\w+$/.test(part)) return <span key={i}>{part}</span>;
+    const handle = part.slice(1).toLowerCase();
+    const email = handleToEmail.get(handle);
+    if (!email || !onMentionClick) {
+      return <span key={i} className="font-semibold text-primary">{part}</span>;
+    }
+    return (
+      <button
+        key={i}
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onMentionClick(email); }}
+        className="font-semibold text-primary hover:underline"
+      >
+        {part}
+      </button>
+    );
+  });
 }
 
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
-function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail }) {
+function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail, onMentionClick }) {
   const { language } = useLanguage();
   const [reportOpen, setReportOpen] = useState(false);
   const [translation, setTranslation] = useState(null);
@@ -471,7 +511,7 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
               )}
             </div>
             <p className="text-sm whitespace-pre-wrap break-words mt-0.5">
-              {renderCommentBody(displayBody)}
+              {renderCommentBody(displayBody, authorsByEmail, onMentionClick)}
             </p>
           </div>
 

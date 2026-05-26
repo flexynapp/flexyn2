@@ -629,6 +629,18 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   const handleRepost = async (e) => {
     e.stopPropagation();
     if (!user?.email || reposting) return;
+    // Privacy clamp: a public repost of a non-public original would
+    // expose the original to viewers the author never opted-in to share
+    // with. Block reposts of followers/private posts entirely and toast
+    // a clear reason; only public originals can be reposted publicly.
+    // (Audit 10 #29.)
+    const originalPrivacy = (post.privacy || 'public').toLowerCase();
+    if (originalPrivacy !== 'public') {
+      toast.error(
+        tFallback('hub.post.repostPrivate', "Can't repost — the original isn't public.")
+      );
+      return;
+    }
     setReposting(true);
     try {
       await hubPosts.create({
@@ -856,6 +868,14 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
                   toast.success(`Blocked @${handle}.`);
                   queryClient.invalidateQueries({ queryKey: ['userBlocks', user?.id] });
                   queryClient.invalidateQueries({ queryKey: ['hubFeed'] });
+                  // block_user_full ALSO severs mutual follow rows. Invalidate
+                  // the follow-graph caches so the blocked user disappears
+                  // from the viewer's following list AND the followers
+                  // list immediately, instead of waiting for the next
+                  // 30s feed refetch. (Audit 10 #12.)
+                  queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
+                  queryClient.invalidateQueries({ queryKey: ['hubFollowers', user?.email] });
+                  queryClient.invalidateQueries({ queryKey: ['myFollowsForDMs', user?.email] });
                 } catch (err) {
                   reportError(err, { feature: 'hub.block-author', level: 'warning', userEmail: user?.email, target: post.author_email });
                   toast.error('Could not block — try again.');
