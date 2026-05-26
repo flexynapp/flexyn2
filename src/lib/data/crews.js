@@ -685,13 +685,19 @@ export async function getCrewFirstAchievers(crewId) {
       const all = await db.entities.Achievement
         .filter({ created_by: profile.email })
         .catch(() => []);
+      // The achievements table stores ONLY unlocked rows (row presence =
+      // unlocked). Date column is `unlocked_at`. Previously filtered on
+      // `a.unlocked && a.unlocked_date` — neither column exists — so
+      // the crew first-achievers leaderboard has been silently empty
+      // since launch. (Audit 17 #T2, also same defect class as the
+      // AchievementsTab progress-bar fix from wave 2.)
       return (all || [])
-        .filter(a => a?.unlocked && a?.unlocked_date)
+        .filter(a => a?.achievement_id && a?.unlocked_at)
         .map(a => ({
           achievementId: a.achievement_id,
           userId:        m.user_id,
           profile,
-          unlockedAt:    a.unlocked_date,
+          unlockedAt:    a.unlocked_at,
         }));
     } catch { return []; }
   }));

@@ -79,6 +79,12 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
 
 export default function Duels() {
   const { user } = useAuth();
+  // The component referenced tFallback on line ~146 without calling
+  // useLanguage() at the top of Duels() — only DuelRow destructured
+  // it. Latent ReferenceError that hadn't fired yet via Babel/Vite
+  // hoisting quirks. Adding the destructure makes the reference real.
+  // (Audit 15 #M1.)
+  const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const [showCreate,    setShowCreate]    = useState(false);
   const [showInviteLink, setShowInviteLink] = useState(false);

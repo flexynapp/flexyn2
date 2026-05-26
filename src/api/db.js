@@ -88,14 +88,21 @@ function makeEntity(entityName) {
      *  hasn't been applied yet — the extra fields are silently dropped rather
      *  than crashing the entire feature. */
     async create(data) {
-      // Read local session first (no network). Caller-provided created_by/user_id
-      // win via ...data below, so this is only a fallback for callers that omit them.
+      // Read local session first (no network). Caller-provided values
+      // for OTHER fields are honored, but `created_by` and `user_id`
+      // are FORCED to the authenticated user — letting the caller pass
+      // a different email/id was a privacy hole on any table that
+      // doesn't have a WITH CHECK column-level RLS guard. (Audit 17 #T1.)
+      //
+      // If a caller really needs to write a different created_by
+      // (e.g. an admin tool), they must go through a SECURITY DEFINER
+      // RPC, not the entity wrapper.
       const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
       const authUser = session?.user ?? null;
       const enriched = {
+        ...data, // caller values for non-identity fields
         ...(authUser?.email ? { created_by: authUser.email } : {}),
         ...(authUser?.id    ? { user_id:    authUser.id    } : {}),
-        ...data, // caller values win if explicitly provided
       };
 
       let payload = { ...enriched };

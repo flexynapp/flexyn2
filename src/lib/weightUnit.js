@@ -32,8 +32,15 @@ export function toLbs(value, unit) {
 
 /** Format a lbs-stored weight for display in user's unit */
 export function formatWeight(lbs, unit, decimals) {
+  // Empty string from an uncontrolled input had been falling through
+  // as `Number('') === 0` → "0 lbs", which displayed a confident zero
+  // where "—" was correct (the field was blank, not zero). Match the
+  // null/NaN branch for any non-numeric or whitespace-only input.
+  // (Audit 17 #T3.)
+  if (lbs == null) return '—';
+  if (typeof lbs === 'string' && lbs.trim() === '') return '—';
   const n = Number(lbs);
-  if (lbs == null || !Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return '—';
   const converted = fromLbs(n, unit);
   const dp = decimals ?? (unit === 'kg' ? 1 : unit === 'stone' ? 2 : 0);
   return `${converted.toFixed(dp)} ${unit}`;

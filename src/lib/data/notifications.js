@@ -425,7 +425,7 @@ export async function notifyStreakBreakWarning({ user, workoutStreak, t }) {
     body:      tr(t, 'notifications.row.streak_break_warning.body',
                   'Your streak ends at midnight. A quick workout keeps it alive.'),
     icon:      '🔥',
-    linkUrl:   '/workouts',
+    linkUrl:   '/workout', // singular — `/workouts` is a 404 (audit 16 F34)
     metadata:  { workout_streak: workoutStreak },
   });
 }
