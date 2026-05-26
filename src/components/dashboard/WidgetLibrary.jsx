@@ -9,7 +9,7 @@ import { WIDGET_DEFINITIONS, WIDGET_CATEGORIES } from '@/lib/widgetDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 
 export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets = [] }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
 
   const filteredWidgets = selectedCategory === 'all'
@@ -92,7 +92,13 @@ export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets =
                       </Button>
                     )}
                     {isActive && (
-                      <Badge className="shrink-0 bg-green-600 text-white">{t('widgets.add')}</Badge>
+                      // Active widgets show "On Dashboard" rather than
+                      // the same "Add" label as inactive widgets.
+                      // Previously the badge text was identical and
+                      // tapping did nothing — users couldn't tell which
+                      // widgets were already in their dashboard.
+                      // (Audit 08 #5.)
+                      <Badge className="shrink-0 bg-green-600 text-white">{tFallback('widgets.onDashboard', 'On Dashboard')}</Badge>
                     )}
                   </div>
                 </Card>

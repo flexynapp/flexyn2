@@ -59,20 +59,31 @@ function formatRelativeShort(dateStr) {
 }
 
 // Dedupe optimistic messages once the server echoes them back.
-// Two-pass to avoid the prior bug where two rapidly-sent identical TEMP
-// messages would silently drop the second one (same sender+body key).
-//   Pass 1: collect content keys of all REAL (non-temp) messages.
-//   Pass 2: skip a temp ONLY if a real with the same content exists.
-//           Dedupe everything else by id so genuine duplicates can't slip in.
+//
+// The naive key (sender+content) collapsed two identical rapid sends
+// ("ok" + "ok") into one — the user saw only one in the thread even
+// though both reached the server. The previous fix attempted a
+// two-pass that still suffered the same collision class because all
+// temps with the same content were considered interchangeable with
+// any single real of matching content.
+//
+// Current strategy: dedupe REAL ids by id; for temps, consume each
+// real exactly once. If two temps share content and only one real
+// has landed, the SECOND temp survives until its own real lands.
+// (Audit 10 #19.)
 function dedupeMessages(list) {
   if (!list || list.length === 0) return [];
-  const realKeys = new Set();
+  // Count how many REAL rows exist per content+sender key. As we
+  // walk newest → oldest, each temp consumes one count; subsequent
+  // temps for the same key survive until the matching real arrives.
+  const realKeyCounts = new Map();
   for (const m of list) {
     const id = m.id;
     const isTemp = String(id || '').startsWith('temp-');
     if (!isTemp && id) {
       const text = (m.body || m.content || '').trim();
-      realKeys.add(`${(m.sender_email || '').toLowerCase()}|${text}`);
+      const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
+      realKeyCounts.set(key, (realKeyCounts.get(key) || 0) + 1);
     }
   }
   const seenIds = new Set();
@@ -85,7 +96,14 @@ function dedupeMessages(list) {
     if (isTemp) {
       const text = (m.body || m.content || '').trim();
       const key = `${(m.sender_email || '').toLowerCase()}|${text}`;
-      if (realKeys.has(key)) continue;
+      const remaining = realKeyCounts.get(key) || 0;
+      if (remaining > 0) {
+        // This temp's real has landed — drop the temp, decrement.
+        realKeyCounts.set(key, remaining - 1);
+        continue;
+      }
+      // No real left to absorb this temp → it's a genuine extra send
+      // still in-flight; keep it.
     }
     if (id) seenIds.add(id);
     out.unshift(m);
