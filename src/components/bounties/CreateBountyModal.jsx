@@ -5,7 +5,7 @@
 // so no anti-griefing concerns here — but we still gate the UI to
 // the user's own profile.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -45,8 +45,14 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
     setSubmitting(false);
   };
 
+  // Sync ref guard so a double-tap can't fire two createUserBounty
+  // calls before `submitting` state propagates. Each call deducts
+  // an entry fee from the user's Flex Coins, so a duplicate is
+  // real lost coin spend — not just a UX annoyance.
+  const submitRef = useRef(false);
+
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting || submitRef.current) return;
     const targetNum = parseFloat(targetValue);
     if (!Number.isFinite(targetNum) || targetNum <= 0) {
       toast.error(tFallback('createBounty.invalidTarget', 'Enter a positive target value.'));
@@ -56,6 +62,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
       toast.error(tFallback('createBounty.needExercise', 'Enter the exercise name.'));
       return;
     }
+    submitRef.current = true;
     setSubmitting(true);
     const res = await createUserBounty({
       metric,
@@ -67,6 +74,7 @@ export default function CreateBountyModal({ open, onClose, onCreated }) {
       expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000),
     });
     setSubmitting(false);
+    submitRef.current = false;
     if (res.ok) {
       toast.success(tFallback('createBounty.posted', 'Bounty posted! Friends can now try to beat it.'));
       reset();
