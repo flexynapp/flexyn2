@@ -2760,31 +2760,108 @@ export default function Onboarding() {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setSaving(true);
-    const s = data.stats;
+    const s = data.stats || {};
     const weightUnit = s.weightUnit === 'kg' ? 'kg' : 'lbs';
 
-    // Full profile payload
-    const fullProfile = {
-      username:               data.username.trim(),
-      // fitness_goals is a text column — join the array to a comma-separated string.
-      // The new fitness_goals_arr (text[]) column added in migration 006 gets the raw array.
+    // ── Bulletproof numeric conversion ────────────────────────────────────
+    // Migration 073 added CHECK constraints on user_profiles:
+    //   age            13–120
+    //   height_inches  36–96
+    //   weight_lbs     50–800
+    // Out-of-range values trigger 23514 server-side and block onboarding
+    // with a generic "Could not save" toast. The per-step UI clamps are
+    // best-effort, but a stale localStorage draft, a NaN slipping through,
+    // or a botched kg↔lb conversion can produce an out-of-range value.
+    // Clamp HERE so the payload is always valid no matter what.
+    //
+    // Also: the previous minimal-save fallback at this site had a SIGN
+    // BUG — it multiplied kg by 0.453592 (the lb→kg factor) to get lbs,
+    // producing a 34-lb payload for a 75 kg user, which then failed the
+    // weight_lbs ≥ 50 CHECK constraint. Both tiers failed and every
+    // metric-system user was stranded with "Could not save your profile.
+    // Tap Save to retry." This is the user-reported onboarding blocker.
+    const safeInt = (v, fallback) => {
+      const n = typeof v === 'number' ? v : parseInt(v, 10);
+      return Number.isFinite(n) ? Math.round(n) : fallback;
+    };
+    const clampInt = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+
+    const ageVal = clampInt(safeInt(s.age, 26), 13, 120);
+
+    // Resolve height into both units, NaN-safe and constraint-clamped.
+    const heightInRaw =
+      s.heightUnit === 'in'
+        ? safeInt(s.heightIn, 70)
+        : Math.round(safeInt(s.heightCm, 178) / 2.54);
+    const heightCmRaw =
+      s.heightUnit === 'cm'
+        ? safeInt(s.heightCm, 178)
+        : Math.round(safeInt(s.heightIn, 70) * 2.54);
+    const heightInVal = clampInt(heightInRaw, 36, 96);
+    const heightCmVal = clampInt(heightCmRaw, 91, 244); // mirror inches range
+
+    // Resolve weight into both units. CORRECT conversions:
+    //   lbs → kg: lbs * 0.453592
+    //   kg  → lbs: kg / 0.453592  (≈ kg * 2.20462)
+    const weightLbRaw =
+      s.weightUnit === 'lb'
+        ? safeInt(s.weightLb, 165)
+        : Math.round(safeInt(s.weightKg, 75) * 2.20462);
+    const weightKgRaw =
+      s.weightUnit === 'kg'
+        ? safeInt(s.weightKg, 75)
+        : Math.round(safeInt(s.weightLb, 165) * 0.453592);
+    const weightLbVal = clampInt(weightLbRaw, 50, 800);
+    const weightKgVal = clampInt(weightKgRaw, 23, 363); // mirror lbs range
+
+    // Core fields — these alone are enough to call onboarding "done."
+    // If everything else fails, this is the last-resort payload that
+    // gets the user into the app so they can fix details later from
+    // Settings rather than being stranded forever on the reveal screen.
+    const coreProfile = {
+      username:                data.username.trim(),
+      onboarding_complete:     true,
+      onboarding_completed:    true,
+      onboarding_completed_at: new Date().toISOString(),
+    };
+
+    // Detail fields — fitness profile + demographics. Strip-and-retry
+    // inside db.auth.updateMe handles any column missing from the
+    // running schema.
+    const detailProfile = {
       fitness_goals:          Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
       fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
       fitness_level:          data.level,
-      fitness_assessment:     data.assessment || {},
-      training_days:          data.days,
-      preferred_workout_time: data.preferredTime,
-      age:                    s.age,
-      height_cm:    s.heightUnit === 'cm' ? String(s.heightCm) : String(Math.round(s.heightIn * 2.54)),
-      height_inches: s.heightUnit === 'in' ? String(s.heightIn) : String(Math.round(s.heightCm / 2.54)),
-      height_unit:  s.heightUnit === 'cm' ? 'metric' : 'imperial',
-      weight_kg:    s.weightUnit === 'kg' ? String(s.weightKg) : String(Math.round(s.weightLb * 0.453592)),
-      weight_lbs:   s.weightUnit === 'lb' ? String(s.weightLb) : String(Math.round(s.weightKg / 0.453592)),
-      weight_unit:  weightUnit,
-      onboarding_complete:      true,
-      onboarding_completed:     true,
-      onboarding_completed_at:  new Date().toISOString(),
+      training_days:          Array.isArray(data.days) ? data.days : [],
+      preferred_workout_time: data.preferredTime || '',
+      age:           ageVal,
+      height_cm:     String(heightCmVal),
+      height_inches: String(heightInVal),
+      height_unit:   s.heightUnit === 'cm' ? 'metric' : 'imperial',
+      weight_kg:     String(weightKgVal),
+      weight_lbs:    String(weightLbVal),
+      weight_unit:   weightUnit,
     };
+
+    // Tier 1 — everything (including the JSONB fitness_assessment).
+    const fullProfile = {
+      ...detailProfile,
+      fitness_assessment: data.assessment || {},
+      ...coreProfile,
+    };
+
+    // Tier 2 — drop fitness_assessment in case its JSONB validation /
+    // schema-cache state is the trigger.
+    const minimalProfile = {
+      ...detailProfile,
+      ...coreProfile,
+    };
+
+    // Tier 3 — last resort: just username + completion flags. This is
+    // the bulletproof guarantee the user can always finish onboarding.
+    // If even this fails it's a hard backend outage (RLS / network) and
+    // we surface the actual PG error code so users can report something
+    // actionable.
 
     let saved = false;
     try {
@@ -2792,82 +2869,6 @@ export default function Onboarding() {
       setWeightUnit(weightUnit);
       markReturningUser();
       if (checkUserAuth) await checkUserAuth();
-      // Grant starter capsule for brand-new users (idempotent — skips if they
-      // already have one). Fire-and-forget but log failures so we know if it
-      // ever breaks — previously this swallowed errors completely.
-      if (user?.id && user?.email) {
-        grantWelcomeCapsule(user.id, user.email).catch(err => {
-          reportError(err, { feature: 'onboarding.welcome-capsule', level: 'warning', userEmail: user?.email });
-        });
-      }
-      // Create the starter regimen we just promised on the Reveal screen.
-      // Fire-and-forget — onboarding completion must not be gated on this.
-      // ensureStarterRegimen is idempotent (skips if any regimens exist) so
-      // it's safe even if the user re-onboards after an account reset.
-      ensureStarterRegimen({
-        user,
-        profile: {
-          goals: data.goal,
-          level: data.level,
-          daysCount: Array.isArray(data.days) ? data.days.length : 0,
-          assessment: data.assessment || null,
-        },
-      }).catch(err => {
-        reportError(err, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
-      });
-
-      // Save body baseline measurements (migration 133) — fire-and-forget.
-      //
-      // weight_lbs is left NULL when the user has not actually touched
-      // the weight step (i.e. it's still the default 165 from
-      // DEFAULT_DATA). The previous code unconditionally wrote the
-      // default to body_metrics, contaminating the user's Progress
-      // weight chart with a phantom row on day zero. (Audit 13 #2.)
-      //
-      // Guard against duplicate inserts on retry by using ON CONFLICT —
-      // not directly available via supabase insert, but the date
-      // column is already today's local-date string, so a second
-      // attempt with the same (user_id, date) is intentionally allowed
-      // (each insert creates a new metric row by design). To avoid the
-      // duplicate on retry per audit 13 #13, gate via the
-      // submittingRef plus an attempt-completion flag.
-      const bb = data.bodyBaseline || {};
-      const hasMeasurements = Object.values(bb).some(v => v != null && v !== '');
-      const userTouchedWeight = !!data.stats?.userTouchedWeight;
-      if (user?.id && hasMeasurements) {
-        supabase.from('body_metrics').insert({
-          created_by: user.email,
-          user_id:    user.id,
-          date:       todayLocalDateString(),
-          weight_lbs: userTouchedWeight
-            ? (s.weightUnit === 'lb' ? s.weightLb : Math.round(s.weightKg * 2.20462))
-            : null,
-          body_fat_pct: bb.bodyFatPct ?? null,
-          waist_cm:   bb.waistCm   ?? null,
-          chest_cm:   bb.chestCm   ?? null,
-          hip_cm:     bb.hipCm     ?? null,
-        }).then(() => {}).catch(err => {
-          reportError(err, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
-        });
-      }
-
-      // Save onboarding injuries — fire-and-forget (each is idempotent on retry).
-      if (user?.id && user?.email && Array.isArray(data.onboardingInjuries) && data.onboardingInjuries.length > 0) {
-        const injuryRows = data.onboardingInjuries.map(inj => ({
-          user_id:    user.id,
-          user_email: user.email,
-          muscle_group: inj.muscleGroup,
-          severity:     inj.severity,
-          notes:        'Logged during onboarding',
-          // Local date — see body_metrics insert above for the UTC rationale.
-          injured_at:   todayLocalDateString(),
-          status:       'active',
-        }));
-        supabase.from('injury_logs').insert(injuryRows).then(() => {}).catch(err => {
-          reportError(err, { feature: 'onboarding.injury-history', level: 'warning', userEmail: user?.email });
-        });
-      }
-
       saved = true;
     } catch (err) {
       // Full save failed — try the minimal fallback below. This is a
@@ -2909,78 +2910,144 @@ export default function Onboarding() {
         return;
       }
 
-      // Fallback: save the user's actual answers, not just username +
-      // the completion flag. Previously this only persisted username
-      // and onboarding_completed, so a user who filled all six steps
-      // and hit a transient network blip on the full save landed on
-      // the Dashboard with an empty profile (no fitness goals, no
-      // level, no demographics). The starter regimen grant also
-      // skipped because it needs goals + level. db.js's strip-and-retry
-      // (42703 / PGRST204) handles any column the running schema
-      // doesn't have, so passing every field is safe on legacy hosts.
+      // Tier 2 fallback: drop fitness_assessment (a JSONB column added
+      // in mig 129 — if PostgREST's schema cache or RLS rejects it for
+      // any reason, this layer skips it). All the other fields are
+      // included so the user's actual answers are persisted even when
+      // the full save trips on the assessment column.
+      let tier2Err = null;
       try {
-        await db.auth.updateMe({
-          username:                data.username.trim(),
-          fitness_goals:           Array.isArray(data.goal) ? data.goal.join(',') : (data.goal || ''),
-          fitness_goals_arr:       Array.isArray(data.goal) ? data.goal : [],
-          fitness_level:           data.level,
-          training_days:           data.days,
-          preferred_workout_time:  data.preferredTime,
-          age:                     data.stats?.age,
-          height_cm:    data.stats?.heightUnit === 'cm' ? String(data.stats?.heightCm) : String(Math.round((data.stats?.heightIn || 0) * 2.54)),
-          height_inches: data.stats?.heightUnit === 'in' ? String(data.stats?.heightIn) : String(Math.round((data.stats?.heightCm || 0) / 2.54)),
-          height_unit:  data.stats?.heightUnit === 'cm' ? 'metric' : 'imperial',
-          weight_kg:    data.stats?.weightUnit === 'kg' ? String(data.stats?.weightKg) : String(Math.round((data.stats?.weightLb || 0) * 0.453592)),
-          weight_lbs:   data.stats?.weightUnit === 'lb' ? String(data.stats?.weightLb) : String(Math.round((data.stats?.weightKg || 0) / 0.453592)),
-          weight_unit:  data.stats?.weightUnit === 'kg' ? 'kg' : 'lbs',
-          onboarding_completed:    true,
-          onboarding_completed_at: new Date().toISOString(),
-        });
+        await db.auth.updateMe(minimalProfile);
         setWeightUnit(weightUnit);
         markReturningUser();
         if (checkUserAuth) await checkUserAuth();
         saved = true;
       } catch (minErr) {
-        // Both saves failed — this IS the user-blocking state. Report as
-        // 'error' level so it stands out from the warning-level full-save
-        // attempt above.
-        reportError(minErr, { feature: 'onboarding.minimal-save', userEmail: user?.email, note: 'both full and minimal save failed' });
-        // Same duplicate detection on the minimal save.
-        const isDupUsernameMin =
-          minErr?.code === '23505' ||
-          /duplicate key|unique constraint|already exists/i.test(minErr?.message || '');
-        const isProfaneUsernameMin =
-          minErr?.code === '23514' &&
-          /username_profanity|prohibited content/i.test((minErr?.message || '') + ' ' + (minErr?.hint || ''));
-        if (isDupUsernameMin) {
-          setUsernameError('That username is already taken. Try another.');
-          const ageIdx = STEPS.indexOf('age');
-          if (ageIdx >= 0) goTo(ageIdx);
-          toast.error('That username is already taken — try another.');
-        } else if (isProfaneUsernameMin) {
-          setUsernameError('That username contains prohibited content. Pick another.');
-          const ageIdx = STEPS.indexOf('age');
-          if (ageIdx >= 0) goTo(ageIdx);
-          toast.error('Username contains prohibited content — pick another.');
-        } else {
-          // Do NOT mark as returning user — onboarding_completed never wrote to DB.
-          // User will be able to retry by tapping Save again. Include a hint
-          // about which kind of failure this looks like so the user knows
-          // whether to retry or to take action.
-          const looksOffline = !navigator.onLine || /network|failed to fetch|timeout/i.test(minErr?.message || '');
-          toast.error(
-            looksOffline
-              ? "You're offline — reconnect and tap Save again."
-              : 'Could not save your profile. Tap Save to retry.',
-            { duration: 6000 }
-          );
+        tier2Err = minErr;
+      }
+
+      if (!saved) {
+        // Tier 3 — LAST RESORT. Persist just username + the onboarding
+        // flag. This is the bulletproof guarantee: if our backend is
+        // even minimally responsive, the user can finish onboarding and
+        // fix profile details later from Settings, instead of being
+        // stranded forever on the reveal screen. The strip-and-retry
+        // inside updateMe handles missing columns transparently.
+        try {
+          await db.auth.updateMe(coreProfile);
+          setWeightUnit(weightUnit);
+          markReturningUser();
+          if (checkUserAuth) await checkUserAuth();
+          saved = true;
+          // Loud but non-blocking: let the user know some details
+          // didn't save so they're not surprised to see missing data.
+          toast.warning('Some profile details could not be saved — finish setup from Settings later.', { duration: 5000 });
+          reportError(tier2Err, { feature: 'onboarding.tier3-recovery', level: 'warning', userEmail: user?.email, note: 'core saved, details deferred' });
+        } catch (coreErr) {
+          // Even the last-resort save failed — this is a real backend
+          // outage. Report at error level + surface the actual PG code
+          // in the toast so the user can report something specific.
+          reportError(coreErr, { feature: 'onboarding.core-save', userEmail: user?.email, note: 'all 3 tiers failed', tier2Err: tier2Err?.message });
+          const isDupUsernameCore =
+            coreErr?.code === '23505' ||
+            /duplicate key|unique constraint|already exists/i.test(coreErr?.message || '');
+          const isProfaneUsernameCore =
+            coreErr?.code === '23514' &&
+            /username_profanity|prohibited content/i.test((coreErr?.message || '') + ' ' + (coreErr?.hint || ''));
+          if (isDupUsernameCore) {
+            setUsernameError('That username is already taken. Try another.');
+            const ageIdx = STEPS.indexOf('age');
+            if (ageIdx >= 0) goTo(ageIdx);
+            toast.error('That username is already taken — try another.');
+          } else if (isProfaneUsernameCore) {
+            setUsernameError('That username contains prohibited content. Pick another.');
+            const ageIdx = STEPS.indexOf('age');
+            if (ageIdx >= 0) goTo(ageIdx);
+            toast.error('Username contains prohibited content — pick another.');
+          } else {
+            const looksOffline =
+              !navigator.onLine ||
+              /network|failed to fetch|timeout|fetch failed/i.test(coreErr?.message || '');
+            // Surface the actual PG error code so reports come in
+            // with something actionable instead of "Could not save."
+            const code = coreErr?.code ? ` (${coreErr.code})` : '';
+            const detail = coreErr?.message ? `: ${String(coreErr.message).slice(0, 120)}` : '';
+            toast.error(
+              looksOffline
+                ? "You're offline — reconnect and tap Save again."
+                : `Could not save your profile${code}. Tap Save to retry${detail}`,
+              { duration: 8000 }
+            );
+          }
         }
       }
     } finally {
       setSaving(false);
       submittingRef.current = false;
-      // Only navigate away if at least the minimal save succeeded.
+      // Only navigate away if SOME save tier succeeded. Side-effects
+      // (capsule, regimen, body-metrics, injuries) fire here so they
+      // run regardless of which tier landed the profile — a Tier 2/3
+      // user still gets their welcome capsule + starter regimen.
       if (saved) {
+        // Welcome capsule — idempotent, fire-and-forget.
+        if (user?.id && user?.email) {
+          grantWelcomeCapsule(user.id, user.email).catch(sideErr => {
+            reportError(sideErr, { feature: 'onboarding.welcome-capsule', level: 'warning', userEmail: user?.email });
+          });
+        }
+        // Starter regimen — idempotent (skips if any regimens exist).
+        ensureStarterRegimen({
+          user,
+          profile: {
+            goals: data.goal,
+            level: data.level,
+            daysCount: Array.isArray(data.days) ? data.days.length : 0,
+            assessment: data.assessment || null,
+          },
+        }).catch(sideErr => {
+          reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
+        });
+
+        // Body baseline (mig 133) — only if user filled bodyBaseline
+        // step. weight_lbs left NULL unless user actually touched the
+        // weight step (avoids phantom default-165 entry contaminating
+        // the Progress chart). Audit 13 #2.
+        const bb = data.bodyBaseline || {};
+        const hasMeasurements = Object.values(bb).some(v => v != null && v !== '');
+        const userTouchedWeight = !!data.stats?.userTouchedWeight;
+        if (user?.id && hasMeasurements) {
+          supabase.from('body_metrics').insert({
+            created_by: user.email,
+            user_id:    user.id,
+            date:       todayLocalDateString(),
+            weight_lbs: userTouchedWeight
+              ? (s.weightUnit === 'lb' ? safeInt(s.weightLb, 165) : Math.round(safeInt(s.weightKg, 75) * 2.20462))
+              : null,
+            body_fat_pct: bb.bodyFatPct ?? null,
+            waist_cm:   bb.waistCm   ?? null,
+            chest_cm:   bb.chestCm   ?? null,
+            hip_cm:     bb.hipCm     ?? null,
+          }).then(() => {}).catch(sideErr => {
+            reportError(sideErr, { feature: 'onboarding.body-baseline', level: 'warning', userEmail: user?.email });
+          });
+        }
+
+        // Injuries from onboarding step.
+        if (user?.id && user?.email && Array.isArray(data.onboardingInjuries) && data.onboardingInjuries.length > 0) {
+          const injuryRows = data.onboardingInjuries.map(inj => ({
+            user_id:    user.id,
+            user_email: user.email,
+            muscle_group: inj.muscleGroup,
+            severity:     inj.severity,
+            notes:        'Logged during onboarding',
+            injured_at:   todayLocalDateString(),
+            status:       'active',
+          }));
+          supabase.from('injury_logs').insert(injuryRows).then(() => {}).catch(sideErr => {
+            reportError(sideErr, { feature: 'onboarding.injury-history', level: 'warning', userEmail: user?.email });
+          });
+        }
+
         // Clear the persisted draft now that the profile is in the DB.
         try { localStorage.removeItem(ONBOARDING_DRAFT_KEY); } catch { /* ignore */ }
         navigate('/dashboard', { replace: true });
