@@ -22,7 +22,7 @@ import { toast } from 'sonner';
 // Scales everything to 65% of their typical volume.
 // Caps at 45 minutes (~5 exercises, 3 sets each).
 
-function buildComebackSession(workoutLogs, daysSince) {
+function buildComebackSession(workoutLogs, daysSince, userProfile = {}) {
   // The absence window: anything older than (daysSince) days
   const absenceStart = subDays(new Date(), daysSince);
   const lookbackEnd  = new Date(absenceStart);
@@ -116,7 +116,7 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
 
     setLoading(true);
     try {
-      const exercises = buildComebackSession(workoutLogs, daysSince);
+      const exercises = buildComebackSession(workoutLogs, daysSince, userProfile);
       if (!exercises || exercises.length === 0) {
         toast.info('Not enough history to build a comeback session. Loading your normal workout.');
         onSkip();

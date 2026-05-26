@@ -158,6 +158,7 @@ export default function DailyQuestsCard({ onNavigated }) {
             onClaim={() => handleClaim(q)}
             onGo={() => goToQuest(q)}
             t={t}
+            tFallback={tFallback}
           />
         ))}
       </div>
@@ -171,7 +172,7 @@ export default function DailyQuestsCard({ onNavigated }) {
   );
 }
 
-function QuestRow({ quest, onClaim, onGo, t }) {
+function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
   const def = quest.definition;
   const completed = !!quest.completed_at;
   const claimed = !!quest.claimed_at;
