@@ -1110,13 +1110,32 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
 
   // Tap-to-type: tapping the big number opens a numeric keypad so users
   // on mobile don't have to drag-scrub or hammer ±1 to get to their age.
-  // Mirrors the Weight step's tap-to-type pattern.
+  //
+  // CONTROLLED with a local string draft. Clamp ONLY on blur — typing
+  // "1" used to instantly clamp to 13 (min), so the user saw "13"
+  // appear before they could finish typing. Same defect as WeightStep
+  // and HeightStep. (Audit 13 #3.)
   const [editingAge, setEditingAge] = useState(false);
+  const [draftAge,   setDraftAge]   = useState('');
   const ageInputRef = useRef(null);
-  const handleAgeTap = () => { setEditingAge(true); setTimeout(() => ageInputRef.current?.focus(), 30); };
+  const handleAgeTap = () => {
+    setDraftAge(String(age));
+    setEditingAge(true);
+    setTimeout(() => {
+      const el = ageInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    }, 30);
+  };
   const handleAgeInput = (e) => {
-    const v = parseInt(e.target.value, 10);
-    if (!isNaN(v)) setAge(Math.min(80, Math.max(13, v)));
+    setDraftAge((e.target.value || '').replace(/[^0-9]/g, '').slice(0, 3));
+  };
+  const handleAgeBlur = () => {
+    const parsed = parseInt(draftAge, 10);
+    if (Number.isFinite(parsed)) setAge(Math.min(80, Math.max(13, parsed)));
+    setEditingAge(false);
+    setDraftAge('');
   };
 
   // Track when the username field strips a character so we can surface a
@@ -1206,16 +1225,15 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             {editingAge ? (
               <input
                 ref={ageInputRef}
-                type="number"
+                type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 enterKeyHint="done"
-                defaultValue={age}
-                min={13}
-                max={80}
-                onBlur={() => setEditingAge(false)}
+                value={draftAge}
+                onBlur={handleAgeBlur}
                 onChange={handleAgeInput}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                aria-label="Your age"
                 style={{ width: 180, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 96, lineHeight: 0.9, letterSpacing: '-0.06em', textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '3px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
               />
             ) : (
@@ -1345,16 +1363,79 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
-  // Tap-to-type for height — mobile users complained that the vertical
-  // ruler is too sensitive to drag accurately. Typing is faster anyway.
-  // In ft·in mode we accept total inches and let users see the readout
-  // convert to ft'in" live; this keeps the input simple (one number).
+  // Tap-to-type for height.
+  //
+  // CONTROLLED with a local string draft + clamp-on-blur (same fix as
+  // WeightStep / AgeStep). Previously the input clamped on every
+  // keystroke, so typing "1" instantly jumped to 48 (min for inches)
+  // and the user couldn't enter any number that needs to start below
+  // the minimum.
+  //
+  // In ft·in mode, the input now accepts EITHER total inches ("70")
+  // OR feet+inches ("5'10" or "5 10" or "5.10"). The previous version
+  // silently accepted only total-inches with no copy explaining it,
+  // so users typed "6" expecting "6 feet" and the value clamped to
+  // 6 inches (4'0" after re-clamp). (Audit 13 #3 + #4.)
   const [editingHeight, setEditingHeight] = useState(false);
+  const [draftHeight,   setDraftHeight]   = useState('');
   const heightInputRef = useRef(null);
-  const handleHeightTap = () => { setEditingHeight(true); setTimeout(() => heightInputRef.current?.focus(), 30); };
+
+  // Parse the user's text input into a clamped value in current unit.
+  // For ft·in mode, supports several familiar shapes:
+  //   "70"       → 70 inches
+  //   "5'10"     → 70 inches
+  //   "5 10"     → 70 inches
+  //   "5.10"     → 70 inches (legibility shortcut, not a true decimal)
+  //   "5'10\""   → 70 inches
+  //   "5"        → 60 inches  (interpreted as feet when alone in ft·in
+  //                            mode AND in range — typing "5" by itself
+  //                            far more often means "5 feet" than
+  //                            "5 inches")
+  const parseHeightDraft = (raw, mode) => {
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return null;
+    if (mode === 'cm') {
+      const n = parseInt(trimmed.replace(/[^0-9]/g, ''), 10);
+      return Number.isFinite(n) ? n : null;
+    }
+    // ft·in mode
+    const ftInMatch = trimmed.match(/^(\d{1,2})\s*(?:['’ .]\s*)?(\d{0,2})\s*(?:["”]?)$/);
+    if (ftInMatch) {
+      const ft = parseInt(ftInMatch[1] || '0', 10);
+      const inch = parseInt(ftInMatch[2] || '0', 10);
+      const total = ft * 12 + inch;
+      // Heuristic: bare "5" (no inches separator) = 5 ft; bare "70"
+      // (≥ min inches) = 70 inches. The ftInMatch above captures the
+      // bare-number case in ftInMatch[1] with empty [2], so total = ft*12.
+      // For bare numbers >= 36 (typical lower bound where total-inches
+      // makes sense), prefer total-inches interpretation.
+      if (!ftInMatch[2] && ft >= 36) return ft;
+      return total;
+    }
+    return null;
+  };
+
+  const handleHeightTap = () => {
+    // Pre-fill the draft with the current value in a friendly shape
+    setDraftHeight(unit === 'cm' ? String(value) : `${Math.floor(value / 12)}'${value % 12}`);
+    setEditingHeight(true);
+    setTimeout(() => {
+      const el = heightInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    }, 30);
+  };
   const handleHeightInput = (e) => {
-    const v = parseInt(e.target.value, 10);
-    if (!isNaN(v)) setValue(Math.min(range[1], Math.max(range[0], v)));
+    // Allow digits + the ft·in separators only.
+    const allowed = unit === 'cm' ? /[^0-9]/g : /[^0-9'’ ."”]/g;
+    setDraftHeight((e.target.value || '').replace(allowed, '').slice(0, 8));
+  };
+  const handleHeightBlur = () => {
+    const parsed = parseHeightDraft(draftHeight, unit);
+    if (Number.isFinite(parsed)) setValue(Math.min(range[1], Math.max(range[0], parsed)));
+    setEditingHeight(false);
+    setDraftHeight('');
   };
 
   const [trackH, setTrackH] = useState(240);
@@ -1428,16 +1509,20 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
               {editingHeight ? (
                 <input
                   ref={heightInputRef}
-                  type="number"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  // type="text" so the ft·in separator chars (' or " or .)
+                  // are typeable on mobile. type="number" rejects them.
+                  type="text"
+                  // Numeric keypad for cm mode; default for ft·in mode
+                  // (need the apostrophe/quote/dot keys).
+                  inputMode={unit === 'cm' ? 'numeric' : 'text'}
+                  pattern={unit === 'cm' ? '[0-9]*' : undefined}
                   enterKeyHint="done"
-                  defaultValue={value}
-                  min={range[0]}
-                  max={range[1]}
-                  onBlur={() => setEditingHeight(false)}
+                  value={draftHeight}
+                  placeholder={unit === 'cm' ? '170' : "5'10"}
+                  onBlur={handleHeightBlur}
                   onChange={handleHeightInput}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
+                  aria-label={`Your height in ${unit === 'cm' ? 'centimeters' : 'feet and inches'}`}
                   style={{ width: '100%', fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 32, lineHeight: 1, textAlign: 'left', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none', padding: 0 }}
                 />
               ) : (
@@ -1552,15 +1637,48 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
   const bump = (dir) => setValue(Math.min(range[1], Math.max(range[0], value + dir)));
 
-  // Tap-to-type: tapping the big number shows a native input
+  // Tap-to-type: tapping the big number shows a native input.
+  //
+  // CONTROLLED with a local STRING. Previously the input was
+  // uncontrolled (defaultValue) and clamped every keystroke. A user
+  // wanting to type "165" would type "1" → clamped to 80 (min for lb)
+  // → screen showed "80" instead of "1", and there was no way to
+  // type any number that needs to start below the minimum. The
+  // user's dad couldn't enter his weight at all — confirmed against
+  // the audit-finding-13 #3 description. (Audit 13 #3.)
+  //
+  // Now: while editing, the string is allowed to be anything
+  // (including empty, mid-typed, etc.). Numeric parse + clamp only
+  // happens on BLUR / Enter, when the user signals "done." If the
+  // final input is empty or unparseable, we revert to the prior
+  // committed value rather than clamping to min.
   const [editingWeight, setEditingWeight] = useState(false);
+  const [draftWeight,   setDraftWeight]   = useState('');
   const weightInputRef = useRef(null);
-  const handleWeightTap = () => { setEditingWeight(true); setTimeout(() => weightInputRef.current?.focus(), 30); };
-  const handleWeightInput = (e) => {
-    const v = parseInt(e.target.value, 10);
-    if (!isNaN(v)) setValue(Math.min(range[1], Math.max(range[0], v)));
+  const handleWeightTap = () => {
+    setDraftWeight(String(value));
+    setEditingWeight(true);
+    setTimeout(() => {
+      const el = weightInputRef.current;
+      if (!el) return;
+      el.focus();
+      el.select();
+    }, 30);
   };
-  const handleWeightBlur = () => setEditingWeight(false);
+  const handleWeightInput = (e) => {
+    // Allow only digits in the draft string; tolerate empty.
+    const next = (e.target.value || '').replace(/[^0-9]/g, '').slice(0, 4);
+    setDraftWeight(next);
+  };
+  const handleWeightBlur = () => {
+    const parsed = parseInt(draftWeight, 10);
+    if (Number.isFinite(parsed)) {
+      setValue(Math.min(range[1], Math.max(range[0], parsed)));
+    }
+    // If parsed is NaN (empty draft / non-numeric), keep prior value.
+    setEditingWeight(false);
+    setDraftWeight('');
+  };
 
   const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
 
@@ -1618,17 +1736,20 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
             {editingWeight ? (
               <input
                 ref={weightInputRef}
-                type="number"
+                // type="text" with inputMode="numeric" is the iOS-friendly
+                // numeric-keyboard pattern; type="number" has historic
+                // quirks (scroll-wheel changes value, leading zeros
+                // stripped weirdly, harder to clear on some browsers).
+                type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
                 enterKeyHint="done"
-                defaultValue={value}
-                min={range[0]}
-                max={range[1]}
+                value={draftWeight}
                 onBlur={handleWeightBlur}
                 onChange={handleWeightInput}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.currentTarget.blur(); } }}
-                style={{ width: 110, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
+                aria-label={`Weight in ${unit === 'kg' ? 'kilograms' : 'pounds'}`}
+                style={{ width: 130, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
               />
             ) : (
               <button onClick={handleWeightTap} style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}>
