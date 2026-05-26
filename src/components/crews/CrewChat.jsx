@@ -382,6 +382,31 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     setSending(true);
     stickRef.current = true;
 
+    // Optimistic insert into the React Query cache so the message
+    // appears immediately. Previously the send awaited the server +
+    // the next refetchInterval (up to 4s) before the message echoed
+    // back — felt broken on slow networks. Same pattern as HubChat.
+    // (Audit 10 #18.)
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const isImageSend = !!attachment;
+    if (!isImageSend) {
+      qc.setQueryData(['crewMessages', crew.id], (old) => {
+        const arr = Array.isArray(old) ? old : [];
+        return [
+          ...arr,
+          {
+            id: tempId,
+            crew_id: crew.id,
+            sender_id: user.id,
+            message_type: 'text',
+            content: trimmed,
+            created_at: new Date().toISOString(),
+            _optimistic: true,
+          },
+        ];
+      });
+    }
+
     try {
       if (attachment) {
         const fileToUpload = attachment.file;
@@ -398,6 +423,14 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       } else {
         await crewsData.sendCrewMessage(crew.id, user.id, 'text', trimmed);
       }
+      // Server INSERT succeeded — refetch to swap the temp row for the
+      // real one. Drop the optimistic row in case the refetch hasn't
+      // picked up the real one yet so we don't show a dupe.
+      qc.setQueryData(['crewMessages', crew.id], (old) => {
+        const arr = Array.isArray(old) ? old : [];
+        return arr.filter(m => m.id !== tempId);
+      });
+      qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       setDraft('');
       const hypeEmoji = detectHype(trimmed);
       if (hypeEmoji) {
@@ -406,6 +439,13 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       }
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
     } catch {
+      // Send failed — revert the optimistic row + restore the draft
+      // so the user can retry without retyping.
+      qc.setQueryData(['crewMessages', crew.id], (old) => {
+        const arr = Array.isArray(old) ? old : [];
+        return arr.filter(m => m.id !== tempId);
+      });
+      setDraft(trimmed);
       toast.error('Could not send message — try again.');
     } finally {
       setSending(false);
