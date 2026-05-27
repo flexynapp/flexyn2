@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2 } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2 } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
@@ -522,7 +522,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   // Fall back to `content` for posts created before migration 004
   const postBody     = post.body || post.content || '';
   const likeCount    = Math.max(0, (post.like_count    || 0) + adjust('like'));
-  const dislikeCount = Math.max(0, (post.dislike_count || 0) + adjust('dislike'));
+
 
   const runWorker = async () => {
     inFlightRef.current = true;
@@ -1096,13 +1096,6 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           active={displayedReaction === 'like'}
           activeColor="text-primary"
           onClick={() => handleReact('like')}
-        />
-        <ActionButton
-          icon={ThumbsDown}
-          count={dislikeCount}
-          active={displayedReaction === 'dislike'}
-          activeColor="text-destructive"
-          onClick={() => handleReact('dislike')}
         />
         <EmojiReactionButton
           postId={post.id}

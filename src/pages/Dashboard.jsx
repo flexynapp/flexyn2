@@ -47,6 +47,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { toast } from 'sonner';
 
 /* ──────────────────────────────────────────────────────────────────
  *  Sub-components live in this file deliberately — they only exist
@@ -645,6 +646,26 @@ export default function Dashboard() {
           t={t}
         />
       </div>
+
+      {/* ── Daily quote ────────────────────────────────────────── */}
+      <div className="mb-4 md:mb-5">
+        <DailyQuote />
+      </div>
+
+      {/* ── Customize Home placeholder ───────────────────────────── */}
+      <button
+        onClick={() => toast.info(tFallback('dashboard.customize.soon', 'Home customization coming soon!'))}
+        className="w-full mb-4 md:mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border/60 bg-secondary/20 hover:bg-secondary/40 transition-colors text-left group"
+      >
+        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+          <span className="text-base">🎛️</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold">{tFallback('dashboard.customize.title', 'Customize Home')}</p>
+          <p className="text-xs text-muted-foreground">{tFallback('dashboard.customize.subtitle', 'Rearrange your dashboard widgets')}</p>
+        </div>
+        <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors rtl:scale-x-[-1]" />
+      </button>
 
       {/* ── Today's plan / repeat / rest-day — paired bento row ──────
            flex-wrap + flex-1 + empty:hidden: present cards split the

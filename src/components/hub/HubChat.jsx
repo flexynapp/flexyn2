@@ -111,15 +111,6 @@ function dedupeMessages(list) {
   return out;
 }
 
-// ── DM fire-reaction helpers ──────────────────────────────────────────────────
-const DM_FIRE_KEY = (convId) => `dm_fire_reactions_${convId}`;
-
-function loadDmFires(convId) {
-  try { return JSON.parse(localStorage.getItem(DM_FIRE_KEY(convId)) || '{}'); } catch { return {}; }
-}
-function saveDmFires(convId, map) {
-  try { localStorage.setItem(DM_FIRE_KEY(convId), JSON.stringify(map)); } catch {}
-}
 
 const QUICK_EMOJIS = ['👍', '❤️', '😂', '🔥', '😮'];
 
@@ -187,12 +178,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
   // ── Double-tap fire reactions ──────────────────────────────────────────────
   const lastTapRef = useRef({ id: null, time: 0 });
-  const [fireReactions, setFireReactions] = useState(() => loadDmFires(conversation?.id));
   const [floatingFires, setFloatingFires] = useState([]);
-  useEffect(() => { setFireReactions(loadDmFires(conversation?.id)); }, [conversation?.id]);
 
   // ── Pinning ────────────────────────────────────────────────────────────────
   const [pinnedIds, setPinnedIds] = useState(() => new Set());
+  const [pinnedOpen, setPinnedOpen] = useState(false);
   const [contextMsg, setContextMsg] = useState(null);
   const longPressRef = useRef(null);
 
@@ -499,26 +489,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   }, [user?.id]);
 
-  // ── Double-tap fire ───────────────────────────────────────────────────────
-  const handleMessageTap = useCallback((msgId) => {
-    const now = Date.now();
-    const last = lastTapRef.current;
-    if (last.id === msgId && now - last.time < 320) {
-      lastTapRef.current = { id: null, time: 0 };
-      setFireReactions(prev => {
-        const next = { ...prev, [msgId]: !prev[msgId] };
-        saveDmFires(conversation?.id, next);
-        return next;
-      });
-      if (!fireReactions[msgId]) {
-        const floatId = `${msgId}-${now}`;
-        setFloatingFires(f => [...f, { id: floatId, msgId }]);
-        setTimeout(() => setFloatingFires(f => f.filter(x => x.id !== floatId)), 900);
-      }
-    } else {
-      lastTapRef.current = { id: msgId, time: now };
-    }
-  }, [conversation?.id, fireReactions]);
+  // ── Double-tap fire — defined placeholder here, real impl after handleEmojiReact ──
+  const handleMessageTapRef = useRef(null);
 
   // ── Long-press for context menu ───────────────────────────────────────────
   // Move tolerance: cancel only if finger moves > 8 px from start position.
@@ -770,6 +742,22 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     }
   }, [user?.id]);
 
+  // ── Double-tap fire — real impl (must be AFTER handleEmojiReact to avoid TDZ) ──
+  const handleMessageTap = useCallback((msg) => {
+    const now = Date.now();
+    const last = lastTapRef.current;
+    if (last.id === msg.id && now - last.time < 320) {
+      lastTapRef.current = { id: null, time: 0 };
+      handleEmojiReact(msg, '🔥');
+      const floatId = `${msg.id}-${now}`;
+      setFloatingFires(f => [...f, { id: floatId, msgId: msg.id }]);
+      setTimeout(() => setFloatingFires(f => f.filter(x => x.id !== floatId)), 900);
+    } else {
+      lastTapRef.current = { id: msg.id, time: now };
+    }
+  }, [handleEmojiReact]);
+  handleMessageTapRef.current = handleMessageTap;
+
   // ── Inline reply ──────────────────────────────────────────────────────────
   const handleReply = useCallback((msg) => {
     setContextMsg(null);
@@ -955,6 +943,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         >
           <Search className="w-4 h-4" />
         </button>
+        <button
+          onClick={() => setPinnedOpen(v => !v)}
+          aria-label="Pinned messages"
+          className={`p-1.5 rounded-md transition-colors text-base leading-none ${pinnedOpen ? 'bg-primary/15' : 'hover:bg-secondary'}`}
+        >
+          📌
+        </button>
       </div>
 
       {/* Message Request banner — shows when the viewer is a participant
@@ -1005,6 +1000,33 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           )}
         </div>
       )}
+
+      {/* Pinned messages panel */}
+      {pinnedOpen && (() => {
+        const pinned = messages.filter(m => isPinned(m));
+        return (
+          <div className="mb-2 shrink-0 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-amber-500/20">
+              <span className="text-sm">📌</span>
+              <span className="text-xs font-bold text-amber-600 uppercase tracking-wide">Pinned Messages</span>
+              <span className="ms-auto text-xs text-muted-foreground">{pinned.length}</span>
+            </div>
+            {pinned.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-3 py-2">No pinned messages yet.</p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto">
+                {pinned.map(m => (
+                  <button key={m.id} type="button"
+                    onClick={() => { scrollToMessage(m.id); setPinnedOpen(false); }}
+                    className="w-full text-start px-3 py-2 text-xs hover:bg-secondary/40 transition-colors border-b border-border/50 last:border-0">
+                    <p className="text-muted-foreground truncate">{m.body || m.content || '(media)'}</p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Messages */}
       <div
@@ -1092,7 +1114,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                     );
                   }
 
-                  const hasFire = !!fireReactions[m.id];
                   const floatingFire = floatingFires.find(f => f.msgId === m.id);
                   const msgIsPinned = isPinned(m);
 
@@ -1121,7 +1142,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           🔥
                         </motion.span>
                       )}
-                      <div className={`relative flex flex-col ${isMine ? 'items-end' : 'items-start'}`}>
+                      <div className={`relative flex flex-col w-full min-w-0 ${isMine ? 'items-end' : 'items-start'}`}>
                         {/* Reply quote block */}
                         {/* Sender name — only in groups, only above
                             the other person's messages, only at the
@@ -1150,8 +1171,8 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         <div
                           role="button"
                           tabIndex={0}
-                          onClick={() => !isOptimistic && handleMessageTap(m.id)}
-                          onKeyDown={(e) => { if (e.key === 'Enter') handleMessageTap(m.id); }}
+                          onClick={() => !isOptimistic && handleMessageTapRef.current?.(m)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleMessageTapRef.current?.(m); }}
                           onMouseDown={(e) => !isOptimistic && startLongPress(m, e)}
                           onMouseUp={cancelLongPress}
                           onMouseLeave={cancelLongPress}
@@ -1262,14 +1283,6 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           </div>
                         )}
 
-                        {/* Persistent fire badge — inward-facing */}
-                        {hasFire && (
-                          <span
-                            className={`absolute -bottom-2 text-sm leading-none pointer-events-none select-none ${
-                              isMine ? '-left-3' : '-right-3'
-                            }`}
-                          >🔥</span>
-                        )}
                         {/* Pin badge — inward-facing */}
                         {msgIsPinned && (
                           <span

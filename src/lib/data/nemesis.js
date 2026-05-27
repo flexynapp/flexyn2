@@ -36,7 +36,7 @@ export async function getNemesisProfile(nemesisId) {
  * Queries for someone 10–20% higher XP, active in last 14 days,
  * not opted out, not already followed.
  */
-export async function assignNemesis() {
+export async function assignNemesis({ sendNotification = false } = {}) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
 
@@ -125,29 +125,28 @@ export async function assignNemesis() {
   // we fall back to the previous client-side English INSERT so the
   // bell tray still gets a row. Push fanout still works in either
   // path — the trigger fires on any notifications INSERT.
-  try {
-    const { error: rpcErr } = await supabase.rpc('notify_nemesis_assigned_for', {
-      p_nemesis_id: chosen.id,
-    });
-    if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
-      await supabase.from('notifications').insert({
-        user_id:    user.id,
-        user_email: user.email,
-        type:       'nemesis_assigned',
-        title:      `🎯 Meet your nemesis: ${chosen.username || 'a rival'}`,
-        body:       'They\'re a step above you. Beat their stats, claim their rank.',
-        icon:       '🎯',
-        link_url:   '/dashboard',
-        metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+  if (sendNotification) {
+    try {
+      const { error: rpcErr } = await supabase.rpc('notify_nemesis_assigned_for', {
+        p_nemesis_id: chosen.id,
       });
-    } else if (rpcErr) {
-      // Real RPC failure — log but don't surface; the assignment itself
-      // succeeded which is the canonical event.
-      console.warn('[nemesis] notify_nemesis_assigned_for failed:', rpcErr);
+      if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
+        await supabase.from('notifications').insert({
+          user_id:    user.id,
+          user_email: user.email,
+          type:       'nemesis_assigned',
+          title:      `🎯 Meet your nemesis: ${chosen.username || 'a rival'}`,
+          body:       'They\'re a step above you. Beat their stats, claim their rank.',
+          icon:       '🎯',
+          link_url:   '/dashboard',
+          metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+        });
+      } else if (rpcErr) {
+        console.warn('[nemesis] notify_nemesis_assigned_for failed:', rpcErr);
+      }
+    } catch (e) {
+      console.warn('[nemesis] notification dispatch threw:', e?.message || e);
     }
-  } catch (e) {
-    // Network / unexpected throw. Non-critical.
-    console.warn('[nemesis] notification dispatch threw:', e?.message || e);
   }
 
   return data;
@@ -286,7 +285,7 @@ export async function performOverthrow(assignmentId) {
     console.warn('[nemesis] overthrow notification failed:', e?.message || e);
   }
 
-  return assignNemesis();
+  return assignNemesis({ sendNotification: true });
 }
 
 /** Update opt-out preference */
