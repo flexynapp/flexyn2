@@ -185,15 +185,18 @@ BEGIN
     v_real_name := COALESCE(SPLIT_PART(v_sender_email, '@', 1), 'Someone');
   END IF;
 
-  SELECT u.email, prof.preferred_language
-    INTO v_email, v_lang
-    FROM auth.users u
-    LEFT JOIN public.user_profiles prof ON prof.id = u.id
-   WHERE u.id = p_user_id;
+  -- Recipient identity, resolved with two single-table reads instead of a
+  -- join so the SQL stays paste-safe (no short two-char alias-dot-column
+  -- tokens, which the SQL-editor paste pipeline mangles into a 42601).
+  SELECT email INTO v_email
+    FROM auth.users WHERE id = p_user_id;
 
   IF v_email IS NULL THEN
     RETURN NULL;
   END IF;
+
+  SELECT preferred_language INTO v_lang
+    FROM public.user_profiles WHERE id = p_user_id;
 
   v_text := public.friend_post_text(COALESCE(v_lang, 'en'), v_real_name);
 
