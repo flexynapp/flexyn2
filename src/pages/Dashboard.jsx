@@ -5,9 +5,9 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2 } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
@@ -47,7 +47,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
-import { toast } from 'sonner';
+
 
 /* ──────────────────────────────────────────────────────────────────
  *  Sub-components live in this file deliberately — they only exist
@@ -275,6 +275,9 @@ export default function Dashboard() {
   const [logWeightOpen, setLogWeightOpen] = useState(false);
   const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const defaultWidgetOrder = ['recovery', 'challenges', 'progress', 'actions'];
+  const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
 
   // ── Rest day declaration ──────────────────────────────────────────────────
   // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
@@ -298,6 +301,25 @@ export default function Dashboard() {
   const handleUndoRestDay = () => {
     try { localStorage.removeItem(restDayKey); } catch {}
     setIsRestDay(false);
+  };
+
+  // Load + persist widget order per user
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const saved = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && defaultWidgetOrder.every(id => parsed.includes(id))) {
+          setWidgetOrder(parsed);
+        }
+      }
+    } catch {}
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleWidgetReorder = (newOrder) => {
+    setWidgetOrder(newOrder);
+    try { localStorage.setItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`, JSON.stringify(newOrder)); } catch {}
   };
 
   // ── Deep-link query params ───────────────────────────────────────────────
@@ -571,6 +593,109 @@ export default function Dashboard() {
     return fmt(n);
   };
 
+  /* ── Section renderer for drag-to-reorder ──────────────────────── */
+  const renderDashboardSection = (id) => {
+    switch (id) {
+      case 'recovery': return (
+        <React.Fragment key="recovery">
+          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+            {tFallback('dashboard.section.recovery', 'Recovery')}
+          </p>
+          <div className="mb-3">
+            <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
+          </div>
+          <div className="grid grid-cols-2 gap-3 mb-5 md:mb-6">
+            <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
+            <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+            <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
+            <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
+          </div>
+        </React.Fragment>
+      );
+      case 'challenges': return (
+        <React.Fragment key="challenges">
+          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+            {tFallback('dashboard.section.challenges', 'Challenges')}
+          </p>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
+            <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
+          </motion.div>
+          <div className="flex flex-wrap items-start gap-3 mb-3">
+            <div className="flex-1 min-w-[15rem] empty:hidden">
+              <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+            </div>
+            <div className="flex-1 min-w-[15rem] empty:hidden">
+              {!isRestDay && (
+                <StreakRescueCard
+                  streakDays={streak}
+                  lastWorkoutDate={lastWorkoutDate?.toISOString()}
+                  lastMealDate={lastMealDate?.toISOString()}
+                />
+              )}
+            </div>
+          </div>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
+            <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
+          </motion.div>
+          {user?.id && (
+            <div className="mb-5 md:mb-6">
+              <ErrorBoundary label="NemesisCard"><NemesisCard currentUserId={user.id} /></ErrorBoundary>
+            </div>
+          )}
+        </React.Fragment>
+      );
+      case 'progress': return (
+        <React.Fragment key="progress">
+          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
+            {tFallback('dashboard.section.progress', 'Your progress')}
+          </p>
+          <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
+            <StatTile icon={Activity} value={thisWeekLogs.length} label={t('dashboard.stats.thisWeek')} suffix={thisWeekLogs.length === 1 ? t('dashboard.stats.workoutSingular') : t('dashboard.stats.workoutPlural')} delay={0.05} accent trend={workoutTrend} />
+            <StatTile icon={Zap} value={formatVolume(weeklyVolume)} label={t('dashboard.stats.volume')} suffix={weightUnit} delay={0.12} />
+            <StatTile icon={Target} value={muscleGroupCount} label={t('dashboard.stats.muscles')} suffix={muscleGroupCount === 1 ? t('dashboard.stats.groupSingular') : t('dashboard.stats.groupPlural')} delay={0.19} trend={muscleTrend} />
+          </div>
+          <div className="mb-5 md:mb-6 space-y-3">
+            <ErrorBoundary label="GoalsAlmostComplete">
+              <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
+            </ErrorBoundary>
+            <ErrorBoundary label="GoalsProgressStrip">
+              <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
+            </ErrorBoundary>
+          </div>
+          <div className="mb-5 md:mb-6" data-recap-card>
+            <ErrorBoundary label="WeeklyRecap"><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+          </div>
+          <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
+            <div className="flex-1 min-w-[15rem] empty:hidden">
+              <ErrorBoundary label="WorkoutSuggestionCard"><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+            </div>
+            <div className="flex-1 min-w-[15rem] empty:hidden">
+              <ErrorBoundary label="WorkoutMemoryCard"><WorkoutMemoryCard logs={logs} /></ErrorBoundary>
+            </div>
+          </div>
+        </React.Fragment>
+      );
+      case 'actions': return (
+        <React.Fragment key="actions">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6 mt-7">
+            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1">
+              {t('dashboard.quickActions')}
+            </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              <QuickAction to="/workout" icon={Play} label={t('dashboard.startWorkout')} delay={0.18} />
+              <QuickAction icon={Dumbbell} label={t('dashboard.createRegimen')} onClick={() => navigate('/workout', { state: { openRegimens: true } })} delay={0.24} />
+              <QuickAction icon={TrendingUp} label={t('dashboard.checkProgress')} onClick={() => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); }} delay={0.30} />
+              <QuickAction icon={Apple} label={t('dashboard.logMeal')} onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })} delay={0.36} />
+              <QuickAction icon={Scale} label={tFallback('dashboard.logWeight', 'Log weight')} onClick={() => setLogWeightOpen(true)} delay={0.42} />
+              <QuickAction icon={Camera} label={tFallback('dashboard.addPhoto', 'Add progress photo')} onClick={() => setPhotoCaptureOpen(true)} delay={0.48} />
+            </div>
+          </motion.div>
+        </React.Fragment>
+      );
+      default: return null;
+    }
+  };
+
   /* ── Render ────────────────────────────────────────────────────── */
 
   return (
@@ -599,21 +724,36 @@ export default function Dashboard() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="mb-5 md:mb-6"
       >
-        <div className="flex items-baseline gap-2 mb-1.5">
-          <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-            {todayLabel}
-          </span>
+        <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+          {todayLabel}
+        </p>
+        <div className="flex items-start justify-between gap-2">
+          <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight flex-1 min-w-0">
+            <span className="text-muted-foreground/80">{greeting}</span>
+            {firstName && (
+              <>
+                <span className="text-muted-foreground/80">, </span>
+                <span className="text-foreground">{firstName}</span>
+              </>
+            )}
+            <span className="text-primary">.</span>
+          </h1>
+          <button
+            onClick={() => setEditMode(e => !e)}
+            title={editMode ? 'Done editing' : 'Customize home'}
+            className={`mt-1 shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+              editMode
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary'
+            }`}
+          >
+            {editMode ? (
+              <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
+            ) : (
+              <LayoutGrid className="w-4 h-4" />
+            )}
+          </button>
         </div>
-        <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-          <span className="text-muted-foreground/80">{greeting}</span>
-          {firstName && (
-            <>
-              <span className="text-muted-foreground/80">, </span>
-              <span className="text-foreground">{firstName}</span>
-            </>
-          )}
-          <span className="text-primary">.</span>
-        </h1>
 
         <AnimatePresence>
           {showWelcome && (
@@ -646,26 +786,6 @@ export default function Dashboard() {
           t={t}
         />
       </div>
-
-      {/* ── Daily quote ────────────────────────────────────────── */}
-      <div className="mb-4 md:mb-5">
-        <DailyQuote />
-      </div>
-
-      {/* ── Customize Home placeholder ───────────────────────────── */}
-      <button
-        onClick={() => toast.info(tFallback('dashboard.customize.soon', 'Home customization coming soon!'))}
-        className="w-full mb-4 md:mb-5 flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-border/60 bg-secondary/20 hover:bg-secondary/40 transition-colors text-left group"
-      >
-        <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-          <span className="text-base">🎛️</span>
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold">{tFallback('dashboard.customize.title', 'Customize Home')}</p>
-          <p className="text-xs text-muted-foreground">{tFallback('dashboard.customize.subtitle', 'Rearrange your dashboard widgets')}</p>
-        </div>
-        <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary transition-colors rtl:scale-x-[-1]" />
-      </button>
 
       {/* ── Today's plan / repeat / rest-day — paired bento row ──────
            flex-wrap + flex-1 + empty:hidden: present cards split the
@@ -756,249 +876,25 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ TIER 2 · Recovery & body trackers ════════════════════ */}
-      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-        {tFallback('dashboard.section.recovery', 'Recovery')}
-      </p>
-
-      {/* Readiness Score — composite of sleep + mood + recent-workout
-          recency. Drives the daily train/maintain/deload/rest decision. */}
-      <div className="mb-3">
-        <ErrorBoundary label="ReadinessCard">
-          <ReadinessCard logs={logs} />
-        </ErrorBoundary>
-      </div>
-
-      {/* Mood · Hydration · Calories · Macros — compact daily trackers
-          unified into one bento grid (2-up on phones, 4-up on desktop).
-          These never self-hide, so a plain grid is safe here. */}
-      <div className="grid grid-cols-2 gap-3 mb-5 md:mb-6">
-        <ErrorBoundary label="MoodLogCard">
-          <MoodLogCard />
-        </ErrorBoundary>
-        <ErrorBoundary label="HydrationRing">
-          <HydrationRing />
-        </ErrorBoundary>
-        <ErrorBoundary label="CalorieProgressWidget">
-          <CalorieProgressWidget userProfile={userProfile} />
-        </ErrorBoundary>
-        <ErrorBoundary label="MacroRingWidget">
-          <MacroRingWidget userProfile={userProfile} />
-        </ErrorBoundary>
-      </div>
-
-      {/* ═══ TIER 3 · Challenges & rewards ════════════════════════ */}
-      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-        {tFallback('dashboard.section.challenges', 'Challenges')}
-      </p>
-
-      {/* ── Daily quests card ───────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="mb-3"
-      >
-        <ErrorBoundary label="DailyQuestsCard">
-          <DailyQuestsCard />
-        </ErrorBoundary>
-      </motion.div>
-
-      {/* Daily chest + streak rescue — paired reward banners. Both
-          self-hide (chest once claimed, rescue outside its window), so
-          empty:hidden drops whichever is absent and the other fills. */}
-      <div className="flex flex-wrap items-start gap-3 mb-3">
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
-        </div>
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          {!isRestDay && (
-            <StreakRescueCard
-              streakDays={streak}
-              lastWorkoutDate={lastWorkoutDate?.toISOString()}
-              lastMealDate={lastMealDate?.toISOString()}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* ── Weekly League card ──────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.10 }}
-        className="mb-3"
-      >
-        <ErrorBoundary label="LeagueCard">
-          <LeagueCard onClick={() => setLeagueModalOpen(true)} />
-        </ErrorBoundary>
-      </motion.div>
-
-      {/* Weekly nemesis snapshot — drives competitive identity on the
-          Dashboard surface (rather than only on Workout). Hidden when
-          there's no active assignment. */}
-      {user?.id && (
-        <div className="mb-5 md:mb-6">
-          <ErrorBoundary label="NemesisCard">
-            <NemesisCard currentUserId={user.id} />
-          </ErrorBoundary>
-        </div>
-      )}
-
-      {/* ═══ TIER 4 · Progress & reflection ═══════════════════════ */}
-      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-        {tFallback('dashboard.section.progress', 'Your progress')}
-      </p>
-
-      {/* ── Stats strip ────────────────────────────────────────── */}
-      <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
-        <StatTile
-          icon={Activity}
-          value={thisWeekLogs.length}
-          label={t('dashboard.stats.thisWeek')}
-          suffix={
-            thisWeekLogs.length === 1
-              ? t('dashboard.stats.workoutSingular')
-              : t('dashboard.stats.workoutPlural')
-          }
-          delay={0.05}
-          accent
-          trend={workoutTrend}
-        />
-        <StatTile
-          icon={Zap}
-          value={formatVolume(weeklyVolume)}
-          label={t('dashboard.stats.volume')}
-          suffix={weightUnit}
-          delay={0.12}
-        />
-        <StatTile
-          icon={Target}
-          value={muscleGroupCount}
-          label={t('dashboard.stats.muscles')}
-          suffix={
-            muscleGroupCount === 1
-              ? t('dashboard.stats.groupSingular')
-              : t('dashboard.stats.groupPlural')
-          }
-          delay={0.19}
-          trend={muscleTrend}
-        />
-      </div>
-
-      {/* ── Goals row ─────────────────────────────────────────────
-           Two cooperating components:
-             1. GoalsAlmostComplete — for any goal ≥75%, shows the
-                full-size "Push to Complete" card.
-             2. GoalsProgressStrip — for users whose best active goal
-                is <75%, shows a one-line nudge so the home screen
-                isn't silent about progress in the middle range.
-           They auto-hide via their own filters: the strip checks "no
-           goal ≥75%" before rendering, so they never both show. */}
-      <div className="mb-5 md:mb-6 space-y-3">
-        <ErrorBoundary label="GoalsAlmostComplete">
-          <GoalsAlmostComplete
-            goals={goals}
-            logs={logs}
-            cardioLogs={cardioLogs}
-            limit={1}
-            compact={false}
-            onOpen={() => setGoalsModalOpen(true)}
-          />
-        </ErrorBoundary>
-        <ErrorBoundary label="GoalsProgressStrip">
-          <GoalsProgressStrip
-            goals={goals}
-            logs={logs}
-            onOpen={() => setGoalsModalOpen(true)}
-          />
-        </ErrorBoundary>
-      </div>
-
-      {/* ── Weekly recap ────────────────────────────────────────
-           "What changed about you this week" — workouts and volume vs
-           last week, best lift, any PRs. Renders null when there were
-           no workouts in the last 7 days (the streak-break / welcome-
-           back pushes own that surface). Wrapped in its own
-           ErrorBoundary so a bad log payload doesn't take the page. */}
-      {/* data-recap-card lets the OnboardingNudgeCard "share your week"
-          nudge scrollIntoView this section without a route change. */}
-      <div className="mb-5 md:mb-6" data-recap-card>
-        <ErrorBoundary label="WeeklyRecap">
-          <WeeklyRecap logs={logs} cardioLogs={cardioLogs} />
-        </ErrorBoundary>
-      </div>
-
-      {/* Suggestion + memory — paired compact cards. Both self-hide
-          (suggestion needs ≥2 workouts, memory needs a past-year match),
-          so empty:hidden + flex-1 keeps whichever survives full-width. */}
-      <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          <ErrorBoundary label="WorkoutSuggestionCard">
-            <WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} />
-          </ErrorBoundary>
-        </div>
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          <ErrorBoundary label="WorkoutMemoryCard">
-            <WorkoutMemoryCard logs={logs} />
-          </ErrorBoundary>
-        </div>
-      </div>
-
-      {/* ═══ TIER 5 · Quick actions ═══════════════════════════════ */}
-
-      {/* ── Quick Actions ──────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.15 }}
-        className="mb-5 md:mb-6 mt-7"
-      >
-        <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1">
-          {t('dashboard.quickActions')}
-        </span>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <QuickAction
-            to="/workout"
-            icon={Play}
-            label={t('dashboard.startWorkout')}
-            delay={0.18}
-          />
-          <QuickAction
-            icon={Dumbbell}
-            label={t('dashboard.createRegimen')}
-            onClick={() => navigate('/workout', { state: { openRegimens: true } })}
-            delay={0.24}
-          />
-          <QuickAction
-            icon={TrendingUp}
-            label={t('dashboard.checkProgress')}
-            onClick={() => {
-              window.scrollTo({ top: 0, behavior: 'auto' });
-              navigate('/progress');
-            }}
-            delay={0.30}
-          />
-          <QuickAction
-            icon={Apple}
-            label={t('dashboard.logMeal')}
-            onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })}
-            delay={0.36}
-          />
-          <QuickAction
-            icon={Scale}
-            label={tFallback('dashboard.logWeight', 'Log weight')}
-            onClick={() => setLogWeightOpen(true)}
-            delay={0.42}
-          />
-          <QuickAction
-            icon={Camera}
-            label={tFallback('dashboard.addPhoto', 'Add progress photo')}
-            onClick={() => setPhotoCaptureOpen(true)}
-            delay={0.48}
-          />
-        </div>
-      </motion.div>
+      {/* ═══ TIER 2-5 · Reorderable sections ═══════════════════════ */}
+      <Reorder.Group axis="y" values={widgetOrder} onReorder={handleWidgetReorder} as="div">
+        {widgetOrder.map(id => (
+          <Reorder.Item key={id} value={id} as="div" dragListener={editMode} className="relative touch-none select-none">
+            {editMode && (
+              <div className="flex items-center gap-2 mt-6 mb-1 px-1 cursor-grab active:cursor-grabbing">
+                <GripVertical className="w-4 h-4 text-primary/50" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
+                  {id === 'recovery' ? tFallback('dashboard.section.recovery', 'Recovery')
+                    : id === 'challenges' ? tFallback('dashboard.section.challenges', 'Challenges')
+                    : id === 'progress' ? tFallback('dashboard.section.progress', 'Your progress')
+                    : t('dashboard.quickActions')}
+                </span>
+              </div>
+            )}
+            {renderDashboardSection(id)}
+          </Reorder.Item>
+        ))}
+      </Reorder.Group>
 
       {/* ═══ TIER 6 · Social & ambient discovery ══════════════════ */}
       <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
