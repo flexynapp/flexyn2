@@ -73,7 +73,9 @@ export default function TrainerMarket() {
         NOT_PUBLISHED: 'This program is no longer available.',
         CANNOT_BUY_OWN: "It's your own listing.",
         TRAINER_NOT_ONBOARDED: "This creator hasn't finished payout setup.",
-        STRIPE_NOT_IMPLEMENTED: 'Live payments are coming soon.',
+        STRIPE_NOT_IMPLEMENTED:    'Live payments are coming soon.',
+        PAYMENTS_NOT_CONFIGURED:   'Payments are not enabled in this environment.',
+        SERVER_MISCONFIGURED:      'Checkout temporarily unavailable.',
       };
       toast.error(map[res.error] || "Couldn't complete checkout — try again.");
       if (res.error === 'ALREADY_OWNED') {

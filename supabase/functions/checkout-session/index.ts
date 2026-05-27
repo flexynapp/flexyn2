@@ -88,9 +88,23 @@ Deno.serve(async (req: Request) => {
   // @ts-ignore — Deno env
   const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   // @ts-ignore — Deno env
-  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY'); // unset ⇒ mock mode
+  const stripeKey = Deno.env.get('STRIPE_SECRET_KEY');
+  // Mock mode is opt-in via an EXPLICIT env var. Previously mock-mode
+  // was selected purely by the ABSENCE of STRIPE_SECRET_KEY — meaning
+  // a no-Stripe-key deploy to production silently shipped every paid
+  // listing as free (any authenticated user could call this Edge
+  // Function and receive a permanent trainer_purchases row granting
+  // paid-content access; RLS honors `is_mock=true` rows identically
+  // to paid ones). Now: a deploy without EITHER a Stripe key OR
+  // ALLOW_MOCK_CHECKOUT=true returns SERVER_MISCONFIGURED, so a
+  // misconfigured prod fails closed.
+  // @ts-ignore — Deno env
+  const allowMock = (Deno.env.get('ALLOW_MOCK_CHECKOUT') || '').toLowerCase() === 'true';
   if (!supabaseUrl || !serviceKey) {
     return json({ ok: false, error: 'SERVER_MISCONFIGURED' }, 500);
+  }
+  if (!stripeKey && !allowMock) {
+    return json({ ok: false, error: 'PAYMENTS_NOT_CONFIGURED' }, 503);
   }
 
   // Resolve the caller from their JWT using an anon-scoped client.
