@@ -44,6 +44,17 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [uploading, setUploading] = useState(false);
+  // Retry-after-failure tick. When `flush()` fails it schedules a 5s
+  // retry by bumping this counter, which re-fires the autosave debounce
+  // effect (retryNonce is in its deps). Without this, `dirtyRef = true`
+  // from the fail branch never triggered a re-run on its own — the
+  // effect only watched title / body / attachments / flush, so unless
+  // the user typed again the retry promise was a lie. Code review
+  // (Wave 53) caught this. Cap at 5 retries to avoid infinite loops
+  // when the failure is structural (RLS / quota / banned content).
+  const [retryNonce, setRetryNonce] = useState(0);
+  const retryTimerRef = useRef(null);
+  const retryCountRef = useRef(0);
 
   const bodyRef = useRef(null);
   const fileRef = useRef(null);
@@ -119,9 +130,10 @@ export default function JournalView({ userId, userEmail, onClose }) {
       res = { ok: false, error: err?.message || 'network' };
     }
     if (res.ok) {
-      // Save succeeded — clear any stashed draft.
+      // Save succeeded — clear any stashed draft + reset retry counter.
       try { localStorage.removeItem(draftKey(snap.dateStr)); } catch { /* ignore */ }
       failToastShownRef.current = false;
+      retryCountRef.current = 0;
     } else {
       // Stash + re-arm so the next debounce retries. Persisting under a
       // dated key lets a separate session also pick the draft up if the
@@ -139,17 +151,43 @@ export default function JournalView({ userId, userEmail, onClose }) {
         failToastShownRef.current = true;
         toast.error(tFallback('journal.saveFailed', "Couldn't save — we'll keep retrying. Your writing is held locally."));
       }
+      // Schedule an automatic retry. The autosave debounce effect only
+      // re-runs when its deps change; dirtyRef alone doesn't trigger it.
+      // Bumping retryNonce after a delay forces a fresh debounce cycle
+      // that calls flush() again with the current snapshot. Cap to 5
+      // retries (with exponential backoff up to 60s) so a structural
+      // failure — quota, RLS, banned content — doesn't loop forever.
+      if (retryCountRef.current < 5) {
+        retryCountRef.current += 1;
+        const delay = Math.min(5000 * Math.pow(2, retryCountRef.current - 1), 60000);
+        if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+        retryTimerRef.current = setTimeout(() => {
+          retryTimerRef.current = null;
+          setRetryNonce(n => n + 1);
+        }, delay);
+      }
     }
     setSaving(false);
     savingRef.current = false;
   }, [userId, userEmail, tFallback]);
 
+  // Clear any pending retry timer on unmount so we don't bump state on
+  // an unmounted component (silent in React 18 but still a leak).
+  useEffect(() => () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
+
   // Debounced autosave whenever content changes (and it's dirty).
+  // retryNonce is in the deps so a scheduled retry (set inside flush's
+  // fail branch) re-fires this effect and gets a fresh debounce cycle.
   useEffect(() => {
     if (!dirtyRef.current) return;
     const t = setTimeout(() => { flush(); }, 800);
     return () => clearTimeout(t);
-  }, [title, body, attachments, flush]);
+  }, [title, body, attachments, flush, retryNonce]);
 
   // ── Load a day's entry ────────────────────────────────────────────────
   // If a localStorage draft for this date exists AND is newer than the
