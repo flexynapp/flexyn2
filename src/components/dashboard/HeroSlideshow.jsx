@@ -41,6 +41,133 @@ import { useLanguage } from '@/lib/LanguageContext';
 const ROTATE_MS = 6000;
 
 /**
+ * Count-up animation primitive — eases from 0 (or `from`) to `to`
+ * over `durationMs`. Used inside slides so a "195 lb Bench Press"
+ * appears with the number ticking up from 0 to 195 (a few ms per
+ * frame, ~1.4s total). Re-keys on `to` change so flipping between
+ * slides re-fires the animation.
+ *
+ * Pure DOM ticker (no framer-motion dependency for the number)
+ * so we can format the displayed value as integer or decimal.
+ */
+function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix = '' }) {
+  const [val, setVal] = useState(from);
+  const startRef = useRef(0);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    if (!Number.isFinite(to)) { setVal(0); return; }
+    startRef.current = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3); // ease-out cubic
+    const tick = (now) => {
+      const elapsed = now - startRef.current;
+      const t = Math.min(1, elapsed / durationMs);
+      const cur = from + (to - from) * ease(t);
+      setVal(cur);
+      if (t < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [to, durationMs]);
+
+  return <>{val.toFixed(decimals)}{suffix}</>;
+}
+
+/**
+ * Tiny inline sparkline — accepts an array of numeric Y values and
+ * renders them as a smoothed SVG polyline. Used for per-exercise
+ * weight-history visualization on PR slides ("here's how your bench
+ * has progressed over the last 8 sessions"). Width is responsive;
+ * height is fixed at 32px so it fits cleanly under the slide title
+ * without crowding the gradient hero.
+ *
+ * The line animates IN via stroke-dasharray on mount — draws left-
+ * to-right over 1s — so the user sees their progress emerge rather
+ * than appear instantly.
+ */
+function Sparkline({ values, color = '#fff', height = 32 }) {
+  const W = 140;
+  const H = height;
+  if (!Array.isArray(values) || values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = Math.max(1, max - min);
+  const stepX = W / (values.length - 1);
+  const pad = 4;
+  const points = values.map((v, i) => {
+    const x = i * stepX;
+    const y = pad + (H - pad * 2) * (1 - (v - min) / range);
+    return [x, y];
+  });
+  // Smoothed path via per-segment quadratic curves (Catmull-Rom-ish
+  // approximation — soft but cheap).
+  let d = `M ${points[0][0]} ${points[0][1]}`;
+  for (let i = 1; i < points.length; i++) {
+    const [x, y] = points[i];
+    const [px, py] = points[i - 1];
+    const cx = (px + x) / 2;
+    d += ` Q ${cx} ${py} ${cx} ${(py + y) / 2} T ${x} ${y}`;
+  }
+
+  // Draw animation: stroke-dasharray with the path length, then
+  // animate dashoffset from full-length down to 0 over 1s.
+  const PATH_LEN = W * 1.6; // approximation — bigger than actual path so the draw fully completes
+  return (
+    <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block">
+      <motion.path
+        d={d}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        initial={{ strokeDasharray: PATH_LEN, strokeDashoffset: PATH_LEN, opacity: 0.6 }}
+        animate={{ strokeDashoffset: 0, opacity: 1 }}
+        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+      />
+      {/* Endpoint dot — highlights the latest data point */}
+      <motion.circle
+        cx={points[points.length - 1][0]}
+        cy={points[points.length - 1][1]}
+        r="3"
+        fill={color}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.9 }}
+      />
+    </svg>
+  );
+}
+
+/**
+ * Linear progress bar with an animated fill width. Used on path
+ * slides to show "current → target" state (e.g. current weight on
+ * the journey to target). The fill ramps from 0% to its computed
+ * pct on mount.
+ */
+function ProgressBar({ pct, startLabel, endLabel, currentLabel, targetLabel }) {
+  const safePct = Math.max(0, Math.min(100, pct || 0));
+  return (
+    <div className="mt-2">
+      <div className="relative h-1.5 rounded-full bg-white/15 overflow-hidden">
+        <motion.div
+          className="absolute inset-y-0 left-0 rounded-full bg-white"
+          initial={{ width: '0%' }}
+          animate={{ width: `${safePct}%` }}
+          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-1 text-[10px] text-white/55">
+        <span>{startLabel}{currentLabel != null && ` · ${currentLabel}`}</span>
+        <span>{endLabel}{targetLabel != null && ` · ${targetLabel}`}</span>
+      </div>
+    </div>
+  );
+}
+
+/**
  * Compute the list of achievement slides from already-loaded dashboard
  * data. Each slide is { id, icon, iconBg, kicker, title, sub, when }
  * — no React nodes, so this can be memoized cleanly.
@@ -86,12 +213,33 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         }
       }
       if (recentPR) {
+        // Build a compact weight-history series for the inline
+        // sparkline — last 8 attempts on THIS exercise, deduped per
+        // date (some users log multiple sessions per day). The
+        // sparkline draws on slide enter so the user sees their
+        // progression curve emerge under the headline number.
+        const history = [];
+        const seenDates = new Set();
+        for (const e of entries) {
+          const dKey = String(e.date).slice(0, 10);
+          if (seenDates.has(dKey)) continue;
+          seenDates.add(dKey);
+          history.push(e.weight);
+        }
+        const sparkSeries = history.slice(-8);
         slides.push({
           id: `pr:${name}:${recentPR.when}`,
           icon: Trophy, iconBg: 'bg-amber-400/20',
           kicker: 'Personal Record',
-          title: `${recentPR.weight} lb ${name}`,
-          sub: `+${recentPR.weight - recentPR.prev} lb from your last best`,
+          // The title is now JUST the exercise name. The big number
+          // (weight) renders separately so it can animate.
+          title: name,
+          metricValue: recentPR.weight,
+          metricUnit: 'lb',
+          metricDelta: recentPR.weight - recentPR.prev,
+          metricDeltaUnit: 'lb',
+          metricDeltaSuffix: ' from last best',
+          history: sparkSeries.length >= 2 ? sparkSeries : null,
           when: recentPR.when,
         });
       }
@@ -104,14 +252,23 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       if (g.status !== 'completed') continue;
       const when = g.completed_at ? new Date(g.completed_at).getTime() : 0;
       if (!when || now - when > RECENT_MS) continue;
-      slides.push({
+      // If the goal had a numeric target (target_value), surface it
+      // as the animated number — gives users a concrete win to
+      // see-and-celebrate. Otherwise just show the goal title.
+      const tv = Number(g.target_value);
+      const slide = {
         id: `goal:${g.id}`,
         icon: CheckCircle2, iconBg: 'bg-emerald-400/20',
         kicker: 'Goal Completed',
         title: g.title || 'Goal hit',
         sub: g.description?.slice(0, 60) || 'Set the next one.',
         when,
-      });
+      };
+      if (Number.isFinite(tv) && tv > 0) {
+        slide.metricValue = tv;
+        slide.metricUnit = g.unit || '';
+      }
+      slides.push(slide);
     }
   }
 
@@ -125,8 +282,14 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         id: `level:${profile.current_level}:${when}`,
         icon: Award, iconBg: 'bg-violet-400/20',
         kicker: 'Level Up',
-        title: `Level ${profile.current_level}`,
-        sub: `${profile.total_xp ?? 0} XP earned overall`,
+        title: 'You leveled up',
+        // Animated level number — ticks up to the new level.
+        metricValue: profile.current_level,
+        metricUnit: '',
+        metricPrefix: 'Level ',
+        // Total XP as the supporting subline; not animated separately
+        // because the count is large and would distract from the level.
+        sub: `${(profile.total_xp ?? 0).toLocaleString()} XP earned overall`,
         when,
       });
     }
@@ -138,8 +301,10 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
     slides.push({
       id: `streak:${streak}`,
       icon: Flame, iconBg: 'bg-orange-400/20',
-      kicker: `${streak}-Day Streak`,
-      title: 'You\'re consistent.',
+      kicker: 'Streak Milestone',
+      title: 'Day streak',
+      metricValue: streak,
+      metricUnit: '',
       sub: streak >= 30 ? 'Habit locked in.' : 'Keep the momentum.',
       when: now,
     });
@@ -148,9 +313,9 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
   // 5) Recent cardio milestone — first run over 5km, etc.
   if (Array.isArray(cardioLogs) && cardioLogs.length) {
     const FIRSTS = [
-      { meters: 5000,  label: 'First 5K' },
-      { meters: 10000, label: 'First 10K' },
-      { meters: 21097, label: 'Half Marathon' },
+      { meters: 5000,  label: 'First 5K',         km: 5 },
+      { meters: 10000, label: 'First 10K',        km: 10 },
+      { meters: 21097, label: 'Half Marathon',    km: 21.1 },
     ];
     for (const f of FIRSTS) {
       const hit = cardioLogs.find(l => Number(l.distance_meters) >= f.meters);
@@ -162,7 +327,12 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         icon: Footprints, iconBg: 'bg-cyan-400/20',
         kicker: 'Distance Milestone',
         title: f.label,
-        sub: `${(hit.distance_meters / 1000).toFixed(1)} km logged`,
+        metricValue: hit.distance_meters / 1000,
+        metricUnit: ' km',
+        metricDecimals: 1,
+        sub: hit.duration_seconds
+          ? `${Math.round(hit.duration_seconds / 60)} min · avg ${(hit.distance_meters / 1000 / (hit.duration_seconds / 3600)).toFixed(1)} km/h`
+          : 'Distance logged',
         when,
       });
     }
@@ -174,9 +344,12 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
 
 /**
  * Build the new-user calculated path. Driven entirely by onboarding
- * signals + the user's primary fitness goal.
+ * signals + the user's primary fitness goal. Each step carries
+ * meaningful live metrics (current → target) so the slide isn't
+ * just text — it animates with a count-up + progress bar showing
+ * exactly where the user is on the journey.
  */
-function buildPathSlides({ profile, user }) {
+function buildPathSlides({ profile, user, logs }) {
   if (!profile && !user) return [];
   const p = profile || user || {};
   const goals = Array.isArray(p.fitness_goals_arr) ? p.fitness_goals_arr
@@ -187,23 +360,56 @@ function buildPathSlides({ profile, user }) {
   const level = p.fitness_level || 'beginner';
   const trainingDays = Array.isArray(p.training_days) ? p.training_days.length : 0;
 
-  // Step 1 is always "log workout #1" — universal across goal types.
+  // Compute current week's workout count for the live "X of N this
+  // week" progress on Step 2. Locks the week-start to the user's
+  // current local Monday so the count doesn't jump when they cross
+  // midnight UTC.
+  const weekStart = (() => {
+    const d = new Date();
+    const day = d.getDay();          // 0=Sun, 1=Mon, ...
+    const back = (day === 0 ? 6 : day - 1);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - back);
+    return d.getTime();
+  })();
+  const workoutsThisWeek = Array.isArray(logs)
+    ? logs.filter(l => {
+        const t = l.date ? new Date(l.date).getTime() : 0;
+        return t >= weekStart;
+      }).length
+    : 0;
+
+  // Step 1: "Log your first workout" — universal anchor. Shows
+  // animated 0 → totalLogs count as the metric so even mid-journey
+  // returns to the path feel responsive.
+  const totalLogs = Array.isArray(logs) ? logs.length : 0;
   const slides = [{
     id: 'path:1',
     icon: Dumbbell, iconBg: 'bg-primary/20',
     kicker: 'Step 1',
     title: 'Log your first workout',
+    metricValue: totalLogs,
+    metricUnit: ' logged',
+    metricDecimals: 0,
     sub: 'Open the Workout tab and tap Start. Anything counts — even a 10-minute session.',
     cta: { label: 'Start workout', to: '/workout' },
   }];
 
-  // Step 2 — weekly cadence based on training_days.
+  // Step 2 — weekly cadence based on training_days, with LIVE
+  // progress bar showing this week's count vs the target.
   const weekTarget = Math.max(3, Math.min(trainingDays || 3, 6));
   slides.push({
     id: 'path:2',
     icon: Calendar, iconBg: 'bg-blue-400/20',
     kicker: 'Step 2',
-    title: `Hit ${weekTarget} workouts this week`,
+    title: 'This week',
+    metricValue: workoutsThisWeek,
+    metricUnit: ` / ${weekTarget}`,
+    progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
+    progressStartLabel: 'Mon',
+    progressEndLabel: 'Sun',
+    progressCurrentLabel: `${workoutsThisWeek} done`,
+    progressTargetLabel: `${weekTarget} target`,
     sub: 'Three a week is the floor where strength builds. Six is the ceiling before recovery suffers.',
     cta: { label: 'Plan the week', to: '/workout' },
   });
@@ -214,25 +420,38 @@ function buildPathSlides({ profile, user }) {
     id: 'path:3',
     icon: Trophy, iconBg: 'bg-amber-400/20',
     kicker: 'Step 3',
-    title: `First PR by week ${prWeeks}`,
+    title: 'First PR target',
+    metricValue: prWeeks,
+    metricUnit: ' weeks',
     sub: level === 'beginner'
       ? 'Newbie gains are real. Beat any single previous lift = PR.'
       : 'Pick one lift to chase. We\'ll surface +5 lb progress automatically.',
   });
 
-  // Step 4 — goal-specific anchor
+  // Step 4 — goal-specific anchor. Loaded with REAL numbers when
+  // available so the user sees "you're 195 → 170, ~25 to go" as
+  // an animated count + progress bar — not just a sentence.
   if (/lose|cut|fat|weight/i.test(primaryGoal)) {
     const startLbs = Number(p.weight_lbs);
     const targetLbs = Number(p.target_weight_lbs);
     if (Number.isFinite(startLbs) && Number.isFinite(targetLbs) && startLbs > targetLbs) {
       const delta = startLbs - targetLbs;
-      // Healthy fat-loss pace ≈ 1 lb/week. Cap at 24 weeks of horizon.
-      const weeks = Math.min(Math.ceil(delta), 24);
+      const weeks = Math.min(Math.ceil(delta), 24);  // ~1 lb/week
+      // Progress is 0% at start; will tick up as their logged weight
+      // approaches target. For brand-new users it's 0.
       slides.push({
         id: 'path:4-loss',
         icon: TrendingUp, iconBg: 'bg-emerald-400/20',
         kicker: 'Your goal',
-        title: `${targetLbs} lb by week ${weeks}`,
+        title: 'Target weight',
+        metricValue: targetLbs,
+        metricUnit: ' lb',
+        metricDelta: -delta,
+        metricDeltaUnit: ' lb',
+        metricDeltaSuffix: ' to lose',
+        progressPct: 0,  // brand-new, no logged weight yet
+        progressStartLabel: `${startLbs} lb today`,
+        progressEndLabel: `${targetLbs} lb · week ${weeks}`,
         sub: `${delta.toFixed(0)} lb to go · ~1 lb/week (sustainable).`,
         cta: { label: 'Log a meal', to: '/nutrition' },
       });
@@ -251,7 +470,10 @@ function buildPathSlides({ profile, user }) {
       id: 'path:4-muscle',
       icon: Zap, iconBg: 'bg-orange-400/20',
       kicker: 'Your goal',
-      title: 'Add 10 lb to a main lift',
+      title: 'Add to a main lift',
+      metricValue: 10,
+      metricUnit: ' lb',
+      metricPrefix: '+',
       sub: 'Bench, squat, or deadlift — pick one and chase the next +5 every week.',
       cta: { label: 'Start tracking', to: '/workout' },
     });
@@ -260,7 +482,9 @@ function buildPathSlides({ profile, user }) {
       id: 'path:4-endurance',
       icon: Footprints, iconBg: 'bg-cyan-400/20',
       kicker: 'Your goal',
-      title: 'Build to a 5K',
+      title: 'Build to a',
+      metricValue: 5,
+      metricUnit: 'K',
       sub: 'Run/walk intervals for 3 weeks → continuous 30-min jog by week 6.',
       cta: { label: 'Log cardio', to: '/cardio' },
     });
@@ -269,7 +493,9 @@ function buildPathSlides({ profile, user }) {
       id: 'path:4-generic',
       icon: Sparkles, iconBg: 'bg-violet-400/20',
       kicker: 'Your goal',
-      title: '30-day commit',
+      title: 'Day commit',
+      metricValue: 30,
+      metricUnit: '',
       sub: 'Show up 3× a week for a month. That\'s where every lasting habit starts.',
     });
   }
@@ -304,8 +530,8 @@ export default function HeroSlideshow({
     [logs, cardioLogs, goals, profile]
   );
   const pathSlides = useMemo(
-    () => buildPathSlides({ profile, user }),
-    [profile, user]
+    () => buildPathSlides({ profile, user, logs }),
+    [profile, user, logs]
   );
 
   const mode = pickMode({ achievementSlides, pathSlides, profile, logs });
@@ -414,15 +640,89 @@ export default function HeroSlideshow({
           transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
           className="min-w-0"
         >
+          {/* Slide title — for PR slides this is the EXERCISE name
+              (small caps); the big number lives in the metric row
+              below it. For non-metric slides this IS the headline. */}
           <h2
-            className="font-heading font-bold leading-[1.05] tracking-tight text-white break-words"
-            style={{ fontSize: 'clamp(1.75rem, 5.5vw, 3rem)' }}
+            className={
+              slide.metricValue != null
+                ? 'font-heading font-semibold text-white/85 break-words'
+                : 'font-heading font-bold leading-[1.05] tracking-tight text-white break-words'
+            }
+            style={
+              slide.metricValue != null
+                ? { fontSize: 'clamp(0.95rem, 2.2vw, 1.15rem)' }
+                : { fontSize: 'clamp(1.75rem, 5.5vw, 3rem)' }
+            }
           >
             {slide.title}
           </h2>
+
+          {/* Animated metric — count-up tween. The headline value
+              for the slide; size matches the original streak hero
+              so the visual rhythm is preserved. */}
+          {slide.metricValue != null && (
+            <div className="flex items-baseline gap-2 mt-1">
+              <span
+                className="font-heading font-bold leading-none tracking-tight tabular-nums text-white"
+                style={{ fontSize: 'clamp(3rem, 10vw, 5.25rem)' }}
+              >
+                {slide.metricPrefix}
+                <AnimatedNumber
+                  to={slide.metricValue}
+                  decimals={slide.metricDecimals ?? 0}
+                />
+                {slide.metricUnit}
+              </span>
+            </div>
+          )}
+
+          {/* Delta badge — "+10 lb from your last best". Animates
+              in after the count-up so the user sees the headline
+              number land first, then the context. */}
+          {slide.metricDelta != null && (
+            <motion.div
+              initial={{ opacity: 0, x: -8 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.4, delay: 0.9 }}
+              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-white/12 text-[11px] font-bold text-white"
+            >
+              {slide.metricDelta > 0 ? '+' : ''}
+              {slide.metricDelta}
+              {slide.metricDeltaUnit || ''}
+              {slide.metricDeltaSuffix && (
+                <span className="font-medium text-white/70">{slide.metricDeltaSuffix}</span>
+              )}
+            </motion.div>
+          )}
+
+          {/* Per-exercise weight-history sparkline (PR slides only).
+              Draws left-to-right on slide enter so the user sees
+              their progression curve emerge. */}
+          {slide.history && (
+            <div className="mt-3 max-w-[220px] opacity-90">
+              <Sparkline values={slide.history} color="#ffffff" height={32} />
+            </div>
+          )}
+
+          {/* Live progress bar (path slides with current → target
+              state). The fill animates from 0% to the computed pct
+              so the user feels the system actively tracking them. */}
+          {slide.progressPct != null && (
+            <ProgressBar
+              pct={slide.progressPct}
+              startLabel={slide.progressStartLabel}
+              endLabel={slide.progressEndLabel}
+              currentLabel={slide.progressCurrentLabel}
+              targetLabel={slide.progressTargetLabel}
+            />
+          )}
+
+          {/* Sub copy — context line. Always present. */}
           <p className="text-sm text-white/60 max-w-[36ch] leading-relaxed mt-3">
             {slide.sub}
           </p>
+
           {mode === 'path' && slide.cta && (
             <button
               type="button"
