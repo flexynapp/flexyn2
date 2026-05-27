@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
-import { searchExercises, muscleKey } from '@/lib/exerciseTranslations';
+import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 import { titleCase } from '@/lib/textCase';
 import { getUsageScores } from '@/lib/recentExerciseUsage';
 import { EQUIPMENT_FILTERS, matchesEquipment } from '@/lib/exerciseEquipment';
@@ -444,26 +444,47 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
   // (no server round-trip).
   const usageScores = useMemo(() => getUsageScores(userEmail), [userEmail]);
 
+  // Search the FULL EXERCISE_LIBRARY (~400 exercises), not just the ~60
+  // that happen to have entries in EXERCISE_TRANSLATIONS. searchExercises()
+  // only iterates the translation table, so hundreds of real library
+  // exercises (RDL variants, hip abduction, back extensions, most machines)
+  // were unreachable from the autocomplete — the user typed the name and got
+  // nothing. We match the English name plus the user-language display name so
+  // the translated subset still matches in-language; everything else matches
+  // by its English name. (Beta feedback: "add all the exercises / machines.")
   const suggestions = query.length >= 1
-    ? searchExercises(query, language)
-        .map(r => {
-          const lib = EXERCISE_LIBRARY.find(ex => ex.name === r.canonical);
-          const usageScore = usageScores[r.canonical.toLowerCase()] || 0;
-          return {
-            name: r.canonical,
-            displayName: r.displayName,
-            muscles: lib?.muscles || [],
-            usageScore,
-            isRecent: usageScore > 0.25, // mark visually for top recents
-          };
-        })
-        // Equipment filter — drop matches that don't fit the chosen
-        // category. Inferred from the exercise name (no schema change).
-        .filter(s => matchesEquipment(s.name, equipmentFilter))
-        // Stable-sort by usage score desc; preserves alphabetical
-        // order within equal scores (search results already alpha).
-        .sort((a, b) => (b.usageScore || 0) - (a.usageScore || 0))
-        .slice(0, 10)
+    ? (() => {
+        const q = query.trim().toLowerCase();
+        return EXERCISE_LIBRARY
+          .map(ex => {
+            const displayName = translateExerciseName(ex.name, language);
+            const matchesEn = ex.name.toLowerCase().includes(q);
+            const matchesLocal = displayName.toLowerCase().includes(q);
+            if (!matchesEn && !matchesLocal) return null;
+            const usageScore = usageScores[ex.name.toLowerCase()] || 0;
+            return {
+              name: ex.name,
+              displayName,
+              muscles: ex.muscles || [],
+              usageScore,
+              isRecent: usageScore > 0.25, // mark visually for top recents
+            };
+          })
+          .filter(Boolean)
+          // Equipment filter — drop matches that don't fit the chosen
+          // category. Inferred from the exercise name (no schema change).
+          .filter(s => matchesEquipment(s.name, equipmentFilter))
+          // Rank: recently-used first, then prefix matches ("ben" → "Bench
+          // Press" before "Barbell Bench…"), then alphabetical.
+          .sort((a, b) => {
+            if ((b.usageScore || 0) !== (a.usageScore || 0)) return (b.usageScore || 0) - (a.usageScore || 0);
+            const ap = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+            const bp = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+            if (ap !== bp) return ap - bp;
+            return a.name.localeCompare(b.name);
+          })
+          .slice(0, 10);
+      })()
     : [];
 
   useEffect(() => {

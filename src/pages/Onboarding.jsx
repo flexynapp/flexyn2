@@ -1076,6 +1076,8 @@ function NumberReel({ value, digits = 2, size = 80 }) {
 function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, onNext, onBack, step, total }) {
   const age = stats.age;
   const setAge = (v) => onChange({ ...stats, age: v });
+  const gender = stats.gender || null;
+  const setGender = (g) => onChange({ ...stats, gender: g });
   // Floor at 13 (COPPA-safe minimum for general apps); the under-18 stage
   // chip still surfaces TEEN messaging for 13-17 so the tone stays appropriate.
   const bumpAge = (dir) => setAge(Math.min(100, Math.max(13, age + dir)));
@@ -1321,6 +1323,35 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
             <span style={{ fontFamily: 'ui-monospace,monospace', fontSize: 13, fontWeight: 700, color: 'hsl(var(--foreground))', minWidth: 48, textAlign: 'center' }}>{age} yrs</span>
             <button onClick={() => bumpAge(+1)} style={nudgeBtnStyle}>+1</button>
             <button onClick={() => bumpAge(+5)} style={nudgeBtnStyle}>+5</button>
+          </div>
+        </motion.div>
+
+        {/* Sex — calibrates strength targets, training volume, and calories.
+            The whole app already reads this; it just never asked before. */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }}
+          className="rounded-2xl border bg-card/80 p-4 mt-4">
+          <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
+            Sex <span className="normal-case font-normal opacity-70">· tunes your strength + calorie targets</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ id: 'male', label: 'Male' }, { id: 'female', label: 'Female' }].map(o => {
+              const active = gender === o.id;
+              return (
+                <button
+                  key={o.id}
+                  type="button"
+                  onClick={() => setGender(o.id)}
+                  className="h-11 rounded-xl border text-sm font-semibold transition-colors"
+                  style={{
+                    borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                    background: active ? 'hsl(var(--primary) / 0.12)' : 'transparent',
+                    color: active ? 'hsl(var(--primary))' : 'hsl(var(--foreground))',
+                  }}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
           </div>
         </motion.div>
       </div>
@@ -2831,6 +2862,11 @@ export default function Onboarding() {
       weight_kg:     String(weightKgVal),
       weight_lbs:    String(weightLbVal),
       weight_unit:   weightUnit,
+      // Biological sex (mig 161) — drives sex-specific strength ceilings,
+      // volume caps, and BMR. NULL if the user didn't pick one; the
+      // consumers default NULL to 'male'. updateMe strip-and-retry drops
+      // this cleanly on hosts where mig 158 hasn't run yet.
+      gender:        s.gender || null,
     };
 
     // Tier 1 — everything (including the JSONB fitness_assessment).

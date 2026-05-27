@@ -198,6 +198,22 @@ export default function SettingsPanel() {
     }
   };
 
+  // Sex — one-tap save (no edit input). Feeds strength ceilings, volume
+  // caps, and BMR/calorie math. Stored as 'male' | 'female'.
+  const saveGender = async (g) => {
+    if (statSaving || profile?.gender === g) return;
+    setStatSaving(true);
+    try {
+      await db.auth.updateMe({ gender: g });
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+    } catch (err) {
+      console.error('Gender update failed:', err);
+      toast.error(tFallback('settings.validation.saveFailed', 'Could not save — try again.'));
+    } finally {
+      setStatSaving(false);
+    }
+  };
+
   const formatHeight = (inches) => {
     if (!inches) return '—';
     const ft = Math.floor(inches / 12);
@@ -986,6 +1002,34 @@ export default function SettingsPanel() {
                 <span className="text-xs font-medium text-muted-foreground group-hover:text-foreground transition-colors">{display}</span>
               </button>
             ))}
+
+            {/* Sex — segmented toggle (saves on tap). Calibrates strength,
+                volume, and calorie targets. */}
+            <div className="w-full flex items-center justify-between py-1 px-1">
+              <div className="flex items-center gap-2">
+                <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <span className="text-xs text-foreground">{tFallback('onboarding.demographics.gender', 'Sex')}</span>
+              </div>
+              <div className="flex gap-1">
+                {[{ id: 'male', label: 'Male' }, { id: 'female', label: 'Female' }].map(({ id, label }) => {
+                  const active = (profile?.gender || '') === id;
+                  return (
+                    <button
+                      key={id}
+                      onClick={() => saveGender(id)}
+                      disabled={statSaving}
+                      className={`px-2.5 h-7 rounded-md text-xs font-semibold border transition-colors disabled:opacity-50 ${
+                        active
+                          ? 'bg-primary/10 border-primary text-primary'
+                          : 'border-border text-muted-foreground hover:bg-secondary'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </div>
