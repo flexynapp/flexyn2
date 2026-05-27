@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Quote, Star } from 'lucide-react';
+import { Quote, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { getDailyQuote } from '@/lib/dailyQuotes';
+import { getDailyQuote, getQuotePool } from '@/lib/dailyQuotes';
 import { listMyQuotes } from '@/lib/data/customQuotes';
 import CustomQuotesModal from './CustomQuotesModal';
 
@@ -15,6 +15,11 @@ function msUntilLocalMidnight() {
   const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1, 0);
   return Math.max(1000, next.getTime() - now.getTime());
 }
+
+const slideVariants = {
+  enter: (dir) => ({ x: dir >= 0 ? 64 : -64, opacity: 0 }),
+  center: { x: 0, opacity: 1 },
+};
 
 export default function DailyQuote({ editMode = false }) {
   const { t, tFallback } = useLanguage();
@@ -50,7 +55,38 @@ export default function DailyQuote({ editMode = false }) {
     return () => { if (timer) clearTimeout(timer); };
   }, [customQuotes]);
 
-  if (!quote) return null;
+  // Swipe carousel: today's quote sits at index 0, every other quote follows.
+  const pool = useMemo(() => getQuotePool(customQuotes), [customQuotes]);
+  const ordered = useMemo(() => {
+    if (!quote) return [];
+    const rest = pool.filter(p => p.key !== quote.key);
+    return [{ key: quote.key, text: quote.text, author: quote.author }, ...rest];
+  }, [quote, pool]);
+
+  const [index, setIndex] = useState(0);
+  const [direction, setDirection] = useState(0);
+
+  // Reset to the daily quote whenever the day's pick changes.
+  useEffect(() => { setIndex(0); setDirection(0); }, [quote?.key]);
+
+  if (!quote || ordered.length === 0) return null;
+
+  const safeIndex = Math.min(index, ordered.length - 1);
+  const current = ordered[safeIndex];
+
+  const paginate = (dir) => {
+    if (ordered.length < 2) return;
+    setDirection(dir);
+    setIndex(i => (i + dir + ordered.length) % ordered.length);
+  };
+
+  const onDragEnd = (_e, info) => {
+    const { offset, velocity } = info;
+    if (offset.x < -50 || velocity.x < -350) paginate(1);
+    else if (offset.x > 50 || velocity.x > 350) paginate(-1);
+  };
+
+  const onDay = safeIndex === 0;
 
   return (
     <motion.div
@@ -59,19 +95,73 @@ export default function DailyQuote({ editMode = false }) {
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
       <p className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-3 px-1">
-        {t('dashboard.quoteOfTheDay')}
+        {onDay ? t('dashboard.quoteOfTheDay') : tFallback('quotes.more', 'More motivation')}
       </p>
-      <Card className="relative overflow-hidden p-5 md:p-6 border-border/60 bg-gradient-to-br from-primary/[0.04] to-transparent">
-        <Quote className="absolute top-3 end-3 w-5 h-5 text-primary/30" />
-        <p className="font-heading text-base md:text-lg leading-snug text-foreground/90 pe-6 break-words">
-          "{quote.text}"
-        </p>
-        {quote.author && (
-          <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground">
-            — {quote.author}
-          </p>
+
+      <div className="relative">
+        <motion.div
+          key={current.key}
+          custom={direction}
+          variants={slideVariants}
+          initial="enter"
+          animate="center"
+          transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+          drag={editMode || ordered.length < 2 ? false : 'x'}
+          dragConstraints={{ left: 0, right: 0 }}
+          dragElastic={0.45}
+          onDragEnd={onDragEnd}
+          style={{ touchAction: 'pan-y' }}
+        >
+          <Card className="relative overflow-hidden p-5 md:p-6 border-border/60 bg-gradient-to-br from-primary/[0.04] to-transparent select-none">
+            <Quote className="absolute top-3 end-3 w-5 h-5 text-primary/30" />
+            <p className="font-heading text-base md:text-lg leading-snug text-foreground/90 px-1 sm:px-7 break-words">
+              "{current.text}"
+            </p>
+            {current.author && (
+              <p className="mt-2 text-xs font-medium tracking-wide text-muted-foreground px-1 sm:px-7">
+                — {current.author}
+              </p>
+            )}
+          </Card>
+
+          {/* Chevrons — primarily for desktop; mobile uses the swipe gesture. */}
+          {!editMode && ordered.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => paginate(-1)}
+                aria-label={tFallback('quotes.prev', 'Previous quote')}
+                className="absolute start-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => paginate(1)}
+                aria-label={tFallback('quotes.next', 'Next quote')}
+                className="absolute end-0 top-1/2 -translate-y-1/2 w-8 h-8 hidden sm:flex items-center justify-center rounded-full text-muted-foreground/50 hover:text-foreground hover:bg-foreground/5 transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </>
+          )}
+        </motion.div>
+
+        {/* Position hint — keeps swipe discoverable without cluttering the card. */}
+        {ordered.length > 1 && (
+          <div className="mt-2 flex items-center justify-center gap-2">
+            {onDay ? (
+              <span className="text-[10px] text-muted-foreground/60 tracking-wide">
+                {tFallback('quotes.swipeHint', 'Swipe for more')}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/60 tracking-wide tabular-nums">
+                {safeIndex + 1} / {ordered.length}
+              </span>
+            )}
+          </div>
         )}
-      </Card>
+      </div>
 
       {/* Edit-mode affordance: add/manage your own quotes that cycle in. */}
       {editMode && (
