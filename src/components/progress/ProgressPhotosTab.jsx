@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Camera, Trash2, Calendar, Dumbbell, ZoomIn, X, ArrowLeftRight } from 'lucide-react';
@@ -13,17 +14,22 @@ import PhotoCompareSlider from './PhotoCompareSlider';
 export default function ProgressPhotosTab() {
   const { t, language } = useLanguage();
   const dateLocale = getDateLocale(language);
+  const { user } = useAuth();
   const [photos, setPhotos] = useState([]);
   const [lightbox, setLightbox] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
 
   useEffect(() => {
-    setPhotos(loadProgressPhotos());
-  }, []);
+    // Per-user load — pass user.id explicitly per the Wave 57 fix in
+    // ProgressPhotoCapture.jsx so two users on the same device don't
+    // see each other's photos.
+    if (!user?.id) return;
+    setPhotos(loadProgressPhotos(user.id));
+  }, [user?.id]);
 
   const handleDelete = (id) => {
-    const updated = deleteProgressPhoto(id);
+    const updated = deleteProgressPhoto(id, user?.id);
     setPhotos(updated);
     setConfirmId(null);
     if (lightbox?.id === id) {

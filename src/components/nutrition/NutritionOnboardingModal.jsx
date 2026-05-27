@@ -9,6 +9,7 @@ import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight,
 import { format, addDays } from 'date-fns';
 import { db } from '@/api/db';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { DIETARY_RESTRICTIONS, persistRestrictions } from '@/lib/nutritionPlans';
@@ -102,6 +103,12 @@ function computePreview({ userProfile, goal, targetLbs, targetDate, activity }) 
 export default function NutritionOnboardingModal({ open, userProfile, onComplete }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
+  const { user } = useAuth();
+  // Per-user localStorage key per CLAUDE.md convention. Previously
+  // wrote bare `fn-nutrition-onboarded` which meant User A completing
+  // onboarding caused User B (on the same device) to never see the
+  // modal. Wave 57 caught this.
+  const onboardedKey = `flexyn.nutritionOnboarded.${user?.id || 'anon'}`;
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(null);
   const [targetWeight, setTargetWeight] = useState('');
@@ -178,7 +185,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         persistRestrictions(dietaryRestrictions);
       }
       await db.auth.updateMe(payload);
-      try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
+      try { localStorage.setItem(onboardedKey, 'true'); } catch { /* ignore */ }
       toast.success(t('nutritionOnboarding.toast.saved'));
     } catch (err) {
       console.error('Nutrition onboarding save failed:', err);
@@ -194,7 +201,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   // EXPLICIT Skip — the user actively chose to defer setup. Marks
   // onboarding as complete so the modal won't auto-open again.
   const handleSkip = async () => {
-    try { localStorage.setItem('fn-nutrition-onboarded', 'true'); } catch { /* ignore */ }
+    try { localStorage.setItem(onboardedKey, 'true'); } catch { /* ignore */ }
     try { await db.auth.updateMe({ nutrition_onboarding_complete: true }); } catch { /* ignore */ }
     onComplete?.();
   };

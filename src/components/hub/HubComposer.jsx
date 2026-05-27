@@ -423,9 +423,11 @@ export default function HubComposer({ onClose }) {
   const [progressPhotos, setProgressPhotos] = useState([]);
   useEffect(() => {
     if (step === 'pick') {
-      try { setProgressPhotos(loadProgressPhotos().slice(0, 12)); } catch {}
+      // Pass user.id so the per-user namespaced read picks up the
+      // current user's photos (post-Wave-57 ProgressPhotoCapture fix).
+      try { setProgressPhotos(loadProgressPhotos(user?.id).slice(0, 12)); } catch {}
     }
-  }, [step]);
+  }, [step, user?.id]);
 
   const statsSnapshot = {
     level: user?.level,

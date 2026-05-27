@@ -94,23 +94,15 @@ export default function Nutrition() {
   const [scannedProduct, setScannedProduct] = useState(null);
   const [notFoundBarcode, setNotFoundBarcode] = useState(null);
 
-  // Scan history — persisted to localStorage; updated every time a barcode resolves
-  const [scanHistory, setScanHistory] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('flexyn_scan_history') || '[]'); } catch { return []; }
-  });
+  // Scan history — persisted to localStorage; updated every time a barcode resolves.
+  // Per-user namespace per CLAUDE.md `flexyn.<feature>.<userId>` convention.
+  // Previously used the bare key `flexyn_scan_history`, which meant two
+  // users on the same device saw each other's scan history (privacy
+  // leak on shared phones / family iPads). Wave 57 caught this.
+  // Lazy-init to empty; a useEffect (below the user destructure) hydrates
+  // once user.id is known.
+  const [scanHistory, setScanHistory] = useState([]);
   const [showScanHistory, setShowScanHistory] = useState(false);
-
-  const pushToScanHistory = (product) => {
-    setScanHistory(prev => {
-      // Dedupe by name, keep most recent, cap at 20
-      const next = [
-        { ...product, _histId: Date.now(), _scannedAt: new Date().toISOString() },
-        ...prev.filter(h => h.name !== product.name),
-      ].slice(0, 20);
-      try { localStorage.setItem('flexyn_scan_history', JSON.stringify(next)); } catch {}
-      return next;
-    });
-  };
   const [showNutritionPlans, setShowNutritionPlans] = useState(false);
   const [showMealHistory, setShowMealHistory] = useState(false);
 
@@ -170,17 +162,63 @@ export default function Nutrition() {
   const [showGoalsOnboarding, setShowGoalsOnboarding] = useState(false);
   const [goalsModalManuallyOpened, setGoalsModalManuallyOpened] = useState(false);
 
+  // Per-user localStorage keys (CLAUDE.md namespace convention).
+  // Fall back to 'anon' before sign-in resolves so we don't error on
+  // the read; the real user-keyed bucket takes over once auth lands.
+  const scanHistoryKey = `flexyn.scanHistory.${user?.id || 'anon'}`;
+  const nutritionOnboardedKey = `flexyn.nutritionOnboarded.${user?.id || 'anon'}`;
+
+  const pushToScanHistory = (product) => {
+    setScanHistory(prev => {
+      // Dedupe by name, keep most recent, cap at 20
+      const next = [
+        { ...product, _histId: Date.now(), _scannedAt: new Date().toISOString() },
+        ...prev.filter(h => h.name !== product.name),
+      ].slice(0, 20);
+      try { localStorage.setItem(scanHistoryKey, JSON.stringify(next)); } catch {}
+      return next;
+    });
+  };
+
+  // Hydrate per-user scan history once user.id is known. Also migrates
+  // any legacy un-namespaced `flexyn_scan_history` value over so a
+  // single user upgrading from a stale build doesn't lose their list.
+  // The legacy key is then deleted so a second user on the same device
+  // doesn't pick it up.
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      let raw = localStorage.getItem(scanHistoryKey);
+      if (!raw) {
+        const legacy = localStorage.getItem('flexyn_scan_history');
+        if (legacy) {
+          localStorage.setItem(scanHistoryKey, legacy);
+          localStorage.removeItem('flexyn_scan_history');
+          raw = legacy;
+        }
+      }
+      if (raw) setScanHistory(JSON.parse(raw));
+    } catch { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+
   // Auto-open onboarding the first time the user lands on the Nutrition page,
   // but only after the user profile has loaded so we don't flash the modal at
   // users who already onboarded.
   useEffect(() => {
     if (!user?.email) return;
     if (userProfile && Object.keys(userProfile).length === 0) return; // still loading
-    const localDone = (() => { try { return localStorage.getItem('fn-nutrition-onboarded') === 'true'; } catch { return false; } })();
+    const localDone = (() => {
+      try {
+        // Check per-user key first; fall back to legacy un-namespaced.
+        return localStorage.getItem(nutritionOnboardedKey) === 'true'
+            || localStorage.getItem('fn-nutrition-onboarded') === 'true';
+      } catch { return false; }
+    })();
     if (userProfile?.nutrition_onboarding_complete || localDone) return;
     if (goalsModalManuallyOpened) return;
     setShowGoalsOnboarding(true);
-  }, [user?.email, userProfile?.nutrition_onboarding_complete, goalsModalManuallyOpened]);
+  }, [user?.email, userProfile?.nutrition_onboarding_complete, goalsModalManuallyOpened, nutritionOnboardedKey]);
 
   const handleOnboardingComplete = () => {
     setShowGoalsOnboarding(false);
@@ -694,7 +732,7 @@ export default function Nutrition() {
                   <button
                     onClick={() => {
                       setScanHistory([]);
-                      try { localStorage.removeItem('flexyn_scan_history'); } catch {}
+                      try { localStorage.removeItem(scanHistoryKey); } catch {}
                     }}
                     className="text-[11px] text-muted-foreground hover:text-destructive transition-colors"
                   >

@@ -11,13 +11,66 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
 
-const STORAGE_KEY = 'flexyn_progress_photos';
+// Per-user localStorage namespace per CLAUDE.md convention. The previous
+// bare `flexyn_progress_photos` key meant two users on the same device
+// (family iPad, shared phone) saw each other's progress photos — a real
+// privacy leak (progress photos are intimate, often shirtless). Wave 57
+// caught this.
+//
+// All public helpers (saveProgressPhoto / loadProgressPhotos /
+// deleteProgressPhoto) now require a `userId`. To avoid a breaking change
+// at every call site, the helpers fall back to reading the current
+// supabase session synchronously via `getCurrentUserId()` when userId
+// isn't passed. The fallback is best-effort; explicit userId is preferred.
+//
+// A one-time migration on load moves any legacy un-namespaced entries
+// into the user-keyed slot for the current signed-in user, then deletes
+// the legacy key. Two users on the same device first-load order matters:
+// whichever loads first claims the legacy bucket. Acceptable — the
+// alternative (throw away the legacy data) would lose progress photos
+// for the upgrading user.
+const LEGACY_KEY = 'flexyn_progress_photos';
+const storageKey = (userId) => `flexyn.progressPhotos.${userId || 'anon'}`;
+
+// Synchronous best-effort read of current user's id from Supabase's
+// localStorage-stored session. supabase-js writes its session under
+// `sb-<project>-auth-token`; we read it without an async call so the
+// existing synchronous helper signatures stay intact.
+function getCurrentUserId() {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (!k || !k.startsWith('sb-') || !k.endsWith('-auth-token')) continue;
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      return parsed?.user?.id || parsed?.currentSession?.user?.id || null;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+// One-time migration: if the legacy key has data and the per-user key
+// is empty for the current user, move it over and clear the legacy.
+function migrateLegacyIfNeeded(userId) {
+  if (!userId) return;
+  try {
+    const userKey = storageKey(userId);
+    if (localStorage.getItem(userKey)) return;
+    const legacy = localStorage.getItem(LEGACY_KEY);
+    if (!legacy) return;
+    localStorage.setItem(userKey, legacy);
+    localStorage.removeItem(LEGACY_KEY);
+  } catch { /* ignore */ }
+}
 
 // Storage helpers. localStorage writes are wrapped because Safari private
 // mode + iOS storage quota both throw on setItem — without the guard, a
 // failed save would crash the whole save flow and lose the photo dataURL.
-export function saveProgressPhoto(dataUrl, workoutName) {
-  const photos = loadProgressPhotos();
+export function saveProgressPhoto(dataUrl, workoutName, userId) {
+  const uid = userId || getCurrentUserId();
+  migrateLegacyIfNeeded(uid);
+  const photos = loadProgressPhotos(uid);
   const newEntry = {
     id: `photo_${Date.now()}`,
     dataUrl,
@@ -26,7 +79,7 @@ export function saveProgressPhoto(dataUrl, workoutName) {
   };
   photos.unshift(newEntry);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(photos));
+    localStorage.setItem(storageKey(uid), JSON.stringify(photos));
   } catch {
     // Quota exceeded or storage unavailable. Caller can detect by re-reading
     // and not finding the entry; we still return the in-memory entry so the
@@ -35,20 +88,23 @@ export function saveProgressPhoto(dataUrl, workoutName) {
   return newEntry;
 }
 
-export function loadProgressPhotos() {
+export function loadProgressPhotos(userId) {
+  const uid = userId || getCurrentUserId();
+  migrateLegacyIfNeeded(uid);
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
+    const data = localStorage.getItem(storageKey(uid));
     return data ? JSON.parse(data) : [];
   } catch {
     return [];
   }
 }
 
-export function deleteProgressPhoto(id) {
-  const photos = loadProgressPhotos();
+export function deleteProgressPhoto(id, userId) {
+  const uid = userId || getCurrentUserId();
+  const photos = loadProgressPhotos(uid);
   const updated = photos.filter(p => p.id !== id);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(storageKey(uid), JSON.stringify(updated));
   } catch {
     // Same as save — best-effort; the returned `updated` reflects intent
     // even if persistence failed.
@@ -163,7 +219,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
 
   const savePhoto = () => {
     if (!capturedImage) return;
-    saveProgressPhoto(capturedImage, workoutName);
+    saveProgressPhoto(capturedImage, workoutName, user?.id);
     toast.success(t('photos.savedToast'), {
       description: t('photos.savedToastDesc'),
     });
