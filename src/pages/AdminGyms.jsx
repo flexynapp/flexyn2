@@ -10,7 +10,7 @@
 // username + the RPC's own admin check (defense in depth). A
 // non-admin who navigates here sees a "not authorized" empty state.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -40,6 +40,16 @@ export default function AdminGyms() {
   const [actingId, setActingId] = useState(null);
   const [rejectingId, setRejectingId] = useState(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Synchronous double-tap guards on the two destructive admin actions.
+  // `actingId` is React state (async). A fast double-tap before the
+  // next render fires the RPC twice — approve produced raw 23505 on
+  // the second call (UNIQUE on verification_id) instead of a friendly
+  // toast; reject silently overwrote any concurrent approve. Wave 56
+  // (AdminGyms audit) caught this. Mig 158's status='pending' guard
+  // is the authoritative server-side bar; the ref makes the UX clean.
+  // Declared BEFORE the non-admin early return to keep hook-order stable.
+  const approveBusyRef = useRef(false);
+  const rejectBusyRef = useRef(false);
 
   const refresh = async () => {
     setLoading(true);
@@ -65,10 +75,12 @@ export default function AdminGyms() {
   }
 
   const handleApprove = async (v) => {
-    if (actingId) return;
+    if (actingId || approveBusyRef.current) return;
+    approveBusyRef.current = true;
     setActingId(v.id);
     const res = await approveVerification(v.id);
     setActingId(null);
+    approveBusyRef.current = false;
     if (res.ok) {
       toast.success(`Approved — Flexyn Code generated.`);
       refresh();
@@ -83,7 +95,8 @@ export default function AdminGyms() {
   };
 
   const handleConfirmReject = async (v) => {
-    if (actingId) return;
+    if (actingId || rejectBusyRef.current) return;
+    rejectBusyRef.current = true;
     // Trim the reason so whitespace-only doesn't land as a literal
     // "   " in the DB and confuse the submitter into thinking no
     // reason was given. (Audit 12 #5.)
@@ -91,6 +104,7 @@ export default function AdminGyms() {
     setActingId(v.id);
     const res = await rejectVerification(v.id, reason);
     setActingId(null);
+    rejectBusyRef.current = false;
     if (res.ok) {
       toast.success('Rejected.');
       setRejectingId(null);

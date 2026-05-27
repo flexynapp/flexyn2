@@ -110,11 +110,28 @@ export default function GymEdit() {
       toast.error('Image too large — keep it under 5 MB.');
       return null;
     }
+    // Whitelist image extensions. Without this an upload of `evil.html`
+    // landed at `gym/<id>/<kind>-<ts>.html` with `contentType: 'text/html'`
+    // (via file.type passthrough), served from the public bucket as
+    // executable HTML — XSS vector against any anon viewer. Wave 56
+    // (GymEdit audit) caught this.
+    const SAFE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'heic'];
+    const SAFE_MIMES = {
+      jpg: 'image/jpeg', jpeg: 'image/jpeg',
+      png: 'image/png', webp: 'image/webp', heic: 'image/heic',
+    };
     const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+    if (!SAFE_EXTS.includes(ext)) {
+      toast.error('Image type not supported — use JPG, PNG, WebP, or HEIC.');
+      return null;
+    }
     const path = `gym/${gym.id}/${kind}-${Date.now()}.${ext}`;
     const { error } = await supabase.storage
       .from('avatars')
-      .upload(path, file, { upsert: true, contentType: file.type || 'image/jpeg' });
+      // Pin contentType to the safe MIME derived from the extension,
+      // NOT the client-supplied file.type — which a tampered client
+      // can lie about.
+      .upload(path, file, { upsert: true, contentType: SAFE_MIMES[ext] });
     if (error) {
       toast.error(`Upload failed: ${error.message}`);
       return null;
@@ -163,6 +180,16 @@ export default function GymEdit() {
 
   const handleSave = async () => {
     if (saving) return;
+    // Block save while any image upload is in flight. Without this,
+    // a user who picks a new logo and immediately hits Save before
+    // the upload finishes saves with the OLD logo_url, then the
+    // in-flight upload's setForm callback lands AFTER navigation —
+    // the new logo URL is orphaned in storage and never persisted.
+    // Wave 56 (GymEdit audit) caught this.
+    if (uploadingPhoto || uploadingLogo || uploadingCover) {
+      toast.error('Wait for the image upload to finish.');
+      return;
+    }
     if (!form.name.trim()) { toast.error('Name required.'); return; }
     // Lat/lng are OPTIONAL. After mig 150 these columns are nullable
     // on gym_businesses, so gyms without coords can still save changes
