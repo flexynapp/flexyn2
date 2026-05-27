@@ -320,11 +320,22 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     refetchInterval: 30_000,
   });
 
+  // Synchronous double-tap guards on every chat action. `sending`
+  // (state) + per-action booleans lag React renders — a finger-bounce
+  // double-tap on Send / Roll Call / Share / Pin / Story fires the
+  // RPC twice. Roll Call in particular would post the question twice
+  // + send 16×2 push notifications. Wave 57 (Crews audit) caught this
+  // across SEVEN handlers. Declared at the top of the component so
+  // they're in scope for every callback below.
+  const storyRef       = useRef(false);
+
   const handleAddStory = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) { toast.error('Image must be under 50 MB.'); return; }
+    if (storyRef.current) return;
+    storyRef.current = true;
     try {
       const url = await crewsData.uploadCrewMedia(file);
       await crewsData.postCrewStory(user.id, user.email, crew.id, url, file.type.startsWith('video/') ? 'video' : 'image', null);
@@ -332,6 +343,8 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       toast.success('Story posted to the Crew!');
     } catch {
       toast.error('Could not post story — try again.');
+    } finally {
+      storyRef.current = false;
     }
   };
 
@@ -375,10 +388,20 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     setImageMode('normal');
   };
 
+  // Remaining double-tap guards. See storyRef declaration above for
+  // the full rationale; these stay near handleSend for locality.
+  const sendingRef     = useRef(false);
+  const rollCallRef    = useRef(false);
+  const shareRef       = useRef(false);
+  const assignRef      = useRef(false);
+  const pinRef         = useRef(false);
+  const equipRef       = useRef(false);
+
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed && !attachment) return;
-    if (sending) return;
+    if (sending || sendingRef.current) return;
+    sendingRef.current = true;
     setSending(true);
     stickRef.current = true;
 
@@ -438,7 +461,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         setTimeout(() => setHype(null), 1700);
       }
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
-    } catch {
+    } catch (err) {
       // Send failed — revert the optimistic row + restore the draft
       // so the user can retry without retyping.
       qc.setQueryData(['crewMessages', crew.id], (old) => {
@@ -446,13 +469,22 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         return arr.filter(m => m.id !== tempId);
       });
       setDraft(trimmed);
-      toast.error('Could not send message — try again.');
+      // Surface specific errors from mig 159 (crew_message_profanity).
+      const msg = `${err?.message || ''} ${err?.hint || ''}`;
+      if (/crew_message_profanity/i.test(msg) || err?.code === '23514') {
+        toast.error('Crew message contains prohibited content. Edit it and try again.');
+      } else {
+        toast.error('Could not send message — try again.');
+      }
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   };
 
   const handleRollCall = async (question) => {
+    if (rollCallRef.current) return;
+    rollCallRef.current = true;
     setRollCallOpen(false);
     try {
       await crewsData.sendCrewMessage(crew.id, user.id, 'roll_call', question);
@@ -460,9 +492,12 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       toast.success('Roll Call sent!');
     } catch { toast.error('Could not send Roll Call.'); }
+    finally { rollCallRef.current = false; }
   };
 
   const handleShareRegimen = async (regimen) => {
+    if (shareRef.current) return;
+    shareRef.current = true;
     setRegimenOpen(false);
     const exercises = (regimen.exercises || []).map(e => e.name || e.exercise_name || e).filter(Boolean);
     const meta = JSON.stringify({
@@ -475,34 +510,49 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       toast.success(`"${regimen.name}" shared with the Crew!`);
     } catch { toast.error('Could not share regimen.'); }
+    finally { shareRef.current = false; }
   };
 
   const handleAssignRegimen = async (regimen) => {
+    if (assignRef.current) return;
+    assignRef.current = true;
     setRegimenOpen(false);
     try {
       await crewsData.assignRegimenToCrew(crew.id, regimen.id, user.id, null);
       qc.invalidateQueries({ queryKey: ['crewAssignedRegimens', crew.id] });
       toast.success(`"${regimen.name}" assigned as the Crew Plan!`);
     } catch { toast.error('Could not assign regimen.'); }
+    finally { assignRef.current = false; }
   };
 
   const handlePinMessage = async (msgId, pinned) => {
+    // Per-message-id guard. A double-tap on the same Pin button is the
+    // race; pinning two different messages in parallel is fine (each
+    // has its own server lock).
+    const key = `${msgId}:${pinned}`;
+    if (pinRef.current === key) return;
+    pinRef.current = key;
     try {
       await crewsData.pinMessage(msgId, pinned);
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       qc.invalidateQueries({ queryKey: ['crewPinnedMessage', crew.id] });
       toast.success(pinned ? '📌 Message pinned as announcement.' : 'Unpinned.');
     } catch { toast.error('Could not pin message.'); }
+    finally { pinRef.current = false; }
   };
 
   const handleEquipAssignedRegimen = async (assignment) => {
     const regimen = assignment.regimens;
     if (!regimen) return;
+    if (equipRef.current) return;
+    equipRef.current = true;
     try {
       await crewsData.equipRegimen(regimen.id, user);
       toast.success(`"${regimen.name}" added to your regimens!`);
     } catch (err) {
       toast.error('Could not add regimen.', { description: err.message });
+    } finally {
+      equipRef.current = false;
     }
   };
 

@@ -347,13 +347,43 @@ export async function fireXpFuel(crewId, senderId, senderName) {
   );
 }
 
-export async function claimXpFuel(messageId, userId) {
-  const { error } = await supabase
-    .from('crew_xp_claims')
-    .insert({ message_id: messageId, user_id: userId });
-  // 23505 = unique violation = already claimed
-  if (error && error.code !== '23505') throw error;
-  return !error;
+/**
+ * Claim an XP-fuel message. Routes through the atomic
+ * claim_crew_xp_fuel RPC (mig 159) so the claim row + XP grant
+ * happen in a single transaction. The previous implementation
+ * inserted the claim row, then called increment_user_xp with
+ * `.catch(() => {})` — if the XP RPC failed (network blip, missing
+ * function, RLS), the user lost their one-shot claim with NO XP
+ * awarded. Wave 57 (Crews audit) caught this.
+ *
+ * Backwards-compatible fallback: if the RPC doesn't exist
+ * (legacy host running pre-mig-159), fall through to the old
+ * insert-then-XP path. The userId param is the second positional
+ * for source-compat but is ignored by the RPC (auth.uid()
+ * server-side).
+ *
+ * @returns boolean - true if newly claimed, false if already claimed
+ */
+export async function claimXpFuel(messageId, userId, xpAmount = 25) {
+  const { data, error } = await supabase.rpc('claim_crew_xp_fuel', {
+    p_message_id: messageId,
+    p_xp:         xpAmount,
+  });
+  if (!error) {
+    // RPC returned { ok, xp_amount } or { ok:false, error:'already_claimed' }
+    if (data?.ok === true) return true;
+    if (data?.ok === false && data?.error === 'already_claimed') return false;
+  }
+  // Legacy fallback path. `42883`/`42P01` mean the RPC isn't deployed yet.
+  if (error && (error.code === '42883' || error.code === '42P01')) {
+    const { error: insErr } = await supabase
+      .from('crew_xp_claims')
+      .insert({ message_id: messageId, user_id: userId });
+    if (insErr && insErr.code !== '23505') throw insErr;
+    return !insErr;
+  }
+  if (error) throw error;
+  return false;
 }
 
 export async function getUnclaimedXpFuels(crewId, userId) {

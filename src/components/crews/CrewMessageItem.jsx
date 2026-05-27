@@ -411,10 +411,11 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
     if (claiming || claimed) return;
     setClaiming(true);
     try {
-      const wasNew = await crewsData.claimXpFuel(msg.id, currentUserId);
+      // claimXpFuel now does claim + XP in one atomic RPC (mig 159).
+      // Pass xp as the third arg so the server uses the correct
+      // amount (clamped 1..1000 server-side).
+      const wasNew = await crewsData.claimXpFuel(msg.id, currentUserId, xp);
       if (wasNew) {
-        // Award XP via existing RPC
-        await supabase.rpc('increment_user_xp', { p_user_id: currentUserId, p_amount: xp }).catch(() => {});
         toast.success(`+${xp} XP added to your account!`);
       } else {
         toast('You already claimed this fuel.');
