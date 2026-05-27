@@ -815,12 +815,37 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  const ext  = (file.name || 'file').split('.').pop() || 'jpg';
+  // Whitelist image extensions + pin contentType to the safe MIME
+  // derived from the extension. Without this, an upload of `evil.svg`
+  // with a <script> payload landed in a public bucket with
+  // `contentType: 'image/svg+xml'` (via file.type passthrough); the
+  // chat attachment renderer opens attachments via `window.open(url)`
+  // → SVG runs script on the Supabase storage origin → phishing /
+  // keylogger XSS. Same defect class as Wave 56 GymEdit. Wave 57
+  // (Messages audit) flagged the DM path. We accept JPEG/PNG/WebP
+  // and animated GIF (no script execution); SVG is explicitly
+  // refused even though `accept="image/*"` would otherwise allow it.
+  const SAFE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'];
+  const SAFE_MIMES = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg',
+    png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
+  };
+  const ext = (file.name || 'file').split('.').pop()?.toLowerCase() || 'jpg';
+  if (!SAFE_EXTS.includes(ext)) {
+    const err = new Error('Image type not supported — use JPG, PNG, WebP, GIF, or HEIC.');
+    err.code = 'UNSUPPORTED_FILE_TYPE';
+    throw err;
+  }
   const path = `${user.id}/${Date.now()}.${ext}`;
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, file, {
+      upsert: true,
+      // Pin to the safe MIME derived from extension, NOT the
+      // client-supplied file.type which a tampered client can lie about.
+      contentType: SAFE_MIMES[ext],
+    });
 
   if (uploadError) throw uploadError;
 

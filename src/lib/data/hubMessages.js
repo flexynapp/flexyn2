@@ -79,15 +79,37 @@ export const createGroupConversation = async (emails, title = null) => {
 export const findOrCreateConversation = async (myEmail, otherEmail) => {
   if (!myEmail || !otherEmail) return null;
   if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null;
-  const key = buildKey(myEmail, otherEmail);
+  // Lower-case both emails on insert so RLS membership checks
+  // (`auth.email() = ANY(participant_emails)`) succeed when the
+  // signed-in user's JWT email differs in case (OAuth display-case
+  // vs DB-canonical). Mig 116's group RPC already lowercases; the
+  // 1:1 path was the inconsistency. Wave 57 (Messages audit) caught.
+  const me = String(myEmail).toLowerCase();
+  const other = String(otherEmail).toLowerCase();
+  const key = buildKey(me, other);
   const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
-  return conv().create({
-    participant_key: key,
-    participant_emails: [myEmail, otherEmail].sort(),
-    last_message_at: new Date().toISOString(),
-    last_message_preview: '',
-  });
+  try {
+    return await conv().create({
+      participant_key: key,
+      participant_emails: [me, other].sort(),
+      last_message_at: new Date().toISOString(),
+      last_message_preview: '',
+    });
+  } catch (err) {
+    // Concurrent-tap race: two near-simultaneous "Message" taps both
+    // see no existing row + both attempt insert. The UNIQUE index on
+    // participant_key rejects the second with 23505. Re-query and
+    // return the row the OTHER tap just inserted — both calls now
+    // resolve to the same conversation. Wave 57 (Messages audit)
+    // caught this; previously the second tap got a misleading "Could
+    // not start conversation" toast even though a conversation existed.
+    if (err?.code === '23505' || /duplicate key/i.test(err?.message || '')) {
+      const retry = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
+      if (retry.length > 0) return retry[0];
+    }
+    throw err;
+  }
 };
 
 /**

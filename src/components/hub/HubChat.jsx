@@ -772,12 +772,20 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }, []);
 
+  // Synchronous in-flight guard. `sending` state lags React, so two
+  // rapid Enter keystrokes in the same microtask batch both see
+  // sending=false → two HTTP inserts → dedupeMessages can't help
+  // (it dedupes temp-vs-real, not real-vs-real with identical body).
+  // Wave 57 (Messages audit) caught this. Pattern from CrewCreationFlow.
+  const sendingRef = useRef(false);
+
   // ── Send ──────────────────────────────────────────────────────────────────
   const handleSend = async () => {
     const trimmed = draft.trim();
     if (!trimmed && !attachmentFile) return;
-    if (sending || uploading) return;
+    if (sending || uploading || sendingRef.current) return;
     if (!conversation?.id) { toast.error(t('hub.messages.sendError')); return; }
+    sendingRef.current = true;
     // Primary-action haptic — sending a DM is the most frequent
     // primary action in the messaging surface. The centralized util
     // honors the user's haptics-off setting + rate-limiting + the
@@ -879,9 +887,22 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
           .catch(cleanupErr => console.warn('[HubChat] orphan-upload cleanup failed:', cleanupErr));
       }
       console.error('[HubChat] sendMessage threw:', err);
-      toast.error(t('hub.messages.sendError'));
+      // Surface specific errors from mig 157 (profanity trigger) and
+      // mig 159 (block trigger) so the user knows WHY their message
+      // didn't go. Without this they hit a generic "send failed" toast
+      // and retry into the same wall in a frustration loop. Wave 57
+      // (Messages audit) caught this.
+      const msg = `${err?.message || ''} ${err?.hint || ''}`;
+      if (/message_profanity/i.test(msg) || err?.code === '23514') {
+        toast.error('Message contains prohibited content. Edit it and try again.');
+      } else if (/dm_blocked/i.test(msg) || err?.code === '42501') {
+        toast.error("You can't send messages to this user.");
+      } else {
+        toast.error(t('hub.messages.sendError'));
+      }
     } finally {
       setSending(false);
+      sendingRef.current = false;
     }
   };
 
