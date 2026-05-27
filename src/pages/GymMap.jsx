@@ -199,10 +199,17 @@ async function fetchOsmGyms(bounds, zoom, signal) {
   // as the FASTEST mirror responds with valid JSON — typically 1-3s.
   // Each individual fetch gets a hard 20s cap and propagates the
   // outer abort signal, so map pan/zoom still cancels immediately.
+  // We also collect every controller so we can abort the LOSING
+  // mirrors once Promise.any resolves — without this, two extra full
+  // Overpass responses keep downloading in the background after the
+  // first success, wasting the user's bandwidth on every fetch.
+  // Wave 56 (GymMap audit) caught this.
+  const ctrls = [];
   const tryMirror = async (mirror) => {
     // Combined per-mirror AbortController: aborts on 20s timeout AND
     // when the outer signal aborts.
     const ctrl = new AbortController();
+    ctrls.push(ctrl);
     const timer = setTimeout(() => ctrl.abort('timeout'), 20_000);
     const forwardAbort = () => ctrl.abort('outer-aborted');
     if (signal?.aborted) { clearTimeout(timer); throw new DOMException('Aborted', 'AbortError'); }
@@ -223,6 +230,11 @@ async function fetchOsmGyms(bounds, zoom, signal) {
   let json;
   try {
     json = await Promise.any(OVERPASS_MIRRORS.map(tryMirror));
+    // First mirror won — abort the losers so they stop downloading.
+    // Each ctrl.abort() is a no-op if the controller already settled.
+    for (const c of ctrls) {
+      try { c.abort('won'); } catch { /* ignore */ }
+    }
   } catch (err) {
     // Promise.any throws AggregateError when ALL mirrors fail. If the
     // OUTER signal aborted, surface AbortError to the caller so the
@@ -426,7 +438,15 @@ export default function GymMap() {
     return () => {
       cancelled = true;
       clearTimeout(debounceRef.current);
+      // Abort any in-flight OSM fetch + null the ref so the fetch's
+      // `finally` doesn't try to setOsmLoading(false) on an unmounted
+      // component (React 18 swallows the warning but it's a leak
+      // signal). The sequence-guard at line 359 checks
+      // `osmAbortRef.current === ctrl`; nulling here makes that check
+      // false, so the unmounted-setState path is skipped. Wave 56
+      // (GymMap audit) flagged this.
       osmAbortRef.current?.abort();
+      osmAbortRef.current = null;
       try { map.remove(); } catch { /* ignore */ }
       mapRef.current = null;
     };

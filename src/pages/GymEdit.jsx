@@ -217,6 +217,20 @@ export default function GymEdit() {
       }
       lng = v;
     }
+    // Validate hours: close must be > open per day. Without this, a
+    // typo like "open 18:00 → close 06:00" (intending "open 6am →
+    // close 6pm") silently saves and the rendering layer can't tell
+    // "closed before opening" from "open overnight." Wave 56 (GymEdit
+    // audit) caught this. For genuine overnight gyms (open past
+    // midnight) the user should add the next day's row instead — v1
+    // doesn't model overnight as a single slot.
+    for (const day of DAY_ORDER) {
+      const slot = form.hours?.[day];
+      if (slot?.open && slot?.close && slot.close <= slot.open) {
+        toast.error(`${DAY_LABEL[day]} close time must be after open time.`);
+        return;
+      }
+    }
     setSaving(true);
     // RLS allows owner-only updates; UPDATE policy already gates on
     // owner_id = auth.uid().
