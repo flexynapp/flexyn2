@@ -543,7 +543,16 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
 
 async function _invokeDeleteAccount() {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) {
+    // THROW instead of silent return. The caller (ProfileMenu.handleDeleteAccount)
+    // treats a `result.success === false` shape as the only failure
+    // signal — an undefined return looked like success, so a user with
+    // a stale session saw "Account deleted" while nothing was deleted.
+    // Wave 54 (Settings audit) caught this.
+    const err = new Error('Not authenticated — sign in and try again.');
+    err.code = 'NO_SESSION';
+    throw err;
+  }
   const email = user.email;
 
   // 1. Regimens — use the tombstone-aware purge so public templates that

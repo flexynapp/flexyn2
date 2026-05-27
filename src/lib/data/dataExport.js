@@ -47,7 +47,13 @@ const EXPORT_TABLES = [
   { name: 'gym_feed_posts',       table: 'gym_feed_posts',       column: 'author_email', via: 'email' },
   { name: 'gym_feed_comments',    table: 'gym_feed_comments',    column: 'created_by',   via: 'email' },
   { name: 'crew_messages_sent',   table: 'crew_messages',        column: 'sender_email', via: 'email' },
-  { name: 'crew_message_reactions', table: 'crew_messages_reactions', column: 'user_email', via: 'email' },
+  // Mig 130 actually names the table `crew_message_reactions` (singular
+  // "message") and the owning column is `user_id` (UUID), not user_email.
+  // The previous entry's table name had an extra 's' and the column
+  // didn't exist — every GDPR export silently returned
+  // `{ error: 'fetch_failed', detail: 'relation does not exist' }` for
+  // emoji reactions. Wave 54 (Settings audit) caught this.
+  { name: 'crew_message_reactions', table: 'crew_message_reactions', column: 'user_id', via: 'id' },
   // Marketplace + trainer purchase history
   { name: 'marketplace_listings', table: 'marketplace_listings', column: 'seller_email', via: 'email' },
   { name: 'trainer_purchases',    table: 'trainer_purchases',    column: 'buyer_email',  via: 'email' },

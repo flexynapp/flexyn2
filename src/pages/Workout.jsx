@@ -274,8 +274,31 @@ export default function Workout() {
         setActiveSessionId(session.id);
         if (session.selectedRegimen) setSelectedRegimen(session.selectedRegimen);
         if (Array.isArray(session.exercises)) setExercises(session.exercises);
-        if (session.date) setDate(session.date);
-        if (typeof session.duration === 'number') setDuration(session.duration);
+        // Only honor the resumed date if it's still TODAY's local
+        // calendar day. Otherwise (e.g. paused at 11pm, resumed next
+        // morning) we'd silently save the workout under yesterday's
+        // date — wrong streak credit, wrong league bucket. Default to
+        // today (the existing `setDate` default) instead. Wave 54
+        // (Workout audit) caught this.
+        if (session.date) {
+          const todayStr = (() => {
+            const d = new Date();
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${y}-${m}-${dd}`;
+          })();
+          if (session.date === todayStr) setDate(session.date);
+        }
+        // Duration was historically string-typed (from a text Input) but
+        // mixed code paths sometimes serialize it as a number. Accept
+        // either and coerce to string for the state (which the Input
+        // displays). Without this the typeof==='number' branch never
+        // fired and the user's manually-entered duration was silently
+        // lost on resume. Wave 54 (Workout audit) caught this.
+        if (session.duration != null && session.duration !== '') {
+          setDuration(String(session.duration));
+        }
         if (typeof session.notes === 'string') setNotes(session.notes);
         // Resume the elapsed-time counter from the saved start. Without
         // this the clock would reset to 0 on reload mid-session, which

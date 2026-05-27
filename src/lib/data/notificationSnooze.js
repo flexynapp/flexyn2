@@ -12,28 +12,45 @@
 
 import { supabase } from '@/api/supabaseClient';
 
+// Returned to distinguish the three outcome shapes:
+//   • `{ ok: true, expiry }`   — server stored the snooze (expiry is a non-null ISO when minutes > 0)
+//   • `{ ok: true, expiry: null }` — server cleared the snooze (minutes was 0/null and RPC succeeded)
+//   • `{ ok: false, reason }`  — RPC failed (missing function / permission / other)
+//
+// The previous return shape was `string|null` — which collapsed
+// "cleared successfully" and "RPC threw / function missing" into the
+// same `null`. SettingsPanel's clear path then optimistically removed
+// the snooze chip from state while the server still had the row,
+// silently misleading the user. Wave 54 (Notifications + Settings
+// audits) both flagged this. Callers that don't care about the
+// distinction can read `.expiry` directly; the destructure is
+// backwards-compatible at the API surface even though the shape is
+// new.
+
 /**
  * Set or clear the snooze for a category.
  * @param {string} category — e.g. 'streak', 'quests'
  * @param {number} minutes  — 0 / null clears; 1..1440 sets the window
- * @returns {Promise<string|null>} expiry ISO timestamp, or null on clear/error
+ * @returns {Promise<{ok:boolean, expiry:string|null, reason?:string}>}
  */
 export async function snoozeCategory(category, minutes) {
-  if (!category) return null;
+  if (!category) return { ok: false, expiry: null, reason: 'no_category' };
   try {
     const { data, error } = await supabase.rpc('snooze_notification_category', {
       p_category: category,
       p_minutes:  Number.isFinite(minutes) ? Math.floor(minutes) : null,
     });
     if (error) {
-      if (error.code === '42883' || error.code === '42P01') return null;
+      if (error.code === '42883' || error.code === '42P01') {
+        return { ok: false, expiry: null, reason: 'pipeline_missing' };
+      }
       console.warn('[notificationSnooze] RPC failed:', error);
-      return null;
+      return { ok: false, expiry: null, reason: error.code || 'rpc_error' };
     }
-    return data || null;
+    return { ok: true, expiry: data || null };
   } catch (err) {
     console.warn('[notificationSnooze] threw:', err?.message || err);
-    return null;
+    return { ok: false, expiry: null, reason: 'threw' };
   }
 }
 

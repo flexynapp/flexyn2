@@ -195,19 +195,33 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     [windowPosts, olderPosts],
   );
 
+  // Synchronous in-flight guard. `loadingOlder` state lags React renders,
+  // so two rapid IntersectionObserver sentinel intersections (or one
+  // intersection firing while the previous async fetch is mid-flight
+  // before setLoadingOlder(true) lands) both pass `loadingOlder===false`
+  // and call fetchOlderGlobal with the SAME cursor — appending the
+  // same 50 posts twice, producing React duplicate-key warnings and
+  // double-rendered cards. Wave 54 (Hub audit) caught this.
+  const loadOlderInFlightRef = useRef(false);
   const loadOlder = useCallback(async () => {
     if (loadingOlder || olderExhausted) return;
+    if (loadOlderInFlightRef.current) return;
     const combined = olderPosts.length ? olderPosts : windowPosts;
     const last = combined[combined.length - 1];
     const cursor = last?.created_date || last?.created_at;
     if (!cursor) { setOlderExhausted(true); return; }
+    loadOlderInFlightRef.current = true;
     setLoadingOlder(true);
-    const more = feedTab === 'pump'
-      ? await hubPosts.fetchOlderGlobal(cursor, 50)
-      : await hubPosts.fetchOlderFollowing(following, cursor, 50);
-    setLoadingOlder(false);
-    if (more.length === 0) setOlderExhausted(true);
-    else setOlderPosts(prev => [...prev, ...more]);
+    try {
+      const more = feedTab === 'pump'
+        ? await hubPosts.fetchOlderGlobal(cursor, 50)
+        : await hubPosts.fetchOlderFollowing(following, cursor, 50);
+      if (more.length === 0) setOlderExhausted(true);
+      else setOlderPosts(prev => [...prev, ...more]);
+    } finally {
+      setLoadingOlder(false);
+      loadOlderInFlightRef.current = false;
+    }
   }, [feedTab, following, loadingOlder, olderExhausted, olderPosts, windowPosts]);
 
   // Remember scroll position per feed-tab so navigating into a post

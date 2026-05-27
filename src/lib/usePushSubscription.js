@@ -18,7 +18,7 @@
 // subscribe call no-ops — the Settings UI shows a "configure server"
 // hint instead of a broken button.
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/api/supabaseClient';
 
 const VAPID_PUBLIC_KEY =
@@ -80,8 +80,19 @@ export function usePushSubscription() {
     return () => { cancelled = true; };
   }, [isSupported]);
 
+  // Synchronous in-flight guard against rapid toggle taps. `isLoading`
+  // state lags React renders — two fast taps both pass `!isLoading`,
+  // both fire requestPermission + pushManager.subscribe + RPC, and the
+  // second-resolving call can race the first's failure-branch
+  // `subscription.unsubscribe()` and leave the browser sub revoked
+  // while the server still has the second row. Wave 54 caught this.
+  const subscribeInFlightRef = useRef(false);
+  const unsubscribeInFlightRef = useRef(false);
+
   const subscribe = useCallback(async () => {
     if (!isSupported) return { ok: false, reason: 'unsupported' };
+    if (subscribeInFlightRef.current) return { ok: false, reason: 'in_flight' };
+    subscribeInFlightRef.current = true;
     setIsLoading(true);
     try {
       // 1. Ask the browser for permission. If the user already granted,
@@ -129,11 +140,14 @@ export function usePushSubscription() {
       return { ok: false, reason: 'error', error: err };
     } finally {
       setIsLoading(false);
+      subscribeInFlightRef.current = false;
     }
   }, [isSupported]);
 
   const unsubscribe = useCallback(async () => {
     if (!isSupported) return { ok: false, reason: 'unsupported' };
+    if (unsubscribeInFlightRef.current) return { ok: false, reason: 'in_flight' };
+    unsubscribeInFlightRef.current = true;
     setIsLoading(true);
     try {
       const reg = await navigator.serviceWorker.ready;
@@ -152,30 +166,22 @@ export function usePushSubscription() {
         catch (e) { console.warn('[push] browser unsubscribe threw:', e); }
       }
 
-      // ALWAYS attempt to delete the server row. The previous code
-      // skipped this when subscription was null (browser sub already
-      // gone) — but that's the WORST case: the server still has the
-      // row and keeps trying to push to a dead endpoint until the
-      // 410-Gone cleanup eventually catches it. If we have an
-      // endpoint, delete by endpoint; otherwise fall back to deleting
-      // any rows for the current user_agent (best-effort cleanup).
+      // ALWAYS attempt to delete the server row when we have an
+      // endpoint. The UA-fallback path the previous code used was
+      // unsafe: two devices with identical user_agent strings (very
+      // common — two iPhones of the same model on the same iOS version)
+      // would both match the .eq('user_agent', ...) filter and the
+      // "purge this device" intent would collateral-delete the OTHER
+      // device's subscription. Wave 54 (Notifications audit) caught
+      // this. We accept the trade-off: a user who lost their browser
+      // sub (cleared site data, switched browsers) gets stale server
+      // rows until the 410-Gone cleanup catches them on the next
+      // push attempt — a slow but correct cleanup, not a fast but
+      // device-misidentifying one.
       if (endpoint) {
         await supabase.from('push_subscriptions').delete().eq('endpoint', endpoint);
-      } else {
-        // No active browser subscription — try a UA-based cleanup so a
-        // user who lost their browser sub (cleared site data, switched
-        // browsers) can still purge their server-side row.
-        try {
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser) {
-            await supabase
-              .from('push_subscriptions')
-              .delete()
-              .eq('user_id', authUser.id)
-              .eq('user_agent', navigator.userAgent || '');
-          }
-        } catch { /* best-effort */ }
       }
+      // else: server row stays until 410-Gone sweep; intentional.
 
       setIsSubscribed(false);
       return { ok: true };
@@ -183,6 +189,7 @@ export function usePushSubscription() {
       console.warn('[push] unsubscribe failed:', err);
       return { ok: false, reason: 'error', error: err };
     } finally {
+      unsubscribeInFlightRef.current = false;
       setIsLoading(false);
     }
   }, [isSupported]);

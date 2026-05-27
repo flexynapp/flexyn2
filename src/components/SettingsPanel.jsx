@@ -397,11 +397,20 @@ export default function SettingsPanel() {
     }
     setSnoozes(optimistic);
     setSnoozeOpenFor(null);
-    const expiry = await snoozeCategory(category, minutes);
-    if (minutes && !expiry) {
-      // RPC failed silently — revert.
+    // snoozeCategory now returns { ok, expiry, reason } so we can tell
+    // "cleared successfully" from "RPC missing / errored." Previously
+    // both returned `null` and the `if (minutes && !expiry)` guard
+    // only reverted SET paths — a failed CLEAR silently left the
+    // optimistic state in place while the server still had the snooze
+    // row. Wave 54 (Notifications + Settings audits) caught this.
+    const res = await snoozeCategory(category, minutes);
+    if (!res.ok) {
       setSnoozes(prev);
-      toast.error(tFallback('settings.snooze.failed', 'Could not snooze — try again.'));
+      if (res.reason === 'pipeline_missing') {
+        toast.error(tFallback('settings.snooze.notConfigured', 'Snooze is not enabled in this environment yet.'));
+      } else {
+        toast.error(tFallback('settings.snooze.failed', 'Could not snooze — try again.'));
+      }
       return;
     }
     queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });

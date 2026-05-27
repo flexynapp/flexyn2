@@ -114,6 +114,16 @@ export default function ProfileMenu() {
   const [view, setView] = useState('main'); // 'main' | 'settings'
   const [isDeleting, setIsDeleting] = useState(false);
   const [accountDeleted, setAccountDeleted] = useState(false);
+  // Synchronous double-tap guard on the most destructive action in the
+  // app. `isDeleting` state is async — a fast second tap (≤16ms before
+  // the next render) can fire both invocations. The second runs after
+  // wipeLocalClientState() and db.auth.logout(), so its
+  // supabase.auth.getUser() returns no user and _invokeDeleteAccount
+  // silently early-returns `undefined` — which the caller's
+  // `result.success === false` check treats as truthy success. UX flips
+  // to AccountDeletedScreen with nothing actually re-deleted.
+  // Wave 54 (Settings audit) caught this.
+  const deletingRef = useRef(false);
   const [journalOpen, setJournalOpen] = useState(false);
   const [debriefVaultOpen, setDebriefVaultOpen] = useState(false);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
@@ -137,6 +147,8 @@ export default function ProfileMenu() {
   }, [open]);
 
   const handleDeleteAccount = async () => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
     setIsDeleting(true);
     let succeeded = false;
     try {
@@ -158,6 +170,10 @@ export default function ProfileMenu() {
       setAccountDeleted(true);
     } catch (err) {
       setIsDeleting(false);
+      // Reset the ref on failure so the user CAN retry. On success the
+      // component unmounts (AccountDeletedScreen takes over) so the
+      // ref is moot.
+      deletingRef.current = false;
       if (err?.partial) {
         const tableList = (err.failures || []).slice(0, 3).map(f => f.table).join(', ');
         toast.error(`Deletion incomplete. Some data could not be removed (${tableList}…). Contact support.`);

@@ -11,7 +11,7 @@
 //   Achievements  — PRs / capsules / coin milestones / streak / quests
 //   System        — engagement nudges + everything else
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
@@ -22,6 +22,7 @@ import PageHeader from '@/components/PageHeader';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as notifications from '@/lib/data/notifications';
+import { reportError } from '@/lib/reportError';
 
 const TABS = [
   { id: 'all',          label: 'All' },
@@ -90,17 +91,33 @@ export default function Notifications() {
     staleTime: 30_000,
   });
 
-  // Mark all read on mount (page-level mark-all, mirrors the bell-
-  // dropdown behavior — opening this surface is consent to clear the
-  // unread badge).
+  // Mark all read ONCE per mount (page-level mark-all, mirrors the
+  // bell-dropdown behavior — opening this surface is consent to clear
+  // the unread badge).
+  //
+  // Previously this effect depended on `rows` (the array reference,
+  // replaced on every refetch / staleTime expiry). Combined with
+  // `handleRowClick` invalidating `notificationsListFull` after a
+  // single-row tap, the refetch produced a new `rows` reference, this
+  // effect re-fired, and markAllRead ran AGAIN — turning a single
+  // tap into a blanket mark-all. Same problem on any incoming
+  // realtime row from another device.
+  //
+  // Fix: gate on a useRef "already ran this mount" sentinel, depend
+  // only on user?.id, and use reportError instead of swallowing the
+  // failure. Wave 54 (Notifications audit) caught this.
+  const markedAllRef = useRef(false);
   useEffect(() => {
-    if (!user?.id || rows.length === 0) return;
+    if (!user?.id || markedAllRef.current) return;
+    if (rows.length === 0) return;
     const hasUnread = rows.some(r => !r.is_read);
     if (!hasUnread) return;
+    markedAllRef.current = true;
     notifications.markAllRead(user)
       .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user.id] }))
-      .catch(() => { /* non-critical */ });
-  }, [user?.id, rows, queryClient]);
+      .catch((err) => reportError(err, { feature: 'notifications.markAllRead', level: 'warning', userEmail: user?.email }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const filtered = (() => {
     if (tab === 'all') return rows;
@@ -117,7 +134,7 @@ export default function Notifications() {
           queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] });
           queryClient.invalidateQueries({ queryKey: ['notificationsListFull', user?.id] });
         })
-        .catch(() => {});
+        .catch((err) => reportError(err, { feature: 'notifications.markRead', level: 'warning', userEmail: user?.email }));
     }
     if (!n.link_url) return;
     // Distinguish absolute URLs (open in new tab) from in-app routes.
@@ -132,6 +149,24 @@ export default function Notifications() {
 
   const handleClearAll = async () => {
     if (rows.length === 0) return;
+    // Respect the active filter. Previously this always nuked the user's
+    // ENTIRE notifications history regardless of which tab they were on —
+    // a user on the "Social" tab tapping Clear All wiped their Competitive
+    // + Achievements + System rows too with no warning. Now: when a
+    // filter is active, confirm the hidden-row count first.
+    if (tab !== 'all') {
+      const visibleCount = filtered.length;
+      const hiddenCount = rows.length - visibleCount;
+      if (hiddenCount > 0) {
+        const ok = window.confirm(
+          tFallback(
+            'notifications.clearAllFilteredConfirm',
+            `Clear ALL ${rows.length} notifications, including ${hiddenCount} hidden by the current filter?`
+          )
+        );
+        if (!ok) return;
+      }
+    }
     const prev = rows;
     queryClient.setQueryData(['notificationsListFull', user?.id], []);
     const res = await notifications.deleteAllForUser(user);

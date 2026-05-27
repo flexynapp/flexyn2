@@ -546,6 +546,12 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   };
 
   const handleReact = (type) => {
+    // Early-return if the user is mid-logout. `runWorker` reads
+    // `user.email` unconditionally, but a card rendered momentarily
+    // during the auth transition (where useAuth().user becomes null)
+    // would throw `Cannot read properties of undefined`. Wave 54
+    // (Hub audit) caught this.
+    if (!user?.email) return;
     const next = displayedReaction === type ? null : type;
     setPendingReaction(next);
     desiredRef.current = next;
