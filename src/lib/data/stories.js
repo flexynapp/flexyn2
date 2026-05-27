@@ -190,6 +190,16 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
         if (base.kind === 'emoji')   return { ...base, emoji: String(o.emoji || '').slice(0, 8) };
         if (base.kind === 'text')    return { ...base, text: String(o.text || '').slice(0, 280), color: o.color || '#fff', font: o.font || 'normal' };
         if (base.kind === 'sticker') return { ...base, label: String(o.label || '').slice(0, 32), stickerId: o.stickerId || null };
+        if (base.kind === 'drawing') return {
+          ...base,
+          // Freehand stroke as normalized [x,y] points (0..1). Capped so a
+          // scribble can't bloat the JSONB cap.
+          points: Array.isArray(o.points)
+            ? o.points.slice(0, 400).map(p => [Number(p?.[0]) || 0, Number(p?.[1]) || 0])
+            : [],
+          color: o.color || '#fff',
+          width: Number.isFinite(Number(o.width)) ? Number(o.width) : 4,
+        };
         return null;
       }).filter(Boolean)
     : null;

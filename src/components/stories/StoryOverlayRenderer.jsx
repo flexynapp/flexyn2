@@ -35,6 +35,33 @@ function OverlayItem({ overlay, storyId, userId, isOwn }) {
   if (kind === 'countdown') {
     return <StoryCountdownOverlay overlay={overlay} />;
   }
+  // Freehand drawing — a full-frame SVG polyline using normalized points.
+  // preserveAspectRatio="none" stretches the 0..100 viewBox to the overlay
+  // box exactly like the editor frame, and non-scaling-stroke keeps the
+  // line a constant pixel width regardless of display size.
+  if (kind === 'drawing') {
+    const pts = Array.isArray(overlay?.points) ? overlay.points : [];
+    if (pts.length < 2) return null;
+    const d = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${clamp01(p[0]) * 100} ${clamp01(p[1]) * 100}`).join(' ');
+    return (
+      <svg
+        viewBox="0 0 100 100"
+        preserveAspectRatio="none"
+        className="absolute inset-0 w-full h-full pointer-events-none"
+        aria-hidden="true"
+      >
+        <path
+          d={d}
+          fill="none"
+          stroke={overlay.color || '#fff'}
+          strokeWidth={Number.isFinite(overlay?.width) ? overlay.width : 4}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    );
+  }
   const x = clamp01(overlay?.x);
   const y = clamp01(overlay?.y);
   const scale = Number.isFinite(overlay?.scale) ? overlay.scale : 1;

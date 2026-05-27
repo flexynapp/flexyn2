@@ -1,33 +1,29 @@
 // src/components/stories/StoryPreviewSheet.jsx
 //
-// Full-screen story editor shown before posting.
+// Full-screen story editor shown before posting. (Rewritten editor.)
 //
-// Filters (swipe left/right on the preview)
-//   Normal | B&W | Vivid | Bright — cycles with horizontal swipe
+// Frame
+//   Locked to a 9:16 phone frame so desktop + phone arrange/post identically.
 //
-// Text overlay
-//   Tap "Aa" or tap background → centered textarea opens for typing
-//   Tap positioned text → re-opens textarea to edit
-//   One-finger drag on text  → move text anywhere on screen
-//   Two-finger pinch (anywhere on preview) → scale + rotate text
+// Overlays (text + emoji) — up to 3 text boxes
+//   Tap "Aa" → adds a new text box (max 3), selected + ready to type.
+//   Tap a box → selects it (dashed outline = its hit area). Tap again → edit.
+//   Drag a box → move. The hit area IS the box, so it tracks size when scaled.
+//   Selected box shows a ⤡ corner handle → drag to scale + rotate (one finger
+//   or mouse; robust, no finicky pinch). Drag any box onto the trash to delete.
 //
-// Font presets (shown in editing UI above color picker)
-//   Normal | Serious | Casual — tap to switch, each rendered in its own font
+// Pencil
+//   Tap the pencil → freehand draw with the current color. Strokes post as
+//   normalized drawing overlays (rendered by StoryOverlayRenderer).
 //
-// Color picker (shown once text exists, below font selector)
-//   Hue slider: continuous spectrum, slide to any color
-//   Quick dots: white, black, red, blue, yellow, green
-//   Eyedropper: canvas-based pixel sampler with live loupe
+// Fonts: Normal | Serious | Casual | Pixel.  Color: hue slider + dots + eyedropper.
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Pipette, Download, Check, Smile, X as XIcon } from 'lucide-react';
+import { Loader2, Pipette, Smile, X as XIcon, Pencil, Type, Trash2, Undo2, Move } from 'lucide-react';
 import { toast } from 'sonner';
 
-// Curated emoji set for the in-composer picker. Eight rows of 8 keeps
-// the picker thumb-reachable on phones while covering the obvious
-// fitness/celebration/reaction use cases.
 const EMOJI_PALETTE = [
   '🔥','💪','🏋️','🏃','🥇','🎯','⚡','🚀',
   '❤️','😂','😍','🤩','😭','🙌','👏','👀',
@@ -54,55 +50,88 @@ const FONTS = [
 ];
 
 const QUICK_COLORS = ['#ffffff', '#000000', '#ef4444', '#3b82f6', '#fbbf24', '#22c55e'];
-
-// Map object-contain image coords to canvas coords
-function getContainLayout(containerEl, imgW, imgH) {
-  if (!containerEl || !imgW || !imgH) return null;
-  const { width: cW, height: cH } = containerEl.getBoundingClientRect();
-  const scale   = Math.min(cW / imgW, cH / imgH);
-  const offsetX = (cW - imgW * scale) / 2;
-  const offsetY = (cH - imgH * scale) / 2;
-  return { cW, cH, imgW, imgH, scale, offsetX, offsetY };
-}
+const MAX_TEXT = 3;
+const uid = () => `o_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 
 export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
-  const [overlayText,     setOverlayText]     = useState('');
-  const [editingText,     setEditingText]     = useState(false);
-  const [fontIdx,         setFontIdx]         = useState(0);
-  const [textColor,       setTextColor]       = useState('#ffffff');
-  const [hue,             setHue]             = useState(0);
-  const [filterIdx,       setFilterIdx]       = useState(0);
-  const [filterLabelVis,  setFilterLabelVis]  = useState(false);
+  // Unified movable overlays: text + emoji. Normalized x/y (0..1 of the frame).
+  const [overlays, setOverlays] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editingId, setEditingId]   = useState(null);
+
+  const [filterIdx,      setFilterIdx]      = useState(0);
+  const [filterLabelVis, setFilterLabelVis] = useState(false);
   const filterLabelTimer = useRef(null);
 
-  // Emoji overlays — array of { id, emoji, x, y } with x/y normalized.
-  // Each one is independently draggable via pointer events on its
-  // rendered span. The id is just a stable React key.
-  const [emojiOverlays, setEmojiOverlays] = useState([]);
+  const [textColor, setTextColor] = useState('#ffffff');
+  const [hue,       setHue]       = useState(0);
+
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
-  const draggingEmojiId = useRef(null);
+
+  // Drawing
+  const [drawMode, setDrawMode] = useState(false);
+  const [strokes,  setStrokes]  = useState([]); // [{ points:[[x,y]], color, width }]
+  const [liveStroke, setLiveStroke] = useState(null);
+  const drawingRef = useRef(false);
 
   // Eyedropper
   const [eyedropperActive, setEyedropperActive] = useState(false);
-  const [loupePos,         setLoupePos]         = useState(null); // {x, y, color}
-  const canvasRef    = useRef(null);
-  const imgNatRef    = useRef({ w: 0, h: 0 });   // natural image dimensions
+  const [loupePos, setLoupePos] = useState(null);
+  const canvasRef = useRef(null);
+  const imgNatRef = useRef({ w: 0, h: 0 });
 
-  const inputRef     = useRef(null);
-  const textRef      = useRef(null);
-  const containerRef = useRef(null);
-  const mediaElRef   = useRef(null);  // <img> or <video> element
+  const frameRef    = useRef(null);   // the 9:16 frame (coordinate space)
+  const mediaElRef  = useRef(null);
+  const inputRef    = useRef(null);
 
-  // Gesture state — updated via DOM refs to avoid React re-render lag
-  const ts = useRef({
-    x: 0, y: 0, scale: 1, rotate: 0,
-    mode: null,
-    lastX: 0, lastY: 0,
-    startDist: 0, startAngle: 0, startScale: 1, startRotate: 0,
-    tapStartX: 0, tapStartY: 0,   // for tap-to-re-edit detection
-    touchStartTime: 0,
-  });
+  // Drag/handle gesture state (refs to avoid re-render churn mid-gesture)
+  const drag = useRef(null);   // { id, moved } for move drags
+  const handle = useRef(null); // { id, cx, cy, startDist, startAngle, startScale, startRotate }
+  const [overTrash, setOverTrash] = useState(false);
+  const [dragging, setDragging]   = useState(false);
 
+  const selected = overlays.find(o => o.id === selectedId) || null;
+  const textCount = overlays.filter(o => o.kind === 'text').length;
+
+  // ── helpers ───────────────────────────────────────────────────────────────
+  const normFromEvent = useCallback((clientX, clientY) => {
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0.5, y: 0.5 };
+    return {
+      x: Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)),
+      y: Math.max(0, Math.min(1, (clientY - rect.top)  / rect.height)),
+    };
+  }, []);
+
+  const updateOverlay = useCallback((id, patch) => {
+    setOverlays(curr => curr.map(o => (o.id === id ? { ...o, ...patch } : o)));
+  }, []);
+
+  const deleteOverlay = useCallback((id) => {
+    setOverlays(curr => curr.filter(o => o.id !== id));
+    setSelectedId(s => (s === id ? null : s));
+    setEditingId(e => (e === id ? null : e));
+  }, []);
+
+  const addText = useCallback(() => {
+    if (textCount >= MAX_TEXT) { toast.error(`Up to ${MAX_TEXT} text boxes.`); return; }
+    const id = uid();
+    setOverlays(curr => [...curr, {
+      id, kind: 'text', text: '', color: textColor, fontIdx: 0,
+      x: 0.5, y: 0.42, scale: 1, rotate: 0,
+    }]);
+    setSelectedId(id);
+    setEditingId(id);
+  }, [textCount, textColor]);
+
+  const addEmoji = useCallback((emoji) => {
+    const id = uid();
+    setOverlays(curr => [...curr, { id, kind: 'emoji', emoji, x: 0.5, y: 0.5, scale: 1, rotate: 0 }]);
+    setSelectedId(id);
+    setEmojiPickerOpen(false);
+  }, []);
+
+  // ── filter cycling (horizontal swipe on empty frame) ───────────────────────
   const cycleFilter = useCallback((direction) => {
     setFilterIdx(i => (i + direction + FILTERS.length) % FILTERS.length);
     setFilterLabelVis(true);
@@ -110,695 +139,387 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     filterLabelTimer.current = setTimeout(() => setFilterLabelVis(false), 1500);
   }, []);
 
-  // Swipe left/right on the preview area to change filter
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || editingText) return;
-    let startX, startY;
-
-    const onTouchStart = (e) => {
-      if (e.touches.length !== 1) return;
-      startX = e.touches[0].clientX;
-      startY = e.touches[0].clientY;
+    const frame = frameRef.current;
+    if (!frame || drawMode) return undefined;
+    let startX, startY, single;
+    const onStart = (e) => {
+      single = e.touches.length === 1;
+      if (single) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }
     };
-
-    const onTouchEnd = (e) => {
-      if (startX === undefined || e.changedTouches.length !== 1) return;
+    const onEnd = (e) => {
+      if (!single || startX == null || e.changedTouches.length !== 1) return;
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
-      // Only treat as filter swipe if it's clearly horizontal and NOT starting near text
-      if (Math.abs(dx) > 60 && Math.abs(dy) < 80) {
-        const bounds = textRef.current?.getBoundingClientRect();
-        const nearText = bounds && (
-          startX >= bounds.left - 24 && startX <= bounds.right + 24 &&
-          startY >= bounds.top  - 24 && startY <= bounds.bottom + 24
-        );
-        if (!nearText) {
-          e.preventDefault();
-          cycleFilter(dx < 0 ? 1 : -1);
-        }
-      }
-      startX = undefined;
+      if (Math.abs(dx) > 60 && Math.abs(dy) < 80) cycleFilter(dx < 0 ? 1 : -1);
+      startX = null;
     };
+    frame.addEventListener('touchstart', onStart, { passive: true });
+    frame.addEventListener('touchend', onEnd, { passive: true });
+    return () => { frame.removeEventListener('touchstart', onStart); frame.removeEventListener('touchend', onEnd); };
+  }, [cycleFilter, drawMode]);
 
-    container.addEventListener('touchstart', onTouchStart, { passive: true });
-    container.addEventListener('touchend',   onTouchEnd,   { passive: false });
-    return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchend',   onTouchEnd);
-    };
-  }, [editingText, cycleFilter]);
+  useEffect(() => { if (editingId) inputRef.current?.focus(); }, [editingId]);
 
-  // Focus textarea when entering edit mode
-  useEffect(() => {
-    if (editingText) inputRef.current?.focus();
-  }, [editingText]);
+  // ── move drag (per overlay element; hit area = the element) ─────────────────
+  const onOverlayPointerDown = useCallback((e, id) => {
+    if (drawMode) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setSelectedId(id);
+    drag.current = { id, moved: false };
+    setDragging(true);
+  }, [drawMode]);
 
-  // Apply stored transform to the DOM element directly (no React state = no lag)
-  const applyTransform = useCallback(() => {
-    if (!textRef.current) return;
-    const { x, y, scale, rotate } = ts.current;
-    textRef.current.style.transform =
-      `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${scale}) rotate(${rotate}deg)`;
+  const isOverTrash = useCallback((clientX, clientY) => {
+    // Trash sits bottom-center; treat the lower-center band as the drop zone.
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!rect) return false;
+    const relY = (clientY - rect.top) / rect.height;
+    const relX = (clientX - rect.left) / rect.width;
+    return relY > 0.86 && relX > 0.32 && relX < 0.68;
   }, []);
 
-  // ── Container-level touch listeners (fix: second finger fires on container) ──
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container || editingText || !overlayText.trim()) return;
+  const onOverlayPointerMove = useCallback((e, id) => {
+    if (!drag.current || drag.current.id !== id) return;
+    drag.current.moved = true;
+    const { x, y } = normFromEvent(e.clientX, e.clientY);
+    updateOverlay(id, { x, y });
+    setOverTrash(isOverTrash(e.clientX, e.clientY));
+  }, [normFromEvent, updateOverlay, isOverTrash]);
 
-    const g = ts.current;
+  const onOverlayPointerUp = useCallback((e, id, kind) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    const d = drag.current;
+    drag.current = null;
+    setDragging(false);
+    const wasOverTrash = overTrash;
+    setOverTrash(false);
+    if (wasOverTrash) { deleteOverlay(id); return; }
+    if (d && !d.moved && kind === 'text') setEditingId(id); // tap text → edit
+  }, [overTrash, deleteOverlay]);
 
-    const textBounds = () => textRef.current?.getBoundingClientRect() ?? null;
-
-    const isNearText = (touch) => {
-      const bounds = textBounds();
-      if (!bounds) return false;
-      const SLACK = 24; // px extra hit area around text
-      return (
-        touch.clientX >= bounds.left   - SLACK &&
-        touch.clientX <= bounds.right  + SLACK &&
-        touch.clientY >= bounds.top    - SLACK &&
-        touch.clientY <= bounds.bottom + SLACK
-      );
+  // ── scale + rotate handle (single pointer) ──────────────────────────────────
+  const onHandleDown = useCallback((e, ov) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const cx = rect.left + ov.x * rect.width;
+    const cy = rect.top  + ov.y * rect.height;
+    const dx = e.clientX - cx, dy = e.clientY - cy;
+    handle.current = {
+      id: ov.id, cx, cy,
+      startDist: Math.max(8, Math.hypot(dx, dy)),
+      startAngle: Math.atan2(dy, dx),
+      startScale: ov.scale || 1,
+      startRotate: ov.rotate || 0,
     };
+  }, []);
 
-    const onTouchStart = (e) => {
-      if (e.touches.length === 1) {
-        const t = e.touches[0];
-        if (!isNearText(t)) return; // only engage when finger is on text
-        g.mode       = 'drag';
-        g.lastX      = t.clientX;
-        g.lastY      = t.clientY;
-        g.tapStartX  = t.clientX;
-        g.tapStartY  = t.clientY;
-        g.touchStartTime = Date.now();
-      } else if (e.touches.length >= 2) {
-        e.preventDefault();
-        g.mode       = 'pinch';
-        const [t0, t1] = [e.touches[0], e.touches[1]];
-        g.startDist  = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-        g.startAngle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX) * 180 / Math.PI;
-        g.startScale  = g.scale;
-        g.startRotate = g.rotate;
-      }
-    };
+  const onHandleMove = useCallback((e) => {
+    const h = handle.current;
+    if (!h) return;
+    const dx = e.clientX - h.cx, dy = e.clientY - h.cy;
+    const dist = Math.max(8, Math.hypot(dx, dy));
+    const angle = Math.atan2(dy, dx);
+    const scale = Math.max(0.3, Math.min(6, h.startScale * dist / h.startDist));
+    const rotate = h.startRotate + (angle - h.startAngle) * 180 / Math.PI;
+    updateOverlay(h.id, { scale, rotate });
+  }, [updateOverlay]);
 
-    const onTouchMove = (e) => {
-      if (!g.mode) return;
-      e.preventDefault();
-      if (e.touches.length === 1 && g.mode === 'drag') {
-        const t = e.touches[0];
-        g.x    += t.clientX - g.lastX;
-        g.y    += t.clientY - g.lastY;
-        g.lastX = t.clientX;
-        g.lastY = t.clientY;
-        applyTransform();
-      } else if (e.touches.length >= 2) {
-        if (g.mode !== 'pinch') {
-          // Escalate from drag to pinch mid-gesture
-          const [t0, t1] = [e.touches[0], e.touches[1]];
-          g.mode       = 'pinch';
-          g.startDist  = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-          g.startAngle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX) * 180 / Math.PI;
-          g.startScale  = g.scale;
-          g.startRotate = g.rotate;
-          return;
-        }
-        const [t0, t1] = [e.touches[0], e.touches[1]];
-        const dist  = Math.hypot(t1.clientX - t0.clientX, t1.clientY - t0.clientY);
-        const angle = Math.atan2(t1.clientY - t0.clientY, t1.clientX - t0.clientX) * 180 / Math.PI;
-        if (g.startDist > 0) {
-          g.scale  = Math.max(0.2, Math.min(8, g.startScale * dist / g.startDist));
-          g.rotate = g.startRotate + angle - g.startAngle;
-        }
-        applyTransform();
-      }
-    };
+  const onHandleUp = useCallback((e) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    handle.current = null;
+  }, []);
 
-    const onTouchEnd = (e) => {
-      if (e.touches.length === 0) {
-        // Tap detection: short duration + tiny movement → re-open edit
-        if (g.mode === 'drag') {
-          const dx  = (e.changedTouches[0]?.clientX ?? g.tapStartX) - g.tapStartX;
-          const dy  = (e.changedTouches[0]?.clientY ?? g.tapStartY) - g.tapStartY;
-          const dt  = Date.now() - g.touchStartTime;
-          if (Math.hypot(dx, dy) < 8 && dt < 300) {
-            setEditingText(true);
-          }
-        }
-        g.mode = null;
-      } else if (e.touches.length === 1 && g.mode === 'pinch') {
-        g.mode  = 'drag';
-        g.lastX = e.touches[0].clientX;
-        g.lastY = e.touches[0].clientY;
-      }
-    };
+  // ── drawing ─────────────────────────────────────────────────────────────────
+  const onDrawDown = useCallback((e) => {
+    if (!drawMode) return;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    drawingRef.current = true;
+    const { x, y } = normFromEvent(e.clientX, e.clientY);
+    setLiveStroke({ points: [[x, y]], color: textColor, width: 5 });
+  }, [drawMode, normFromEvent, textColor]);
 
-    container.addEventListener('touchstart', onTouchStart, { passive: false });
-    container.addEventListener('touchmove',  onTouchMove,  { passive: false });
-    container.addEventListener('touchend',   onTouchEnd,   { passive: false });
-    return () => {
-      container.removeEventListener('touchstart', onTouchStart);
-      container.removeEventListener('touchmove',  onTouchMove);
-      container.removeEventListener('touchend',   onTouchEnd);
-    };
-  }, [editingText, overlayText, applyTransform]);
+  const onDrawMove = useCallback((e) => {
+    if (!drawMode || !drawingRef.current) return;
+    const { x, y } = normFromEvent(e.clientX, e.clientY);
+    setLiveStroke(s => (s ? { ...s, points: [...s.points, [x, y]] } : s));
+  }, [drawMode, normFromEvent]);
 
-  // ── Mouse drag for desktop preview / testing ──────────────────────────────
-  useEffect(() => {
-    const el = textRef.current;
-    if (!el || editingText || !overlayText.trim()) return;
-    const g = ts.current;
-    let didMove = false;
+  const onDrawUp = useCallback((e) => {
+    if (!drawMode) return;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    drawingRef.current = false;
+    setLiveStroke(s => {
+      if (s && s.points.length > 1) setStrokes(curr => [...curr, s]);
+      return null;
+    });
+  }, [drawMode]);
 
-    const onMouseDown = (e) => {
-      g.mode       = 'drag';
-      g.lastX      = e.clientX;
-      g.lastY      = e.clientY;
-      g.tapStartX  = e.clientX;
-      g.tapStartY  = e.clientY;
-      g.touchStartTime = Date.now();
-      didMove      = false;
-    };
-    const onMouseMove = (e) => {
-      if (g.mode !== 'drag') return;
-      const dx = e.clientX - g.lastX;
-      const dy = e.clientY - g.lastY;
-      if (Math.hypot(dx, dy) > 2) didMove = true;
-      g.x    += dx;
-      g.y    += dy;
-      g.lastX = e.clientX;
-      g.lastY = e.clientY;
-      applyTransform();
-    };
-    const onMouseUp = () => {
-      if (!didMove && g.mode === 'drag') {
-        setEditingText(true); // click on text = re-edit
-      }
-      g.mode = null;
-    };
+  const undoStroke = useCallback(() => setStrokes(curr => curr.slice(0, -1)), []);
 
-    el.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup',   onMouseUp);
-    return () => {
-      el.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup',   onMouseUp);
-    };
-  }, [editingText, overlayText, applyTransform]);
-
-  // ── Eyedropper: draw image to hidden canvas once ──────────────────────────
+  // ── eyedropper ───────────────────────────────────────────────────────────────
   const activateEyedropper = useCallback(() => {
     const imgEl = mediaElRef.current;
-    if (!imgEl || isVideo) return; // eyedropper for images only
-
+    if (!imgEl || isVideo) return;
     const canvas = canvasRef.current;
-    const natW   = imgEl.naturalWidth  || imgEl.videoWidth  || 1;
-    const natH   = imgEl.naturalHeight || imgEl.videoHeight || 1;
+    const natW = imgEl.naturalWidth || 1, natH = imgEl.naturalHeight || 1;
     imgNatRef.current = { w: natW, h: natH };
-    canvas.width  = natW;
-    canvas.height = natH;
+    canvas.width = natW; canvas.height = natH;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     ctx.drawImage(imgEl, 0, 0, natW, natH);
     setEyedropperActive(true);
   }, [isVideo]);
 
   const samplePixel = useCallback((clientX, clientY) => {
-    const container = containerRef.current;
-    const canvas    = canvasRef.current;
-    if (!container || !canvas) return null;
+    const frame = frameRef.current, canvas = canvasRef.current;
+    if (!frame || !canvas) return null;
     const { w: natW, h: natH } = imgNatRef.current;
-    const layout = getContainLayout(container, natW, natH);
-    if (!layout) return null;
-    const rect  = container.getBoundingClientRect();
-    const sx    = clientX - rect.left;
-    const sy    = clientY - rect.top;
-    const cx    = Math.round((sx - layout.offsetX) / layout.scale);
-    const cy    = Math.round((sy - layout.offsetY) / layout.scale);
+    const rect = frame.getBoundingClientRect();
+    const scale = Math.min(rect.width / natW, rect.height / natH);
+    const offX = (rect.width - natW * scale) / 2, offY = (rect.height - natH * scale) / 2;
+    const cx = Math.round((clientX - rect.left - offX) / scale);
+    const cy = Math.round((clientY - rect.top - offY) / scale);
     if (cx < 0 || cy < 0 || cx >= natW || cy >= natH) return null;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     const [r, g, b] = ctx.getImageData(cx, cy, 1, 1).data;
     return `rgb(${r},${g},${b})`;
   }, []);
 
-  const onEyedropperPointerMove = useCallback((e) => {
-    if (!eyedropperActive) return;
-    const color = samplePixel(e.clientX, e.clientY);
-    setLoupePos({ x: e.clientX, y: e.clientY, color: color ?? '#ffffff' });
-  }, [eyedropperActive, samplePixel]);
-
-  const onEyedropperPointerUp = useCallback((e) => {
-    if (!eyedropperActive) return;
-    const color = samplePixel(e.clientX, e.clientY);
-    if (color) setTextColor(color);
-    setEyedropperActive(false);
-    setLoupePos(null);
-  }, [eyedropperActive, samplePixel]);
-
-  // ── Download handler — save edited frame to camera roll ──────────────────
-  const [justSaved, setJustSaved] = useState(false);
-
-  const handleDownload = useCallback(async () => {
-    const container = containerRef.current;
-    const mediaEl   = mediaElRef.current;
-    if (!container || !mediaEl) return;
-
-    if (isVideo) {
-      // Video: download the source blob directly (filter not composited)
-      const a = document.createElement('a');
-      a.href = dataUrl;
-      a.download = `flexyn-story-${Date.now()}.mp4`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      setJustSaved(true);
-      setTimeout(() => setJustSaved(false), 2000);
-      return;
-    }
-
-    // Image: render to canvas with current filter + text overlay
-    const { width: cW, height: cH } = container.getBoundingClientRect();
-    const dpr   = Math.min(window.devicePixelRatio || 1, 2); // cap at 2× retina
-    const natW  = mediaEl.naturalWidth  || cW;
-    const natH  = mediaEl.naturalHeight || cH;
-
-    // object-contain layout within the container
-    const imgScale = Math.min(cW / natW, cH / natH);
-    const drawW    = natW * imgScale;
-    const drawH    = natH * imgScale;
-    const ox       = (cW - drawW) / 2;
-    const oy       = (cH - drawH) / 2;
-
-    const offscreen = document.createElement('canvas');
-    offscreen.width  = cW * dpr;
-    offscreen.height = cH * dpr;
-    const ctx = offscreen.getContext('2d');
-    ctx.scale(dpr, dpr);
-
-    // Draw image with CSS filter
-    const filterCss = FILTERS[filterIdx].css;
-    if (filterCss !== 'none') ctx.filter = filterCss;
-    ctx.drawImage(mediaEl, ox, oy, drawW, drawH);
-    ctx.filter = 'none';
-
-    // Draw text overlay
-    if (overlayText.trim()) {
-      const { x, y, scale: tScale, rotate } = ts.current;
-      const cx = cW / 2 + x;
-      const cy = cH / 2 + y;
-      const fontSize = Math.round(28 * tScale);
-
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.rotate((rotate * Math.PI) / 180);
-      ctx.font       = `bold ${fontSize}px ${FONTS[fontIdx].family}`;
-      ctx.fillStyle  = textColor;
-      ctx.textAlign  = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.shadowColor  = 'rgba(0,0,0,0.95)';
-      ctx.shadowBlur   = 10;
-      ctx.shadowOffsetY = 2;
-
-      const lines  = overlayText.trim().split('\n');
-      const lineH  = fontSize * 1.3;
-      lines.forEach((line, i) => {
-        ctx.fillText(line, 0, (i - (lines.length - 1) / 2) * lineH);
-      });
-      ctx.restore();
-    }
-
-    offscreen.toBlob(blob => {
-      if (!blob) { toast.error('Could not save image.'); return; }
-      const url = URL.createObjectURL(blob);
-      const a   = document.createElement('a');
-      a.href     = url;
-      a.download = `flexyn-story-${Date.now()}.jpg`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }, 'image/jpeg', 0.95);
-
-    setJustSaved(true);
-    setTimeout(() => setJustSaved(false), 2000);
-  }, [isVideo, dataUrl, filterIdx, overlayText, fontIdx, textColor]);
-
-  // ── Confirm handler ───────────────────────────────────────────────────────
+  // ── confirm ──────────────────────────────────────────────────────────────────
   const handleConfirm = () => {
-    const g      = ts.current;
-    const rect   = containerRef.current?.getBoundingClientRect();
+    const out = [];
+    overlays.forEach(o => {
+      if (o.kind === 'text' && o.text.trim()) {
+        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase() });
+      } else if (o.kind === 'emoji') {
+        out.push({ kind: 'emoji', emoji: o.emoji, x: o.x, y: o.y, scale: o.scale, rotation: o.rotate });
+      }
+    });
+    strokes.forEach(s => out.push({ kind: 'drawing', points: s.points, color: s.color, width: s.width, x: 0.5, y: 0.5, scale: 1, rotation: 0 }));
     const filter = FILTERS[filterIdx].css !== 'none' ? FILTERS[filterIdx].css : null;
-    const style  = overlayText.trim() ? {
-      text:     overlayText.trim(),
-      xFrac:    rect ? g.x / rect.width  : 0,
-      yFrac:    rect ? g.y / rect.height : 0,
-      scale:    g.scale,
-      rotation: g.rotate,
-      color:    textColor,
-      font:     FONTS[fontIdx].label.toLowerCase(),
-      filter,
-    } : (filter ? { filter } : null);
-    // Serialize emoji overlays (mig 111). Single source of normalized
-    // coords already maintained by the drag handler; just shape it.
-    const overlays = emojiOverlays.map(o => ({
-      kind:  'emoji',
-      emoji: o.emoji,
-      x:     o.x,
-      y:     o.y,
-      scale: 1,
-      rotation: 0,
-    }));
-    onConfirm(style, overlays);
+    onConfirm(filter ? { filter } : null, out);
   };
 
-  const hasText = overlayText.trim().length > 0;
+  // Color change applies to the selected text overlay + future text/strokes.
+  const applyColor = (c) => {
+    setTextColor(c);
+    if (selected?.kind === 'text') updateOverlay(selected.id, { color: c });
+  };
+  const applyFont = (idx) => {
+    if (selected?.kind === 'text') updateOverlay(selected.id, { fontIdx: idx });
+  };
+
+  const showColorBar = (selected?.kind === 'text') || drawMode;
 
   return createPortal(
     <motion.div
-      initial={{ opacity: 0, y: 40 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 40 }}
+      initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
       transition={{ type: 'spring', damping: 28, stiffness: 300 }}
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
     >
-      {/* ── Top controls ─────────────────────────────────────────────── */}
-      <div
-        className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}
-      >
-        {/* Download — save edited frame to camera roll */}
-        <motion.button
-          whileTap={{ scale: 0.88 }}
-          onClick={handleDownload}
-          className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm"
-          aria-label="Save to camera roll"
+      {/* Top controls */}
+      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4"
+        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
+        <button onClick={onCancel} className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm text-white" aria-label="Cancel">
+          <XIcon className="w-4 h-4" />
+        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => { setDrawMode(d => !d); setSelectedId(null); setEditingId(null); }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${drawMode ? 'bg-white text-black border-white' : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'}`}
+            aria-label="Draw">
+            <Pencil className="w-4 h-4" />
+          </button>
+          {drawMode && strokes.length > 0 && (
+            <button onClick={undoStroke} className="w-10 h-10 rounded-full bg-black/55 text-white border border-white/15 backdrop-blur-sm flex items-center justify-center" aria-label="Undo stroke">
+              <Undo2 className="w-4 h-4" />
+            </button>
+          )}
+          <button onClick={() => { setDrawMode(false); setEmojiPickerOpen(v => !v); }}
+            className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${emojiPickerOpen ? 'bg-white text-black border-white' : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'}`}
+            aria-label="Add emoji">
+            <Smile className="w-4 h-4" />
+          </button>
+          <button onClick={() => { setDrawMode(false); addText(); }}
+            className="w-10 h-10 rounded-full flex items-center justify-center border bg-black/55 text-white border-white/15 backdrop-blur-sm" aria-label="Add text">
+            <Type className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* 9:16 phone frame — consistent on desktop + phone */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden">
+        <div
+          ref={frameRef}
+          className="relative overflow-hidden bg-black"
+          style={{ aspectRatio: '9 / 16', height: '100%', maxWidth: '100%', maxHeight: '100%', touchAction: 'none' }}
         >
-          <AnimatePresence mode="wait" initial={false}>
-            {justSaved ? (
-              <motion.span key="check" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Check className="w-4 h-4 text-green-400 stroke-[2.5]" />
-              </motion.span>
-            ) : (
-              <motion.span key="dl" initial={{ scale: 0 }} animate={{ scale: 1 }} exit={{ scale: 0 }}>
-                <Download className="w-4 h-4 text-white" />
-              </motion.span>
+          {isVideo ? (
+            <video ref={mediaElRef} src={dataUrl} autoPlay loop muted playsInline
+              className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
+          ) : (
+            <img ref={mediaElRef} src={dataUrl} alt="Story preview" draggable={false}
+              className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
+          )}
+
+          {/* Committed + live drawings */}
+          {(strokes.length > 0 || liveStroke) && (
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 w-full h-full pointer-events-none">
+              {[...strokes, ...(liveStroke ? [liveStroke] : [])].map((s, i) => (
+                <path key={i} d={s.points.map((p, j) => `${j === 0 ? 'M' : 'L'} ${p[0] * 100} ${p[1] * 100}`).join(' ')}
+                  fill="none" stroke={s.color} strokeWidth={s.width} strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+              ))}
+            </svg>
+          )}
+
+          {/* Filter label + dots */}
+          <AnimatePresence>
+            {filterLabelVis && (
+              <motion.div key={filterIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="absolute top-1/2 left-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
+                <div className="px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm border border-white/20">
+                  <span className="text-white text-sm font-semibold">{FILTERS[filterIdx].label}</span>
+                </div>
+              </motion.div>
             )}
           </AnimatePresence>
-        </motion.button>
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+            {FILTERS.map((_, i) => (
+              <div key={i} className="rounded-full" style={{ width: i === filterIdx ? 16 : 5, height: 5, backgroundColor: i === filterIdx ? '#fff' : 'rgba(255,255,255,0.45)' }} />
+            ))}
+          </div>
 
-        {/* Center: emoji picker toggle */}
-        <button
-          onClick={(e) => { e.stopPropagation(); setEmojiPickerOpen(v => !v); }}
-          className={`w-10 h-10 rounded-full flex items-center justify-center border transition-colors ${
-            emojiPickerOpen
-              ? 'bg-white text-black border-white'
-              : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'
-          }`}
-          aria-label="Add emoji"
-        >
-          <Smile className="w-4 h-4" />
-        </button>
-
-        {/* Aa toggle */}
-        <button
-          onClick={() => setEditingText(v => !v)}
-          className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border transition-colors ${
-            editingText
-              ? 'bg-white text-black border-white'
-              : 'bg-black/55 text-white border-white/15 backdrop-blur-sm'
-          }`}
-          aria-label="Add text"
-        >
-          Aa
-        </button>
-      </div>
-
-      {/* ── Preview area ─────────────────────────────────────────────── */}
-      <div
-        ref={containerRef}
-        className="flex-1 relative overflow-hidden"
-        onClick={() => setEditingText(v => !v)}
-      >
-        {isVideo ? (
-          <video
-            ref={mediaElRef}
-            src={dataUrl}
-            autoPlay loop muted playsInline
-            className="absolute inset-0 w-full h-full object-contain"
-            style={{ filter: FILTERS[filterIdx].css }}
-          />
-        ) : (
-          <img
-            ref={mediaElRef}
-            src={dataUrl}
-            alt="Story preview"
-            className="absolute inset-0 w-full h-full object-contain"
-            style={{ filter: FILTERS[filterIdx].css }}
-            draggable={false}
-          />
-        )}
-
-        {/* Filter name label — briefly shown when filter changes */}
-        <AnimatePresence>
-          {filterLabelVis && (
-            <motion.div
-              key={filterIdx}
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="absolute top-1/2 left-1/2 pointer-events-none"
-              style={{ transform: 'translate(-50%, -50%)' }}
-            >
-              <div className="px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm border border-white/20">
-                <span className="text-white text-sm font-semibold">{FILTERS[filterIdx].label}</span>
+          {/* Movable overlays (text + emoji) */}
+          {overlays.map(o => {
+            const isSel = o.id === selectedId;
+            const isEditing = o.id === editingId;
+            if (o.kind === 'text' && isEditing) {
+              return (
+                <div key={o.id} className="absolute" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`, width: '84%' }}>
+                  <textarea
+                    ref={inputRef}
+                    value={o.text}
+                    onChange={e => updateOverlay(o.id, { text: e.target.value })}
+                    onBlur={() => { setEditingId(null); if (!o.text.trim()) deleteOverlay(o.id); }}
+                    placeholder="Type…"
+                    rows={2}
+                    className="bg-transparent border-none outline-none text-center w-full resize-none placeholder-white/40 leading-snug font-bold"
+                    style={{ color: o.color, fontFamily: FONTS[o.fontIdx || 0].family, fontSize: `${28 * (o.scale || 1)}px`, textShadow: '0 2px 10px rgba(0,0,0,0.95)', caretColor: o.color }}
+                  />
+                </div>
+              );
+            }
+            return (
+              <div
+                key={o.id}
+                onPointerDown={(e) => onOverlayPointerDown(e, o.id)}
+                onPointerMove={(e) => onOverlayPointerMove(e, o.id)}
+                onPointerUp={(e) => onOverlayPointerUp(e, o.id, o.kind)}
+                className="absolute select-none"
+                style={{
+                  left: `${o.x * 100}%`, top: `${o.y * 100}%`,
+                  transform: `translate(-50%,-50%) scale(${o.scale}) rotate(${o.rotate}deg)`,
+                  transformOrigin: 'center center',
+                  cursor: drawMode ? 'default' : 'grab', touchAction: 'none',
+                  pointerEvents: drawMode ? 'none' : 'auto',
+                  padding: 6,
+                  border: isSel ? '1.5px dashed rgba(255,255,255,0.9)' : '1.5px dashed transparent',
+                  borderRadius: 8,
+                }}
+              >
+                {o.kind === 'emoji' ? (
+                  <span style={{ fontSize: 56, lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,0.45)' }}>{o.emoji}</span>
+                ) : (
+                  <span style={{ fontSize: 28, fontWeight: 'bold', color: o.color, fontFamily: FONTS[o.fontIdx || 0].family, textShadow: '0 2px 10px rgba(0,0,0,0.95)', whiteSpace: 'pre-wrap', textAlign: 'center', display: 'block', maxWidth: '70vw' }}>
+                    {o.text || ' '}
+                  </span>
+                )}
+                {/* scale + rotate handle (selected only) */}
+                {isSel && !drawMode && (
+                  <div
+                    onPointerDown={(e) => onHandleDown(e, o)}
+                    onPointerMove={onHandleMove}
+                    onPointerUp={onHandleUp}
+                    className="absolute -bottom-3 -right-3 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-md"
+                    style={{ cursor: 'nwse-resize', touchAction: 'none' }}
+                    aria-label="Resize and rotate"
+                  >
+                    <Move className="w-3 h-3" />
+                  </div>
+                )}
               </div>
-            </motion.div>
+            );
+          })}
+
+          {/* Draw capture layer (only while drawing) */}
+          {drawMode && (
+            <div className="absolute inset-0 z-20" style={{ touchAction: 'none', cursor: 'crosshair' }}
+              onPointerDown={onDrawDown} onPointerMove={onDrawMove} onPointerUp={onDrawUp} onPointerCancel={onDrawUp} />
           )}
-        </AnimatePresence>
 
-        {/* Filter dot indicators */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
-          {FILTERS.map((_, i) => (
-            <div
-              key={i}
-              className="rounded-full transition-all"
-              style={{
-                width:           i === filterIdx ? 16 : 5,
-                height:          5,
-                backgroundColor: i === filterIdx ? '#ffffff' : 'rgba(255,255,255,0.45)',
-              }}
-            />
-          ))}
+          {/* Deselect on empty tap (when not drawing) */}
+          {!drawMode && (
+            <div className="absolute inset-0 z-0" onClick={() => { setSelectedId(null); setEditingId(null); }} />
+          )}
+
+          {/* Trash drop zone — appears while dragging an overlay */}
+          <AnimatePresence>
+            {dragging && (
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
+                className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center gap-1">
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors ${overTrash ? 'bg-red-500 border-red-300 scale-110' : 'bg-black/60 border-white/30'}`}>
+                  <Trash2 className={`w-6 h-6 ${overTrash ? 'text-white' : 'text-white/80'}`} />
+                </div>
+                <span className="text-[10px] text-white/70 font-semibold">drag here to delete</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Eyedropper */}
+          {eyedropperActive && (
+            <div className="absolute inset-0 z-40" style={{ cursor: 'crosshair', touchAction: 'none' }}
+              onPointerMove={(e) => { const c = samplePixel(e.clientX, e.clientY); setLoupePos({ x: e.clientX, y: e.clientY, color: c ?? '#fff' }); }}
+              onPointerUp={(e) => { const c = samplePixel(e.clientX, e.clientY); if (c) applyColor(c); setEyedropperActive(false); setLoupePos(null); }} />
+          )}
+          {eyedropperActive && loupePos && (
+            <div className="pointer-events-none fixed z-50 w-14 h-14 rounded-full border-4 border-white shadow-xl"
+              style={{ left: loupePos.x, top: loupePos.y, transform: 'translate(-50%, calc(-100% - 20px))', backgroundColor: loupePos.color }} />
+          )}
         </div>
-
-        {/* Emoji overlays — each independently positioned via normalized
-            coords and draggable. Pointer-events on the span; the rest
-            of the preview keeps its tap-to-edit text behavior. */}
-        {emojiOverlays.map(o => (
-          <span
-            key={o.id}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              e.currentTarget.setPointerCapture(e.pointerId);
-              draggingEmojiId.current = o.id;
-            }}
-            onPointerMove={(e) => {
-              if (draggingEmojiId.current !== o.id) return;
-              const rect = containerRef.current?.getBoundingClientRect();
-              if (!rect) return;
-              const nx = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-              const ny = Math.max(0, Math.min(1, (e.clientY - rect.top)  / rect.height));
-              setEmojiOverlays(curr => curr.map(c => c.id === o.id ? { ...c, x: nx, y: ny } : c));
-            }}
-            onPointerUp={(e) => {
-              e.currentTarget.releasePointerCapture(e.pointerId);
-              draggingEmojiId.current = null;
-            }}
-            onDoubleClick={(e) => {
-              // Double-tap removes — tiny X button would clutter at scale.
-              e.stopPropagation();
-              setEmojiOverlays(curr => curr.filter(c => c.id !== o.id));
-            }}
-            className="absolute select-none cursor-grab active:cursor-grabbing touch-none"
-            style={{
-              left: `${o.x * 100}%`,
-              top:  `${o.y * 100}%`,
-              transform: 'translate(-50%, -50%)',
-              fontSize: 56,
-              lineHeight: 1,
-              userSelect: 'none',
-              WebkitUserSelect: 'none',
-              textShadow: '0 2px 8px rgba(0,0,0,0.45)',
-            }}
-          >
-            {o.emoji}
-          </span>
-        ))}
-
-        {/* Editing textarea — centered, transparent */}
-        {editingText && (
-          <div
-            className="absolute inset-0 flex items-center justify-center bg-black/15"
-            onClick={e => e.stopPropagation()}
-          >
-            <textarea
-              ref={inputRef}
-              value={overlayText}
-              onChange={e => setOverlayText(e.target.value)}
-              onBlur={() => setEditingText(false)}
-              placeholder="Type something…"
-              rows={3}
-              className="bg-transparent border-none outline-none text-center w-4/5 resize-none placeholder-white/40 leading-snug font-bold text-3xl"
-              style={{
-                color:      textColor,
-                fontFamily: FONTS[fontIdx].family,
-                textShadow: '0 2px 10px rgba(0,0,0,0.95)',
-                caretColor: textColor,
-              }}
-            />
-          </div>
-        )}
-
-        {/* Positioned text — drag (desktop) + container-level touch (mobile) */}
-        {!editingText && hasText && (
-          <div
-            ref={textRef}
-            onClick={e => e.stopPropagation()} // prevent container toggle; tap-to-re-edit handled by mouse/touch handlers
-            className="absolute"
-            style={{
-              left:       '50%',
-              top:        '50%',
-              transform:  'translate(-50%, -50%)',
-              touchAction:'none',
-              userSelect: 'none',
-              cursor:     'grab',
-              willChange: 'transform',
-              fontSize:   '28px',
-              fontWeight: 'bold',
-              fontFamily: FONTS[fontIdx].family,
-              color:      textColor,
-              textShadow: '0 2px 10px rgba(0,0,0,0.95)',
-              whiteSpace: 'pre-wrap',
-              textAlign:  'center',
-              maxWidth:   '80vw',
-              lineHeight: 1.3,
-            }}
-          >
-            {overlayText}
-          </div>
-        )}
-
-        {/* Eyedropper pointer-capture overlay */}
-        {eyedropperActive && (
-          <div
-            className="absolute inset-0"
-            style={{ cursor: 'crosshair', touchAction: 'none', zIndex: 20 }}
-            onPointerMove={onEyedropperPointerMove}
-            onPointerUp={onEyedropperPointerUp}
-          />
-        )}
-
-        {/* Eyedropper loupe */}
-        {eyedropperActive && loupePos && (
-          <div
-            className="pointer-events-none fixed z-30 w-14 h-14 rounded-full border-4 border-white shadow-xl"
-            style={{
-              left:            loupePos.x,
-              top:             loupePos.y,
-              transform:       'translate(-50%, calc(-100% - 20px))',
-              backgroundColor: loupePos.color,
-              boxShadow:       '0 0 0 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.6)',
-            }}
-          />
-        )}
       </div>
 
-      {/* Hidden canvas for eyedropper pixel sampling */}
       <canvas ref={canvasRef} className="hidden" />
 
-      {/* ── Font selector + color picker — shown when text exists ────── */}
-      {hasText && (
+      {/* Font + color bar — when a text box is selected or drawing */}
+      {showColorBar && (
         <div className="px-5 pt-3 pb-2 bg-black/85 space-y-3">
-
-          {/* Font selector: three labeled options in their own fonts */}
-          <div className="flex justify-center items-center gap-5">
-            {FONTS.map((f, i) => (
-              <button
-                key={f.label}
-                onClick={() => setFontIdx(i)}
-                className="transition-opacity"
-                style={{
-                  fontFamily: f.family,
-                  fontWeight: 'bold',
-                  fontSize:   '15px',
-                  color:      '#ffffff',
-                  opacity:    fontIdx === i ? 1 : 0.35,
-                  background: 'none',
-                  border:     'none',
-                  padding:    '4px 0',
-                  cursor:     'pointer',
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
+          {selected?.kind === 'text' && (
+            <div className="flex justify-center items-center gap-5">
+              {FONTS.map((f, i) => (
+                <button key={f.label} onClick={() => applyFont(i)}
+                  style={{ fontFamily: f.family, fontWeight: 'bold', fontSize: 15, color: '#fff', opacity: (selected.fontIdx || 0) === i ? 1 : 0.35, background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer' }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="relative h-7 rounded-full" style={{ background: 'linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%))' }}>
+            <input type="range" min="0" max="360" value={hue}
+              onChange={e => { const h = Number(e.target.value); setHue(h); applyColor(`hsl(${h},100%,50%)`); }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Color hue" />
+            <div className="absolute top-1/2 w-6 h-6 rounded-full border-2 border-white shadow-lg pointer-events-none"
+              style={{ left: `${(hue / 360) * 100}%`, transform: 'translateX(-50%) translateY(-50%)', backgroundColor: `hsl(${hue},100%,50%)` }} />
           </div>
-
-          {/* Hue slider */}
-          <div className="relative h-7 rounded-full" style={{
-            background: 'linear-gradient(to right,hsl(0,100%,50%),hsl(30,100%,50%),hsl(60,100%,50%),hsl(90,100%,50%),hsl(120,100%,50%),hsl(150,100%,50%),hsl(180,100%,50%),hsl(210,100%,50%),hsl(240,100%,50%),hsl(270,100%,50%),hsl(300,100%,50%),hsl(330,100%,50%),hsl(360,100%,50%))',
-          }}>
-            <input
-              type="range" min="0" max="360" value={hue}
-              onChange={e => {
-                const h = Number(e.target.value);
-                setHue(h);
-                setTextColor(`hsl(${h},100%,50%)`);
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              aria-label="Color hue"
-            />
-            <div
-              className="absolute top-1/2 w-6 h-6 rounded-full border-2 border-white shadow-lg pointer-events-none"
-              style={{
-                left:            `${(hue / 360) * 100}%`,
-                transform:       'translateX(-50%) translateY(-50%)',
-                backgroundColor: `hsl(${hue},100%,50%)`,
-              }}
-            />
-          </div>
-
-          {/* Quick color dots + eyedropper */}
           <div className="flex justify-center items-center gap-3">
             {QUICK_COLORS.map(c => (
-              <button
-                key={c}
-                onClick={() => setTextColor(c)}
-                className="w-7 h-7 rounded-full transition-transform active:scale-90"
-                style={{
-                  backgroundColor: c,
-                  border: textColor === c
-                    ? '2.5px solid white'
-                    : '1.5px solid rgba(255,255,255,0.35)',
-                  boxShadow: textColor === c ? '0 0 0 1.5px rgba(0,0,0,0.5)' : undefined,
-                }}
-                aria-label={`Color ${c}`}
-              />
+              <button key={c} onClick={() => applyColor(c)} className="w-7 h-7 rounded-full transition-transform active:scale-90"
+                style={{ backgroundColor: c, border: textColor === c ? '2.5px solid white' : '1.5px solid rgba(255,255,255,0.35)' }} aria-label={`Color ${c}`} />
             ))}
-
-            {/* Eyedropper — images only */}
             {!isVideo && (
-              <button
-                onClick={activateEyedropper}
-                className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                  eyedropperActive
-                    ? 'bg-white text-black'
-                    : 'bg-white/15 text-white border border-white/35'
-                }`}
-                aria-label="Pick color from image"
-              >
+              <button onClick={activateEyedropper}
+                className={`w-7 h-7 rounded-full flex items-center justify-center ${eyedropperActive ? 'bg-white text-black' : 'bg-white/15 text-white border border-white/35'}`} aria-label="Pick color from image">
                 <Pipette className="w-4 h-4" />
               </button>
             )}
@@ -806,75 +527,34 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
         </div>
       )}
 
-      {/* ── Action row ───────────────────────────────────────────────── */}
-      <div
-        className="flex items-center gap-3 px-6 py-5 bg-black"
-        style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
-      >
-        <button
-          onClick={onCancel}
-          disabled={uploading}
-          className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40"
-        >
-          Cancel
-        </button>
-        <motion.button
-          whileTap={{ scale: 0.96 }}
-          onClick={handleConfirm}
-          disabled={uploading}
-          className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2"
-        >
-          {uploading
-            ? <><Loader2 className="w-4 h-4 animate-spin" />Posting…</>
-            : 'Post Story'
-          }
+      {/* Action row */}
+      <div className="flex items-center gap-3 px-6 py-5 bg-black" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
+        <button onClick={onCancel} disabled={uploading} className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40">Cancel</button>
+        <motion.button whileTap={{ scale: 0.96 }} onClick={handleConfirm} disabled={uploading}
+          className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+          {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Posting…</> : 'Post Story'}
         </motion.button>
       </div>
 
-      {/* Emoji picker drawer — slides up from the bottom. Tapping an
-          emoji adds it as a draggable overlay at center; user then
-          drags into final position. Double-tap an existing overlay
-          removes it. */}
+      {/* Emoji picker drawer */}
       <AnimatePresence>
         {emojiPickerOpen && (
-          <motion.div
-            key="emoji-picker"
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
+          <motion.div key="emoji-picker" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-            className="absolute left-0 right-0 bottom-0 z-20 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
-            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-          >
+            className="absolute left-0 right-0 bottom-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
+            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
               <span className="text-white/80 text-xs font-bold uppercase tracking-wide">Emoji</span>
-              <button
-                onClick={() => setEmojiPickerOpen(false)}
-                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white"
-                aria-label="Close emoji picker"
-              >
+              <button onClick={() => setEmojiPickerOpen(false)} className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center text-white" aria-label="Close">
                 <XIcon className="w-3.5 h-3.5" />
               </button>
             </div>
             <div className="grid grid-cols-8 gap-1.5 px-4 pb-3 max-h-56 overflow-y-auto">
               {EMOJI_PALETTE.map(em => (
-                <button
-                  key={em}
-                  onClick={() => {
-                    setEmojiOverlays(curr => ([
-                      ...curr,
-                      { id: `e_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, emoji: em, x: 0.5, y: 0.5 },
-                    ]));
-                    setEmojiPickerOpen(false);
-                  }}
-                  className="aspect-square rounded-lg hover:bg-white/10 active:bg-white/20 text-2xl flex items-center justify-center"
-                  aria-label={`Add ${em}`}
-                >
-                  {em}
-                </button>
+                <button key={em} onClick={() => addEmoji(em)} className="aspect-square rounded-lg hover:bg-white/10 active:bg-white/20 text-2xl flex items-center justify-center" aria-label={`Add ${em}`}>{em}</button>
               ))}
             </div>
-            <p className="text-white/45 text-[10px] text-center pb-1">Tap to add · drag to position · double-tap to remove</p>
+            <p className="text-white/45 text-[10px] text-center pb-1">Tap to add · drag to position · drag onto 🗑 to delete</p>
           </motion.div>
         )}
       </AnimatePresence>
