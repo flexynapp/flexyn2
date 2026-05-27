@@ -49,33 +49,34 @@ BEGIN
   -- canonicalize log rows to user_id even when the only owning column
   -- is created_by=email.
   WITH member_map AS (
-    SELECT public.user_profiles.id    AS m_uid,
-           public.user_profiles.email AS m_email
+    SELECT id AS m_uid, email AS m_email
       FROM public.user_profiles
-     WHERE public.user_profiles.id IN (
+     WHERE id IN (
        SELECT user_id FROM public.organization_members
         WHERE org_id = p_org_id
      )
   ),
   recent_logs AS (
-    SELECT
-      -- Canonical actor: user_id if present, otherwise resolve email→uid.
-      -- COALESCE picks the first non-NULL.
-      COALESCE(
-        public.workout_logs.user_id::text,
-        (SELECT m_uid::text FROM member_map
-          WHERE m_email = public.workout_logs.created_by
-          LIMIT 1)
-      ) AS canonical_actor
-    FROM public.workout_logs
-    WHERE created_at > now() - INTERVAL '7 days'
-      AND (
-        public.workout_logs.user_id IN (SELECT m_uid FROM member_map)
-        OR public.workout_logs.created_by IN (SELECT m_email FROM member_map)
-      )
+    SELECT user_id AS log_uid, created_by AS log_email
+      FROM public.workout_logs
+     WHERE created_at > now() - INTERVAL '7 days'
+       AND (
+         user_id      IN (SELECT m_uid   FROM member_map)
+         OR created_by IN (SELECT m_email FROM member_map)
+       )
+  ),
+  canon AS (
+    -- Canonical actor: user_id if present, else resolve the log's
+    -- created_by email back to its member uid. CTE-renamed keys only
+    -- (m_uid / log_email) so the SQL stays paste-safe.
+    SELECT COALESCE(
+             log_uid::text,
+             (SELECT m_uid::text FROM member_map WHERE m_email = log_email LIMIT 1)
+           ) AS canonical_actor
+      FROM recent_logs
   ),
   unique_actors AS (
-    SELECT DISTINCT canonical_actor FROM recent_logs
+    SELECT DISTINCT canonical_actor FROM canon
      WHERE canonical_actor IS NOT NULL
   )
   SELECT
