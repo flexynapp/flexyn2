@@ -4,7 +4,7 @@
 // the Dashboard rotation alongside the built-in quotes. Opened from the star
 // under the quote card while the dashboard is in edit mode.
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { X, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
@@ -19,6 +19,12 @@ export default function CustomQuotesModal({ open, onClose }) {
   const qc = useQueryClient();
   const [text, setText] = useState('');
   const [author, setAuthor] = useState('');
+  // Synchronous in-flight guard. The `addMut.isPending` check is set
+  // AFTER React's next render, so a double-tap in the same render tick
+  // slips through and fires two inserts — burning two of the user's
+  // 20-quote budget on one logical add. The ref takes effect within
+  // the click handler itself. Pattern from CrewCreationFlow / Wave 48.
+  const addingRef = useRef(false);
 
   const { data: quotes = [], isLoading } = useQuery({
     queryKey: ['customQuotes', user?.id],
@@ -39,7 +45,14 @@ export default function CustomQuotesModal({ open, onClose }) {
       else if (err?.message === 'empty') toast.error(tFallback('quotes.empty', 'Write something first.'));
       else toast.error(tFallback('quotes.addFailed', 'Could not save — try again.'));
     },
+    onSettled: () => { addingRef.current = false; },
   });
+
+  const handleAdd = () => {
+    if (addingRef.current || !canAdd) return;
+    addingRef.current = true;
+    addMut.mutate();
+  };
 
   const removeMut = useMutation({
     mutationFn: (id) => removeQuote(id),
@@ -96,7 +109,7 @@ export default function CustomQuotesModal({ open, onClose }) {
                   className="flex-1 min-w-0 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50"
                 />
                 <button
-                  onClick={() => canAdd && addMut.mutate()}
+                  onClick={handleAdd}
                   disabled={!canAdd}
                   className="shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
                 >

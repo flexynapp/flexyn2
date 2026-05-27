@@ -117,6 +117,7 @@ const GymHub       = lazy(() => import('./pages/GymHub'));
 const GymMap       = lazy(() => import('./pages/GymMap'));
 const AdminGyms    = lazy(() => import('./pages/AdminGyms'));
 const GymEdit      = lazy(() => import('./pages/GymEdit'));
+const Profile     = lazy(() => import('./pages/Profile'));
 
 // Tiny fallback shown while a lazy page chunk loads. Designed to match the
 // loading spinner used during auth bootstrap so the visual transition is
@@ -324,7 +325,7 @@ const AuthenticatedApp = () => {
           <Route path="/hub"       element={<ErrorBoundary label="Hub"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
           {/* Clean own-profile URL — renders Hub, which opens the profile
               sub-view for the signed-in user when the path is /profile. */}
-          <Route path="/profile"   element={<ErrorBoundary label="Profile"><Suspense fallback={<PageLoader />}><Hub /></Suspense></ErrorBoundary>} />
+          <Route path="/profile"   element={<ErrorBoundary label="Profile"><Suspense fallback={<PageLoader />}><Profile /></Suspense></ErrorBoundary>} />
           <Route path="/messages"  element={<ErrorBoundary label="Messages"><Suspense fallback={<PageLoader />}><Messages /></Suspense></ErrorBoundary>} />
           <Route path="/market"    element={<ErrorBoundary label="Market"><Suspense fallback={<PageLoader />}><Market /></Suspense></ErrorBoundary>} />
           <Route path="/coach"     element={<ErrorBoundary label="Coach"><Suspense fallback={<PageLoader />}><Coach /></Suspense></ErrorBoundary>} />

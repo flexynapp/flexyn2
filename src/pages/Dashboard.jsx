@@ -304,16 +304,29 @@ export default function Dashboard() {
     setIsRestDay(false);
   };
 
-  // Load + persist widget order per user
+  // Load + persist widget order per user.
+  //
+  // Merge-with-defaults: keep the user's saved positions for ids that
+  // still exist, drop unknown/stale ids, and APPEND any new
+  // defaultWidgetOrder ids that don't appear in the saved array. The
+  // previous code required `defaultWidgetOrder.every(id => parsed.includes(id))`,
+  // which meant the very next time we add a new section to
+  // defaultWidgetOrder, every existing user's saved order is silently
+  // discarded — they lose their customization on first load after the
+  // deploy. Merge instead.
   useEffect(() => {
     if (!user?.id) return;
     try {
       const saved = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && defaultWidgetOrder.every(id => parsed.includes(id))) {
-          setWidgetOrder(parsed);
-        }
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return;
+      const known   = parsed.filter(id => defaultWidgetOrder.includes(id));
+      const missing = defaultWidgetOrder.filter(id => !known.includes(id));
+      const merged  = [...known, ...missing];
+      // Skip the setState if nothing changed (keeps the default order).
+      if (merged.length > 0 && merged.join('|') !== defaultWidgetOrder.join('|')) {
+        setWidgetOrder(merged);
       }
     } catch {}
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps

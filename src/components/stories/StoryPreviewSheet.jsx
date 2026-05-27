@@ -289,7 +289,18 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   }, []);
 
   // ── confirm ──────────────────────────────────────────────────────────────────
+  // Synchronous in-flight guard. `disabled={uploading}` on the button
+  // gates re-entry, but state updates lag the click handler — a fast
+  // double-tap fires onConfirm twice before React re-renders, producing
+  // two storage uploads + two duplicate stories rows. Same defect class
+  // as Waves 47–49 (Crew, RegisterGym, CreateBounty, Workout).
+  const postingRef = useRef(false);
+  // Reset the ref when uploading transitions back to false so a real
+  // error path lets the user retry.
+  useEffect(() => { if (!uploading) postingRef.current = false; }, [uploading]);
   const handleConfirm = () => {
+    if (postingRef.current || uploading) return;
+    postingRef.current = true;
     const out = [];
     overlays.forEach(o => {
       if (o.kind === 'text' && o.text.trim()) {
