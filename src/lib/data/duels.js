@@ -279,18 +279,6 @@ export async function listMyDuels() {
   }));
 }
 
-/** Cancel a pending duel (challenger only) */
-export async function cancelDuel(id) {
-  const { data, error } = await supabase
-    .from('duels')
-    .update({ status: 'declined' })
-    .eq('id', id)
-    .select()
-    .single();
-  if (error) throw error;
-  return data;
-}
-
 /** Get a single duel by id */
 export async function getDuel(id) {
   if (!id) return null;
