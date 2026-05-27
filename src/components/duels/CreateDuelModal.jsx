@@ -202,8 +202,16 @@ export default function CreateDuelModal({
     setStep('configure');
   };
 
+  // Synchronous double-tap guards. `loading` state lags React renders
+  // — a fast double-tap fires createDuel twice → two duels rows + two
+  // DM invites to the opponent. Wave 57 (Duels audit) caught this.
+  const quickSendRef = useRef(false);
+  const createRef = useRef(false);
+
   // Quick-send: select opponent and immediately send with default Open / 24h
   const handleQuickSend = async (profile) => {
+    if (quickSendRef.current) return;
+    quickSendRef.current = true;
     setOpponent(profile);
     setLoading(true);
     try {
@@ -220,11 +228,14 @@ export default function CreateDuelModal({
       toast.error('Failed to send challenge', { description: err.message });
     } finally {
       setLoading(false);
+      quickSendRef.current = false;
     }
   };
 
   const handleCreate = async () => {
     if (!opponent?.id) { toast.error('Select an opponent first.'); return; }
+    if (createRef.current) return;
+    createRef.current = true;
     setLoading(true);
     try {
       const sessionTemplate = selectedType === 'mirror' && recentSession
@@ -247,6 +258,7 @@ export default function CreateDuelModal({
       toast.error('Failed to send challenge', { description: err.message });
     } finally {
       setLoading(false);
+      createRef.current = false;
     }
   };
 

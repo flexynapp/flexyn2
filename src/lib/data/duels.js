@@ -290,27 +290,59 @@ export async function getDuel(id) {
   return error ? null : data;
 }
 
-/** Opponent accepts a duel */
+/**
+ * Opponent accepts a duel. Status-guarded so a tampered client can't
+ * flip a `completed` / `declined` / `expired` row back to `active`
+ * (which would unblock fresh result submission). Wave 57 (Duels
+ * audit) caught this defect — the prior version had no
+ * `.eq('status', 'pending')` predicate.
+ */
 export async function acceptDuel(id) {
   const { data, error } = await supabase
     .from('duels')
     .update({ status: 'active' })
     .eq('id', id)
+    .eq('status', 'pending')
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    // PGRST116 = no rows updated = row wasn't pending anymore.
+    // Re-fetch to return the current state so callers can show a
+    // helpful "this duel has already started / ended" toast.
+    if (error.code === 'PGRST116') {
+      const { data: current } = await supabase.from('duels').select('*').eq('id', id).maybeSingle();
+      const err = new Error('duel_not_pending');
+      err.current = current;
+      throw err;
+    }
+    throw error;
+  }
   return data;
 }
 
-/** Opponent declines a duel */
+/**
+ * Opponent declines a duel. Same status guard as acceptDuel — a losing
+ * participant could previously call declineDuel(id) AFTER the duel was
+ * `completed`, flipping status='declined' and erasing the loss from
+ * the W/L tally. Wave 57 (Duels audit) caught this.
+ */
 export async function declineDuel(id) {
   const { data, error } = await supabase
     .from('duels')
     .update({ status: 'declined' })
     .eq('id', id)
+    .eq('status', 'pending')
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    if (error.code === 'PGRST116') {
+      const { data: current } = await supabase.from('duels').select('*').eq('id', id).maybeSingle();
+      const err = new Error('duel_not_pending');
+      err.current = current;
+      throw err;
+    }
+    throw error;
+  }
   return data;
 }
 
@@ -337,27 +369,37 @@ export async function cancelDuel(id) {
  * Submit a result for the current user on a duel.
  * Auto-resolves winner if both results are in.
  * @param {string} duelId
- * @param {object} result  { volume, sets_completed, sets_prescribed, reps, weight }
- * @param {object} duel    current duel row (to check other result)
+ * @param {object} result          { volume, sets_completed, ... }
+ * @param {object} duel            current duel row (to check other result)
+ * @param {string} workoutLogId    REQUIRED post-mig-159 — proof of work
+ *
+ * Mig 159 hardened submit_duel_result_atomic to require a workout_log_id
+ * so it can recompute volume SERVER-SIDE from the user's own log,
+ * preventing the prior `{ volume: 999999999 }` cheat. The legacy
+ * fallback path is preserved for pre-159 hosts but is no longer
+ * the canonical flow.
  */
-export async function submitDuelResult(duelId, result, duel) {
+export async function submitDuelResult(duelId, result, duel, workoutLogId) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // Atomic via submit_duel_result_atomic RPC (migration 079). The
-  // previous client flow had a race: concurrent challenger+opponent
-  // submissions could both read otherResult=null and both write only
-  // their own result, leaving the duel stuck at status='active' with
-  // both results filled in but no winner. The RPC locks the duel row
-  // FOR UPDATE, writes the caller's result, and if both sides are
-  // now in, resolves the winner inline under the same lock.
+  // Atomic via submit_duel_result_atomic RPC (migration 079, hardened
+  // in 159 to require workout_log_id + recompute volume server-side).
+  // The previous client flow had a race: concurrent
+  // challenger+opponent submissions could both read otherResult=null
+  // and both write only their own result, leaving the duel stuck at
+  // status='active' with both results filled in but no winner. The
+  // RPC locks the duel row FOR UPDATE, writes the caller's result,
+  // and if both sides are now in, resolves the winner inline under
+  // the same lock.
   //
   // Pre-079 hosts fall back to the legacy two-write path so the
   // feature doesn't break on stale deployments; the race is the
   // documented bug.
   const { data: rpcData, error: rpcError } = await supabase.rpc('submit_duel_result_atomic', {
-    p_duel_id: duelId,
-    p_result:  result,
+    p_duel_id:        duelId,
+    p_result:         result,
+    p_workout_log_id: workoutLogId || null,
   });
   if (!rpcError) {
     // Re-fetch the full duel row for the caller's downstream logic
