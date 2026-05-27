@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Flame, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -16,6 +16,7 @@ import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
 import ResumeWorkoutBanner from '@/components/dashboard/ResumeWorkoutBanner';
+import HeroSlideshow from '@/components/dashboard/HeroSlideshow';
 import DailyChestCard from '@/components/dashboard/DailyChestCard';
 import StreakRescueCard from '@/components/dashboard/StreakRescueCard';
 import DailyQuote from '@/components/dashboard/DailyQuote';
@@ -55,24 +56,28 @@ import { parseLocalDate } from '@/lib/dateUtils';
  *  co-located makes the page easier to read end-to-end.
  * ────────────────────────────────────────────────────────────────── */
 
-function HeroCard({ streak, hasWorkedOutToday, daysSinceLast, onPrimary, t }) {
-  // Pick the right primary message + CTA based on user's recent activity
+function HeroCard({
+  streak, hasWorkedOutToday, daysSinceLast,
+  logs, cardioLogs, goals, userProfile, user,
+  onPrimary, navigate,
+  t,
+}) {
+  // Pick the right CTA copy based on the user's recent activity.
+  // HeroSlideshow handles the LEFT-column content (achievement
+  // carousel / new-user calculated path / streak fallback) and uses
+  // these same booleans to pick its mode.
   const isFresh = streak === 0 && daysSinceLast == null;
   const isOnStreak = streak > 0;
   const isLapsed = !isOnStreak && !isFresh && daysSinceLast >= 2;
 
-  let kicker, cta;
+  let cta;
   if (hasWorkedOutToday) {
-    kicker = t('dashboard.hero.kicker.done');
     cta = t('dashboard.hero.cta.logAnother');
   } else if (isOnStreak) {
-    kicker = t('dashboard.hero.kicker.keepStreak');
     cta = t('dashboard.hero.cta.continueStreak');
   } else if (isLapsed) {
-    kicker = t('dashboard.hero.kicker.comeback');
     cta = t('dashboard.hero.cta.getBack');
   } else {
-    kicker = t('dashboard.hero.kicker.fresh');
     cta = t('dashboard.hero.cta.startFirst');
   }
 
@@ -109,41 +114,28 @@ function HeroCard({ streak, hasWorkedOutToday, daysSinceLast, onPrimary, t }) {
         />
 
         <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 md:gap-8 p-6 md:p-8 lg:p-10">
-          {/* Left — Streak */}
-          <div className="flex flex-col justify-between gap-6 min-w-0">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <Flame className="w-4 h-4 text-primary/80" />
-              </div>
-              <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
-                {kicker}
-              </span>
-            </div>
-
-            <div className="flex items-baseline gap-3">
-              <motion.span
-                key={streak}
-                initial={{ opacity: 0, y: 12, scale: 0.92 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                className="font-heading font-bold leading-none tracking-tight tabular-nums"
-                style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
-              >
-                {streak}
-              </motion.span>
-              <span className="font-heading text-lg md:text-xl font-medium text-white/70 leading-tight pb-2">
-                {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
-              </span>
-            </div>
-
-            <p className="text-sm text-white/60 max-w-[28ch] leading-relaxed">
-              {hasWorkedOutToday
-                ? t('dashboard.hero.subtitle.done')
-                : streak > 0
-                  ? t('dashboard.hero.subtitle.keepGoing')
-                  : t('dashboard.hero.subtitle.startToday')}
-            </p>
-          </div>
+          {/* Left — Adaptive content. Three modes auto-selected:
+                • achievements: rotating carousel of recent PRs / goals
+                  hit / level-ups / streak milestones / cardio firsts
+                • path: calculated next-steps ladder for new users
+                  with no activity (uses onboarding signals)
+                • streak: existing N-day streak hero (fallback)
+              See src/components/dashboard/HeroSlideshow.jsx for the
+              mode-selection logic + slide builders. No extra network
+              calls — pulls everything from data already loaded above. */}
+          <HeroSlideshow
+            logs={logs}
+            cardioLogs={cardioLogs}
+            goals={goals}
+            profile={userProfile}
+            user={user}
+            streak={streak}
+            hasWorkedOutToday={hasWorkedOutToday}
+            daysSinceLast={daysSinceLast}
+            onPrimary={onPrimary}
+            onSlideCta={(to) => navigate(to)}
+            t={t}
+          />
 
           {/* Right — Primary CTA */}
           <div className="flex flex-col justify-end">
@@ -796,7 +788,13 @@ export default function Dashboard() {
           streak={streak}
           hasWorkedOutToday={hasWorkedOutToday}
           daysSinceLast={daysSinceLast}
+          logs={logs}
+          cardioLogs={cardioLogs}
+          goals={goals}
+          userProfile={userProfile}
+          user={user}
           onPrimary={() => navigate('/workout')}
+          navigate={navigate}
           t={t}
         />
       </div>
