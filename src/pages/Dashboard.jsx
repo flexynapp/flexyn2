@@ -772,7 +772,7 @@ export default function Dashboard() {
       {/* Mood · Hydration · Calories · Macros — compact daily trackers
           unified into one bento grid (2-up on phones, 4-up on desktop).
           These never self-hide, so a plain grid is safe here. */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5 md:mb-6">
+      <div className="grid grid-cols-2 gap-3 mb-5 md:mb-6">
         <ErrorBoundary label="MoodLogCard">
           <MoodLogCard />
         </ErrorBoundary>
