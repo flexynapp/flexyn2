@@ -484,7 +484,18 @@ export async function uploadCrewMedia(file) {
  * Does NOT return crews the user already belongs to.
  */
 export async function searchPublicCrews(query, userId) {
-  const q = (query || '').trim().toLowerCase();
+  // Strip PostgREST .or() control characters from the query before
+  // interpolation. PostgREST parses commas as filter separators and
+  // `(`/`)` as grouping — a user typing `foo,name.eq.<uuid>` would
+  // inject extra ilike filters or produce a 400 from PostgREST.
+  // Also strip `%` since we wrap with our own wildcards; literal `%`
+  // in the input would turn into `%%foo%%` matching everything.
+  // RLS still protects the data (is_public=true gate is preserved
+  // server-side), so this isn't a privacy leak — but it's noisy and
+  // a future schema change could promote it to one. Wave 57 (Crews
+  // audit) flagged this as a low-severity nit; defense-in-depth fix.
+  const rawQ = (query || '').trim().toLowerCase();
+  const q = rawQ.replace(/[,()%*]/g, '').slice(0, 60);
   let builder = supabase
     .from('crews')
     .select('id, name, description, tag, max_capacity, created_at')

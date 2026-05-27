@@ -52,6 +52,14 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
 
   const handleSave = async () => {
     if (!title.trim()) { toast.error('Give this plan a title'); return; }
+    // Reject past dates explicitly. The HTML `min={today}` attribute is
+    // advisory only — a paste / direct-value set bypasses it and a
+    // past-dated plan silently lands in the upcoming list as already-
+    // expired, confusing the user. Wave 57 (Cardio audit) caught this.
+    if (date && date < today) {
+      toast.error("That date is in the past. Pick today or later.");
+      return;
+    }
     // Defensive parse — a non-numeric string (e.g. paste from
     // clipboard, autocomplete) used to produce NaN * 1609.344 = NaN
     // which got persisted to distance_meters and broke downstream

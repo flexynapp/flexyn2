@@ -4,7 +4,7 @@
 // States: empty (no crews) → crew list → crew chat view → creation flow → discovery
 // Tabs: "My Crews" | "Discover" | "Battles"
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Trophy, Crown, History, Globe2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -101,14 +101,31 @@ function BattleEntryRow({ crew, currentUserId }) {
     staleTime: 5 * 60_000,
   });
 
+  // Synchronous double-tap guard. `enterMut.isPending` is async —
+  // fast double-tap (or two crew leaders in different sessions —
+  // though we can't catch the cross-session case here) fires
+  // joinWarMatchmaking twice. Without a UNIQUE partial index on
+  // (crew_a_id) WHERE status='matchmaking' on the server side,
+  // both inserts succeed and the cron matchmaker could pair the
+  // same crew into two simultaneous battles. The single-tap race
+  // is closed here; the cross-session case needs a server-side
+  // UNIQUE which is documented in mig 159's deferred list.
+  // Wave 57 (Crews audit) caught this.
+  const enteringRef = useRef(false);
   const enterMut = useMutation({
     mutationFn: () => joinWarMatchmaking(crew.id),
+    onMutate: () => { enteringRef.current = true; },
     onSuccess: () => {
       toast.success('Entered matchmaking! We\'ll find you a rival crew.');
       qc.invalidateQueries({ queryKey: ['activeWar', crew.id] });
     },
     onError: (err) => toast.error('Could not enter battle', { description: err.message }),
+    onSettled: () => { enteringRef.current = false; },
   });
+  const handleEnter = () => {
+    if (enteringRef.current || enterMut.isPending) return;
+    enterMut.mutate();
+  };
 
   if (warLoading) {
     return (
@@ -144,7 +161,7 @@ function BattleEntryRow({ crew, currentUserId }) {
             Enter matchmaking to get paired with a rival crew. Wars run for 7 days — most XP earned wins.
           </p>
           <button
-            onClick={() => enterMut.mutate()}
+            onClick={handleEnter}
             disabled={enterMut.isPending}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors"
           >

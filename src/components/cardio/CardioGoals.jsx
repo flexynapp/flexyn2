@@ -8,7 +8,7 @@
 // Auto-computes progress from cardio_logs within the current period.
 // Users can create "Run 5k 3× per week" or "Bike 50 km this month"-style goals.
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -295,6 +295,41 @@ export default function CardioGoals() {
       setDeleting(null);
     }
   };
+
+  // Persist `status='completed'` to the DB the first time a goal's
+  // computed progress crosses the line. Without this, the UI happily
+  // shows "✓ Done!" forever (because completion is recomputed every
+  // render from cardio_logs) but the goal row stays status='active'
+  // — no celebration ever fires from the global goal-completion
+  // hooks, and the user can theoretically "re-complete" the goal
+  // every page visit. Wave 57 (Cardio audit) caught this.
+  // De-duped per goal-id by a ref so we don't fire the RPC twice in
+  // the same session if the user re-renders while still over the bar.
+  const completedRef = useRef(new Set());
+  useEffect(() => {
+    if (!user?.email) return;
+    goalsWithProgress.forEach(goal => {
+      if (goal.status === 'completed' || goal.status === 'deleted') return;
+      if (completedRef.current.has(goal.id)) return;
+      const sessPct = goal.target_sessions
+        ? (goal._sessions / goal.target_sessions) * 100 : null;
+      const distPct = goal.target_distance_meters
+        ? (goal._distMeters / goal.target_distance_meters) * 100 : null;
+      const done = (sessPct != null && sessPct >= 100)
+                || (!goal.target_sessions && distPct != null && distPct >= 100);
+      if (!done) return;
+      completedRef.current.add(goal.id);
+      goalsData.update(goal.id, {
+        status: 'completed',
+        completed_at: new Date().toISOString(),
+      })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['cardioGoals', user?.email] }))
+        .catch(err => {
+          completedRef.current.delete(goal.id);
+          reportError(err, { feature: 'cardio.goal.complete', level: 'warning' });
+        });
+    });
+  }, [goalsWithProgress, user?.email, queryClient]);
 
   if (goalsLoading) {
     return (
