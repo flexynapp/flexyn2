@@ -578,7 +578,7 @@ export default function Dashboard() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="px-4 md:px-6 pt-3 pb-6 md:pt-5 max-w-5xl mx-auto"
+      className="px-4 md:px-6 pt-3 md:pt-5 lg:pb-6 max-w-5xl mx-auto"
     >
       {/* ── Stories ──────────────────────────────────────────────
            Pinned to the very top (above the greeting) to maximize
@@ -1101,7 +1101,7 @@ export default function Dashboard() {
           primary Dashboard queries. Trust signal — when a user wonders
           "is this stale?" they get a clear answer at a glance, and a
           one-tap path to fix it. Color shifts amber/red as data ages. */}
-      <div className="mt-6 flex justify-center pb-4">
+      <div className="mt-2 flex justify-center">
         <SyncStatus dataUpdatedAt={logsUpdatedAt} />
       </div>
     </motion.div>

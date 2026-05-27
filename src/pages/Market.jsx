@@ -16,7 +16,7 @@ export default function Market() {
   const startConversation = useStartConversation();
 
   return (
-    <div className="p-4 md:p-8 max-w-3xl mx-auto">
+    <div className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto">
       {/* Trainer Programs entry — premium paywalled regimens, separate
           from the coin-based peer marketplace below. */}
       <button

@@ -600,7 +600,7 @@ export default function Nutrition() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="p-4 md:p-8 max-w-4xl mx-auto">
+      className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-4xl mx-auto">
 
       {/* ── Header row: title left, scanner CTA right ─────────────────────── */}
       <motion.div
