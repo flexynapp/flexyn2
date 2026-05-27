@@ -246,17 +246,20 @@ export async function performOverthrow(assignmentId) {
     .update({ status: 'overthrown', overthrown_at: new Date().toISOString() })
     .eq('id', assignmentId);
 
-  // Atomic increment of the user's overthrow_count via mig 112's
-  // SECURITY DEFINER RPC. (The previous code in this spot had two
-  // calls: a broken .update() that passed an un-executed RPC builder
-  // as the column value — which PostgREST serialized to garbage and
-  // silently rejected — followed by a .rpc(...).catch(() => {}) that
-  // swallowed 42883 because the function had never been defined. Net
-  // effect: every user's overthrow_count had been 0 since the
-  // feature shipped. Mig 112 defines the RPC; this call now actually
-  // increments. We still .catch the call so a pre-112 host degrades
-  // gracefully — the overthrow itself is the canonical event.)
-  await supabase.rpc('increment_overthrow_count', { p_user_id: user.id }).catch((e) => {
+  // Atomic increment of the user's overthrow_count. Mig 159 hardened
+  // the RPC to require p_assignment_id (closing a self-attestation
+  // grinding exploit where the client could call it in a loop). Pass
+  // the assignment row id so the server-side check (assignment owned
+  // by caller + status='overthrown' + not-yet-counted) passes. The
+  // p_user_id param is now server-ignored but kept in the call for
+  // backward compatibility with mig 112's signature. Mig 160's
+  // fallback also accepts a NULL p_assignment_id and resolves the
+  // user's most-recent-uncounted overthrow itself, so an in-flight
+  // client deploy gap doesn't break overthrow counting.
+  await supabase.rpc('increment_overthrow_count', {
+    p_user_id: user.id,
+    p_assignment_id: assignmentId,
+  }).catch((e) => {
     if (e?.code !== '42883' && e?.code !== '42P01') {
       console.warn('[nemesis] increment_overthrow_count failed:', e?.message || e);
     }

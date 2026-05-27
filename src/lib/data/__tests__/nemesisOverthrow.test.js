@@ -125,13 +125,20 @@ describe('performOverthrow', () => {
     expect(notify.args).toEqual({ p_assignment_id: 'assignment-42' });
   });
 
-  it('passes the caller user_id to increment_overthrow_count', async () => {
+  it('passes the caller user_id + assignment_id to increment_overthrow_count', async () => {
+    // Wave 58 (mig 159 hardening) added p_assignment_id as a required
+    // server-side guard against self-attestation grinding. The client
+    // now passes BOTH p_user_id (legacy compat — ignored server-side)
+    // AND p_assignment_id (the canonical proof). Test updated to match.
     await performOverthrow('assignment-42');
 
     const increment = callLog.find(c =>
       c.kind === 'rpc' && c.op === 'increment_overthrow_count'
     );
-    expect(increment.args).toEqual({ p_user_id: 'u1' });
+    expect(increment.args).toEqual({
+      p_user_id: 'u1',
+      p_assignment_id: 'assignment-42',
+    });
   });
 
   it('writes status="overthrown" + overthrown_at on the status update', async () => {
