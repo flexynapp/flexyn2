@@ -191,9 +191,10 @@ function StatTile({ icon: Icon, value, label, suffix, delay = 0, accent = false,
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+      className="h-full"
     >
       <Card
-        className={`relative overflow-hidden p-4 md:p-5 border-border/60 shadow-sm hover:shadow-md transition-shadow ${
+        className={`relative overflow-hidden p-4 md:p-5 border-border/60 shadow-sm hover:shadow-md transition-shadow h-full ${
           accent ? 'bg-gradient-to-br from-primary/[0.08] to-transparent' : ''
         }`}
       >
@@ -604,7 +605,7 @@ export default function Dashboard() {
           <div className="mb-3">
             <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
           </div>
-          <div className="grid grid-cols-2 gap-3 mb-5 md:mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 md:mb-6">
             <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
             <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
             <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>

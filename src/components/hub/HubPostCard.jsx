@@ -12,7 +12,6 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
-import EmojiReactionButton from './EmojiReactionButton';
 import { reportError } from '@/lib/reportError';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as stickerReactions from '@/lib/data/stickerReactions';
