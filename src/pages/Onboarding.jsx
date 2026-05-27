@@ -499,6 +499,9 @@ function WelcomeStep({ onNext, onSignIn }) {
         <PrimaryBtn onClick={onNext}>
           Get started <span className="ob-icon-bob inline-flex"><Icon name="arrow-right" size={20} strokeWidth={2.5} /></span>
         </PrimaryBtn>
+        <p className="text-center text-[11px] font-medium text-muted-foreground/80 tracking-wide">
+          Free to start · no card needed
+        </p>
         <button onClick={onSignIn}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 text-center">
           I already have an account
@@ -990,48 +993,17 @@ function useDragValue({ value, onChange, min, max, axis = 'x', pxPerUnit = 14, s
     setIsDragging(false);
   }, []);
 
-  // ── Native touch listeners { passive: false } ─────────────────────────────
-  // React 17+ marks synthetic touch events as passive, so e.preventDefault()
-  // inside onTouchMove is silently ignored and the browser scrolls instead of
-  // dragging. Attaching native listeners bypasses this restriction.
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-
-    const handleTouchStart = (e) => {
-      e.preventDefault();
-      const t = e.touches[0];
-      const pos = axis === 'x' ? t.clientX : t.clientY;
-      drag.current = { active: true, start: pos, startVal: valueRef.current };
-      setIsDragging(true);
-    };
-
-    const handleTouchMove = (e) => {
-      e.preventDefault(); // stops page scroll while dragging the ruler
-      if (!drag.current.active) return;
-      const t = e.touches[0];
-      const pos = axis === 'x' ? t.clientX : t.clientY;
-      const delta = Math.round(-(pos - drag.current.start) / pxPerUnit) * stepSize;
-      const next = Math.min(max, Math.max(min, drag.current.startVal + delta));
-      onChangeRef.current(next);
-      if (navigator.vibrate) navigator.vibrate(1);
-    };
-
-    const handleTouchEnd = () => { drag.current.active = false; setIsDragging(false); };
-
-    el.addEventListener('touchstart',  handleTouchStart, { passive: false });
-    el.addEventListener('touchmove',   handleTouchMove,  { passive: false });
-    el.addEventListener('touchend',    handleTouchEnd);
-    el.addEventListener('touchcancel', handleTouchEnd);
-
-    return () => {
-      el.removeEventListener('touchstart',  handleTouchStart);
-      el.removeEventListener('touchmove',   handleTouchMove);
-      el.removeEventListener('touchend',    handleTouchEnd);
-      el.removeEventListener('touchcancel', handleTouchEnd);
-    };
-  // Re-register when these change; value/onChange handled via refs above
-  }, [axis, pxPerUnit, stepSize, min, max]);
+  // ── Touch is handled by the Pointer Events above ──────────────────────────
+  // Every consumer sets `touch-action: none` on the scrubber, so the browser
+  // won't scroll the page on a touch-drag and Pointer Events fire reliably for
+  // mouse + touch + pen (with setPointerCapture keeping the drag alive even if
+  // the finger leaves the element).
+  //
+  // We previously ALSO attached native touch listeners here. But a single
+  // finger fires BOTH a pointer event AND a touch event, so the two code paths
+  // double-updated `drag.current` and `setPointerCapture` fought the touch
+  // stream — that race is why the dial sometimes "didn't register" until the
+  // 2nd or 3rd try (beta feedback). Pointer-only is the single source of truth.
 
   return { ref, onPointerDown, onPointerMove, onPointerUp, isDragging };
 }
@@ -2041,26 +2013,44 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
   // Measurements are collected in cm only (body-fat in %). Weight unit
   // is handled separately by the weight step.
 
-  const handleField = (key, raw) => {
-    if (raw === '') {
-      onChange({ ...value, [key]: null });
-      return;
-    }
-    const num = Number(raw);
-    if (!Number.isFinite(num)) {
-      onChange({ ...value, [key]: null });
-      return;
-    }
-    // Clamp to the field's [min, max] so a typo / scientific notation
-    // / out-of-range value can't be persisted to body_metrics.
-    // Previously a user typing "-50" landed -50 cm waist; "1e10"
-    // landed ten billion. (Audit 13 #7 + #27.)
-    const field = MEASURE_FIELDS.find(f => f.key === key);
-    const min = field?.min ?? -Infinity;
-    const max = field?.max ?? Infinity;
-    const clamped = Math.max(min, Math.min(max, num));
-    onChange({ ...value, [key]: clamped });
+  // Per-field text drafts. We must NOT clamp while the user is typing — the
+  // old code clamped on every keystroke, so typing "8" toward a waist of 80
+  // instantly snapped to the 40 cm minimum and you could never enter a real
+  // value (body-fat did the same, snapping to 3%). Beta feedback: the waist
+  // and body-fat inputs "won't let me type." Fix: hold the raw string, then
+  // parse + clamp ONCE on blur. Out-of-range / junk still can't be persisted
+  // (the original -50 / 1e10 guard, Audit 13 #7 + #27).
+  const [drafts, setDrafts] = useState({});
+
+  const sanitizeNumeric = (raw) => {
+    let s = String(raw).replace(/[^0-9.]/g, '');
+    const dot = s.indexOf('.');
+    if (dot !== -1) s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, '');
+    return s;
   };
+
+  const handleType = (key, raw) => {
+    setDrafts(d => ({ ...d, [key]: sanitizeNumeric(raw) }));
+  };
+
+  const commitField = (key) => {
+    if (!(key in drafts)) return;
+    const raw = drafts[key];
+    let committed = null;
+    if (raw !== '' && raw !== '.') {
+      const num = Number(raw);
+      if (Number.isFinite(num)) {
+        const field = MEASURE_FIELDS.find(f => f.key === key);
+        const min = field?.min ?? -Infinity;
+        const max = field?.max ?? Infinity;
+        committed = Math.max(min, Math.min(max, num));
+      }
+    }
+    onChange({ ...value, [key]: committed });
+    setDrafts(d => { const n = { ...d }; delete n[key]; return n; });
+  };
+
+  const fieldDisplay = (key) => (key in drafts ? drafts[key] : (value[key] ?? ''));
 
   const hasAny = MEASURE_FIELDS.some(f => value[f.key] != null && value[f.key] !== '');
 
@@ -2094,14 +2084,14 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
                   {f.isPercent && <span className="font-normal normal-case"> (%)</span>}
                 </p>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  min={f.min}
-                  max={f.max}
-                  step={f.isPercent ? '0.1' : '1'}
+                  enterKeyHint="done"
                   placeholder={f.isPercent ? 'e.g. 18' : 'e.g. 80'}
-                  value={value[f.key] ?? ''}
-                  onChange={e => handleField(f.key, e.target.value)}
+                  value={fieldDisplay(f.key)}
+                  onChange={e => handleType(f.key, e.target.value)}
+                  onBlur={() => commitField(f.key)}
+                  onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                   className="w-full h-10 rounded-xl border border-border bg-secondary/50 px-3 font-mono text-sm font-medium text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/30"
                 />
               </div>
@@ -2117,7 +2107,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
         <button
           type="button"
           onClick={onSkip}
-          className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
         >
           Skip for now
         </button>
