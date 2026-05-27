@@ -408,14 +408,25 @@ export default function Nutrition() {
       return;
     }
     const r = res.result || {};
+    // Coerce + finite-check each macro. The LLM occasionally returns
+    // string values like "≈340" or "N/A" — without coercion those
+    // strings landed in state, got passed to addEntry, and persisted
+    // to the DB as strings (which then broke arithmetic everywhere
+    // else). Wave 57 (Cardio/Coach/Progress/Nutrition audit) caught
+    // this.
+    const finiteOr = (val, fallback) => {
+      if (val == null) return fallback;
+      const n = Number(val);
+      return Number.isFinite(n) ? n : fallback;
+    };
     setNewEntry(prev => ({
       ...prev,
-      food_name:  r.food_name || prev.food_name,
-      calories:   r.calories  ?? prev.calories,
-      protein_g:  r.protein_g ?? prev.protein_g,
-      carbs_g:    r.carbs_g   ?? prev.carbs_g,
-      fat_g:      r.fat_g     ?? prev.fat_g,
-      fiber_g:    r.fiber_g   ?? prev.fiber_g,
+      food_name:  (typeof r.food_name === 'string' && r.food_name.trim()) || prev.food_name,
+      calories:   finiteOr(r.calories,  prev.calories),
+      protein_g:  finiteOr(r.protein_g, prev.protein_g),
+      carbs_g:    finiteOr(r.carbs_g,   prev.carbs_g),
+      fat_g:      finiteOr(r.fat_g,     prev.fat_g),
+      fiber_g:    finiteOr(r.fiber_g,   prev.fiber_g),
     }));
     toast.success(`Identified: ${r.food_name || 'meal'} — review macros and save.`);
     // Scroll the meal form into view so the user can review.
@@ -563,12 +574,28 @@ export default function Nutrition() {
 
   const addEntry = () => {
     if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return; }
+    // Per-field coercion so non-numeric values (from photo-AI / barcode
+    // / paste / typed-then-edited input) never persist as strings to
+    // numeric DB columns. Previously `v === '' ? 0 : v` left strings
+    // intact, which broke arithmetic downstream + corrupted the daily
+    // totals roll-up. Wave 57 (Cardio/Coach/Progress/Nutrition audit)
+    // caught this. `food_name` stays as string; everything else is a
+    // numeric column.
+    const STRING_KEYS = new Set(['food_name', 'meal_type', 'date', 'notes']);
+    const safeEntry = Object.fromEntries(
+      Object.entries(newEntry).map(([k, v]) => {
+        if (STRING_KEYS.has(k)) return [k, v];
+        if (v === '' || v == null) return [k, 0];
+        const n = Number(v);
+        return [k, Number.isFinite(n) ? n : 0];
+      })
+    );
     saveMutation.mutate({
       date,
       created_by: user?.email,
       user_id: user?.id,
       meal_type: mealType,
-      ...Object.fromEntries(Object.entries(newEntry).map(([k, v]) => [k, v === '' ? 0 : v]))
+      ...safeEntry,
     });
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
   };

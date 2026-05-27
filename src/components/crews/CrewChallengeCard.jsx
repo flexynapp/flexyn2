@@ -5,7 +5,7 @@
 // live progress bar; admins additionally see a "+ New" button to post
 // a new one. Backed by mig 098's crew_challenges table.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Target, Plus, Loader2 } from 'lucide-react';
@@ -31,9 +31,15 @@ function NewChallengeModal({ open, onClose, crewId, onCreated }) {
   const [targetValue, setTargetValue] = useState('');
   const [days, setDays] = useState(7);
   const [submitting, setSubmitting] = useState(false);
+  // Synchronous double-tap guard. `submitting` state lags React —
+  // double-tap creates two challenges + double-pushes every crew
+  // member via notify_crew_challenge_created_for. Wave 57 (Crews
+  // audit) caught this.
+  const submitRef = useRef(false);
 
   const handleSubmit = async () => {
-    if (submitting) return;
+    if (submitting || submitRef.current) return;
+    submitRef.current = true;
     const target = parseFloat(targetValue);
     if (!title.trim()) {
       toast.error(tFallback('challenge.needTitle', 'Add a title.'));
@@ -52,6 +58,7 @@ function NewChallengeModal({ open, onClose, crewId, onCreated }) {
       endsAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000),
     });
     setSubmitting(false);
+    submitRef.current = false;
     if (res.ok) {
       toast.success(tFallback('challenge.created', 'Challenge posted to your crew.'));
       onCreated?.();

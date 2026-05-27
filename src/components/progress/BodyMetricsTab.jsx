@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import CycleTrackerCard from '@/components/wellness/CycleTrackerCard';
 import { motion } from 'framer-motion';
@@ -85,6 +85,30 @@ function EntryForm({ initial, onSave, onCancel, t, weightUnit }) {
     : '';
   const [form, setForm] = useState({ ...seed, weight_lbs: seedWeightDisplay });
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  // Re-convert the displayed weight when the user flips the kg/lb
+  // toggle while the form is open. Without this, a kg user who
+  // toggles to lbs mid-edit sees the kg number unchanged (now
+  // interpreted as lbs) — a 75 kg display becomes 75 "lbs" → saves
+  // as 75 lbs. Wave 57 (Cardio/Coach/Progress audit) caught this.
+  // Tracks the previous unit in a ref so we only re-convert on
+  // ACTUAL unit changes, not on every render.
+  const lastUnitRef = useRef(weightUnit);
+  useEffect(() => {
+    if (lastUnitRef.current === weightUnit) return;
+    if (form.weight_lbs === '' || form.weight_lbs == null) {
+      lastUnitRef.current = weightUnit;
+      return;
+    }
+    // Convert the displayed number from the OLD unit back to lbs
+    // (canonical), then format in the NEW unit.
+    const parsed = parseFloat(form.weight_lbs);
+    if (Number.isFinite(parsed)) {
+      const asLbs = toLbs(parsed, lastUnitRef.current);
+      setForm(f => ({ ...f, weight_lbs: String(formatWeightNumber(asLbs, weightUnit)) }));
+    }
+    lastUnitRef.current = weightUnit;
+  }, [weightUnit, form.weight_lbs]);
 
   const handleSave = () => {
     const payload = { date: form.date };

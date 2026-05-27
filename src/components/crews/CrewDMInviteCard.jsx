@@ -3,7 +3,7 @@
 // Rendered inside HubChat when a DM body starts with [CREW_INVITE_V1].
 // Parses the JSON payload and shows a styled invite card.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Loader2, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -26,12 +26,19 @@ export function buildCrewInviteBody(crewId, crewName, inviterName, inviterAvatar
 
 export default function CrewDMInviteCard({ payload, userId, isMine }) {
   const [state, setState] = useState('idle'); // idle | joining | joined | full
+  // Synchronous double-tap guard. The state-only `if (state !== 'idle')`
+  // gate is async — fast double-tap fires joinCrew twice. The RPC is
+  // idempotent (returns already_member) so it's not destructive, but
+  // it's still a wasted RPC + the second tap shows a misleading toast.
+  // Wave 57 (Crews audit) caught this.
+  const joiningRef = useRef(false);
 
   if (!payload) return null;
   const { crewId, crewName, inviterName, inviterAvatar } = payload;
 
   const handleAccept = async () => {
-    if (state !== 'idle') return;
+    if (state !== 'idle' || joiningRef.current) return;
+    joiningRef.current = true;
     setState('joining');
     try {
       await crews.joinCrew(crewId, userId);
@@ -42,6 +49,8 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
     } catch (err) {
       setState(err?.message?.includes('full') ? 'full' : 'idle');
       toast.error(err?.message || 'Could not join crew — try again.');
+    } finally {
+      joiningRef.current = false;
     }
   };
 
