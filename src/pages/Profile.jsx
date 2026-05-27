@@ -8,26 +8,41 @@
 //
 // Now ProfileMenu navigates directly here, the profile opens immediately
 // on the first click with no intermediate feed state.
+//
+// HubProfile is the underlying component. Its prop contract is
+// `{ targetUser, onSelectUser, onStartConversation }` — we leave
+// targetUser undefined (HubProfile resolves to self when not provided)
+// and wire onSelectUser so outbound taps (post-author tap, followers /
+// following modal taps) navigate to the tapped user's Hub profile.
+// A previous version of this file passed `onViewProfile` (a prop
+// HubProfile doesn't read), silently breaking every outbound link
+// from /profile.
 
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/lib/AuthContext';
 import { useStartConversation } from '@/lib/hubMessaging';
 import HubProfile from '@/components/hub/HubProfile';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 export default function Profile() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const startConversation = useStartConversation();
+
+  // Outbound profile-tap → route to the Hub profile view for that user.
+  // Hub.jsx reads the `?profile=` query param and opens the profile
+  // subview directly; if the tapped user is the signed-in user, Hub
+  // collapses it back to /profile via the same handler.
+  const handleSelectUser = (selectedUser) => {
+    const email = selectedUser?.email;
+    if (!email) return;
+    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+  };
 
   return (
     <div className="px-4 md:px-8 max-w-3xl mx-auto py-4">
       <ErrorBoundary label="Profile">
         <HubProfile
-          email={user?.email}
-          onBack={() => navigate(-1)}
+          onSelectUser={handleSelectUser}
           onStartConversation={startConversation}
-          onViewProfile={(email) => navigate(`/hub?profile=${encodeURIComponent(email)}`)}
         />
       </ErrorBoundary>
     </div>
