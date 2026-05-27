@@ -18,7 +18,12 @@ export async function listMyQuotes() {
   return data || [];
 }
 
-/** Add a custom quote. Throws 'limit' if the user already has the max. */
+/** Add a custom quote.
+ *  Throws 'limit' if the user already has the max (mig 154 trigger is the
+ *  authoritative gate; this client check is just a fast pre-flight).
+ *  Throws 'profanity' if the server-side profanity trigger rejects the
+ *  text or author. Throws Error otherwise.
+ */
 export async function addQuote(text, author = null) {
   const trimmed = (text || '').trim();
   if (!trimmed) throw new Error('empty');
@@ -32,7 +37,13 @@ export async function addQuote(text, author = null) {
     .insert({ user_id: user.id, text: trimmed.slice(0, 280), author: cleanAuthor })
     .select('id, text, author')
     .single();
-  if (error) throw error;
+  if (error) {
+    // Mig 154 raises 23514 with one of two distinguishable HINTs.
+    const msg = `${error.message || ''} ${error.hint || ''}`;
+    if (/custom_quotes_limit/i.test(msg))      throw new Error('limit');
+    if (/custom_quote_profanity/i.test(msg))   throw new Error('profanity');
+    throw error;
+  }
   return data;
 }
 
