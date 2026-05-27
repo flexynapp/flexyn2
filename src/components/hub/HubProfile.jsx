@@ -811,6 +811,25 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     <ThemedScope themeId={ownerThemeId} lootThemeId={ownerLootThemeId}>
       {isAdminProfile && <SteelUsaProfileOverlay />}
 
+      {/* Bouncing poop screensaver — DVD-style, faded behind jackson's profile */}
+      {isPoopUser && (
+        <>
+          <style>{`
+            @keyframes poop-x { 0%,100% { left:4%; } 50% { left:calc(100% - 72px); } }
+            @keyframes poop-y { 0%,100% { top:8%;  } 50% { top:calc(100% - 72px);  } }
+          `}</style>
+          <div style={{ position:'fixed', inset:0, overflow:'hidden', pointerEvents:'none', zIndex:1 }}>
+            <span style={{
+              position: 'absolute',
+              fontSize: 56,
+              opacity: 0.07,
+              userSelect: 'none',
+              animation: 'poop-x 7s linear infinite alternate, poop-y 11s linear infinite alternate',
+            }}>💩</span>
+          </div>
+        </>
+      )}
+
       {/* Header card — gets a steel tint when viewing @sean's profile */}
       <motion.div
         initial={{ opacity: 0, y: 12, scale: 0.98 }}
@@ -1039,8 +1058,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             )}
 
             {/* Bio */}
-            {bio && (
-              <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">{bio}</p>
+            {(isPoopUser || bio) && (
+              <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">
+                {isPoopUser ? 'I eat poop 💩' : bio}
+              </p>
             )}
 
             {/* Link in bio */}
