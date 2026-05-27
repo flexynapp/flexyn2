@@ -222,13 +222,26 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
     onPin?.(msg.id);
   };
 
-  // Emoji reaction toggle — optimistic + async persist
+  // Emoji reaction toggle — optimistic + async persist.
+  //
+  // Race fix (Wave 57 Crews audit): the previous impl read `base =
+  // rxnData || []` on every call. If the user tapped a second emoji
+  // before the first toggle resolved, the second tap saw stale
+  // rxnData (the first hasn't refetched yet) and its optimistic
+  // state didn't reflect the first reaction — the UI briefly
+  // showed only the last-tapped emoji even when the DB had both.
+  // Now we maintain optimistic state as a delta over the latest
+  // local snapshot (optimisticRxns ?? rxnData) so chained taps
+  // compose correctly. The setOptimisticRxns(null) reset only
+  // happens on the LAST in-flight call's settle, not every call's.
+  const rxnInFlightRef = useRef(0);
   const handleEmojiReact = useCallback(async (emoji) => {
     if (!currentUserId || String(msg.id).startsWith('temp-')) return;
     setShowContext(false);
 
-    // Optimistic update
-    const base = rxnData || [];
+    // Compose over the freshest local view, not the server snapshot,
+    // so successive taps each see the previous tap's optimistic state.
+    const base = optimisticRxns !== null ? optimisticRxns : (rxnData || []);
     const alreadyReacted = base.some(r => r.user_id === currentUserId && r.emoji === emoji);
     const updated = alreadyReacted
       ? base.filter(r => !(r.user_id === currentUserId && r.emoji === emoji))
@@ -240,17 +253,25 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
       triggerHaptic('primary');
     }
 
+    rxnInFlightRef.current += 1;
     try {
       await crewRxns.toggleReaction(msg.id, currentUserId, emoji);
-      // Invalidate so the DB truth replaces the optimistic state
-      qc.invalidateQueries({ queryKey: ['crewMsgRxns', msg.id] });
     } catch {
-      // Revert on failure
+      // Failure — reset to server truth so the user sees the correct
+      // state. Set immediately rather than waiting for the invalidate
+      // round-trip.
       setOptimisticRxns(null);
     } finally {
-      setOptimisticRxns(null);
+      rxnInFlightRef.current -= 1;
+      // Only clear the optimistic delta + invalidate when this is the
+      // LAST in-flight tap. Otherwise the still-pending taps would
+      // see rxnData reset to the pre-tap server state and clobber.
+      if (rxnInFlightRef.current === 0) {
+        qc.invalidateQueries({ queryKey: ['crewMsgRxns', msg.id] });
+        setOptimisticRxns(null);
+      }
     }
-  }, [currentUserId, msg.id, rxnData, qc]);
+  }, [currentUserId, msg.id, optimisticRxns, rxnData, qc]);
 
   // Handle tapping a reaction bubble inline (toggle)
   const handleBubbleTap = useCallback((emoji) => {
