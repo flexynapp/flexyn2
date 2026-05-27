@@ -72,36 +72,45 @@ function writeSeen(seen) {
 // Returns { text, author } — the same quote within a single local day,
 // rotates to a fresh unseen quote on the next day, and resets the
 // "seen" pool once every quote has been shown.
-export function getDailyQuote() {
+//
+// `customQuotes` ([{ id, text, author }]) are the user's own quotes (mig
+// 153); they cycle in alongside the built-in pool. Each quote gets a stable
+// key (`b<index>` for built-in, `c<id>` for custom) so the daily cache +
+// "seen" set survive the custom list changing. Pre-key localStorage values
+// simply don't match the new keys → a one-time, harmless rotation reset.
+export function getDailyQuote(customQuotes = []) {
+  const pool = [
+    ...QUOTES.map((q, i) => ({ key: `b${i}`, text: q.text, author: q.author })),
+    ...(Array.isArray(customQuotes) ? customQuotes : [])
+      .filter(q => q && q.text)
+      .map(q => ({ key: `c${q.id}`, text: q.text, author: q.author || null })),
+  ];
+  if (pool.length === 0) return null;
+
   const stamp = todayStamp();
   const storedDay = (() => { try { return localStorage.getItem(DAY_KEY); } catch { return null; } })();
-  const storedIndex = (() => {
-    try {
-      const raw = localStorage.getItem(CURRENT_KEY);
-      const n = raw == null ? null : parseInt(raw, 10);
-      return Number.isFinite(n) && n >= 0 && n < QUOTES.length ? n : null;
-    } catch { return null; }
-  })();
+  const storedKey = (() => { try { return localStorage.getItem(CURRENT_KEY); } catch { return null; } })();
 
-  // Same day → reuse the cached quote
-  if (storedDay === stamp && storedIndex != null) {
-    return QUOTES[storedIndex];
+  // Same day → reuse the cached quote IF it still exists in the pool.
+  if (storedDay === stamp && storedKey) {
+    const found = pool.find(p => p.key === storedKey);
+    if (found) return { text: found.text, author: found.author };
+    // else: the cached custom quote was deleted — fall through to re-pick.
   }
 
-  // New day → pick a quote not yet seen
+  // New day (or stale cache) → pick a key not yet seen.
   let seen = readSeen();
-  let pool = QUOTES.map((_, i) => i).filter(i => !seen.includes(i));
-  if (pool.length === 0) {
-    // Exhausted — reset and start over
+  let unseen = pool.filter(p => !seen.includes(p.key));
+  if (unseen.length === 0) {
     seen = [];
-    pool = QUOTES.map((_, i) => i);
+    unseen = pool;
   }
-  const pick = pool[Math.floor(Math.random() * pool.length)];
-  seen.push(pick);
+  const pick = unseen[Math.floor(Math.random() * unseen.length)];
+  seen.push(pick.key);
   writeSeen(seen);
   try {
     localStorage.setItem(DAY_KEY, stamp);
-    localStorage.setItem(CURRENT_KEY, String(pick));
+    localStorage.setItem(CURRENT_KEY, pick.key);
   } catch { /* ignore */ }
-  return QUOTES[pick];
+  return { text: pick.text, author: pick.author };
 }

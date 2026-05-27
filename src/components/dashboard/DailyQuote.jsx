@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
-import { Quote } from 'lucide-react';
+import { Quote, Star } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
 import { getDailyQuote } from '@/lib/dailyQuotes';
+import { listMyQuotes } from '@/lib/data/customQuotes';
+import CustomQuotesModal from './CustomQuotesModal';
 
 // Milliseconds until the next local-midnight rollover.
 function msUntilLocalMidnight() {
@@ -12,21 +16,39 @@ function msUntilLocalMidnight() {
   return Math.max(1000, next.getTime() - now.getTime());
 }
 
-export default function DailyQuote() {
-  const { t } = useLanguage();
-  const [quote, setQuote] = useState(() => getDailyQuote());
+export default function DailyQuote({ editMode = false }) {
+  const { t, tFallback } = useLanguage();
+  const { user } = useAuth();
+  const [manageOpen, setManageOpen] = useState(false);
+
+  // The user's custom quotes cycle in alongside the built-in pool.
+  const { data: customQuotes = [] } = useQuery({
+    queryKey: ['customQuotes', user?.id],
+    queryFn: listMyQuotes,
+    enabled: !!user?.id,
+    staleTime: 5 * 60_000,
+  });
+
+  const [quote, setQuote] = useState(() => getDailyQuote([]));
+
+  // Re-evaluate when the custom list loads/changes (same-day cache keeps it
+  // stable; a freshly-added quote only changes today's pick if the cache
+  // was empty) and roll over at local midnight.
+  useEffect(() => {
+    setQuote(getDailyQuote(customQuotes));
+  }, [customQuotes]);
 
   useEffect(() => {
     let timer = null;
     const schedule = () => {
       timer = setTimeout(() => {
-        setQuote(getDailyQuote());
+        setQuote(getDailyQuote(customQuotes));
         schedule();
       }, msUntilLocalMidnight());
     };
     schedule();
     return () => { if (timer) clearTimeout(timer); };
-  }, []);
+  }, [customQuotes]);
 
   if (!quote) return null;
 
@@ -50,6 +72,19 @@ export default function DailyQuote() {
           </p>
         )}
       </Card>
+
+      {/* Edit-mode affordance: add/manage your own quotes that cycle in. */}
+      {editMode && (
+        <button
+          onClick={() => setManageOpen(true)}
+          className="mt-2 flex items-center gap-1.5 px-1 text-xs font-semibold text-primary hover:opacity-80 transition-opacity"
+        >
+          <Star className="w-3.5 h-3.5" />
+          {tFallback('quotes.addCustom', 'Add custom quote')}
+        </button>
+      )}
+
+      <CustomQuotesModal open={manageOpen} onClose={() => setManageOpen(false)} />
     </motion.div>
   );
 }

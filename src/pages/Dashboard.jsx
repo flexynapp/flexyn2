@@ -919,7 +919,7 @@ export default function Dashboard() {
 
       {/* ── Daily quote ────────────────────────────────────────── */}
       <div className="mb-5 md:mb-6">
-        <DailyQuote />
+        <DailyQuote editMode={editMode} />
       </div>
 
       {/* ── Widgets ────────────────────────────────────────────── */}
