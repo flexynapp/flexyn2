@@ -246,6 +246,24 @@ export default function StoryViewer({
   const currentStory = currentGroup?.stories[storyIdx];
   const isVideo      = currentStory?.media_type === 'video';
 
+  // Preload upcoming images so advancing doesn't flash black for a beat
+  // (the bitmap decodes while the text overlay paints instantly otherwise).
+  // Covers the next few in the current group + the first of the next group.
+  useEffect(() => {
+    if (!open) return;
+    const urls = [];
+    const group = groups[groupIdx];
+    if (group?.stories) {
+      for (let i = storyIdx + 1; i < Math.min(group.stories.length, storyIdx + 4); i += 1) {
+        const s = group.stories[i];
+        if (s && s.media_type !== 'video' && s.image_url) urls.push(s.image_url);
+      }
+    }
+    const nextFirst = groups[groupIdx + 1]?.stories?.[0];
+    if (nextFirst && nextFirst.media_type !== 'video' && nextFirst.image_url) urls.push(nextFirst.image_url);
+    urls.forEach((u) => { const img = new Image(); img.src = u; });
+  }, [open, groupIdx, storyIdx, groups]);
+
   useEffect(() => {
     if (!open || !currentStory || !user?.id) return;
     if (!viewedIds.has(currentStory.id)) {

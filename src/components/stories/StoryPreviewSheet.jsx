@@ -50,6 +50,7 @@ const FONTS = [
   { label: 'Normal',  family: "'Inter', system-ui, sans-serif" },
   { label: 'Serious', family: "Georgia, 'Times New Roman', serif" },
   { label: 'Casual',  family: "'Comic Sans MS', 'Chalkboard SE', cursive" },
+  { label: 'Pixel',   family: "'Press Start 2P', monospace" },
 ];
 
 const QUICK_COLORS = ['#ffffff', '#000000', '#ef4444', '#3b82f6', '#fbbf24', '#22c55e'];
