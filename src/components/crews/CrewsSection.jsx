@@ -20,6 +20,7 @@ import CrewWarPanel from './CrewWarPanel';
 import CrewMemberDots from './CrewMemberDots';
 import CrewSuggestionRail from './CrewSuggestionRail';
 import CrewDiscovery from './CrewDiscovery';
+import ChatViewportFrame from '@/components/ChatViewportFrame';
 
 // ── Crew list card ────────────────────────────────────────────────────────────
 
@@ -217,7 +218,7 @@ function BattlesView({ myCrews, currentUserId }) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="pt-2 pb-6"
+      className="pt-2 lg:pb-6"
     >
       <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
         Each crew can enter one battle at a time. The crew that earns the most XP in 7 days wins.
@@ -272,25 +273,25 @@ export default function CrewsSection({ initialCrewId }) {
   // ── Crew chat view ────────────────────────────────────────────────────────────
   if (activeCrew) {
     return (
-      <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
+      <ChatViewportFrame>
         <CrewChat crew={activeCrew} onBack={() => setActiveCrew(null)} />
-      </div>
+      </ChatViewportFrame>
     );
   }
 
   // ── Creation flow ─────────────────────────────────────────────────────────────
   if (creating) {
     return (
-      <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
+      <ChatViewportFrame>
         <CrewCreationFlow onCreated={handleCreated} onClose={() => setCreating(false)} />
-      </div>
+      </ChatViewportFrame>
     );
   }
 
   // ── Discovery ─────────────────────────────────────────────────────────────────
   if (discovering) {
     return (
-      <div className="relative" style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}>
+      <ChatViewportFrame>
         <CrewDiscovery
           onBack={() => setDiscovering(false)}
           onJoined={() => {
@@ -298,7 +299,7 @@ export default function CrewsSection({ initialCrewId }) {
             qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
           }}
         />
-      </div>
+      </ChatViewportFrame>
     );
   }
 
@@ -359,7 +360,7 @@ export default function CrewsSection({ initialCrewId }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.2 }}
-      className="pt-2 pb-6"
+      className="pt-2 lg:pb-6"
     >
       {/* Tab strip */}
       <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border mb-4">

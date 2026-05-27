@@ -13,6 +13,7 @@ import * as crewsData from '@/lib/data/crews';
 import * as hubFollows from '@/lib/data/hubFollows';
 import HubChat from './HubChat';
 import CrewChat from '@/components/crews/CrewChat';
+import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { toast } from 'sonner';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
 import { partitionConversations } from '@/lib/data/conversationRequests';
@@ -297,26 +298,30 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   if (activeConv) {
     const conv = conversations.find(c => c.id === activeConv.id) || activeConv;
     return (
-      <HubChat
-        conversation={conv}
-        otherUser={openOtherUser}
-        onBack={() => {
-          setActiveConv(null);
-          setOpenOtherUser(null);
-          queryClient.invalidateQueries({ queryKey: ['hubConversations'] });
-        }}
-      />
+      <ChatViewportFrame>
+        <HubChat
+          conversation={conv}
+          otherUser={openOtherUser}
+          onBack={() => {
+            setActiveConv(null);
+            setOpenOtherUser(null);
+            queryClient.invalidateQueries({ queryKey: ['hubConversations'] });
+          }}
+        />
+      </ChatViewportFrame>
     );
   }
 
   // ── Active Crew chat ──────────────────────────────────────────────────────────
   if (activeCrew) {
     return (
-      <CrewChat
-        crew={activeCrew}
-        onBack={() => setActiveCrew(null)}
-        onViewProfile={null}
-      />
+      <ChatViewportFrame>
+        <CrewChat
+          crew={activeCrew}
+          onBack={() => setActiveCrew(null)}
+          onViewProfile={null}
+        />
+      </ChatViewportFrame>
     );
   }
 

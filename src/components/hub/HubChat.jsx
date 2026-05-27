@@ -898,10 +898,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   };
 
   return (
-    <div
-      className="flex flex-col relative"
-      style={{ height: 'calc(100dvh - 200px)', minHeight: 360 }}
-    >
+    <div className="flex flex-col relative h-full" style={{ minHeight: 360 }}>
       {/* Header */}
       <div className="flex items-center gap-3 pb-3 border-b border-border mb-3 shrink-0">
         <button
