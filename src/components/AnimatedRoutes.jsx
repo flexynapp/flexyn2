@@ -60,7 +60,6 @@ export default function AnimatedRoutes({ children }) {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -direction * slideOffset, pointerEvents: 'none' }}
         transition={{ duration: 0.22, ease: [0.32, 0.72, 0, 1] }}
-        style={{ minHeight: '100%' }}
       >
         {children}
       </motion.div>

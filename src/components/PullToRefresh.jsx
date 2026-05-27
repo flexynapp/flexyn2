@@ -49,7 +49,7 @@ export default function PullToRefresh({ children }) {
 
   return (
     <div
-      className="relative flex-1 flex flex-col md:contents"
+      className="relative flex flex-col md:contents"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
@@ -71,7 +71,7 @@ export default function PullToRefresh({ children }) {
 
       {/* Actual content pushed down while pulling */}
       <div
-        className="flex-1 flex flex-col transition-transform duration-150"
+        className="flex flex-col transition-transform duration-150"
         style={{ transform: pullY > 0 ? `translateY(${pullY}px)` : 'none' }}
       >
         {children}
