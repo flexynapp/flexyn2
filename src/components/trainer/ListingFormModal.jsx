@@ -4,7 +4,7 @@
 // regimens, set a price, write a description. Shows the 15/85 split
 // preview live as the price changes.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { X, Loader2, DollarSign } from 'lucide-react';
@@ -25,6 +25,11 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
   );
   const [regimenId, setRegimenId] = useState(listing?.regimen_id || '');
   const [saving, setSaving] = useState(false);
+  // Synchronous double-tap guard — `saving` state lags React, so a fast
+  // second tap in the same tick fires createListing/updateListing
+  // twice. In live (non-mock) Stripe mode the duplicate row is real
+  // money. Pattern: useRef + early-return in the click handler.
+  const savingRef = useRef(false);
 
   const { data: regimens = [] } = useQuery({
     queryKey: ['regimens', userEmail],
@@ -37,14 +42,16 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
   const priceValid = priceCents >= 100;
 
   const handleSave = async () => {
-    if (saving) return;
+    if (saving || savingRef.current) return;
     if (!title.trim()) { toast.error('Add a title.'); return; }
     if (!priceValid) { toast.error('Minimum price is $1.00.'); return; }
+    savingRef.current = true;
     setSaving(true);
     const res = editing
       ? await updateListing(listing.id, { title, description, priceCents, regimenId })
       : await createListing({ trainerId, regimenId, title, description, priceCents });
     setSaving(false);
+    savingRef.current = false;
     if (res.ok) {
       toast.success(editing ? 'Listing updated.' : 'Listing created — publish it when ready.');
       onSaved?.();

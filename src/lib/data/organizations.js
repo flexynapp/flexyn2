@@ -35,8 +35,15 @@ export async function createOrganization(name) {
 }
 
 export async function joinOrganizationByCode(code) {
+  // Mig 146's mint loop produces exactly 8-character codes from the
+  // unambiguous alphabet. The previous gate was `< 4`, which let 4-7
+  // char garbage round-trip to the server (page-level gate is `!== 8`
+  // so this was effectively dead code, but a direct caller — devtools
+  // exploration, a future component, a unit-test mock — would hit it
+  // and get a useless CODE_NOT_FOUND from the RPC instead of a clear
+  // local rejection). Tighten to the same exact-length check.
   const cleaned = String(code || '').trim().toUpperCase();
-  if (cleaned.length < 4) return { ok: false, error: 'CODE_NOT_FOUND' };
+  if (cleaned.length !== 8) return { ok: false, error: 'CODE_NOT_FOUND' };
   const { data, error } = await supabase.rpc('join_organization_by_code', { p_code: cleaned });
   if (error) {
     if (MISSING(error.code)) return { ok: false, error: 'PIPELINE_MISSING' };
@@ -83,11 +90,20 @@ export async function createChallenge(orgId, { title, metric, targetValue, endsA
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { ok: false, error: 'UNAUTHENTICATED' };
   if (!title?.trim()) return { ok: false, error: 'TITLE_REQUIRED' };
+  // NaN-safe + non-negative + sanity-capped target. The previous
+  // `Number(x) || 0` quietly accepted negatives, Infinity, and even
+  // NaN-fallthrough-to-0 (which then bypassed any "no target set"
+  // semantics). Cap at 1e9 — anything higher is almost certainly a
+  // typo and would never resolve.
+  const targetRaw = Number(targetValue);
+  const target = Number.isFinite(targetRaw) && targetRaw >= 0
+    ? Math.min(targetRaw, 1e9)
+    : 0;
   const { error } = await supabase.from('organization_challenges').insert({
     org_id:       orgId,
     title:        title.trim().slice(0, 120),
     metric,
-    target_value: Number(targetValue) || 0,
+    target_value: target,
     ends_at:      endsAt || null,
     created_by:   user.id,
   });

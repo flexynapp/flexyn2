@@ -8,7 +8,7 @@
 //
 // Built on the org tenant tables in migration 146.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -47,6 +47,12 @@ export default function CorporatePortal() {
   const [joinCode, setJoinCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [challengeOpen, setChallengeOpen] = useState(false);
+  // Synchronous double-tap guards. The `busy` state lags React renders,
+  // so a fast second tap before the next paint slips through and fires
+  // a second RPC. Pattern: useRef(false) set/cleared inside the click
+  // handler itself. Same defect class as Waves 47-51.
+  const createRef = useRef(false);
+  const joinRef = useRef(false);
 
   const { data: orgs = [], isLoading } = useQuery({
     queryKey: ['myOrganizations', user?.id],
@@ -61,10 +67,12 @@ export default function CorporatePortal() {
   const refresh = () => qc.invalidateQueries({ queryKey: ['myOrganizations', user?.id] });
 
   const handleCreate = async () => {
-    if (busy || !orgName.trim()) return;
+    if (busy || createRef.current || !orgName.trim()) return;
+    createRef.current = true;
     setBusy(true);
     const res = await createOrganization(orgName);
     setBusy(false);
+    createRef.current = false;
     if (res.ok) {
       toast.success(`Created — share code ${res.join_code} with your team.`);
       setOrgName(''); setCreating(false); setSelectedId(res.org_id);
@@ -83,10 +91,12 @@ export default function CorporatePortal() {
     // and bounce with a generic CODE_NOT_FOUND — looked like a bug to
     // users who fat-fingered a partial paste. (Audit 12 #25.)
     const cleaned = joinCode.trim().toUpperCase();
-    if (busy || cleaned.length !== 8) return;
+    if (busy || joinRef.current || cleaned.length !== 8) return;
+    joinRef.current = true;
     setBusy(true);
     const res = await joinOrganizationByCode(cleaned);
     setBusy(false);
+    joinRef.current = false;
     if (res.ok) {
       toast.success('Joined your organization.');
       setJoinCode(''); setSelectedId(res.org_id);
@@ -417,15 +427,19 @@ function ChallengeFormModal({ orgId, onClose, onSaved }) {
   const [target, setTarget] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [saving, setSaving] = useState(false);
+  // Synchronous double-tap guard — see CorporatePortal createRef.
+  const saveRef = useRef(false);
 
   const save = async () => {
-    if (saving || !title.trim()) return;
+    if (saving || saveRef.current || !title.trim()) return;
+    saveRef.current = true;
     setSaving(true);
     const res = await createChallenge(orgId, {
       title, metric, targetValue: target,
       endsAt: endsAt ? new Date(endsAt).toISOString() : null,
     });
     setSaving(false);
+    saveRef.current = false;
     if (res.ok) { toast.success('Challenge launched.'); onSaved(); }
     else toast.error(res.error === 'PIPELINE_MISSING' ? 'Corporate features are rolling out — try again shortly.' : "Couldn't create challenge.");
   };

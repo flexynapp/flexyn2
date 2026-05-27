@@ -9,7 +9,7 @@
 // supabase/functions/checkout-session) — a tap fulfills immediately so
 // the gated-content flow is demonstrable.
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -44,11 +44,21 @@ export default function TrainerMarket() {
     staleTime: 30_000,
   });
 
+  // Synchronous in-flight guard. `buyingId` is React state, set/cleared
+  // async — a double-tap in the same render tick both read null, both
+  // set state, both fire startCheckout. In mock mode the UNIQUE index
+  // dedupes; in live Stripe mode the Edge Function returns TWO
+  // client_secrets for TWO PaymentIntents, and the user can be
+  // double-charged before fulfillment dedupes. Pattern: ref guard.
+  const buyingRef = useRef(false);
+
   const handleUnlock = async (listing) => {
-    if (buyingId) return;
+    if (buyingId || buyingRef.current) return;
+    buyingRef.current = true;
     setBuyingId(listing.id);
     const res = await startCheckout(listing.id);
     setBuyingId(null);
+    buyingRef.current = false;
     if (res.ok) {
       if (res.mock) {
         toast.success('Unlocked! (test mode — no charge)');

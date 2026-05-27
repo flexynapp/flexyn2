@@ -8,7 +8,7 @@
 // supabase/functions/checkout-session). The Connect status row below
 // reflects whether the trainer has linked a payout account.
 
-import React, { lazy, Suspense, useState } from 'react';
+import React, { lazy, Suspense, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -74,8 +74,20 @@ export default function TrainerStudio() {
     }
   };
 
+  // Synchronous in-flight guards keyed by listing id. Without them a
+  // fast double-tap on Publish or Delete fires the RPC twice — Publish
+  // can race-flip back to the original state, Delete can fire two
+  // delete attempts and the second errors with 23503 because the row
+  // is gone. Set of ids currently in-flight; checked + mutated within
+  // the click handler before any async work.
+  const publishInFlight = useRef(new Set());
+  const deleteInFlight = useRef(new Set());
+
   const handleTogglePublish = async (listing) => {
+    if (publishInFlight.current.has(listing.id)) return;
+    publishInFlight.current.add(listing.id);
     const res = await setPublished(listing.id, !listing.is_published);
+    publishInFlight.current.delete(listing.id);
     if (res.ok) {
       toast.success(listing.is_published ? 'Unpublished.' : 'Published to market.');
       refresh();
@@ -97,8 +109,11 @@ export default function TrainerStudio() {
       toast.error('Has existing buyers — unpublish instead. (Delete would revoke their access.)');
       return;
     }
+    if (deleteInFlight.current.has(listing.id)) return;
     if (!confirm(`Delete "${listing.title}"? This program has no buyers, so removal is safe.`)) return;
+    deleteInFlight.current.add(listing.id);
     const res = await deleteListing(listing.id);
+    deleteInFlight.current.delete(listing.id);
     if (res.ok) { toast.success('Listing deleted.'); refresh(); }
     else toast.error(res.error || "Couldn't delete.");
   };

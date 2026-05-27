@@ -49,25 +49,100 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const fileRef = useRef(null);
   const dictationRef = useRef(null);
   const dirtyRef = useRef(false);
+  // Synchronous guard against overlapping saves. The autosave debounce,
+  // goToDay's pre-flush, and the unmount-flush can all fire concurrently
+  // if the user types-then-swipes-then-closes within a single
+  // 800ms-ish window. They all upsert the same (user_id, entry_date)
+  // row so the data ends up correct, but the `saving` spinner flickers
+  // (an early flush completing turns it off while a later one is still
+  // in flight) AND a stale snapshot can race a fresh one. The ref lets
+  // a later caller see "already saving" and re-arm the dirty flag so
+  // the next debounce picks the fresh content up.
+  const savingRef = useRef(false);
+  // True while loadDay() is mid-flight. Blocks flush() from saving an
+  // in-between snapshot (NEW dateStr + OLD title/body) when a rapid
+  // day-switch races a dictation onResult or paste event that fires
+  // between setActiveDate and loadDay's setState calls.
+  const loadingRef = useRef(false);
+  // Toast-once flag so a long offline window doesn't spam toasts on
+  // every autosave debounce.
+  const failToastShownRef = useRef(false);
   // Holds the values + date currently in the editor so flush() can save
   // the OUTGOING day's content before we load a different day.
   const snapshotRef = useRef({ dateStr, title: '', body: '', attachments: [] });
   snapshotRef.current = { dateStr, title, body, attachments };
 
+  // localStorage draft key namespaced per CLAUDE.md `flexyn.<feature>.<userId>`
+  // pattern. Falls back to 'anon' when userId is missing — won't collide
+  // with a real save because the upsert is also gated on userId.
+  const draftKey = (d) => `flexyn.journalDraft.${userId || 'anon'}.${d}`;
+
+  // Read a localStorage draft for the given date (if any). Used by
+  // loadDay so a previously-unsynced edit isn't silently lost on
+  // refresh — the draft is shown if it's newer than the server entry.
+  const readDraft = (d) => {
+    try {
+      const raw = localStorage.getItem(draftKey(d));
+      if (!raw) return null;
+      return JSON.parse(raw);
+    } catch { return null; }
+  };
+
   // ── Save / flush ────────────────────────────────────────────────────
+  // Three resilience moves vs the original:
+  //   1. In-flight guard (savingRef) so overlapping flushes are no-ops.
+  //   2. Skip while a day is loading (loadingRef) — saving the
+  //      in-between {NEW dateStr, OLD body} snapshot would overwrite
+  //      the new day's existing entry with stale content.
+  //   3. On save FAILURE: stash the snapshot to localStorage under
+  //      flexyn.journalDraft.<userId>.<dateStr>, re-arm the dirty flag
+  //      so the next debounce retries, and surface a one-time toast so
+  //      the user knows nothing was lost. The previous code threw the
+  //      return value away (data loss on any network blip).
   const flush = useCallback(async () => {
     if (!dirtyRef.current || !userId) return;
+    if (savingRef.current) return;
+    if (loadingRef.current) return;
     const snap = snapshotRef.current;
+    savingRef.current = true;
     dirtyRef.current = false;
     setSaving(true);
-    await upsertEntry(userId, userEmail, {
-      entryDate: snap.dateStr,
-      title: snap.title,
-      body: snap.body,
-      attachments: snap.attachments,
-    });
+    let res = { ok: false };
+    try {
+      res = await upsertEntry(userId, userEmail, {
+        entryDate: snap.dateStr,
+        title: snap.title,
+        body: snap.body,
+        attachments: snap.attachments,
+      });
+    } catch (err) {
+      res = { ok: false, error: err?.message || 'network' };
+    }
+    if (res.ok) {
+      // Save succeeded — clear any stashed draft.
+      try { localStorage.removeItem(draftKey(snap.dateStr)); } catch { /* ignore */ }
+      failToastShownRef.current = false;
+    } else {
+      // Stash + re-arm so the next debounce retries. Persisting under a
+      // dated key lets a separate session also pick the draft up if the
+      // user reopens the same date.
+      try {
+        localStorage.setItem(draftKey(snap.dateStr), JSON.stringify({
+          title: snap.title,
+          body: snap.body,
+          attachments: snap.attachments,
+          savedAt: Date.now(),
+        }));
+      } catch { /* private mode / quota */ }
+      dirtyRef.current = true;
+      if (!failToastShownRef.current) {
+        failToastShownRef.current = true;
+        toast.error(tFallback('journal.saveFailed', "Couldn't save — we'll keep retrying. Your writing is held locally."));
+      }
+    }
     setSaving(false);
-  }, [userId, userEmail]);
+    savingRef.current = false;
+  }, [userId, userEmail, tFallback]);
 
   // Debounced autosave whenever content changes (and it's dirty).
   useEffect(() => {
@@ -77,16 +152,36 @@ export default function JournalView({ userId, userEmail, onClose }) {
   }, [title, body, attachments, flush]);
 
   // ── Load a day's entry ────────────────────────────────────────────────
+  // If a localStorage draft for this date exists AND is newer than the
+  // server entry (or there's no server entry), prefer the draft and
+  // mark dirty so the next debounce re-attempts the save. Otherwise
+  // load the server copy and clear the dirty flag.
   const loadDay = useCallback(async (d) => {
     if (!userId) return;
+    loadingRef.current = true;
     setLoading(true);
-    const entry = await getEntry(userId, format(d, 'yyyy-MM-dd'));
-    setTitle(entry?.title || '');
-    setBody(entry?.body || '');
-    setAttachments(Array.isArray(entry?.attachments) ? entry.attachments : []);
-    dirtyRef.current = false;
+    const ds = format(d, 'yyyy-MM-dd');
+    const entry = await getEntry(userId, ds);
+    const draft = readDraft(ds);
+    // Pick the source: draft if it's newer or server has nothing.
+    const serverTime = entry?.updated_at ? new Date(entry.updated_at).getTime() : 0;
+    const draftTime  = draft?.savedAt || 0;
+    const useDraft   = draft && (!entry || draftTime > serverTime);
+    if (useDraft) {
+      setTitle(draft.title || '');
+      setBody(draft.body || '');
+      setAttachments(Array.isArray(draft.attachments) ? draft.attachments : []);
+      // Re-arm so the autosave retries the unsynced draft.
+      dirtyRef.current = true;
+    } else {
+      setTitle(entry?.title || '');
+      setBody(entry?.body || '');
+      setAttachments(Array.isArray(entry?.attachments) ? entry.attachments : []);
+      dirtyRef.current = false;
+    }
     setLoading(false);
-  }, [userId]);
+    loadingRef.current = false;
+  }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // One-time localStorage migration, then load today.
   useEffect(() => {
