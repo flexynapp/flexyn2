@@ -18,7 +18,7 @@
 // after 10s. Banners stack vertically; max 3 visible at once. New ones
 // push older ones out.
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Trophy, Dumbbell, MessageCircle } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
@@ -77,14 +77,22 @@ export default function FollowerActivityBanner() {
     setBanners((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
+  // Hold the follow set in a ref the realtime handler reads at fire time.
+  // Keeping it out of the subscribe effect's deps means a React Query
+  // refetch (which returns a new array reference) updates the filter
+  // WITHOUT tearing down and re-subscribing the channel every time.
+  const followingSetRef = useRef(new Set());
   useEffect(() => {
-    if (!user?.email || followingEmails.length === 0) return;
+    followingSetRef.current = new Set((followingEmails || []).map((e) => e.toLowerCase()));
+  }, [followingEmails]);
+
+  useEffect(() => {
+    if (!user?.email) return;
 
     // Unique per-mount channel name — same defensive pattern as
     // HubFeed (avoids "cannot add postgres_changes callbacks after
     // subscribe()" on React 18 StrictMode double-mount).
     const channelName = `hub_follower_activity_${user.email}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-    const followingSet = new Set(followingEmails.map((e) => e.toLowerCase()));
     const myEmailLc = user.email.toLowerCase();
 
     const ch = supabase.channel(channelName)
@@ -93,7 +101,7 @@ export default function FollowerActivityBanner() {
         if (!post) return;
         const author = (post.author_email || '').toLowerCase();
         if (author === myEmailLc) return; // skip own
-        if (!followingSet.has(author)) return; // not followed
+        if (!followingSetRef.current.has(author)) return; // not followed (read live from ref)
         const id = post.id || `${author}-${Date.now()}`;
         setBanners((prev) => {
           // Dedupe by post id (Realtime can fire duplicates on resub).
@@ -104,7 +112,7 @@ export default function FollowerActivityBanner() {
       })
       .subscribe();
     return () => { supabase.removeChannel(ch).catch(() => {}); };
-  }, [user?.email, followingEmails]);
+  }, [user?.email]);
 
   // Auto-dismiss each banner after AUTO_DISMISS_MS. Per-banner timer
   // is set up in the banner's own effect (so manually dismissing one

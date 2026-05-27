@@ -49,8 +49,12 @@ export async function assignNemesis() {
 
   if (!me) return null;
 
-  const xpLow  = Math.floor(me.total_xp * 1.10);
-  const xpHigh = Math.floor(me.total_xp * 1.20);
+  // Coalesce: a brand-new profile row can have total_xp = null before the
+  // XP backfill, which would make every bound/sort below NaN and silently
+  // kill the primary XP-proximity match (falling through to random).
+  const myXp = Number(me.total_xp) || 0;
+  const xpLow  = Math.floor(myXp * 1.10);
+  const xpHigh = Math.floor(myXp * 1.20);
 
   // If the user has very low XP (brand new), widen the window so there's
   // always a candidate pool even on a small user base.
@@ -85,7 +89,7 @@ export async function assignNemesis() {
   if (!pool.length) return null;
 
   // Pick the closest XP match (or random from fallback pool).
-  pool.sort((a, b) => Math.abs(a.total_xp - me.total_xp) - Math.abs(b.total_xp - me.total_xp));
+  pool.sort((a, b) => Math.abs((Number(a.total_xp) || 0) - myXp) - Math.abs((Number(b.total_xp) || 0) - myXp));
   const chosen = pool[Math.floor(Math.random() * Math.min(pool.length, 3))];
 
   // Archive the old active nemesis (if any)

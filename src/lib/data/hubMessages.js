@@ -17,6 +17,7 @@
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { isPollVote } from '@/lib/dmPolls';
+import { reportError } from '@/lib/reportError';
 
 const conv = () => db.entities.HubConversation;
 const msg  = () => db.entities.HubMessage;
@@ -289,6 +290,11 @@ export const markRead = async (conversationId, myEmail) => {
         // Pre-141 host — RPC not deployed. Direct update succeeds while
         // the old broad RLS policy is still in place.
         await msg().update(m.id, { read_at: new Date().toISOString() }).catch(() => {});
+      } else if (error) {
+        // A real failure (e.g. RLS denial) — surface it instead of
+        // silently dropping, otherwise read receipts and the DB unread
+        // count silently drift. localStorage already cleared the badge.
+        reportError(error, { feature: 'dm.markRead', level: 'warning' });
       }
     })
   );
@@ -308,7 +314,12 @@ export const markRead = async (conversationId, myEmail) => {
 export const unreadCountFor = async (myEmail) => {
   if (!myEmail) return 0;
   const myEmailLc = myEmail.toLowerCase();
-  const recent = await msg().filter({}, '-created_date', 100).catch(() => []);
+  // Window widened 100 → 400: the previous 100-newest-globally cap could
+  // miss genuine unread messages older than that window on an active
+  // account (badge stuck at 0 while unread DMs exist). 400 effectively
+  // eliminates that at beta volume while preserving the localStorage
+  // instant-clear in _isUnread. Proper fix is the TODO'd COUNT(*) RPC.
+  const recent = await msg().filter({}, '-created_date', 400).catch(() => []);
   return recent.filter(m => _isUnread(m, myEmailLc)).length;
 };
 
@@ -324,11 +335,21 @@ export async function togglePinDmMessage(messageId) {
   return !!data;
 }
 
-/** Cascade-delete all messages and conversations involving a user. */
+/**
+ * Delete the user's own messages, and delete only conversations that have
+ * NO other participant. A conversation row is shared — deleting one the user
+ * had with someone else would wipe that conversation for the other person
+ * too, so we leave those intact (the user's messages are already removed).
+ */
 export const purgeForUser = async (email) => {
   if (!email) return;
+  const emailLc = email.toLowerCase();
   const sentMessages = await msg().filter({ sender_email: email }, '-created_date', 1000).catch(() => []);
   await Promise.all(sentMessages.map(m => msg().delete(m.id).catch(() => {})));
   const myConvs = await conv().filter({}, '-created_date', 500).catch(() => []);
-  await Promise.all(myConvs.map(c => conv().delete(c.id).catch(() => {})));
+  const orphanConvs = myConvs.filter(c => {
+    const others = (c.participant_emails || []).filter(e => e && e.toLowerCase() !== emailLc);
+    return others.length === 0; // only the leaving user (or empty) → safe to delete
+  });
+  await Promise.all(orphanConvs.map(c => conv().delete(c.id).catch(() => {})));
 };

@@ -26,6 +26,9 @@ export default function LiveSessionBroadcaster({ onClose }) {
   const [viewers, setViewers]   = useState(0);
   const channelRef              = useRef(null);
   const broadcastTimerRef       = useRef(null);
+  // Tracks mount state so an async startSession that resolves after the
+  // modal closed doesn't leave an orphaned live session + leaked channel.
+  const mountedRef              = useRef(true);
 
   // Broadcast current state over Realtime channel (throttled to 2s)
   const broadcast = useCallback((sessionId, ex, s, r) => {
@@ -53,6 +56,13 @@ export default function LiveSessionBroadcaster({ onClose }) {
     setPhase('starting');
     try {
       const sid = await hubLiveSessions.startSession(user.email, title);
+      // Modal closed mid-await → don't strand a started-but-never-ended
+      // session (and skip the channel subscribe that the unmount cleanup
+      // already ran past).
+      if (!mountedRef.current) {
+        hubLiveSessions.endSession(sid).catch(() => {});
+        return;
+      }
       setSessionId(sid);
 
       // Subscribe to Realtime presence to count viewers
@@ -82,7 +92,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
   const endLive = async () => {
     setPhase('ending');
     if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
-    channelRef.current?.unsubscribe();
+    if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
     if (sessionId) {
       await hubLiveSessions.endSession(sessionId).catch(() => {});
     }
@@ -103,8 +113,9 @@ export default function LiveSessionBroadcaster({ onClose }) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      mountedRef.current = false;
       if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
-      channelRef.current?.unsubscribe();
+      if (channelRef.current) { supabase.removeChannel(channelRef.current); channelRef.current = null; }
     };
   }, []);
 

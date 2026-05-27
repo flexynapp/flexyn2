@@ -850,7 +850,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       }
 
       if (uploadFailed && !trimmed) {
-        queryClient.setQueryData(queryKey, previous);
+        queryClient.setQueryData(queryKey, (rows) => (rows || []).filter(r => r.id !== tempId));
         toast.error('Image upload failed — try again');
         return;
       }
@@ -868,7 +868,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         } : {}),
       });
       if (!sent) {
-        queryClient.setQueryData(queryKey, previous);
+        queryClient.setQueryData(queryKey, (rows) => (rows || []).filter(r => r.id !== tempId));
         setDraft(trimmed);
         toast.error(t('hub.messages.sendError'));
         // Orphan cleanup: the blob landed but the message didn't, so

@@ -45,7 +45,10 @@ export default function LiveSessionCard({ session, onViewProfile }) {
       });
 
     channelRef.current = channel;
-    return () => channel.unsubscribe();
+    // removeChannel (not unsubscribe) so the channel is deregistered from
+    // the client registry — otherwise each card mount/unmount leaks a
+    // zombie `live-session-<id>` channel.
+    return () => { supabase.removeChannel(channel); };
   }, [session.id, user?.email]);
 
   return (
