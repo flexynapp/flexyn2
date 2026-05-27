@@ -397,7 +397,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             const isEditing = o.id === editingId;
             if (o.kind === 'text' && isEditing) {
               return (
-                <div key={o.id} className="absolute" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`, width: '84%' }}>
+                <div key={o.id} className="absolute" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`, width: '84%', zIndex: 15 }}>
                   <textarea
                     ref={inputRef}
                     value={o.text}
@@ -422,6 +422,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                   left: `${o.x * 100}%`, top: `${o.y * 100}%`,
                   transform: `translate(-50%,-50%) scale(${o.scale}) rotate(${o.rotate}deg)`,
                   transformOrigin: 'center center',
+                  zIndex: isSel ? 15 : 10,
                   cursor: drawMode ? 'default' : 'grab', touchAction: 'none',
                   pointerEvents: drawMode ? 'none' : 'auto',
                   padding: 6,
