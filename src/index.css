@@ -271,3 +271,685 @@
   100% { background-position: 0%   50%; }
 }
 
+/* ═══════════════════════════════════════════════════════════════════
+   Wave 65 — Loot Theme Scenes
+   Each rarity tier adds its own unique animated background scene.
+   Rendered by src/components/ThemeAnimationLayer.jsx. Layers sit
+   pointer-events-none at z-index 0 (behind UI). Rarity dictates
+   motion budget: common = static scene, uncommon = scene + one
+   light animated element, rare = scene + multiple animated layers,
+   epic = full atmospheric animation, legendary = chrome-transforming.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Generic star primitives (used by Galaxy, Nebula, Aurora) ─── */
+.theme-scene .star {
+  position: absolute; border-radius: 50%; background: white;
+  pointer-events: none;
+}
+.theme-scene .star.twinkle { animation: scene-twinkle var(--dur, 4s) ease-in-out infinite; }
+@keyframes scene-twinkle {
+  0%, 100% { opacity: var(--opacity-low, 0.2); }
+  50%      { opacity: var(--opacity-high, 1); }
+}
+.theme-scene .star.drift { animation: scene-drift var(--dur, 6s) ease-in-out infinite; }
+@keyframes scene-drift {
+  0%, 100% { transform: translate(0, 0); opacity: var(--opacity-low, 0.4); }
+  50%      { transform: translate(var(--dx, 20px), 0); opacity: var(--opacity-high, 1); }
+}
+.theme-scene .star.near {
+  box-shadow: 0 0 10px var(--tint, #fff), 0 0 20px rgba(168,85,247,0.45);
+  background: var(--tint, #fff);
+  animation: scene-near-twinkle var(--dur, 4s) ease-in-out infinite;
+}
+@keyframes scene-near-twinkle {
+  0%, 100% { opacity: 0.45; transform: translate(0, 0) scale(1); }
+  50%      { opacity: 1; transform: translate(var(--dx, 30px), 0) scale(1.25); }
+}
+.theme-scene .shooting-star {
+  position: absolute; width: 120px; height: 1.5px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent);
+  transform-origin: 0 50%;
+  opacity: 0;
+  animation: scene-shoot var(--dur, 1.8s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-shoot {
+  0%   { opacity: 0; transform: rotate(var(--angle, 35deg)) translate(0, 0); }
+  8%   { opacity: 1; }
+  30%  { opacity: 0; transform: rotate(var(--angle, 35deg)) translate(800px, 0); }
+  100% { opacity: 0; transform: rotate(var(--angle, 35deg)) translate(800px, 0); }
+}
+@keyframes scene-spin     { to { transform: rotate(360deg); } }
+@keyframes scene-spin-rev { to { transform: rotate(-360deg); } }
+
+/* ─── Galaxy (epic) — deep-space parallax + planet + nebula spirals ─── */
+.galaxy-grad {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 100% 80% at 30% 20%, rgba(124,58,237,0.30), transparent 60%),
+    radial-gradient(ellipse 90% 70% at 80% 80%, rgba(59,130,246,0.22), transparent 60%),
+    radial-gradient(ellipse 120% 80% at 50% 50%, rgba(15,9,40,0.6), transparent 70%);
+}
+.galaxy-milky {
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 25%, rgba(196,181,253,0.10) 45%, rgba(167,139,250,0.12) 55%, transparent 75%);
+  filter: blur(40px);
+}
+.galaxy-spiral {
+  position: absolute; left: -20%; top: -20%; width: 140%; height: 140%;
+  background: radial-gradient(ellipse 35% 12% at 50% 50%, rgba(168,85,247,0.20), transparent 70%);
+  filter: blur(30px);
+  animation: scene-spin 240s linear infinite;
+}
+.galaxy-spiral.b {
+  left: -10%; top: -10%; width: 120%; height: 120%;
+  background: radial-gradient(ellipse 30% 10% at 50% 50%, rgba(59,130,246,0.16), transparent 70%);
+  animation: scene-spin-rev 320s linear infinite;
+}
+.galaxy-planet {
+  position: absolute; right: 8%; top: 12%;
+  width: 180px; height: 180px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(168,139,250,0.4) 0%, transparent 40%),
+    radial-gradient(circle at 70% 70%, rgba(99,102,241,0.7) 0%, transparent 50%),
+    linear-gradient(135deg, hsl(258, 60%, 35%) 0%, hsl(243, 70%, 18%) 100%);
+  box-shadow:
+    inset -30px -30px 60px rgba(15,9,40,0.8),
+    0 0 60px rgba(168,139,250,0.2);
+  opacity: 0.5;
+}
+.galaxy-planet-ring {
+  position: absolute; right: calc(8% - 30px); top: calc(12% + 70px);
+  width: 240px; height: 40px;
+  border: 2px solid rgba(196,181,253,0.25);
+  border-radius: 50%;
+  transform: rotate(-20deg);
+  box-shadow: inset 0 0 20px rgba(196,181,253,0.15);
+  opacity: 0.6;
+}
+
+/* ─── Nebula (rare) — purple cloud + stars ─── */
+.nebula-grad {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 20% 30%, rgba(168,85,247,0.30), transparent 60%),
+    radial-gradient(ellipse 60% 45% at 80% 75%, rgba(99,102,241,0.24), transparent 60%),
+    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(76,29,149,0.20), transparent 65%);
+}
+
+/* ─── Volcano (rare) — cone silhouette + lava floor + magma sparks ─── */
+.volcano-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 100%, rgba(239,68,68,0.25), transparent 60%),
+    linear-gradient(to bottom, hsl(5, 50%, 4%) 0%, hsl(15, 60%, 8%) 70%, hsl(15, 70%, 12%) 100%);
+}
+.volcano-cone {
+  position: absolute; left: 50%; bottom: 0;
+  width: 90vw; height: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(to top, hsl(5, 40%, 8%) 0%, hsl(15, 35%, 14%) 100%);
+  clip-path: polygon(0 100%, 38% 18%, 42% 14%, 46% 11%, 50% 9%, 54% 11%, 58% 14%, 62% 18%, 100% 100%);
+}
+.volcano-cone::after {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; bottom: 0;
+  background: linear-gradient(to top, transparent 30%, rgba(239,68,68,0.4) 100%);
+  clip-path: polygon(0 100%, 38% 18%, 42% 14%, 46% 11%, 50% 9%, 54% 11%, 58% 14%, 62% 18%, 100% 100%);
+  opacity: 0;
+  animation: scene-lava-pulse 3.5s ease-in-out infinite;
+}
+.volcano-crater {
+  position: absolute; left: 50%; bottom: 50%;
+  width: 80px; height: 32px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 100% 200% at 50% 100%, rgba(251,191,36,0.9), rgba(239,68,68,0.7), transparent 70%);
+  border-radius: 50%;
+  filter: blur(4px);
+  animation: scene-crater-glow 2s ease-in-out infinite;
+}
+@keyframes scene-crater-glow {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scaleY(1); }
+  50%      { opacity: 1; transform: translateX(-50%) scaleY(1.3); }
+}
+.volcano-smoke {
+  position: absolute; left: 50%; bottom: 52%;
+  width: 120px; height: 280px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 60% 50% at 50% 100%, rgba(45,30,30,0.6), transparent 70%);
+  filter: blur(20px);
+  animation: scene-smoke 9s ease-in-out infinite;
+}
+@keyframes scene-smoke {
+  0%, 100% { transform: translateX(-50%) scale(1, 1); opacity: 0.5; }
+  50%      { transform: translateX(-40%) scale(1.4, 1.2); opacity: 0.7; }
+}
+.volcano-floor {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 50%;
+  background:
+    radial-gradient(ellipse 80% 100% at 50% 100%, rgba(239,68,68,0.35), transparent 65%),
+    radial-gradient(ellipse 60% 70% at 30% 100%, rgba(251,146,60,0.22), transparent 60%),
+    radial-gradient(ellipse 60% 70% at 70% 100%, rgba(251,191,36,0.18), transparent 60%);
+  filter: blur(8px);
+  animation: scene-lava-pulse 3.5s ease-in-out infinite;
+}
+@keyframes scene-lava-pulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+.magma-spark {
+  position: absolute; bottom: 0; border-radius: 50%;
+  opacity: 0;
+  animation: scene-magma-rise var(--dur, 4s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-magma-rise {
+  0%   { transform: translate(0, 0) scale(1.2); opacity: 0; }
+  10%  { opacity: 0.9; }
+  100% { transform: translate(var(--dx, 0px), calc(-1 * var(--travel, 70vh))) scale(0.3); opacity: 0; }
+}
+
+/* ─── Arctic Glow (uncommon) — ice cave + drifting snow + wind gusts ─── */
+.ice-cave-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(125,211,252,0.45), transparent 65%),
+    radial-gradient(ellipse 100% 80% at 50% 80%, rgba(8,47,73,0.6), transparent 70%),
+    linear-gradient(to bottom, hsl(199, 70%, 12%) 0%, hsl(215, 75%, 6%) 100%);
+}
+.ice-wall {
+  position: absolute; top: 0; bottom: 0; width: 38%;
+  background: linear-gradient(to right, hsl(215, 75%, 4%) 0%, transparent 100%);
+}
+.ice-wall.l { left: 0; clip-path: polygon(0 0, 100% 0, 60% 100%, 0 100%); }
+.ice-wall.r { right: 0; clip-path: polygon(0 0, 100% 0, 100% 100%, 40% 100%); transform: scaleX(-1); }
+.ice-stalactites {
+  position: absolute; top: 0; left: 0; right: 0; height: 110px;
+  background: linear-gradient(to bottom, hsl(199, 60%, 16%) 0%, hsl(199, 50%, 22%) 100%);
+  clip-path: polygon(
+    0 0, 100% 0, 100% 22%,
+    98% 65%, 96% 24%, 93% 80%, 90% 25%, 87% 55%, 84% 22%,
+    81% 90%, 78% 25%, 75% 70%, 72% 22%, 69% 85%, 66% 26%,
+    63% 100%, 60% 24%, 57% 75%, 54% 22%, 51% 95%, 48% 25%,
+    45% 80%, 42% 22%, 39% 90%, 36% 25%, 33% 70%, 30% 22%,
+    27% 85%, 24% 25%, 21% 60%, 18% 22%, 15% 75%, 12% 25%,
+    9% 90%, 6% 22%, 3% 70%, 0 25%
+  );
+  opacity: 0.85;
+}
+.ice-stalactites::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(186,230,253,0.5), transparent 60%);
+}
+.ice-ground {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+  background:
+    linear-gradient(to top, hsl(215, 80%, 8%) 0%, transparent 100%),
+    radial-gradient(ellipse 60% 100% at 50% 100%, rgba(186,230,253,0.18), transparent 60%);
+}
+.ice-crystal {
+  position: absolute; width: 10px; height: 10px;
+  background: rgba(186,230,253,0.8);
+  transform: rotate(45deg);
+  box-shadow: 0 0 8px rgba(186,230,253,0.9), 0 0 16px rgba(125,211,252,0.5);
+}
+.wind-gust {
+  position: absolute;
+  width: 40%; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.5), rgba(186,230,253,0.7), rgba(255,255,255,0.5), transparent);
+  filter: blur(0.5px);
+  animation: scene-gust var(--dur, 5s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes scene-gust {
+  0%   { left: -45%; opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { left: 105%; opacity: 0; }
+}
+.snow {
+  position: absolute; top: -5%; border-radius: 50%;
+  background: white;
+  box-shadow: 0 0 4px rgba(186,230,253,0.8);
+  opacity: 0;
+  animation: scene-snow-fall var(--dur, 10s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-snow-fall {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.85; }
+  90%  { opacity: 0.85; }
+  100% { transform: translate(var(--dx, 20px), 110vh); opacity: 0; }
+}
+
+/* ─── Mint Frost (common) — pine forest horizon + drifting mist ─── */
+.mint-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 50% 35%, rgba(167,243,208,0.5), transparent 70%),
+    linear-gradient(to bottom, hsl(160, 45%, 88%) 0%, hsl(152, 50%, 78%) 55%, hsl(152, 55%, 62%) 100%);
+}
+.mint-pines {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 38%;
+  background: linear-gradient(to bottom, hsl(152, 55%, 22%) 0%, hsl(152, 50%, 14%) 100%);
+  clip-path: polygon(
+    0 100%, 0 60%,
+    2% 78%, 4% 50%, 6% 78%, 7% 82%,
+    9% 58%, 11% 32%, 13% 58%, 14% 72%,
+    16% 40%, 18% 14%, 20% 40%, 21% 65%,
+    23% 72%, 25% 46%, 27% 72%, 28% 78%,
+    30% 56%, 32% 30%, 34% 56%, 35% 64%,
+    37% 40%, 39% 10%, 41% 40%, 42% 60%,
+    44% 66%, 46% 42%, 48% 66%, 49% 72%,
+    51% 52%, 53% 22%, 55% 52%, 56% 60%,
+    58% 36%, 60% 8%, 62% 36%, 63% 60%,
+    65% 66%, 67% 42%, 69% 66%, 70% 76%,
+    72% 56%, 74% 30%, 76% 56%, 77% 70%,
+    79% 76%, 81% 50%, 83% 76%, 84% 80%,
+    86% 42%, 88% 16%, 90% 42%, 91% 64%,
+    93% 70%, 95% 46%, 97% 70%, 99% 74%,
+    100% 78%, 100% 100%
+  );
+}
+.mint-pines::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, transparent 0%, rgba(167,243,208,0.18) 100%);
+}
+.mint-mist {
+  position: absolute;
+  width: 50%; height: 25%;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(255,255,255,0.45), transparent 70%);
+  filter: blur(24px);
+}
+.mint-mist.a { left: -10%; top: 50%; animation: scene-mist-a 14s ease-in-out infinite; }
+.mint-mist.b { right: -10%; top: 38%; animation: scene-mist-b 18s ease-in-out infinite; }
+@keyframes scene-mist-a {
+  0%, 100% { transform: translateX(0);    opacity: 0.4; }
+  50%      { transform: translateX(80%);  opacity: 0.75; }
+}
+@keyframes scene-mist-b {
+  0%, 100% { transform: translateX(0);    opacity: 0.5; }
+  50%      { transform: translateX(-80%); opacity: 0.8; }
+}
+
+/* ─── Coral Rush (common) — underwater scene + caustics + bubbles ─── */
+.coral-water {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 0%, rgba(254,215,170,0.18), transparent 60%),
+    linear-gradient(to bottom, hsl(190, 60%, 55%) 0%, hsl(200, 70%, 32%) 60%, hsl(210, 80%, 18%) 100%);
+}
+.caustic {
+  position: absolute; left: -10%; right: -10%; top: 0; height: 65%;
+  background:
+    linear-gradient(110deg, transparent 28%, rgba(255,255,255,0.18) 30%, transparent 34%),
+    linear-gradient(105deg, transparent 48%, rgba(255,255,255,0.15) 50%, transparent 54%),
+    linear-gradient(115deg, transparent 68%, rgba(255,255,255,0.16) 70%, transparent 74%);
+  filter: blur(3px);
+  animation: scene-caustic-drift 9s ease-in-out infinite;
+}
+@keyframes scene-caustic-drift {
+  0%, 100% { transform: translateX(-3%); }
+  50%      { transform: translateX(3%); }
+}
+.coral-shape {
+  position: absolute; bottom: 0;
+  background: hsl(var(--coral-hue, 0), 65%, 32%);
+  filter: blur(0.4px);
+}
+.coral-shape.fan    { width: 60px; height: 80px; border-radius: 50% 50% 8% 8% / 70% 70% 100% 100%; }
+.coral-shape.finger { width: 14px; height: 70px; border-radius: 50% 50% 20% 20% / 30% 30% 100% 100%; }
+.coral-shape.dome   { width: 90px; height: 40px; border-radius: 100% 100% 0 0 / 100% 100% 0 0; }
+.bubble {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), rgba(255,255,255,0.1));
+  border: 1px solid rgba(255,255,255,0.4);
+  animation: scene-bubble-rise var(--dur, 12s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes scene-bubble-rise {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.75; }
+  90%  { opacity: 0.75; }
+  100% { transform: translateY(-110vh) translateX(var(--dx, 10px)); opacity: 0; }
+}
+
+/* ─── Rose Quartz (common) — cherry blossom branches + falling petals ─── */
+.rose-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 90% 70% at 50% 60%, rgba(251,207,232,0.4), transparent 70%),
+    linear-gradient(to bottom, hsl(345, 50%, 94%) 0%, hsl(345, 60%, 96%) 100%);
+}
+.rose-branch {
+  position: absolute; top: -20px;
+  width: 280px; height: 200px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(251,113,133,0.55) 0%, transparent 12%),
+    radial-gradient(circle at 55% 25%, rgba(244,114,182,0.5) 0%, transparent 10%),
+    radial-gradient(circle at 70% 45%, rgba(251,113,133,0.55) 0%, transparent 12%),
+    radial-gradient(circle at 85% 25%, rgba(244,114,182,0.45) 0%, transparent 11%),
+    radial-gradient(circle at 40% 60%, rgba(251,113,133,0.5) 0%, transparent 10%),
+    radial-gradient(circle at 65% 75%, rgba(244,114,182,0.55) 0%, transparent 11%),
+    radial-gradient(circle at 88% 65%, rgba(251,113,133,0.5) 0%, transparent 10%),
+    linear-gradient(115deg, transparent 30%, rgba(120,53,15,0.5) 32%, rgba(120,53,15,0.5) 34%, transparent 36%);
+}
+.rose-branch.l { left: -60px; transform: rotate(-15deg); }
+.rose-branch.r { right: -60px; transform: rotate(15deg) scaleX(-1); }
+.rose-petal-fall {
+  position: absolute;
+  width: 8px; height: 8px;
+  background: hsl(345, 80%, 75%);
+  border-radius: 80% 20% 80% 20%;
+  opacity: 0;
+  animation: scene-petal-fall var(--dur, 16s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-petal-fall {
+  0%   { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
+  5%   { opacity: 0.7; }
+  95%  { opacity: 0.7; }
+  100% { transform: translate(var(--dx, 60px), 110vh) rotate(720deg); opacity: 0; }
+}
+
+/* ─── Tidal Force (uncommon) — beach + crashing waves + gulls ─── */
+.beach-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 100% 35% at 50% 0%, rgba(186,230,253,0.6), transparent 70%),
+    linear-gradient(to bottom, hsl(199, 85%, 72%) 0%, hsl(199, 75%, 86%) 50%, transparent 65%);
+}
+.ocean-water {
+  position: absolute; left: 0; right: 0; top: 38%; height: 35%;
+  background: linear-gradient(to bottom, hsl(199, 70%, 42%) 0%, hsl(200, 75%, 28%) 100%);
+}
+.ocean-horizon-line {
+  position: absolute; left: 0; right: 0; top: 38%;
+  height: 1px; background: rgba(255,255,255,0.35);
+}
+.beach-sand {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 28%;
+  background: linear-gradient(to bottom, hsl(38, 55%, 72%) 0%, hsl(34, 55%, 62%) 100%);
+}
+.beach-sand::before {
+  content: '';
+  position: absolute; left: 0; right: 0; top: 0; height: 30%;
+  background: radial-gradient(ellipse 80% 100% at 50% 0%, rgba(255,255,255,0.4), transparent 60%);
+}
+.wave-crest {
+  position: absolute; height: 2px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.7), transparent);
+  filter: blur(1px);
+  animation: scene-wave-roll var(--dur, 10s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes scene-wave-roll {
+  0%   { left: -20%; opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { left: 120%; opacity: 0; }
+}
+.shore-foam {
+  position: absolute; left: 0; right: 0;
+  bottom: 24%; height: 30px;
+  background: radial-gradient(ellipse 70% 100% at 50% 50%, rgba(255,255,255,0.95), transparent 70%);
+  filter: blur(2px);
+  transform-origin: 50% 100%;
+  animation: scene-shore-foam 6s ease-in-out infinite;
+}
+@keyframes scene-shore-foam {
+  0%, 100% { transform: scaleY(0.4); opacity: 0.6; }
+  50%      { transform: scaleY(1.3); opacity: 1; }
+}
+.shore-foam.b {
+  bottom: 26%;
+  animation: scene-shore-foam-b 8s ease-in-out infinite;
+  animation-delay: 1.5s;
+  opacity: 0.6;
+}
+@keyframes scene-shore-foam-b {
+  0%, 100% { transform: scaleY(0.3) translateX(-10%); opacity: 0.3; }
+  50%      { transform: scaleY(0.9) translateX(10%);  opacity: 0.7; }
+}
+.gull {
+  position: absolute;
+  width: 14px; height: 4px;
+  animation: scene-gull-fly var(--dur, 18s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+.gull::before, .gull::after {
+  content: ''; position: absolute; top: 0;
+  width: 7px; height: 4px;
+  background: hsl(215, 25%, 25%);
+  border-radius: 100% 100% 0 0 / 100% 100% 0 0;
+  animation: scene-gull-flap 0.6s ease-in-out infinite;
+}
+.gull::before { left: 0; transform-origin: 100% 100%; }
+.gull::after  { right: 0; transform-origin: 0 100%; animation-name: scene-gull-flap-r; }
+@keyframes scene-gull-flap   { 0%, 100% { transform: rotate(0deg); }  50% { transform: rotate(20deg); }  }
+@keyframes scene-gull-flap-r { 0%, 100% { transform: rotate(0deg); }  50% { transform: rotate(-20deg); } }
+@keyframes scene-gull-fly    { 0% { left: -5%; }  100% { left: 105%; } }
+
+/* ─── Ember Core (rare) — bonfire + logs + flickering flame + sparks ─── */
+.bonfire-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 50% 40% at 50% 75%, rgba(239,68,68,0.45), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(251,146,60,0.18), transparent 70%),
+    linear-gradient(to bottom, hsl(15, 50%, 4%) 0%, hsl(15, 55%, 8%) 100%);
+}
+.bonfire-logs {
+  position: absolute; left: 50%; bottom: 15%;
+  width: 220px; height: 18px;
+  transform: translateX(-50%) rotate(-3deg);
+  background: linear-gradient(135deg, hsl(20, 45%, 22%), hsl(15, 35%, 12%));
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(239,68,68,0.4);
+}
+.bonfire-logs.b {
+  width: 200px; bottom: 14%;
+  transform: translateX(-50%) rotate(4deg);
+  background: linear-gradient(135deg, hsl(20, 40%, 18%), hsl(15, 30%, 10%));
+}
+.bonfire-logs.c {
+  width: 180px; bottom: 12%;
+  transform: translateX(-50%) rotate(-1deg);
+  background: linear-gradient(135deg, hsl(20, 38%, 14%), hsl(15, 30%, 8%));
+}
+.bonfire-flame {
+  position: absolute; left: 50%; bottom: 18%;
+  width: 90px; height: 140px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 50% 70% at 50% 90%, rgba(254,240,138,0.95) 0%, rgba(251,191,36,0.7) 30%, rgba(239,68,68,0.5) 60%, transparent 80%);
+  filter: blur(3px);
+  transform-origin: 50% 100%;
+  animation: scene-flame-flicker 0.5s ease-in-out infinite;
+}
+@keyframes scene-flame-flicker {
+  0%, 100% { transform: translateX(-50%) scaleY(1) scaleX(1);       opacity: 0.95; }
+  25%      { transform: translateX(-48%) scaleY(1.12) scaleX(0.95); opacity: 1; }
+  50%      { transform: translateX(-52%) scaleY(0.94) scaleX(1.08); opacity: 0.88; }
+  75%      { transform: translateX(-49%) scaleY(1.06) scaleX(0.92); opacity: 1; }
+}
+.bonfire-flame.inner {
+  width: 50px; height: 90px;
+  bottom: 19%;
+  background: radial-gradient(ellipse 50% 70% at 50% 90%, rgba(255,255,255,0.9) 0%, rgba(254,240,138,0.6) 40%, transparent 80%);
+  filter: blur(2px);
+  animation: scene-flame-flicker-inner 0.35s ease-in-out infinite;
+}
+@keyframes scene-flame-flicker-inner {
+  0%, 100% { transform: translateX(-50%) scaleY(1);    opacity: 0.9; }
+  50%      { transform: translateX(-50%) scaleY(1.15); opacity: 1; }
+}
+
+/* ─── Cyberpunk (epic) — neon skyline + blinking windows + flyers + scan ─── */
+.cyber-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 30% at 50% 100%, rgba(232,121,249,0.28), transparent 70%),
+    radial-gradient(ellipse 60% 25% at 50% 100%, rgba(6,182,212,0.20), transparent 70%),
+    linear-gradient(to bottom, hsl(240, 70%, 4%) 0%, hsl(280, 55%, 10%) 70%, hsl(295, 60%, 14%) 100%);
+}
+.cyber-skyline {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 48%;
+  background: hsl(240, 60%, 3%);
+  clip-path: polygon(
+    0 100%, 0 62%,
+    4% 62%, 4% 38%, 8% 38%, 8% 72%,
+    11% 72%, 11% 48%, 14% 48%, 14% 28%, 17% 28%, 17% 52%,
+    20% 52%, 20% 32%, 23% 32%, 23% 66%,
+    26% 66%, 26% 42%, 30% 42%, 30% 18%, 33% 18%, 33% 56%,
+    36% 56%, 36% 46%, 40% 46%, 40% 22%, 43% 22%, 43% 52%,
+    46% 52%, 46% 32%, 49% 32%, 49% 60%,
+    52% 60%, 52% 42%, 56% 42%, 56% 12%, 59% 12%, 59% 52%,
+    62% 52%, 62% 36%, 65% 36%, 65% 58%,
+    68% 58%, 68% 28%, 71% 28%, 71% 48%,
+    74% 48%, 74% 62%, 77% 62%, 77% 32%, 80% 32%, 80% 58%,
+    83% 58%, 83% 42%, 86% 42%, 86% 22%, 89% 22%, 89% 52%,
+    92% 52%, 92% 66%, 96% 66%, 96% 38%, 100% 38%, 100% 100%
+  );
+}
+.cyber-edge {
+  position: absolute; top: 0; bottom: 0; width: 4px;
+  opacity: 0.8;
+}
+.cyber-edge.l { left: 0; background: linear-gradient(to bottom, #06b6d4, #e879f9, #06b6d4); }
+.cyber-edge.r { right: 0; background: linear-gradient(to bottom, #e879f9, #06b6d4, #e879f9); }
+.cyber-grid {
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(6,182,212,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(232,121,249,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 50% at 50% 100%, black 30%, transparent 70%);
+          mask-image: radial-gradient(ellipse 80% 50% at 50% 100%, black 30%, transparent 70%);
+}
+.cyber-window {
+  position: absolute;
+  width: 3px; height: 3px;
+  box-shadow: 0 0 6px currentColor;
+  animation: scene-win-blink var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-win-blink {
+  0%, 100% { opacity: 0.35; }
+  50%      { opacity: 1; }
+}
+.cyber-flyer {
+  position: absolute; top: 22%;
+  width: 12px; height: 1.5px;
+  background: linear-gradient(to right, transparent, #06b6d4, #e879f9);
+  box-shadow: 0 0 8px #06b6d4;
+  animation: scene-flyer var(--dur, 14s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-flyer { 0% { left: -3%; } 100% { left: 103%; } }
+.cyber-scan {
+  position: absolute; left: 0; right: 0; height: 1px;
+  background: linear-gradient(to right, transparent, rgba(6,182,212,0.65), rgba(232,121,249,0.65), transparent);
+  animation: scene-scan 7.5s linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-scan {
+  0%   { top: -2%;  opacity: 1; }
+  80%  { top: 102%; opacity: 1; }
+  100% { top: 102%; opacity: 0; }
+}
+
+/* ─── Aurora (epic) — sweeping bands over star field ─── */
+.aurora-base {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 100% 60% at 50% 100%, rgba(15,23,42,0.5), transparent 70%);
+}
+.aurora-band {
+  position: absolute; left: 0; right: 0; height: 45%;
+  filter: blur(28px);
+  animation: scene-aurora-sway var(--dur, 10s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-aurora-sway {
+  0%, 100% { transform: scale(1, 1) translateY(0);           opacity: 0.7; }
+  25%      { transform: scale(1.18, 1.1) translateY(22px);   opacity: 1; }
+  50%      { transform: scale(0.9, 0.94) translateY(-12px);  opacity: 0.75; }
+  75%      { transform: scale(1.1, 1.05) translateY(10px);   opacity: 0.85; }
+}
+
+/* ─── Sunset Pulse (uncommon) — horizon shift + pulsing bands ─── */
+.sunset-pulse {
+  position: absolute; inset: 0;
+  animation: scene-sunset-shift 6s ease-in-out infinite;
+}
+@keyframes scene-sunset-shift {
+  0%, 100% {
+    background:
+      radial-gradient(ellipse 120% 60% at 50% 100%, rgba(251,146,60,0.32), transparent 65%),
+      radial-gradient(ellipse 90% 40% at 50% 100%, rgba(244,114,182,0.22), transparent 60%);
+  }
+  50% {
+    background:
+      radial-gradient(ellipse 120% 60% at 50% 100%, rgba(244,114,182,0.34), transparent 65%),
+      radial-gradient(ellipse 90% 40% at 50% 100%, rgba(251,146,60,0.26), transparent 60%);
+  }
+}
+.sunset-band {
+  position: absolute; left: 0; right: 0;
+  filter: blur(14px);
+  animation: scene-sunset-band var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-sunset-band {
+  0%, 100% { transform: scaleY(1);    opacity: 0.5; }
+  50%      { transform: scaleY(1.18); opacity: 0.9; }
+}
+
+/* ─── Dusk (uncommon) — slow warm wash ─── */
+.dusk-wash {
+  position: absolute; inset: 0;
+  animation: scene-dusk 8s ease-in-out infinite;
+}
+@keyframes scene-dusk {
+  0%, 100% { background: radial-gradient(ellipse 100% 60% at 100% 100%, rgba(249,115,22,0.18), transparent 65%); }
+  50%      { background: radial-gradient(ellipse 100% 60% at 100% 100%, rgba(225,29,72,0.18), transparent 65%); }
+}
+
+/* ─── Prismatic (legendary) — conic halo + popping particles
+   (theme's hue cycling is driven by JS in ThemeAnimationLayer) ─── */
+.prism-halo {
+  position: absolute; inset: 0;
+  background: conic-gradient(from 0deg at 50% 50%,
+    rgba(244,63,94,0.08), rgba(251,146,60,0.08), rgba(250,204,21,0.08),
+    rgba(34,197,94,0.08), rgba(59,130,246,0.08), rgba(168,85,247,0.08), rgba(244,63,94,0.08));
+  animation: scene-spin 40s linear infinite;
+}
+.prism-particle {
+  position: absolute; border-radius: 50%; background: white;
+  opacity: 0;
+  animation: scene-prism-pop var(--dur, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-prism-pop {
+  0%, 100% { transform: scale(0.5); opacity: 0; }
+  50%      { transform: scale(2);   opacity: 0.8; }
+}
+
+/* ─── Reduced-motion: park all scene animations
+   The scene still paints (so the visual identity survives), but
+   nothing animates. Saves battery + respects user preference. ─── */
+@media (prefers-reduced-motion: reduce) {
+  .theme-scene *,
+  .theme-scene *::before,
+  .theme-scene *::after {
+    animation-duration: 0.001s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001s !important;
+  }
+}
+

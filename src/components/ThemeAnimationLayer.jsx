@@ -1,269 +1,569 @@
 // src/components/ThemeAnimationLayer.jsx
-// Renders fullscreen animated overlays for epic/legendary loot themes.
-// All layers are pointer-events-none and sit at z-index 0 (behind UI content).
+//
+// Renders fullscreen animated scenes for loot themes. Each theme's
+// `animation` id (set in src/lib/lootThemes.js) maps to a scene Layer
+// component below. Layers sit pointer-events-none at z-index 0, behind
+// every UI element.
+//
+// Rarity dictates motion budget:
+//   • common    — fully static scene
+//   • uncommon  — static scene + one light animated element
+//   • rare      — static scene + multiple animated layers
+//   • epic      — full atmospheric animation (parallax, rotation, etc.)
+//   • legendary — animation that transforms the chrome itself
+//
+// All CSS classes + @keyframes live in src/index.css under the
+// "Wave 65 — Loot Theme Scenes" section. The mount wrapper
+// `.theme-scene` is what the `prefers-reduced-motion` rule keys off.
+//
+// Performance note: previous version used Framer Motion for every
+// particle which produced 100+ animating DOM nodes through JS. The
+// CSS-keyframe approach lets the compositor handle it — measurably
+// smoother on mid-range Android.
 
 import { useMemo, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/ThemeContext';
 
-// ─── Star field (nebula) ──────────────────────────────────────────────────────
-function NebulaBg() {
-  const stars = useMemo(() =>
-    Array.from({ length: 60 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 2.5 + 0.8,
-      opacity: Math.random() * 0.5 + 0.15,
-      driftX: (Math.random() - 0.5) * 4,
-      driftY: (Math.random() - 0.5) * 4,
-      duration: Math.random() * 14 + 10,
-    })),
-  []);
+// ─── Helpers ─────────────────────────────────────────────────────────────
+const rand = (min, max) => Math.random() * (max - min) + min;
 
+// ════════════════════════════════════════════════════════════════════════
+// COMMON — static scenes (or near-static)
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Mint Frost — pine forest horizon + drifting mist ───────────────────
+function MintFrostLayer() {
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {/* Deep purple radial bg tint */}
-      <div
-        className="absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 120% 80% at 50% 0%, rgba(88,28,135,0.18), transparent 70%)' }}
-      />
-      {stars.map(s => (
-        <motion.div
-          key={s.id}
-          className="absolute rounded-full bg-white"
-          style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, opacity: s.opacity }}
-          animate={{
-            x: [0, s.driftX * 10, 0],
-            y: [0, s.driftY * 10, 0],
-            opacity: [s.opacity, s.opacity * 0.4, s.opacity],
-          }}
-          transition={{ duration: s.duration, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      ))}
-    </div>
+    <>
+      <div className="mint-bg" />
+      <div className="mint-pines" />
+      <div className="mint-mist a" />
+      <div className="mint-mist b" />
+    </>
   );
 }
 
-// ─── Rising embers (ember) ────────────────────────────────────────────────────
-function EmberBg() {
-  const sparks = useMemo(() =>
-    Array.from({ length: 22 }, (_, i) => ({
-      id: i,
-      startX: Math.random() < 0.5 ? Math.random() * 20 : 80 + Math.random() * 20, // left or right edge
-      size: Math.random() * 4 + 2,
-      opacity: Math.random() * 0.6 + 0.2,
-      duration: Math.random() * 4 + 3,
-      delay: Math.random() * 5,
-      drift: (Math.random() - 0.5) * 60,
-    })),
-  []);
-
+// ─── Coral Rush — underwater coral garden + caustics + bubbles ──────────
+function CoralRushLayer() {
+  const corals = useMemo(() => [
+    { type: 'fan',    x: 8,  hue: 0,    h: 90 },
+    { type: 'finger', x: 15, hue: 350,  h: 70 },
+    { type: 'finger', x: 17, hue: 0,    h: 55 },
+    { type: 'dome',   x: 25, hue: 12,   h: 38 },
+    { type: 'fan',    x: 36, hue: 340,  h: 70 },
+    { type: 'finger', x: 44, hue: 0,    h: 80 },
+    { type: 'finger', x: 46, hue: 12,   h: 60 },
+    { type: 'dome',   x: 55, hue: 0,    h: 45 },
+    { type: 'fan',    x: 65, hue: 350,  h: 85 },
+    { type: 'finger', x: 74, hue: 8,    h: 65 },
+    { type: 'finger', x: 76, hue: 0,    h: 50 },
+    { type: 'dome',   x: 85, hue: 340,  h: 42 },
+    { type: 'fan',    x: 92, hue: 0,    h: 75 },
+  ], []);
+  const bubbles = useMemo(() => Array.from({ length: 14 }, () => ({
+    x: rand(5, 95),
+    size: rand(4, 12),
+    dur: rand(8, 16),
+    delay: rand(0, 12),
+    dx: rand(-30, 30),
+  })), []);
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {/* Edge glow */}
-      <div className="absolute inset-0"
-        style={{ background: 'radial-gradient(ellipse 60% 40% at 0% 100%, rgba(239,68,68,0.12), transparent 60%), radial-gradient(ellipse 60% 40% at 100% 100%, rgba(239,68,68,0.12), transparent 60%)' }}
-      />
-      {sparks.map(s => (
-        <motion.div
-          key={s.id}
-          className="absolute rounded-full"
+    <>
+      <div className="coral-water" />
+      <div className="caustic" />
+      {corals.map((c, i) => (
+        <div key={i} className={`coral-shape ${c.type}`}
           style={{
-            left: `${s.startX}%`,
-            bottom: 0,
-            width: s.size,
-            height: s.size,
-            background: 'radial-gradient(circle, #fbbf24, #ef4444)',
-            opacity: 0,
+            left: `${c.x}%`,
+            height: c.h,
+            '--coral-hue': c.hue,
           }}
-          animate={{
-            y: [0, -(window.innerHeight * 0.6)],
-            x: [0, s.drift],
-            opacity: [0, s.opacity, 0],
-            scale: [1, 0.3],
-          }}
-          transition={{ duration: s.duration, repeat: Infinity, delay: s.delay, ease: 'easeOut' }}
         />
       ))}
-    </div>
+      {bubbles.map((b, i) => (
+        <div key={i} className="bubble"
+          style={{
+            left: `${b.x}%`, bottom: '5%',
+            width: b.size, height: b.size,
+            '--dur': `${b.dur}s`, '--delay': `${b.delay}s`,
+            '--dx': `${b.dx}px`,
+          }}
+        />
+      ))}
+    </>
   );
 }
 
-// ─── Aurora borealis ──────────────────────────────────────────────────────────
-function AuroraBg() {
-  const bands = [
-    { color: 'rgba(45,212,191,0.22)', delay: 0,   duration: 9  },
-    { color: 'rgba(167,139,250,0.18)', delay: 3,   duration: 12 },
-    { color: 'rgba(52,211,153,0.16)',  delay: 6,   duration: 10 },
-  ];
-
+// ─── Rose Quartz — cherry blossom branches + falling petals ─────────────
+function RoseQuartzLayer() {
+  const petals = useMemo(() => Array.from({ length: 24 }, () => ({
+    x: rand(0, 100),
+    dur: rand(12, 22),
+    delay: rand(0, 15),
+    dx: rand(-80, 80),
+  })), []);
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {bands.map((band, i) => (
-        <motion.div
-          key={i}
-          className="absolute left-0 right-0"
+    <>
+      <div className="rose-bg" />
+      <div className="rose-branch l" />
+      <div className="rose-branch r" />
+      {petals.map((p, i) => (
+        <div key={i} className="rose-petal-fall"
+          style={{
+            left: `${p.x}%`,
+            '--dur': `${p.dur}s`, '--delay': `${p.delay}s`,
+            '--dx': `${p.dx}px`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// UNCOMMON — scene + light animation
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Dusk Protocol — slow warm wash ─────────────────────────────────────
+function DuskLayer() {
+  return <div className="dusk-wash" />;
+}
+
+// ─── Tidal Force — beach + crashing waves + gulls ───────────────────────
+function TidalLayer() {
+  const crests = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
+    top: 42 + i * 4.5,
+    dur: rand(8, 14),
+    delay: i * 1.8,
+    width: rand(40, 90),
+  })), []);
+  const gulls = useMemo(() => Array.from({ length: 3 }, (_, i) => ({
+    top: 12 + i * 8,
+    dur: rand(20, 32),
+    delay: i * 8,
+  })), []);
+  return (
+    <>
+      <div className="beach-sky" />
+      <div className="ocean-water" />
+      <div className="ocean-horizon-line" />
+      <div className="beach-sand" />
+      <div className="shore-foam" />
+      <div className="shore-foam b" />
+      {crests.map((c, i) => (
+        <div key={i} className="wave-crest"
+          style={{
+            top: `${c.top}%`,
+            width: `${c.width}%`,
+            '--dur': `${c.dur}s`, '--delay': `${c.delay}s`,
+          }}
+        />
+      ))}
+      {gulls.map((g, i) => (
+        <div key={i} className="gull"
+          style={{
+            top: `${g.top}%`,
+            '--dur': `${g.dur}s`, '--delay': `${g.delay}s`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Sunset Pulse — horizon pulse + bands ───────────────────────────────
+function SunsetLayer() {
+  return (
+    <>
+      <div className="sunset-pulse" />
+      {[0, 1, 2].map(i => (
+        <div key={i} className="sunset-band"
+          style={{
+            bottom: `${i * 6}%`,
+            height: '18%',
+            background: `linear-gradient(to top, rgba(${i === 0 ? '251,146,60' : i === 1 ? '244,114,182' : '253,186,116'},0.18), transparent)`,
+            '--dur': `${4 + i * 1.2}s`, '--delay': `${i * 0.8}s`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Arctic Glow — ice cave + drifting snow + wind gusts ────────────────
+function ArcticLayer() {
+  const flakes = useMemo(() => Array.from({ length: 28 }, () => ({
+    x: rand(0, 100), size: rand(1.5, 4),
+    dur: rand(10, 18), delay: rand(0, 10),
+    dx: rand(-30, 30),
+  })), []);
+  const gusts = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
+    top: 18 + i * 13, dur: rand(4, 7), delay: i * 1.3,
+  })), []);
+  const crystals = useMemo(() => Array.from({ length: 8 }, () => ({
+    x: rand(15, 85), y: rand(35, 85),
+    size: rand(6, 14),
+  })), []);
+  return (
+    <>
+      <div className="ice-cave-bg" />
+      <div className="ice-wall l" />
+      <div className="ice-wall r" />
+      <div className="ice-stalactites" />
+      <div className="ice-ground" />
+      {crystals.map((c, i) => (
+        <div key={`ic${i}`} className="ice-crystal"
+          style={{
+            left: `${c.x}%`, top: `${c.y}%`,
+            width: c.size, height: c.size,
+          }}
+        />
+      ))}
+      {gusts.map((g, i) => (
+        <div key={`g${i}`} className="wind-gust"
+          style={{
+            top: `${g.top}%`,
+            '--dur': `${g.dur}s`, '--delay': `${g.delay}s`,
+          }}
+        />
+      ))}
+      {flakes.map((f, i) => (
+        <div key={i} className="snow"
+          style={{
+            left: `${f.x}%`, width: f.size, height: f.size,
+            '--dur': `${f.dur}s`, '--delay': `${f.delay}s`,
+            '--dx': `${f.dx}px`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// RARE — multiple animated layers
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Nebula — purple cloud + drifting stars ─────────────────────────────
+function NebulaLayer() {
+  const far = useMemo(() => Array.from({ length: 90 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(0.5, 1.6),
+    op: rand(0.2, 0.55), opHigh: rand(0.8, 1),
+    dur: rand(3, 8),
+  })), []);
+  const near = useMemo(() => Array.from({ length: 14 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(1.6, 4),
+    dur: rand(2, 5),
+    dx: rand(-40, 40),
+  })), []);
+  return (
+    <>
+      <div className="nebula-grad" />
+      {far.map((s, i) => (
+        <div key={i} className="star twinkle"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            '--opacity-low': s.op, '--opacity-high': s.opHigh,
+            '--dur': `${s.dur}s`,
+          }}
+        />
+      ))}
+      {near.map((s, i) => (
+        <div key={`n${i}`} className="star near"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            '--tint': '#e9d5ff',
+            '--dur': `${s.dur}s`, '--dx': `${s.dx}px`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Ember Core — bonfire + logs + flickering flame + rising sparks ─────
+function EmberLayer() {
+  const sparks = useMemo(() => Array.from({ length: 28 }, () => ({
+    x: rand(40, 60), size: rand(2, 5),
+    dur: rand(3, 6), delay: rand(0, 5),
+    dx: rand(-50, 50), travel: rand(0.4, 0.7),
+  })), []);
+  return (
+    <>
+      <div className="bonfire-sky" />
+      <div className="bonfire-logs c" />
+      <div className="bonfire-logs b" />
+      <div className="bonfire-logs" />
+      <div className="bonfire-flame" />
+      <div className="bonfire-flame inner" />
+      {sparks.map((s, i) => (
+        <div key={i} className="magma-spark"
+          style={{
+            left: `${s.x}%`, bottom: '18%',
+            width: s.size, height: s.size,
+            background: 'radial-gradient(circle, #fbbf24, #ef4444)',
+            boxShadow: '0 0 8px rgba(251,146,60,0.7)',
+            '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+            '--dx': `${s.dx}px`, '--travel': `${s.travel * 50}vh`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ─── Volcanic — cone silhouette + crater glow + smoke + magma sparks ────
+function VolcanoLayer() {
+  const sparks = useMemo(() => Array.from({ length: 30 }, () => ({
+    x: rand(35, 65), size: rand(2, 5),
+    dur: rand(2.5, 5), delay: rand(0, 5),
+    dx: rand(-40, 40), travel: rand(0.4, 0.7),
+    color: ['#fbbf24', '#f97316', '#ef4444', '#fde047'][Math.floor(rand(0, 4))],
+  })), []);
+  return (
+    <>
+      <div className="volcano-sky" />
+      <div className="volcano-smoke" />
+      <div className="volcano-cone" />
+      <div className="volcano-crater" />
+      <div className="volcano-floor" />
+      {sparks.map((s, i) => (
+        <div key={i} className="magma-spark"
+          style={{
+            left: `${s.x}%`, width: s.size, height: s.size,
+            background: s.color,
+            boxShadow: `0 0 6px ${s.color}, 0 0 12px rgba(239,68,68,0.5)`,
+            '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+            '--dx': `${s.dx}px`, '--travel': `${s.travel * 50}vh`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// EPIC — full atmospheric animation
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Aurora — sweeping bands over faint star field ──────────────────────
+function AuroraLayer() {
+  const bands = [
+    { color: 'rgba(45,212,191,0.30)', delay: 0, dur: 9 },
+    { color: 'rgba(167,139,250,0.24)', delay: 3, dur: 12 },
+    { color: 'rgba(52,211,153,0.22)', delay: 6, dur: 10 },
+  ];
+  const stars = useMemo(() => Array.from({ length: 50 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(0.5, 2),
+    dur: rand(2, 6),
+  })), []);
+  return (
+    <>
+      <div className="aurora-base" />
+      {bands.map((b, i) => (
+        <div key={i} className="aurora-band"
           style={{
             top: `${i * 12}%`,
-            height: '35%',
-            background: `linear-gradient(180deg, transparent, ${band.color}, transparent)`,
-            filter: 'blur(24px)',
+            background: `linear-gradient(180deg, transparent, ${b.color}, transparent)`,
+            '--delay': `${b.delay}s`, '--dur': `${b.dur}s`,
           }}
-          animate={{
-            scaleX: [1, 1.15, 0.92, 1],
-            scaleY: [1, 1.08, 0.96, 1],
-            opacity: [0.6, 1, 0.7, 0.6],
-            y: [0, 18, -10, 0],
-          }}
-          transition={{ duration: band.duration, repeat: Infinity, delay: band.delay, ease: 'easeInOut' }}
         />
       ))}
-      {/* Faint star field behind the bands */}
-      {Array.from({ length: 30 }, (_, i) => ({
-        id: i, x: Math.random() * 100, y: Math.random() * 100,
-        size: Math.random() * 1.5 + 0.5, dur: Math.random() * 4 + 2,
-      })).map(s => (
-        <motion.div key={s.id} className="absolute rounded-full bg-white"
-          style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, opacity: 0.2 }}
-          animate={{ opacity: [0.1, 0.4, 0.1] }}
-          transition={{ duration: s.dur, repeat: Infinity, ease: 'easeInOut' }}
-        />
-      ))}
-    </div>
-  );
-}
-
-// ─── Cyberpunk scanlines + edge glows ─────────────────────────────────────────
-function CyberpunkBg() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {/* Left edge neon glow */}
-      <div className="absolute left-0 top-0 bottom-0 w-1"
-        style={{ background: 'linear-gradient(to bottom, #06b6d4, #e879f9, #06b6d4)', opacity: 0.7 }}
-      />
-      {/* Right edge glow */}
-      <div className="absolute right-0 top-0 bottom-0 w-1"
-        style={{ background: 'linear-gradient(to bottom, #e879f9, #06b6d4, #e879f9)', opacity: 0.7 }}
-      />
-      {/* Edge ambient glow */}
-      <div className="absolute inset-0"
-        style={{ background: 'linear-gradient(to right, rgba(6,182,212,0.07), transparent 18%, transparent 82%, rgba(232,121,249,0.07))' }}
-      />
-      {/* Scanline */}
-      <motion.div
-        className="absolute left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(to right, transparent, rgba(6,182,212,0.55), rgba(232,121,249,0.55), transparent)' }}
-        animate={{ top: ['-2%', '102%'] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'linear', repeatDelay: 1.5 }}
-      />
-      {/* Secondary faster scanline */}
-      <motion.div
-        className="absolute left-0 right-0 h-px"
-        style={{ background: 'linear-gradient(to right, transparent, rgba(232,121,249,0.35), rgba(6,182,212,0.35), transparent)' }}
-        animate={{ top: ['-2%', '102%'] }}
-        transition={{ duration: 6, repeat: Infinity, ease: 'linear', repeatDelay: 1.5, delay: 3 }}
-      />
-    </div>
-  );
-}
-
-// ─── Dusk: slow warm gradient edge wash ───────────────────────────────────────
-function DuskBg() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      <motion.div
-        className="absolute inset-0"
-        animate={{
-          background: [
-            'radial-gradient(ellipse 100% 60% at 100% 100%, rgba(249,115,22,0.12), transparent 65%)',
-            'radial-gradient(ellipse 100% 60% at 100% 100%, rgba(225,29,72,0.12), transparent 65%)',
-            'radial-gradient(ellipse 100% 60% at 100% 100%, rgba(249,115,22,0.12), transparent 65%)',
-          ],
-        }}
-        transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-      />
-    </div>
-  );
-}
-
-// ─── Tidal: wave shimmer ──────────────────────────────────────────────────────
-function TidalBg() {
-  return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {[0, 1, 2].map(i => (
-        <motion.div
-          key={i}
-          className="absolute left-0 right-0"
+      {stars.map((s, i) => (
+        <div key={i} className="star twinkle"
           style={{
-            bottom: `${i * 8}%`,
-            height: '12%',
-            background: 'linear-gradient(to top, rgba(14,165,233,0.1), transparent)',
-            filter: 'blur(8px)',
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            '--opacity-low': 0.15, '--opacity-high': 0.5,
+            '--dur': `${s.dur}s`,
           }}
-          animate={{ scaleY: [1, 1.4, 1], opacity: [0.4, 0.8, 0.4] }}
-          transition={{ duration: 4 + i * 1.5, repeat: Infinity, ease: 'easeInOut', delay: i * 1.2 }}
         />
       ))}
-    </div>
+    </>
   );
 }
 
-// ─── Prismatic: cycling primary hue via JS ────────────────────────────────────
-function PrismaticBg() {
-  const hueRef = useRef(0);
+// ─── Cyberpunk — neon skyline + blinking windows + flyers + scanlines ───
+function CyberpunkLayer() {
+  const windows = useMemo(() => Array.from({ length: 80 }, () => ({
+    x: rand(2, 98),
+    y: rand(58, 95),
+    dur: rand(3, 7),
+    delay: rand(0, 6),
+    color: ['#06b6d4', '#e879f9', '#f0abfc', '#67e8f9'][Math.floor(rand(0, 4))],
+  })), []);
+  const flyers = useMemo(() => Array.from({ length: 3 }, (_, i) => ({
+    top: 18 + i * 12,
+    dur: rand(10, 20),
+    delay: i * 5,
+  })), []);
+  return (
+    <>
+      <div className="cyber-sky" />
+      <div className="cyber-grid" />
+      <div className="cyber-skyline" />
+      <div className="cyber-edge l" />
+      <div className="cyber-edge r" />
+      {windows.map((w, i) => (
+        <div key={i} className="cyber-window"
+          style={{
+            left: `${w.x}%`, top: `${w.y}%`,
+            color: w.color,
+            background: w.color,
+            '--dur': `${w.dur}s`, '--delay': `${w.delay}s`,
+          }}
+        />
+      ))}
+      {flyers.map((f, i) => (
+        <div key={i} className="cyber-flyer"
+          style={{
+            top: `${f.top}%`,
+            '--dur': `${f.dur}s`, '--delay': `${f.delay}s`,
+          }}
+        />
+      ))}
+      <div className="cyber-scan" style={{ '--delay': '0s' }} />
+      <div className="cyber-scan" style={{ '--delay': '3s' }} />
+    </>
+  );
+}
 
+// ─── Galactic — deep space parallax + planet + spiral + shooting stars ──
+function GalaxyLayer() {
+  const far = useMemo(() => Array.from({ length: 160 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(0.4, 1.5),
+    op: rand(0.2, 0.6), opHigh: rand(0.7, 1),
+    dur: rand(3, 7),
+  })), []);
+  const mid = useMemo(() => Array.from({ length: 60 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(1, 2.5),
+    op: rand(0.3, 0.6), opHigh: 1,
+    dur: rand(4, 8),
+    dx: rand(-30, 30),
+  })), []);
+  const near = useMemo(() => Array.from({ length: 18 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(1.8, 4),
+    dur: rand(2.5, 5.5),
+    dx: rand(-60, 60),
+    tint: ['#fff', '#e0e7ff', '#fde68a', '#fbcfe8'][Math.floor(rand(0, 4))],
+  })), []);
+  const shooting = useMemo(() => Array.from({ length: 4 }, (_, i) => ({
+    x: rand(10, 70), y: rand(5, 35),
+    angle: rand(25, 45),
+    delay: i * 7 + rand(0, 5),
+    dur: rand(1.6, 2.4),
+  })), []);
+  return (
+    <>
+      <div className="galaxy-grad" />
+      <div className="galaxy-milky" />
+      <div className="galaxy-spiral" />
+      <div className="galaxy-spiral b" />
+      <div className="galaxy-planet" />
+      <div className="galaxy-planet-ring" />
+      {far.map((s, i) => (
+        <div key={`f${i}`} className="star twinkle"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            '--opacity-low': s.op, '--opacity-high': s.opHigh,
+            '--dur': `${s.dur}s`,
+          }}
+        />
+      ))}
+      {mid.map((s, i) => (
+        <div key={`m${i}`} className="star drift"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            boxShadow: '0 0 4px rgba(196,181,253,0.7)',
+            '--opacity-low': s.op, '--opacity-high': s.opHigh,
+            '--dur': `${s.dur}s`, '--dx': `${s.dx}px`,
+          }}
+        />
+      ))}
+      {near.map((s, i) => (
+        <div key={`n${i}`} className="star near"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            width: s.size, height: s.size,
+            '--tint': s.tint,
+            '--dur': `${s.dur}s`, '--dx': `${s.dx}px`,
+          }}
+        />
+      ))}
+      {shooting.map((s, i) => (
+        <div key={`sh${i}`} className="shooting-star"
+          style={{
+            left: `${s.x}%`, top: `${s.y}%`,
+            '--angle': `${s.angle}deg`,
+            '--delay': `${s.delay}s`, '--dur': `${s.dur}s`,
+          }}
+        />
+      ))}
+    </>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════════
+// LEGENDARY — chrome-transforming
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Prismatic — conic halo + popping particles + JS hue cycle ──────────
+function PrismLayer() {
+  const hueRef = useRef(0);
   useEffect(() => {
     const root = document.documentElement;
     const tick = () => {
       hueRef.current = (hueRef.current + 0.3) % 360;
-      const h = hueRef.current;
-      root.style.setProperty('--primary', `${Math.round(h)} 85% 60%`);
-      root.style.setProperty('--ring', `${Math.round(h)} 85% 60%`);
-      root.style.setProperty('--sidebar-primary', `${Math.round(h)} 85% 60%`);
-      root.style.setProperty('--sidebar-ring', `${Math.round(h)} 85% 60%`);
+      const h = Math.round(hueRef.current);
+      root.style.setProperty('--primary', `${h} 85% 60%`);
+      root.style.setProperty('--ring',    `${h} 85% 60%`);
+      root.style.setProperty('--sidebar-primary', `${h} 85% 60%`);
+      root.style.setProperty('--sidebar-ring',    `${h} 85% 60%`);
     };
-    const id = setInterval(tick, 32); // ~30fps update
-    return () => {
-      clearInterval(id);
-      // Restore will be handled by ThemeContext when theme changes
-    };
+    const id = setInterval(tick, 32);
+    return () => clearInterval(id);
   }, []);
-
+  const particles = useMemo(() => Array.from({ length: 28 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+    size: rand(1, 4), dur: rand(1.5, 4.5), delay: rand(0, 4),
+  })), []);
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {/* Particle burst overlay */}
-      {Array.from({ length: 20 }, (_, i) => ({
-        id: i,
-        x: Math.random() * 100,
-        y: Math.random() * 100,
-        size: Math.random() * 3 + 1,
-        dur: Math.random() * 3 + 1.5,
-        delay: Math.random() * 4,
-      })).map(p => (
-        <motion.div
-          key={p.id}
-          className="absolute rounded-full"
+    <>
+      <div className="prism-halo" />
+      {particles.map((p, i) => (
+        <div key={i} className="prism-particle"
           style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: 'white',
-            opacity: 0,
+            left: `${p.x}%`, top: `${p.y}%`,
+            width: p.size, height: p.size,
+            '--dur': `${p.dur}s`, '--delay': `${p.delay}s`,
           }}
-          animate={{ opacity: [0, 0.7, 0], scale: [0.5, 1.8, 0.5] }}
-          transition={{ duration: p.dur, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
         />
       ))}
-    </div>
+    </>
   );
 }
 
-// ─── Brushed Steel USA: patriotic embers + digital pixels ────────────────────
-function SteelUsaBg() {
-  // USA patriotic embers: red, white, blue
+// ════════════════════════════════════════════════════════════════════════
+// LEGACY — kept for the base "Brushed Steel" theme (admin-only).
+// Uses Framer Motion since it pre-dates the CSS-keyframe scene system.
+// ════════════════════════════════════════════════════════════════════════
+function SteelUsaLayer() {
+  // Patriotic embers + steel pixels — pre-Wave-65 motion. Uses
+  // Framer Motion (the only scene that does — kept for the admin
+  // Brushed Steel base theme).
   const USA_COLORS = ['#EF4444', '#FFFFFF', '#3B82F6', '#EF4444', '#FFFFFF', '#1D4ED8'];
+  const PIXEL_COLORS = ['#94A3B8', '#CBD5E1', '#64748B', '#BAE6FD', '#E2E8F0'];
   const embers = useMemo(() =>
     Array.from({ length: 196 }, (_, i) => ({
       id: i,
@@ -276,9 +576,6 @@ function SteelUsaBg() {
       travel: Math.random() * 0.5 + 0.45,
     })),
   []);
-
-  // Digital pixel particles: sharp squares in steel/silver
-  const PIXEL_COLORS = ['#94A3B8', '#CBD5E1', '#64748B', '#BAE6FD', '#E2E8F0'];
   const pixels = useMemo(() =>
     Array.from({ length: 20 }, (_, i) => ({
       id: i,
@@ -290,33 +587,26 @@ function SteelUsaBg() {
       delay: Math.random() * 5,
     })),
   []);
-
+  const vh = (typeof window !== 'undefined' && window.innerHeight) || 800;
   return (
-    <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 0 }}>
-      {/* Steel gradient wash */}
+    <>
       <div
         className="absolute inset-0"
         style={{
           background: 'linear-gradient(160deg, rgba(148,163,184,0.07) 0%, rgba(30,41,59,0.10) 50%, rgba(148,163,184,0.05) 100%)',
         }}
       />
-
-      {/* Patriotic USA embers — float upward */}
       {embers.map(e => (
         <motion.div
           key={`ember-${e.id}`}
           className="absolute rounded-full"
           style={{
-            left: `${e.x}%`,
-            bottom: 0,
-            width: e.size,
-            height: e.size,
-            background: e.color,
-            filter: 'blur(0.4px)',
-            opacity: 0,
+            left: `${e.x}%`, bottom: 0,
+            width: e.size, height: e.size,
+            background: e.color, filter: 'blur(0.4px)', opacity: 0,
           }}
           animate={{
-            y: [0, -(window.innerHeight * e.travel)],
+            y: [0, -(vh * e.travel)],
             x: [0, e.drift],
             opacity: [0, 0.7, 0],
             scale: [1, 0.4],
@@ -324,64 +614,77 @@ function SteelUsaBg() {
           transition={{ duration: e.duration, repeat: Infinity, delay: e.delay, ease: 'easeOut' }}
         />
       ))}
-
-      {/* Floating digital pixels — drift slowly */}
       {pixels.map(p => (
         <motion.div
           key={`pixel-${p.id}`}
           className="absolute"
           style={{
-            left: `${p.x}%`,
-            top: `${p.y}%`,
-            width: p.size,
-            height: p.size,
-            background: p.color,
-            borderRadius: 1,
-            opacity: 0,
+            left: `${p.x}%`, top: `${p.y}%`,
+            width: p.size, height: p.size,
+            background: p.color, borderRadius: 1, opacity: 0,
           }}
           animate={{
             opacity: [0, 0.45, 0],
-            x: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20],
-            y: [(Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20],
             scale: [0.8, 1.4, 0.8],
           }}
           transition={{ duration: p.duration, repeat: Infinity, delay: p.delay, ease: 'easeInOut' }}
         />
       ))}
-    </div>
+    </>
   );
 }
 
-// ─── Map animation id → component ────────────────────────────────────────────
+// ─── Map animation id → component ────────────────────────────────────────
 const ANIMATION_MAP = {
-  nebula:     NebulaBg,
-  ember:      EmberBg,
-  aurora:     AuroraBg,
-  cyberpunk:  CyberpunkBg,
-  dusk:       DuskBg,
-  tidal:      TidalBg,
-  prism:      PrismaticBg,
-  steel_usa:  SteelUsaBg,
+  // Common
+  coralRush:  CoralRushLayer,
+  mintFrost:  MintFrostLayer,
+  roseQuartz: RoseQuartzLayer,
+  // Uncommon
+  dusk:       DuskLayer,
+  tidal:      TidalLayer,
+  sunset:     SunsetLayer,
+  arctic:     ArcticLayer,
+  // Rare
+  nebula:     NebulaLayer,
+  ember:      EmberLayer,
+  volcano:    VolcanoLayer,
+  // Epic
+  aurora:     AuroraLayer,
+  cyberpunk:  CyberpunkLayer,
+  galaxy:     GalaxyLayer,
+  // Legendary
+  prism:      PrismLayer,
+  // Legacy
+  steel_usa:  SteelUsaLayer,
 };
 
-// ─── Main export ──────────────────────────────────────────────────────────────
+// ─── Main export ─────────────────────────────────────────────────────────
 export default function ThemeAnimationLayer() {
   const { activeAnimation } = useTheme();
   const AnimComp = activeAnimation ? ANIMATION_MAP[activeAnimation] : null;
 
+  if (!AnimComp) return null;
+
+  // The wrapper provides:
+  //   • fixed positioning at z-index 0 (behind UI)
+  //   • pointer-events: none (clicks pass through)
+  //   • overflow: hidden (scene paint can't bleed into scroll)
+  //   • `.theme-scene` class — the `prefers-reduced-motion` rule in
+  //     index.css keys off this so scene paint survives but motion
+  //     stops for accessibility.
+  //   • CSS `transition: opacity 1.2s` on `.anim-layer` (fade in/out)
+  //
+  // `key={activeAnimation}` forces a remount on theme swap so each
+  // scene's RAND seeds (star positions, sparks, petals) reroll fresh.
   return (
-    <AnimatePresence>
-      {AnimComp && (
-        <motion.div
-          key={activeAnimation}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 1.2 }}
-        >
-          <AnimComp />
-        </motion.div>
-      )}
-    </AnimatePresence>
+    <div
+      key={activeAnimation}
+      className="theme-scene anim-layer on fixed inset-0 pointer-events-none overflow-hidden"
+      style={{ zIndex: 0 }}
+      aria-hidden="true"
+    >
+      <AnimComp />
+    </div>
   );
 }
