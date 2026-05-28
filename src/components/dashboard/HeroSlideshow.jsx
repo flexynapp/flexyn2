@@ -668,6 +668,16 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         {...dragProps}
         className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
       >
+        {slides.length > 1 && (
+          <button
+            type="button"
+            onClick={next}
+            aria-label={tFallback('dashboard.hero.next', 'Next slide')}
+            className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
+          </button>
+        )}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -742,6 +752,16 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       {...dragProps}
       className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
     >
+      {slides.length > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label={tFallback('dashboard.hero.next', 'Next slide')}
+          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
+        >
+          <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
+        </button>
+      )}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
           <SlideIcon className="w-4 h-4 text-white" />

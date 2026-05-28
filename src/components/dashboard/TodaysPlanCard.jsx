@@ -144,18 +144,18 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${info.color}`}>
+              <span className={`text-[9px] font-bold uppercase tracking-[0.16em] ${info.color}`}>
                 {doneToday
                   ? tFallback('todaysPlan.completed', 'Completed ✓')
                   : tFallback('todaysPlan.kicker', "Today's Plan")}
               </span>
             </div>
-            <p className="text-sm font-heading font-bold leading-tight mt-0.5">
+            <p className="text-xs font-heading font-bold leading-tight mt-0.5 truncate">
               {doneToday
                 ? `${info.emoji} ${tFallback('todaysPlan.doneFmt', '{label} — done!', { label: translatedLabel })}`
                 : `${info.emoji} ${translatedLabel}`}
             </p>
-            <p className="text-[11px] text-muted-foreground leading-snug mt-0.5 truncate">
+            <p className="text-[10px] text-muted-foreground leading-snug mt-0.5 truncate">
               {regimen.name}
               {exerciseCount > 0 && ` · ${exerciseCount} ${tFallback(
                 exerciseCount === 1 ? 'todaysPlan.exerciseOne' : 'todaysPlan.exerciseMany',

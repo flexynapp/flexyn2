@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronDown, Rows3, Columns2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -61,7 +61,7 @@ function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
   onPrimary, navigate,
-  t, tFallback,
+  t,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
@@ -81,13 +81,6 @@ function HeroCard({
   } else {
     cta = t('dashboard.hero.cta.startFirst');
   }
-
-  // Carousel chevron — lifted out of HeroSlideshow so it can sit at the
-  // OUTER rounded-card edge instead of inside the slideshow column
-  // (which is constrained by the hero's p-6 padding). slideshowRef
-  // exposes a next() handle; slideCount drives show/hide.
-  const slideshowRef = useRef(null);
-  const [slideCount, setSlideCount] = useState(0);
 
   return (
     <motion.div
@@ -121,21 +114,6 @@ function HeroCard({
           }}
         />
 
-        {/* Carousel chevron — pinned to the OUTER right edge of the
-            rounded card (escapes the inner grid's p-6 inset). Only on
-            mobile (single-col layout); on tablet/desktop the right
-            column is the CTA button, so the chevron would overlap it. */}
-        {slideCount > 1 && (
-          <button
-            type="button"
-            onClick={() => slideshowRef.current?.next()}
-            aria-label={tFallback('dashboard.hero.next', 'Next slide')}
-            className="md:hidden absolute end-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm hover:bg-white/25 active:bg-white/35 flex items-center justify-center transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
-          </button>
-        )}
-
         <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 md:gap-8 p-6 md:p-8 lg:p-10">
           {/* Left — Adaptive content. Three modes auto-selected:
                 • achievements: rotating carousel of recent PRs / goals
@@ -147,7 +125,6 @@ function HeroCard({
               mode-selection logic + slide builders. No extra network
               calls — pulls everything from data already loaded above. */}
           <HeroSlideshow
-            ref={slideshowRef}
             logs={logs}
             cardioLogs={cardioLogs}
             goals={goals}
@@ -158,7 +135,6 @@ function HeroCard({
             daysSinceLast={daysSinceLast}
             onPrimary={onPrimary}
             onSlideCta={(to) => navigate(to)}
-            onSlidesCountChange={setSlideCount}
             t={t}
           />
 
@@ -281,6 +257,24 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0 }) {
  *  type → mount/unmount churn that defeats AnimatePresence.)
  * ────────────────────────────────────────────────────────────────── */
 
+// Section label lookup — used by edit mode's drag-handle chips so each
+// section row shows its name next to the layout-toggle button. Keyed
+// by widgetOrder id; takes (tFallback, t) so it stays i18n-aware.
+const SECTION_LABELS = {
+  readiness:    (tF) => tF('dashboard.section.readiness',    'Readiness'),
+  recovery:     (tF) => tF('dashboard.section.recovery',     'Recovery'),
+  challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
+  chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
+  league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
+  progress:     (tF) => tF('dashboard.section.progress',     'Your progress'),
+  actions:      (tF, t) => t('dashboard.quickActions'),
+  discover:     (tF) => tF('dashboard.section.discover',     'Discover'),
+  motivation:   (tF) => tF('dashboard.section.motivation',   'More motivation'),
+  streakBanner: (tF) => tF('dashboard.section.streak',       'Streak'),
+  onboarding:   (tF) => tF('dashboard.section.onboarding',   'Get started'),
+  customize:    (tF) => tF('dashboard.section.customize',    'Customize dashboard'),
+};
+
 function SectionHeader({ label, open, onToggle, tFallback }) {
   return (
     <button
@@ -341,13 +335,28 @@ export default function Dashboard() {
   const [editMode, setEditMode] = useState(false);
   const defaultWidgetOrder = [
     'readiness', 'recovery',
-    'challenges', 'chest', 'league',
-    'progress', 'actions',
+    'challenges', 'actions',
+    'chest', 'league',
+    'progress',
     'discover', 'motivation',
-    'streakBanner', 'onboarding', 'updates',
+    'streakBanner', 'onboarding',
     'customize',
   ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
+
+  // Per-section layout — hamburger (full-width, default) or hotdog
+  // (half-width, pairs with adjacent half neighbor). Persisted per-user
+  // to localStorage alongside widgetOrder. Two consecutive half
+  // sections in widgetOrder render side-by-side; a lone half degrades
+  // to full width (no half-width orphan).
+  const [sectionLayouts, setSectionLayouts] = useState({});
+  const toggleSectionLayout = (id) => {
+    setSectionLayouts(prev => {
+      const next = { ...prev, [id]: (prev[id] || 'full') === 'half' ? 'full' : 'half' };
+      try { localStorage.setItem(`flexyn.dashSectionLayouts.${user?.id || 'anon'}`, JSON.stringify(next)); } catch { /* ignore */ }
+      return next;
+    });
+  };
 
   // Per-section collapse state. Every section gets its own Hide / Show
   // all toggle. State is per-device (sessionStorage) — resets fresh on
@@ -372,7 +381,6 @@ export default function Dashboard() {
   const [motivationOpen,   setMotivationOpen]   = useState(() => initOpen('motivation',   true));
   const [streakBannerOpen, setStreakBannerOpen] = useState(() => initOpen('streakBanner', true));
   const [onboardingOpen,   setOnboardingOpen]   = useState(() => initOpen('onboarding',   true));
-  const [updatesOpen,      setUpdatesOpen]      = useState(() => initOpen('updates',      true));
   const [customizeOpen,    setCustomizeOpen]    = useState(() => initOpen('customize',    true));
   // "Show more / less" toggle for the quick-actions vertical list.
   // Defaults to collapsed — user sees the top 3 actions; the rest are
@@ -394,7 +402,6 @@ export default function Dashboard() {
   const toggleMotivation   = makeToggle('motivation',   setMotivationOpen);
   const toggleStreakBanner = makeToggle('streakBanner', setStreakBannerOpen);
   const toggleOnboarding   = makeToggle('onboarding',   setOnboardingOpen);
-  const toggleUpdates      = makeToggle('updates',      setUpdatesOpen);
   const toggleCustomize    = makeToggle('customize',    setCustomizeOpen);
 
   // ── Rest day declaration ──────────────────────────────────────────────────
@@ -448,7 +455,45 @@ export default function Dashboard() {
     } catch {}
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleWidgetReorder = (newOrder) => {
+  // Load sectionLayouts on user resolve.
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const saved = localStorage.getItem(`flexyn.dashSectionLayouts.${user.id}`);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (parsed && typeof parsed === 'object') setSectionLayouts(parsed);
+    } catch {}
+  }, [user?.id]);
+
+  // Compute rows from widgetOrder + sectionLayouts. Two consecutive
+  // 'half' sections share a row; everything else stands alone. A lone
+  // 'half' is rendered full-width (degraded — no orphan).
+  const dashboardRows = useMemo(() => {
+    const result = [];
+    let i = 0;
+    while (i < widgetOrder.length) {
+      const id = widgetOrder[i];
+      const layout = sectionLayouts[id] || 'full';
+      const nextId = widgetOrder[i + 1];
+      const nextLayout = nextId ? (sectionLayouts[nextId] || 'full') : null;
+      if (layout === 'half' && nextLayout === 'half') {
+        result.push({ rowKey: `${id}+${nextId}`, sections: [id, nextId] });
+        i += 2;
+      } else {
+        result.push({ rowKey: id, sections: [id] });
+        i++;
+      }
+    }
+    return result;
+  }, [widgetOrder, sectionLayouts]);
+
+  const handleWidgetReorder = (newRowKeys) => {
+    // newRowKeys is a list of rowKeys. Map each back to its sections
+    // and flatten to the new widgetOrder. Hotdog pairs travel together
+    // (the user moved the row, not the individual section).
+    const rowMap = Object.fromEntries(dashboardRows.map(r => [r.rowKey, r.sections]));
+    const newOrder = newRowKeys.flatMap(k => rowMap[k] || []);
     setWidgetOrder(newOrder);
     try { localStorage.setItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`, JSON.stringify(newOrder)); } catch {}
   };
@@ -966,24 +1011,10 @@ export default function Dashboard() {
             tFallback={tFallback}
           />
           <Collapsible open={onboardingOpen}>
-            <div className="mb-3 mt-1">
+            <div className="mb-3 space-y-2 mt-1">
               <ErrorBoundary label="OnboardingNudgeCard">
                 <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
               </ErrorBoundary>
-            </div>
-          </Collapsible>
-        </React.Fragment>
-      );
-      case 'updates': return (
-        <React.Fragment key="updates">
-          <SectionHeader
-            label={tFallback('dashboard.section.banners', 'Updates')}
-            open={updatesOpen}
-            onToggle={toggleUpdates}
-            tFallback={tFallback}
-          />
-          <Collapsible open={updatesOpen}>
-            <div className="mb-3 space-y-2 mt-1">
               <ErrorBoundary label="PushOptInBanner">
                 <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
               </ErrorBoundary>
@@ -1112,7 +1143,6 @@ export default function Dashboard() {
           onPrimary={() => navigate('/workout')}
           navigate={navigate}
           t={t}
-          tFallback={tFallback}
         />
       </div>
 
@@ -1207,33 +1237,54 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ Reorderable sections — every section is movable from edit
-              mode (long-press the drag handle), and each section has its
-              own collapse toggle. ═══ */}
-      <Reorder.Group axis="y" values={widgetOrder} onReorder={handleWidgetReorder} as="div">
-        {widgetOrder.map(id => (
-          <Reorder.Item key={id} value={id} as="div" dragListener={editMode} className="relative touch-none select-none">
+      {/* ═══ Reorderable rows — each row holds 1 section (hamburger /
+              full-width) or 2 sections side-by-side (hotdog / half).
+              Edit mode: long-press the drag handle to move a row, tap
+              the layout icon to switch between hamburger and hotdog.
+              Hotdog pairs travel together when reordered. ═══ */}
+      <Reorder.Group axis="y" values={dashboardRows.map(r => r.rowKey)} onReorder={handleWidgetReorder} as="div">
+        {dashboardRows.map(row => (
+          <Reorder.Item key={row.rowKey} value={row.rowKey} as="div" dragListener={editMode} className="relative touch-none select-none">
             {editMode && (
-              <div className="flex items-center gap-2 mt-6 mb-1 px-1 cursor-grab active:cursor-grabbing">
-                <GripVertical className="w-4 h-4 text-primary/50" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
-                  {id === 'readiness'    ? tFallback('dashboard.section.readiness',    'Readiness')
-                    : id === 'recovery'     ? tFallback('dashboard.section.recovery',     'Recovery')
-                    : id === 'challenges'   ? tFallback('dashboard.section.challenges',   'Challenges')
-                    : id === 'chest'        ? tFallback('dashboard.section.chest',        'Daily chest')
-                    : id === 'league'       ? tFallback('dashboard.section.league',       'Weekly rank')
-                    : id === 'progress'     ? tFallback('dashboard.section.progress',     'Your progress')
-                    : id === 'discover'     ? tFallback('dashboard.section.discover',     'Discover')
-                    : id === 'motivation'   ? tFallback('dashboard.section.motivation',   'More motivation')
-                    : id === 'streakBanner' ? tFallback('dashboard.section.streak',       'Streak')
-                    : id === 'onboarding'   ? tFallback('dashboard.section.onboarding',   'Get started')
-                    : id === 'updates'      ? tFallback('dashboard.section.banners',      'Updates')
-                    : id === 'customize'    ? tFallback('dashboard.section.customize',    'Customize dashboard')
-                    : t('dashboard.quickActions')}
-                </span>
+              <div className="flex items-center gap-2 mt-6 mb-1 px-1">
+                <GripVertical className="w-4 h-4 text-primary/50 cursor-grab active:cursor-grabbing" />
+                {row.sections.map((id, i) => {
+                  const layout = sectionLayouts[id] || 'full';
+                  const isHalf = layout === 'half';
+                  return (
+                    <React.Fragment key={id}>
+                      {i > 0 && <span className="text-[10px] text-primary/30">+</span>}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); toggleSectionLayout(id); }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        title={isHalf
+                          ? tFallback('dashboard.layout.toHamburger', 'Stack full-width')
+                          : tFallback('dashboard.layout.toHotdog',     'Pair side-by-side')}
+                        className="flex items-center gap-1 px-1.5 py-0.5 rounded-md hover:bg-primary/10 text-primary/60 hover:text-primary transition-colors"
+                      >
+                        {isHalf
+                          ? <Columns2 className="w-3 h-3" />
+                          : <Rows3    className="w-3 h-3" />}
+                        <span className="text-[10px] font-bold uppercase tracking-[0.18em]">
+                          {SECTION_LABELS[id]?.(tFallback, t) || id}
+                        </span>
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             )}
-            {renderDashboardSection(id)}
+            <div className={row.sections.length === 2 ? 'flex flex-wrap gap-2' : ''}>
+              {row.sections.map(id => (
+                <div
+                  key={id}
+                  className={row.sections.length === 2 ? 'flex-1 min-w-0 w-[calc(50%-0.25rem)]' : ''}
+                >
+                  {renderDashboardSection(id)}
+                </div>
+              ))}
+            </div>
           </Reorder.Item>
         ))}
       </Reorder.Group>
