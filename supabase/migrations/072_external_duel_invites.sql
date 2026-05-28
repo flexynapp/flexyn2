@@ -9,17 +9,6 @@
 -- atomically creates a real `duels` row between the two users and
 -- marks the invite claimed.
 --
--- Why a separate table from `duels`:
---   • Real duels need both opponent UUIDs to exist. The whole point
---     of this surface is to allow inviting someone who has NO UUID
---     yet. We can't pre-create the duel row.
---   • The token is the auth credential for the landing page (anon
---     read), so it must live somewhere that doesn't expose the
---     duels social graph.
---   • Once claimed, the invite is "consumed" — we keep the row for
---     audit + analytics but mark it claimed and store the resulting
---     duel_id for traceability.
---
 -- Auth model:
 --   • create_pending_duel_invite — caller is the challenger. SECURITY
 --     DEFINER, validates auth.uid().
@@ -31,6 +20,10 @@
 --     DEFINER, validates not-already-claimed + not-expired +
 --     caller != challenger. Creates the duel + marks claimed in
 --     one transaction.
+--
+-- Paste-safe: every read uses scalar SELECT … INTO v_a, v_b instead
+-- of %ROWTYPE + dotted record access (the clipboard pipeline mangles
+-- the dotted access into 42601). Idempotent.
 
 -- ── Table ───────────────────────────────────────────────────────────────
 
@@ -58,27 +51,14 @@ CREATE INDEX IF NOT EXISTS idx_pending_duel_invites_challenger  ON public.pendin
 
 ALTER TABLE public.pending_duel_invites ENABLE ROW LEVEL SECURITY;
 
--- The challenger sees their own invites (to list them on the Duels
--- page → "Sent invites" section). Nobody else has direct table
--- access — the landing page reads via the SECURITY DEFINER RPC below
--- which exposes only the safe display fields.
 DROP POLICY IF EXISTS "pending_duel_invites: read own" ON public.pending_duel_invites;
 CREATE POLICY "pending_duel_invites: read own"
   ON public.pending_duel_invites FOR SELECT
   TO authenticated
   USING (challenger_id = auth.uid());
 
--- Writes go exclusively through the RPCs. No direct INSERT / UPDATE
--- policy — the SECURITY DEFINER functions bypass RLS for legitimate
--- writes.
-
 
 -- ── create_pending_duel_invite ──────────────────────────────────────────
--- Generates a URL-safe token + persists the invite row. Returns the
--- token so the client can build the shareable URL. The challenger's
--- display fields are snapshotted at create time so the landing page
--- renders consistently even if the challenger later changes their
--- username / avatar.
 
 CREATE OR REPLACE FUNCTION public.create_pending_duel_invite(
   p_duel_type           TEXT DEFAULT 'open',
@@ -113,8 +93,7 @@ BEGIN
     FROM public.user_profiles
    WHERE id = v_uid;
 
-  -- URL-safe random token. 32 hex chars = 128 bits of entropy — more
-  -- than enough to prevent token guessing.
+  -- URL-safe random token. 32 hex chars = 128 bits of entropy.
   v_token   := encode(gen_random_bytes(16), 'hex');
   v_expires := NOW() + (p_window_hours || ' hours')::INTERVAL + INTERVAL '7 days';
 
@@ -127,10 +106,10 @@ BEGIN
   RETURNING id INTO v_invite_id;
 
   RETURN jsonb_build_object(
-    'id',          v_invite_id,
-    'token',       v_token,
-    'expires_at',  v_expires,
-    'duel_type',   p_duel_type,
+    'id',           v_invite_id,
+    'token',        v_token,
+    'expires_at',   v_expires,
+    'duel_type',    p_duel_type,
     'window_hours', p_window_hours
   );
 END;
@@ -140,11 +119,6 @@ GRANT EXECUTE ON FUNCTION public.create_pending_duel_invite(TEXT, JSONB, TEXT, I
 
 
 -- ── get_pending_duel_invite_public ──────────────────────────────────────
--- Anon-readable lookup by token. Returns ONLY safe display fields —
--- no internal IDs except the invite's own id (needed for the claim
--- call), no challenger UUID, no email. This is what the landing page
--- calls to show "Sarah challenged you to a duel" BEFORE the recipient
--- signs in.
 
 CREATE OR REPLACE FUNCTION public.get_pending_duel_invite_public(p_token TEXT)
 RETURNS JSONB
@@ -153,44 +127,47 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_invite public.pending_duel_invites%ROWTYPE;
+  v_id              UUID;
+  v_username        TEXT;
+  v_avatar_url      TEXT;
+  v_duel_type       TEXT;
+  v_window_hours    INT;
+  v_expires_at      TIMESTAMPTZ;
+  v_claimed_by_id   UUID;
 BEGIN
   IF p_token IS NULL OR length(p_token) < 8 THEN
     RETURN NULL;
   END IF;
 
-  SELECT * INTO v_invite
+  SELECT id, challenger_username, challenger_avatar_url, duel_type,
+         window_hours, expires_at, claimed_by_id
+    INTO v_id, v_username, v_avatar_url, v_duel_type,
+         v_window_hours, v_expires_at, v_claimed_by_id
     FROM public.pending_duel_invites
    WHERE claim_token = p_token;
 
-  IF v_invite.id IS NULL THEN
+  IF v_id IS NULL THEN
     RETURN NULL;
   END IF;
 
   RETURN jsonb_build_object(
-    'id',                    v_invite.id,
-    'challenger_username',   v_invite.challenger_username,
-    'challenger_avatar_url', v_invite.challenger_avatar_url,
-    'duel_type',             v_invite.duel_type,
-    'window_hours',          v_invite.window_hours,
-    'expires_at',            v_invite.expires_at,
-    'is_claimed',            v_invite.claimed_by_id IS NOT NULL,
-    'is_expired',            v_invite.expires_at < NOW()
+    'id',                    v_id,
+    'challenger_username',   v_username,
+    'challenger_avatar_url', v_avatar_url,
+    'duel_type',             v_duel_type,
+    'window_hours',          v_window_hours,
+    'expires_at',            v_expires_at,
+    'is_claimed',            v_claimed_by_id IS NOT NULL,
+    'is_expired',            v_expires_at < NOW()
   );
 END;
 $$;
 
-REVOKE ALL  ON FUNCTION public.get_pending_duel_invite_public(TEXT) FROM PUBLIC;
+REVOKE ALL    ON FUNCTION public.get_pending_duel_invite_public(TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_pending_duel_invite_public(TEXT) TO anon, authenticated;
 
 
 -- ── claim_pending_duel_invite ───────────────────────────────────────────
--- Authenticated user accepts the invite. Atomically:
---   1. Locks the invite row (FOR UPDATE) + verifies not claimed,
---      not expired, caller != challenger.
---   2. Creates the real `duels` row between challenger + caller.
---   3. Marks the invite claimed_by_id / claimed_at / resulting_duel_id.
--- Returns { duel_id }.
 
 CREATE OR REPLACE FUNCTION public.claim_pending_duel_invite(p_token TEXT)
 RETURNS JSONB
@@ -199,10 +176,18 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
-  v_uid      UUID := auth.uid();
-  v_invite   public.pending_duel_invites%ROWTYPE;
-  v_duel_id  UUID;
-  v_expires  TIMESTAMPTZ;
+  v_uid                 UUID := auth.uid();
+  v_invite_id           UUID;
+  v_challenger_id       UUID;
+  v_claimed_by_id       UUID;
+  v_resulting_duel_id   UUID;
+  v_expires_at          TIMESTAMPTZ;
+  v_window_hours        INT;
+  v_duel_type           TEXT;
+  v_session_template    JSONB;
+  v_target_exercise_id  TEXT;
+  v_duel_id             UUID;
+  v_new_expires         TIMESTAMPTZ;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '42501';
@@ -211,45 +196,47 @@ BEGIN
     RAISE EXCEPTION 'token required' USING ERRCODE = '22023';
   END IF;
 
-  SELECT * INTO v_invite
+  SELECT id, challenger_id, claimed_by_id, resulting_duel_id, expires_at,
+         window_hours, duel_type, session_template, target_exercise_id
+    INTO v_invite_id, v_challenger_id, v_claimed_by_id, v_resulting_duel_id, v_expires_at,
+         v_window_hours, v_duel_type, v_session_template, v_target_exercise_id
     FROM public.pending_duel_invites
    WHERE claim_token = p_token
    FOR UPDATE;
 
-  IF v_invite.id IS NULL THEN
+  IF v_invite_id IS NULL THEN
     RAISE EXCEPTION 'invite_not_found' USING ERRCODE = '22023';
   END IF;
-  IF v_invite.claimed_by_id IS NOT NULL THEN
-    -- Idempotent return: if THIS caller already claimed it, return
-    -- the resulting duel id so retries land cleanly.
-    IF v_invite.claimed_by_id = v_uid AND v_invite.resulting_duel_id IS NOT NULL THEN
-      RETURN jsonb_build_object('duel_id', v_invite.resulting_duel_id, 'already_claimed_by_you', TRUE);
+  IF v_claimed_by_id IS NOT NULL THEN
+    -- Idempotent: if THIS caller already claimed it, return the duel id.
+    IF v_claimed_by_id = v_uid AND v_resulting_duel_id IS NOT NULL THEN
+      RETURN jsonb_build_object('duel_id', v_resulting_duel_id, 'already_claimed_by_you', TRUE);
     END IF;
     RAISE EXCEPTION 'invite_already_claimed' USING ERRCODE = '22023';
   END IF;
-  IF v_invite.expires_at < NOW() THEN
+  IF v_expires_at < NOW() THEN
     RAISE EXCEPTION 'invite_expired' USING ERRCODE = '22023';
   END IF;
-  IF v_invite.challenger_id = v_uid THEN
+  IF v_challenger_id = v_uid THEN
     RAISE EXCEPTION 'cannot_claim_own_invite' USING ERRCODE = '22023';
   END IF;
 
-  v_expires := NOW() + (v_invite.window_hours || ' hours')::INTERVAL;
+  v_new_expires := NOW() + (v_window_hours || ' hours')::INTERVAL;
 
   INSERT INTO public.duels
     (challenger_id, opponent_id, type, status, session_template,
      target_exercise_id, window_hours, expires_at)
   VALUES
-    (v_invite.challenger_id, v_uid, v_invite.duel_type, 'active',
-     v_invite.session_template, v_invite.target_exercise_id,
-     v_invite.window_hours, v_expires)
+    (v_challenger_id, v_uid, v_duel_type, 'active',
+     v_session_template, v_target_exercise_id,
+     v_window_hours, v_new_expires)
   RETURNING id INTO v_duel_id;
 
   UPDATE public.pending_duel_invites
      SET claimed_by_id     = v_uid,
          claimed_at        = NOW(),
          resulting_duel_id = v_duel_id
-   WHERE id = v_invite.id;
+   WHERE id = v_invite_id;
 
   RETURN jsonb_build_object(
     'duel_id',                v_duel_id,
