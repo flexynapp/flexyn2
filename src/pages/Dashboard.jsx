@@ -251,6 +251,50 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0 }) {
 }
 
 /* ──────────────────────────────────────────────────────────────────
+ *  Section header + collapse helpers (module-scoped — DO NOT inline
+ *  inside Dashboard(). Inlined functional components get a new
+ *  reference each render → React treats them as a different component
+ *  type → mount/unmount churn that defeats AnimatePresence.)
+ * ────────────────────────────────────────────────────────────────── */
+
+function SectionHeader({ label, open, onToggle, tFallback }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full mt-7 mb-2.5 px-1 flex items-center justify-between text-left group"
+      aria-expanded={open}
+    >
+      <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
+        {label}
+      </span>
+      <span className="text-[10px] font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
+        {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
+        <span className="ml-1">{open ? '▾' : '▸'}</span>
+      </span>
+    </button>
+  );
+}
+
+function Collapsible({ open, children }) {
+  return (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="overflow-hidden"
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────
  *  Main Dashboard
  * ────────────────────────────────────────────────────────────────── */
 
@@ -637,42 +681,6 @@ export default function Dashboard() {
     return fmt(n);
   };
 
-  /* ── Section header + collapse helper ─────────────────────────── */
-  // Reusable section header — tappable toggle that drives a section's
-  // open/closed state. Used by every renderable section so the user
-  // gets a consistent collapse affordance.
-  const SectionHeader = ({ label, open, onToggle }) => (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full mt-7 mb-2.5 px-1 flex items-center justify-between text-left group"
-      aria-expanded={open}
-    >
-      <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
-        {label}
-      </span>
-      <span className="text-[10px] font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
-        {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
-        <span className="ml-1">{open ? '▾' : '▸'}</span>
-      </span>
-    </button>
-  );
-  const Collapsible = ({ open, children }) => (
-    <AnimatePresence initial={false}>
-      {open && (
-        <motion.div
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: 'auto', opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={{ duration: 0.25, ease: 'easeOut' }}
-          className="overflow-hidden"
-        >
-          {children}
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
   const renderDashboardSection = (id) => {
     switch (id) {
@@ -682,6 +690,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.readiness', 'Readiness')}
             open={readinessOpen}
             onToggle={toggleReadiness}
+            tFallback={tFallback}
           />
           <Collapsible open={readinessOpen}>
             <div className="mb-3">
@@ -696,6 +705,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.recovery', 'Recovery')}
             open={recoveryOpen}
             onToggle={toggleRecovery}
+            tFallback={tFallback}
           />
           <Collapsible open={recoveryOpen}>
             <div className="mb-3">
@@ -716,6 +726,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.challenges', 'Challenges')}
             open={challengesOpen}
             onToggle={toggleChallenges}
+            tFallback={tFallback}
           />
           <Collapsible open={challengesOpen}>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
@@ -750,6 +761,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.progress', 'Your progress')}
             open={progressOpen}
             onToggle={toggleProgress}
+            tFallback={tFallback}
           />
           <Collapsible open={progressOpen}>
             <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
@@ -785,6 +797,7 @@ export default function Dashboard() {
             label={t('dashboard.quickActions')}
             open={actionsOpen}
             onToggle={toggleActions}
+            tFallback={tFallback}
           />
           <Collapsible open={actionsOpen}>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6">
@@ -807,6 +820,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.discover', 'Discover')}
             open={discoverOpen}
             onToggle={toggleDiscover}
+            tFallback={tFallback}
           />
           <Collapsible open={discoverOpen}>
             <div className="mb-4 md:mb-5">
@@ -827,6 +841,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.motivation', 'More motivation')}
             open={motivationOpen}
             onToggle={toggleMotivation}
+            tFallback={tFallback}
           />
           <Collapsible open={motivationOpen}>
             <div className="mb-5 md:mb-6">
@@ -848,6 +863,7 @@ export default function Dashboard() {
             label={tFallback('dashboard.section.banners', 'Updates')}
             open={bannersOpen}
             onToggle={toggleBanners}
+            tFallback={tFallback}
           />
           <Collapsible open={bannersOpen}>
             <div className="mb-3 space-y-2 mt-1">
