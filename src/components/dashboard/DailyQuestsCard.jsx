@@ -4,12 +4,12 @@
 // (idempotent), polls for progress changes, and lets the user claim coin
 // rewards when quests complete.
 
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { Coins, Sparkles, CheckCircle2 } from 'lucide-react';
+import { Coins, Sparkles, CheckCircle2, ChevronUp, ChevronDown } from 'lucide-react';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { useAuth } from '@/lib/AuthContext';
@@ -20,6 +20,13 @@ import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/l
 import { reportError } from '@/lib/reportError';
 
 export default function DailyQuestsCard({ onNavigated }) {
+  // Collapsible quest list — chevron at the bottom flips between
+  // "expanded" (default) and "collapsed". When collapsed only the
+  // header row stays on screen (Sparkles + "Daily Quests" + count
+  // + claimable badge), which saves a chunk of vertical space on a
+  // tight phone screen. State is per-session so it doesn't carry
+  // across days.
+  const [collapsed, setCollapsed] = useState(false);
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const queryClient = useQueryClient();
@@ -150,24 +157,36 @@ export default function DailyQuestsCard({ onNavigated }) {
         )}
       </div>
 
-      <div className="space-y-2">
-        {annotated.map((q) => (
-          <QuestRow
-            key={q.id}
-            quest={q}
-            onClaim={() => handleClaim(q)}
-            onGo={() => goToQuest(q)}
-            t={t}
-            tFallback={tFallback}
-          />
-        ))}
-      </div>
+      {!collapsed && (
+        <div className="space-y-2">
+          {annotated.map((q) => (
+            <QuestRow
+              key={q.id}
+              quest={q}
+              onClaim={() => handleClaim(q)}
+              onGo={() => goToQuest(q)}
+              t={t}
+              tFallback={tFallback}
+            />
+          ))}
+        </div>
+      )}
 
-      {claimedCount === annotated.length && (
+      {!collapsed && claimedCount === annotated.length && (
         <div className="mt-3 text-[11px] text-center text-muted-foreground">
           {t('dashboard.allQuestsClaimed')}
         </div>
       )}
+
+      <button
+        type="button"
+        onClick={() => setCollapsed(c => !c)}
+        aria-label={collapsed ? 'Expand quests' : 'Collapse quests'}
+        aria-expanded={!collapsed}
+        className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+      >
+        {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
+      </button>
     </Card>
   );
 }

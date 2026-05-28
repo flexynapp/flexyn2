@@ -77,7 +77,7 @@ export default function LoginStreakBanner() {
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-orange-500/10 border border-orange-500/20"
+      className="relative overflow-hidden flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20"
     >
       {/* Full-container ember particle overlay */}
       {embers.map(e => (

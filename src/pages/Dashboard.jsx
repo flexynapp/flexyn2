@@ -174,17 +174,43 @@ function HeroCard({
             t={t}
           />
 
-          {/* Right — Primary CTA */}
+          {/* Right — Primary CTA, golden with periodic shine sweep
+              (à la a video-game loot glint — sweeps once every 4s) */}
           <div className="flex flex-col justify-end">
             <motion.button
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={onPrimary}
-              className="group w-full bg-white text-[hsl(210_18%_11%)] rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 shadow-xl shadow-black/10 hover:shadow-2xl transition-shadow text-left select-none-ui"
+              className="group relative w-full overflow-hidden rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 text-left select-none-ui"
+              style={{
+                background:
+                  'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
+                color: 'hsl(28 65% 22%)',
+                boxShadow:
+                  '0 10px 25px -5px rgba(245, 158, 11, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+              }}
             >
-              <div className="min-w-0">
-                <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-primary mb-1">
+              {/* Periodic shine sweep */}
+              <motion.div
+                aria-hidden="true"
+                className="absolute inset-y-0 -inset-x-4 pointer-events-none"
+                style={{
+                  background:
+                    'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.55) 48%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 52%, transparent 70%)',
+                  mixBlendMode: 'screen',
+                }}
+                initial={{ x: '-110%' }}
+                animate={{ x: '110%' }}
+                transition={{
+                  duration: 1.4,
+                  ease: 'easeInOut',
+                  repeat: Infinity,
+                  repeatDelay: 3.4,
+                }}
+              />
+              <div className="relative min-w-0">
+                <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
                   {hasWorkedOutToday
                     ? t('dashboard.hero.label.again')
                     : t('dashboard.hero.label.today')}
@@ -194,10 +220,15 @@ function HeroCard({
                 </span>
               </div>
               <motion.div
-                className="shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg shadow-primary/30"
+                className="relative shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center"
+                style={{
+                  background: 'linear-gradient(135deg, #fff7d6 0%, #fcd34d 100%)',
+                  color: 'hsl(28 70% 28%)',
+                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.55), inset 0 1px 1px rgba(255,255,255,0.7)',
+                }}
                 whileHover={{ rotate: 5 }}
               >
-                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" />
+                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
               </motion.div>
             </motion.button>
           </div>
@@ -876,10 +907,14 @@ export default function Dashboard() {
             <div className="mb-2">
               <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2 mb-2">
               <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
               <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+            </div>
+            <div className="mb-2">
               <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
+            </div>
+            <div>
               <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
             </div>
           </Collapsible>

@@ -98,7 +98,7 @@ export default function ReadinessCard({ logs = [], compact = false }) {
   const action = ACTION_BY_LABEL[label] || ACTION_BY_LABEL.Ready;
 
   // Ring geometry
-  const SIZE = compact ? 36 : 64;
+  const SIZE = compact ? 28 : 64;
   const STROKE = compact ? 3 : 6;
   const RADIUS = (SIZE - STROKE) / 2;
   const CIRC = 2 * Math.PI * RADIUS;
@@ -114,7 +114,7 @@ export default function ReadinessCard({ logs = [], compact = false }) {
         transition={{ duration: 0.4 }}
         className="h-full"
       >
-        <Card className={`px-2 py-1.5 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5`}>
+        <Card className={`px-2 py-1 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5`}>
           <div className="relative" style={{ width: SIZE, height: SIZE }}>
             <svg width={SIZE} height={SIZE} className="-rotate-90">
               <circle
