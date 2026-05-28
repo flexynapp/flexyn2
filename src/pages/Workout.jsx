@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -190,6 +190,7 @@ export default function Workout() {
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
+  const [todayExpanded, setTodayExpanded] = useState(false); // mobile Today chip → expands RoutineTodayCard
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -1657,11 +1658,16 @@ export default function Workout() {
         <div className="md:hidden flex items-center justify-between mb-3">
           <button
             type="button"
-            onClick={() => setRoutineSheetOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 text-muted-foreground hover:bg-muted/80 transition-colors"
+            onClick={() => setTodayExpanded(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
+              todayExpanded
+                ? 'bg-primary/12 border-primary/30 text-primary'
+                : 'bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted/80'
+            }`}
           >
             <CalendarDays className="w-3 h-3" />
             <span className="text-[10px] font-semibold tracking-[0.12em] uppercase">Today</span>
+            <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${todayExpanded ? 'rotate-180' : ''}`} />
           </button>
           <div className="flex items-center gap-1.5">
             {activeDuel && (
@@ -1746,12 +1752,14 @@ export default function Workout() {
               );
             })()}
 
-            {/* My Routine — today's planned session + calendar access */}
-            <RoutineTodayCard
-              onStart={(ex, label) => startFromExerciseList(ex, label)}
-              onOpenRoutines={() => setRoutineSheetOpen(true)}
-              onChallenge={handleRoutineChallenge}
-            />
+            {/* My Routine — mobile: hidden until Today chip tapped; desktop: always visible */}
+            <div className={`${todayExpanded ? 'block' : 'hidden'} md:block`}>
+              <RoutineTodayCard
+                onStart={(ex, label) => { startFromExerciseList(ex, label); setTodayExpanded(false); }}
+                onOpenRoutines={() => { setRoutineSheetOpen(true); setTodayExpanded(false); }}
+                onChallenge={handleRoutineChallenge}
+              />
+            </div>
             <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
             {/* Primary action — Freestyle */}
@@ -1921,9 +1929,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0}
                     aria-label={tFallback('generator.title', 'Generate Workout')}
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-rose-500/50 bg-gradient-to-br from-red-500/52 via-rose-500/38 to-rose-400/28
-                      hover:border-rose-500/70 hover:shadow-[0_0_18px_rgba(239,68,68,0.40)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-rose-500/50 hover:border-rose-500/70 hover:shadow-[0_0_18px_rgba(239,68,68,0.40)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.50) 0%, rgba(244,63,94,0.36) 100%)' }}
                     onClick={() => setGeneratorOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                   >
@@ -1956,9 +1963,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-2 md:order-1 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Explore Regimens"
-                    className="group relative overflow-hidden cursor-pointer h-full transition-all
-                      p-3 md:p-4 border-rose-500/48 bg-gradient-to-r from-red-500/48 via-rose-500/34 to-rose-400/24
-                      hover:border-rose-500/68 hover:shadow-[0_0_16px_rgba(239,68,68,0.36)]"
+                    className="group relative overflow-hidden cursor-pointer h-full transition-all p-3 md:p-4 border-rose-500/48 hover:border-rose-500/68 hover:shadow-[0_0_16px_rgba(239,68,68,0.36)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.46) 0%, rgba(244,63,94,0.32) 100%)' }}
                     onClick={() => setStoreOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
                   >
@@ -1995,9 +2001,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-3 md:order-7 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Duels"
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-rose-500/45 bg-gradient-to-br from-rose-500/46 via-orange-500/32 to-red-500/26
-                      hover:border-rose-500/65 hover:shadow-[0_0_16px_rgba(244,63,94,0.36)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-rose-500/45 hover:border-rose-500/65 hover:shadow-[0_0_16px_rgba(244,63,94,0.36)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.46) 0%, rgba(249,115,22,0.34) 100%)' }}
                     onClick={() => navigate('/duels')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
                   >
@@ -2030,9 +2035,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-4 md:order-8 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Bounties"
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-orange-500/42 bg-gradient-to-br from-orange-500/44 via-amber-500/30 to-orange-400/24
-                      hover:border-orange-500/62 hover:shadow-[0_0_16px_rgba(249,115,22,0.34)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-500/42 hover:border-orange-500/62 hover:shadow-[0_0_16px_rgba(249,115,22,0.34)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.46) 0%, rgba(245,158,11,0.34) 100%)' }}
                     onClick={() => navigate('/bounties')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
                   >
@@ -2069,9 +2073,8 @@ export default function Workout() {
                 {/* Regimens — mobile: col 1 row 3 / desktop: col 1-2 row 2 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
                   <Card
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-orange-500/40 bg-gradient-to-br from-orange-500/46 via-orange-400/30 to-amber-500/22
-                      hover:border-orange-500/60 hover:shadow-[0_0_14px_rgba(249,115,22,0.30)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-500/40 hover:border-orange-500/60 hover:shadow-[0_0_14px_rgba(249,115,22,0.30)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.46) 0%, rgba(251,146,60,0.32) 100%)' }}
                     onClick={() => setRegimensOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2098,9 +2101,8 @@ export default function Workout() {
                 {/* Saved Workouts — mobile: col 2 row 3 / desktop: col 3-4 row 2 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
                   <Card
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-orange-400/38 bg-gradient-to-br from-orange-400/44 via-amber-400/28 to-orange-500/20
-                      hover:border-orange-400/58 hover:shadow-[0_0_14px_rgba(251,146,60,0.30)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-400/38 hover:border-orange-400/58 hover:shadow-[0_0_14px_rgba(251,146,60,0.30)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.42) 0%, rgba(251,146,60,0.30) 100%)' }}
                     onClick={() => setSavedWorkoutsOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2128,9 +2130,8 @@ export default function Workout() {
                 {/* Cardio — mobile: col 1 row 4 / desktop: col 1-2 row 3 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
                   <Card
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-yellow-500/38 bg-gradient-to-br from-yellow-500/44 via-amber-400/28 to-yellow-400/22
-                      hover:border-yellow-500/58 hover:shadow-[0_0_14px_rgba(234,179,8,0.32)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-yellow-500/38 hover:border-yellow-500/58 hover:shadow-[0_0_14px_rgba(234,179,8,0.32)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.44) 0%, rgba(251,191,36,0.30) 100%)' }}
                     onClick={() => setCardioOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2157,9 +2158,8 @@ export default function Workout() {
                 {/* Goals — mobile: col 2 row 4 / desktop: col 3-4 row 3 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
                   <Card
-                    className="group relative cursor-pointer h-full transition-colors
-                      p-3 md:p-4 border-yellow-400/36 bg-gradient-to-br from-yellow-400/42 via-yellow-300/26 to-amber-300/20
-                      hover:border-yellow-400/56 hover:shadow-[0_0_14px_rgba(250,204,21,0.30)]"
+                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-yellow-400/36 hover:border-yellow-400/56 hover:shadow-[0_0_14px_rgba(250,204,21,0.30)]"
+                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.40) 0%, rgba(250,204,21,0.28) 100%)' }}
                     onClick={() => setGoalsModalOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2187,51 +2187,11 @@ export default function Workout() {
                 <motion.div variants={itemVariants} className="order-9 col-span-full">
                   {/* ring creates a glowing red border without competing with NemesisCard's inner border */}
                   <div className="relative overflow-hidden rounded-xl ring-2 ring-rose-500/45 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
-                    {/* Fire background: sliding left-to-right gradient — always vivid red/orange, no fading */}
-                    <div className="absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0, transform:'translateZ(0)'}}>
-                      <style>{`
-                        @keyframes nemesis-fire-slide {
-                          0%   { background-position: 0% 50%; }
-                          50%  { background-position: 100% 50%; }
-                          100% { background-position: 0% 50%; }
-                        }
-                        @keyframes ember-rise-short {
-                          0%   { opacity:0; transform:translateY(0) translateX(0) scale(1); }
-                          15%  { opacity:1; }
-                          70%  { opacity:0.65; transform:translateY(-42px) translateX(calc(var(--ember-drift)*0.5)) scale(0.6); }
-                          100% { opacity:0; transform:translateY(-78px) translateX(var(--ember-drift)) scale(0.2); }
-                        }
-                      `}</style>
-                      {/* Sliding fire gradient — shifts between deep red and orange, always at full opacity */}
-                      <div className="absolute inset-0 rounded-xl" style={{
-                        background: 'linear-gradient(90deg, rgba(220,38,38,0.58) 0%, rgba(251,146,60,0.50) 25%, rgba(185,28,28,0.55) 50%, rgba(251,146,60,0.50) 75%, rgba(220,38,38,0.58) 100%)',
-                        backgroundSize: '300% 100%',
-                        animation: 'nemesis-fire-slide 3.5s ease-in-out infinite',
-                      }} />
-                      {/* Contained ember particles — short travel so they stay inside the card */}
-                      {[
-                        { id:'n0', l:'5%',  b:'8%',  c:'#ff2020', s:3, d:2.2, dl:0.0, dr:'6px'  },
-                        { id:'n1', l:'13%', b:'20%', c:'#ff6600', s:2, d:2.7, dl:0.5, dr:'-5px' },
-                        { id:'n2', l:'23%', b:'6%',  c:'#ffaa00', s:3, d:2.4, dl:1.1, dr:'8px'  },
-                        { id:'n3', l:'33%', b:'18%', c:'#ff2020', s:2, d:3.0, dl:0.3, dr:'-7px' },
-                        { id:'n4', l:'44%', b:'10%', c:'#ff4400', s:3, d:2.5, dl:1.6, dr:'5px'  },
-                        { id:'n5', l:'54%', b:'22%', c:'#ff6600', s:2, d:2.8, dl:0.8, dr:'-6px' },
-                        { id:'n6', l:'64%', b:'7%',  c:'#ff2020', s:3, d:2.3, dl:1.9, dr:'7px'  },
-                        { id:'n7', l:'74%', b:'16%', c:'#ffaa00', s:2, d:2.9, dl:0.2, dr:'-8px' },
-                        { id:'n8', l:'84%', b:'5%',  c:'#ff4400', s:3, d:2.6, dl:1.4, dr:'6px'  },
-                        { id:'n9', l:'93%', b:'18%', c:'#ff2020', s:2, d:2.4, dl:0.7, dr:'-5px' },
-                      ].map(e => (
-                        <div key={e.id} style={{
-                          position: 'absolute', left: e.l, bottom: e.b,
-                          width: e.s, height: e.s, borderRadius: '50%',
-                          backgroundColor: e.c,
-                          boxShadow: `0 0 ${e.s * 4}px ${e.c}, 0 0 ${e.s * 2}px ${e.c}90`,
-                          animation: `ember-rise-short ${e.d}s ease-in infinite`,
-                          animationDelay: `${e.dl}s`,
-                          '--ember-drift': e.dr,
-                        }} />
-                      ))}
-                    </div>
+                    {/* Static fire background — no animation, always vivid */}
+                    <div className="absolute inset-0 rounded-xl pointer-events-none" style={{
+                      zIndex: 0,
+                      background: 'linear-gradient(135deg, rgba(220,38,38,0.54) 0%, rgba(249,115,22,0.44) 55%, rgba(185,28,28,0.50) 100%)',
+                    }} />
                     <div className="relative" style={{zIndex:1}}>
                       {/* ⓘ info button */}
                       <button type="button"
@@ -2256,7 +2216,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Gauntlet"
-                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/36 bg-gradient-to-br from-yellow-500/42 via-amber-400/26 to-yellow-400/20 hover:border-yellow-500/56 hover:shadow-[0_0_16px_rgba(234,179,8,0.32)] transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/36 hover:border-yellow-500/56 hover:shadow-[0_0_16px_rgba(234,179,8,0.32)] transition-colors h-full"
+                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.44) 0%, rgba(251,191,36,0.30) 100%)' }}
                     onClick={() => navigate('/gauntlet')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
                   >
@@ -2293,7 +2254,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Form Coach"
-                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/34 bg-gradient-to-br from-amber-400/40 via-yellow-400/24 to-yellow-300/18 hover:border-amber-400/54 hover:shadow-[0_0_14px_rgba(251,191,36,0.28)] transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/34 hover:border-amber-400/54 hover:shadow-[0_0_14px_rgba(251,191,36,0.28)] transition-colors h-full"
+                    style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.40) 0%, rgba(251,191,36,0.26) 100%)' }}
                     onClick={() => setFormCoachOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                   >
