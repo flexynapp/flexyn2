@@ -13,7 +13,7 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
-import { Trash2, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -244,17 +244,6 @@ export default function Nutrition() {
   // Derive water data from logs
   const waterEntries = logs.filter(isWaterEntry);
   const waterOz = waterEntries.reduce((sum, e) => sum + waterEntryOz(e), 0);
-
-  // ── Wave 64 declutter — gate niche surfaces ─────────────────────
-  // Many nutrition surfaces (fasting tracker, full meal history,
-  // recipe builder) are noise for a user who hasn't logged a meal
-  // yet. The primary CTA is "log a meal" — keep that one-tap above
-  // the fold.
-  const foodEntries = logs.filter(e => !isWaterEntry(e));
-  const hasLoggedAnyMeal = foodEntries.length >= 1;
-  // Fasting is a niche feature (~5-10% of users); hide until the
-  // user has logged at least one real meal OR explicitly opted in.
-  const showFastingTracker = hasLoggedAnyMeal || userProfile?.fasting_enabled === true;
 
   // Always sync — ensures carousel clears on delete and updates after refetch
   useEffect(() => {
@@ -930,18 +919,13 @@ export default function Nutrition() {
 
       {/* Intermittent-fasting tracker — optional. Card renders the
           start CTA when not fasting; switches to a live countdown
-          ring once started. Per-device localStorage only.
-          Wave 64: gated until the user has logged ≥1 meal — most
-          users never fast and this card was occupying premium space
-          above the log-meal form. */}
-      {showFastingTracker && (
-        <div className="mb-3">
-          <FastingTrackerCard />
-        </div>
-      )}
+          ring once started. Per-device localStorage only. */}
+      <div className="mb-4">
+        <FastingTrackerCard />
+      </div>
 
       {/* Nutrition Tabs */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-3">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
         <div className="flex gap-1 p-1 bg-secondary rounded-lg mb-4 border border-border">
           {[
             { id: 'macros', label: t('nutrition.nutritionalValues') },
@@ -976,46 +960,38 @@ export default function Nutrition() {
         </AnimatePresence>
       </motion.div>
 
-      {/* Nutrition Goals & Plans
-          Wave 64: Recipes + Nutrition Plans + Weekly Planner are
-          one-time setup / advanced features — gated until the user
-          has actually logged a meal. New users see 2 buttons (Edit
-          Goals, Meal History); returning users see all 5. */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className={`mb-3 grid ${hasLoggedAnyMeal ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-2`}>
+      {/* Nutrition Goals & Plans */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={openGoalsEditor} variant="outline" className="w-full h-11 font-heading font-semibold text-xs md:text-sm">
+          <Button onClick={() => setShowRecipeBuilder(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
+            <span className="mr-1">🥘</span>
+            <span className="truncate">Recipes</span>
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+          <Button onClick={openGoalsEditor} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
             <SettingsIcon className="w-4 h-4 mr-1.5 shrink-0" />
             <span className="truncate">{t('nutrition.editGoals')}</span>
           </Button>
         </motion.div>
         <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={() => setShowMealHistory(true)} variant="outline" className="w-full h-11 font-heading font-semibold text-xs md:text-sm">
+          <Button onClick={() => setShowMealHistory(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
             <History className="w-4 h-4 mr-1.5 shrink-0" />
             <span className="truncate">Meal History</span>
           </Button>
         </motion.div>
-        {hasLoggedAnyMeal && (
-          <>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-              <Button onClick={() => setShowRecipeBuilder(true)} variant="outline" className="w-full h-11 font-heading font-semibold text-xs md:text-sm">
-                <span className="mr-1">🥘</span>
-                <span className="truncate">Recipes</span>
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-              <Button onClick={() => setShowNutritionPlans(true)} variant="outline" className="w-full h-11 font-heading font-semibold text-xs md:text-sm">
-                <span className="mr-1">📋</span>
-                <span className="truncate">{t('nutrition.nutritionPlans')}</span>
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }} className="col-span-2 sm:col-span-4">
-              <Button onClick={() => setShowWeeklyPlanner(true)} variant="outline" className="w-full h-11 font-heading font-semibold text-xs md:text-sm">
-                <span className="mr-1">📅</span>
-                <span className="truncate">{tFallback('nutrition.weeklyPlanner', 'Weekly planner')}</span>
-              </Button>
-            </motion.div>
-          </>
-        )}
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+          <Button onClick={() => setShowNutritionPlans(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
+            <span className="mr-1">📋</span>
+            <span className="truncate">{t('nutrition.nutritionPlans')}</span>
+          </Button>
+        </motion.div>
+        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
+          <Button onClick={() => setShowWeeklyPlanner(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
+            <span className="mr-1">📅</span>
+            <span className="truncate">{tFallback('nutrition.weeklyPlanner', 'Weekly planner')}</span>
+          </Button>
+        </motion.div>
       </motion.div>
 
       {/* Log Meal Form */}
@@ -1024,7 +1000,7 @@ export default function Nutrition() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
-        className="mb-3 scroll-mt-24"
+        className="mb-6 scroll-mt-24"
       >
         {/* Portion-size visual guide. Collapsed by default — users
             who know the math don't see it; first-timers can expand. */}
@@ -1053,8 +1029,8 @@ export default function Nutrition() {
       </motion.div>
 
       {/* Water Tracker */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.35 }} className="mb-3">
-        <Card className="p-4 border-none shadow-sm">
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.35 }} className="mb-6">
+        <Card className="p-6 border-none shadow-sm">
           <div className="space-y-4">
             {/* HEADER ROW */}
             <div className="flex items-center justify-between">
@@ -1219,19 +1195,16 @@ export default function Nutrition() {
         </DialogContent>
       </Dialog>
 
-      {/* Entries list.
-          Wave 64: condensed empty state — was a p-8 dashed card with
-          a 48px icon, now a single muted line. Heading hides until
-          the user has logged at least one meal. */}
+      {/* Entries list */}
       <motion.div className="space-y-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
-        {entries.filter(entry => !isWaterEntry(entry)).length > 0 && (
-          <h3 className="font-heading font-bold mb-2">{t('nutrition.todaysMeals')}</h3>
-        )}
+        <h3 className="font-heading font-bold mb-4">{t('nutrition.todaysMeals')}</h3>
         <AnimatePresence>
           {entries.filter(entry => !isWaterEntry(entry)).length === 0 ? (
-            <p className="text-xs text-muted-foreground/70 text-center py-2">
-              {t('nutrition.noMeals')}
-            </p>
+            <Card className="p-8 text-center border-dashed">
+              <TrendingUp className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+              <p className="font-heading font-semibold">{t('nutrition.noMeals')}</p>
+              <p className="text-sm text-muted-foreground mt-1">{t('nutrition.noMealsDesc')}</p>
+            </Card>
           ) : (
             entries.filter(entry => !isWaterEntry(entry)).map((entry) => (
               <motion.div

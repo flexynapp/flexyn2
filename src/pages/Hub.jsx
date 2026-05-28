@@ -7,8 +7,6 @@ import { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/api/supabaseClient';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import HubFeed from '@/components/hub/HubFeed';
@@ -105,30 +103,6 @@ export default function Hub() {
       navigate({ pathname: '/hub', search: params.toString() ? '?' + params.toString() : '' }, { replace: true });
     }
   }, [location.search, navigate]);
-
-  // Wave 61 declutter — gate the social rails (LiveActivityRail,
-  // StoriesRow, FriendLeaderboardPanel) for users with 0 followees.
-  // Pre-follow, these three components render as empty/dead space:
-  //   • LiveActivityRail   — needs friends to be live to show anything
-  //   • StoriesRow         — needs friends with stories
-  //   • FriendLeaderboardPanel — useless without ≥1 friend
-  // FollowSuggestionRail STILL shows below threshold (it's the
-  // empty-feed trap that converts new users into followers), so the
-  // user has a clear next step instead of staring at a blank feed.
-  const { data: followeeCount = 0 } = useQuery({
-    queryKey: ['hubFolloweeCount', user?.email],
-    queryFn: async () => {
-      if (!user?.email) return 0;
-      const { count } = await supabase
-        .from('hub_follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('follower_email', user.email);
-      return count ?? 0;
-    },
-    enabled: !!user?.email,
-    staleTime: 5 * 60_000,
-  });
-  const hasFollowees = followeeCount >= 1;
 
   // flexyn:open-crew — fired by CrewDMInviteCard when user accepts a DM invite
   useEffect(() => {
@@ -277,22 +251,18 @@ export default function Hub() {
           who are actively working out RIGHT NOW. Self-hides when
           nobody's training. Drives FOMO + copy-cat workouts — a strong
           social mechanic that compounds with the crew wars / nemesis
-          stack.
-          Wave 61: gated on hasFollowees — for users with 0 follows
-          this rail is structurally empty, just a dead row. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && hasFollowees && <LiveActivityRail />}
+          stack. */}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <LiveActivityRail />}
 
       {/* Follow suggestions rail (migration 091). Visible when the user
           has <3 followees (empty-feed trap) or hasn't dismissed in 30d.
           Each card is one-tap follow. The biggest single-feature lift
-          to first-week retention because an empty feed = bounce.
-          Not gated by hasFollowees — this IS the entry point. */}
+          to first-week retention because an empty feed = bounce. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
 
       {/* Stories tray — hidden on Crews tab. Moved above the leaderboard
-          per user feedback (the rule is "stories stay on top").
-          Wave 61: gated on hasFollowees — no follows = no stories. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && hasFollowees && (
+          per user feedback (the rule is "stories stay on top"). */}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <StoriesRow
           onViewProfile={(u) => {
             setProfileTarget(u);
@@ -303,13 +273,12 @@ export default function Hub() {
 
       {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
           Sessions toggle. Now sits below stories — was above, swapped per
-          user feedback.
-          Wave 61: gated on hasFollowees — useless with 0 friends. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && hasFollowees && <FriendLeaderboardPanel />}
+          user feedback. */}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
 
       {/* Marketplace + New Post row — shown on feed tabs, not crews */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
-        <div className="flex gap-2.5 mb-2">
+        <div className="flex gap-2.5 mb-4">
           {/* Marketplace — 3/4 width, ember animation */}
           <div className="flex-[3] relative overflow-hidden rounded-2xl">
             {/* Floating ember particles */}
