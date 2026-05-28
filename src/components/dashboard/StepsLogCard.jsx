@@ -5,7 +5,7 @@
 // today's value displayed once logged with tap-to-edit. Numeric quick
 // entry (no wearable sync — that's the separate native-app effort).
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -15,6 +15,43 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { upsertStepLog, getTodayStepLog } from '@/lib/data/stepLogs';
+
+const prefersReducedMotion = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch { return false; }
+};
+
+function RollingCount({ value, format }) {
+  const [display, setDisplay] = useState(0);
+  const rafRef = useRef(null);
+  const prevRef = useRef(0);
+
+  useEffect(() => {
+    const to = Number(value) || 0;
+    if (prefersReducedMotion()) { setDisplay(to); prevRef.current = to; return undefined; }
+    const from = prevRef.current;
+    if (from === to) { setDisplay(to); return undefined; }
+    const duration = 1400;
+    const start = performance.now();
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    const tick = (now) => {
+      const elapsed = Math.min(duration, now - start);
+      const t = ease(elapsed / duration);
+      setDisplay(from + (to - from) * t);
+      if (elapsed < duration) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        setDisplay(to);
+        prevRef.current = to;
+      }
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, [value]);
+
+  return <>{format(Math.round(display))}</>;
+}
 
 export default function StepsLogCard() {
   const { user } = useAuth();
@@ -89,7 +126,9 @@ export default function StepsLogCard() {
             className="text-left"
             aria-label={tFallback('steps.edit', 'Edit step count')}
           >
-            <span className="text-xl font-heading font-bold leading-none">{fmt(logged)}</span>
+            <span className="text-xl font-heading font-bold leading-none tabular-nums">
+              <RollingCount value={logged} format={fmt} />
+            </span>
             <span className="text-[10px] text-muted-foreground ms-1.5">{tFallback('steps.tapEdit', 'tap to edit')}</span>
           </button>
         ) : (
