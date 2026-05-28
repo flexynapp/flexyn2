@@ -569,7 +569,7 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
 const HeroSlideshow = forwardRef(function HeroSlideshow({
   logs, cardioLogs, goals, profile, user,
   streak, hasWorkedOutToday, daysSinceLast,
-  onPrimary, onSlideCta, onSlidesCountChange,
+  onPrimary, onSlideCta, onSlidesCountChange, onSlideColorChange,
   t,
 }, ref) {
   const { tFallback } = useLanguage();
@@ -592,6 +592,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   const streakSlide = mode !== 'path' ? {
     id: 'streak',
     kind: 'streak',
+    color: '20 95% 55%', // warm orange — the brand
     streak,
     hasWorkedOutToday,
     daysSinceLast,
@@ -607,6 +608,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       id: 'feature:duels',
       kind: 'feature',
       tier: 'day',
+      color: '270 85% 60%', // purple — duels feature accent
       icon: Swords,
       kicker: 'Feature of the Day',
       title: 'Duels',
@@ -617,6 +619,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       id: 'feature:stories',
       kind: 'feature',
       tier: 'week',
+      color: '330 80% 60%', // pink — stories feature accent
       icon: Camera,
       kicker: 'Feature of the Week',
       title: 'Stories',
@@ -670,6 +673,24 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   useEffect(() => {
     onSlidesCountChange?.(slides.length);
   }, [slides.length, onSlidesCountChange]);
+
+  // Per-slide color reporting — parent (HeroCard) paints the hero's
+  // gradient mesh in the current slide's accent. Color falls back
+  // from explicit slide.color → iconBg lookup → null (uses primary).
+  useEffect(() => {
+    const slide = slides[idx];
+    if (!slide) { onSlideColorChange?.(null); return; }
+    if (slide.color) { onSlideColorChange?.(slide.color); return; }
+    const map = {
+      'bg-amber-400/20':   '45 95% 55%',
+      'bg-emerald-400/20': '160 80% 50%',
+      'bg-violet-400/20':  '270 85% 60%',
+      'bg-orange-400/20':  '25 90% 55%',
+      'bg-cyan-400/20':    '190 85% 55%',
+      'bg-blue-400/20':    '220 85% 60%',
+    };
+    onSlideColorChange?.(map[slide.iconBg] || null);
+  }, [idx, slides, onSlideColorChange]);
 
   // ── Render slide — streak / achievement / path ─────────────────────
   const slide = slides[idx];

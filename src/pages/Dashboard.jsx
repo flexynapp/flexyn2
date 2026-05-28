@@ -93,6 +93,11 @@ function HeroCard({
   // slideshow content area.
   const slideshowRef = useRef(null);
   const [slideCount, setSlideCount] = useState(0);
+  // Per-slide color tint. Each slide reports its own HSL accent up
+  // via onSlideColorChange — HeroCard paints the hero's gradient
+  // mesh in that color. Falls back to the app's primary brand color
+  // (the "warm orange" hue) when no slide is selected.
+  const [slideColor, setSlideColor] = useState(null);
   const handleDragEnd = (_e, info) => {
     if (slideCount <= 1) return;
     const dx = info.offset.x;
@@ -130,16 +135,23 @@ function HeroCard({
         onDragEnd={handleDragEnd}
         className="relative overflow-hidden rounded-2xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20 touch-pan-y"
       >
-        {/* Animated warm gradient mesh */}
+        {/* Animated gradient mesh — tint follows the current slide's
+            color (orange for streak, purple for duels feature, pink
+            for stories feature, cyan for cardio milestones, etc.). */}
         <div className="absolute inset-0 opacity-90 pointer-events-none">
-          <div
+          <motion.div
+            key={`mesh-tr-${slideColor || 'default'}`}
+            initial={{ opacity: 0.5 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
             className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
-            style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.55), transparent 65%)' }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.55), transparent 65%)` }}
           />
           <motion.div
+            key={`mesh-bl-${slideColor || 'default'}`}
             className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
-            style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.25), transparent 70%)' }}
-            animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.25), transparent 70%)` }}
+            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.85, 1, 0.85] }}
             transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
           />
         </div>
@@ -154,16 +166,7 @@ function HeroCard({
           }}
         />
 
-        <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-4 md:gap-6 p-4 md:p-6">
-          {/* Left — Adaptive content. Three modes auto-selected:
-                • achievements: rotating carousel of recent PRs / goals
-                  hit / level-ups / streak milestones / cardio firsts
-                • path: calculated next-steps ladder for new users
-                  with no activity (uses onboarding signals)
-                • streak: existing N-day streak hero (fallback)
-              See src/components/dashboard/HeroSlideshow.jsx for the
-              mode-selection logic + slide builders. No extra network
-              calls — pulls everything from data already loaded above. */}
+        <div className="relative p-4 md:p-6 md:pb-12">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -177,125 +180,124 @@ function HeroCard({
             onPrimary={onPrimary}
             onSlideCta={(to) => navigate(to)}
             onSlidesCountChange={setSlideCount}
+            onSlideColorChange={setSlideColor}
             t={t}
           />
-
-          {/* Right — Day/night switch + Primary CTA. On mobile the
-              two sit on a single row (switch | gold CTA); on md+ the
-              switch stacks above the CTA in the right column. */}
-          <div className="flex flex-row md:flex-col items-stretch md:justify-end gap-2 md:gap-3">
-            <button
-              type="button"
-              onClick={() => setDarkMode(!darkMode)}
-              aria-label={darkMode
-                ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
-                : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
-              aria-pressed={darkMode}
-              className="relative shrink-0 self-center md:self-start inline-flex items-center w-14 h-7 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 hover:bg-white/25 active:bg-white/30 transition-colors"
-            >
-              {/* Track icons */}
-              <span className="absolute left-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
-                <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-white/70' : 'opacity-100 text-amber-300'}`} />
-              </span>
-              <span className="absolute right-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
-                <Moon className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-100 text-indigo-200' : 'opacity-40 text-white/70'}`} />
-              </span>
-              {/* Sliding knob */}
-              <span
-                className={`absolute top-0.5 inline-block w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                  darkMode ? 'translate-x-7' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
-            <motion.button
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-              onClick={onPrimary}
-              className="group relative flex-1 md:w-full overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
-              style={{
-                background:
-                  'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
-                color: 'hsl(28 65% 22%)',
-                boxShadow:
-                  '0 10px 25px -5px rgba(245, 158, 11, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
-              }}
-            >
-              {/* Periodic shine sweep — sweeps twice per cycle (1.0s
-                  primary, 0.7s secondary echo) with shorter rest. */}
-              <motion.div
-                aria-hidden="true"
-                className="absolute inset-y-0 -inset-x-4 pointer-events-none"
-                style={{
-                  background:
-                    'linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.65) 46%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.65) 54%, transparent 72%)',
-                  mixBlendMode: 'screen',
-                }}
-                initial={{ x: '-110%' }}
-                animate={{ x: '110%' }}
-                transition={{
-                  duration: 0.7,
-                  ease: 'easeInOut',
-                  repeat: Infinity,
-                  repeatDelay: 1.4,
-                }}
-              />
-              {/* Secondary echo, slightly slower lead-in */}
-              <motion.div
-                aria-hidden="true"
-                className="absolute inset-y-0 -inset-x-4 pointer-events-none"
-                style={{
-                  background:
-                    'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.4) 49%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.4) 51%, transparent 62%)',
-                  mixBlendMode: 'screen',
-                }}
-                initial={{ x: '-110%' }}
-                animate={{ x: '110%' }}
-                transition={{
-                  duration: 0.5,
-                  ease: 'easeInOut',
-                  repeat: Infinity,
-                  repeatDelay: 1.6,
-                  delay: 0.25,
-                }}
-              />
-              {/* Amber-glow pulse, sped up to match shine cadence. */}
-              <motion.div
-                aria-hidden="true"
-                className="absolute -inset-2 rounded-2xl pointer-events-none"
-                style={{
-                  background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.4), transparent 70%)',
-                  filter: 'blur(6px)',
-                  zIndex: -1,
-                }}
-                animate={{ opacity: [0.5, 0.9, 0.5] }}
-                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-              />
-              <div className="relative min-w-0">
-                <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
-                  {hasWorkedOutToday
-                    ? t('dashboard.hero.label.again')
-                    : t('dashboard.hero.label.today')}
-                </span>
-                <span className="font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
-                  {cta}
-                </span>
-              </div>
-              <motion.div
-                className="relative shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"
-                style={{
-                  background: 'linear-gradient(135deg, #fff7d6 0%, #fcd34d 100%)',
-                  color: 'hsl(28 70% 28%)',
-                  boxShadow: '0 4px 12px rgba(245, 158, 11, 0.55), inset 0 1px 1px rgba(255,255,255,0.7)',
-                }}
-                whileHover={{ rotate: 5 }}
-              >
-                <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
-              </motion.div>
-            </motion.button>
-          </div>
         </div>
       </motion.div>
+
+      {/* Day/night switch + gold CTA — hang OFF the bottom of the
+          rounded hero card. Negative top margin pulls them up so the
+          gold button visually overlaps the hero's bottom edge (the
+          "loot hanging off the chest" look the user mocked up). */}
+      <div className="relative -mt-5 mx-4 md:mx-6 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setDarkMode(!darkMode)}
+          aria-label={darkMode
+            ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
+            : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
+          aria-pressed={darkMode}
+          className="relative shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
+        >
+          <span className="absolute left-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+            <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-muted-foreground' : 'opacity-100 text-amber-500'}`} />
+          </span>
+          <span className="absolute right-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+            <Moon className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-100 text-indigo-400' : 'opacity-40 text-muted-foreground'}`} />
+          </span>
+          <span
+            className={`absolute top-0.5 inline-block w-6 h-6 rounded-full bg-gradient-to-br from-white to-white/90 shadow-md transition-transform ${
+              darkMode ? 'translate-x-7' : 'translate-x-0.5'
+            }`}
+          />
+        </button>
+        <motion.button
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.98 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
+          onClick={onPrimary}
+          className="group relative flex-1 overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
+          style={{
+            background:
+              'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
+            color: 'hsl(28 65% 22%)',
+            boxShadow:
+              '0 14px 28px -8px rgba(245, 158, 11, 0.55), 0 6px 12px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+          }}
+        >
+          {/* Primary shine sweep */}
+          <motion.div
+            aria-hidden="true"
+            className="absolute inset-y-0 -inset-x-4 pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.65) 46%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.65) 54%, transparent 72%)',
+              mixBlendMode: 'screen',
+            }}
+            initial={{ x: '-110%' }}
+            animate={{ x: '110%' }}
+            transition={{
+              duration: 0.7,
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 1.4,
+            }}
+          />
+          {/* Secondary echo */}
+          <motion.div
+            aria-hidden="true"
+            className="absolute inset-y-0 -inset-x-4 pointer-events-none"
+            style={{
+              background:
+                'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.4) 49%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.4) 51%, transparent 62%)',
+              mixBlendMode: 'screen',
+            }}
+            initial={{ x: '-110%' }}
+            animate={{ x: '110%' }}
+            transition={{
+              duration: 0.5,
+              ease: 'easeInOut',
+              repeat: Infinity,
+              repeatDelay: 1.6,
+              delay: 0.25,
+            }}
+          />
+          {/* Amber-glow pulse */}
+          <motion.div
+            aria-hidden="true"
+            className="absolute -inset-2 rounded-2xl pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.4), transparent 70%)',
+              filter: 'blur(6px)',
+              zIndex: -1,
+            }}
+            animate={{ opacity: [0.5, 0.9, 0.5] }}
+            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+          />
+          <div className="relative min-w-0">
+            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
+              {hasWorkedOutToday
+                ? t('dashboard.hero.label.again')
+                : t('dashboard.hero.label.today')}
+            </span>
+            <span className="font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
+              {cta}
+            </span>
+          </div>
+          <motion.div
+            className="relative shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"
+            style={{
+              background: 'linear-gradient(135deg, #fff7d6 0%, #fcd34d 100%)',
+              color: 'hsl(28 70% 28%)',
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.55), inset 0 1px 1px rgba(255,255,255,0.7)',
+            }}
+            whileHover={{ rotate: 5 }}
+          >
+            <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
+          </motion.div>
+        </motion.button>
+      </div>
     </motion.div>
   );
 }
