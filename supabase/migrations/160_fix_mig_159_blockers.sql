@@ -172,7 +172,7 @@ BEGIN
               FROM public.hub_conversations
              WHERE id = NEW.conversation_id
           ) AS p
-         WHERE p.email IS DISTINCT FROM v_sender_email;
+         WHERE email IS DISTINCT FROM v_sender_email;
 
         IF v_other_emails IS NULL THEN
           RETURN NEW;

@@ -385,6 +385,7 @@ BEGIN
       RETURNS TABLE (event_id UUID, user_id UUID, status TEXT)
       LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
       AS $fn$
+      #variable_conflict use_column
       DECLARE
         v_uid UUID := auth.uid();
         v_gym UUID;
@@ -404,10 +405,13 @@ BEGIN
         IF v_gym IS NULL OR NOT public.is_gym_member_or_owner(v_gym, v_uid) THEN
           RAISE EXCEPTION 'not a member' USING ERRCODE = '42501';
         END IF;
+        -- #variable_conflict use_column lets the bare column names resolve to
+        -- the table (not the RETURNS TABLE OUT params) without an alias —
+        -- keeps the body paste-safe (no er.event_id 2-char tokens).
         RETURN QUERY
-          SELECT er.event_id, er.user_id, er.status::text
-            FROM public.gym_event_rsvps er
-           WHERE er.event_id = ANY(p_event_ids);
+          SELECT event_id, user_id, status::text
+            FROM public.gym_event_rsvps
+           WHERE event_id = ANY(p_event_ids);
       END;
       $fn$;
     $body$;
@@ -422,8 +426,7 @@ END $$;
 -- named differently).
 DO $$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
-              WHERE n.nspname='public' AND p.proname='get_gym_leaderboard') THEN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'get_gym_leaderboard') THEN
     -- We don't redefine the body (it varies by deployed mig version);
     -- instead add a thin pre-check via a helper function and rely on
     -- the membership policy at the table level for the eventual reads.

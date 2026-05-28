@@ -341,27 +341,26 @@ BEGIN
       )
       LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public
       AS $fn$
+      #variable_conflict use_column
       DECLARE
         v_uid UUID := auth.uid();
       BEGIN
         IF v_uid IS NULL THEN
           RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '42501';
         END IF;
+        -- use_column lets bare column names resolve to the crews table
+        -- (not the RETURNS TABLE OUT params), so there are no 3-part
+        -- public.crews.id tokens for the paste pipeline to mangle.
         RETURN QUERY
           WITH my_crews AS (
             SELECT crew_id AS m_crew_id FROM public.crew_members WHERE user_id = v_uid
           )
-          SELECT public.crews.id,
-                 public.crews.name,
-                 public.crews.description,
-                 public.crews.member_count,
-                 public.crews.max_capacity,
-                 public.crews.is_public
+          SELECT id, name, description, member_count, max_capacity, is_public
             FROM public.crews
-           WHERE public.crews.is_public = TRUE
-             AND public.crews.id NOT IN (SELECT m_crew_id FROM my_crews)
-             AND public.crews.member_count < public.crews.max_capacity
-           ORDER BY public.crews.member_count DESC, public.crews.id
+           WHERE is_public = TRUE
+             AND id NOT IN (SELECT m_crew_id FROM my_crews)
+             AND member_count < max_capacity
+           ORDER BY member_count DESC, id
            LIMIT LEAST(GREATEST(COALESCE(p_limit, 12), 1), 50);
       END;
       $fn$;
@@ -658,19 +657,26 @@ BEGIN
       DECLARE
         v_sender_uid UUID := auth.uid();
         v_other_uids UUID[];
+        v_emails     TEXT[];
       BEGIN
-        -- Resolve other participants by joining the conversation row.
-        SELECT array_agg(u.id) INTO v_other_uids
-          FROM public.hub_conversations c
-          CROSS JOIN LATERAL unnest(c.participant_emails) AS pe(email)
-          JOIN auth.users u ON u.email = pe.email
-         WHERE c.id = NEW.conversation_id
-           AND u.id IS DISTINCT FROM v_sender_uid;
+        -- Resolve other participants WITHOUT a join (paste-safe): read the
+        -- conversation's participant_emails, then map emails → uids. The
+        -- prior version used short c./u./pe. aliases that the paste pipeline
+        -- mangles into 42601.
+        SELECT participant_emails INTO v_emails
+          FROM public.hub_conversations
+         WHERE id = NEW.conversation_id;
+        IF v_emails IS NOT NULL THEN
+          SELECT array_agg(id) INTO v_other_uids
+            FROM auth.users
+           WHERE email = ANY(v_emails)
+             AND id IS DISTINCT FROM v_sender_uid;
+        END IF;
         IF v_other_uids IS NOT NULL THEN
           IF EXISTS (
             SELECT 1 FROM unnest(v_other_uids) AS recipient(id)
-             WHERE public.is_blocked(v_sender_uid, recipient.id)
-                OR public.is_blocked(recipient.id, v_sender_uid)
+             WHERE public.is_blocked(v_sender_uid, id)
+                OR public.is_blocked(id, v_sender_uid)
           ) THEN
             RAISE EXCEPTION 'dm_blocked'
               USING ERRCODE = '42501',
