@@ -60,6 +60,8 @@ import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import RegimensSection from '@/components/workout/RegimensSection';
 import RegimenStorePage from '@/components/regimens/RegimenStorePage';
 import StarterPlanHeroCard from '@/components/workout/StarterPlanHeroCard';
+import RoutineTodayCard from '@/components/routines/RoutineTodayCard';
+import MyRoutineSheet from '@/components/routines/MyRoutineSheet';
 import FirstWorkoutTutorial, { hasSeenFirstWorkoutTutorial } from '@/components/workout/FirstWorkoutTutorial';
 import PageHeader from '@/components/PageHeader';
 import { useWorkoutSessions, pauseWorkoutSync } from '@/hooks/useWorkoutSessions';
@@ -180,6 +182,7 @@ export default function Workout() {
   const [editingLog, setEditingLog] = useState(null);
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   const [regimensOpen, setRegimensOpen] = useState(false);
+  const [routineSheetOpen, setRoutineSheetOpen] = useState(false);
   const [storeOpen, setStoreOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
@@ -260,7 +263,8 @@ export default function Workout() {
   useEffect(() => {
     const resumeId = location.state?.resumeSessionId;
     const repeatLog = location.state?.repeatFromLog;
-    if (!resumeId && !repeatLog) return;
+    const startRoutine = location.state?.startRoutineExercises;
+    if (!resumeId && !repeatLog && !startRoutine) return;
 
     // Resume-paused-session branch. Use the hook's resumeWorkout()
     // helper instead of re-reading localStorage directly. The legacy
@@ -307,6 +311,24 @@ export default function Workout() {
         setStarted(true);
         navigate(location.pathname, { replace: true, state: null });
       } catch { /* corrupted localStorage — ignore */ }
+      return;
+    }
+
+    // Start-from-routine branch (Dashboard calendar / deep-link). Pre-loads
+    // today's planned lifts with blank sets. Runs in the effect (before the
+    // getLastSetsForExercise helper is defined) so we blank the sets here.
+    if (Array.isArray(startRoutine)) {
+      const mapped = startRoutine.map(ex => ({
+        name:          ex.name,
+        muscle_group:  Array.isArray(ex.muscles) ? (ex.muscles[0] || '') : '',
+        muscle_groups: Array.isArray(ex.muscles) ? [...ex.muscles] : [],
+        sets: [{ weight: null, reps: null }, { weight: null, reps: null }, { weight: null, reps: null }],
+      }));
+      setActiveSessionId(`routine-${Date.now()}`);
+      if (location.state?.routineDayLabel) setSelectedRegimen({ name: location.state.routineDayLabel });
+      setExercises(mapped);
+      setStarted(true);
+      navigate(location.pathname, { replace: true, state: null });
       return;
     }
 
@@ -1012,6 +1034,68 @@ export default function Workout() {
     setStarted(true);
   };
 
+  // Start today's routine day — pre-load the lifts the user picked, seeded
+  // from history where we have it (progressive-overload tracking continues).
+  const startFromExerciseList = (exList, label) => {
+    setActiveSessionId(`routine-${Date.now()}`);
+    setSelectedRegimen(label ? { name: label } : null);
+    const mapped = (exList || []).map(ex => {
+      const seeded = getLastSetsForExercise(ex.name, 3);
+      const sets = seeded
+        ? seeded.map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null }))
+        : Array.from({ length: 3 }, () => ({ weight: null, reps: null }));
+      return {
+        name: ex.name,
+        muscle_group: Array.isArray(ex.muscles) ? (ex.muscles[0] || '') : '',
+        muscle_groups: Array.isArray(ex.muscles) ? [...ex.muscles] : [],
+        sets,
+      };
+    });
+    setExercises(mapped);
+    setStarted(true);
+  };
+
+  // "Up for a challenge" — append ~2 bonus lifts matching today's focus.
+  // No direct coin/XP grant (that would be farmable); the extra volume earns
+  // its reward through the normal save flow. Pure cherry-on-top.
+  const handleRoutineChallenge = (focus, dayExercises, label) => {
+    const FOCUS_MUSCLES = {
+      push:  ['Chest', 'Shoulders', 'Triceps'],
+      pull:  ['Back', 'Biceps'],
+      legs:  ['Legs', 'Glutes'],
+      upper: ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps'],
+      lower: ['Legs', 'Glutes', 'Core'],
+      core:  ['Core'],
+    };
+    const targets = FOCUS_MUSCLES[focus] || [];
+    const owned = new Set((dayExercises || []).map(e => e.name));
+    const pool = EXERCISE_LIBRARY.filter(ex =>
+      !owned.has(ex.name) &&
+      (targets.length === 0 || (ex.muscles || []).some(m => targets.includes(m))),
+    );
+    const picks = [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
+    if (picks.length === 0) { toast.message('Your plan already covers it — no bonus to add.'); return; }
+    const toSession = (ex, setCount) => {
+      const seeded = getLastSetsForExercise(ex.name, setCount);
+      const sets = seeded
+        ? seeded.map(s => ({ weight: s.weight ?? null, reps: s.reps ?? null }))
+        : Array.from({ length: setCount }, () => ({ weight: null, reps: null }));
+      return {
+        name: ex.name,
+        muscle_group: (ex.muscles || [])[0] || '',
+        muscle_groups: ex.muscles || [],
+        sets,
+      };
+    };
+    const base = (dayExercises || []).map(ex => toSession(ex, 3));
+    const bonus = picks.map(ex => toSession(ex, 2));
+    setActiveSessionId(`challenge-${Date.now()}`);
+    setSelectedRegimen(label ? { name: label } : null);
+    setExercises([...base, ...bonus]);
+    setStarted(true);
+    toast.success(`🔥 Bonus added: ${picks.map(e => e.name).join(' + ')} — finish it for extra XP + coins!`);
+  };
+
   const startFreestyle = () => {
     const id = `freestyle-${Date.now()}`;
     setActiveSessionId(id);
@@ -1612,6 +1696,14 @@ export default function Workout() {
                 />
               );
             })()}
+
+            {/* My Routine — today's planned session + calendar access */}
+            <RoutineTodayCard
+              onStart={(ex, label) => startFromExerciseList(ex, label)}
+              onOpenRoutines={() => setRoutineSheetOpen(true)}
+              onChallenge={handleRoutineChallenge}
+            />
+            <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
             {/* Primary action — Freestyle */}
             <motion.button

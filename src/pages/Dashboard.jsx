@@ -5,13 +5,14 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
 import LogWeightModal from '@/components/dashboard/LogWeightModal';
+import RoutineCalendarModal from '@/components/routines/RoutineCalendarModal';
 import ProgressPhotoCapture from '@/components/progress/ProgressPhotoCapture';
 import DashboardWidgets from '@/components/dashboard/DashboardWidgets';
 import SyncStatus from '@/components/dashboard/SyncStatus';
@@ -268,6 +269,7 @@ export default function Dashboard() {
   const [goalsModalOpen, setGoalsModalOpen] = useState(false);
   const [logWeightOpen, setLogWeightOpen] = useState(false);
   const [photoCaptureOpen, setPhotoCaptureOpen] = useState(false);
+  const [weekModalOpen, setWeekModalOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const defaultWidgetOrder = ['recovery', 'challenges', 'progress', 'actions'];
@@ -691,6 +693,7 @@ export default function Dashboard() {
             </span>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
               <QuickAction to="/workout" icon={Play} label={t('dashboard.startWorkout')} delay={0.18} />
+              <QuickAction icon={CalendarDays} label={tFallback('dashboard.myWeek', 'My week')} onClick={() => setWeekModalOpen(true)} delay={0.21} />
               <QuickAction icon={Dumbbell} label={t('dashboard.createRegimen')} onClick={() => navigate('/workout', { state: { openRegimens: true } })} delay={0.24} />
               <QuickAction icon={TrendingUp} label={t('dashboard.checkProgress')} onClick={() => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); }} delay={0.30} />
               <QuickAction icon={Apple} label={t('dashboard.logMeal')} onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })} delay={0.36} />
@@ -999,6 +1002,8 @@ export default function Dashboard() {
         onOpenChange={setLogWeightOpen}
         profile={userProfile}
       />
+
+      <RoutineCalendarModal open={weekModalOpen} onClose={() => setWeekModalOpen(false)} />
       <ErrorBoundary label="ProgressPhotoCapture">
         <ProgressPhotoCapture
           workoutName={null}
