@@ -480,6 +480,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryFn: () => hubPosts.listForProfile(email, amFollowing, isSelf),
     enabled: !!email,
   });
+  const [profilePostSort, setProfilePostSort] = useState('newest'); // 'newest' | 'popular'
+  const sortedPosts = useMemo(() => {
+    if (profilePostSort === 'popular') {
+      return [...posts].sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+    }
+    return posts;
+  }, [posts, profilePostSort]);
 
   // ── Derived display values (needed by mutations below) ──────────────────
   const ownerUsername = isSelf
@@ -1327,7 +1334,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </motion.div>
 
         {/* Trophy Case */}
-        {(trophyVisible || isSelf) && (
+        {(trophyCase.length > 0 || isSelf) && (
           <div className="mb-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-1.5">
@@ -1586,8 +1593,24 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       )}
 
       {/* Posts */}
-      <h3 className="font-heading font-bold text-base mb-2 px-1">{t('hub.profile.recentPosts')}</h3>
-      {posts.length === 0 ? (
+      <div className="flex items-center justify-between mb-2 px-1">
+        <h3 className="font-heading font-bold text-base">{t('hub.profile.recentPosts')}</h3>
+        {posts.length > 1 && (
+          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
+            <button type="button"
+              onClick={() => setProfilePostSort('newest')}
+              className={`px-2.5 py-1 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              New
+            </button>
+            <button type="button"
+              onClick={() => setProfilePostSort('popular')}
+              className={`px-2.5 py-1 border-l border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              Top
+            </button>
+          </div>
+        )}
+      </div>
+      {sortedPosts.length === 0 ? (
         <EmptyState
           icon={FileText}
           title={isSelf
@@ -1599,7 +1622,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         />
       ) : (
         <div className="space-y-3">
-          {posts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
+          {sortedPosts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
         </div>
       )}
 

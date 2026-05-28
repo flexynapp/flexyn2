@@ -531,6 +531,7 @@ export async function updateCrewProfile(crewId, updates) {
   if (updates.description!== undefined) allowed.description = updates.description;
   if (updates.is_public  !== undefined) allowed.is_public   = updates.is_public;
   if (updates.tag        !== undefined) allowed.tag         = updates.tag;
+  if (updates.avatar_url !== undefined) allowed.avatar_url  = updates.avatar_url;
   const { error } = await supabase.from('crews').update(allowed).eq('id', crewId);
   if (error) throw error;
 }

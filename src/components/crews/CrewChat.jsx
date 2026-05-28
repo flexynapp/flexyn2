@@ -14,7 +14,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, Users, Send, Paperclip, X, Loader2, Camera, Dumbbell,
-  Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle,
+  Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle, Shield, Upload,
 } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
 import { toast } from 'sonner';
@@ -358,6 +358,27 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
   const isCurrentAdmin = myRole === 'leader';
   const isCurrentModerator = myRole === 'leader' || myRole === 'moderator';
 
+  // ── Crew avatar upload ────────────────────────────────────────────────────
+  const avatarInputRef = useRef(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !crew?.id) return;
+    setAvatarUploading(true);
+    try {
+      const url = await crewsData.uploadCrewMedia(file);
+      await crewsData.updateCrewProfile(crew.id, { avatar_url: url });
+      queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
+      toast.success('Crew photo updated!');
+    } catch {
+      toast.error('Could not update crew photo — try again.');
+    } finally {
+      setAvatarUploading(false);
+      if (avatarInputRef.current) avatarInputRef.current.value = '';
+    }
+  };
+
   // Auto-scroll
   const scrollToBottom = useCallback((smooth = true) => {
     const el = scrollerRef.current;
@@ -569,6 +590,31 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         </button>
 
         <div className="flex-1 min-w-0 flex items-center gap-2">
+          {/* Crew avatar — tap to upload if admin */}
+          <div className="relative shrink-0">
+            {crew.avatar_url ? (
+              <img src={crew.avatar_url} alt={crew.name}
+                className="w-8 h-8 rounded-full object-cover border border-border" />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-primary/10 border border-border flex items-center justify-center">
+                <Shield className="w-4 h-4 text-primary/60" />
+              </div>
+            )}
+            {isCurrentAdmin && (
+              <>
+                <button type="button"
+                  onClick={() => avatarInputRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
+                  title="Change crew photo">
+                  {avatarUploading
+                    ? <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
+                    : <Upload className="w-2.5 h-2.5 text-white" />}
+                </button>
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+              </>
+            )}
+          </div>
           <div className="min-w-0">
             <h2 className="font-heading font-bold text-base truncate leading-tight">{crew.name}</h2>
             <p className="text-xs text-muted-foreground leading-tight">{members.length} member{members.length !== 1 ? 's' : ''}</p>

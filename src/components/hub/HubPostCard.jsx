@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
@@ -310,6 +310,60 @@ function PollCard({ post, userEmail }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Collapsible image preview (Twitter/X-style) ──────────────────────────────
+// Default: compact blurred thumbnail with "Tap to view" overlay.
+// Tap once to expand to full image; tap again to collapse.
+function ImagePreview({ src }) {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div
+      className="border-y border-border bg-black cursor-pointer select-none"
+      onClick={() => setExpanded(v => !v)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(v => !v); }}
+      aria-label={expanded ? 'Collapse image' : 'Expand image'}
+    >
+      {expanded ? (
+        <div className="relative">
+          <img
+            src={src}
+            alt=""
+            className="w-full max-h-[600px] object-contain"
+            loading="lazy"
+            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+          />
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
+            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            aria-label="Collapse image"
+          >
+            <ChevronDown className="w-4 h-4" />
+          </button>
+        </div>
+      ) : (
+        <div className="relative overflow-hidden" style={{ height: 100 }}>
+          <img
+            src={src}
+            alt=""
+            className="w-full h-full object-cover"
+            style={{ filter: 'blur(4px)', transform: 'scale(1.05)', opacity: 0.55 }}
+            loading="lazy"
+            onError={(e) => { e.currentTarget.closest('[role=button]').style.display = 'none'; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur-sm border border-border/60 text-xs font-semibold text-foreground shadow-sm">
+              <ImageIcon className="w-3.5 h-3.5" />
+              Tap to view photo
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1040,21 +1094,10 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           author's own posts when no snapshot is present. */}
       <PostActivityBlock post={post} />
 
-      {/* Image */}
+      {/* Image — collapsed by default, tap to expand (Twitter-style) */}
       {post.image_url && (
         <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
-          <div className="border-y border-border bg-black">
-            <img
-              src={post.image_url}
-              alt=""
-              className="w-full max-h-[600px] object-contain"
-              loading="lazy"
-              onError={(e) => {
-                const wrap = e.currentTarget.parentElement;
-                if (wrap) wrap.style.display = 'none';
-              }}
-            />
-          </div>
+          <ImagePreview src={post.image_url} />
         </ContentWarningGate>
       )}
 

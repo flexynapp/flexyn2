@@ -3,7 +3,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, RefreshCw, ArrowUp, Hash, X, TrendingUp, Radio } from 'lucide-react';
+import { Loader2, RefreshCw, ArrowUp, Hash, X, TrendingUp, Radio, Flame, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -89,6 +89,10 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
   // silently missed posts from newly-followed users until full reload.
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const sentinelRef = useRef(null);
+
+  // ── Sort + time filter ────────────────────────────────────────────────────
+  const [sort, setSort] = useState('newest'); // 'newest' | 'popular'
+  const [timeFilter, setTimeFilter] = useState('week'); // 'today' | 'week' | 'all'
 
   // ── Hashtag filter state ──────────────────────────────────────────────────
   const [activeHashtag, setActiveHashtag] = useState(null); // e.g. '#legday'
@@ -288,8 +292,22 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         return body.includes(activeHashtag);
       });
     }
+    // ── Sort ─────────────────────────────────────────────────────────────────
+    if (sort === 'popular') {
+      // Apply time window before sorting by likes
+      if (timeFilter !== 'all') {
+        const now = Date.now();
+        const cutoffMs = timeFilter === 'today' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
+        const cutoff = now - cutoffMs;
+        result = result.filter(p => {
+          const t = new Date(p.created_date || p.created_at).getTime();
+          return t >= cutoff;
+        });
+      }
+      result = [...result].sort((a, b) => (b.like_count || 0) - (a.like_count || 0));
+    }
     return result;
-  }, [allPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag]);
+  }, [allPosts, myCrewIds, mutedEmails, blockedEmails, activeHashtag, sort, timeFilter]);
 
   // Trending hashtags derived from current feed window
   const trendingTags = useMemo(() => computeTrending(allPosts), [allPosts]);
@@ -434,6 +452,44 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
+      {/* ── Sort / Filter bar (Reddit-style) ───────────────────────────── */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Primary sort toggle */}
+        <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
+          <button
+            type="button"
+            onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
+          >
+            <Clock className="w-3 h-3" />
+            New
+          </button>
+          <button
+            type="button"
+            onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
+          >
+            <Flame className="w-3 h-3" />
+            Hot
+          </button>
+        </div>
+        {/* Time filter — only visible for Popular */}
+        {sort === 'popular' && (
+          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
+            {[['today', 'Today'], ['week', 'This Week'], ['all', 'All Time']].map(([val, label]) => (
+              <button
+                key={val}
+                type="button"
+                onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
+                className={`px-2.5 py-1.5 border-l first:border-l-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* ── Go Live button ─────────────────────────────────────────────── */}
       <button
         onClick={() => setBroadcasterOpen(true)}

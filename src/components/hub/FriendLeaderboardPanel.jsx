@@ -81,12 +81,12 @@ export default function FriendLeaderboardPanel() {
         type="button"
         onClick={() => setExpanded(v => !v)}
         aria-expanded={expanded}
-        className={`w-full px-4 py-3 flex items-center justify-between text-left ${expanded ? 'border-b border-border' : ''}`}
+        className={`w-full px-4 py-2 flex items-center justify-between text-left ${expanded ? 'border-b border-border' : ''}`}
       >
         <div className="flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" aria-hidden="true" />
-          <h3 className="font-heading font-bold text-sm">
-            {tFallback('friendLeaderboard.title', 'Friends this week')}
+          <Users className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
+          <h3 className="font-heading font-bold text-xs tracking-wide">
+            {tFallback('friendLeaderboard.title', 'Friend Leaderboard This Week')}
           </h3>
         </div>
         <div className="flex items-center gap-1">
