@@ -29,7 +29,7 @@
 // (logs, cardioLogs, goals, profile, user) so this component adds
 // ZERO extra network calls.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Flame, Trophy, TrendingUp, Award, Zap, Sparkles,
@@ -560,12 +560,12 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
   return 'streak';
 }
 
-export default function HeroSlideshow({
+const HeroSlideshow = forwardRef(function HeroSlideshow({
   logs, cardioLogs, goals, profile, user,
   streak, hasWorkedOutToday, daysSinceLast,
-  onPrimary, onSlideCta,
+  onPrimary, onSlideCta, onSlidesCountChange,
   t,
-}) {
+}, ref) {
   const { tFallback } = useLanguage();
 
   const achievementSlides = useMemo(
@@ -643,6 +643,17 @@ export default function HeroSlideshow({
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
   }, []);
 
+  // Expose next() so the parent HeroCard can render a chevron at the
+  // OUTER rounded-card edge instead of inside the slideshow column
+  // (which is constrained by the hero's p-6 padding).
+  useImperativeHandle(ref, () => ({ next, prev }), [next, prev]);
+
+  // Report slide-count changes up so the parent can show/hide the
+  // chevron button reactively.
+  useEffect(() => {
+    onSlidesCountChange?.(slides.length);
+  }, [slides.length, onSlidesCountChange]);
+
   // ── Render slide — streak / achievement / path ─────────────────────
   const slide = slides[idx];
   if (!slide) return null;
@@ -657,16 +668,6 @@ export default function HeroSlideshow({
         {...dragProps}
         className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
       >
-        {slides.length > 1 && (
-          <button
-            type="button"
-            onClick={next}
-            aria-label={tFallback('dashboard.hero.next', 'Next slide')}
-            className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
-          >
-            <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
-          </button>
-        )}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -741,16 +742,6 @@ export default function HeroSlideshow({
       {...dragProps}
       className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
     >
-      {slides.length > 1 && (
-        <button
-          type="button"
-          onClick={next}
-          aria-label={tFallback('dashboard.hero.next', 'Next slide')}
-          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
-        >
-          <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
-        </button>
-      )}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
           <SlideIcon className="w-4 h-4 text-white" />
@@ -885,4 +876,6 @@ export default function HeroSlideshow({
       )}
     </motion.div>
   );
-}
+});
+
+export default HeroSlideshow;

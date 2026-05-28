@@ -137,10 +137,10 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
       <Card className="overflow-hidden border-border/60">
         <button
           onClick={() => navigate('/workout', { state: { selectedRegimenId: regimen.id } })}
-          className="w-full text-start px-4 py-3 flex items-center gap-3 hover:bg-secondary/40 transition-colors"
+          className="w-full text-start px-3 py-2 flex items-center gap-2.5 hover:bg-secondary/40 transition-colors"
         >
-          <div className={`shrink-0 w-9 h-9 rounded-full ${info.bg} flex items-center justify-center text-base`}>
-            {doneToday ? <CheckCircle2 className={`w-4.5 h-4.5 ${info.color}`} /> : info.emoji}
+          <div className={`shrink-0 w-7 h-7 rounded-full ${info.bg} flex items-center justify-center text-sm`}>
+            {doneToday ? <CheckCircle2 className={`w-3.5 h-3.5 ${info.color}`} /> : info.emoji}
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">

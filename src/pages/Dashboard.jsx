@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -61,7 +61,7 @@ function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
   onPrimary, navigate,
-  t,
+  t, tFallback,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
@@ -81,6 +81,13 @@ function HeroCard({
   } else {
     cta = t('dashboard.hero.cta.startFirst');
   }
+
+  // Carousel chevron — lifted out of HeroSlideshow so it can sit at the
+  // OUTER rounded-card edge instead of inside the slideshow column
+  // (which is constrained by the hero's p-6 padding). slideshowRef
+  // exposes a next() handle; slideCount drives show/hide.
+  const slideshowRef = useRef(null);
+  const [slideCount, setSlideCount] = useState(0);
 
   return (
     <motion.div
@@ -114,6 +121,21 @@ function HeroCard({
           }}
         />
 
+        {/* Carousel chevron — pinned to the OUTER right edge of the
+            rounded card (escapes the inner grid's p-6 inset). Only on
+            mobile (single-col layout); on tablet/desktop the right
+            column is the CTA button, so the chevron would overlap it. */}
+        {slideCount > 1 && (
+          <button
+            type="button"
+            onClick={() => slideshowRef.current?.next()}
+            aria-label={tFallback('dashboard.hero.next', 'Next slide')}
+            className="md:hidden absolute end-2 top-1/2 -translate-y-1/2 z-20 w-10 h-10 rounded-full bg-white/15 backdrop-blur-sm hover:bg-white/25 active:bg-white/35 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
+          </button>
+        )}
+
         <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 md:gap-8 p-6 md:p-8 lg:p-10">
           {/* Left — Adaptive content. Three modes auto-selected:
                 • achievements: rotating carousel of recent PRs / goals
@@ -125,6 +147,7 @@ function HeroCard({
               mode-selection logic + slide builders. No extra network
               calls — pulls everything from data already loaded above. */}
           <HeroSlideshow
+            ref={slideshowRef}
             logs={logs}
             cardioLogs={cardioLogs}
             goals={goals}
@@ -135,6 +158,7 @@ function HeroCard({
             daysSinceLast={daysSinceLast}
             onPrimary={onPrimary}
             onSlideCta={(to) => navigate(to)}
+            onSlidesCountChange={setSlideCount}
             t={t}
           />
 
@@ -316,8 +340,12 @@ export default function Dashboard() {
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const defaultWidgetOrder = [
-    'readiness', 'recovery', 'challenges', 'progress',
-    'actions', 'discover', 'motivation', 'banners',
+    'readiness', 'recovery',
+    'challenges', 'chest', 'league',
+    'progress', 'actions',
+    'discover', 'motivation',
+    'streakBanner', 'onboarding', 'updates',
+    'customize',
   ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
 
@@ -333,26 +361,41 @@ export default function Dashboard() {
       return v === '1';
     } catch { return defaultOpen; }
   };
-  const [readinessOpen,  setReadinessOpen]  = useState(() => initOpen('readiness',  true));
-  const [recoveryOpen,   setRecoveryOpen]   = useState(() => initOpen('recovery',   true));
-  const [challengesOpen, setChallengesOpen] = useState(() => initOpen('challenges', true));
-  const [progressOpen,   setProgressOpen]   = useState(() => initOpen('progress',   true));
-  const [actionsOpen,    setActionsOpen]    = useState(() => initOpen('actions',    true));
-  const [discoverOpen,   setDiscoverOpen]   = useState(() => initOpen('discover',   true));
-  const [motivationOpen, setMotivationOpen] = useState(() => initOpen('motivation', true));
-  const [bannersOpen,    setBannersOpen]    = useState(() => initOpen('banners',    true));
+  const [readinessOpen,    setReadinessOpen]    = useState(() => initOpen('readiness',    true));
+  const [recoveryOpen,     setRecoveryOpen]     = useState(() => initOpen('recovery',     true));
+  const [challengesOpen,   setChallengesOpen]   = useState(() => initOpen('challenges',   true));
+  const [chestOpen,        setChestOpen]        = useState(() => initOpen('chest',        true));
+  const [leagueOpen,       setLeagueOpen]       = useState(() => initOpen('league',       true));
+  const [progressOpen,     setProgressOpen]     = useState(() => initOpen('progress',     true));
+  const [actionsOpen,      setActionsOpen]      = useState(() => initOpen('actions',      true));
+  const [discoverOpen,     setDiscoverOpen]     = useState(() => initOpen('discover',     true));
+  const [motivationOpen,   setMotivationOpen]   = useState(() => initOpen('motivation',   true));
+  const [streakBannerOpen, setStreakBannerOpen] = useState(() => initOpen('streakBanner', true));
+  const [onboardingOpen,   setOnboardingOpen]   = useState(() => initOpen('onboarding',   true));
+  const [updatesOpen,      setUpdatesOpen]      = useState(() => initOpen('updates',      true));
+  const [customizeOpen,    setCustomizeOpen]    = useState(() => initOpen('customize',    true));
+  // "Show more / less" toggle for the quick-actions vertical list.
+  // Defaults to collapsed — user sees the top 3 actions; the rest are
+  // one tap away.
+  const [actionsExpanded, setActionsExpanded] = useState(false);
+
   const makeToggle = (key, setter) => () => setter(v => {
     try { sessionStorage.setItem(`flexyn.dash.${key}Open`, v ? '0' : '1'); } catch { /* ignore */ }
     return !v;
   });
-  const toggleReadiness  = makeToggle('readiness',  setReadinessOpen);
-  const toggleRecovery   = makeToggle('recovery',   setRecoveryOpen);
-  const toggleChallenges = makeToggle('challenges', setChallengesOpen);
-  const toggleProgress   = makeToggle('progress',   setProgressOpen);
-  const toggleActions    = makeToggle('actions',    setActionsOpen);
-  const toggleDiscover   = makeToggle('discover',   setDiscoverOpen);
-  const toggleMotivation = makeToggle('motivation', setMotivationOpen);
-  const toggleBanners    = makeToggle('banners',    setBannersOpen);
+  const toggleReadiness    = makeToggle('readiness',    setReadinessOpen);
+  const toggleRecovery     = makeToggle('recovery',     setRecoveryOpen);
+  const toggleChallenges   = makeToggle('challenges',   setChallengesOpen);
+  const toggleChest        = makeToggle('chest',        setChestOpen);
+  const toggleLeague       = makeToggle('league',       setLeagueOpen);
+  const toggleProgress     = makeToggle('progress',     setProgressOpen);
+  const toggleActions      = makeToggle('actions',      setActionsOpen);
+  const toggleDiscover     = makeToggle('discover',     setDiscoverOpen);
+  const toggleMotivation   = makeToggle('motivation',   setMotivationOpen);
+  const toggleStreakBanner = makeToggle('streakBanner', setStreakBannerOpen);
+  const toggleOnboarding   = makeToggle('onboarding',   setOnboardingOpen);
+  const toggleUpdates      = makeToggle('updates',      setUpdatesOpen);
+  const toggleCustomize    = makeToggle('customize',    setCustomizeOpen);
 
   // ── Rest day declaration ──────────────────────────────────────────────────
   // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
@@ -732,26 +775,45 @@ export default function Dashboard() {
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
               <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
             </motion.div>
-            <div className="flex flex-wrap items-start gap-3 mb-3">
-              <div className="flex-1 min-w-[15rem] empty:hidden">
-                <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+            {!isRestDay && (
+              <div className="mb-3">
+                <StreakRescueCard
+                  streakDays={streak}
+                  lastWorkoutDate={lastWorkoutDate?.toISOString()}
+                  lastMealDate={lastMealDate?.toISOString()}
+                />
               </div>
-              <div className="flex-1 min-w-[15rem] empty:hidden">
-                {!isRestDay && (
-                  <StreakRescueCard
-                    streakDays={streak}
-                    lastWorkoutDate={lastWorkoutDate?.toISOString()}
-                    lastMealDate={lastMealDate?.toISOString()}
-                  />
-                )}
-              </div>
+            )}
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'chest': return (
+        <React.Fragment key="chest">
+          <SectionHeader
+            label={tFallback('dashboard.section.chest', 'Daily chest')}
+            open={chestOpen}
+            onToggle={toggleChest}
+            tFallback={tFallback}
+          />
+          <Collapsible open={chestOpen}>
+            <div className="mb-3">
+              <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
             </div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'league': return (
+        <React.Fragment key="league">
+          <SectionHeader
+            label={tFallback('dashboard.section.league', 'Weekly rank')}
+            open={leagueOpen}
+            onToggle={toggleLeague}
+            tFallback={tFallback}
+          />
+          <Collapsible open={leagueOpen}>
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
               <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
             </motion.div>
-            {/* Nemesis card moved off the Dashboard per user feedback —
-                still surfaces on the Workout screen so it stays competitive
-                without doubling up here. */}
           </Collapsible>
         </React.Fragment>
       );
@@ -791,29 +853,58 @@ export default function Dashboard() {
           </Collapsible>
         </React.Fragment>
       );
-      case 'actions': return (
-        <React.Fragment key="actions">
-          <SectionHeader
-            label={t('dashboard.quickActions')}
-            open={actionsOpen}
-            onToggle={toggleActions}
-            tFallback={tFallback}
-          />
-          <Collapsible open={actionsOpen}>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <QuickAction to="/workout" icon={Play} label={t('dashboard.startWorkout')} delay={0.18} />
-                <QuickAction icon={CalendarDays} label={tFallback('dashboard.myWeek', 'My week')} onClick={() => setWeekModalOpen(true)} delay={0.21} />
-                <QuickAction icon={Dumbbell} label={t('dashboard.createRegimen')} onClick={() => navigate('/workout', { state: { openRegimens: true } })} delay={0.24} />
-                <QuickAction icon={TrendingUp} label={t('dashboard.checkProgress')} onClick={() => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); }} delay={0.30} />
-                <QuickAction icon={Apple} label={t('dashboard.logMeal')} onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })} delay={0.36} />
-                <QuickAction icon={Scale} label={tFallback('dashboard.logWeight', 'Log weight')} onClick={() => setLogWeightOpen(true)} delay={0.42} />
-                <QuickAction icon={Camera} label={tFallback('dashboard.addPhoto', 'Add progress photo')} onClick={() => setPhotoCaptureOpen(true)} delay={0.48} />
-              </div>
-            </motion.div>
-          </Collapsible>
-        </React.Fragment>
-      );
+      case 'actions': {
+        // Single vertical list — top 3 always visible, rest hidden
+        // behind a "Show more" toggle to keep the dashboard compact
+        // (per the "fit in the palm of her hand" goal).
+        const allActions = [
+          { key: 'startWorkout',  to: '/workout', icon: Play,         label: t('dashboard.startWorkout') },
+          { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My week'),         onClick: () => setWeekModalOpen(true) },
+          { key: 'createRegimen', icon: Dumbbell,     label: t('dashboard.createRegimen'),                      onClick: () => navigate('/workout', { state: { openRegimens: true } }) },
+          { key: 'checkProgress', icon: TrendingUp,   label: t('dashboard.checkProgress'),                      onClick: () => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); } },
+          { key: 'logMeal',       icon: Apple,        label: t('dashboard.logMeal'),                            onClick: () => navigate('/nutrition', { state: { openLogMeal: true } }) },
+          { key: 'logWeight',     icon: Scale,        label: tFallback('dashboard.logWeight', 'Log weight'),    onClick: () => setLogWeightOpen(true) },
+          { key: 'addPhoto',      icon: Camera,       label: tFallback('dashboard.addPhoto', 'Add progress photo'), onClick: () => setPhotoCaptureOpen(true) },
+        ];
+        const visibleActions = actionsExpanded ? allActions : allActions.slice(0, 3);
+        const hiddenCount = allActions.length - 3;
+        return (
+          <React.Fragment key="actions">
+            <SectionHeader
+              label={t('dashboard.quickActions')}
+              open={actionsOpen}
+              onToggle={toggleActions}
+              tFallback={tFallback}
+            />
+            <Collapsible open={actionsOpen}>
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6">
+                <div className="flex flex-col gap-2">
+                  {visibleActions.map((a, i) => (
+                    a.to ? (
+                      <QuickAction key={a.key} to={a.to} icon={a.icon} label={a.label} delay={0.05 + i * 0.03} />
+                    ) : (
+                      <QuickAction key={a.key} icon={a.icon} label={a.label} onClick={a.onClick} delay={0.05 + i * 0.03} />
+                    )
+                  ))}
+                  {hiddenCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setActionsExpanded(v => !v)}
+                      className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                      aria-expanded={actionsExpanded}
+                    >
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
+                      {actionsExpanded
+                        ? tFallback('dashboard.actions.showLess', 'Show less')
+                        : tFallback('dashboard.actions.showMore', `Show ${hiddenCount} more`).replace('{n}', String(hiddenCount))}
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            </Collapsible>
+          </React.Fragment>
+        );
+      }
       case 'discover': return (
         <React.Fragment key="discover">
           <SectionHeader
@@ -847,38 +938,79 @@ export default function Dashboard() {
             <div className="mb-5 md:mb-6">
               <DailyQuote editMode={editMode} />
             </div>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-            >
-              <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
-            </motion.div>
           </Collapsible>
         </React.Fragment>
       );
-      case 'banners': return (
-        <React.Fragment key="banners">
+      case 'streakBanner': return (
+        <React.Fragment key="streakBanner">
           <SectionHeader
-            label={tFallback('dashboard.section.banners', 'Updates')}
-            open={bannersOpen}
-            onToggle={toggleBanners}
+            label={tFallback('dashboard.section.streak', 'Streak')}
+            open={streakBannerOpen}
+            onToggle={toggleStreakBanner}
             tFallback={tFallback}
           />
-          <Collapsible open={bannersOpen}>
+          <Collapsible open={streakBannerOpen}>
             <div className="mb-3 space-y-2 mt-1">
               <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
               <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
+            </div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'onboarding': return (
+        <React.Fragment key="onboarding">
+          <SectionHeader
+            label={tFallback('dashboard.section.onboarding', 'Get started')}
+            open={onboardingOpen}
+            onToggle={toggleOnboarding}
+            tFallback={tFallback}
+          />
+          <Collapsible open={onboardingOpen}>
+            <div className="mb-3 mt-1">
+              <ErrorBoundary label="OnboardingNudgeCard">
+                <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
+              </ErrorBoundary>
+            </div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'updates': return (
+        <React.Fragment key="updates">
+          <SectionHeader
+            label={tFallback('dashboard.section.banners', 'Updates')}
+            open={updatesOpen}
+            onToggle={toggleUpdates}
+            tFallback={tFallback}
+          />
+          <Collapsible open={updatesOpen}>
+            <div className="mb-3 space-y-2 mt-1">
               <ErrorBoundary label="PushOptInBanner">
                 <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
               </ErrorBoundary>
               <ErrorBoundary label="IosInstallBanner">
                 <IosInstallBanner />
               </ErrorBoundary>
-              <ErrorBoundary label="OnboardingNudgeCard">
-                <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
-              </ErrorBoundary>
             </div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'customize': return (
+        <React.Fragment key="customize">
+          <SectionHeader
+            label={tFallback('dashboard.section.customize', 'Customize dashboard')}
+            open={customizeOpen}
+            onToggle={toggleCustomize}
+            tFallback={tFallback}
+          />
+          <Collapsible open={customizeOpen}>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+              className="mb-5 md:mb-6"
+            >
+              <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
+            </motion.div>
           </Collapsible>
         </React.Fragment>
       );
@@ -980,6 +1112,7 @@ export default function Dashboard() {
           onPrimary={() => navigate('/workout')}
           navigate={navigate}
           t={t}
+          tFallback={tFallback}
         />
       </div>
 
@@ -988,7 +1121,9 @@ export default function Dashboard() {
            row, a lone card grows to fill it, and any that self-hide
            drop out with no gap. min-w forces a single column on phones
            so text-heavy rows never get cramped. */}
-      <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
+      {/* Compact bento row — tightened from gap-3 / mb-5 / py-3 to
+          gap-2 / mb-3 / py-2 so the row fits in the palm of a hand. */}
+      <div className="flex flex-wrap items-start gap-2 mb-3 md:mb-4">
         <div className="flex-1 min-w-[15rem] empty:hidden">
           <ErrorBoundary label="TodaysPlanCard">
             <TodaysPlanCard
@@ -1018,16 +1153,16 @@ export default function Dashboard() {
               >
                 <button
                   onClick={() => navigate('/workout', { state: { repeatLog: last } })}
-                  className="group w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
+                  className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Repeat2 className="w-4.5 h-4.5 text-primary" />
+                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <Repeat2 className="w-3.5 h-3.5 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
-                    <p className="text-sm font-heading font-bold leading-tight truncate">{title}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
+                    <p className="text-xs font-heading font-bold leading-tight truncate">{title}</p>
                   </div>
-                  <ArrowRight className="w-4 h-4 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
+                  <ArrowRight className="w-3.5 h-3.5 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
                 </button>
               </motion.div>
             );
@@ -1043,11 +1178,11 @@ export default function Dashboard() {
               transition={{ duration: 0.35, delay: 0.08 }}
             >
               {isRestDay ? (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl border border-green-500/30 bg-green-500/5">
-                  <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-500/30 bg-green-500/5">
+                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
-                    <p className="text-[11px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe. Recovery is training too.')}</p>
+                    <p className="text-xs font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
+                    <p className="text-[10px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe.')}</p>
                   </div>
                   <button
                     onClick={handleUndoRestDay}
@@ -1059,10 +1194,10 @@ export default function Dashboard() {
               ) : (
                 <button
                   onClick={handleDeclareRestDay}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
                 >
-                  <Moon className="w-4 h-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
+                  <Moon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
                     {tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
                   </span>
                 </button>
@@ -1082,13 +1217,18 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mt-6 mb-1 px-1 cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-primary/50" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
-                  {id === 'readiness'  ? tFallback('dashboard.section.readiness',  'Readiness')
-                    : id === 'recovery'   ? tFallback('dashboard.section.recovery',   'Recovery')
-                    : id === 'challenges' ? tFallback('dashboard.section.challenges', 'Challenges')
-                    : id === 'progress'   ? tFallback('dashboard.section.progress',   'Your progress')
-                    : id === 'discover'   ? tFallback('dashboard.section.discover',   'Discover')
-                    : id === 'motivation' ? tFallback('dashboard.section.motivation', 'More motivation')
-                    : id === 'banners'    ? tFallback('dashboard.section.banners',    'Updates')
+                  {id === 'readiness'    ? tFallback('dashboard.section.readiness',    'Readiness')
+                    : id === 'recovery'     ? tFallback('dashboard.section.recovery',     'Recovery')
+                    : id === 'challenges'   ? tFallback('dashboard.section.challenges',   'Challenges')
+                    : id === 'chest'        ? tFallback('dashboard.section.chest',        'Daily chest')
+                    : id === 'league'       ? tFallback('dashboard.section.league',       'Weekly rank')
+                    : id === 'progress'     ? tFallback('dashboard.section.progress',     'Your progress')
+                    : id === 'discover'     ? tFallback('dashboard.section.discover',     'Discover')
+                    : id === 'motivation'   ? tFallback('dashboard.section.motivation',   'More motivation')
+                    : id === 'streakBanner' ? tFallback('dashboard.section.streak',       'Streak')
+                    : id === 'onboarding'   ? tFallback('dashboard.section.onboarding',   'Get started')
+                    : id === 'updates'      ? tFallback('dashboard.section.banners',      'Updates')
+                    : id === 'customize'    ? tFallback('dashboard.section.customize',    'Customize dashboard')
                     : t('dashboard.quickActions')}
                 </span>
               </div>
