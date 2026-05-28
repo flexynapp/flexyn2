@@ -22,7 +22,7 @@ const slideVariants = {
 };
 
 export default function DailyQuote({ editMode = false }) {
-  const { t, tFallback } = useLanguage();
+  const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [manageOpen, setManageOpen] = useState(false);
 
@@ -94,10 +94,6 @@ export default function DailyQuote({ editMode = false }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <p className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-3 px-1">
-        {onDay ? t('dashboard.quoteOfTheDay') : tFallback('quotes.more', 'More motivation')}
-      </p>
-
       <div className="relative">
         <motion.div
           key={current.key}

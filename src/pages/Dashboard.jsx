@@ -1,11 +1,11 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, Moon, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronDown, Rows3, Columns2 } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -25,7 +25,6 @@ import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
 import WeeklyRecap from '@/components/dashboard/WeeklyRecap';
 import WorkoutSuggestionCard from '@/components/dashboard/WorkoutSuggestionCard';
 import WorkoutMemoryCard from '@/components/dashboard/WorkoutMemoryCard';
-import TodaysPlanCard from '@/components/dashboard/TodaysPlanCard';
 import CalorieProgressWidget from '@/components/dashboard/CalorieProgressWidget';
 import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
 import HydrationRing from '@/components/dashboard/HydrationRing';
@@ -61,7 +60,7 @@ function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
   onPrimary, navigate,
-  t,
+  t, tFallback,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
@@ -82,6 +81,20 @@ function HeroCard({
     cta = t('dashboard.hero.cta.startFirst');
   }
 
+  // Carousel chevron lives at the OUTER right edge of the viewport,
+  // not inside the slideshow column. Drag-to-swipe also lives on the
+  // outer wrapper so the WHOLE hero card is swipeable, not just the
+  // slideshow content area.
+  const slideshowRef = useRef(null);
+  const [slideCount, setSlideCount] = useState(0);
+  const handleDragEnd = (_e, info) => {
+    if (slideCount <= 1) return;
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    if (dx < -50 || vx < -500) slideshowRef.current?.next?.();
+    else if (dx > 50 || vx > 500) slideshowRef.current?.prev?.();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -89,7 +102,28 @@ function HeroCard({
       transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
       className="relative"
     >
-      <div className="relative overflow-hidden rounded-3xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20">
+      {/* Carousel chevron — pinned to the OUTER right edge of the
+          dashboard content (overflowing past the page's p-4/p-6/p-8
+          padding lands it at the viewport's right edge). Sibling of
+          the rounded card, so the rounded card's overflow-hidden
+          doesn't clip it. */}
+      {slideCount > 1 && (
+        <button
+          type="button"
+          onClick={() => slideshowRef.current?.next?.()}
+          aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
+          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-foreground/80 backdrop-blur-sm text-background hover:bg-foreground active:scale-95 flex items-center justify-center shadow-lg transition-all"
+        >
+          <ChevronRight className="w-5 h-5 rtl:scale-x-[-1]" />
+        </button>
+      )}
+      <motion.div
+        drag={slideCount > 1 ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        onDragEnd={handleDragEnd}
+        className="relative overflow-hidden rounded-3xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20 touch-pan-y"
+      >
         {/* Animated warm gradient mesh */}
         <div className="absolute inset-0 opacity-90 pointer-events-none">
           <div
@@ -125,6 +159,7 @@ function HeroCard({
               mode-selection logic + slide builders. No extra network
               calls — pulls everything from data already loaded above. */}
           <HeroSlideshow
+            ref={slideshowRef}
             logs={logs}
             cardioLogs={cardioLogs}
             goals={goals}
@@ -135,6 +170,7 @@ function HeroCard({
             daysSinceLast={daysSinceLast}
             onPrimary={onPrimary}
             onSlideCta={(to) => navigate(to)}
+            onSlidesCountChange={setSlideCount}
             t={t}
           />
 
@@ -166,7 +202,7 @@ function HeroCard({
             </motion.button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </motion.div>
   );
 }
@@ -270,7 +306,6 @@ const SECTION_LABELS = {
   actions:      (tF, t) => t('dashboard.quickActions'),
   discover:     (tF) => tF('dashboard.section.discover',     'Discover'),
   motivation:   (tF) => tF('dashboard.section.motivation',   'More motivation'),
-  streakBanner: (tF) => tF('dashboard.section.streak',       'Streak'),
   onboarding:   (tF) => tF('dashboard.section.onboarding',   'Get started'),
   customize:    (tF) => tF('dashboard.section.customize',    'Customize dashboard'),
 };
@@ -280,7 +315,7 @@ function SectionHeader({ label, open, onToggle, tFallback }) {
     <button
       type="button"
       onClick={onToggle}
-      className="w-full mt-7 mb-2.5 px-1 flex items-center justify-between text-left group"
+      className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-left group"
       aria-expanded={open}
     >
       <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
@@ -339,7 +374,7 @@ export default function Dashboard() {
     'chest', 'league',
     'progress',
     'discover', 'motivation',
-    'streakBanner', 'onboarding',
+    'onboarding',
     'customize',
   ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
@@ -379,7 +414,6 @@ export default function Dashboard() {
   const [actionsOpen,      setActionsOpen]      = useState(() => initOpen('actions',      true));
   const [discoverOpen,     setDiscoverOpen]     = useState(() => initOpen('discover',     true));
   const [motivationOpen,   setMotivationOpen]   = useState(() => initOpen('motivation',   true));
-  const [streakBannerOpen, setStreakBannerOpen] = useState(() => initOpen('streakBanner', true));
   const [onboardingOpen,   setOnboardingOpen]   = useState(() => initOpen('onboarding',   true));
   const [customizeOpen,    setCustomizeOpen]    = useState(() => initOpen('customize',    true));
   // "Show more / less" toggle for the quick-actions vertical list.
@@ -400,7 +434,6 @@ export default function Dashboard() {
   const toggleActions      = makeToggle('actions',      setActionsOpen);
   const toggleDiscover     = makeToggle('discover',     setDiscoverOpen);
   const toggleMotivation   = makeToggle('motivation',   setMotivationOpen);
-  const toggleStreakBanner = makeToggle('streakBanner', setStreakBannerOpen);
   const toggleOnboarding   = makeToggle('onboarding',   setOnboardingOpen);
   const toggleCustomize    = makeToggle('customize',    setCustomizeOpen);
 
@@ -487,6 +520,19 @@ export default function Dashboard() {
     }
     return result;
   }, [widgetOrder, sectionLayouts]);
+
+  // Reset the customize state — clears widgetOrder + sectionLayouts
+  // back to factory defaults. Used by the "Reset" button in edit mode
+  // so a user who doesn't like their tweaks can go back without
+  // dragging every section around manually.
+  const handleResetCustomize = () => {
+    setWidgetOrder(defaultWidgetOrder);
+    setSectionLayouts({});
+    try {
+      localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);
+      localStorage.removeItem(`flexyn.dashSectionLayouts.${user?.id || 'anon'}`);
+    } catch { /* ignore */ }
+  };
 
   const handleWidgetReorder = (newRowKeys) => {
     // newRowKeys is a list of rowKeys. Map each back to its sections
@@ -986,22 +1032,6 @@ export default function Dashboard() {
           </Collapsible>
         </React.Fragment>
       );
-      case 'streakBanner': return (
-        <React.Fragment key="streakBanner">
-          <SectionHeader
-            label={tFallback('dashboard.section.streak', 'Streak')}
-            open={streakBannerOpen}
-            onToggle={toggleStreakBanner}
-            tFallback={tFallback}
-          />
-          <Collapsible open={streakBannerOpen}>
-            <div className="mb-3 space-y-2 mt-1">
-              <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-              <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
-            </div>
-          </Collapsible>
-        </React.Fragment>
-      );
       case 'onboarding': return (
         <React.Fragment key="onboarding">
           <SectionHeader
@@ -1091,21 +1121,63 @@ export default function Dashboard() {
             )}
             <span className="text-primary">.</span>
           </h1>
-          <button
-            onClick={() => setEditMode(e => !e)}
-            title={editMode ? 'Done editing' : 'Customize home'}
-            className={`mt-1 shrink-0 flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              editMode
-                ? 'bg-primary text-primary-foreground shadow-sm'
-                : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary'
-            }`}
-          >
-            {editMode ? (
-              <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
-            ) : (
-              <LayoutGrid className="w-4 h-4" />
+          <div className="flex items-center gap-2 shrink-0 mt-1">
+            {/* Reset-customize — only shown in edit mode. Restores
+                the default widgetOrder + sectionLayouts. */}
+            {editMode && (
+              <button
+                type="button"
+                onClick={handleResetCustomize}
+                title={tFallback('dashboard.resetCustomize', 'Reset to default')}
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>{tFallback('dashboard.reset', 'Reset')}</span>
+              </button>
             )}
-          </button>
+            {/* Rest-day toggle — small left/right switch tucked next to
+                Customize home. Only appears on un-worked-out days. */}
+            {!hasWorkedOutToday && (
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isRestDay}
+                onClick={() => isRestDay ? handleUndoRestDay() : handleDeclareRestDay()}
+                title={isRestDay
+                  ? tFallback('dashboard.restDay.undo', 'Undo rest day')
+                  : tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
+                className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <span className="hidden sm:inline">{tFallback('dashboard.restDay.short', 'Rest')}</span>
+                <span
+                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
+                    isRestDay ? 'bg-green-500/70' : 'bg-secondary border border-border'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
+                      isRestDay ? 'translate-x-3.5' : 'translate-x-0.5'
+                    }`}
+                  />
+                </span>
+              </button>
+            )}
+            <button
+              onClick={() => setEditMode(e => !e)}
+              title={editMode ? 'Done editing' : 'Customize home'}
+              className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                editMode
+                  ? 'bg-primary text-primary-foreground shadow-sm'
+                  : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary'
+              }`}
+            >
+              {editMode ? (
+                <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
+              ) : (
+                <LayoutGrid className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         <AnimatePresence>
@@ -1129,6 +1201,14 @@ export default function Dashboard() {
           so it doesn't degrade into "you have nothing to do" noise. */}
       <ResumeWorkoutBanner />
 
+      {/* ── Streak banners — sit between the greeting and the hero so
+            the user sees their daily streak the moment they open the
+            app. Kept compact via the banners' own min variants. ───── */}
+      <div className="mb-3 space-y-1.5">
+        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
+        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
+      </div>
+
       {/* ── Hero ───────────────────────────────────────────────── */}
       <div className="mb-4 md:mb-5">
         <HeroCard
@@ -1143,29 +1223,14 @@ export default function Dashboard() {
           onPrimary={() => navigate('/workout')}
           navigate={navigate}
           t={t}
+          tFallback={tFallback}
         />
       </div>
 
-      {/* ── Today's plan / repeat / rest-day — paired bento row ──────
-           flex-wrap + flex-1 + empty:hidden: present cards split the
-           row, a lone card grows to fill it, and any that self-hide
-           drop out with no gap. min-w forces a single column on phones
-           so text-heavy rows never get cramped. */}
-      {/* Compact bento row — tightened from gap-3 / mb-5 / py-3 to
-          gap-2 / mb-3 / py-2 so the row fits in the palm of a hand. */}
+      {/* ── Repeat-last-workout — single quick action below the hero.
+            TodaysPlanCard removed for now (user will reimplement later);
+            rest-day moved to a toggle next to the Customize Home button. */}
       <div className="flex flex-wrap items-start gap-2 mb-3 md:mb-4">
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          <ErrorBoundary label="TodaysPlanCard">
-            <TodaysPlanCard
-              regimens={regimens}
-              logs={logs}
-              hasWorkedOutToday={hasWorkedOutToday}
-            />
-          </ErrorBoundary>
-        </div>
-
-        {/* Repeat Last Workout — most returning users want to repeat
-             exactly what they did last. */}
         <div className="flex-1 min-w-[15rem] empty:hidden">
           {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
             // Pick the most-recent log with actual exercises. logs[0] could
@@ -1199,42 +1264,6 @@ export default function Dashboard() {
           })()}
         </div>
 
-        {/* Rest day declaration */}
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          {!hasWorkedOutToday && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.35, delay: 0.08 }}
-            >
-              {isRestDay ? (
-                <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-green-500/30 bg-green-500/5">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-xs font-semibold text-green-600 dark:text-green-400">{tFallback('dashboard.restDay.label', 'Rest day — you earned it 🌿')}</p>
-                    <p className="text-[10px] text-muted-foreground">{tFallback('dashboard.restDay.subtext', 'Your streak is safe.')}</p>
-                  </div>
-                  <button
-                    onClick={handleUndoRestDay}
-                    className="text-[10px] text-muted-foreground hover:text-foreground underline shrink-0"
-                  >
-                    {tFallback('dashboard.restDay.undo', 'Undo')}
-                  </button>
-                </div>
-              ) : (
-                <button
-                  onClick={handleDeclareRestDay}
-                  className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border/60 bg-secondary/30 hover:bg-secondary/60 transition-colors text-left group"
-                >
-                  <Moon className="w-3.5 h-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
-                  <span className="text-xs text-muted-foreground group-hover:text-foreground transition-colors">
-                    {tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
-                  </span>
-                </button>
-              )}
-            </motion.div>
-          )}
-        </div>
       </div>
 
       {/* ═══ Reorderable rows — each row holds 1 section (hamburger /

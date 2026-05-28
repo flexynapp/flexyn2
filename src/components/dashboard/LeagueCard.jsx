@@ -89,38 +89,38 @@ export default function LeagueCard({ onClick }) {
     >
       <Card className="overflow-hidden border-border/60 theme-card-accent">
         {/* Top stripe — gradient by tier */}
-        <div className={`relative bg-gradient-to-r ${tier.gradient} px-4 pt-3 pb-4 text-white`}>
+        <div className={`relative bg-gradient-to-r ${tier.gradient} px-3 pt-2 pb-2.5 text-white`}>
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-2xl drop-shadow" aria-hidden="true">{tier.icon}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg drop-shadow" aria-hidden="true">{tier.icon}</span>
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider opacity-90">
+                <p className="text-[9px] font-bold uppercase tracking-wider opacity-90">
                   {tFallback('league.weekly', 'Weekly League')}
                 </p>
-                <p className="font-heading font-bold text-base leading-tight drop-shadow">
+                <p className="font-heading font-bold text-xs leading-tight drop-shadow">
                   {tier.label}
                 </p>
               </div>
             </div>
-            <ChevronRight className="w-4 h-4 opacity-80 rtl:scale-x-[-1]" />
+            <ChevronRight className="w-3.5 h-3.5 opacity-80 rtl:scale-x-[-1]" />
           </div>
 
           {/* Rank + days */}
-          <div className="mt-3 flex items-end justify-between">
+          <div className="mt-2 flex items-end justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-wider opacity-80">
+              <p className="text-[9px] uppercase tracking-wider opacity-80">
                 {tFallback('league.yourRank', 'Your rank')}
               </p>
               <div className="flex items-baseline gap-1.5 mt-0.5">
                 <motion.p
                   key={myRank}
-                  className="font-heading font-bold text-2xl leading-none tabular-nums"
+                  className="font-heading font-bold text-lg leading-none tabular-nums"
                   initial={{ y: rankDelta != null ? (rankDelta < 0 ? 12 : -12) : 0, opacity: 0.4 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 >
                   {myRank ? `#${myRank}` : '—'}
-                  <span className="text-sm font-normal opacity-75 ms-1">
+                  <span className="text-xs font-normal opacity-75 ms-1">
                     / {totalMembers}
                   </span>
                 </motion.p>
@@ -147,10 +147,10 @@ export default function LeagueCard({ onClick }) {
               </div>
             </div>
             <div className="text-end">
-              <p className="text-[10px] uppercase tracking-wider opacity-80">
+              <p className="text-[9px] uppercase tracking-wider opacity-80">
                 {tFallback('league.daysLeft', 'Days left')}
               </p>
-              <p className="font-heading font-bold text-xl leading-none mt-0.5 tabular-nums">{daysLeft}</p>
+              <p className="font-heading font-bold text-base leading-none mt-0.5 tabular-nums">{daysLeft}</p>
             </div>
           </div>
         </div>
