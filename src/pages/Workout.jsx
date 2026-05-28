@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -197,6 +197,8 @@ export default function Workout() {
     catch { return ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc']; }
   });
   const [gridEditing, setGridEditing] = useState(false);
+  const [heroSlide, setHeroSlide] = useState(0);
+  const heroRef = useRef(null);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -1629,7 +1631,7 @@ export default function Workout() {
                   {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>}
                   {!activeBountyClaim && activeBounties.length > 0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>}
                 </div>
-                <InfoText id="bounties" text="Daily fitness challenges â€” complete them to earn Flex Coins." />
+                <InfoText id=”bounties” text=”Daily fitness challenges — complete them to earn Flex Coins.” />
               </div>
             </div>
           </Card>
@@ -1715,7 +1717,7 @@ export default function Workout() {
               </div>
               <div>
                 <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-                <InfoText id="goals" text="Set and track your fitness targets â€” strength, weight, endurance." />
+                <InfoText id=”goals” text=”Set and track your fitness targets — strength, weight, endurance.” />
               </div>
             </div>
           </Card>
@@ -1733,7 +1735,7 @@ export default function Workout() {
           </button>
           {activeInfo === 'nemesis' && (
             <p className="absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
-              Your auto-assigned rival â€” beat their stats to dethrone them.
+              Your auto-assigned rival — beat their stats to dethrone them.
             </p>
           )}
           <ErrorBoundary label="NemesisCard">
@@ -1789,7 +1791,7 @@ export default function Workout() {
                   <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
                   <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
                 </div>
-                <InfoText id="formcoach" text="AI form feedback on your lifts â€” record a set and get instant coaching." />
+                <InfoText id=”formcoach” text=”AI form feedback on your lifts — record a set and get instant coaching.” />
               </div>
             </div>
           </Card>
@@ -1945,8 +1947,8 @@ export default function Workout() {
             onClick={() => setTodayExpanded(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-colors ${
               todayExpanded
-                ? 'bg-primary/12 border-primary/30 text-primary'
-                : 'bg-muted/50 border-border/50 text-muted-foreground hover:bg-muted/80'
+                ? 'bg-orange-500/15 border-orange-500/50 text-orange-500'
+                : 'bg-orange-500/8 border-orange-400/35 text-orange-400 hover:bg-orange-500/14 hover:border-orange-400/55'
             }`}
           >
             <CalendarDays className="w-3 h-3" />
@@ -2030,75 +2032,154 @@ export default function Workout() {
             <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
             {/* Primary action â€” Freestyle */}
-            <motion.button
+            {/* ── Hero carousel: Freestyle + Gauntlet ── */}
+            <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              whileHover={{ y: -3, scale: 1.005 }}
-              whileTap={{ scale: 0.975 }}
-              onClick={startFreestyle}
-              className="group relative w-full mb-4 overflow-hidden rounded-3xl text-white text-left select-none-ui"
-              style={{
-                background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)',
-                boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset',
-              }}
+              className="mb-4"
             >
-              {/* Animated aurora blobs */}
-              <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                <div
-                  className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
-                  style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }}
-                />
-                <div
-                  className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30 group-hover:opacity-45 transition-opacity duration-700"
-                  style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }}
-                />
-              </div>
-              {/* Fine grain overlay */}
+              {/* Slides */}
               <div
-                className="absolute inset-0 opacity-[0.04] pointer-events-none rounded-3xl"
-                style={{
-                  backgroundImage:
-                    'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")',
-                  backgroundSize: '180px',
+                ref={heroRef}
+                className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-3xl"
+                style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}
+                onScroll={(e) => {
+                  const idx = Math.round(e.currentTarget.scrollLeft / e.currentTarget.offsetWidth);
+                  setHeroSlide(idx);
                 }}
-              />
-              {/* Top highlight line */}
-              <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+              >
+                {/* Slide 1 — Freestyle */}
+                <button
+                  type="button"
+                  onClick={startFreestyle}
+                  className="group snap-start shrink-0 w-full relative overflow-hidden rounded-3xl text-white text-left select-none-ui"
+                  style={{
+                    background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)',
+                    boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset',
+                  }}
+                >
+                  {/* Aurora blobs */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                    <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                      style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }} />
+                    <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30 group-hover:opacity-45 transition-opacity duration-700"
+                      style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }} />
+                  </div>
+                  {/* Shimmer sweep */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                    <motion.div
+                      className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }}
+                      animate={{ x: ['-60%', '220%'] }}
+                      transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
+                    />
+                  </div>
+                  {/* Grain */}
+                  <div className="absolute inset-0 opacity-[0.04] pointer-events-none rounded-3xl"
+                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")', backgroundSize: '180px' }} />
+                  {/* Top highlight */}
+                  <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+                  <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
+                      <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
+                      <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
+                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                        Ready to go
+                      </span>
+                    </div>
+                    <div className="shrink-0">
+                      <motion.div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                        style={{
+                          background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)',
+                          boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset',
+                        }}
+                        whileHover={{ rotate: 6 }}
+                        transition={{ type: 'spring', stiffness: 380 }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                        <Play className="w-7 h-7 fill-current relative z-10" />
+                      </motion.div>
+                    </div>
+                  </div>
+                </button>
 
-              <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                <div className="min-w-0">
-                  <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">
-                    {t('workout.startKicker')}
-                  </span>
-                  <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">
-                    {t('workout.freestyle')}
-                  </span>
-                  <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">
-                    {t('workout.freestyleDesc')}
-                  </span>
-                  {/* Pill badge */}
-                  <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                    Ready to go
-                  </span>
-                </div>
-                <div className="shrink-0 flex flex-col items-center gap-2">
-                  <motion.div
-                    className="w-16 h-16 md:w-18 md:h-18 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                    style={{
-                      background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)',
-                      boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset',
-                    }}
-                    whileHover={{ rotate: 6 }}
-                    transition={{ type: 'spring', stiffness: 380 }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                    <Play className="w-7 h-7 fill-current relative z-10" />
-                  </motion.div>
-                </div>
+                {/* Slide 2 — Gauntlet */}
+                <button
+                  type="button"
+                  onClick={() => navigate('/gauntlet')}
+                  className="group snap-start shrink-0 w-full relative overflow-hidden rounded-3xl text-white text-left select-none-ui"
+                  style={{
+                    background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)',
+                    boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset',
+                  }}
+                >
+                  {/* Purple aurora blobs */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                    <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
+                      style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.65) 0%, transparent 65%)' }} />
+                    <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-40 group-hover:opacity-55 transition-opacity duration-700"
+                      style={{ background: 'radial-gradient(ellipse, rgba(192,132,252,0.55) 0%, transparent 65%)' }} />
+                  </div>
+                  {/* Shimmer sweep */}
+                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                    <motion.div
+                      className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
+                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
+                      animate={{ x: ['-60%', '220%'] }}
+                      transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }}
+                    />
+                  </div>
+                  {/* Top highlight */}
+                  <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
+                  <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
+                    <div className="min-w-0">
+                      <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
+                      <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">The Gauntlet</span>
+                      <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">
+                        10 challenges. One path. Prove you've got what it takes.
+                      </span>
+                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/20 text-[10px] font-semibold text-violet-300/80 tracking-wide uppercase">
+                        {gauntletProgress?.path_completed
+                          ? '✓ Completed'
+                          : gauntletProgress
+                            ? `Challenge #${gauntletProgress.current_challenge_sequence}`
+                            : 'Start now'}
+                      </span>
+                    </div>
+                    <div className="shrink-0">
+                      <motion.div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                        style={{
+                          background: 'linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(109,40,217,0.75) 100%)',
+                          boxShadow: '0 8px 32px -4px rgba(139,92,246,0.55), 0 0 0 1px rgba(167,139,250,0.3) inset',
+                        }}
+                        whileHover={{ rotate: 6 }}
+                        transition={{ type: 'spring', stiffness: 380 }}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                        <Trophy className="w-7 h-7 relative z-10 text-white" />
+                      </motion.div>
+                    </div>
+                  </div>
+                </button>
               </div>
-            </motion.button>
+
+              {/* Dot pagination */}
+              <div className="flex justify-center gap-2 mt-2.5">
+                {[0, 1].map(i => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => heroRef.current?.scrollTo({ left: i * heroRef.current.offsetWidth, behavior: 'smooth' })}
+                    className={`transition-all duration-300 rounded-full ${heroSlide === i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50'}`}
+                  />
+                ))}
+              </div>
+            </motion.div>
 
             {/* Repeat last workout â€” fastest path to logging for returning
                 users. Pre-fills the most recent session's exercises with the
