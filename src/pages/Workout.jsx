@@ -1599,11 +1599,18 @@ export default function Workout() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="px-4 pt-4 md:px-6 md:pt-6 lg:pb-6 max-w-5xl mx-auto"
       >
+        {/* Mobile: compact date kicker only — hide full header to save space */}
+        <div className="md:hidden flex items-center gap-2 mb-4">
+          <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
+            {cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
+          </span>
+        </div>
         <PageHeader
           kicker={cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
           title={cardioPageTitle || t('nav.workout')}
           hidePeriod
           subtitle={cardioPageTitle ? null : t('workout.subtitle')}
+          className="hidden md:flex"
         />
 
         <motion.div variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
@@ -1651,49 +1658,62 @@ export default function Workout() {
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Duel + Bounty banners — full when we're on the main workout hub
-            (the buttons grid). When the user opens a sub-view (Regimens,
-            Store, Cardio, Saved, Form Coach, Generator), collapse them to a
-            small icon chip strip in the corner so they stay visible without
-            stealing the height the sub-view needs. Per user feedback. */}
+        {/* Duel + Bounty banners — mobile: compact pills always; desktop: chips in sub-view, full banners on hub */}
         {(() => {
-          const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
           if (!activeDuel && !activeBountyClaim) return null;
-          if (inSubView) {
-            return (
-              <div className="flex items-center justify-end gap-2 mb-3">
+          const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
+          return (
+            <>
+              {/* Mobile: always compact pill icons (saves height on small screens) */}
+              <div className="md:hidden flex items-center justify-end gap-2 mb-3 -mt-1">
                 {activeDuel && (
                   <button
                     type="button"
                     onClick={() => navigate('/duels')}
-                    aria-label="Active duel"
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs font-semibold hover:bg-rose-500/18 transition-colors"
                   >
                     <Swords className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
+                    <span>Duel</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
                   </button>
                 )}
                 {activeBountyClaim && (
                   <button
                     type="button"
                     onClick={() => navigate('/bounties')}
-                    aria-label="Active bounty"
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-semibold hover:bg-amber-500/18 transition-colors"
                   >
                     <Zap className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
+                    <span>Bounty</span>
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
                   </button>
                 )}
               </div>
-            );
-          }
-          return (
-            <>
-              {activeDuel && (
-                <DuelBanner duel={activeDuel} currentUserId={user?.id} />
-              )}
-              {activeBountyClaim && (
-                <BountyBanner claim={activeBountyClaim} />
+              {/* Desktop: compact chips in sub-view, full banners on hub */}
+              {inSubView ? (
+                <div className="hidden md:flex items-center justify-end gap-2 mb-3">
+                  {activeDuel && (
+                    <button type="button" onClick={() => navigate('/duels')} aria-label="Active duel"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500"
+                    >
+                      <Swords className="w-3.5 h-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
+                    </button>
+                  )}
+                  {activeBountyClaim && (
+                    <button type="button" onClick={() => navigate('/bounties')} aria-label="Active bounty"
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="hidden md:block">
+                  {activeDuel && <DuelBanner duel={activeDuel} currentUserId={user?.id} />}
+                  {activeBountyClaim && <BountyBanner claim={activeBountyClaim} />}
+                </div>
               )}
             </>
           );
@@ -1891,257 +1911,290 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions */}
-            <motion.div
-              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-2"
-              variants={containerVariants}
-              initial="hidden"
-              animate="visible"
-            >
-              {/* Row 1: Explore Regimens (col-span-2) | Generate Workout (col-span-2) */}
+            {/* Secondary actions — 2-col mobile grid with deep red→orange→yellow gradient */}
+            <div className="relative mb-2">
+              {/* Mobile-only warm gradient backdrop — shows through gaps between cards */}
+              <div
+                className="md:hidden absolute inset-0 rounded-2xl pointer-events-none"
+                style={{
+                  background: 'linear-gradient(to bottom, rgba(90,5,15,0.28) 0%, rgba(155,40,0,0.20) 35%, rgba(180,80,0,0.14) 58%, rgba(155,115,0,0.10) 78%, rgba(100,80,0,0.06) 100%)',
+                  zIndex: 0,
+                }}
+              />
+              <motion.div
+                className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 relative"
+                style={{ zIndex: 1 }}
+                variants={containerVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {/* ── Row 1 (mobile): Generate Workout | Explore Regimens — deep crimson ── */}
 
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Explore Regimens"
-                  className="group relative overflow-hidden p-4 cursor-pointer border-primary/25 bg-gradient-to-r from-red-500/5 via-primary/5 to-orange-400/5 hover:border-primary/50 hover:from-red-500/10 hover:via-primary/10 hover:to-orange-400/10 transition-all h-full"
-                  onClick={() => setStoreOpen(true)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
-                >
-                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                    <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-red-500/30 group-hover:to-primary/30 transition-colors">
-                      <Globe className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
+                {/* Generate Workout — mobile: col 1 row 1 / desktop: col 3-4 row 1 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-1 md:order-2 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0}
+                    aria-label={tFallback('generator.title', 'Generate Workout')}
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-rose-800/40 bg-gradient-to-b from-rose-950/30 to-rose-900/15 hover:border-rose-700/50
+                      md:p-4 md:border-primary/20 md:bg-none md:bg-gradient-to-br md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50"
+                    onClick={() => setGeneratorOpen(true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-5 h-5 text-white" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Browse &amp; adopt top-rated community programs</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0}
-                  aria-label={tFallback('generator.title', 'Generate Workout')}
-                  className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-red-500/5 via-primary/5 to-orange-400/5 hover:border-primary/50 transition-colors h-full"
-                  onClick={() => setGeneratorOpen(true)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0">
-                      <Sparkles className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">
-                        {tFallback('generator.title', 'Generate Workout')}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                        {tFallback('generator.cardSubtitle', 'AI builds a session from your history')}
-                      </p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Row 2: Regimens (col-span-2) | Saved Workouts (col-span-2) */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setRegimensOpen(true)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                      <Dumbbell className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.regimensDesc')}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
-                  onClick={() => setSavedWorkoutsOpen(true)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
-                      <History className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Row 3: Cardio (col-span-2) | Goals (col-span-2) */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setCardioOpen(true)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                      <Activity className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  className="group p-4 cursor-pointer border-border/70 hover:border-orange-500/40 transition-colors h-full"
-                  onClick={() => setGoalsModalOpen(true)}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
-                      <Target className="w-5 h-5 text-orange-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-                    </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Row 4: Duels (col-span-2) | Bounties (col-span-2) */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Duels"
-                  className="group p-4 cursor-pointer border-rose-500/20 bg-gradient-to-br from-rose-500/5 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/10 transition-colors h-full"
-                  onClick={() => navigate('/duels')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
-                      <Swords className="w-4 h-4 text-rose-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                        {activeDuel && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm leading-tight">
+                          {tFallback('generator.title', 'Generate Workout')}
+                        </p>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                          {tFallback('generator.cardSubtitle', 'AI builds a session from your history')}
+                        </p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
+                  </Card>
+                </motion.div>
 
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Bounties"
-                  className="group p-4 cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/10 transition-colors h-full"
-                  onClick={() => navigate('/bounties')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
-                      <Zap className="w-4 h-4 text-amber-500" />
+                {/* Explore Regimens — mobile: col 2 row 1 / desktop: col 1-2 row 1 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-2 md:order-1 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Explore Regimens"
+                    className="group relative overflow-hidden cursor-pointer h-full transition-all
+                      p-3 border-rose-800/35 bg-gradient-to-b from-rose-950/25 to-rose-900/12 hover:border-rose-700/45
+                      md:p-4 md:border-primary/25 md:bg-none md:bg-gradient-to-r md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10"
+                    onClick={() => setStoreOpen(true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
+                  >
+                    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                        {activeBountyClaim && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
-                        )}
-                        {!activeBountyClaim && activeBounties.length > 0 && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
-                        )}
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-red-500/30 group-hover:to-primary/30 transition-colors">
+                        <Globe className="w-5 h-5 text-primary" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Row 5: Nemesis — full width */}
-
-              <motion.div variants={itemVariants} className="col-span-full">
-                <ErrorBoundary label="NemesisCard">
-                  <NemesisCard currentUserId={user?.id} />
-                </ErrorBoundary>
-              </motion.div>
-
-              {/* Row 6: Gauntlet (col-span-2) */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Gauntlet"
-                  className="group p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
-                  onClick={() => navigate('/gauntlet')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
-                      <Trophy className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                        {gauntletProgress?.path_completed && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
-                        )}
-                        {!gauntletProgress?.path_completed && gauntletProgress && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
-                            #{gauntletProgress.current_challenge_sequence}
-                          </span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-center gap-2 md:justify-start">
+                          <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
+                          <span className="hidden md:inline text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
+                        </div>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Browse &amp; adopt top-rated community programs</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
+                  </Card>
+                </motion.div>
 
-              {/* Row 7: Form Coach — last */}
+                {/* ── Row 2 (mobile): Duels | Bounties — orange-red ── */}
 
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Form Coach"
-                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setFormCoachOpen(true)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                      <Camera className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                {/* Duels — mobile: col 1 row 2 / desktop: col 1-2 row 4 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-3 md:order-7 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Duels"
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-rose-500/25 bg-gradient-to-br from-rose-500/8 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/12
+                      md:p-4"
+                    onClick={() => navigate('/duels')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
+                        <Swords className="w-4 h-4 text-rose-500" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-center gap-2 md:justify-start">
+                          <p className="font-heading font-bold text-sm leading-tight">Duels</p>
+                          {activeDuel && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
+                          )}
+                        </div>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
+                      </div>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
+                  </Card>
+                </motion.div>
+
+                {/* Bounties — mobile: col 2 row 2 / desktop: col 3-4 row 4 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-4 md:order-8 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Bounties"
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-amber-500/25 bg-gradient-to-br from-amber-500/8 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/12
+                      md:p-4"
+                    onClick={() => navigate('/bounties')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
+                        <Zap className="w-4 h-4 text-amber-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-center gap-2 md:justify-start">
+                          <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                          {activeBountyClaim && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
+                          )}
+                          {!activeBountyClaim && activeBounties.length > 0 && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
+                          )}
+                        </div>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* ── Row 3 (mobile): Regimens | Saved Workouts — orange ── */}
+
+                {/* Regimens — mobile: col 1 row 3 / desktop: col 1-2 row 2 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
+                  <Card
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-orange-600/25 bg-gradient-to-b from-orange-950/20 to-orange-900/10 hover:border-orange-500/40
+                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-primary/40"
+                    onClick={() => setRegimensOpen(true)}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Dumbbell className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.regimensDesc')}</p>
+                      </div>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* Saved Workouts — mobile: col 2 row 3 / desktop: col 3-4 row 2 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
+                  <Card
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-orange-600/20 bg-gradient-to-b from-orange-950/15 to-orange-900/8 hover:border-orange-500/35
+                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-orange-500/40"
+                    onClick={() => setSavedWorkoutsOpen(true)}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
+                        <History className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
+                      </div>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* ── Row 4 (mobile): Cardio | Goals — amber/yellow ── */}
+
+                {/* Cardio — mobile: col 1 row 4 / desktop: col 1-2 row 3 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
+                  <Card
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-amber-600/20 bg-gradient-to-b from-amber-950/15 to-yellow-900/8 hover:border-amber-500/35
+                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-primary/40"
+                    onClick={() => setCardioOpen(true)}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Activity className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
+                      </div>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* Goals — mobile: col 2 row 4 / desktop: col 3-4 row 3 */}
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
+                  <Card
+                    className="group cursor-pointer h-full transition-colors
+                      p-3 border-amber-600/15 bg-gradient-to-b from-amber-950/12 to-yellow-900/6 hover:border-amber-500/30
+                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-orange-500/40"
+                    onClick={() => setGoalsModalOpen(true)}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
+                        <Target className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
+                      </div>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* ── Nemesis — full-width row ── */}
+
+                <motion.div variants={itemVariants} className="order-9 col-span-full">
+                  <ErrorBoundary label="NemesisCard">
+                    <NemesisCard currentUserId={user?.id} />
+                  </ErrorBoundary>
+                </motion.div>
+
+                {/* ── Bottom: Gauntlet | Form Coach ── */}
+
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Gauntlet"
+                    className="group p-3 md:p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
+                    onClick={() => navigate('/gauntlet')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
+                        <Trophy className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-center gap-2 md:justify-start">
+                          <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
+                          {gauntletProgress?.path_completed && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
+                          )}
+                          {!gauntletProgress?.path_completed && gauntletProgress && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
+                              #{gauntletProgress.current_challenge_sequence}
+                            </span>
+                          )}
+                        </div>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Form Coach"
+                    className="group p-3 md:p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
+                    onClick={() => setFormCoachOpen(true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
+                  >
+                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Camera className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-center gap-1.5 md:justify-start">
+                          <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                        </div>
+                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
+                      </div>
+                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
               </motion.div>
-            </motion.div>
+            </div>
           </>
         ) : (
           <div className="mb-8">
