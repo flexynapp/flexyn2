@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, Rows3, Columns2, RotateCcw } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -45,6 +45,7 @@ import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { useTheme } from '@/lib/ThemeContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -62,6 +63,11 @@ function HeroCard({
   onPrimary, navigate,
   t, tFallback,
 }) {
+  // Day/night toggle pinned to the CTA column. On mobile (grid-cols-1),
+  // the CTA stacks below the slideshow — toggle sits to the LEFT of
+  // the gold button on a single row. On md+ the gold button has its
+  // own column; toggle stacks above it.
+  const { darkMode, setDarkMode } = useTheme();
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
   // carousel / new-user calculated path / streak fallback) and uses
@@ -174,15 +180,39 @@ function HeroCard({
             t={t}
           />
 
-          {/* Right — Primary CTA, golden with periodic shine sweep
-              (à la a video-game loot glint — sweeps once every 4s) */}
-          <div className="flex flex-col justify-end">
+          {/* Right — Day/night switch + Primary CTA. On mobile the
+              two sit on a single row (switch | gold CTA); on md+ the
+              switch stacks above the CTA in the right column. */}
+          <div className="flex flex-row md:flex-col items-stretch md:justify-end gap-2 md:gap-3">
+            <button
+              type="button"
+              onClick={() => setDarkMode(!darkMode)}
+              aria-label={darkMode
+                ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
+                : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
+              aria-pressed={darkMode}
+              className="relative shrink-0 self-center md:self-start inline-flex items-center w-14 h-7 rounded-full bg-white/15 backdrop-blur-sm border border-white/20 hover:bg-white/25 active:bg-white/30 transition-colors"
+            >
+              {/* Track icons */}
+              <span className="absolute left-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+                <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-white/70' : 'opacity-100 text-amber-300'}`} />
+              </span>
+              <span className="absolute right-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+                <Moon className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-100 text-indigo-200' : 'opacity-40 text-white/70'}`} />
+              </span>
+              {/* Sliding knob */}
+              <span
+                className={`absolute top-0.5 inline-block w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                  darkMode ? 'translate-x-7' : 'translate-x-0.5'
+                }`}
+              />
+            </button>
             <motion.button
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={onPrimary}
-              className="group relative w-full overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
+              className="group relative flex-1 md:w-full overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
               style={{
                 background:
                   'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
@@ -204,13 +234,13 @@ function HeroCard({
                 initial={{ x: '-110%' }}
                 animate={{ x: '110%' }}
                 transition={{
-                  duration: 1.0,
+                  duration: 0.7,
                   ease: 'easeInOut',
                   repeat: Infinity,
-                  repeatDelay: 2.2,
+                  repeatDelay: 1.4,
                 }}
               />
-              {/* Secondary, smaller echo shine offset 0.3s after main */}
+              {/* Secondary echo, slightly slower lead-in */}
               <motion.div
                 aria-hidden="true"
                 className="absolute inset-y-0 -inset-x-4 pointer-events-none"
@@ -222,25 +252,24 @@ function HeroCard({
                 initial={{ x: '-110%' }}
                 animate={{ x: '110%' }}
                 transition={{
-                  duration: 0.7,
+                  duration: 0.5,
                   ease: 'easeInOut',
                   repeat: Infinity,
-                  repeatDelay: 2.5,
-                  delay: 0.3,
+                  repeatDelay: 1.6,
+                  delay: 0.25,
                 }}
               />
-              {/* Soft amber-glow pulse around the button — a slow,
-                  breathing bloom that hints at "this is the prize" */}
+              {/* Amber-glow pulse, sped up to match shine cadence. */}
               <motion.div
                 aria-hidden="true"
                 className="absolute -inset-2 rounded-2xl pointer-events-none"
                 style={{
-                  background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.35), transparent 70%)',
+                  background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.4), transparent 70%)',
                   filter: 'blur(6px)',
                   zIndex: -1,
                 }}
-                animate={{ opacity: [0.5, 0.85, 0.5] }}
-                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
+                animate={{ opacity: [0.5, 0.9, 0.5] }}
+                transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
               />
               <div className="relative min-w-0">
                 <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
@@ -954,6 +983,18 @@ export default function Dashboard() {
             <div>
               <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
             </div>
+            {/* Bottom collapse chevron — mirrors the Daily Quests
+                pattern so the user can tuck the recovery cards away
+                without scrolling back up to the section header. */}
+            <button
+              type="button"
+              onClick={toggleRecovery}
+              aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
+              aria-expanded={recoveryOpen}
+              className="w-full mt-2 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+            >
+              <ChevronUp className="w-3.5 h-3.5" />
+            </button>
           </Collapsible>
         </React.Fragment>
       );
@@ -1150,7 +1191,7 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="mb-2"
+        className=""
       >
         <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
           {todayLabel}
@@ -1249,7 +1290,7 @@ export default function Dashboard() {
       {/* ── Streak banners — sit between the greeting and the hero so
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
-      <div className="mb-2 space-y-1">
+      <div className="mt-1 mb-2 space-y-1">
         <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
         <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
       </div>
