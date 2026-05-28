@@ -2,8 +2,13 @@
 //
 // Renders fullscreen animated scenes for loot themes. Each theme's
 // `animation` id (set in src/lib/lootThemes.js) maps to a scene Layer
-// component below. Layers sit pointer-events-none at z-index 0, behind
-// every UI element.
+// component below. Layers sit pointer-events-none at z-index -1, behind
+// every UI element. (Hotfix after Wave 65 ship: at z-index 0 a fixed-
+// positioned descendant paints AFTER static-positioned siblings in the
+// same stacking context — so the scene was covering the cards on
+// common themes whose scenes are opaque pink/teal/etc. -1 places the
+// scene between the body's background and the static content, where
+// it actually belongs.)
 //
 // Rarity dictates motion budget:
 //   • common    — fully static scene
@@ -667,7 +672,7 @@ export default function ThemeAnimationLayer() {
   if (!AnimComp) return null;
 
   // The wrapper provides:
-  //   • fixed positioning at z-index 0 (behind UI)
+  //   • fixed positioning at z-index -1 (behind every UI element)
   //   • pointer-events: none (clicks pass through)
   //   • overflow: hidden (scene paint can't bleed into scroll)
   //   • `.theme-scene` class — the `prefers-reduced-motion` rule in
@@ -675,13 +680,18 @@ export default function ThemeAnimationLayer() {
   //     stops for accessibility.
   //   • CSS `transition: opacity 1.2s` on `.anim-layer` (fade in/out)
   //
+  // Why z-index: -1 (not 0)? A positioned element with z-index >= 0
+  // paints AFTER static-positioned siblings in the same stacking
+  // context — i.e. on top of cards/buttons. -1 paints between the
+  // body's background and the static content, which is what we want.
+  //
   // `key={activeAnimation}` forces a remount on theme swap so each
   // scene's RAND seeds (star positions, sparks, petals) reroll fresh.
   return (
     <div
       key={activeAnimation}
       className="theme-scene anim-layer on fixed inset-0 pointer-events-none overflow-hidden"
-      style={{ zIndex: 0 }}
+      style={{ zIndex: -1 }}
       aria-hidden="true"
     >
       <AnimComp />

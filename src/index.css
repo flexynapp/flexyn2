@@ -953,3 +953,33 @@
   }
 }
 
+/* ─── Scene visibility + chrome opacity when a loot theme is active
+   ─────────────────────────────────────────────────────────────────────
+   ThemeContext sets `data-theme-tier` on <html> whenever any
+   `loot_*` theme with `animated: true` is equipped. We use that to:
+
+   1. Make the page's opaque chrome (body's bg-background, Layout's
+      bg-background wrapper) TRANSPARENT so the fixed scene at
+      z-index: -1 actually shows through. Without this the scene
+      sits behind solid pink/teal/etc. and the user sees nothing
+      but the rose-branch decorations bleeding from the corners.
+
+   2. Solidify the mobile bottom nav + header (which intentionally
+      use bg-card/80-90 + backdrop-blur for a "frosted glass" look
+      on the default theme) so the buttons stay readable against
+      a busy scene. The glass look reads fine against a flat bg;
+      against a parallax starfield it just looks washed out.
+   ──────────────────────────────────────────────────────────────────── */
+html[data-theme-tier] body,
+html[data-theme-tier] .bg-background {
+  background-color: transparent !important;
+}
+/* Bottom nav + sticky header — bump alpha from 80/90 to 100 so the
+   buttons read against busy backgrounds. Keep the backdrop-blur for
+   the subtle frosted-glass texture. */
+html[data-theme-tier] .bg-card\/80,
+html[data-theme-tier] .bg-card\/90,
+html[data-theme-tier] .bg-card\/95 {
+  background-color: hsl(var(--card)) !important;
+}
+
