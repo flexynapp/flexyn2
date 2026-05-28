@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, GripVertical, LayoutGrid } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, ChevronRight, GripVertical, LayoutGrid, Shield } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -191,14 +191,18 @@ export default function Workout() {
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [activeInfo, setActiveInfo] = useState(null); // which card's â"˜ tooltip is open
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip â†' expands RoutineTodayCard
-  const GRID_DEFAULT_ORDER = ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc'];
+  const GRID_DEFAULT_ORDER = ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc', 'crew'];
   const [rowOrder, setRowOrder] = useState(() => {
-    try { const s = localStorage.getItem('wkt-grid-order'); return s ? JSON.parse(s) : GRID_DEFAULT_ORDER; }
-    catch { return ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc']; }
+    try {
+      const s = localStorage.getItem('wkt-grid-order');
+      if (s) { const p = JSON.parse(s); if (p.includes('crew')) return p; }
+    } catch {}
+    return ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc', 'crew'];
   });
   const [gridEditing, setGridEditing] = useState(false);
-  const [heroSlide, setHeroSlide] = useState(0);
-  const heroRef = useRef(null);
+  const HERO_COUNT = 3;
+  const [[heroSlide, heroDir], setHeroState] = useState([0, 0]);
+  const paginateHero = (dir) => setHeroState(([cur]) => [((cur + dir) % HERO_COUNT + HERO_COUNT) % HERO_COUNT, dir]);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -1726,7 +1730,7 @@ export default function Workout() {
     );
 
     if (rowId === 'nemesis') return (
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+      <div className="rounded-xl border-2 border-rose-500/60 bg-card overflow-hidden shadow-[0_0_18px_rgba(239,68,68,0.14)]">
         <div className="relative">
           <button type="button"
             onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
@@ -1776,20 +1780,20 @@ export default function Workout() {
         <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
           <Card
             role="button" tabIndex={0} aria-label="Form Coach"
-            className="group relative p-3 cursor-pointer border-primary/45 hover:border-primary/65 hover:shadow-[0_0_14px_rgba(251,191,36,0.24)] transition-colors h-full"
-            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.26) 0%, rgba(251,191,36,0.16) 100%)' }}
+            className="group relative p-3 cursor-pointer border-yellow-400/55 hover:border-yellow-400/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.30)] transition-colors h-full"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.32) 0%, rgba(251,191,36,0.22) 100%)' }}
             onClick={() => setFormCoachOpen(true)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
           >
             <InfoBtn id="formcoach" />
             <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
-                <Camera className="w-5 h-5 text-primary" />
+              <div className="w-10 h-10 rounded-xl bg-yellow-400/22 border border-yellow-400/35 flex items-center justify-center shrink-0">
+                <Camera className="w-5 h-5 text-yellow-500" />
               </div>
               <div>
                 <div className="flex items-center justify-center gap-1.5">
                   <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-yellow-400/20 text-yellow-600">{tFallback('formcoach.beta', 'Beta')}</span>
                 </div>
                 <InfoText id="formcoach" text="AI form feedback on your lifts — record a set and get instant coaching." />
               </div>
@@ -1797,6 +1801,30 @@ export default function Workout() {
           </Card>
         </motion.div>
       </div>
+    );
+
+    if (rowId === 'crew') return (
+      <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+        <Card
+          role="button" tabIndex={0} aria-label="Crew Wars"
+          className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-500/55 hover:border-yellow-500/75 hover:shadow-[0_0_16px_rgba(234,179,8,0.28)]"
+          style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.30) 0%, rgba(251,191,36,0.20) 100%)' }}
+          onClick={() => navigate('/hub', { state: { openCrewWars: true } })}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/hub', { state: { openCrewWars: true } }); } }}
+        >
+          <InfoBtn id="crew" />
+          <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:text-left md:gap-3">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/22 border border-yellow-500/35 flex items-center justify-center shrink-0">
+              <Shield className="w-5 h-5 text-yellow-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-heading font-bold text-sm leading-tight">Crew Wars</p>
+              <InfoText id="crew" text="Battle rival crews — contribute XP and fight for crew supremacy." />
+              <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Lead your crew to victory</p>
+            </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
     return null;
@@ -2032,153 +2060,164 @@ export default function Workout() {
             <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
             {/* Primary action — Freestyle */}
-            {/* ── Hero carousel: Freestyle + Gauntlet ── */}
+            {/* Primary action — Freestyle */}
+            {/* ── Hero carousel: Freestyle | Gauntlet | Crew Wars ── */}
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
               className="mb-4"
             >
-              {/* Slides */}
-              <div
-                ref={heroRef}
-                className="flex overflow-x-auto snap-x snap-mandatory scrollbar-none rounded-3xl"
-                style={{ scrollBehavior: 'smooth', WebkitOverflowScrolling: 'touch' }}
-                onScroll={(e) => {
-                  const idx = Math.round(e.currentTarget.scrollLeft / e.currentTarget.offsetWidth);
-                  setHeroSlide(idx);
-                }}
-              >
-                {/* Slide 1 — Freestyle */}
-                <button
-                  type="button"
-                  onClick={startFreestyle}
-                  className="group snap-start shrink-0 w-full relative overflow-hidden rounded-3xl text-white text-left select-none-ui"
-                  style={{
-                    background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)',
-                    boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset',
-                  }}
-                >
-                  {/* Aurora blobs */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                    <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
-                      style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }} />
-                    <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30 group-hover:opacity-45 transition-opacity duration-700"
-                      style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }} />
+              <div className="relative overflow-hidden rounded-3xl" style={{ touchAction: 'pan-y' }}>
+                <AnimatePresence initial={false} custom={heroDir} mode="sync">
+                  <motion.div
+                    key={heroSlide}
+                    custom={heroDir}
+                    variants={{
+                      enter: (dir) => ({ x: dir >= 0 ? '100%' : '-100%', opacity: 0 }),
+                      center: { x: 0, opacity: 1 },
+                      exit: (dir) => ({ x: dir >= 0 ? '-100%' : '100%', opacity: 0 }),
+                    }}
+                    initial="enter"
+                    animate="center"
+                    exit="exit"
+                    transition={{ type: 'spring', stiffness: 260, damping: 28 }}
+                    drag="x"
+                    dragConstraints={{ left: 0, right: 0 }}
+                    dragElastic={0.15}
+                    onDragEnd={(_, { offset, velocity }) => {
+                      const swipe = Math.abs(offset.x) * Math.abs(velocity.x);
+                      if (offset.x < -60 || swipe > 8000) paginateHero(1);
+                      else if (offset.x > 60 || swipe < -8000) paginateHero(-1);
+                    }}
+                    className="absolute inset-0 w-full cursor-grab active:cursor-grabbing"
+                    style={{ zIndex: 1 }}
+                  >
+                    {heroSlide === 0 && (
+                      <button type="button" onClick={startFreestyle} onPointerDown={(e) => e.stopPropagation()}
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        style={{ background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)', boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset' }}>
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
+                            style={{ background: 'radial-gradient(ellipse, hsl(var(--primary) / 0.55) 0%, transparent 65%)' }} />
+                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-30"
+                            style={{ background: 'radial-gradient(ellipse, hsl(265 80% 65% / 0.5) 0%, transparent 65%)' }} />
+                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
+                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }}
+                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }} />
+                        </div>
+                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Ready to go
+                            </span>
+                          </div>
+                          <div className="shrink-0">
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                              style={{ background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)', boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset' }}>
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                              <Play className="w-7 h-7 fill-current relative z-10" />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    {heroSlide === 1 && (
+                      <button type="button" onClick={() => navigate('/gauntlet')} onPointerDown={(e) => e.stopPropagation()}
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)', boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset' }}>
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
+                            style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.65) 0%, transparent 65%)' }} />
+                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-40"
+                            style={{ background: 'radial-gradient(ellipse, rgba(192,132,252,0.55) 0%, transparent 65%)' }} />
+                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
+                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
+                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }} />
+                        </div>
+                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
+                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">The Gauntlet</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">10 challenges. One path. Prove what you are made of.</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/20 text-[10px] font-semibold text-violet-300/80 tracking-wide uppercase">
+                              {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
+                            </span>
+                          </div>
+                          <div className="shrink-0">
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                              style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(109,40,217,0.75) 100%)', boxShadow: '0 8px 32px -4px rgba(139,92,246,0.55), 0 0 0 1px rgba(167,139,250,0.3) inset' }}>
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                              <Trophy className="w-7 h-7 relative z-10 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                    {heroSlide === 2 && (
+                      <button type="button" onClick={() => navigate('/hub', { state: { openCrewWars: true } })} onPointerDown={(e) => e.stopPropagation()}
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
+                        <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
+                          <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-55"
+                            style={{ background: 'radial-gradient(ellipse, rgba(16,185,129,0.55) 0%, transparent 65%)' }} />
+                          <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-35"
+                            style={{ background: 'radial-gradient(ellipse, rgba(52,211,153,0.45) 0%, transparent 65%)' }} />
+                          <motion.div className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
+                            style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(52,211,153,0.07) 50%, transparent 100%)' }}
+                            animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 0.6 }} />
+                        </div>
+                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent pointer-events-none" />
+                        <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
+                          <div className="min-w-0">
+                            <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-emerald-400/80 mb-2">CREW BATTLES</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">Crew Wars</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-[10px] font-semibold text-emerald-300/80 tracking-wide uppercase">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Join the fight
+                            </span>
+                          </div>
+                          <div className="shrink-0">
+                            <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
+                              style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.85) 0%, rgba(5,150,105,0.70) 100%)', boxShadow: '0 8px 32px -4px rgba(16,185,129,0.5), 0 0 0 1px rgba(52,211,153,0.3) inset' }}>
+                              <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
+                              <Shield className="w-7 h-7 relative z-10 text-white" />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+                {/* Height placeholder so container does not collapse */}
+                <div className="invisible pointer-events-none" aria-hidden="true">
+                  <div className="flex items-center justify-between gap-4 p-6 md:p-8">
+                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none">x</span><span className="text-[13px] mt-2.5 block">placeholder</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">x</span></div>
+                    <div className="w-16 h-16 rounded-2xl shrink-0" />
                   </div>
-                  {/* Shimmer sweep */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                    <motion.div
-                      className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
-                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }}
-                      animate={{ x: ['-60%', '220%'] }}
-                      transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }}
-                    />
-                  </div>
-                  {/* Grain */}
-                  <div className="absolute inset-0 opacity-[0.04] pointer-events-none rounded-3xl"
-                    style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 200 200\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'n\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23n)\'/%3E%3C/svg%3E")', backgroundSize: '180px' }} />
-                  {/* Top highlight */}
-                  <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
-                  <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                    <div className="min-w-0">
-                      <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
-                      <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
-                      <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
-                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                        Ready to go
-                      </span>
-                    </div>
-                    <div className="shrink-0">
-                      <motion.div
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                        style={{
-                          background: 'linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.75) 100%)',
-                          boxShadow: '0 8px 32px -4px hsl(var(--primary) / 0.6), 0 0 0 1px hsl(var(--primary) / 0.3) inset',
-                        }}
-                        whileHover={{ rotate: 6 }}
-                        transition={{ type: 'spring', stiffness: 380 }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                        <Play className="w-7 h-7 fill-current relative z-10" />
-                      </motion.div>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Slide 2 — Gauntlet */}
-                <button
-                  type="button"
-                  onClick={() => navigate('/gauntlet')}
-                  className="group snap-start shrink-0 w-full relative overflow-hidden rounded-3xl text-white text-left select-none-ui"
-                  style={{
-                    background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)',
-                    boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset',
-                  }}
-                >
-                  {/* Purple aurora blobs */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                    <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60 group-hover:opacity-80 transition-opacity duration-700"
-                      style={{ background: 'radial-gradient(ellipse, rgba(139,92,246,0.65) 0%, transparent 65%)' }} />
-                    <div className="absolute top-[20%] -left-[10%] w-[50%] h-[120%] rounded-full blur-[60px] opacity-40 group-hover:opacity-55 transition-opacity duration-700"
-                      style={{ background: 'radial-gradient(ellipse, rgba(192,132,252,0.55) 0%, transparent 65%)' }} />
-                  </div>
-                  {/* Shimmer sweep */}
-                  <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
-                    <motion.div
-                      className="absolute inset-y-0 w-[40%] skew-x-[-20deg]"
-                      style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
-                      animate={{ x: ['-60%', '220%'] }}
-                      transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }}
-                    />
-                  </div>
-                  {/* Top highlight */}
-                  <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
-                  <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
-                    <div className="min-w-0">
-                      <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
-                      <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">The Gauntlet</span>
-                      <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">
-                        10 challenges. One path. Prove you've got what it takes.
-                      </span>
-                      <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/20 text-[10px] font-semibold text-violet-300/80 tracking-wide uppercase">
-                        {gauntletProgress?.path_completed
-                          ? '✓ Completed'
-                          : gauntletProgress
-                            ? `Challenge #${gauntletProgress.current_challenge_sequence}`
-                            : 'Start now'}
-                      </span>
-                    </div>
-                    <div className="shrink-0">
-                      <motion.div
-                        className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
-                        style={{
-                          background: 'linear-gradient(135deg, rgba(139,92,246,0.9) 0%, rgba(109,40,217,0.75) 100%)',
-                          boxShadow: '0 8px 32px -4px rgba(139,92,246,0.55), 0 0 0 1px rgba(167,139,250,0.3) inset',
-                        }}
-                        whileHover={{ rotate: 6 }}
-                        transition={{ type: 'spring', stiffness: 380 }}
-                      >
-                        <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent" />
-                        <Trophy className="w-7 h-7 relative z-10 text-white" />
-                      </motion.div>
-                    </div>
-                  </div>
+                </div>
+                {/* Arrow */}
+                <button type="button" onClick={() => paginateHero(1)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/25 border border-white/15 flex items-center justify-center text-white backdrop-blur-sm hover:bg-black/40 transition-colors"
+                  aria-label="Next slide">
+                  <ChevronRight className="w-4 h-4" />
                 </button>
               </div>
-
-              {/* Dot pagination */}
+              {/* Dots */}
               <div className="flex justify-center gap-2 mt-2.5">
-                {[0, 1].map(i => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => heroRef.current?.scrollTo({ left: i * heroRef.current.offsetWidth, behavior: 'smooth' })}
+                {[0, 1, 2].map(i => (
+                  <button key={i} type="button"
+                    onClick={() => setHeroState([i, i > heroSlide ? 1 : -1])}
                     className={`transition-all duration-300 rounded-full ${heroSlide === i ? 'w-5 h-1.5 bg-primary' : 'w-1.5 h-1.5 bg-muted-foreground/25 hover:bg-muted-foreground/50'}`}
-                  />
+                    aria-label={`Slide ${i + 1}`} />
                 ))}
               </div>
+            </motion.div>
             </motion.div>
 
             {/* Repeat last workout — fastest path to logging for returning
