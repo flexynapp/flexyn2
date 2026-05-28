@@ -122,7 +122,7 @@ function HeroCard({
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-3xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20 touch-pan-y"
+        className="relative overflow-hidden rounded-2xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20 touch-pan-y"
       >
         {/* Animated warm gradient mesh */}
         <div className="absolute inset-0 opacity-90 pointer-events-none">
@@ -148,7 +148,7 @@ function HeroCard({
           }}
         />
 
-        <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-6 md:gap-8 p-6 md:p-8 lg:p-10">
+        <div className="relative grid grid-cols-1 md:grid-cols-[1.1fr_1fr] gap-4 md:gap-6 p-4 md:p-6">
           {/* Left — Adaptive content. Three modes auto-selected:
                 • achievements: rotating carousel of recent PRs / goals
                   hit / level-ups / streak milestones / cardio firsts
@@ -182,7 +182,7 @@ function HeroCard({
               whileTap={{ scale: 0.98 }}
               transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               onClick={onPrimary}
-              className="group relative w-full overflow-hidden rounded-2xl p-5 md:p-6 flex items-center justify-between gap-4 text-left select-none-ui"
+              className="group relative w-full overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
               style={{
                 background:
                   'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
@@ -191,23 +191,56 @@ function HeroCard({
                   '0 10px 25px -5px rgba(245, 158, 11, 0.45), 0 6px 12px -4px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
               }}
             >
-              {/* Periodic shine sweep */}
+              {/* Periodic shine sweep — sweeps twice per cycle (1.0s
+                  primary, 0.7s secondary echo) with shorter rest. */}
               <motion.div
                 aria-hidden="true"
                 className="absolute inset-y-0 -inset-x-4 pointer-events-none"
                 style={{
                   background:
-                    'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.55) 48%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.55) 52%, transparent 70%)',
+                    'linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.65) 46%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.65) 54%, transparent 72%)',
                   mixBlendMode: 'screen',
                 }}
                 initial={{ x: '-110%' }}
                 animate={{ x: '110%' }}
                 transition={{
-                  duration: 1.4,
+                  duration: 1.0,
                   ease: 'easeInOut',
                   repeat: Infinity,
-                  repeatDelay: 3.4,
+                  repeatDelay: 2.2,
                 }}
+              />
+              {/* Secondary, smaller echo shine offset 0.3s after main */}
+              <motion.div
+                aria-hidden="true"
+                className="absolute inset-y-0 -inset-x-4 pointer-events-none"
+                style={{
+                  background:
+                    'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.4) 49%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.4) 51%, transparent 62%)',
+                  mixBlendMode: 'screen',
+                }}
+                initial={{ x: '-110%' }}
+                animate={{ x: '110%' }}
+                transition={{
+                  duration: 0.7,
+                  ease: 'easeInOut',
+                  repeat: Infinity,
+                  repeatDelay: 2.5,
+                  delay: 0.3,
+                }}
+              />
+              {/* Soft amber-glow pulse around the button — a slow,
+                  breathing bloom that hints at "this is the prize" */}
+              <motion.div
+                aria-hidden="true"
+                className="absolute -inset-2 rounded-2xl pointer-events-none"
+                style={{
+                  background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.35), transparent 70%)',
+                  filter: 'blur(6px)',
+                  zIndex: -1,
+                }}
+                animate={{ opacity: [0.5, 0.85, 0.5] }}
+                transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
               />
               <div className="relative min-w-0">
                 <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
@@ -215,12 +248,12 @@ function HeroCard({
                     ? t('dashboard.hero.label.again')
                     : t('dashboard.hero.label.today')}
                 </span>
-                <span className="font-heading font-bold text-xl md:text-2xl leading-tight break-anywhere">
+                <span className="font-heading font-bold text-lg md:text-xl leading-tight break-anywhere">
                   {cta}
                 </span>
               </div>
               <motion.div
-                className="relative shrink-0 w-12 h-12 md:w-14 md:h-14 rounded-full flex items-center justify-center"
+                className="relative shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"
                 style={{
                   background: 'linear-gradient(135deg, #fff7d6 0%, #fcd34d 100%)',
                   color: 'hsl(28 70% 28%)',
@@ -904,18 +937,22 @@ export default function Dashboard() {
             tFallback={tFallback}
           />
           <Collapsible open={recoveryOpen}>
+            {/* Order intentionally inverted from the prior version:
+                Macros → Calories → Hydration+Mood → Steps. User wants
+                today's macros + calories surfaced first; mood/steps
+                drop to the bottom. */}
             <div className="mb-2">
-              <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-              <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+              <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
             </div>
             <div className="mb-2">
               <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
             </div>
+            <div className="grid grid-cols-2 gap-2 mb-2">
+              <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+              <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
+            </div>
             <div>
-              <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
+              <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
             </div>
           </Collapsible>
         </React.Fragment>
@@ -1113,7 +1150,7 @@ export default function Dashboard() {
         initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="mb-5 md:mb-6"
+        className="mb-2"
       >
         <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
           {todayLabel}
@@ -1212,7 +1249,7 @@ export default function Dashboard() {
       {/* ── Streak banners — sit between the greeting and the hero so
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
-      <div className="mb-3 space-y-1.5">
+      <div className="mb-2 space-y-1">
         <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
         <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
       </div>

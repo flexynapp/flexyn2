@@ -85,16 +85,18 @@ export default function LeagueCard({ onClick }) {
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      className="block w-full text-start"
+      className="block w-full h-full text-start"
     >
-      <Card className="overflow-hidden border-border/60 theme-card-accent">
-        {/* Top stripe — gradient by tier */}
-        <div className={`relative bg-gradient-to-r ${tier.gradient} px-2.5 py-1.5 text-white`}>
-          <div className="flex items-center gap-2">
+      <Card className="overflow-hidden border-border/60 theme-card-accent h-full flex">
+        {/* Top stripe — gradient by tier. flex-1 + items-center fills
+            and vertically centers content so the card stretches to
+            match its row neighbor (e.g. Readiness compact square). */}
+        <div className={`relative flex-1 bg-gradient-to-r ${tier.gradient} px-2.5 py-1.5 text-white flex items-center`}>
+          <div className="flex items-center gap-2 w-full">
             <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
             <div className="flex-1 min-w-0">
               <p className="text-[8px] font-bold uppercase tracking-wider opacity-90 leading-tight">
-                {tier.label}
+                {tier.label} {tFallback('league.leagueSuffix', 'League')}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

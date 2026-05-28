@@ -34,6 +34,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Flame, Trophy, TrendingUp, Award, Zap, Sparkles,
   Calendar, CheckCircle2, Dumbbell, Footprints, ChevronRight,
+  Swords, Camera,
 } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -350,12 +351,16 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
     });
   }
 
-  // 5) Recent cardio milestone — first run over 5km, etc.
+  // 5) Recent cardio milestone — only the HIGHEST tier they've hit.
+  // Iterating high→low and breaking after the first match prevents the
+  // same 11km run from generating both "First 5K" AND "First 10K"
+  // slides (the user gets a "First 10K" — they've already accepted
+  // they ran more than 5K when they ran 10).
   if (Array.isArray(cardioLogs) && cardioLogs.length) {
     const FIRSTS = [
-      { meters: 5000,  label: 'First 5K',         km: 5 },
-      { meters: 10000, label: 'First 10K',        km: 10 },
-      { meters: 21097, label: 'Half Marathon',    km: 21.1 },
+      { meters: 21097, label: 'Half Marathon' },
+      { meters: 10000, label: 'First 10K' },
+      { meters: 5000,  label: 'First 5K' },
     ];
     for (const f of FIRSTS) {
       const hit = cardioLogs.find(l => Number(l.distance_meters) >= f.meters);
@@ -375,6 +380,7 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
           : 'Distance logged',
         when,
       });
+      break; // only the top-tier milestone per session
     }
   }
 
@@ -591,11 +597,39 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     daysSinceLast,
   } : null;
 
+  // "Feature of the day" + "Feature of the week" — fixed promo slides
+  // that always rotate in alongside the user's achievements. Loud
+  // purple chrome so they read as marketplace-style nudges, not
+  // achievement carryover. CTA on each routes the user to the
+  // feature surface.
+  const featureSlides = mode === 'path' ? [] : [
+    {
+      id: 'feature:duels',
+      kind: 'feature',
+      tier: 'day',
+      icon: Swords,
+      kicker: 'Feature of the Day',
+      title: 'Duels',
+      sub: 'Challenge a friend to a head-to-head workout. First to finish wins XP + bragging rights.',
+      cta: { label: 'Open a duel', to: '/workout' },
+    },
+    {
+      id: 'feature:stories',
+      kind: 'feature',
+      tier: 'week',
+      icon: Camera,
+      kicker: 'Feature of the Week',
+      title: 'Stories',
+      sub: 'Post a 24-hr workout selfie or PR moment. Friends react with fire emojis on the Hub.',
+      cta: { label: 'Post a story', to: '/hub' },
+    },
+  ];
+
   const slides = mode === 'path'
     ? pathSlides
     : streakSlide
-      ? [streakSlide, ...achievementSlides]
-      : achievementSlides;
+      ? [streakSlide, ...featureSlides, ...achievementSlides]
+      : [...featureSlides, ...achievementSlides];
 
   const [idx, setIdx] = useState(0);
   // Reset to slide 0 if the slide set length shrinks below idx.
@@ -693,6 +727,77 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         </AnimatePresence>
         {slides.length > 1 && (
           <div className="flex items-center gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── FEATURE-OF-THE-DAY / WEEK — purple promo card ─────────────────
+  if (slide.kind === 'feature') {
+    const FeatureIcon = slide.icon || Sparkles;
+    return (
+      <div className="relative flex flex-col justify-between gap-4 min-w-0">
+        {/* Purple overlay that tints the slideshow column without
+            touching the hero's primary chrome. */}
+        <div
+          aria-hidden="true"
+          className="absolute -inset-3 rounded-2xl pointer-events-none"
+          style={{
+            background: 'linear-gradient(135deg, rgba(168,85,247,0.20), rgba(217,70,239,0.10) 60%, transparent)',
+          }}
+        />
+        <div className="relative flex items-center gap-2">
+          <div className="w-8 h-8 rounded-full bg-purple-500/25 backdrop-blur-sm flex items-center justify-center">
+            <FeatureIcon className="w-4 h-4 text-purple-200" />
+          </div>
+          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-purple-200">
+            {slide.kicker}
+          </span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={slide.id}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="relative min-w-0"
+          >
+            <h2
+              className="font-heading font-bold leading-[1.05] tracking-tight text-white break-words"
+              style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
+            >
+              {slide.title}
+            </h2>
+            <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+              {slide.sub}
+            </p>
+            {slide.cta && (
+              <button
+                type="button"
+                onClick={() => onSlideCta?.(slide.cta.to)}
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
+              >
+                {slide.cta.label}
+                <ChevronRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </motion.div>
+        </AnimatePresence>
+        {slides.length > 1 && (
+          <div className="relative flex items-center gap-1.5">
             {slides.map((_, i) => (
               <button
                 key={i}
