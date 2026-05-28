@@ -189,6 +189,7 @@ export default function Workout() {
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
+  const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -1911,16 +1912,47 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions — 2-col mobile grid with deep red→orange→yellow gradient */}
+            {/* Secondary actions — 2-col mobile grid with floating ember particles */}
             <div className="relative mb-2">
-              {/* Mobile-only warm gradient backdrop — shows through gaps between cards */}
-              <div
-                className="md:hidden absolute inset-0 rounded-2xl pointer-events-none"
-                style={{
-                  background: 'linear-gradient(to bottom, rgba(90,5,15,0.28) 0%, rgba(155,40,0,0.20) 35%, rgba(180,80,0,0.14) 58%, rgba(155,115,0,0.10) 78%, rgba(100,80,0,0.06) 100%)',
-                  zIndex: 0,
-                }}
-              />
+              {/* Mobile-only ember particles — float upward through grid gaps */}
+              <div className="md:hidden absolute inset-0 overflow-hidden rounded-2xl pointer-events-none" style={{ zIndex: 0 }}>
+                <style>{`
+                  @keyframes ember-rise {
+                    0%   { opacity: 0; transform: translateY(0) translateX(0) scale(1); }
+                    12%  { opacity: 0.85; }
+                    65%  { opacity: 0.6; transform: translateY(-150px) translateX(calc(var(--ember-drift) * 0.6)) scale(0.7); }
+                    100% { opacity: 0; transform: translateY(-320px) translateX(var(--ember-drift)) scale(0.3); }
+                  }
+                `}</style>
+                {[
+                  { id:0,  l:'4%',  b:'2%',  c:'#ff2020', s:3, d:2.8, dl:0.0,  dr:'10px'  },
+                  { id:1,  l:'14%', b:'15%', c:'#ff6600', s:2, d:3.3, dl:0.7,  dr:'-8px'  },
+                  { id:2,  l:'25%', b:'5%',  c:'#ffd700', s:4, d:3.0, dl:1.4,  dr:'14px'  },
+                  { id:3,  l:'38%', b:'20%', c:'#ff2020', s:2, d:2.6, dl:0.3,  dr:'-12px' },
+                  { id:4,  l:'50%', b:'8%',  c:'#ff6600', s:3, d:3.7, dl:1.0,  dr:'16px'  },
+                  { id:5,  l:'63%', b:'3%',  c:'#ffd700', s:2, d:2.9, dl:1.8,  dr:'-6px'  },
+                  { id:6,  l:'74%', b:'18%', c:'#ff2020', s:3, d:3.4, dl:0.5,  dr:'9px'   },
+                  { id:7,  l:'88%', b:'10%', c:'#ff6600', s:2, d:3.1, dl:2.1,  dr:'-14px' },
+                  { id:8,  l:'9%',  b:'35%', c:'#ffd700', s:3, d:2.7, dl:2.5,  dr:'18px'  },
+                  { id:9,  l:'32%', b:'45%', c:'#ff2020', s:2, d:3.6, dl:1.2,  dr:'-9px'  },
+                  { id:10, l:'57%', b:'30%', c:'#ff6600', s:4, d:2.5, dl:0.8,  dr:'12px'  },
+                  { id:11, l:'80%', b:'40%', c:'#ffd700', s:2, d:3.2, dl:1.6,  dr:'-16px' },
+                  { id:12, l:'20%', b:'55%', c:'#ff2020', s:3, d:3.9, dl:0.2,  dr:'7px'   },
+                  { id:13, l:'46%', b:'60%', c:'#ff6600', s:2, d:2.8, dl:2.8,  dr:'-11px' },
+                  { id:14, l:'68%', b:'50%', c:'#ffd700', s:3, d:3.5, dl:1.9,  dr:'20px'  },
+                  { id:15, l:'92%', b:'25%', c:'#ff2020', s:2, d:2.9, dl:0.6,  dr:'-7px'  },
+                ].map(e => (
+                  <div key={e.id} style={{
+                    position: 'absolute', left: e.l, bottom: e.b,
+                    width: e.s, height: e.s, borderRadius: '50%',
+                    backgroundColor: e.c,
+                    boxShadow: `0 0 ${e.s * 3}px ${e.c}, 0 0 ${e.s}px ${e.c}`,
+                    animation: `ember-rise ${e.d}s ease-in infinite`,
+                    animationDelay: `${e.dl}s`,
+                    '--ember-drift': e.dr,
+                  }} />
+                ))}
+              </div>
               <motion.div
                 className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 relative"
                 style={{ zIndex: 1 }}
@@ -1928,19 +1960,24 @@ export default function Workout() {
                 initial="hidden"
                 animate="visible"
               >
-                {/* ── Row 1 (mobile): Generate Workout | Explore Regimens — deep crimson ── */}
+                {/* ── Row 1 (mobile): Generate Workout | Explore Regimens ── */}
 
                 {/* Generate Workout — mobile: col 1 row 1 / desktop: col 3-4 row 1 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-1 md:order-2 md:col-span-2">
                   <Card
                     role="button" tabIndex={0}
                     aria-label={tFallback('generator.title', 'Generate Workout')}
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-rose-800/40 bg-gradient-to-b from-rose-950/30 to-rose-900/15 hover:border-rose-700/50
-                      md:p-4 md:border-primary/20 md:bg-none md:bg-gradient-to-br md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-rose-500/30 hover:border-rose-500/55 hover:shadow-[0_0_12px_rgba(239,68,68,0.18)]
+                      md:p-4 md:border-primary/20 md:shadow-none md:bg-gradient-to-br md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50 md:hover:shadow-none"
                     onClick={() => setGeneratorOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'generate' ? null : 'generate'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0">
                         <Sparkles className="w-5 h-5 text-white" />
@@ -1949,6 +1986,9 @@ export default function Workout() {
                         <p className="font-heading font-bold text-sm leading-tight">
                           {tFallback('generator.title', 'Generate Workout')}
                         </p>
+                        {activeInfo === 'generate' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">AI builds a personalized session from your history &amp; goals.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">
                           {tFallback('generator.cardSubtitle', 'AI builds a session from your history')}
                         </p>
@@ -1963,14 +2003,19 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Explore Regimens"
                     className="group relative overflow-hidden cursor-pointer h-full transition-all
-                      p-3 border-rose-800/35 bg-gradient-to-b from-rose-950/25 to-rose-900/12 hover:border-rose-700/45
-                      md:p-4 md:border-primary/25 md:bg-none md:bg-gradient-to-r md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10"
+                      p-3 border-rose-500/25 hover:border-rose-500/50 hover:shadow-[0_0_12px_rgba(239,68,68,0.15)]
+                      md:p-4 md:border-primary/25 md:shadow-none md:bg-gradient-to-r md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10 md:hover:shadow-none"
                     onClick={() => setStoreOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
                   >
                     <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
                       <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
                     </div>
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'explore' ? null : 'explore'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-red-500/30 group-hover:to-primary/30 transition-colors">
                         <Globe className="w-5 h-5 text-primary" />
@@ -1980,6 +2025,9 @@ export default function Workout() {
                           <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
                           <span className="hidden md:inline text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
                         </div>
+                        {activeInfo === 'explore' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Browse top-rated community training programs and adopt one.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Browse &amp; adopt top-rated community programs</p>
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -1987,18 +2035,23 @@ export default function Workout() {
                   </Card>
                 </motion.div>
 
-                {/* ── Row 2 (mobile): Duels | Bounties — orange-red ── */}
+                {/* ── Row 2 (mobile): Duels | Bounties ── */}
 
                 {/* Duels — mobile: col 1 row 2 / desktop: col 1-2 row 4 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-3 md:order-7 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Duels"
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-rose-500/25 bg-gradient-to-br from-rose-500/8 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/12
-                      md:p-4"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-rose-500/30 bg-gradient-to-br from-rose-500/8 via-orange-500/5 to-rose-500/5 hover:border-rose-500/50 hover:shadow-[0_0_12px_rgba(244,63,94,0.2)]
+                      md:p-4 md:shadow-none"
                     onClick={() => navigate('/duels')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'duels' ? null : 'duels'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
                         <Swords className="w-4 h-4 text-rose-500" />
@@ -2010,6 +2063,9 @@ export default function Workout() {
                             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
                           )}
                         </div>
+                        {activeInfo === 'duels' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Challenge someone to a head-to-head workout battle. Winner gets bragging rights.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
                       </div>
                     </div>
@@ -2020,12 +2076,17 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-4 md:order-8 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Bounties"
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-amber-500/25 bg-gradient-to-br from-amber-500/8 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/12
-                      md:p-4"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-amber-500/30 bg-gradient-to-br from-amber-500/8 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/50 hover:shadow-[0_0_12px_rgba(245,158,11,0.22)]
+                      md:p-4 md:shadow-none"
                     onClick={() => navigate('/bounties')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'bounties' ? null : 'bounties'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
                         <Zap className="w-4 h-4 text-amber-500" />
@@ -2040,28 +2101,39 @@ export default function Workout() {
                             <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
                           )}
                         </div>
+                        {activeInfo === 'bounties' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Daily fitness challenges — complete them to earn Flex Coins.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
                       </div>
                     </div>
                   </Card>
                 </motion.div>
 
-                {/* ── Row 3 (mobile): Regimens | Saved Workouts — orange ── */}
+                {/* ── Row 3 (mobile): Regimens | Saved Workouts ── */}
 
                 {/* Regimens — mobile: col 1 row 3 / desktop: col 1-2 row 2 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
                   <Card
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-orange-600/25 bg-gradient-to-b from-orange-950/20 to-orange-900/10 hover:border-orange-500/40
-                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-primary/40"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-orange-500/25 hover:border-orange-500/45 hover:shadow-[0_0_10px_rgba(249,115,22,0.15)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40"
                     onClick={() => setRegimensOpen(true)}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'regimens' ? null : 'regimens'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                        <Dumbbell className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/12 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
+                        <Dumbbell className="w-5 h-5 text-orange-500" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
+                        {activeInfo === 'regimens' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">View and manage your saved training programs.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.regimensDesc')}</p>
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -2072,39 +2144,55 @@ export default function Workout() {
                 {/* Saved Workouts — mobile: col 2 row 3 / desktop: col 3-4 row 2 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
                   <Card
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-orange-600/20 bg-gradient-to-b from-orange-950/15 to-orange-900/8 hover:border-orange-500/35
-                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-orange-500/40"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-orange-400/20 hover:border-orange-400/40 hover:shadow-[0_0_10px_rgba(251,146,60,0.12)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40"
                     onClick={() => setSavedWorkoutsOpen(true)}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'saved' ? null : 'saved'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
-                        <History className="w-5 h-5 text-orange-500" />
+                      <div className="w-10 h-10 rounded-xl bg-orange-400/12 flex items-center justify-center shrink-0 group-hover:bg-orange-400/20 transition-colors">
+                        <History className="w-5 h-5 text-orange-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
+                        {activeInfo === 'saved' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Replay past workouts with your previous weights pre-filled.</p>
+                        )}
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                   </Card>
                 </motion.div>
 
-                {/* ── Row 4 (mobile): Cardio | Goals — amber/yellow ── */}
+                {/* ── Row 4 (mobile): Cardio | Goals ── */}
 
                 {/* Cardio — mobile: col 1 row 4 / desktop: col 1-2 row 3 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
                   <Card
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-amber-600/20 bg-gradient-to-b from-amber-950/15 to-yellow-900/8 hover:border-amber-500/35
-                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-primary/40"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-yellow-500/25 hover:border-yellow-500/45 hover:shadow-[0_0_10px_rgba(234,179,8,0.15)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40"
                     onClick={() => setCardioOpen(true)}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'cardio' ? null : 'cardio'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                        <Activity className="w-5 h-5 text-primary" />
+                      <div className="w-10 h-10 rounded-xl bg-yellow-500/12 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/20 transition-colors">
+                        <Activity className="w-5 h-5 text-yellow-500" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
+                        {activeInfo === 'cardio' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Log runs, rides, and cardio sessions separately from your lifting.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
@@ -2115,29 +2203,73 @@ export default function Workout() {
                 {/* Goals — mobile: col 2 row 4 / desktop: col 3-4 row 3 */}
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
                   <Card
-                    className="group cursor-pointer h-full transition-colors
-                      p-3 border-amber-600/15 bg-gradient-to-b from-amber-950/12 to-yellow-900/6 hover:border-amber-500/30
-                      md:p-4 md:border-border/70 md:bg-none md:bg-transparent md:hover:border-orange-500/40"
+                    className="group relative cursor-pointer h-full transition-colors
+                      p-3 border-yellow-400/20 hover:border-yellow-400/40 hover:shadow-[0_0_10px_rgba(250,204,21,0.12)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40"
                     onClick={() => setGoalsModalOpen(true)}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'goals' ? null : 'goals'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center shrink-0 group-hover:bg-orange-500/15 transition-colors">
-                        <Target className="w-5 h-5 text-orange-500" />
+                      <div className="w-10 h-10 rounded-xl bg-yellow-400/12 flex items-center justify-center shrink-0 group-hover:bg-yellow-400/20 transition-colors">
+                        <Target className="w-5 h-5 text-yellow-400" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
+                        {activeInfo === 'goals' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Set and track your fitness targets — strength, weight, endurance.</p>
+                        )}
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
                     </div>
                   </Card>
                 </motion.div>
 
-                {/* ── Nemesis — full-width row ── */}
+                {/* ── Nemesis — full-width row with red ember treatment ── */}
 
                 <motion.div variants={itemVariants} className="order-9 col-span-full">
-                  <ErrorBoundary label="NemesisCard">
-                    <NemesisCard currentUserId={user?.id} />
-                  </ErrorBoundary>
+                  <div className="relative overflow-hidden rounded-xl md:rounded-none md:overflow-visible">
+                    {/* Mobile: red ember glow behind nemesis card */}
+                    <div className="md:hidden absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0}}>
+                      <div className="absolute inset-0 bg-gradient-to-br from-rose-950/30 via-red-900/15 to-transparent rounded-xl" />
+                      {[
+                        { id:'n0', l:'8%',  b:'5%',  c:'#ff2020', s:3, d:2.4, dl:0.0  },
+                        { id:'n1', l:'25%', b:'15%', c:'#ff6600', s:2, d:2.9, dl:0.6  },
+                        { id:'n2', l:'50%', b:'8%',  c:'#ff2020', s:3, d:2.6, dl:1.2  },
+                        { id:'n3', l:'72%', b:'12%', c:'#ff4400', s:2, d:3.1, dl:0.3  },
+                        { id:'n4', l:'88%', b:'3%',  c:'#ff2020', s:3, d:2.7, dl:1.8  },
+                      ].map(e => (
+                        <div key={e.id} style={{
+                          position: 'absolute', left: e.l, bottom: e.b,
+                          width: e.s, height: e.s, borderRadius: '50%',
+                          backgroundColor: e.c,
+                          boxShadow: `0 0 ${e.s * 4}px ${e.c}`,
+                          animation: `ember-rise ${e.d}s ease-in infinite`,
+                          animationDelay: `${e.dl}s`,
+                          '--ember-drift': '8px',
+                        }} />
+                      ))}
+                    </div>
+                    <div className="relative" style={{zIndex:1}}>
+                      {/* ⓘ info button — standalone overlay since NemesisCard doesn't accept those props */}
+                      <button type="button"
+                        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
+                        className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
+                        <span className="text-[8px] font-bold leading-none italic">i</span>
+                      </button>
+                      {activeInfo === 'nemesis' && (
+                        <p className="md:hidden absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
+                          Your auto-assigned rival — beat their stats to dethrone them.
+                        </p>
+                      )}
+                      <ErrorBoundary label="NemesisCard">
+                        <NemesisCard currentUserId={user?.id} />
+                      </ErrorBoundary>
+                    </div>
+                  </div>
                 </motion.div>
 
                 {/* ── Bottom: Gauntlet | Form Coach ── */}
@@ -2145,10 +2277,15 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Gauntlet"
-                    className="group p-3 md:p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/25 bg-gradient-to-br from-amber-500/6 via-yellow-500/4 to-amber-500/4 hover:border-yellow-500/45 hover:shadow-[0_0_12px_rgba(234,179,8,0.18)] md:shadow-none transition-colors h-full"
                     onClick={() => navigate('/gauntlet')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'gauntlet' ? null : 'gauntlet'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
                         <Trophy className="w-5 h-5 text-amber-400" />
@@ -2165,6 +2302,9 @@ export default function Workout() {
                             </span>
                           )}
                         </div>
+                        {activeInfo === 'gauntlet' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Complete 10 epic challenges to earn prizes and climb the leaderboard.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
                       </div>
                     </div>
@@ -2174,10 +2314,15 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Form Coach"
-                    className="group p-3 md:p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
                     onClick={() => setFormCoachOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                   >
+                    {/* ⓘ info button */}
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'formcoach' ? null : 'formcoach'); }}
+                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+                      <span className="text-[8px] font-bold leading-none italic">i</span>
+                    </button>
                     <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
                       <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
                         <Camera className="w-5 h-5 text-primary" />
@@ -2187,6 +2332,9 @@ export default function Workout() {
                           <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
                           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
                         </div>
+                        {activeInfo === 'formcoach' && (
+                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">AI form feedback on your lifts — record a set and get instant coaching.</p>
+                        )}
                         <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
                       </div>
                       <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
