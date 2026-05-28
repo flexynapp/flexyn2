@@ -917,12 +917,9 @@ export default function Nutrition() {
           question ("how much can I still eat today?") above the fold. */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
-      {/* Intermittent-fasting tracker — optional. Card renders the
-          start CTA when not fasting; switches to a live countdown
-          ring once started. Per-device localStorage only. */}
-      <div className="mb-4">
-        <FastingTrackerCard />
-      </div>
+      {/* Fasting tracker moved further down — used to live above the
+          tabs but the user wants it nearer the bottom. Now renders
+          right above the Today's Meals entries list. */}
 
       {/* Nutrition Tabs */}
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
@@ -1194,6 +1191,13 @@ export default function Nutrition() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Intermittent-fasting tracker — moved here from above the
+          nutrition tabs per user feedback. Sits directly above Today's
+          Meals so it reads as part of "now / today" context. */}
+      <div className="mb-4">
+        <FastingTrackerCard />
+      </div>
 
       {/* Entries list */}
       <motion.div className="space-y-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>

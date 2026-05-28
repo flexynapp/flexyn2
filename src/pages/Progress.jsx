@@ -418,6 +418,19 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
         />
 
         <div className="relative p-4 md:p-5 min-h-[120px] flex flex-col justify-between gap-3">
+          {/* Big translucent emoji on the right — fills the dead space
+              and reads as illustration. -bottom-2 lets the bottom of
+              tall emoji glyphs clip into the rounded card edge for a
+              subtle "spilling out" feel. */}
+          {slide.emoji && (
+            <span
+              aria-hidden="true"
+              className="absolute end-3 -bottom-2 select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
+              style={{ fontSize: '6rem', lineHeight: 1, opacity: 0.85 }}
+            >
+              {slide.emoji}
+            </span>
+          )}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
               <Icon className="w-4 h-4 text-white/85" />
@@ -433,7 +446,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-              className="min-w-0"
+              className="min-w-0 pe-20"
             >
               <h3
                 className="font-heading font-bold leading-none tracking-tight tabular-nums"
@@ -642,20 +655,27 @@ export default function Progress() {
   const level  = userProfile?.current_level  ?? 1;
 
   const heroStats = [
-    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10' },
-    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10' },
-    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10' },
+    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10',
+      cardBg: 'bg-gradient-to-br from-orange-500/12 to-orange-500/4 border-orange-500/20'   },
+    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10',
+      cardBg: 'bg-gradient-to-br from-primary/12 to-primary/4 border-primary/20'             },
+    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10',
+      cardBg: 'bg-gradient-to-br from-emerald-500/12 to-emerald-500/4 border-emerald-500/20' },
+    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10',
+      cardBg: 'bg-gradient-to-br from-violet-500/12 to-violet-500/4 border-violet-500/20'    },
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
   // tailored to the user's current state. Color = HSL accent for the
-  // slide's gradient mesh tint.
+  // slide's gradient mesh tint. Emoji fills the dead space on the
+  // right of each slide — large + semi-translucent so it reads as
+  // illustration rather than content.
   const carouselSlides = [
     {
       id: 'streak',
       icon: Flame,
       color: '20 95% 55%',
+      emoji: '🔥',
       kicker: 'Streak',
       value: streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Start today',
       tip: streak > 0
@@ -666,6 +686,7 @@ export default function Progress() {
       id: 'workouts',
       icon: Dumbbell,
       color: '20 95% 55%',
+      emoji: '💪',
       kicker: 'Workouts',
       value: `${logs.length}`,
       tip: logs.length === 0
@@ -676,6 +697,7 @@ export default function Progress() {
       id: 'volume',
       icon: TrendingUp,
       color: '160 80% 50%',
+      emoji: '🏋️',
       kicker: 'Volume',
       value: totalVolume > 0
         ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
@@ -688,6 +710,7 @@ export default function Progress() {
       id: 'level',
       icon: Zap,
       color: '270 85% 60%',
+      emoji: '⚡',
       kicker: 'Level',
       value: `Lv ${level}`,
       tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
@@ -774,7 +797,7 @@ export default function Progress() {
                 whileTap={{ scale: 0.97 }}
                 aria-label={`Show ${stat.label} in carousel`}
               >
-                <Card className="p-3 border-none shadow-sm text-center h-full cursor-pointer">
+                <Card className={`p-3 border shadow-sm text-center h-full cursor-pointer ${stat.cardBg}`}>
                   <div className={`w-8 h-8 rounded-xl ${stat.bg} flex items-center justify-center mx-auto mb-2`}>
                     <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   </div>

@@ -87,8 +87,10 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
   const animatedProgress = useAnimatedValue(progressPercent);
 
   // Ring geometry — bigger ring
-  const R = 62;
-  const SIZE = 160;
+  // Ring sized down from 160→120 + R 62→48 to make the whole water
+  // tracker more compact and more square-shaped per user feedback.
+  const R = 48;
+  const SIZE = 120;
   const circumference = 2 * Math.PI * R;
   const strokeDashoffset = circumference - (animatedProgress / 100) * circumference;
 
@@ -117,27 +119,14 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
   const ringColor = 'hsl(var(--primary))';
 
   return (
-    <div className="space-y-6">
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* LEFT: DROPLET GRID */}
+    <div className="space-y-3">
+      <div className="grid md:grid-cols-2 gap-3 md:gap-4">
+        {/* LEFT: DROPLET GRID — empty state suppressed per user
+            feedback; an empty droplet grid is self-evident enough
+            without the "Start hydrating / Log first" copy. */}
         <div>
           <AnimatePresence mode="wait">
-            {isEmpty ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-                className="flex items-center justify-center py-8"
-              >
-                <div className="text-center">
-                  <Droplet className="w-12 h-12 text-blue-200 mx-auto mb-3" />
-                  <p className="text-muted-foreground font-medium">{t('nutrition.water.startHydrating')}</p>
-                  <p className="text-xs text-muted-foreground mt-1">{t('nutrition.water.logFirst')}</p>
-                </div>
-              </motion.div>
-            ) : (
+            {!isEmpty && (
               <motion.div
                 key="grid"
                 initial={{ opacity: 0 }}
@@ -215,14 +204,14 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
                 cx={SIZE / 2} cy={SIZE / 2} r={R}
                 fill="none"
                 stroke="hsl(var(--border))"
-                strokeWidth="11"
+                strokeWidth="8"
               />
               {/* Progress arc */}
               <motion.circle
                 cx={SIZE / 2} cy={SIZE / 2} r={R}
                 fill="none"
                 stroke="url(#ringGradient)"
-                strokeWidth="11"
+                strokeWidth="8"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
                 animate={{ strokeDashoffset }}
@@ -237,7 +226,7 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
                 animate={pulse ? { scale: [1, 1.08, 1] } : {}}
                 transition={{ duration: 0.4 }}
                 className="font-heading font-black tabular-nums leading-none"
-                style={{ fontSize: 38, color: ringColor, transition: 'color 0.6s ease' }}
+                style={{ fontSize: 26, color: ringColor, transition: 'color 0.6s ease' }}
               >
                 {fmt(animatedOz)}
               </motion.span>
