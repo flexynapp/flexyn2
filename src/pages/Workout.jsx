@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -1600,12 +1600,6 @@ export default function Workout() {
         transition={{ duration: 0.5, ease: 'easeOut' }}
         className="px-4 pt-4 md:px-6 md:pt-6 lg:pb-6 max-w-5xl mx-auto"
       >
-        {/* Mobile: compact date kicker only — hide full header to save space */}
-        <div className="md:hidden flex items-center gap-2 mb-4">
-          <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
-            {cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
-          </span>
-        </div>
         <PageHeader
           kicker={cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
           title={cardioPageTitle || t('nav.workout')}
@@ -1659,66 +1653,65 @@ export default function Workout() {
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Duel + Bounty banners — mobile: compact pills always; desktop: chips in sub-view, full banners on hub */}
-        {(() => {
-          if (!activeDuel && !activeBountyClaim) return null;
+        {/* Mobile: tiny Today chip (left) + active duel/bounty pills (right) — always visible */}
+        <div className="md:hidden flex items-center justify-between mb-3">
+          <button
+            type="button"
+            onClick={() => navigate('/progress')}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 text-muted-foreground hover:bg-muted/80 transition-colors"
+          >
+            <CalendarDays className="w-3 h-3" />
+            <span className="text-[10px] font-semibold tracking-[0.12em] uppercase">Today</span>
+          </button>
+          <div className="flex items-center gap-1.5">
+            {activeDuel && (
+              <button type="button" onClick={() => navigate('/duels')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[10px] font-semibold hover:bg-rose-500/18 transition-colors">
+                <Swords className="w-3 h-3" />
+                <span>Duel</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse ml-0.5" />
+              </button>
+            )}
+            {activeBountyClaim && (
+              <button type="button" onClick={() => navigate('/bounties')}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] font-semibold hover:bg-amber-500/18 transition-colors">
+                <Zap className="w-3 h-3" />
+                <span>Bounty</span>
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
+              </button>
+            )}
+          </div>
+        </div>
+        {/* Desktop: compact chips in sub-view, full banners on hub */}
+        {(activeDuel || activeBountyClaim) ? (() => {
           const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
-          return (
-            <>
-              {/* Mobile: always compact pill icons (saves height on small screens) */}
-              <div className="md:hidden flex items-center justify-end gap-2 mb-3 -mt-1">
+          if (inSubView) {
+            return (
+              <div className="hidden md:flex items-center justify-end gap-2 mb-3">
                 {activeDuel && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/duels')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-xs font-semibold hover:bg-rose-500/18 transition-colors"
-                  >
+                  <button type="button" onClick={() => navigate('/duels')} aria-label="Active duel"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500">
                     <Swords className="w-3.5 h-3.5" />
-                    <span>Duel</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
                   </button>
                 )}
                 {activeBountyClaim && (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/bounties')}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-xs font-semibold hover:bg-amber-500/18 transition-colors"
-                  >
+                  <button type="button" onClick={() => navigate('/bounties')} aria-label="Active bounty"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600">
                     <Zap className="w-3.5 h-3.5" />
-                    <span>Bounty</span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
                   </button>
                 )}
               </div>
-              {/* Desktop: compact chips in sub-view, full banners on hub */}
-              {inSubView ? (
-                <div className="hidden md:flex items-center justify-end gap-2 mb-3">
-                  {activeDuel && (
-                    <button type="button" onClick={() => navigate('/duels')} aria-label="Active duel"
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500"
-                    >
-                      <Swords className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
-                    </button>
-                  )}
-                  {activeBountyClaim && (
-                    <button type="button" onClick={() => navigate('/bounties')} aria-label="Active bounty"
-                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600"
-                    >
-                      <Zap className="w-3.5 h-3.5" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div className="hidden md:block">
-                  {activeDuel && <DuelBanner duel={activeDuel} currentUserId={user?.id} />}
-                  {activeBountyClaim && <BountyBanner claim={activeBountyClaim} />}
-                </div>
-              )}
-            </>
+            );
+          }
+          return (
+            <div className="hidden md:block">
+              {activeDuel && <DuelBanner duel={activeDuel} currentUserId={user?.id} />}
+              {activeBountyClaim && <BountyBanner claim={activeBountyClaim} />}
+            </div>
           );
-        })()}
+        })() : null}
 
         {cardioOpen ? (
           <div className="mb-8">
@@ -1968,8 +1961,8 @@ export default function Workout() {
                     role="button" tabIndex={0}
                     aria-label={tFallback('generator.title', 'Generate Workout')}
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-rose-500/30 hover:border-rose-500/55 hover:shadow-[0_0_12px_rgba(239,68,68,0.18)]
-                      md:p-4 md:border-primary/20 md:shadow-none md:bg-gradient-to-br md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50 md:hover:shadow-none"
+                      p-3 border-rose-500/40 bg-gradient-to-br from-red-600/32 via-red-500/20 to-rose-500/16 hover:border-rose-500/60 hover:shadow-[0_0_16px_rgba(239,68,68,0.32)]
+                      md:p-4 md:border-primary/20 md:shadow-none md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50 md:hover:shadow-none"
                     onClick={() => setGeneratorOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                   >
@@ -2003,8 +1996,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Explore Regimens"
                     className="group relative overflow-hidden cursor-pointer h-full transition-all
-                      p-3 border-rose-500/25 hover:border-rose-500/50 hover:shadow-[0_0_12px_rgba(239,68,68,0.15)]
-                      md:p-4 md:border-primary/25 md:shadow-none md:bg-gradient-to-r md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10 md:hover:shadow-none"
+                      p-3 border-rose-500/35 bg-gradient-to-r from-red-600/28 via-red-500/16 to-rose-500/12 hover:border-rose-500/55 hover:shadow-[0_0_14px_rgba(239,68,68,0.26)]
+                      md:p-4 md:border-primary/25 md:shadow-none md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10 md:hover:shadow-none"
                     onClick={() => setStoreOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
                   >
@@ -2042,8 +2035,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Duels"
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-rose-500/30 bg-gradient-to-br from-rose-500/8 via-orange-500/5 to-rose-500/5 hover:border-rose-500/50 hover:shadow-[0_0_12px_rgba(244,63,94,0.2)]
-                      md:p-4 md:shadow-none"
+                      p-3 border-rose-500/38 bg-gradient-to-br from-rose-600/28 via-orange-500/18 to-red-500/16 hover:border-rose-500/55 hover:shadow-[0_0_14px_rgba(244,63,94,0.30)]
+                      md:p-4 md:shadow-none md:bg-none"
                     onClick={() => navigate('/duels')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
                   >
@@ -2077,8 +2070,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Bounties"
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-amber-500/30 bg-gradient-to-br from-amber-500/8 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/50 hover:shadow-[0_0_12px_rgba(245,158,11,0.22)]
-                      md:p-4 md:shadow-none"
+                      p-3 border-orange-500/35 bg-gradient-to-br from-orange-600/26 via-amber-500/18 to-orange-500/14 hover:border-orange-500/52 hover:shadow-[0_0_14px_rgba(249,115,22,0.28)]
+                      md:p-4 md:shadow-none md:bg-none"
                     onClick={() => navigate('/bounties')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
                   >
@@ -2116,8 +2109,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-orange-500/25 hover:border-orange-500/45 hover:shadow-[0_0_10px_rgba(249,115,22,0.15)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40"
+                      p-3 border-orange-500/35 bg-gradient-to-br from-orange-500/26 via-orange-400/16 to-amber-500/12 hover:border-orange-500/52 hover:shadow-[0_0_12px_rgba(249,115,22,0.24)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40 md:bg-none"
                     onClick={() => setRegimensOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2145,8 +2138,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-orange-400/20 hover:border-orange-400/40 hover:shadow-[0_0_10px_rgba(251,146,60,0.12)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40"
+                      p-3 border-orange-400/32 bg-gradient-to-br from-orange-400/24 via-amber-400/14 to-orange-500/12 hover:border-orange-400/50 hover:shadow-[0_0_12px_rgba(251,146,60,0.24)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40 md:bg-none"
                     onClick={() => setSavedWorkoutsOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2175,8 +2168,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-yellow-500/25 hover:border-yellow-500/45 hover:shadow-[0_0_10px_rgba(234,179,8,0.15)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40"
+                      p-3 border-yellow-500/32 bg-gradient-to-br from-yellow-500/24 via-amber-400/15 to-yellow-400/12 hover:border-yellow-500/50 hover:shadow-[0_0_12px_rgba(234,179,8,0.26)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40 md:bg-none"
                     onClick={() => setCardioOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2204,8 +2197,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-yellow-400/20 hover:border-yellow-400/40 hover:shadow-[0_0_10px_rgba(250,204,21,0.12)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40"
+                      p-3 border-yellow-400/30 bg-gradient-to-br from-yellow-400/22 via-yellow-300/14 to-amber-300/10 hover:border-yellow-400/48 hover:shadow-[0_0_12px_rgba(250,204,21,0.22)]
+                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40 md:bg-none"
                     onClick={() => setGoalsModalOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2228,35 +2221,62 @@ export default function Workout() {
                   </Card>
                 </motion.div>
 
-                {/* ── Nemesis — full-width row with red ember treatment ── */}
+                {/* ── Nemesis — full-width row with fire treatment (mobile + desktop) ── */}
 
                 <motion.div variants={itemVariants} className="order-9 col-span-full">
-                  <div className="relative overflow-hidden rounded-xl md:rounded-none md:overflow-visible">
-                    {/* Mobile: red ember glow behind nemesis card */}
-                    <div className="md:hidden absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0}}>
-                      <div className="absolute inset-0 bg-gradient-to-br from-rose-950/30 via-red-900/15 to-transparent rounded-xl" />
+                  {/* ring creates a glowing red border without competing with NemesisCard's inner border */}
+                  <div className="relative overflow-hidden rounded-xl ring-2 ring-rose-500/45 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
+                    {/* Fire background: two out-of-phase gradient layers pulse like embers */}
+                    <div className="absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0}}>
+                      <style>{`
+                        @keyframes nemesis-pulse-a { 0%,100%{opacity:1} 50%{opacity:0.25} }
+                        @keyframes nemesis-pulse-b { 0%,100%{opacity:0.1} 50%{opacity:0.9} }
+                        @keyframes ember-rise-short {
+                          0%   { opacity:0; transform:translateY(0) translateX(0) scale(1); }
+                          15%  { opacity:1; }
+                          70%  { opacity:0.65; transform:translateY(-42px) translateX(calc(var(--ember-drift)*0.5)) scale(0.6); }
+                          100% { opacity:0; transform:translateY(-78px) translateX(var(--ember-drift)) scale(0.2); }
+                        }
+                      `}</style>
+                      {/* Layer A: deep red */}
+                      <div className="absolute inset-0 rounded-xl" style={{
+                        background: 'linear-gradient(135deg, rgba(220,38,38,0.24) 0%, rgba(185,28,28,0.15) 55%, rgba(251,146,60,0.08) 100%)',
+                        animation: 'nemesis-pulse-a 2.8s ease-in-out infinite',
+                      }} />
+                      {/* Layer B: orange-red, offset phase for pulsing fire feel */}
+                      <div className="absolute inset-0 rounded-xl" style={{
+                        background: 'linear-gradient(135deg, rgba(251,146,60,0.20) 0%, rgba(220,38,38,0.18) 55%, rgba(185,28,28,0.06) 100%)',
+                        animation: 'nemesis-pulse-b 2.8s ease-in-out infinite',
+                        animationDelay: '-1.4s',
+                      }} />
+                      {/* Contained ember particles — short travel so they stay inside the card */}
                       {[
-                        { id:'n0', l:'8%',  b:'5%',  c:'#ff2020', s:3, d:2.4, dl:0.0  },
-                        { id:'n1', l:'25%', b:'15%', c:'#ff6600', s:2, d:2.9, dl:0.6  },
-                        { id:'n2', l:'50%', b:'8%',  c:'#ff2020', s:3, d:2.6, dl:1.2  },
-                        { id:'n3', l:'72%', b:'12%', c:'#ff4400', s:2, d:3.1, dl:0.3  },
-                        { id:'n4', l:'88%', b:'3%',  c:'#ff2020', s:3, d:2.7, dl:1.8  },
+                        { id:'n0', l:'5%',  b:'8%',  c:'#ff2020', s:3, d:2.2, dl:0.0, dr:'6px'  },
+                        { id:'n1', l:'13%', b:'20%', c:'#ff6600', s:2, d:2.7, dl:0.5, dr:'-5px' },
+                        { id:'n2', l:'23%', b:'6%',  c:'#ffaa00', s:3, d:2.4, dl:1.1, dr:'8px'  },
+                        { id:'n3', l:'33%', b:'18%', c:'#ff2020', s:2, d:3.0, dl:0.3, dr:'-7px' },
+                        { id:'n4', l:'44%', b:'10%', c:'#ff4400', s:3, d:2.5, dl:1.6, dr:'5px'  },
+                        { id:'n5', l:'54%', b:'22%', c:'#ff6600', s:2, d:2.8, dl:0.8, dr:'-6px' },
+                        { id:'n6', l:'64%', b:'7%',  c:'#ff2020', s:3, d:2.3, dl:1.9, dr:'7px'  },
+                        { id:'n7', l:'74%', b:'16%', c:'#ffaa00', s:2, d:2.9, dl:0.2, dr:'-8px' },
+                        { id:'n8', l:'84%', b:'5%',  c:'#ff4400', s:3, d:2.6, dl:1.4, dr:'6px'  },
+                        { id:'n9', l:'93%', b:'18%', c:'#ff2020', s:2, d:2.4, dl:0.7, dr:'-5px' },
                       ].map(e => (
                         <div key={e.id} style={{
                           position: 'absolute', left: e.l, bottom: e.b,
                           width: e.s, height: e.s, borderRadius: '50%',
                           backgroundColor: e.c,
-                          boxShadow: `0 0 ${e.s * 4}px ${e.c}`,
-                          animation: `ember-rise ${e.d}s ease-in infinite`,
+                          boxShadow: `0 0 ${e.s * 4}px ${e.c}, 0 0 ${e.s * 2}px ${e.c}90`,
+                          animation: `ember-rise-short ${e.d}s ease-in infinite`,
                           animationDelay: `${e.dl}s`,
-                          '--ember-drift': '8px',
+                          '--ember-drift': e.dr,
                         }} />
                       ))}
                     </div>
                     <div className="relative" style={{zIndex:1}}>
-                      {/* ⓘ info button — standalone overlay since NemesisCard doesn't accept those props */}
+                      {/* ⓘ info button */}
                       <button type="button"
-                        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
+                        onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
                         className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
                         <span className="text-[8px] font-bold leading-none italic">i</span>
                       </button>
@@ -2277,7 +2297,7 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Gauntlet"
-                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/25 bg-gradient-to-br from-amber-500/6 via-yellow-500/4 to-amber-500/4 hover:border-yellow-500/45 hover:shadow-[0_0_12px_rgba(234,179,8,0.18)] md:shadow-none transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/30 bg-gradient-to-br from-yellow-500/24 via-amber-400/15 to-yellow-400/12 hover:border-yellow-500/50 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)] md:shadow-none md:bg-none transition-colors h-full"
                     onClick={() => navigate('/gauntlet')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
                   >
@@ -2314,7 +2334,7 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Form Coach"
-                    className="group relative p-3 md:p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/28 bg-gradient-to-br from-amber-400/20 via-yellow-400/12 to-yellow-300/10 hover:border-amber-400/46 hover:shadow-[0_0_12px_rgba(251,191,36,0.22)] transition-colors h-full md:bg-none md:border-border/70 md:hover:border-primary/40 md:hover:shadow-none"
                     onClick={() => setFormCoachOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                   >
