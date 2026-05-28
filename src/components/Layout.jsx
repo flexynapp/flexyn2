@@ -249,7 +249,10 @@ export default function Layout() {
   };
 
   return (
-    <div className="min-h-[100dvh] bg-background font-body overscroll-y-none">
+    <div
+      data-app-shell
+      className="min-h-[100dvh] bg-background font-body overscroll-y-none"
+    >
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
