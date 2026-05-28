@@ -121,11 +121,16 @@ function OverlayItem({ overlay, storyId, userId, isOwn }) {
     const rs = FONT_RENDER_SCALE[overlay.font] || 1;
     const boxed = !!overlay.boxed;
     const fg = boxed ? contrastOn(overlay.color || '#fff') : (overlay.color || '#fff');
+    // Author-controlled wrap width (0.2..1.0 of the story container width).
+    // Default 0.7 matches the editor's default so pre-`width` stories keep
+    // their original look.
+    const w = Number.isFinite(Number(overlay.width)) ? Math.max(0.2, Math.min(1, Number(overlay.width))) : 0.7;
     return (
       <span
         style={{
           ...style,
-          display: 'inline-block',
+          display: 'block',         // block so an explicit width controls wrap
+          width: `${w * 100}%`,
           fontSize: 32 * rs,
           fontWeight: 700,
           color: fg,
@@ -135,8 +140,9 @@ function OverlayItem({ overlay, storyId, userId, isOwn }) {
           padding: boxed ? '6px 14px' : 0,
           borderRadius: boxed ? 14 : 0,
           whiteSpace: 'pre-wrap',
+          wordBreak: 'break-word',
           textAlign: 'center',
-          maxWidth: '80%',
+          boxSizing: 'border-box',
         }}
       >
         {overlay.text}

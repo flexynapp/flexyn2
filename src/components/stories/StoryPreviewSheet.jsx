@@ -177,7 +177,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     const id = uid();
     setOverlays(curr => [...curr, {
       id, kind: 'text', text: '', color: textColor, fontIdx: 0, boxed: false,
-      x: 0.5, y: 0.42, scale: 1, rotate: 0,
+      x: 0.5, y: 0.42, scale: 1, rotate: 0, width: 0.7,
     }]);
     setSelectedId(id);
     setEditingId(id);
@@ -302,6 +302,42 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     if (d && !d.moved && kind === 'text') setEditingId(id); // tap text → edit
   }, [overTrash, deleteOverlay]);
 
+  // ── width handles (text only) — drag the left/right edge to control the
+  //    text box's wrap width. Symmetric: a single side's drag pushes both
+  //    edges so the centered text stays centered. Frame-relative fraction
+  //    (0.2..1.0) so a long word like "omnivore" can stretch to one line, or
+  //    a phrase can be squeezed into 2–3 lines. ──────────────────────────
+  const widthHandle = useRef(null);
+  const onWidthHandleDown = useCallback((e, ov, side) => {
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    widthHandle.current = {
+      id: ov.id, side,
+      startX: e.clientX,
+      startWidth: ov.width != null ? ov.width : 0.7,
+      startScale: ov.scale || 1,
+    };
+  }, []);
+  const onWidthHandleMove = useCallback((e) => {
+    const w = widthHandle.current;
+    if (!w) return;
+    const rect = frameRef.current?.getBoundingClientRect();
+    if (!rect || !rect.width) return;
+    const dx = e.clientX - w.startX;
+    // Scale-aware: at scale=2, each px of finger drag is a smaller fraction
+    // of the un-transformed wrapper. The ×2 makes the drag symmetric — drag
+    // one edge by N px and the BOX grows 2N (so the opposite edge appears
+    // to move too, since the box is center-anchored).
+    const deltaFrac = (dx / rect.width) / (w.startScale || 1);
+    const sign = w.side === 'right' ? 1 : -1;
+    const next = Math.max(0.2, Math.min(1, w.startWidth + sign * deltaFrac * 2));
+    updateOverlay(w.id, { width: next });
+  }, [updateOverlay]);
+  const onWidthHandleUp = useCallback((e) => {
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+    widthHandle.current = null;
+  }, []);
+
   // ── scale + rotate handle (single pointer) ──────────────────────────────────
   const onHandleDown = useCallback((e, ov) => {
     e.stopPropagation();
@@ -413,7 +449,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     const out = [];
     overlays.forEach(o => {
       if (o.kind === 'text' && o.text.trim()) {
-        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase(), boxed: !!o.boxed });
+        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase(), boxed: !!o.boxed, width: o.width != null ? o.width : 0.7 });
       } else if (o.kind === 'emoji') {
         out.push({ kind: 'emoji', emoji: o.emoji, x: o.x, y: o.y, scale: o.scale, rotation: o.rotate });
       }
@@ -535,7 +571,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                 <div key={o.id} className="absolute" style={{
                   left: `${o.x * 100}%`, top: `${o.y * 100}%`,
                   transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`,
-                  width: '84%', zIndex: 15,
+                  width: `${(o.width != null ? o.width : 0.7) * 100}%`, zIndex: 15,
                   background: o.boxed ? (o.color || '#fff') : 'transparent',
                   padding: o.boxed ? '8px 14px' : 0,
                   borderRadius: 14,
@@ -576,6 +612,11 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                   padding: 6,
                   border: isSel ? '1.5px dashed rgba(255,255,255,0.9)' : '1.5px dashed transparent',
                   borderRadius: 8,
+                  // Text overlays get an explicit width (frame-relative) so the
+                  // wrap is user-controlled — drag the side handles to stretch a
+                  // long word onto one line or squeeze a phrase into 2–3 lines.
+                  // Emoji stays content-sized.
+                  width: o.kind === 'text' ? `${(o.width != null ? o.width : 0.7) * 100}%` : undefined,
                 }}
               >
                 {o.kind === 'emoji' ? (
@@ -586,7 +627,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                   const fg = o.boxed ? contrastOn(o.color || '#fff') : (o.color || '#fff');
                   return (
                     <span style={{
-                      display: 'inline-block',
+                      display: 'block',           // fill the wrapper so the user-controlled width drives wrap
                       background: o.boxed ? (o.color || '#fff') : 'transparent',
                       padding: o.boxed ? '6px 12px' : 0,
                       borderRadius: 12,
@@ -596,13 +637,37 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                       fontFamily: f.family,
                       textShadow: o.boxed ? 'none' : '0 2px 10px rgba(0,0,0,0.95)',
                       whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
                       textAlign: 'center',
-                      maxWidth: '70vw',
+                      width: '100%',
                     }}>
                       {o.text || ' '}
                     </span>
                   );
                 })()}
+                {/* Width handles (text only) — drag left/right edge to
+                    control the wrap width so a long word fits on one line
+                    or a phrase compacts to 2–3. */}
+                {isSel && !drawMode && o.kind === 'text' && (
+                  <>
+                    <div
+                      onPointerDown={(e) => onWidthHandleDown(e, o, 'left')}
+                      onPointerMove={onWidthHandleMove}
+                      onPointerUp={onWidthHandleUp}
+                      className="absolute top-1/2 -left-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
+                      style={{ cursor: 'ew-resize', touchAction: 'none' }}
+                      aria-label="Adjust text width (left)"
+                    />
+                    <div
+                      onPointerDown={(e) => onWidthHandleDown(e, o, 'right')}
+                      onPointerMove={onWidthHandleMove}
+                      onPointerUp={onWidthHandleUp}
+                      className="absolute top-1/2 -right-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
+                      style={{ cursor: 'ew-resize', touchAction: 'none' }}
+                      aria-label="Adjust text width (right)"
+                    />
+                  </>
+                )}
                 {/* scale + rotate handle (selected only) */}
                 {isSel && !drawMode && (
                   <div
