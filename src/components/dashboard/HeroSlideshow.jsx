@@ -38,7 +38,7 @@ import {
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 
-const ROTATE_MS = 6000;
+const ROTATE_MS = 10000;
 
 /**
  * Count-up animation primitive — eases from 0 (or `from`) to `to`
@@ -578,9 +578,24 @@ export default function HeroSlideshow({
   );
 
   const mode = pickMode({ achievementSlides, pathSlides, profile, logs });
-  const slides = mode === 'achievements' ? achievementSlides
-               : mode === 'path' ? pathSlides
-               : [];
+
+  // Streak slide is ALWAYS the lead slide of the carousel when the user
+  // isn't on the brand-new-user `path`. Achievements rotate behind it
+  // every 10s. (Was previously a mutually-exclusive fallback layout —
+  // a 5K milestone from 15 days ago would hide the streak entirely.)
+  const streakSlide = mode !== 'path' ? {
+    id: 'streak',
+    kind: 'streak',
+    streak,
+    hasWorkedOutToday,
+    daysSinceLast,
+  } : null;
+
+  const slides = mode === 'path'
+    ? pathSlides
+    : streakSlide
+      ? [streakSlide, ...achievementSlides]
+      : achievementSlides;
 
   const [idx, setIdx] = useState(0);
   // Reset to slide 0 if the slide set length shrinks below idx.
@@ -609,10 +624,17 @@ export default function HeroSlideshow({
     if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
   }, []);
 
-  // ── STREAK fallback — original layout, preserved as-is ─────────────
-  if (mode === 'streak') {
+  // ── Render slide — streak / achievement / path ─────────────────────
+  const slide = slides[idx];
+  if (!slide) return null;
+
+  // STREAK slide renders with its own chrome (giant N + "day streak"
+  // label) — visually distinct so the carousel doesn't blur achievements
+  // and the streak into the same template. Keeps the pagination dots
+  // shared so the user can swipe between streak and milestones.
+  if (slide.kind === 'streak') {
     return (
-      <div className="flex flex-col justify-between gap-6 min-w-0">
+      <div className="flex flex-col justify-between gap-5 min-w-0">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -627,35 +649,55 @@ export default function HeroSlideshow({
                   : t('dashboard.hero.kicker.fresh')}
           </span>
         </div>
-        <div className="flex items-baseline gap-3">
-          <motion.span
-            key={streak}
-            initial={{ opacity: 0, y: 12, scale: 0.92 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-            className="font-heading font-bold leading-none tracking-tight tabular-nums"
-            style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={`streak:${streak}`}
+            initial={{ opacity: 0, y: 14 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            className="min-w-0"
           >
-            {streak}
-          </motion.span>
-          <span className="font-heading text-lg md:text-xl font-medium text-white/70 leading-tight pb-2">
-            {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
-          </span>
-        </div>
-        <p className="text-sm text-white/60 max-w-[28ch] leading-relaxed">
-          {hasWorkedOutToday
-            ? t('dashboard.hero.subtitle.done')
-            : streak > 0
-              ? t('dashboard.hero.subtitle.keepGoing')
-              : t('dashboard.hero.subtitle.startToday')}
-        </p>
+            <div className="flex items-baseline gap-3">
+              <span
+                className="font-heading font-bold leading-none tracking-tight tabular-nums"
+                style={{ fontSize: 'clamp(3.5rem, 12vw, 6.5rem)' }}
+              >
+                <AnimatedNumber from={0} to={streak} durationMs={1400} />
+              </span>
+              <span className="font-heading text-lg md:text-xl font-medium text-white/70 leading-tight pb-2">
+                {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
+              </span>
+            </div>
+            <p className="text-sm text-white/60 max-w-[28ch] leading-relaxed mt-3">
+              {hasWorkedOutToday
+                ? t('dashboard.hero.subtitle.done')
+                : streak > 0
+                  ? t('dashboard.hero.subtitle.keepGoing')
+                  : t('dashboard.hero.subtitle.startToday')}
+            </p>
+          </motion.div>
+        </AnimatePresence>
+        {slides.length > 1 && (
+          <div className="flex items-center gap-1.5">
+            {slides.map((_, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => goTo(i)}
+                aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
+                className={`h-1.5 rounded-full transition-all ${
+                  i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                }`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   }
 
   // ── ACHIEVEMENTS or PATH — shared slideshow layout ─────────────────
-  const slide = slides[idx];
-  if (!slide) return null;
   const SlideIcon = slide.icon || Sparkles;
 
   const subKicker = mode === 'achievements'
