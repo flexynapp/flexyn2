@@ -87,7 +87,7 @@ export default function LeagueCard({ onClick }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className="block w-full h-full text-start"
     >
-      <Card className="overflow-hidden border-border/60 theme-card-accent h-full flex">
+      <Card className={`overflow-hidden border-border/60 theme-card-accent h-full flex ${tier.ringClass || ''}`}>
         {/* Top stripe — gradient by tier. flex-1 + items-center fills
             and vertically centers content so the card stretches to
             match its row neighbor (e.g. Readiness compact square). */}

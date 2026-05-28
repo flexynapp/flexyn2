@@ -189,7 +189,11 @@ function HeroCard({
       {/* Day/night switch + gold CTA — hang OFF the bottom of the
           rounded hero card. Negative top margin pulls them up so the
           gold button visually overlaps the hero's bottom edge (the
-          "loot hanging off the chest" look the user mocked up). */}
+          "loot hanging off the chest" look the user mocked up). The
+          day/night toggle aligns to the BOTTOM of the row (via
+          self-end), so it sits about a centimeter lower than the
+          gold CTA's vertical midline — splits the empty space below
+          the carousel into two halves instead of crowding the top. */}
       <div className="relative -mt-5 mx-4 md:mx-6 flex items-center gap-2">
         <button
           type="button"
@@ -198,7 +202,7 @@ function HeroCard({
             ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
             : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
           aria-pressed={darkMode}
-          className="relative shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
+          className="relative self-end mb-2 shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
         >
           <span className="absolute left-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
             <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-muted-foreground' : 'opacity-100 text-amber-500'}`} />
@@ -968,35 +972,31 @@ export default function Dashboard() {
             tFallback={tFallback}
           />
           <Collapsible open={recoveryOpen}>
-            {/* Order intentionally inverted from the prior version:
-                Macros → Calories → Hydration+Mood → Steps. User wants
-                today's macros + calories surfaced first; mood/steps
-                drop to the bottom. */}
-            <div className="mb-2">
-              <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
-            </div>
-            <div className="mb-2">
-              <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
-            </div>
-            <div className="grid grid-cols-2 gap-2 mb-2">
-              <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
-              <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-            </div>
-            <div>
-              <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
-            </div>
-            {/* Bottom collapse chevron — mirrors the Daily Quests
-                pattern so the user can tuck the recovery cards away
-                without scrolling back up to the section header. */}
-            <button
-              type="button"
-              onClick={toggleRecovery}
-              aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
-              aria-expanded={recoveryOpen}
-              className="w-full mt-2 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
-            >
-              <ChevronUp className="w-3.5 h-3.5" />
-            </button>
+            {/* Wrapped in a single outer Card with the same shape as
+                Daily Quests — light tint background (blue, to
+                differentiate from the orange Quests card), inner
+                widgets keep their own white/card backgrounds. Order
+                inverted: Macros → Calories → Hydration+Mood → Steps. */}
+            <Card className="p-3 bg-gradient-to-br from-blue-200/25 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
+              <div className="space-y-2">
+                <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
+                <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
+                <div className="grid grid-cols-2 gap-2">
+                  <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+                  <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
+                </div>
+                <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
+              </div>
+              <button
+                type="button"
+                onClick={toggleRecovery}
+                aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
+                aria-expanded={recoveryOpen}
+                className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+            </Card>
           </Collapsible>
         </React.Fragment>
       );

@@ -16,7 +16,12 @@ export const TIERS = [
     label: 'Bronze',
     icon: '🥉',
     color: '#cd7f32',
-    gradient: 'from-orange-700 via-amber-700 to-yellow-800',
+    // Lighter, slightly polished bronze — shifts the previous very-dark
+    // brown ramp (orange-700 → yellow-800) up two steps so it reads as
+    // "shiny patina" instead of "rust." Pairs with a bronze ring border
+    // on the card to outline it without making it look heavy.
+    gradient: 'from-amber-500 via-orange-500 to-yellow-700',
+    ringClass: 'ring-1 ring-amber-400/60',
     promote: 10,
     demote: 0, // never demoted out of bronze
     rewardCoins: 50,
