@@ -1657,7 +1657,7 @@ export default function Workout() {
         <div className="md:hidden flex items-center justify-between mb-3">
           <button
             type="button"
-            onClick={() => navigate('/progress')}
+            onClick={() => setRoutineSheetOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 text-muted-foreground hover:bg-muted/80 transition-colors"
           >
             <CalendarDays className="w-3 h-3" />
@@ -1905,47 +1905,8 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions — 2-col mobile grid with floating ember particles */}
+            {/* Secondary actions — 2-col mobile / 4-col desktop grid */}
             <div className="relative mb-2">
-              {/* Mobile-only ember particles — float upward through grid gaps */}
-              <div className="md:hidden absolute inset-0 overflow-hidden rounded-2xl pointer-events-none" style={{ zIndex: 0 }}>
-                <style>{`
-                  @keyframes ember-rise {
-                    0%   { opacity: 0; transform: translateY(0) translateX(0) scale(1); }
-                    12%  { opacity: 0.85; }
-                    65%  { opacity: 0.6; transform: translateY(-150px) translateX(calc(var(--ember-drift) * 0.6)) scale(0.7); }
-                    100% { opacity: 0; transform: translateY(-320px) translateX(var(--ember-drift)) scale(0.3); }
-                  }
-                `}</style>
-                {[
-                  { id:0,  l:'4%',  b:'2%',  c:'#ff2020', s:3, d:2.8, dl:0.0,  dr:'10px'  },
-                  { id:1,  l:'14%', b:'15%', c:'#ff6600', s:2, d:3.3, dl:0.7,  dr:'-8px'  },
-                  { id:2,  l:'25%', b:'5%',  c:'#ffd700', s:4, d:3.0, dl:1.4,  dr:'14px'  },
-                  { id:3,  l:'38%', b:'20%', c:'#ff2020', s:2, d:2.6, dl:0.3,  dr:'-12px' },
-                  { id:4,  l:'50%', b:'8%',  c:'#ff6600', s:3, d:3.7, dl:1.0,  dr:'16px'  },
-                  { id:5,  l:'63%', b:'3%',  c:'#ffd700', s:2, d:2.9, dl:1.8,  dr:'-6px'  },
-                  { id:6,  l:'74%', b:'18%', c:'#ff2020', s:3, d:3.4, dl:0.5,  dr:'9px'   },
-                  { id:7,  l:'88%', b:'10%', c:'#ff6600', s:2, d:3.1, dl:2.1,  dr:'-14px' },
-                  { id:8,  l:'9%',  b:'35%', c:'#ffd700', s:3, d:2.7, dl:2.5,  dr:'18px'  },
-                  { id:9,  l:'32%', b:'45%', c:'#ff2020', s:2, d:3.6, dl:1.2,  dr:'-9px'  },
-                  { id:10, l:'57%', b:'30%', c:'#ff6600', s:4, d:2.5, dl:0.8,  dr:'12px'  },
-                  { id:11, l:'80%', b:'40%', c:'#ffd700', s:2, d:3.2, dl:1.6,  dr:'-16px' },
-                  { id:12, l:'20%', b:'55%', c:'#ff2020', s:3, d:3.9, dl:0.2,  dr:'7px'   },
-                  { id:13, l:'46%', b:'60%', c:'#ff6600', s:2, d:2.8, dl:2.8,  dr:'-11px' },
-                  { id:14, l:'68%', b:'50%', c:'#ffd700', s:3, d:3.5, dl:1.9,  dr:'20px'  },
-                  { id:15, l:'92%', b:'25%', c:'#ff2020', s:2, d:2.9, dl:0.6,  dr:'-7px'  },
-                ].map(e => (
-                  <div key={e.id} style={{
-                    position: 'absolute', left: e.l, bottom: e.b,
-                    width: e.s, height: e.s, borderRadius: '50%',
-                    backgroundColor: e.c,
-                    boxShadow: `0 0 ${e.s * 3}px ${e.c}, 0 0 ${e.s}px ${e.c}`,
-                    animation: `ember-rise ${e.d}s ease-in infinite`,
-                    animationDelay: `${e.dl}s`,
-                    '--ember-drift': e.dr,
-                  }} />
-                ))}
-              </div>
               <motion.div
                 className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 relative"
                 style={{ zIndex: 1 }}
@@ -1961,8 +1922,8 @@ export default function Workout() {
                     role="button" tabIndex={0}
                     aria-label={tFallback('generator.title', 'Generate Workout')}
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-rose-500/40 bg-gradient-to-br from-red-600/32 via-red-500/20 to-rose-500/16 hover:border-rose-500/60 hover:shadow-[0_0_16px_rgba(239,68,68,0.32)]
-                      md:p-4 md:border-primary/20 md:shadow-none md:from-primary/5 md:via-fuchsia-500/5 md:to-violet-500/5 md:hover:border-primary/50 md:hover:shadow-none"
+                      p-3 md:p-4 border-rose-500/50 bg-gradient-to-br from-red-500/52 via-rose-500/38 to-rose-400/28
+                      hover:border-rose-500/70 hover:shadow-[0_0_18px_rgba(239,68,68,0.40)]"
                     onClick={() => setGeneratorOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                   >
@@ -1996,8 +1957,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Explore Regimens"
                     className="group relative overflow-hidden cursor-pointer h-full transition-all
-                      p-3 border-rose-500/35 bg-gradient-to-r from-red-600/28 via-red-500/16 to-rose-500/12 hover:border-rose-500/55 hover:shadow-[0_0_14px_rgba(239,68,68,0.26)]
-                      md:p-4 md:border-primary/25 md:shadow-none md:from-red-500/5 md:via-primary/5 md:to-orange-400/5 md:hover:border-primary/50 md:hover:from-red-500/10 md:hover:via-primary/10 md:hover:to-orange-400/10 md:hover:shadow-none"
+                      p-3 md:p-4 border-rose-500/48 bg-gradient-to-r from-red-500/48 via-rose-500/34 to-rose-400/24
+                      hover:border-rose-500/68 hover:shadow-[0_0_16px_rgba(239,68,68,0.36)]"
                     onClick={() => setStoreOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
                   >
@@ -2035,8 +1996,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Duels"
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-rose-500/38 bg-gradient-to-br from-rose-600/28 via-orange-500/18 to-red-500/16 hover:border-rose-500/55 hover:shadow-[0_0_14px_rgba(244,63,94,0.30)]
-                      md:p-4 md:shadow-none md:bg-none"
+                      p-3 md:p-4 border-rose-500/45 bg-gradient-to-br from-rose-500/46 via-orange-500/32 to-red-500/26
+                      hover:border-rose-500/65 hover:shadow-[0_0_16px_rgba(244,63,94,0.36)]"
                     onClick={() => navigate('/duels')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
                   >
@@ -2070,8 +2031,8 @@ export default function Workout() {
                   <Card
                     role="button" tabIndex={0} aria-label="Bounties"
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-orange-500/35 bg-gradient-to-br from-orange-600/26 via-amber-500/18 to-orange-500/14 hover:border-orange-500/52 hover:shadow-[0_0_14px_rgba(249,115,22,0.28)]
-                      md:p-4 md:shadow-none md:bg-none"
+                      p-3 md:p-4 border-orange-500/42 bg-gradient-to-br from-orange-500/44 via-amber-500/30 to-orange-400/24
+                      hover:border-orange-500/62 hover:shadow-[0_0_16px_rgba(249,115,22,0.34)]"
                     onClick={() => navigate('/bounties')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
                   >
@@ -2109,8 +2070,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-orange-500/35 bg-gradient-to-br from-orange-500/26 via-orange-400/16 to-amber-500/12 hover:border-orange-500/52 hover:shadow-[0_0_12px_rgba(249,115,22,0.24)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40 md:bg-none"
+                      p-3 md:p-4 border-orange-500/40 bg-gradient-to-br from-orange-500/46 via-orange-400/30 to-amber-500/22
+                      hover:border-orange-500/60 hover:shadow-[0_0_14px_rgba(249,115,22,0.30)]"
                     onClick={() => setRegimensOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2138,8 +2099,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-orange-400/32 bg-gradient-to-br from-orange-400/24 via-amber-400/14 to-orange-500/12 hover:border-orange-400/50 hover:shadow-[0_0_12px_rgba(251,146,60,0.24)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40 md:bg-none"
+                      p-3 md:p-4 border-orange-400/38 bg-gradient-to-br from-orange-400/44 via-amber-400/28 to-orange-500/20
+                      hover:border-orange-400/58 hover:shadow-[0_0_14px_rgba(251,146,60,0.30)]"
                     onClick={() => setSavedWorkoutsOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2168,8 +2129,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-yellow-500/32 bg-gradient-to-br from-yellow-500/24 via-amber-400/15 to-yellow-400/12 hover:border-yellow-500/50 hover:shadow-[0_0_12px_rgba(234,179,8,0.26)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-primary/40 md:bg-none"
+                      p-3 md:p-4 border-yellow-500/38 bg-gradient-to-br from-yellow-500/44 via-amber-400/28 to-yellow-400/22
+                      hover:border-yellow-500/58 hover:shadow-[0_0_14px_rgba(234,179,8,0.32)]"
                     onClick={() => setCardioOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2197,8 +2158,8 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
                   <Card
                     className="group relative cursor-pointer h-full transition-colors
-                      p-3 border-yellow-400/30 bg-gradient-to-br from-yellow-400/22 via-yellow-300/14 to-amber-300/10 hover:border-yellow-400/48 hover:shadow-[0_0_12px_rgba(250,204,21,0.22)]
-                      md:p-4 md:shadow-none md:border-border/70 md:hover:border-orange-500/40 md:bg-none"
+                      p-3 md:p-4 border-yellow-400/36 bg-gradient-to-br from-yellow-400/42 via-yellow-300/26 to-amber-300/20
+                      hover:border-yellow-400/56 hover:shadow-[0_0_14px_rgba(250,204,21,0.30)]"
                     onClick={() => setGoalsModalOpen(true)}
                   >
                     {/* ⓘ info button */}
@@ -2226,11 +2187,14 @@ export default function Workout() {
                 <motion.div variants={itemVariants} className="order-9 col-span-full">
                   {/* ring creates a glowing red border without competing with NemesisCard's inner border */}
                   <div className="relative overflow-hidden rounded-xl ring-2 ring-rose-500/45 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
-                    {/* Fire background: two out-of-phase gradient layers pulse like embers */}
-                    <div className="absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0}}>
+                    {/* Fire background: sliding left-to-right gradient — always vivid red/orange, no fading */}
+                    <div className="absolute inset-0 rounded-xl pointer-events-none overflow-hidden" style={{zIndex:0, transform:'translateZ(0)'}}>
                       <style>{`
-                        @keyframes nemesis-pulse-a { 0%,100%{opacity:1} 50%{opacity:0.25} }
-                        @keyframes nemesis-pulse-b { 0%,100%{opacity:0.1} 50%{opacity:0.9} }
+                        @keyframes nemesis-fire-slide {
+                          0%   { background-position: 0% 50%; }
+                          50%  { background-position: 100% 50%; }
+                          100% { background-position: 0% 50%; }
+                        }
                         @keyframes ember-rise-short {
                           0%   { opacity:0; transform:translateY(0) translateX(0) scale(1); }
                           15%  { opacity:1; }
@@ -2238,16 +2202,11 @@ export default function Workout() {
                           100% { opacity:0; transform:translateY(-78px) translateX(var(--ember-drift)) scale(0.2); }
                         }
                       `}</style>
-                      {/* Layer A: deep red */}
+                      {/* Sliding fire gradient — shifts between deep red and orange, always at full opacity */}
                       <div className="absolute inset-0 rounded-xl" style={{
-                        background: 'linear-gradient(135deg, rgba(220,38,38,0.24) 0%, rgba(185,28,28,0.15) 55%, rgba(251,146,60,0.08) 100%)',
-                        animation: 'nemesis-pulse-a 2.8s ease-in-out infinite',
-                      }} />
-                      {/* Layer B: orange-red, offset phase for pulsing fire feel */}
-                      <div className="absolute inset-0 rounded-xl" style={{
-                        background: 'linear-gradient(135deg, rgba(251,146,60,0.20) 0%, rgba(220,38,38,0.18) 55%, rgba(185,28,28,0.06) 100%)',
-                        animation: 'nemesis-pulse-b 2.8s ease-in-out infinite',
-                        animationDelay: '-1.4s',
+                        background: 'linear-gradient(90deg, rgba(220,38,38,0.58) 0%, rgba(251,146,60,0.50) 25%, rgba(185,28,28,0.55) 50%, rgba(251,146,60,0.50) 75%, rgba(220,38,38,0.58) 100%)',
+                        backgroundSize: '300% 100%',
+                        animation: 'nemesis-fire-slide 3.5s ease-in-out infinite',
                       }} />
                       {/* Contained ember particles — short travel so they stay inside the card */}
                       {[
@@ -2297,7 +2256,7 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Gauntlet"
-                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/30 bg-gradient-to-br from-yellow-500/24 via-amber-400/15 to-yellow-400/12 hover:border-yellow-500/50 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)] md:shadow-none md:bg-none transition-colors h-full"
+                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/36 bg-gradient-to-br from-yellow-500/42 via-amber-400/26 to-yellow-400/20 hover:border-yellow-500/56 hover:shadow-[0_0_16px_rgba(234,179,8,0.32)] transition-colors h-full"
                     onClick={() => navigate('/gauntlet')}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
                   >
@@ -2334,7 +2293,7 @@ export default function Workout() {
                 <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
                   <Card
                     role="button" tabIndex={0} aria-label="Form Coach"
-                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/28 bg-gradient-to-br from-amber-400/20 via-yellow-400/12 to-yellow-300/10 hover:border-amber-400/46 hover:shadow-[0_0_12px_rgba(251,191,36,0.22)] transition-colors h-full md:bg-none md:border-border/70 md:hover:border-primary/40 md:hover:shadow-none"
+                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/34 bg-gradient-to-br from-amber-400/40 via-yellow-400/24 to-yellow-300/18 hover:border-amber-400/54 hover:shadow-[0_0_14px_rgba(251,191,36,0.28)] transition-colors h-full"
                     onClick={() => setFormCoachOpen(true)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
                   >
