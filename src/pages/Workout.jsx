@@ -48,6 +48,7 @@ import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
 import { fireFirstWorkoutCelebration } from '@/lib/firstWorkoutCelebration';
+import { useFeatureGate } from '@/lib/useFeatureGate';
 import { firePRCelebration, OPEN_PR_SHARE_EVENT } from '@/lib/prCelebration';
 import { detectPRsInWorkout } from '@/lib/data/personalRecords';
 import { detectDeloadOpportunity } from '@/lib/deloadDetector';
@@ -405,6 +406,22 @@ export default function Workout() {
   const prIndex = useMemo(() => buildPRIndex(logs), [logs]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+
+  // ── Wave 62 declutter — gate competitive surfaces ─────────────────
+  // Brand-new users (< 3 workouts logged) see the core workout flow
+  // (Freestyle CTA + Regimens + Generator + Cardio + Goals) without
+  // the competitive noise (Duels, Bounties, Nemesis, Gauntlet, Form
+  // Coach). As they log more workouts each one unlocks at its
+  // natural retention milestone — see src/lib/useFeatureGate.js.
+  // Override:
+  //   localStorage.setItem('flexyn.showAdvancedFeatures', 'true')
+  // — flips all gates open for power users / dev testing.
+  const gateCtx = { logs, profile: userProfile, user };
+  const showDuels    = useFeatureGate('duels',    gateCtx);
+  const showBounties = useFeatureGate('bounties', gateCtx);
+  const showNemesis  = useFeatureGate('nemesis',  gateCtx);
+  const showGauntlet = useFeatureGate('gauntlet', gateCtx);
+  const showFormCoach = useFeatureGate('coach',   gateCtx);  // 3+ workouts so it has data
 
   const { data: activeDuel } = useQuery({
     queryKey:  ['activeDuel', user?.id],
@@ -2025,122 +2042,139 @@ export default function Workout() {
                 </Card>
               </motion.div>
 
-              {/* Row 4: Duels (col-span-2) | Bounties (col-span-2) */}
+              {/* ── Wave 62 declutter ──────────────────────────────────
+                  Competitive cards (Duels / Bounties / Nemesis /
+                  Gauntlet) and Form Coach are gated behind workout-
+                  count thresholds. A brand-new user (0 workouts) sees
+                  rows 1-3 only — Regimens / Generator / Saved / Cardio
+                  / Goals. As they log workouts each card unlocks. */}
 
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Duels"
-                  className="group p-4 cursor-pointer border-rose-500/20 bg-gradient-to-br from-rose-500/5 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/10 transition-colors h-full"
-                  onClick={() => navigate('/duels')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
-                      <Swords className="w-4 h-4 text-rose-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                        {activeDuel && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
-                        )}
+              {/* Row 4: Duels (5+ workouts) | Bounties (10+ workouts) */}
+
+              {showDuels && (
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Duels"
+                    className="group p-4 cursor-pointer border-rose-500/20 bg-gradient-to-br from-rose-500/5 via-orange-500/5 to-rose-500/5 hover:border-rose-500/40 hover:from-rose-500/10 transition-colors h-full"
+                    onClick={() => navigate('/duels')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
+                        <Swords className="w-4 h-4 text-rose-500" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Bounties"
-                  className="group p-4 cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/10 transition-colors h-full"
-                  onClick={() => navigate('/bounties')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
-                      <Zap className="w-4 h-4 text-amber-500" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                        {activeBountyClaim && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
-                        )}
-                        {!activeBountyClaim && activeBounties.length > 0 && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
-                        )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-heading font-bold text-sm leading-tight">Duels</p>
+                          {activeDuel && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
+                  </Card>
+                </motion.div>
+              )}
 
-              {/* Row 5: Nemesis — full width */}
-
-              <motion.div variants={itemVariants} className="col-span-full">
-                <ErrorBoundary label="NemesisCard">
-                  <NemesisCard currentUserId={user?.id} />
-                </ErrorBoundary>
-              </motion.div>
-
-              {/* Row 6: Gauntlet (col-span-2) */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Gauntlet"
-                  className="group p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
-                  onClick={() => navigate('/gauntlet')}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
-                      <Trophy className="w-5 h-5 text-amber-400" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                        {gauntletProgress?.path_completed && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
-                        )}
-                        {!gauntletProgress?.path_completed && gauntletProgress && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
-                            #{gauntletProgress.current_challenge_sequence}
-                          </span>
-                        )}
+              {showBounties && (
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Bounties"
+                    className="group p-4 cursor-pointer border-amber-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-amber-500/40 hover:from-amber-500/10 transition-colors h-full"
+                    onClick={() => navigate('/bounties')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
+                        <Zap className="w-4 h-4 text-amber-500" />
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-
-              {/* Row 7: Form Coach — last */}
-
-              <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
-                <Card
-                  role="button" tabIndex={0} aria-label="Form Coach"
-                  className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
-                  onClick={() => setFormCoachOpen(true)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                      <Camera className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                          {activeBountyClaim && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
+                          )}
+                          {!activeBountyClaim && activeBounties.length > 0 && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
                     </div>
-                    <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                  </div>
-                </Card>
-              </motion.div>
+                  </Card>
+                </motion.div>
+              )}
+
+              {/* Row 5: Nemesis (7+ workouts + week-1 since signup) — full width */}
+
+              {showNemesis && (
+                <motion.div variants={itemVariants} className="col-span-full">
+                  <ErrorBoundary label="NemesisCard">
+                    <NemesisCard currentUserId={user?.id} />
+                  </ErrorBoundary>
+                </motion.div>
+              )}
+
+              {/* Row 6: Gauntlet (14-day streak OR 20+ workouts) */}
+
+              {showGauntlet && (
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Gauntlet"
+                    className="group p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
+                    onClick={() => navigate('/gauntlet')}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
+                        <Trophy className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
+                          {gauntletProgress?.path_completed && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
+                          )}
+                          {!gauntletProgress?.path_completed && gauntletProgress && (
+                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
+                              #{gauntletProgress.current_challenge_sequence}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
+
+              {/* Row 7: Form Coach (3+ workouts — so the AI has data to comment on) */}
+
+              {showFormCoach && (
+                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
+                  <Card
+                    role="button" tabIndex={0} aria-label="Form Coach"
+                    className="group p-4 cursor-pointer border-border/70 hover:border-primary/40 transition-colors h-full"
+                    onClick={() => setFormCoachOpen(true)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
+                        <Camera className="w-5 h-5 text-primary" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
+                      </div>
+                      <ArrowRight className="w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
+                    </div>
+                  </Card>
+                </motion.div>
+              )}
             </motion.div>
           </>
         ) : (

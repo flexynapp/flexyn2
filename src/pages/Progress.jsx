@@ -394,6 +394,15 @@ export default function Progress() {
   const bodyMetrics  = useMemo(() => filterAfterReset(rawBodyMetrics, userProfile), [rawBodyMetrics, userProfile]);
   const isLoading    = logsLoading || regimensLoading;
 
+  // ── Wave 63 declutter — gate empty analytics surfaces ─────────────
+  // The Calendar grid + Training Pattern card both render essentially
+  // empty for brand-new users (sparse 26-week heatmap; no pattern
+  // detectable below ~7 sessions). Hide them until the user has data
+  // worth showing.
+  const workoutCount     = logs.length;
+  const showCalendarGrid = workoutCount >= 3;
+  const showPatternCard  = workoutCount >= 7;
+
   // Weekly summary — auto-generate on first load, then cache for 5 min
   const { data: latestDebriefData, refetch: refetchDebrief } = useQuery({
     queryKey: ['latestDebrief', user?.id],
@@ -531,7 +540,7 @@ export default function Progress() {
         <>
           {/* ── Hero Stats Strip ──────────────────────────────────────────── */}
           <motion.div
-            className="grid grid-cols-4 gap-2 md:gap-3 mb-6"
+            className="grid grid-cols-4 gap-2 md:gap-3 mb-3"
             initial="hidden"
             animate="visible"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
@@ -556,33 +565,41 @@ export default function Progress() {
 
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there
-              isn't enough data to call a pattern (see trainingPatterns.js). */}
-          <div className="mb-4">
-            <TrainingPatternCard workoutLogs={logs} />
-          </div>
+              isn't enough data to call a pattern (see trainingPatterns.js).
+              Wave 63: gated to logs.length >= 7 — below threshold the
+              card has nothing to say. */}
+          {showPatternCard && (
+            <div className="mb-3">
+              <TrainingPatternCard workoutLogs={logs} />
+            </div>
+          )}
 
           {/* 26-week GitHub-style activity grid. Self-hides on empty
               windows. Drives habit awareness — seeing the streaks-and-
               gaps pattern is more motivating than a workout count.
               Second tap on a trained square → "repeat this workout"
-              flow on the Workout page. */}
-          <div className="mb-4">
-            <WorkoutCalendarGrid
-              logs={logs}
-              onSelectDay={(log) => {
-                navigate('/workout', { state: { repeatFromLog: log } });
-              }}
-            />
-          </div>
+              flow on the Workout page.
+              Wave 63: gated to logs.length >= 3 — a 1-square grid
+              just looks broken. */}
+          {showCalendarGrid && (
+            <div className="mb-3">
+              <WorkoutCalendarGrid
+                logs={logs}
+                onSelectDay={(log) => {
+                  navigate('/workout', { state: { repeatFromLog: log } });
+                }}
+              />
+            </div>
+          )}
 
           {/* ── Frame Stats (This Week / Month / Year / All Time) ─────── */}
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.18, type: 'spring', stiffness: 260, damping: 22 }}
-            className="mb-4"
+            className="mb-3"
           >
-            <Card className="p-5 border-none shadow-sm overflow-hidden relative">
+            <Card className="p-4 border-none shadow-sm overflow-hidden relative">
               {/* Background gradient accent */}
               <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
@@ -701,7 +718,7 @@ export default function Progress() {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.3, type: 'spring', stiffness: 260, damping: 22 }}
-              className="mb-6"
+              className="mb-3"
             >
               <div className="flex items-center justify-between mb-3">
                 <h2 className="font-heading font-black text-sm uppercase tracking-wider text-muted-foreground">Top PRs</h2>
@@ -748,7 +765,7 @@ export default function Progress() {
               the previous layout had felt unfinished. On mobile they
               keep their natural width and overflow-scroll so the row
               doesn't squeeze each one into an unreadable nub. */}
-          <div ref={tabsBarRef} className="mb-6">
+          <div ref={tabsBarRef} className="mb-4">
             <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
               {TAB_META.map(tab => {
                 const isActive = activeTab === tab.id;
