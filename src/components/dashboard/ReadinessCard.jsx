@@ -37,7 +37,7 @@ const ACTION_BY_LABEL = {
   Depleted: 'Take a rest day. Sleep + protein.',
 };
 
-export default function ReadinessCard({ logs = [] }) {
+export default function ReadinessCard({ logs = [], compact = false }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
 
@@ -98,13 +98,54 @@ export default function ReadinessCard({ logs = [] }) {
   const action = ACTION_BY_LABEL[label] || ACTION_BY_LABEL.Ready;
 
   // Ring geometry
-  const SIZE = 64;
-  const STROKE = 6;
+  const SIZE = compact ? 44 : 64;
+  const STROKE = compact ? 4 : 6;
   const RADIUS = (SIZE - STROKE) / 2;
   const CIRC = 2 * Math.PI * RADIUS;
   const dashOffset = CIRC * (1 - score / 100);
 
   if (!user?.id) return null;
+
+  if (compact) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="h-full"
+      >
+        <Card className={`px-2 py-2 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-1`}>
+          <div className="relative" style={{ width: SIZE, height: SIZE }}>
+            <svg width={SIZE} height={SIZE} className="-rotate-90">
+              <circle
+                cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
+                fill="none"
+                stroke="hsl(var(--secondary))"
+                strokeWidth={STROKE}
+              />
+              <motion.circle
+                cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
+                fill="none"
+                stroke={colors.ring}
+                strokeWidth={STROKE}
+                strokeLinecap="round"
+                strokeDasharray={CIRC}
+                initial={{ strokeDashoffset: CIRC }}
+                animate={{ strokeDashoffset: dashOffset }}
+                transition={{ duration: 0.8, ease: 'easeOut' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="font-heading font-black text-sm tabular-nums">{score}</span>
+            </div>
+          </div>
+          <span className={`text-[9px] font-bold uppercase tracking-[0.14em] ${colors.text} leading-none`}>
+            {tFallback('readiness.kicker', 'Readiness')}
+          </span>
+        </Card>
+      </motion.div>
+    );
+  }
 
   return (
     <motion.div

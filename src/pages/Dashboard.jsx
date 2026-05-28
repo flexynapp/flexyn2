@@ -369,9 +369,10 @@ export default function Dashboard() {
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const defaultWidgetOrder = [
-    'readiness', 'recovery',
-    'challenges', 'actions',
-    'chest', 'league',
+    'readiness', 'league',   // small square + wide rank, directly under hero
+    'challenges', 'actions', // hotdog pair: quests next to quick actions
+    'chest',
+    'recovery',
     'progress',
     'discover', 'motivation',
     'onboarding',
@@ -384,7 +385,17 @@ export default function Dashboard() {
   // to localStorage alongside widgetOrder. Two consecutive half
   // sections in widgetOrder render side-by-side; a lone half degrades
   // to full width (no half-width orphan).
-  const [sectionLayouts, setSectionLayouts] = useState({});
+  //
+  // Factory default pairs:
+  //   readiness + league   — small square + wide rank under hero
+  //   challenges + actions — daily quests next to quick actions
+  // User can flip any of these via the layout icon in edit mode.
+  const [sectionLayouts, setSectionLayouts] = useState({
+    readiness:  'half',
+    league:     'half',
+    challenges: 'half',
+    actions:    'half',
+  });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
       const next = { ...prev, [id]: (prev[id] || 'full') === 'half' ? 'full' : 'half' };
@@ -527,7 +538,12 @@ export default function Dashboard() {
   // dragging every section around manually.
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
-    setSectionLayouts({});
+    setSectionLayouts({
+      readiness:  'half',
+      league:     'half',
+      challenges: 'half',
+      actions:    'half',
+    });
     try {
       localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);
       localStorage.removeItem(`flexyn.dashSectionLayouts.${user?.id || 'anon'}`);
@@ -818,21 +834,37 @@ export default function Dashboard() {
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
   const renderDashboardSection = (id) => {
     switch (id) {
-      case 'readiness': return (
-        <React.Fragment key="readiness">
-          <SectionHeader
-            label={tFallback('dashboard.section.readiness', 'Readiness')}
-            open={readinessOpen}
-            onToggle={toggleReadiness}
-            tFallback={tFallback}
-          />
-          <Collapsible open={readinessOpen}>
-            <div className="mb-3">
-              <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
-            </div>
-          </Collapsible>
-        </React.Fragment>
-      );
+      case 'readiness': {
+        // In half/hotdog mode the readiness card collapses to a small
+        // labeled square that sits next to weekly rank under the hero.
+        // We drop the section header so the row can be as compact as
+        // possible (the card has its own internal "Readiness" label).
+        const isHalf = (sectionLayouts.readiness || 'full') === 'half';
+        if (isHalf) {
+          return (
+            <React.Fragment key="readiness">
+              <ErrorBoundary label="ReadinessCard">
+                <ReadinessCard logs={logs} compact />
+              </ErrorBoundary>
+            </React.Fragment>
+          );
+        }
+        return (
+          <React.Fragment key="readiness">
+            <SectionHeader
+              label={tFallback('dashboard.section.readiness', 'Readiness')}
+              open={readinessOpen}
+              onToggle={toggleReadiness}
+              tFallback={tFallback}
+            />
+            <Collapsible open={readinessOpen}>
+              <div className="mb-3">
+                <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
+              </div>
+            </Collapsible>
+          </React.Fragment>
+        );
+      }
       case 'recovery': return (
         <React.Fragment key="recovery">
           <SectionHeader
@@ -1304,15 +1336,20 @@ export default function Dashboard() {
                 })}
               </div>
             )}
-            <div className={row.sections.length === 2 ? 'flex flex-wrap gap-2' : ''}>
-              {row.sections.map(id => (
-                <div
-                  key={id}
-                  className={row.sections.length === 2 ? 'flex-1 min-w-0 w-[calc(50%-0.25rem)]' : ''}
-                >
-                  {renderDashboardSection(id)}
-                </div>
-              ))}
+            <div className={row.sections.length === 2 ? 'flex items-stretch gap-2' : ''}>
+              {row.sections.map(id => {
+                // Default hotdog = 50/50. Readiness in a hotdog row is
+                // a fixed small square (24 = 96px); whichever section
+                // it's paired with takes the remaining flex-1 width.
+                const widthClass = row.sections.length === 2
+                  ? (id === 'readiness' ? 'shrink-0 w-24' : 'flex-1 min-w-0')
+                  : '';
+                return (
+                  <div key={id} className={widthClass}>
+                    {renderDashboardSection(id)}
+                  </div>
+                );
+              })}
             </div>
           </Reorder.Item>
         ))}
