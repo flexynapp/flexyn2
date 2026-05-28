@@ -888,56 +888,32 @@ export default function Dashboard() {
       );
       case 'challenges': return (
         <React.Fragment key="challenges">
-          <SectionHeader
-            label={tFallback('dashboard.section.challenges', 'Challenges')}
-            open={challengesOpen}
-            onToggle={toggleChallenges}
-            tFallback={tFallback}
-          />
-          <Collapsible open={challengesOpen}>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
-              <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
-            </motion.div>
-            {!isRestDay && (
-              <div className="mb-3">
-                <StreakRescueCard
-                  streakDays={streak}
-                  lastWorkoutDate={lastWorkoutDate?.toISOString()}
-                  lastMealDate={lastMealDate?.toISOString()}
-                />
-              </div>
-            )}
-          </Collapsible>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
+            <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
+          </motion.div>
+          {!isRestDay && (
+            <div className="mb-3">
+              <StreakRescueCard
+                streakDays={streak}
+                lastWorkoutDate={lastWorkoutDate?.toISOString()}
+                lastMealDate={lastMealDate?.toISOString()}
+              />
+            </div>
+          )}
         </React.Fragment>
       );
       case 'chest': return (
         <React.Fragment key="chest">
-          <SectionHeader
-            label={tFallback('dashboard.section.chest', 'Daily chest')}
-            open={chestOpen}
-            onToggle={toggleChest}
-            tFallback={tFallback}
-          />
-          <Collapsible open={chestOpen}>
-            <div className="mb-3">
-              <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
-            </div>
-          </Collapsible>
+          <div className="mb-3">
+            <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+          </div>
         </React.Fragment>
       );
       case 'league': return (
         <React.Fragment key="league">
-          <SectionHeader
-            label={tFallback('dashboard.section.league', 'Weekly rank')}
-            open={leagueOpen}
-            onToggle={toggleLeague}
-            tFallback={tFallback}
-          />
-          <Collapsible open={leagueOpen}>
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
-              <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
-            </motion.div>
-          </Collapsible>
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
+            <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
+          </motion.div>
         </React.Fragment>
       );
       case 'progress': return (
@@ -993,118 +969,78 @@ export default function Dashboard() {
         const hiddenCount = allActions.length - 3;
         return (
           <React.Fragment key="actions">
-            <SectionHeader
-              label={t('dashboard.quickActions')}
-              open={actionsOpen}
-              onToggle={toggleActions}
-              tFallback={tFallback}
-            />
-            <Collapsible open={actionsOpen}>
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6">
-                <div className="flex flex-col gap-2">
-                  {visibleActions.map((a, i) => (
-                    a.to ? (
-                      <QuickAction key={a.key} to={a.to} icon={a.icon} label={a.label} delay={0.05 + i * 0.03} />
-                    ) : (
-                      <QuickAction key={a.key} icon={a.icon} label={a.label} onClick={a.onClick} delay={0.05 + i * 0.03} />
-                    )
-                  ))}
-                  {hiddenCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setActionsExpanded(v => !v)}
-                      className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
-                      aria-expanded={actionsExpanded}
-                    >
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
-                      {actionsExpanded
-                        ? tFallback('dashboard.actions.showLess', 'Show less')
-                        : tFallback('dashboard.actions.showMore', `Show ${hiddenCount} more`).replace('{n}', String(hiddenCount))}
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            </Collapsible>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
+              <div className="flex flex-col gap-2">
+                {visibleActions.map((a, i) => (
+                  a.to ? (
+                    <QuickAction key={a.key} to={a.to} icon={a.icon} label={a.label} delay={0.05 + i * 0.03} />
+                  ) : (
+                    <QuickAction key={a.key} icon={a.icon} label={a.label} onClick={a.onClick} delay={0.05 + i * 0.03} />
+                  )
+                ))}
+                {hiddenCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setActionsExpanded(v => !v)}
+                    className="mt-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                    aria-expanded={actionsExpanded}
+                  >
+                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
+                    {actionsExpanded
+                      ? tFallback('dashboard.actions.showLess', 'Show less')
+                      : tFallback('dashboard.actions.showMore', `Show ${hiddenCount} more`).replace('{n}', String(hiddenCount))}
+                  </button>
+                )}
+              </div>
+            </motion.div>
           </React.Fragment>
         );
       }
       case 'discover': return (
         <React.Fragment key="discover">
-          <SectionHeader
-            label={tFallback('dashboard.section.discover', 'Discover')}
-            open={discoverOpen}
-            onToggle={toggleDiscover}
-            tFallback={tFallback}
-          />
-          <Collapsible open={discoverOpen}>
-            <div className="mb-4 md:mb-5">
-              <ErrorBoundary label="DiscoveryCards">
-                <DiscoveryCards
-                  logs={rawLogs}
-                  regimens={rawRegimens}
-                  isLoading={logsLoading || regimensLoading}
-                />
-              </ErrorBoundary>
-            </div>
-          </Collapsible>
+          <div className="mb-3">
+            <ErrorBoundary label="DiscoveryCards">
+              <DiscoveryCards
+                logs={rawLogs}
+                regimens={rawRegimens}
+                isLoading={logsLoading || regimensLoading}
+              />
+            </ErrorBoundary>
+          </div>
         </React.Fragment>
       );
       case 'motivation': return (
         <React.Fragment key="motivation">
-          <SectionHeader
-            label={tFallback('dashboard.section.motivation', 'More motivation')}
-            open={motivationOpen}
-            onToggle={toggleMotivation}
-            tFallback={tFallback}
-          />
-          <Collapsible open={motivationOpen}>
-            <div className="mb-5 md:mb-6">
-              <DailyQuote editMode={editMode} />
-            </div>
-          </Collapsible>
+          <div className="mb-3">
+            <DailyQuote editMode={editMode} />
+          </div>
         </React.Fragment>
       );
       case 'onboarding': return (
         <React.Fragment key="onboarding">
-          <SectionHeader
-            label={tFallback('dashboard.section.onboarding', 'Get started')}
-            open={onboardingOpen}
-            onToggle={toggleOnboarding}
-            tFallback={tFallback}
-          />
-          <Collapsible open={onboardingOpen}>
-            <div className="mb-3 space-y-2 mt-1">
-              <ErrorBoundary label="OnboardingNudgeCard">
-                <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
-              </ErrorBoundary>
-              <ErrorBoundary label="PushOptInBanner">
-                <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
-              </ErrorBoundary>
-              <ErrorBoundary label="IosInstallBanner">
-                <IosInstallBanner />
-              </ErrorBoundary>
-            </div>
-          </Collapsible>
+          <div className="mb-3 space-y-2">
+            <ErrorBoundary label="OnboardingNudgeCard">
+              <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
+            </ErrorBoundary>
+            <ErrorBoundary label="PushOptInBanner">
+              <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
+            </ErrorBoundary>
+            <ErrorBoundary label="IosInstallBanner">
+              <IosInstallBanner />
+            </ErrorBoundary>
+          </div>
         </React.Fragment>
       );
       case 'customize': return (
         <React.Fragment key="customize">
-          <SectionHeader
-            label={tFallback('dashboard.section.customize', 'Customize dashboard')}
-            open={customizeOpen}
-            onToggle={toggleCustomize}
-            tFallback={tFallback}
-          />
-          <Collapsible open={customizeOpen}>
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.25 }}
-              className="mb-5 md:mb-6"
-            >
-              <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
-            </motion.div>
-          </Collapsible>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.25 }}
+            className="mb-3"
+          >
+            <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
+          </motion.div>
         </React.Fragment>
       );
       default: return null;
@@ -1305,7 +1241,7 @@ export default function Dashboard() {
               Hotdog pairs travel together when reordered. ═══ */}
       <Reorder.Group axis="y" values={dashboardRows.map(r => r.rowKey)} onReorder={handleWidgetReorder} as="div">
         {dashboardRows.map(row => (
-          <Reorder.Item key={row.rowKey} value={row.rowKey} as="div" dragListener={editMode} className="relative touch-none select-none">
+          <Reorder.Item key={row.rowKey} value={row.rowKey} as="div" dragListener={editMode} className="relative touch-none select-none mb-3">
             {editMode && (
               <div className="flex items-center gap-2 mt-6 mb-1 px-1">
                 <GripVertical className="w-4 h-4 text-primary/50 cursor-grab active:cursor-grabbing" />

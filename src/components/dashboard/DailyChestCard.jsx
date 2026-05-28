@@ -16,31 +16,13 @@ import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenBag } from '@/lib/inventoryFlow';
-
-// Ready when never claimed, or last claim was on a prior UTC day — mirrors
-// the server gate in claim_daily_chest (compares UTC date).
-function isChestReady(userId) {
-  if (!userId) return false;
-  try {
-    const v = localStorage.getItem(`daily_chest_claimed_${userId}`);
-    if (!v) return true;
-    const last = new Date(v);
-    const now = new Date();
-    const sameUtcDay =
-      last.getUTCFullYear() === now.getUTCFullYear() &&
-      last.getUTCMonth() === now.getUTCMonth() &&
-      last.getUTCDate() === now.getUTCDate();
-    return !sameUtcDay;
-  } catch {
-    return true;
-  }
-}
+import { isDailyChestReady } from '@/lib/dailyChest';
 
 export default function DailyChestCard() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
-  const [ready, setReady] = useState(() => isChestReady(user?.id));
+  const [ready, setReady] = useState(() => isDailyChestReady(user?.id));
   const [loading, setLoading] = useState(false);
 
   if (!user?.id || !ready) return null;

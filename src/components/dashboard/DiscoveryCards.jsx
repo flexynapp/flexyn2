@@ -38,6 +38,7 @@ import { usePushSubscription } from '@/lib/usePushSubscription';
 import { reportError } from '@/lib/reportError';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsulesData from '@/lib/data/capsules';
+import { isDailyChestReady } from '@/lib/dailyChest';
 import {
   isDismissed,
   dismiss as dismissCard,
@@ -224,14 +225,14 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     const regimenCount = filteredRegimens.length;
 
     // 0. Open your first capsule — TOP priority for any user who has
-    //    unopened capsules in their bag. This is the day-0 hook: it
-    //    surfaces the loot economy (the thing that makes Flexyn
-    //    different from every other fitness tracker) instead of
-    //    leaving the welcome capsule buried under 4+ taps. Auto-hides
-    //    the instant the user opens it (count drops to 0). The card
-    //    is intentionally NOT manually-dismissable — opening it IS
-    //    the dismissal.
-    if (unopenedCapsuleCount > 0) {
+    //    unopened capsules in their bag, EXCEPT when the daily chest is
+    //    still claimable today. Chest takes priority over capsule so
+    //    only ONE "tap me" prompt is on screen at a time — the user
+    //    claims the chest, the capsule count goes up by one, then on
+    //    the next render this card shows. Once claimed (or no chest
+    //    today), the capsule banner takes over. After the user opens
+    //    every capsule, neither card shows.
+    if (unopenedCapsuleCount > 0 && !isDailyChestReady(user.id)) {
       return 'openCapsule';
     }
 
