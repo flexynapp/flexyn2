@@ -38,7 +38,7 @@ import {
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 
-const ROTATE_MS = 10000;
+const ROTATE_MS = 8000;
 
 /**
  * Count-up animation primitive — eases from 0 (or `from`) to `to`
@@ -618,6 +618,25 @@ export default function HeroSlideshow({
     // Resume auto-rotate after 12s of no manual interaction.
     pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
   };
+  const next = () => goTo((idx + 1) % slides.length);
+  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
+
+  // Swipe-to-advance. 50px offset OR 500px/s velocity counts as a
+  // swipe so a fast flick still snaps. dragElastic bounces back when
+  // below threshold.
+  const handleDragEnd = (_e, info) => {
+    if (slides.length <= 1) return;
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    if (dx < -50 || vx < -500) next();
+    else if (dx > 50 || vx > 500) prev();
+  };
+  const dragProps = slides.length > 1 ? {
+    drag: 'x',
+    dragConstraints: { left: 0, right: 0 },
+    dragElastic: 0.18,
+    onDragEnd: handleDragEnd,
+  } : {};
 
   // Cleanup pause timer on unmount.
   useEffect(() => () => {
@@ -634,7 +653,20 @@ export default function HeroSlideshow({
   // shared so the user can swipe between streak and milestones.
   if (slide.kind === 'streak') {
     return (
-      <div className="flex flex-col justify-between gap-5 min-w-0">
+      <motion.div
+        {...dragProps}
+        className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
+      >
+        {slides.length > 1 && (
+          <button
+            type="button"
+            onClick={next}
+            aria-label={tFallback('dashboard.hero.next', 'Next slide')}
+            className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
+          </button>
+        )}
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -693,7 +725,7 @@ export default function HeroSlideshow({
             ))}
           </div>
         )}
-      </div>
+      </motion.div>
     );
   }
 
@@ -705,7 +737,20 @@ export default function HeroSlideshow({
     : null;
 
   return (
-    <div className="flex flex-col justify-between gap-5 min-w-0">
+    <motion.div
+      {...dragProps}
+      className="relative flex flex-col justify-between gap-5 min-w-0 touch-pan-y cursor-grab active:cursor-grabbing"
+    >
+      {slides.length > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label={tFallback('dashboard.hero.next', 'Next slide')}
+          className="absolute end-0 top-1/2 -translate-y-1/2 z-10 w-9 h-9 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 active:bg-white/30 flex items-center justify-center transition-colors"
+        >
+          <ChevronRight className="w-5 h-5 text-white rtl:scale-x-[-1]" />
+        </button>
+      )}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
           <SlideIcon className="w-4 h-4 text-white" />
@@ -838,6 +883,6 @@ export default function HeroSlideshow({
           ))}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

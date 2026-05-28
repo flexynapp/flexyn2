@@ -271,8 +271,44 @@ export default function Dashboard() {
   const [weekModalOpen, setWeekModalOpen] = useState(false);
   const [leagueModalOpen, setLeagueModalOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const defaultWidgetOrder = ['recovery', 'challenges', 'progress', 'actions'];
+  const defaultWidgetOrder = [
+    'readiness', 'recovery', 'challenges', 'progress',
+    'actions', 'discover', 'motivation', 'banners',
+  ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
+
+  // Per-section collapse state. Every section gets its own Hide / Show
+  // all toggle. State is per-device (sessionStorage) — resets fresh on
+  // next launch. Default OPEN so first-load behavior matches the
+  // pre-refactor state; the user can choose to collapse anything they
+  // don't want to see.
+  const initOpen = (key, defaultOpen) => {
+    try {
+      const v = sessionStorage.getItem(`flexyn.dash.${key}Open`);
+      if (v == null) return defaultOpen;
+      return v === '1';
+    } catch { return defaultOpen; }
+  };
+  const [readinessOpen,  setReadinessOpen]  = useState(() => initOpen('readiness',  true));
+  const [recoveryOpen,   setRecoveryOpen]   = useState(() => initOpen('recovery',   true));
+  const [challengesOpen, setChallengesOpen] = useState(() => initOpen('challenges', true));
+  const [progressOpen,   setProgressOpen]   = useState(() => initOpen('progress',   true));
+  const [actionsOpen,    setActionsOpen]    = useState(() => initOpen('actions',    true));
+  const [discoverOpen,   setDiscoverOpen]   = useState(() => initOpen('discover',   true));
+  const [motivationOpen, setMotivationOpen] = useState(() => initOpen('motivation', true));
+  const [bannersOpen,    setBannersOpen]    = useState(() => initOpen('banners',    true));
+  const makeToggle = (key, setter) => () => setter(v => {
+    try { sessionStorage.setItem(`flexyn.dash.${key}Open`, v ? '0' : '1'); } catch { /* ignore */ }
+    return !v;
+  });
+  const toggleReadiness  = makeToggle('readiness',  setReadinessOpen);
+  const toggleRecovery   = makeToggle('recovery',   setRecoveryOpen);
+  const toggleChallenges = makeToggle('challenges', setChallengesOpen);
+  const toggleProgress   = makeToggle('progress',   setProgressOpen);
+  const toggleActions    = makeToggle('actions',    setActionsOpen);
+  const toggleDiscover   = makeToggle('discover',   setDiscoverOpen);
+  const toggleMotivation = makeToggle('motivation', setMotivationOpen);
+  const toggleBanners    = makeToggle('banners',    setBannersOpen);
 
   // ── Rest day declaration ──────────────────────────────────────────────────
   // Per-user key (flexyn.<feature>.<userId> per CLAUDE.md) so two users
@@ -601,105 +637,233 @@ export default function Dashboard() {
     return fmt(n);
   };
 
+  /* ── Section header + collapse helper ─────────────────────────── */
+  // Reusable section header — tappable toggle that drives a section's
+  // open/closed state. Used by every renderable section so the user
+  // gets a consistent collapse affordance.
+  const SectionHeader = ({ label, open, onToggle }) => (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="w-full mt-7 mb-2.5 px-1 flex items-center justify-between text-left group"
+      aria-expanded={open}
+    >
+      <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
+        {label}
+      </span>
+      <span className="text-[10px] font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
+        {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
+        <span className="ml-1">{open ? '▾' : '▸'}</span>
+      </span>
+    </button>
+  );
+  const Collapsible = ({ open, children }) => (
+    <AnimatePresence initial={false}>
+      {open && (
+        <motion.div
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: 'auto', opacity: 1 }}
+          exit={{ height: 0, opacity: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+          className="overflow-hidden"
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
   const renderDashboardSection = (id) => {
     switch (id) {
+      case 'readiness': return (
+        <React.Fragment key="readiness">
+          <SectionHeader
+            label={tFallback('dashboard.section.readiness', 'Readiness')}
+            open={readinessOpen}
+            onToggle={toggleReadiness}
+          />
+          <Collapsible open={readinessOpen}>
+            <div className="mb-3">
+              <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
+            </div>
+          </Collapsible>
+        </React.Fragment>
+      );
       case 'recovery': return (
         <React.Fragment key="recovery">
-          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-            {tFallback('dashboard.section.recovery', 'Recovery')}
-          </p>
-          <div className="mb-3">
-            <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
-          </div>
-          <div className="mb-3">
-            <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 md:mb-6">
-            <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-            <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
-            <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
-            <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
-          </div>
+          <SectionHeader
+            label={tFallback('dashboard.section.recovery', 'Recovery')}
+            open={recoveryOpen}
+            onToggle={toggleRecovery}
+          />
+          <Collapsible open={recoveryOpen}>
+            <div className="mb-3">
+              <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mb-5 md:mb-6">
+              <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
+              <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+              <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
+              <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
+            </div>
+          </Collapsible>
         </React.Fragment>
       );
       case 'challenges': return (
         <React.Fragment key="challenges">
-          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-            {tFallback('dashboard.section.challenges', 'Challenges')}
-          </p>
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
-            <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
-          </motion.div>
-          <div className="flex flex-wrap items-start gap-3 mb-3">
-            <div className="flex-1 min-w-[15rem] empty:hidden">
-              <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+          <SectionHeader
+            label={tFallback('dashboard.section.challenges', 'Challenges')}
+            open={challengesOpen}
+            onToggle={toggleChallenges}
+          />
+          <Collapsible open={challengesOpen}>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-3">
+              <ErrorBoundary label="DailyQuestsCard"><DailyQuestsCard /></ErrorBoundary>
+            </motion.div>
+            <div className="flex flex-wrap items-start gap-3 mb-3">
+              <div className="flex-1 min-w-[15rem] empty:hidden">
+                <ErrorBoundary label="DailyChestCard"><DailyChestCard /></ErrorBoundary>
+              </div>
+              <div className="flex-1 min-w-[15rem] empty:hidden">
+                {!isRestDay && (
+                  <StreakRescueCard
+                    streakDays={streak}
+                    lastWorkoutDate={lastWorkoutDate?.toISOString()}
+                    lastMealDate={lastMealDate?.toISOString()}
+                  />
+                )}
+              </div>
             </div>
-            <div className="flex-1 min-w-[15rem] empty:hidden">
-              {!isRestDay && (
-                <StreakRescueCard
-                  streakDays={streak}
-                  lastWorkoutDate={lastWorkoutDate?.toISOString()}
-                  lastMealDate={lastMealDate?.toISOString()}
-                />
-              )}
-            </div>
-          </div>
-          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
-            <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
-          </motion.div>
-          {/* Nemesis card moved off the Dashboard per user feedback —
-              still surfaces on the Workout screen so it stays competitive
-              without doubling up here. */}
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
+              <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
+            </motion.div>
+            {/* Nemesis card moved off the Dashboard per user feedback —
+                still surfaces on the Workout screen so it stays competitive
+                without doubling up here. */}
+          </Collapsible>
         </React.Fragment>
       );
       case 'progress': return (
         <React.Fragment key="progress">
-          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-            {tFallback('dashboard.section.progress', 'Your progress')}
-          </p>
-          <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
-            <StatTile icon={Activity} value={thisWeekLogs.length} label={t('dashboard.stats.thisWeek')} suffix={thisWeekLogs.length === 1 ? t('dashboard.stats.workoutSingular') : t('dashboard.stats.workoutPlural')} delay={0.05} accent trend={workoutTrend} />
-            <StatTile icon={Zap} value={formatVolume(weeklyVolume)} label={t('dashboard.stats.volume')} suffix={weightUnit} delay={0.12} />
-            <StatTile icon={Target} value={muscleGroupCount} label={t('dashboard.stats.muscles')} suffix={muscleGroupCount === 1 ? t('dashboard.stats.groupSingular') : t('dashboard.stats.groupPlural')} delay={0.19} trend={muscleTrend} />
-          </div>
-          <div className="mb-5 md:mb-6 space-y-3">
-            <ErrorBoundary label="GoalsAlmostComplete">
-              <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
-            </ErrorBoundary>
-            <ErrorBoundary label="GoalsProgressStrip">
-              <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
-            </ErrorBoundary>
-          </div>
-          <div className="mb-5 md:mb-6" data-recap-card>
-            <ErrorBoundary label="WeeklyRecap"><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
-          </div>
-          <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
-            <div className="flex-1 min-w-[15rem] empty:hidden">
-              <ErrorBoundary label="WorkoutSuggestionCard"><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+          <SectionHeader
+            label={tFallback('dashboard.section.progress', 'Your progress')}
+            open={progressOpen}
+            onToggle={toggleProgress}
+          />
+          <Collapsible open={progressOpen}>
+            <div className="grid grid-cols-3 gap-3 md:gap-4 mb-5 md:mb-6">
+              <StatTile icon={Activity} value={thisWeekLogs.length} label={t('dashboard.stats.thisWeek')} suffix={thisWeekLogs.length === 1 ? t('dashboard.stats.workoutSingular') : t('dashboard.stats.workoutPlural')} delay={0.05} accent trend={workoutTrend} />
+              <StatTile icon={Zap} value={formatVolume(weeklyVolume)} label={t('dashboard.stats.volume')} suffix={weightUnit} delay={0.12} />
+              <StatTile icon={Target} value={muscleGroupCount} label={t('dashboard.stats.muscles')} suffix={muscleGroupCount === 1 ? t('dashboard.stats.groupSingular') : t('dashboard.stats.groupPlural')} delay={0.19} trend={muscleTrend} />
             </div>
-            <div className="flex-1 min-w-[15rem] empty:hidden">
-              <ErrorBoundary label="WorkoutMemoryCard"><WorkoutMemoryCard logs={logs} /></ErrorBoundary>
+            <div className="mb-5 md:mb-6 space-y-3">
+              <ErrorBoundary label="GoalsAlmostComplete">
+                <GoalsAlmostComplete goals={goals} logs={logs} cardioLogs={cardioLogs} limit={1} compact={false} onOpen={() => setGoalsModalOpen(true)} />
+              </ErrorBoundary>
+              <ErrorBoundary label="GoalsProgressStrip">
+                <GoalsProgressStrip goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
+              </ErrorBoundary>
             </div>
-          </div>
+            <div className="mb-5 md:mb-6" data-recap-card>
+              <ErrorBoundary label="WeeklyRecap"><WeeklyRecap logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+            </div>
+            <div className="flex flex-wrap items-start gap-3 mb-5 md:mb-6">
+              <div className="flex-1 min-w-[15rem] empty:hidden">
+                <ErrorBoundary label="WorkoutSuggestionCard"><WorkoutSuggestionCard logs={logs} cardioLogs={cardioLogs} /></ErrorBoundary>
+              </div>
+              <div className="flex-1 min-w-[15rem] empty:hidden">
+                <ErrorBoundary label="WorkoutMemoryCard"><WorkoutMemoryCard logs={logs} /></ErrorBoundary>
+              </div>
+            </div>
+          </Collapsible>
         </React.Fragment>
       );
       case 'actions': return (
         <React.Fragment key="actions">
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6 mt-7">
-            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1">
-              {t('dashboard.quickActions')}
-            </span>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <QuickAction to="/workout" icon={Play} label={t('dashboard.startWorkout')} delay={0.18} />
-              <QuickAction icon={CalendarDays} label={tFallback('dashboard.myWeek', 'My week')} onClick={() => setWeekModalOpen(true)} delay={0.21} />
-              <QuickAction icon={Dumbbell} label={t('dashboard.createRegimen')} onClick={() => navigate('/workout', { state: { openRegimens: true } })} delay={0.24} />
-              <QuickAction icon={TrendingUp} label={t('dashboard.checkProgress')} onClick={() => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); }} delay={0.30} />
-              <QuickAction icon={Apple} label={t('dashboard.logMeal')} onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })} delay={0.36} />
-              <QuickAction icon={Scale} label={tFallback('dashboard.logWeight', 'Log weight')} onClick={() => setLogWeightOpen(true)} delay={0.42} />
-              <QuickAction icon={Camera} label={tFallback('dashboard.addPhoto', 'Add progress photo')} onClick={() => setPhotoCaptureOpen(true)} delay={0.48} />
+          <SectionHeader
+            label={t('dashboard.quickActions')}
+            open={actionsOpen}
+            onToggle={toggleActions}
+          />
+          <Collapsible open={actionsOpen}>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4, delay: 0.15 }} className="mb-5 md:mb-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <QuickAction to="/workout" icon={Play} label={t('dashboard.startWorkout')} delay={0.18} />
+                <QuickAction icon={CalendarDays} label={tFallback('dashboard.myWeek', 'My week')} onClick={() => setWeekModalOpen(true)} delay={0.21} />
+                <QuickAction icon={Dumbbell} label={t('dashboard.createRegimen')} onClick={() => navigate('/workout', { state: { openRegimens: true } })} delay={0.24} />
+                <QuickAction icon={TrendingUp} label={t('dashboard.checkProgress')} onClick={() => { window.scrollTo({ top: 0, behavior: 'auto' }); navigate('/progress'); }} delay={0.30} />
+                <QuickAction icon={Apple} label={t('dashboard.logMeal')} onClick={() => navigate('/nutrition', { state: { openLogMeal: true } })} delay={0.36} />
+                <QuickAction icon={Scale} label={tFallback('dashboard.logWeight', 'Log weight')} onClick={() => setLogWeightOpen(true)} delay={0.42} />
+                <QuickAction icon={Camera} label={tFallback('dashboard.addPhoto', 'Add progress photo')} onClick={() => setPhotoCaptureOpen(true)} delay={0.48} />
+              </div>
+            </motion.div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'discover': return (
+        <React.Fragment key="discover">
+          <SectionHeader
+            label={tFallback('dashboard.section.discover', 'Discover')}
+            open={discoverOpen}
+            onToggle={toggleDiscover}
+          />
+          <Collapsible open={discoverOpen}>
+            <div className="mb-4 md:mb-5">
+              <ErrorBoundary label="DiscoveryCards">
+                <DiscoveryCards
+                  logs={rawLogs}
+                  regimens={rawRegimens}
+                  isLoading={logsLoading || regimensLoading}
+                />
+              </ErrorBoundary>
             </div>
-          </motion.div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'motivation': return (
+        <React.Fragment key="motivation">
+          <SectionHeader
+            label={tFallback('dashboard.section.motivation', 'More motivation')}
+            open={motivationOpen}
+            onToggle={toggleMotivation}
+          />
+          <Collapsible open={motivationOpen}>
+            <div className="mb-5 md:mb-6">
+              <DailyQuote editMode={editMode} />
+            </div>
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.25 }}
+            >
+              <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
+            </motion.div>
+          </Collapsible>
+        </React.Fragment>
+      );
+      case 'banners': return (
+        <React.Fragment key="banners">
+          <SectionHeader
+            label={tFallback('dashboard.section.banners', 'Updates')}
+            open={bannersOpen}
+            onToggle={toggleBanners}
+          />
+          <Collapsible open={bannersOpen}>
+            <div className="mb-3 space-y-2 mt-1">
+              <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
+              <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
+              <ErrorBoundary label="PushOptInBanner">
+                <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
+              </ErrorBoundary>
+              <ErrorBoundary label="IosInstallBanner">
+                <IosInstallBanner />
+              </ErrorBoundary>
+              <ErrorBoundary label="OnboardingNudgeCard">
+                <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
+              </ErrorBoundary>
+            </div>
+          </Collapsible>
         </React.Fragment>
       );
       default: return null;
@@ -892,7 +1056,9 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ═══ TIER 2-5 · Reorderable sections ═══════════════════════ */}
+      {/* ═══ Reorderable sections — every section is movable from edit
+              mode (long-press the drag handle), and each section has its
+              own collapse toggle. ═══ */}
       <Reorder.Group axis="y" values={widgetOrder} onReorder={handleWidgetReorder} as="div">
         {widgetOrder.map(id => (
           <Reorder.Item key={id} value={id} as="div" dragListener={editMode} className="relative touch-none select-none">
@@ -900,9 +1066,13 @@ export default function Dashboard() {
               <div className="flex items-center gap-2 mt-6 mb-1 px-1 cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-primary/50" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
-                  {id === 'recovery' ? tFallback('dashboard.section.recovery', 'Recovery')
+                  {id === 'readiness'  ? tFallback('dashboard.section.readiness',  'Readiness')
+                    : id === 'recovery'   ? tFallback('dashboard.section.recovery',   'Recovery')
                     : id === 'challenges' ? tFallback('dashboard.section.challenges', 'Challenges')
-                    : id === 'progress' ? tFallback('dashboard.section.progress', 'Your progress')
+                    : id === 'progress'   ? tFallback('dashboard.section.progress',   'Your progress')
+                    : id === 'discover'   ? tFallback('dashboard.section.discover',   'Discover')
+                    : id === 'motivation' ? tFallback('dashboard.section.motivation', 'More motivation')
+                    : id === 'banners'    ? tFallback('dashboard.section.banners',    'Updates')
                     : t('dashboard.quickActions')}
                 </span>
               </div>
@@ -911,65 +1081,6 @@ export default function Dashboard() {
           </Reorder.Item>
         ))}
       </Reorder.Group>
-
-      {/* ═══ TIER 6 · Social & ambient discovery ══════════════════ */}
-      <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 mb-2.5 px-1 mt-7">
-        {tFallback('dashboard.section.discover', 'Discover')}
-      </p>
-
-      {/* ── Discovery cards ─────────────────────────────────────
-           Single-slot, prioritized: starter plan → Form Coach → AI Coach.
-           Wrapped in its own ErrorBoundary so a card-level bug never
-           kills the whole Dashboard. Dismissals persist via
-           discoveryPrefs. */}
-      <div className="mb-4 md:mb-5">
-        <ErrorBoundary label="DiscoveryCards">
-          <DiscoveryCards
-            logs={rawLogs}
-            regimens={rawRegimens}
-            isLoading={logsLoading || regimensLoading}
-          />
-        </ErrorBoundary>
-      </div>
-
-      {/* ── Daily quote ────────────────────────────────────────── */}
-      <div className="mb-5 md:mb-6">
-        <DailyQuote editMode={editMode} />
-      </div>
-
-      {/* ── Widgets ────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.25 }}
-      >
-        <DashboardWidgets logs={logs} goals={goals} isLoading={isLoading} />
-      </motion.div>
-
-      {/* ═══ TIER 7 · System prompts (least intrusive, bottom) ════ */}
-
-      {/* ── Login + Workout streak banners + push opt-in ──────────── */}
-      {/* Each widget wrapped in its own ErrorBoundary so a missing migration
-          or DB error in one doesn't take down the whole Dashboard.
-          PushOptInBanner self-gates: only renders for engaged users
-          (hasWorkouts) on supported devices who haven't subscribed or
-          dismissed. */}
-      <div className="mb-3 space-y-2 mt-1">
-        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
-        <ErrorBoundary label="PushOptInBanner">
-          <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
-        </ErrorBoundary>
-        <ErrorBoundary label="IosInstallBanner">
-          <IosInstallBanner />
-        </ErrorBoundary>
-        {/* Onboarding nudge — at most one card per day for the first
-            5-7 days. Self-hides once all relevant nudges are completed
-            (or were never relevant to begin with for veterans). */}
-        <ErrorBoundary label="OnboardingNudgeCard">
-          <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
-        </ErrorBoundary>
-      </div>
 
       {/* ── Prestige prompt — only when at max level ───────────── */}
       {isPrestigeEligible(userProfile) && !userProfile.prestige_dismissed && (
