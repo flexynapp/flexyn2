@@ -393,8 +393,6 @@ export default function Dashboard() {
   const [sectionLayouts, setSectionLayouts] = useState({
     readiness:  'half',
     league:     'half',
-    challenges: 'half',
-    actions:    'half',
   });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
@@ -539,10 +537,8 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      readiness:  'half',
-      league:     'half',
-      challenges: 'half',
-      actions:    'half',
+      readiness: 'half',
+      league:    'half',
     });
     try {
       localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);

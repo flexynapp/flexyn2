@@ -189,6 +189,19 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
   // the useMemo below to re-evaluate `isDismissed`.
   const [dismissTick, setDismissTick] = useState(0);
 
+  // Session-only dismissal — the openCapsule card has no localStorage
+  // dismissal (an unopened capsule is unfinished onboarding, not banner
+  // spam; we re-show on the next dashboard visit). But within a single
+  // session the X button needs to actually hide the card. Without this
+  // state, tapping X just re-renders and pickCard returns 'openCapsule'
+  // again because unopenedCount > 0.
+  const [sessionDismissed, setSessionDismissed] = useState(() => new Set());
+  const dismissForSession = (cardKey) => setSessionDismissed(prev => {
+    const next = new Set(prev);
+    next.add(cardKey);
+    return next;
+  });
+
   // Unopened-capsule count drives the OPEN_CAPSULE card. Shares the
   // same query key Layout/ProfileMenu use so React Query dedupes —
   // single fetch lights up the badge AND the discovery card.
@@ -232,7 +245,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     //    the next render this card shows. Once claimed (or no chest
     //    today), the capsule banner takes over. After the user opens
     //    every capsule, neither card shows.
-    if (unopenedCapsuleCount > 0 && !isDailyChestReady(user.id)) {
+    if (unopenedCapsuleCount > 0 && !isDailyChestReady(user.id) && !sessionDismissed.has('openCapsule')) {
       return 'openCapsule';
     }
 
@@ -280,6 +293,7 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     push.isSupported, push.isSubscribed, push.permission,
     unopenedCapsuleCount,
     dismissTick,
+    sessionDismissed,
   ]);
 
   const handleDismiss = useCallback((cardId) => {
@@ -316,12 +330,12 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
             // another capsule.
             requestOpenBag();
           }}
-          // "Later" still dismisses for THIS session via the local
-          // tick — but doesn't write to localStorage. If the user
-          // refreshes the page, the card returns. Intentional: an
-          // unopened capsule is unfinished onboarding, not banner
-          // spam — we'd rather nudge again than let them forget.
-          onDismiss={() => setDismissTick((n) => n + 1)}
+          // "Later" dismisses for THIS session only — sessionDismissed
+          // is in-memory state that's lost on reload. Intentional: an
+          // unopened capsule is unfinished onboarding, not banner spam.
+          // We re-nudge on the next visit; the user gets a way out of
+          // the current view without it being permanently silenced.
+          onDismiss={() => dismissForSession('openCapsule')}
         />
       )}
 
