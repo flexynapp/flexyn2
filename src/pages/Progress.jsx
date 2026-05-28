@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
@@ -12,7 +12,6 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay, differenceInDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -293,7 +292,10 @@ function AnalyticsTab({ logs }) {
 
       {/* Muscle-split volume heatmap — anatomical body map colored by
           training intensity per group. Complements the volume bar chart
-          above with the "what am I neglecting?" read at a glance. */}
+          above with the "what am I neglecting?" read at a glance.
+          TODO (user request 2026-05-28): redo the training heat map.
+          Current version reads fine but the user wants a redesigned
+          variant — design TBD; come back to this. */}
       <ErrorBoundary label="MuscleGroupHeatmap">
         <MuscleGroupHeatmap logs={logs} />
       </ErrorBoundary>
@@ -316,6 +318,154 @@ function AnalyticsTab({ logs }) {
     </div>
   );
 }
+
+/* ──────────────────────────────────────────────────────────────────
+ *  ProgressCarousel — 4 slides (Streak / Workouts / Volume / Level)
+ *  with motivational copy per slide. Modeled after the Dashboard
+ *  HeroSlideshow:
+ *    • auto-rotates every 8s, pauses 12s after manual nav
+ *    • swipe left/right snaps to next/prev
+ *    • right-edge chevron button (lifted to the wrapper, not inside)
+ *    • pagination dots
+ *    • each slide has its own accent color (HSL via inline style)
+ *  forwardRef so the parent's stat tiles can call .goTo(id) to jump
+ *  the carousel to a specific slide when tapped.
+ * ────────────────────────────────────────────────────────────────── */
+
+const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const pauseTimerRef = useRef(null);
+
+  const goTo = (i) => {
+    setIdx(i);
+    setPaused(true);
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
+  };
+  const next = () => goTo((idx + 1) % slides.length);
+  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
+
+  // Expose .goToId(id) so parent can wire stat tiles to specific slides.
+  useImperativeHandle(ref, () => ({
+    goToId: (id) => {
+      const i = slides.findIndex(s => s.id === id);
+      if (i >= 0) goTo(i);
+    },
+  }), [slides, goTo]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Auto-rotate.
+  useEffect(() => {
+    if (paused || slides.length <= 1) return;
+    const t = setTimeout(() => setIdx(i => (i + 1) % slides.length), 8000);
+    return () => clearTimeout(t);
+  }, [idx, paused, slides.length]);
+
+  useEffect(() => () => {
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+  }, []);
+
+  // Swipe
+  const handleDragEnd = (_e, info) => {
+    if (slides.length <= 1) return;
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    if (dx < -50 || vx < -500) next();
+    else if (dx > 50 || vx > 500) prev();
+  };
+
+  const slide = slides[idx];
+  if (!slide) return null;
+  const Icon = slide.icon;
+
+  return (
+    <div className="relative mb-3">
+      {/* Chevron lifted out of the rounded card so it sits at the
+          dashboard's right edge (matches the hero carousel pattern). */}
+      {slides.length > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label="Next slide"
+          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-foreground/80 backdrop-blur-sm text-background hover:bg-foreground active:scale-95 flex items-center justify-center shadow-lg transition-all"
+        >
+          <ChevronRight className="w-5 h-5 rtl:scale-x-[-1]" />
+        </button>
+      )}
+      <motion.div
+        drag={slides.length > 1 ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        onDragEnd={handleDragEnd}
+        className="relative overflow-hidden rounded-2xl text-white shadow-xl shadow-black/20 touch-pan-y"
+        style={{ background: 'hsl(210 18% 11%)' }}
+      >
+        {/* Per-slide color tint — animates on slide change */}
+        <motion.div
+          key={`mesh-tr-${slide.id}`}
+          initial={{ opacity: 0.5 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
+        />
+        <motion.div
+          key={`mesh-bl-${slide.id}`}
+          className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
+          animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
+          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        <div className="relative p-4 md:p-5 min-h-[120px] flex flex-col justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+              <Icon className="w-4 h-4 text-white/85" />
+            </div>
+            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+              {slide.kicker}
+            </span>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={slide.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="min-w-0"
+            >
+              <h3
+                className="font-heading font-bold leading-none tracking-tight tabular-nums"
+                style={{ fontSize: 'clamp(2rem, 7vw, 3rem)' }}
+              >
+                {slide.value}
+              </h3>
+              <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+                {slide.tip}
+              </p>
+            </motion.div>
+          </AnimatePresence>
+          {slides.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goTo(i)}
+                  aria-label={`Slide ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+});
 
 // ─── Main Progress Page ───────────────────────────────────────────────────────
 
@@ -492,21 +642,66 @@ export default function Progress() {
   const level  = userProfile?.current_level  ?? 1;
 
   const heroStats = [
-    { icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10' },
-    { icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10' },
-    { icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
-    { icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10' },
+    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10' },
+    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10' },
+    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10' },
   ];
 
+  // Carousel slides — one per heroStat. Each has a motivational tip
+  // tailored to the user's current state. Color = HSL accent for the
+  // slide's gradient mesh tint.
+  const carouselSlides = [
+    {
+      id: 'streak',
+      icon: Flame,
+      color: '20 95% 55%',
+      kicker: 'Streak',
+      value: streak ? `${streak} day${streak === 1 ? '' : 's'}` : 'Start today',
+      tip: streak > 0
+        ? `Log a workout today to push your streak to ${streak + 1} days. Skipping resets it to 0.`
+        : 'A single set counts. Log a workout today and the streak starts at 1.',
+    },
+    {
+      id: 'workouts',
+      icon: Dumbbell,
+      color: '20 95% 55%',
+      kicker: 'Workouts',
+      value: `${logs.length}`,
+      tip: logs.length === 0
+        ? 'Your first workout unlocks history, trends, and your first PR.'
+        : `${logs.length} workout${logs.length === 1 ? '' : 's'} logged. Three a week beats five-then-zero every time.`,
+    },
+    {
+      id: 'volume',
+      icon: TrendingUp,
+      color: '160 80% 50%',
+      kicker: 'Volume',
+      value: totalVolume > 0
+        ? `${formatBigNumber(Math.round(fromLbs(totalVolume, weightUnit)))} ${weightUnit}`
+        : '0',
+      tip: thisWeekVolume > 0 && lastWeekVolume > 0
+        ? `This week: ${formatBigNumber(Math.round(fromLbs(thisWeekVolume, weightUnit)))} ${weightUnit}. Last week: ${formatBigNumber(Math.round(fromLbs(lastWeekVolume, weightUnit)))}. A 10% bump = new gains.`
+        : 'Total weight × reps lifted. Track it weekly — small bumps compound into PRs.',
+    },
+    {
+      id: 'level',
+      icon: Zap,
+      color: '270 85% 60%',
+      kicker: 'Level',
+      value: `Lv ${level}`,
+      tip: 'Every workout earns XP. Hit personal bests for bonus XP and watch the bar fill.',
+    },
+  ];
+  const carouselRef = useRef(null);
+  const jumpToSlide = (id) => carouselRef.current?.goToId?.(id);
+
   // ── Tab switch helper ─────────────────────────────────────────────────────
+  // Auto-scroll-on-switch removed per user feedback: it was pushing
+  // the page down whenever they tapped Photos / Analytics / etc.
+  // contentRef is still used by ProgressPhotos' scroll-into-view.
   const switchTab = (id) => {
     setActiveTab(id);
-    setTimeout(() => {
-      if (contentRef.current) {
-        const top = contentRef.current.getBoundingClientRect().top + window.scrollY;
-        window.scrollTo({ top: top - 80, behavior: 'smooth' });
-      }
-    }, 80);
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -529,28 +724,64 @@ export default function Progress() {
         </div>
       ) : (
         <>
-          {/* ── Hero Stats Strip ──────────────────────────────────────────── */}
+          {/* ── Personal Bests + Advanced Analytics — lifted ABOVE the
+                carousel per user feedback (they were buried inside the
+                Analytics tab, easy to miss). ─────────────────────── */}
+          <div className="flex gap-2 mb-3 flex-wrap">
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setPersonalBestsModalOpen(true)}
+              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 text-slate-900 text-xs font-bold shadow-md hover:shadow-lg transition-all relative overflow-hidden"
+            >
+              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+              <Trophy className="w-3.5 h-3.5 relative z-10" />
+              <span className="relative z-10">{t('progress.personalBests')}</span>
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setAdvancedAnalyticsOpen(true)}
+              className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 text-slate-900 text-xs font-bold shadow-md hover:shadow-lg transition-all relative overflow-hidden"
+            >
+              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+              <SparklesIcon className="w-3.5 h-3.5 relative z-10" />
+              <span className="relative z-10">{t('progress.advancedAnalytics')}</span>
+            </motion.button>
+          </div>
+
+          {/* ── Carousel — one slide per stat (Streak / Workouts /
+                Volume / Level) with motivational tips. Per-slide
+                color tint, swipe to advance, right-edge chevron. ──── */}
+          <ProgressCarousel ref={carouselRef} slides={carouselSlides} />
+
+          {/* ── Hero Stats Strip — clickable, drives the carousel.
+                Tap Streak → carousel jumps to Streak slide, etc. ──── */}
           <motion.div
             className="grid grid-cols-4 gap-2 md:gap-3 mb-6"
             initial="hidden"
             animate="visible"
             variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
           >
-            {heroStats.map((stat, i) => (
-              <motion.div
+            {heroStats.map((stat) => (
+              <motion.button
                 key={stat.label}
+                type="button"
+                onClick={() => jumpToSlide(stat.id)}
                 variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
                 transition={{ type: 'spring', stiffness: 300, damping: 22 }}
                 whileHover={{ y: -2, scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                aria-label={`Show ${stat.label} in carousel`}
               >
-                <Card className="p-3 border-none shadow-sm text-center h-full">
+                <Card className="p-3 border-none shadow-sm text-center h-full cursor-pointer">
                   <div className={`w-8 h-8 rounded-xl ${stat.bg} flex items-center justify-center mx-auto mb-2`}>
                     <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   </div>
                   <p className={`font-heading font-black text-lg leading-none ${stat.color}`}>{stat.value}</p>
                   <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
                 </Card>
-              </motion.div>
+              </motion.button>
             ))}
           </motion.div>
 
@@ -784,26 +1015,9 @@ export default function Progress() {
               >
                 {activeTab === 'analytics' && (
                   <div className="space-y-6">
-                    <div className="flex gap-3 justify-center flex-wrap">
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
-                        <Button
-                          onClick={() => setPersonalBestsModalOpen(true)}
-                          className="bg-gradient-to-r from-yellow-400 via-yellow-500 to-amber-500 hover:from-yellow-500 hover:via-yellow-600 hover:to-amber-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
-                        >
-                          <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-                          <Trophy className="w-4 h-4 mr-2 relative z-10" /> {t('progress.personalBests')}
-                        </Button>
-                      </motion.div>
-                      <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 400 }}>
-                        <Button
-                          onClick={() => setAdvancedAnalyticsOpen(true)}
-                          className="bg-gradient-to-r from-emerald-400 via-teal-500 to-cyan-500 hover:from-emerald-500 hover:via-teal-600 hover:to-cyan-600 text-slate-900 font-bold shadow-lg hover:shadow-xl transition-all relative overflow-hidden"
-                        >
-                          <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/40 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
-                          <SparklesIcon className="w-4 h-4 mr-2 relative z-10" /> {t('progress.advancedAnalytics')}
-                        </Button>
-                      </motion.div>
-                    </div>
+                    {/* Personal Bests + Advanced Analytics buttons
+                        moved ABOVE the carousel — see lifted version
+                        near top of Progress page. */}
                     <ErrorBoundary label="Analytics">
                       <AnalyticsTab logs={logs} />
                     </ErrorBoundary>
