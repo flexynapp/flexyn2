@@ -22,7 +22,45 @@ const FONT_MAP = {
   serious: "Georgia, 'Times New Roman', serif",
   casual:  "'Comic Sans MS', 'Chalkboard SE', cursive",
   pixel:   "'Press Start 2P', monospace",
+  script:  "'Caveat', 'Bradley Hand', cursive",
 };
+
+// Per-font render scale so the displayed glyphs share roughly equal optical
+// height. Mirrors the editor's `renderScale` map — Press Start 2P's metrics
+// run noticeably taller than Inter at the same px size, so we shrink it; the
+// Script font runs smaller, so we grow it.
+const FONT_RENDER_SCALE = { pixel: 0.78, script: 1.35 };
+
+// 'boxed' text mode: background = chosen color, foreground = whichever of
+// black/white contrasts better. Mirrors the editor's contrastOn().
+function contrastOn(color) {
+  if (!color) return '#fff';
+  let r = 128, g = 128, b = 128;
+  const hex = String(color).match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
+  if (hex) {
+    let h = hex[1];
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+  } else {
+    const rgb = String(color).match(/rgba?\(([^)]+)\)/i);
+    if (rgb) {
+      const parts = rgb[1].split(',').map(s => parseFloat(s.trim()));
+      if (parts.length >= 3) { r = parts[0]; g = parts[1]; b = parts[2]; }
+    } else if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        const probe = document.createElement('span');
+        probe.style.color = color; probe.style.display = 'none';
+        document.body.appendChild(probe);
+        const computed = getComputedStyle(probe).color;
+        document.body.removeChild(probe);
+        const parts = (computed.match(/rgba?\(([^)]+)\)/i)?.[1] || '')
+          .split(',').map(s => parseFloat(s.trim()));
+        if (parts.length >= 3) { r = parts[0]; g = parts[1]; b = parts[2]; }
+      } catch { /* keep neutral */ }
+    }
+  }
+  return (0.299 * r + 0.587 * g + 0.114 * b) > 160 ? '#000' : '#fff';
+}
 
 function OverlayItem({ overlay, storyId, userId, isOwn }) {
   const { kind } = overlay || {};
@@ -80,15 +118,22 @@ function OverlayItem({ overlay, storyId, userId, isOwn }) {
     return <span style={{ ...style, fontSize: 56, lineHeight: 1 }} aria-hidden="true">{overlay.emoji}</span>;
   }
   if (kind === 'text' && overlay.text) {
+    const rs = FONT_RENDER_SCALE[overlay.font] || 1;
+    const boxed = !!overlay.boxed;
+    const fg = boxed ? contrastOn(overlay.color || '#fff') : (overlay.color || '#fff');
     return (
       <span
         style={{
           ...style,
-          fontSize: 32,
+          display: 'inline-block',
+          fontSize: 32 * rs,
           fontWeight: 700,
-          color: overlay.color || '#fff',
+          color: fg,
           fontFamily: FONT_MAP[overlay.font] || FONT_MAP.normal,
-          textShadow: '0 2px 8px rgba(0,0,0,0.45)',
+          textShadow: boxed ? 'none' : '0 2px 8px rgba(0,0,0,0.45)',
+          background: boxed ? (overlay.color || '#fff') : 'transparent',
+          padding: boxed ? '6px 14px' : 0,
+          borderRadius: boxed ? 14 : 0,
           whiteSpace: 'pre-wrap',
           textAlign: 'center',
           maxWidth: '80%',

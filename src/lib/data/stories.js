@@ -188,7 +188,7 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
           rotation: Number.isFinite(Number(o.rotation)) ? Number(o.rotation) : 0,
         };
         if (base.kind === 'emoji')   return { ...base, emoji: String(o.emoji || '').slice(0, 8) };
-        if (base.kind === 'text')    return { ...base, text: String(o.text || '').slice(0, 280), color: o.color || '#fff', font: o.font || 'normal' };
+        if (base.kind === 'text')    return { ...base, text: String(o.text || '').slice(0, 280), color: o.color || '#fff', font: o.font || 'normal', boxed: !!o.boxed };
         if (base.kind === 'sticker') return { ...base, label: String(o.label || '').slice(0, 32), stickerId: o.stickerId || null };
         if (base.kind === 'drawing') return {
           ...base,

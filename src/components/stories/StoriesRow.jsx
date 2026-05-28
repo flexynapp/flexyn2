@@ -410,6 +410,24 @@ export default function StoriesRow({ onViewProfile } = {}) {
     refetchOnWindowFocus: true,
   });
 
+  // Pre-warm the browser image cache as soon as the feed lands, so opening
+  // any story is instant — no first-image flicker on a cold dashboard. We
+  // cap the burst at 40 URLs so a heavy social graph doesn't spawn hundreds
+  // of requests in one tick; StoryViewer's own next-image preload handles
+  // anything past that during playback.
+  useEffect(() => {
+    if (!feedData?.groups) return;
+    const urls = [];
+    for (const g of feedData.groups) {
+      if (urls.length >= 40) break;
+      for (const s of (g.stories || [])) {
+        if (s?.image_url) urls.push(s.image_url);
+        if (urls.length >= 40) break;
+      }
+    }
+    urls.forEach(u => { try { const i = new Image(); i.src = u; } catch { /* ignore */ } });
+  }, [feedData]);
+
   // react-query v5 removed `onSuccess` on useQuery — the previous
   // implementation silently never hydrated `likedNoteIds` from the
   // server, so the heart icon rendered unfilled on already-liked notes

@@ -40,18 +40,66 @@ const FILTERS = [
   { label: 'B&W',    css: 'grayscale(1) contrast(1.1)' },
   { label: 'Vivid',  css: 'saturate(2.5) contrast(1.1)' },
   { label: 'Bright', css: 'brightness(1.3) contrast(1.05)' },
+  { label: 'Warm',   css: 'sepia(0.2) saturate(1.4) hue-rotate(-10deg) brightness(1.04)' },
+  { label: 'Cool',   css: 'saturate(1.15) hue-rotate(15deg) brightness(1.05) contrast(1.05)' },
+  { label: 'Sepia',  css: 'sepia(0.7) contrast(1.05) brightness(1.02)' },
+  { label: 'Fade',   css: 'contrast(0.85) saturate(0.7) brightness(1.05)' },
 ];
 
+// `displayScale` shrinks tall-metric fonts in the picker so all the
+// font-name pills line up visually. Press Start 2P's glyphs are noticeably
+// taller than Inter/Georgia at the same px size — knocking the picker pill
+// down to ~0.78 brings it back in line. The rendered overlay text uses its
+// own per-font scale via `renderScale` so the in-canvas text isn't penalized.
 const FONTS = [
-  { label: 'Normal',  family: "'Inter', system-ui, sans-serif" },
-  { label: 'Serious', family: "Georgia, 'Times New Roman', serif" },
-  { label: 'Casual',  family: "'Comic Sans MS', 'Chalkboard SE', cursive" },
-  { label: 'Pixel',   family: "'Press Start 2P', monospace" },
+  { label: 'Normal',  family: "'Inter', system-ui, sans-serif",            displayScale: 1,    renderScale: 1   },
+  { label: 'Serious', family: "Georgia, 'Times New Roman', serif",         displayScale: 1,    renderScale: 1   },
+  { label: 'Casual',  family: "'Comic Sans MS', 'Chalkboard SE', cursive", displayScale: 1,    renderScale: 1   },
+  { label: 'Pixel',   family: "'Press Start 2P', monospace",               displayScale: 0.7,  renderScale: 0.78 },
+  { label: 'Script',  family: "'Caveat', 'Bradley Hand', cursive",         displayScale: 1.25, renderScale: 1.35 },
 ];
 
 const QUICK_COLORS = ['#ffffff', '#000000', '#ef4444', '#3b82f6', '#fbbf24', '#22c55e'];
 const MAX_TEXT = 3;
 const uid = () => `o_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+
+// Returns '#000' / '#fff' — whichever contrasts better against `color`. Used
+// for the "boxed" text style (Instagram-like): background = the chosen color,
+// foreground = whatever stays readable on it. Handles #hex / rgb() / hsl()
+// by letting the DOM resolve unknown forms to a computed rgb().
+export function contrastOn(color) {
+  if (!color) return '#fff';
+  let r = 128, g = 128, b = 128;
+  const hexMatch = String(color).match(/^#?([0-9a-f]{6}|[0-9a-f]{3})$/i);
+  if (hexMatch) {
+    let h = hexMatch[1];
+    if (h.length === 3) h = h.split('').map(c => c + c).join('');
+    r = parseInt(h.slice(0, 2), 16);
+    g = parseInt(h.slice(2, 4), 16);
+    b = parseInt(h.slice(4, 6), 16);
+  } else {
+    let rgb = String(color).match(/rgba?\(([^)]+)\)/i);
+    if (rgb) {
+      const parts = rgb[1].split(',').map(s => parseFloat(s.trim()));
+      if (parts.length >= 3) { r = parts[0]; g = parts[1]; b = parts[2]; }
+    } else if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        const probe = document.createElement('span');
+        probe.style.color = color;
+        probe.style.display = 'none';
+        document.body.appendChild(probe);
+        const computed = getComputedStyle(probe).color;
+        document.body.removeChild(probe);
+        const parts = (computed.match(/rgba?\(([^)]+)\)/i)?.[1] || '')
+          .split(',').map(s => parseFloat(s.trim()));
+        if (parts.length >= 3) { r = parts[0]; g = parts[1]; b = parts[2]; }
+      } catch { /* keep neutral default */ }
+    }
+  }
+  // Perceived luminance (Rec. 601).
+  const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+  return lum > 160 ? '#000' : '#fff';
+}
 
 export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfirm, onCancel }) {
   // Unified movable overlays: text + emoji. Normalized x/y (0..1 of the frame).
@@ -87,6 +135,17 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   // Drag/handle gesture state (refs to avoid re-render churn mid-gesture)
   const drag = useRef(null);   // { id, moved } for move drags
   const handle = useRef(null); // { id, cx, cy, startDist, startAngle, startScale, startRotate }
+  // Multi-touch pinch: track ALL active pointers per overlay so a second
+  // finger on the same text/emoji enters pinch-to-zoom (scale changes with
+  // the finger-distance ratio). When pointer count drops below 2 we end the
+  // pinch and fall back to single-finger drag if a finger remains.
+  const pointersRef = useRef(new Map()); // pointerId -> { x, y, overlayId }
+  const pinchRef    = useRef(null);       // { overlayId, startDist, startScale }
+  // Mirror overlays into a ref so the pointer handlers can read the current
+  // scale at pinch-start without a stale closure (callbacks would otherwise
+  // need `overlays` in deps and re-bind on every overlay edit).
+  const overlaysRef = useRef(overlays);
+  useEffect(() => { overlaysRef.current = overlays; }, [overlays]);
   const [overTrash, setOverTrash] = useState(false);
   const [dragging, setDragging]   = useState(false);
 
@@ -117,7 +176,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     if (textCount >= MAX_TEXT) { toast.error(`Up to ${MAX_TEXT} text boxes.`); return; }
     const id = uid();
     setOverlays(curr => [...curr, {
-      id, kind: 'text', text: '', color: textColor, fontIdx: 0,
+      id, kind: 'text', text: '', color: textColor, fontIdx: 0, boxed: false,
       x: 0.5, y: 0.42, scale: 1, rotate: 0,
     }]);
     setSelectedId(id);
@@ -161,16 +220,6 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
 
   useEffect(() => { if (editingId) inputRef.current?.focus(); }, [editingId]);
 
-  // ── move drag (per overlay element; hit area = the element) ─────────────────
-  const onOverlayPointerDown = useCallback((e, id) => {
-    if (drawMode) return;
-    e.stopPropagation();
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    setSelectedId(id);
-    drag.current = { id, moved: false };
-    setDragging(true);
-  }, [drawMode]);
-
   const isOverTrash = useCallback((clientX, clientY) => {
     // Trash sits bottom-center; treat the lower-center band as the drop zone.
     const rect = frameRef.current?.getBoundingClientRect();
@@ -180,7 +229,46 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     return relY > 0.86 && relX > 0.32 && relX < 0.68;
   }, []);
 
+  // ── move drag + pinch-zoom (per overlay element; hit area = the element) ─
+  const onOverlayPointerDown = useCallback((e, id) => {
+    if (drawMode) return;
+    e.stopPropagation();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    setSelectedId(id);
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY, overlayId: id });
+    // Two fingers on the SAME overlay → enter pinch.
+    const own = Array.from(pointersRef.current.values()).filter(p => p.overlayId === id);
+    if (own.length === 2) {
+      const [p1, p2] = own;
+      const startDist = Math.max(8, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+      const ov = overlaysRef.current.find(o => o.id === id);
+      pinchRef.current = { overlayId: id, startDist, startScale: ov?.scale || 1 };
+      drag.current = null;
+      setDragging(false);
+      setOverTrash(false);
+      return;
+    }
+    drag.current = { id, moved: false };
+    setDragging(true);
+  }, [drawMode]);
+
   const onOverlayPointerMove = useCallback((e, id) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      const p = pointersRef.current.get(e.pointerId);
+      pointersRef.current.set(e.pointerId, { ...p, x: e.clientX, y: e.clientY });
+    }
+    // Pinch in progress on this overlay?
+    if (pinchRef.current && pinchRef.current.overlayId === id) {
+      const own = Array.from(pointersRef.current.values()).filter(p => p.overlayId === id);
+      if (own.length >= 2) {
+        const [p1, p2] = own;
+        const dist = Math.max(8, Math.hypot(p1.x - p2.x, p1.y - p2.y));
+        const scale = Math.max(0.3, Math.min(6, pinchRef.current.startScale * dist / pinchRef.current.startDist));
+        updateOverlay(id, { scale });
+        return;
+      }
+    }
+    // Single-finger drag.
     if (!drag.current || drag.current.id !== id) return;
     drag.current.moved = true;
     const { x, y } = normFromEvent(e.clientX, e.clientY);
@@ -190,6 +278,21 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
 
   const onOverlayPointerUp = useCallback((e, id, kind) => {
     e.currentTarget.releasePointerCapture?.(e.pointerId);
+    pointersRef.current.delete(e.pointerId);
+    // If we were pinching, exit pinch mode once <2 fingers remain on this
+    // overlay. A leftover finger transitions back into a drag (but suppress
+    // the tap-to-edit since the user clearly meant to manipulate, not tap).
+    if (pinchRef.current && pinchRef.current.overlayId === id) {
+      const own = Array.from(pointersRef.current.values()).filter(p => p.overlayId === id);
+      if (own.length < 2) {
+        pinchRef.current = null;
+        if (own.length === 1) {
+          drag.current = { id, moved: true };
+          setDragging(true);
+        }
+      }
+      return;
+    }
     const d = drag.current;
     drag.current = null;
     setDragging(false);
@@ -269,9 +372,15 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     imgNatRef.current = { w: natW, h: natH };
     canvas.width = natW; canvas.height = natH;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    // Sample the FILTERED image, not the raw original — otherwise picking a
+    // color while B&W / Sepia is active returns the original photo's color
+    // and feels broken. Canvas2D's `ctx.filter` accepts the same syntax as
+    // the CSS filter property, so we just mirror the active filter here.
+    ctx.filter = FILTERS[filterIdx].css || 'none';
     ctx.drawImage(imgEl, 0, 0, natW, natH);
+    ctx.filter = 'none';
     setEyedropperActive(true);
-  }, [isVideo]);
+  }, [isVideo, filterIdx]);
 
   const samplePixel = useCallback((clientX, clientY) => {
     const frame = frameRef.current, canvas = canvasRef.current;
@@ -304,7 +413,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     const out = [];
     overlays.forEach(o => {
       if (o.kind === 'text' && o.text.trim()) {
-        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase() });
+        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase(), boxed: !!o.boxed });
       } else if (o.kind === 'emoji') {
         out.push({ kind: 'emoji', emoji: o.emoji, x: o.x, y: o.y, scale: o.scale, rotation: o.rotate });
       }
@@ -319,8 +428,17 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     setTextColor(c);
     if (selected?.kind === 'text') updateOverlay(selected.id, { color: c });
   };
+  // Tapping a font picks it. Tapping the SAME font that's already active
+  // toggles the "boxed" style — soft colored background around the text,
+  // Instagram-style. Lets the user cycle plain ↔ boxed without a separate
+  // toggle button.
   const applyFont = (idx) => {
-    if (selected?.kind === 'text') updateOverlay(selected.id, { fontIdx: idx });
+    if (selected?.kind !== 'text') return;
+    if ((selected.fontIdx || 0) === idx) {
+      updateOverlay(selected.id, { boxed: !selected.boxed });
+    } else {
+      updateOverlay(selected.id, { fontIdx: idx });
+    }
   };
 
   const showColorBar = (selected?.kind === 'text') || drawMode;
@@ -360,8 +478,11 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
         </div>
       </div>
 
-      {/* 9:16 phone frame — consistent on desktop + phone */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden">
+      {/* 9:16 phone frame — consistent on desktop + phone. The flex-1
+          container is `relative` so the font/color bar can float at the
+          bottom as an absolute overlay — that keeps the frame size constant
+          when text/draw toggles instead of reflowing the photo. */}
+      <div className="flex-1 flex items-center justify-center overflow-hidden relative">
         <div
           ref={frameRef}
           className="relative overflow-hidden bg-black"
@@ -407,8 +528,18 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             const isSel = o.id === selectedId;
             const isEditing = o.id === editingId;
             if (o.kind === 'text' && isEditing) {
+              const f = FONTS[o.fontIdx || 0];
+              const rs = f.renderScale ?? 1;
+              const fg = o.boxed ? contrastOn(o.color || '#fff') : (o.color || '#fff');
               return (
-                <div key={o.id} className="absolute" style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`, width: '84%', zIndex: 15 }}>
+                <div key={o.id} className="absolute" style={{
+                  left: `${o.x * 100}%`, top: `${o.y * 100}%`,
+                  transform: `translate(-50%,-50%) rotate(${o.rotate}deg)`,
+                  width: '84%', zIndex: 15,
+                  background: o.boxed ? (o.color || '#fff') : 'transparent',
+                  padding: o.boxed ? '8px 14px' : 0,
+                  borderRadius: 14,
+                }}>
                   <textarea
                     ref={inputRef}
                     value={o.text}
@@ -417,7 +548,13 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                     placeholder="Type…"
                     rows={2}
                     className="bg-transparent border-none outline-none text-center w-full resize-none placeholder-white/40 leading-snug font-bold"
-                    style={{ color: o.color, fontFamily: FONTS[o.fontIdx || 0].family, fontSize: `${28 * (o.scale || 1)}px`, textShadow: '0 2px 10px rgba(0,0,0,0.95)', caretColor: o.color }}
+                    style={{
+                      color: fg,
+                      fontFamily: f.family,
+                      fontSize: `${28 * (o.scale || 1) * rs}px`,
+                      textShadow: o.boxed ? 'none' : '0 2px 10px rgba(0,0,0,0.95)',
+                      caretColor: fg,
+                    }}
                   />
                 </div>
               );
@@ -443,11 +580,29 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
               >
                 {o.kind === 'emoji' ? (
                   <span style={{ fontSize: 56, lineHeight: 1, textShadow: '0 2px 8px rgba(0,0,0,0.45)' }}>{o.emoji}</span>
-                ) : (
-                  <span style={{ fontSize: 28, fontWeight: 'bold', color: o.color, fontFamily: FONTS[o.fontIdx || 0].family, textShadow: '0 2px 10px rgba(0,0,0,0.95)', whiteSpace: 'pre-wrap', textAlign: 'center', display: 'block', maxWidth: '70vw' }}>
-                    {o.text || ' '}
-                  </span>
-                )}
+                ) : (() => {
+                  const f = FONTS[o.fontIdx || 0];
+                  const rs = f.renderScale ?? 1;
+                  const fg = o.boxed ? contrastOn(o.color || '#fff') : (o.color || '#fff');
+                  return (
+                    <span style={{
+                      display: 'inline-block',
+                      background: o.boxed ? (o.color || '#fff') : 'transparent',
+                      padding: o.boxed ? '6px 12px' : 0,
+                      borderRadius: 12,
+                      color: fg,
+                      fontSize: 28 * rs,
+                      fontWeight: 'bold',
+                      fontFamily: f.family,
+                      textShadow: o.boxed ? 'none' : '0 2px 10px rgba(0,0,0,0.95)',
+                      whiteSpace: 'pre-wrap',
+                      textAlign: 'center',
+                      maxWidth: '70vw',
+                    }}>
+                      {o.text || ' '}
+                    </span>
+                  );
+                })()}
                 {/* scale + rotate handle (selected only) */}
                 {isSel && !drawMode && (
                   <div
@@ -500,44 +655,61 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
               style={{ left: loupePos.x, top: loupePos.y, transform: 'translate(-50%, calc(-100% - 20px))', backgroundColor: loupePos.color }} />
           )}
         </div>
+
+        {/* Font + color bar — absolute overlay over the frame's bottom so
+            the photo never reflows / "zooms out" when text or draw mode
+            toggles. Backdrop-blur keeps it legible over any image. */}
+        {showColorBar && (
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-5 pt-3 pb-2 bg-black/85 backdrop-blur-sm space-y-3">
+            {selected?.kind === 'text' && (
+              <div className="flex justify-center items-center gap-5 flex-wrap">
+                {FONTS.map((f, i) => {
+                  const active = (selected.fontIdx || 0) === i;
+                  const showBoxed = active && selected.boxed;
+                  return (
+                    <button key={f.label} onClick={() => applyFont(i)}
+                      title={active ? 'Tap again to toggle the colored box' : f.label}
+                      style={{
+                        fontFamily: f.family, fontWeight: 'bold',
+                        fontSize: `${15 * (f.displayScale ?? 1)}px`,
+                        color: showBoxed ? contrastOn(selected.color || '#fff') : '#fff',
+                        opacity: active ? 1 : 0.45,
+                        background: showBoxed ? (selected.color || '#fff') : 'transparent',
+                        border: 'none',
+                        borderRadius: showBoxed ? 6 : 0,
+                        padding: showBoxed ? '3px 8px' : '4px 0',
+                        cursor: 'pointer', lineHeight: 1.1,
+                      }}>
+                      {f.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            <div className="relative h-7 rounded-full" style={{ background: 'linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%))' }}>
+              <input type="range" min="0" max="360" value={hue}
+                onChange={e => { const h = Number(e.target.value); setHue(h); applyColor(`hsl(${h},100%,50%)`); }}
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Color hue" />
+              <div className="absolute top-1/2 w-6 h-6 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                style={{ left: `${(hue / 360) * 100}%`, transform: 'translateX(-50%) translateY(-50%)', backgroundColor: `hsl(${hue},100%,50%)` }} />
+            </div>
+            <div className="flex justify-center items-center gap-3">
+              {QUICK_COLORS.map(c => (
+                <button key={c} onClick={() => applyColor(c)} className="w-7 h-7 rounded-full transition-transform active:scale-90"
+                  style={{ backgroundColor: c, border: textColor === c ? '2.5px solid white' : '1.5px solid rgba(255,255,255,0.35)' }} aria-label={`Color ${c}`} />
+              ))}
+              {!isVideo && (
+                <button onClick={activateEyedropper}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center ${eyedropperActive ? 'bg-white text-black' : 'bg-white/15 text-white border border-white/35'}`} aria-label="Pick color from image">
+                  <Pipette className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <canvas ref={canvasRef} className="hidden" />
-
-      {/* Font + color bar — when a text box is selected or drawing */}
-      {showColorBar && (
-        <div className="px-5 pt-3 pb-2 bg-black/85 space-y-3">
-          {selected?.kind === 'text' && (
-            <div className="flex justify-center items-center gap-5">
-              {FONTS.map((f, i) => (
-                <button key={f.label} onClick={() => applyFont(i)}
-                  style={{ fontFamily: f.family, fontWeight: 'bold', fontSize: 15, color: '#fff', opacity: (selected.fontIdx || 0) === i ? 1 : 0.35, background: 'none', border: 'none', padding: '4px 0', cursor: 'pointer' }}>
-                  {f.label}
-                </button>
-              ))}
-            </div>
-          )}
-          <div className="relative h-7 rounded-full" style={{ background: 'linear-gradient(to right,hsl(0,100%,50%),hsl(60,100%,50%),hsl(120,100%,50%),hsl(180,100%,50%),hsl(240,100%,50%),hsl(300,100%,50%),hsl(360,100%,50%))' }}>
-            <input type="range" min="0" max="360" value={hue}
-              onChange={e => { const h = Number(e.target.value); setHue(h); applyColor(`hsl(${h},100%,50%)`); }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" aria-label="Color hue" />
-            <div className="absolute top-1/2 w-6 h-6 rounded-full border-2 border-white shadow-lg pointer-events-none"
-              style={{ left: `${(hue / 360) * 100}%`, transform: 'translateX(-50%) translateY(-50%)', backgroundColor: `hsl(${hue},100%,50%)` }} />
-          </div>
-          <div className="flex justify-center items-center gap-3">
-            {QUICK_COLORS.map(c => (
-              <button key={c} onClick={() => applyColor(c)} className="w-7 h-7 rounded-full transition-transform active:scale-90"
-                style={{ backgroundColor: c, border: textColor === c ? '2.5px solid white' : '1.5px solid rgba(255,255,255,0.35)' }} aria-label={`Color ${c}`} />
-            ))}
-            {!isVideo && (
-              <button onClick={activateEyedropper}
-                className={`w-7 h-7 rounded-full flex items-center justify-center ${eyedropperActive ? 'bg-white text-black' : 'bg-white/15 text-white border border-white/35'}`} aria-label="Pick color from image">
-                <Pipette className="w-4 h-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Action row */}
       <div className="flex items-center gap-3 px-6 py-5 bg-black" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
