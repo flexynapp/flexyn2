@@ -50,6 +50,16 @@ const ROTATE_MS = 6000;
  * Pure DOM ticker (no framer-motion dependency for the number)
  * so we can format the displayed value as integer or decimal.
  */
+// Helper — once per module, capture the user's reduced-motion
+// preference. Browsers without window/matchMedia (SSR, very old)
+// degrade to "motion allowed" since the worst case is the animation
+// still plays — never silently broken.
+const prefersReducedMotion = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch { return false; }
+};
+
 function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix = '' }) {
   const [val, setVal] = useState(from);
   const startRef = useRef(0);
@@ -58,6 +68,11 @@ function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix 
   useEffect(() => {
     cancelAnimationFrame(rafRef.current);
     if (!Number.isFinite(to)) { setVal(0); return; }
+    // Honor reduced-motion: snap to the target value with no tween.
+    // Also short-circuit no-op animations (from === to) so we don't
+    // schedule ~84 frames of busywork for a 0 → 0 case (e.g. Path
+    // Step 1 "0 logged" for a brand-new user).
+    if (from === to || prefersReducedMotion()) { setVal(to); return; }
     startRef.current = performance.now();
     const ease = (t) => 1 - Math.pow(1 - t, 3); // ease-out cubic
     const tick = (now) => {
@@ -70,7 +85,7 @@ function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to, durationMs]);
+  }, [to, durationMs, from]);
 
   return <>{val.toFixed(decimals)}{suffix}</>;
 }
@@ -93,12 +108,21 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
   if (!Array.isArray(values) || values.length < 2) return null;
   const min = Math.min(...values);
   const max = Math.max(...values);
-  const range = Math.max(1, max - min);
+  const trueRange = max - min;
   const stepX = W / (values.length - 1);
   const pad = 4;
+  // When every value is identical (steady plateau — e.g. user has
+  // bench-pressed 185 lb for 8 sessions in a row), the original
+  // formula `(v-min)/range = 0` mapped every point to the BOTTOM
+  // edge of the chart — visually implying a downward trend on what's
+  // actually a flat line. Wave 59 code review caught this. Centerline
+  // is the honest render of an all-identical series.
+  const midY = H / 2;
   const points = values.map((v, i) => {
     const x = i * stepX;
-    const y = pad + (H - pad * 2) * (1 - (v - min) / range);
+    const y = trueRange === 0
+      ? midY
+      : pad + (H - pad * 2) * (1 - (v - min) / trueRange);
     return [x, y];
   });
   // Smoothed path via per-segment quadratic curves (Catmull-Rom-ish
@@ -113,7 +137,11 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
 
   // Draw animation: stroke-dasharray with the path length, then
   // animate dashoffset from full-length down to 0 over 1s.
+  // Reduced-motion: skip the draw-in and show the full path
+  // immediately. Wave 59 caught this — accessibility users get the
+  // info without the motion.
   const PATH_LEN = W * 1.6; // approximation — bigger than actual path so the draw fully completes
+  const reduce = prefersReducedMotion();
   return (
     <svg width="100%" height={H} viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" className="block">
       <motion.path
@@ -123,9 +151,13 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        initial={{ strokeDasharray: PATH_LEN, strokeDashoffset: PATH_LEN, opacity: 0.6 }}
-        animate={{ strokeDashoffset: 0, opacity: 1 }}
-        transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+        initial={reduce
+          ? { strokeDasharray: 'none', strokeDashoffset: 0, opacity: 1 }
+          : { strokeDasharray: PATH_LEN, strokeDashoffset: PATH_LEN, opacity: 0.6 }}
+        animate={reduce
+          ? { strokeDashoffset: 0, opacity: 1 }
+          : { strokeDashoffset: 0, opacity: 1 }}
+        transition={reduce ? { duration: 0 } : { duration: 1, ease: [0.22, 1, 0.36, 1] }}
       />
       {/* Endpoint dot — highlights the latest data point */}
       <motion.circle
@@ -133,9 +165,9 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
         cy={points[points.length - 1][1]}
         r="3"
         fill={color}
-        initial={{ scale: 0, opacity: 0 }}
+        initial={reduce ? { scale: 1, opacity: 1 } : { scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.4, delay: 0.9 }}
+        transition={reduce ? { duration: 0 } : { duration: 0.4, delay: 0.9 }}
       />
     </svg>
   );
@@ -149,14 +181,15 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
  */
 function ProgressBar({ pct, startLabel, endLabel, currentLabel, targetLabel }) {
   const safePct = Math.max(0, Math.min(100, pct || 0));
+  const reduce = prefersReducedMotion();
   return (
     <div className="mt-2">
       <div className="relative h-1.5 rounded-full bg-white/15 overflow-hidden">
         <motion.div
           className="absolute inset-y-0 left-0 rounded-full bg-white"
-          initial={{ width: '0%' }}
+          initial={reduce ? { width: `${safePct}%` } : { width: '0%' }}
           animate={{ width: `${safePct}%` }}
-          transition={{ duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+          transition={reduce ? { duration: 0 } : { duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
         />
       </div>
       <div className="flex items-center justify-between mt-1 text-[10px] text-white/55">
@@ -215,17 +248,22 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       if (recentPR) {
         // Build a compact weight-history series for the inline
         // sparkline — last 8 attempts on THIS exercise, deduped per
-        // date (some users log multiple sessions per day). The
-        // sparkline draws on slide enter so the user sees their
-        // progression curve emerge under the headline number.
-        const history = [];
-        const seenDates = new Set();
+        // date. When a user does multiple sessions of the same
+        // exercise on one day, keep the HEAVIEST (not the first) so
+        // the sparkline endpoint reflects the PR rather than the
+        // morning warmup. Wave 59 code review caught this — the
+        // previous first-write-wins dedupe could make a 195 lb PR
+        // slide show an endpoint dot at the morning's 135 lb light
+        // set, misleading the user about where their PR landed.
+        const maxByDate = new Map();
         for (const e of entries) {
           const dKey = String(e.date).slice(0, 10);
-          if (seenDates.has(dKey)) continue;
-          seenDates.add(dKey);
-          history.push(e.weight);
+          const prev = maxByDate.get(dKey);
+          if (prev == null || e.weight > prev) maxByDate.set(dKey, e.weight);
         }
+        // Preserve chronological order (Map insertion order = sort
+        // order since `entries` is already sorted ascending).
+        const history = Array.from(maxByDate.values());
         const sparkSeries = history.slice(-8);
         slides.push({
           id: `pr:${name}:${recentPR.when}`,
@@ -283,12 +321,14 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
         icon: Award, iconBg: 'bg-violet-400/20',
         kicker: 'Level Up',
         title: 'You leveled up',
-        // Animated level number — ticks up to the new level.
+        // Animated level number — ticks from the PREVIOUS level to
+        // the new one (e.g. 4 → 5) so the user sees the delta, not
+        // "Level 0 → 1 → 2 → 3 → 4 → 5" from zero which feels off.
+        // Wave 59 code review caught this.
         metricValue: profile.current_level,
+        metricFrom: Math.max(0, profile.current_level - 1),
         metricUnit: '',
         metricPrefix: 'Level ',
-        // Total XP as the supporting subline; not animated separately
-        // because the count is large and would distract from the level.
         sub: `${(profile.total_xp ?? 0).toLocaleString()} XP earned overall`,
         when,
       });
@@ -302,9 +342,9 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       id: `streak:${streak}`,
       icon: Flame, iconBg: 'bg-orange-400/20',
       kicker: 'Streak Milestone',
-      title: 'Day streak',
+      title: "You're on fire",
       metricValue: streak,
-      metricUnit: '',
+      metricUnit: ' day streak',
       sub: streak >= 30 ? 'Habit locked in.' : 'Keep the momentum.',
       when: now,
     });
@@ -439,6 +479,12 @@ function buildPathSlides({ profile, user, logs }) {
       const weeks = Math.min(Math.ceil(delta), 24);  // ~1 lb/week
       // Progress is 0% at start; will tick up as their logged weight
       // approaches target. For brand-new users it's 0.
+      // Progress-bar dropped from this slide: an honest pct requires
+      // the user's most recent body_metrics weight (not pulled here
+      // — would mean another query, and brand-new users have no
+      // body_metrics row anyway). The delta badge + start/end
+      // bookends in the sub copy carry the visual without
+      // promising a moving bar that never moves. Wave 59 caught this.
       slides.push({
         id: 'path:4-loss',
         icon: TrendingUp, iconBg: 'bg-emerald-400/20',
@@ -449,10 +495,7 @@ function buildPathSlides({ profile, user, logs }) {
         metricDelta: -delta,
         metricDeltaUnit: ' lb',
         metricDeltaSuffix: ' to lose',
-        progressPct: 0,  // brand-new, no logged weight yet
-        progressStartLabel: `${startLbs} lb today`,
-        progressEndLabel: `${targetLbs} lb · week ${weeks}`,
-        sub: `${delta.toFixed(0)} lb to go · ~1 lb/week (sustainable).`,
+        sub: `${startLbs} lb today → ${targetLbs} lb by week ${weeks} · ~1 lb/week (sustainable).`,
         cta: { label: 'Log a meal', to: '/nutrition' },
       });
     } else {
@@ -669,6 +712,7 @@ export default function HeroSlideshow({
               >
                 {slide.metricPrefix}
                 <AnimatedNumber
+                  from={slide.metricFrom ?? 0}
                   to={slide.metricValue}
                   decimals={slide.metricDecimals ?? 0}
                 />
