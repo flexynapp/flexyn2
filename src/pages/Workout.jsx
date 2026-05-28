@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+﻿import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, GripVertical, LayoutGrid } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -77,7 +77,7 @@ import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } f
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
 
-// Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
+// Lazy-loaded modals â€” all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
 // (the bug that crashed /hub twice in this session). FormCoachModal
 // in particular pulls vendor-pose / vendor-tfjs through its
@@ -108,10 +108,10 @@ const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs'
 export default function Workout() {
   const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
-  // Auth / routing destructured EARLY — multiple useEffects below depend
+  // Auth / routing destructured EARLY â€” multiple useEffects below depend
   // on `user` in their deps arrays. A const referenced in a useEffect
   // deps array is evaluated synchronously at hook-call time, so it must
-  // be declared BEFORE that hook line — TDZ otherwise (see CLAUDE.md
+  // be declared BEFORE that hook line â€” TDZ otherwise (see CLAUDE.md
   // "TDZ trap" section). The other heavier hooks (useWorkoutSessions,
   // useQueryClient) stay below.
   const { user } = useAuth();
@@ -136,7 +136,7 @@ export default function Workout() {
   // workout, mark them active for 90 min so followers see a green dot
   // in the Hub list and (eventually) a "X is working out right now"
   // badge on the feed. The TTL caps the damage if clearActive ever
-  // fails to land — we don't want users stuck as "active" indefinitely.
+  // fails to land â€” we don't want users stuck as "active" indefinitely.
   useEffect(() => {
     if (user?.id && hasSeenFirstWorkoutTutorial(user.id)) {
       setShowFirstTutorial(false);
@@ -147,7 +147,7 @@ export default function Workout() {
     if (started) {
       activity.markActive(90);
     }
-    // We intentionally do NOT call clearActive() in the cleanup here —
+    // We intentionally do NOT call clearActive() in the cleanup here â€”
     // resetWorkout already handles the explicit clear, and a cleanup
     // would also fire on every dependency change which would prematurely
     // clear the flag mid-session. The TTL is the safety net for the
@@ -189,8 +189,14 @@ export default function Workout() {
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
-  const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
-  const [todayExpanded, setTodayExpanded] = useState(false); // mobile Today chip → expands RoutineTodayCard
+  const [activeInfo, setActiveInfo] = useState(null); // which card's â“˜ tooltip is open
+  const [todayExpanded, setTodayExpanded] = useState(false); // Today chip â†’ expands RoutineTodayCard
+  const GRID_DEFAULT_ORDER = ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc'];
+  const [rowOrder, setRowOrder] = useState(() => {
+    try { const s = localStorage.getItem('wkt-grid-order'); return s ? JSON.parse(s) : GRID_DEFAULT_ORDER; }
+    catch { return ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc']; }
+  });
+  const [gridEditing, setGridEditing] = useState(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -214,14 +220,14 @@ export default function Workout() {
       setStartedAt(new Date().toISOString());
     }
     if (!started && startedAt) {
-      // Workout reset / saved — clear the start so a fresh session
+      // Workout reset / saved â€” clear the start so a fresh session
       // doesn't inherit the old timer value.
       setStartedAt(null);
     }
   }, [started, startedAt]);
 
   // Track user.id alongside the workout state so the unmount-time
-  // pauseWorkoutSync call can pass the correct userId — paused workouts
+  // pauseWorkoutSync call can pass the correct userId â€” paused workouts
   // are now per-user (see useWorkoutSessions.js header). Without this,
   // an unmount that happens between sign-in transitions would write to
   // the 'anon' bucket or the wrong user's namespace.
@@ -248,7 +254,7 @@ export default function Workout() {
           duration,
           notes,
           startedAt,
-          // Timestamp powers the "Resume Chest Day · 14 min ago" banner
+          // Timestamp powers the "Resume Chest Day Â· 14 min ago" banner
           // on the Dashboard. Without it the banner can't show relative
           // age and can't auto-evict stale (>24h) drafts.
           pausedAt: new Date().toISOString(),
@@ -283,7 +289,7 @@ export default function Workout() {
         // Only honor the resumed date if it's still TODAY's local
         // calendar day. Otherwise (e.g. paused at 11pm, resumed next
         // morning) we'd silently save the workout under yesterday's
-        // date — wrong streak credit, wrong league bucket. Default to
+        // date â€” wrong streak credit, wrong league bucket. Default to
         // today (the existing `setDate` default) instead. Wave 54
         // (Workout audit) caught this.
         if (session.date) {
@@ -312,7 +318,7 @@ export default function Workout() {
         if (typeof session.startedAt === 'string') setStartedAt(session.startedAt);
         setStarted(true);
         navigate(location.pathname, { replace: true, state: null });
-      } catch { /* corrupted localStorage — ignore */ }
+      } catch { /* corrupted localStorage â€” ignore */ }
       return;
     }
 
@@ -338,7 +344,7 @@ export default function Workout() {
     // referenced log but BLANKS the weight + reps on each set so the
     // user is entering fresh numbers, not editing yesterday's
     // numbers in place. We treat the past log as a TEMPLATE, not a
-    // copy — keeping the weight/reps would invite accidentally
+    // copy â€” keeping the weight/reps would invite accidentally
     // saving the old workout twice.
     if (repeatLog && Array.isArray(repeatLog.exercises)) {
       const clonedExercises = repeatLog.exercises.map(ex => ({
@@ -358,7 +364,7 @@ export default function Workout() {
     // Dep on location.state (not []) so the effect re-fires when the
     // user is ALREADY on /workout and the saved-workouts modal calls
     // navigate('/workout', { state: { repeatFromLog } }). Previously the
-    // mount-only effect made the "Repeat" button a silent dead button —
+    // mount-only effect made the "Repeat" button a silent dead button â€”
     // the URL changed but no session ever started. (Audit 09 #C-2.)
   }, [location.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -438,7 +444,7 @@ export default function Workout() {
     staleTime: 60_000,
   });
 
-  // Comeback protocol — triggers when the user hasn't worked out in 7+ days
+  // Comeback protocol â€” triggers when the user hasn't worked out in 7+ days
   const comebackProtocol = useComebackProtocol({
     workoutLogs: logs,
     hasActiveSession: sessions.length > 0,
@@ -464,10 +470,10 @@ export default function Workout() {
         }
       } catch (e) {
         if (e.message === 'Workouts cannot be dated in the future.') throw e;
-        // Date parsing failed — fall through (existing behavior)
+        // Date parsing failed â€” fall through (existing behavior)
       }
 
-      // Empty-set filter — drop sets where neither weight nor reps carries
+      // Empty-set filter â€” drop sets where neither weight nor reps carries
       // any real value. The missing-data dialog warns the user but allows
       // "Save anyway"; without this filter, those empty sets persisted and
       // counted toward set-count gates (Gauntlet 1, achievements) while
@@ -492,7 +498,7 @@ export default function Workout() {
             return hasWeight || isCardioStyle;
           });
           return { ...ex, sets: cleanedSets };
-        // After filtering, drop exercises that lost all their sets — they
+        // After filtering, drop exercises that lost all their sets â€” they
         // were noise that the missing-data dialog already flagged.
         }).filter((ex) => (ex.sets?.length || 0) > 0),
       };
@@ -532,13 +538,13 @@ export default function Workout() {
       }
 
       const workoutLog = await db.entities.WorkoutLog.create(data);
-      // Audit C-2 — duplicate detection. The db.js shim returns
+      // Audit C-2 â€” duplicate detection. The db.js shim returns
       // __duplicate=true when a prior attempt with the same
       // idempotency key already landed. Skip ALL credits in that case
       // so XP/volume/streak/leagues aren't double-counted on a retry.
       const isDuplicateSave = workoutLog?.__duplicate === true;
       let xpGained = isDuplicateSave ? 0 : calculateWorkoutXp(data);
-      // Gym check-in 1.2x XP multiplier — sessions logged on a day the user
+      // Gym check-in 1.2x XP multiplier â€” sessions logged on a day the user
       // checked into a gym via the signage QR earn boosted XP. Best-effort:
       // the multiplier is a bonus, never a blocker, so a failed lookup just
       // skips it without affecting the save.
@@ -554,7 +560,7 @@ export default function Workout() {
       const sessionVolume = isDuplicateSave ? 0 : calculateTotalVolume(data.exercises);
 
       if (!isDuplicateSave) {
-        // Always fire XP + achievement check — even if XP is 0 (e.g.
+        // Always fire XP + achievement check â€” even if XP is 0 (e.g.
         // bodyweight-only or capped workout) so that achievement unlocks
         // are never skipped. Wrapped in try-catch so a server-side
         // failure never kills the mutation or prevents the success
@@ -572,7 +578,7 @@ export default function Workout() {
 
       // Atomic volume accumulation via RPC (migration 023). The previous
       // read-modify-write pattern raced against itself when a workout and
-      // cardio finished within ~200ms — both reads saw the same `prev`,
+      // cardio finished within ~200ms â€” both reads saw the same `prev`,
       // and the second write overwrote the first, losing one session's
       // volume from leaderboards. The increment_user_volume RPC adds the
       // delta in a single SQL statement, so concurrent calls compose
@@ -587,8 +593,8 @@ export default function Workout() {
           if (rpcErr) {
             // Only fall back to read-modify-write when the RPC is
             // confirmed-missing (function not found / table not found
-            // on pre-migration hosts). Falling back on ANY error — as
-            // we used to — re-introduces the lost-update race that
+            // on pre-migration hosts). Falling back on ANY error â€” as
+            // we used to â€” re-introduces the lost-update race that
             // mig 023's atomic UPDATE was designed to eliminate
             // (audit A-12). Transient network/auth failures now
             // surface as warnings instead of silently losing volume.
@@ -606,7 +612,7 @@ export default function Workout() {
         } catch (volErr) {
           reportError(volErr, { feature: 'workout.volume-accumulate', level: 'warning', userEmail: user?.email, sessionVolume });
         }
-        // Audit D-4 — mark the row credited so the Dashboard's
+        // Audit D-4 â€” mark the row credited so the Dashboard's
         // reconcile pass doesn't re-credit. If the network died
         // between INSERT and this mark, volume_credited_at stays
         // NULL and reconcile_my_workout_volume() will fix it up
@@ -647,7 +653,7 @@ export default function Workout() {
       // every subsequent saveWorkout() would silently bail.
       saveInFlightRef.current = false;
       // Roll back the optimistic insert AND tell the user something went
-      // wrong — previously this swallowed the failure and the row just
+      // wrong â€” previously this swallowed the failure and the row just
       // disappeared with no toast, which is the worst possible UX.
       queryClient.setQueryData(['workoutLogs', user?.email], ctx.previous);
       reportError(err, { feature: 'workout.save', userEmail: user?.email });
@@ -675,7 +681,7 @@ export default function Workout() {
     onSuccess: (result, _origData, ctx) => {
       // Clear in-flight guard on success too. (Wave 45.)
       saveInFlightRef.current = false;
-      // Audit C-2 — duplicate-save short-circuit. A retry of a save
+      // Audit C-2 â€” duplicate-save short-circuit. A retry of a save
       // that already landed should NOT re-fire streak/league/quests/
       // crew wars/celebrations. We surface a quiet confirm toast and
       // reset the editor so the user knows the prior save is intact.
@@ -695,7 +701,7 @@ export default function Workout() {
       const checkInBonus = !!result?.checkInBonus;
       // Record exercise usage for autocomplete-ranking. Recently-
       // used exercises rise to the top of the autocomplete next
-      // time the user starts a workout. Fire-and-forget — local.
+      // time the user starts a workout. Fire-and-forget â€” local.
       recordWorkoutExercises(user?.email, clampedData?.exercises);
       if (activeSessionId) removeSession(activeSessionId);
       // Snapshot the workout for the share card *before* resetting state.
@@ -704,7 +710,7 @@ export default function Workout() {
       setShareCardWorkout({ ...clampedData, date: clampedData.date || format(new Date(), 'yyyy-MM-dd') });
       resetWorkout();
 
-      // First-workout milestone — detected via the snapshot onMutate
+      // First-workout milestone â€” detected via the snapshot onMutate
       // already captures into ctx.previous. Zero previous logs means
       // this save is the user's first-ever workout, which deserves a
       // distinct celebration rather than the regular saved toast.
@@ -714,22 +720,22 @@ export default function Workout() {
         (row) => !(typeof row?.id === 'string' && row.id.startsWith('__optimistic__'))
       );
       const isFirstWorkout = realPrev.length === 0;
-      // Sound effect — no-op unless the user has explicitly enabled
+      // Sound effect â€” no-op unless the user has explicitly enabled
       // sounds in Settings. The celebration helper handles its own
       // haptic; the sound is layered for users who want both.
       playSound(SOUND.workoutSaved);
       if (isFirstWorkout) {
         // Enqueue through rewardQueue (B6) so the first-workout
         // celebration can't collide with the day-1 capsule grant
-        // notification fired by LevelUpManager below — they get
+        // notification fired by LevelUpManager below â€” they get
         // serialized with ~700ms spacing instead of stacking.
         enqueueReveal(() => fireFirstWorkoutCelebration({ xpGained, userEmail: user?.email }));
-        // Day-1 loot drop — reinforces the loot economy that the
+        // Day-1 loot drop â€” reinforces the loot economy that the
         // day-0 welcome capsule introduced. Premium tier signals a
         // step up from the welcome standard so the reward FEELS
         // like progress, not a repeat. Fire-and-forget; the toast
         // is dispatched by LevelUpManager via the global event.
-        // Idempotent — only grants once per user thanks to the
+        // Idempotent â€” only grants once per user thanks to the
         // first_workout_capsule_granted profile flag.
         if (user?.id && user?.email) {
           capsules
@@ -743,23 +749,23 @@ export default function Workout() {
               // Before: silent + Sentry. The user celebrated their
               // first-workout capsule but never received it, then later
               // wondered why their Bag was empty. Now surface it so they
-              // know to retry — the capsule is idempotent so a retry
+              // know to retry â€” the capsule is idempotent so a retry
               // is safe.
               toast.error(
-                tFallback('workout.firstCapsuleFailed', "Your first-workout capsule didn't grant — log another workout to retry.")
+                tFallback('workout.firstCapsuleFailed', "Your first-workout capsule didn't grant â€” log another workout to retry.")
               );
               reportError(err, { feature: 'workout.first-workout-capsule', userEmail: user?.email });
             });
         }
       } else {
-        // "Save as template" action — pre-fills WorkoutTemplates with
+        // "Save as template" action â€” pre-fills WorkoutTemplates with
         // this session so the user can repeat it later. We snapshot
         // clampedData up front because resetWorkout() clears the
         // editor state on the next tick.
         const sessionSnapshot = clampedData;
         toast.success(t('workout.saved'), {
           description: checkInBonus
-            ? `${t('workout.savedXp').replace('{xp}', xpGained)} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
+            ? `${t('workout.savedXp').replace('{xp}', xpGained)} Â· âš¡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
             : t('workout.savedXp').replace('{xp}', xpGained),
           duration: 6000,
           action: {
@@ -773,24 +779,24 @@ export default function Workout() {
                 exercises: sessionSnapshot?.exercises || [],
               });
               if (res?.ok) {
-                toast.success(tFallback('workout.templateSaved', 'Template saved — find it in the regimen list.'));
+                toast.success(tFallback('workout.templateSaved', 'Template saved â€” find it in the regimen list.'));
               } else if (res?.reason === 'no_exercises') {
                 toast.error(tFallback('workout.templateNeedExercises', 'Session has no exercises to save.'));
               } else {
-                toast.error(tFallback('workout.templateFailed', 'Could not save template — try again.'));
+                toast.error(tFallback('workout.templateFailed', 'Could not save template â€” try again.'));
               }
             },
           },
         });
       }
 
-      // PR detection — fires the 6th-family 🏋️ celebration when this
+      // PR detection â€” fires the 6th-family ðŸ‹ï¸ celebration when this
       // workout beat the user's historical best 1RM on any exercise.
       // Runs ONLY on non-first workouts; the first ever workout already
       // has its own louder celebration and "first attempt" of an
       // exercise can't be a "PR" by definition.
       //
-      // realPrev is the workout-logs cache state BEFORE this save —
+      // realPrev is the workout-logs cache state BEFORE this save â€”
       // exactly the comparison window we want for "is this a PR?".
       // Filter out optimistic placeholders so a duplicate optimistic
       // entry from a retry doesn't inflate the historical PR index.
@@ -821,8 +827,8 @@ export default function Workout() {
             }));
           }
 
-          // Deload signal — soft suggestion when 3 consecutive weeks
-          // of working volume are >2σ above the user's prior 4-week
+          // Deload signal â€” soft suggestion when 3 consecutive weeks
+          // of working volume are >2Ïƒ above the user's prior 4-week
           // baseline. Includes this just-saved workout's volume. The
           // toast is informational, not blocking; we never auto-deload.
           try {
@@ -844,7 +850,7 @@ export default function Workout() {
             }
           } catch { /* non-critical */ }
         } catch (err) {
-          // Non-critical — workout save already succeeded. Log to
+          // Non-critical â€” workout save already succeeded. Log to
           // Sentry but don't surface to the user.
           reportError(err, {
             feature: 'workout.pr-detection',
@@ -857,7 +863,7 @@ export default function Workout() {
       // Voice cue (no-op if user has voice cues disabled)
       try { speakWorkoutComplete(); } catch {}
 
-      // Comeback session bonus — +200 XP if any exercise has the comeback flag
+      // Comeback session bonus â€” +200 XP if any exercise has the comeback flag
       if ((clampedData?.exercises || []).some(ex => ex.comeback)) {
         db.functions.invoke('updateUserXpAndAchievements', {
           xp_gained: 200,
@@ -875,7 +881,7 @@ export default function Workout() {
       // Refetch achievements so the modal reflects newly unlocked ones immediately
       queryClient.invalidateQueries({ queryKey: ['achievements', user?.email] });
 
-      // Quest progress — non-blocking, fire-and-forget
+      // Quest progress â€” non-blocking, fire-and-forget
       const durationMin = Number(clampedData.duration_minutes) || 0;
       Promise.all([
         quests.recordAction(user, ACTION_TYPES.WORKOUT_COMPLETED, 1),
@@ -884,12 +890,12 @@ export default function Workout() {
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(() => {});
 
-      // League weekly XP — non-blocking
+      // League weekly XP â€” non-blocking
       leagues.recordWeeklyXp(user, xpGained)
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
         .catch(() => {});
 
-      // Crew War contribution — fire-and-forget for each crew the user is in.
+      // Crew War contribution â€” fire-and-forget for each crew the user is in.
       // Shows a toast for the first active war found so the user knows their
       // workout counted toward the battle.
       if (user?.id && xpGained > 0) {
@@ -899,7 +905,7 @@ export default function Workout() {
               const war = await getActiveWarForCrew(crew.id).catch(() => null);
               if (!war || war.status !== 'active') continue;
               await contributeWarXp(war.id, crew.id, xpGained).catch(() => {});
-              toast.success(`⚔️ +${xpGained} XP → ${crew.name}'s war score!`, {
+              toast.success(`âš”ï¸ +${xpGained} XP â†’ ${crew.name}'s war score!`, {
                 description: 'Your workout contributed to the Crew War.',
                 duration: 4000,
               });
@@ -910,14 +916,14 @@ export default function Workout() {
           .catch(() => {});
       }
 
-      // Workout streak — milestone days celebrate with toast + confetti + invalidate profile
+      // Workout streak â€” milestone days celebrate with toast + confetti + invalidate profile
       workoutStreak.recordWorkoutDay(user)
         .then((res) => {
           if (res?.isNewDay && res.coinsAwarded > 0) {
             toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
-              ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
+              ? `ðŸ”¥ ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
               : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
-            // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30…)
+            // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30â€¦)
             import('canvas-confetti').then(({ default: confetti }) => {
               const fire = (opts) => confetti({
                 particleCount: 100,
@@ -947,7 +953,7 @@ export default function Workout() {
         })
         .catch(() => {});
 
-      // Gauntlet Challenge 1 check — "First Blood" (4+ exercises, zero skipped sets)
+      // Gauntlet Challenge 1 check â€” "First Blood" (4+ exercises, zero skipped sets)
       // Non-blocking. Shows stats modal on success, never throws.
       checkChallenge1(clampedData, null)
         .then((award) => {
@@ -976,7 +982,7 @@ export default function Workout() {
 
   // Centralized in src/lib/workoutVolume.js so the live pill, save
   // mutation, and downstream displays all share the same formula
-  // (and honor the user's include_bar_in_volume preference — audit
+  // (and honor the user's include_bar_in_volume preference â€” audit
   // C-3).
   const calculateTotalVolume = (exList) =>
     computeTotalVolume(exList, { includeBarWeight: !!userProfile?.include_bar_in_volume });
@@ -1008,7 +1014,7 @@ export default function Workout() {
 
       // Build the final sets:
       //   - reps come from the regimen's target_reps when prescribed (the user
-      //     explicitly set this for this regimen — it must win over history).
+      //     explicitly set this for this regimen â€” it must win over history).
       //   - weight comes from history when available, so progressive-overload
       //     tracking still works without forcing re-entry every session.
       //   - if no target_reps and no history, both fields are blank.
@@ -1036,7 +1042,7 @@ export default function Workout() {
     setStarted(true);
   };
 
-  // Start today's routine day — pre-load the lifts the user picked, seeded
+  // Start today's routine day â€” pre-load the lifts the user picked, seeded
   // from history where we have it (progressive-overload tracking continues).
   const startFromExerciseList = (exList, label) => {
     setActiveSessionId(`routine-${Date.now()}`);
@@ -1057,7 +1063,7 @@ export default function Workout() {
     setStarted(true);
   };
 
-  // "Up for a challenge" — append ~2 bonus lifts matching today's focus.
+  // "Up for a challenge" â€” append ~2 bonus lifts matching today's focus.
   // No direct coin/XP grant (that would be farmable); the extra volume earns
   // its reward through the normal save flow. Pure cherry-on-top.
   const handleRoutineChallenge = (focus, dayExercises, label) => {
@@ -1076,7 +1082,7 @@ export default function Workout() {
       (targets.length === 0 || (ex.muscles || []).some(m => targets.includes(m))),
     );
     const picks = [...pool].sort(() => Math.random() - 0.5).slice(0, 2);
-    if (picks.length === 0) { toast.message('Your plan already covers it — no bonus to add.'); return; }
+    if (picks.length === 0) { toast.message('Your plan already covers it â€” no bonus to add.'); return; }
     const toSession = (ex, setCount) => {
       const seeded = getLastSetsForExercise(ex.name, setCount);
       const sets = seeded
@@ -1095,7 +1101,7 @@ export default function Workout() {
     setSelectedRegimen(label ? { name: label } : null);
     setExercises([...base, ...bonus]);
     setStarted(true);
-    toast.success(`🔥 Bonus added: ${picks.map(e => e.name).join(' + ')} — finish it for extra XP + coins!`);
+    toast.success(`ðŸ”¥ Bonus added: ${picks.map(e => e.name).join(' + ')} â€” finish it for extra XP + coins!`);
   };
 
   const startFreestyle = () => {
@@ -1108,7 +1114,7 @@ export default function Workout() {
 
   // Repeat-last-workout: the single biggest friction-reducer for daily users.
   // Pre-fills the same exercises with last session's weights and reps as
-  // suggestions — if the user hits the same numbers they can save with one
+  // suggestions â€” if the user hits the same numbers they can save with one
   // tap; if they bumped up, they edit one cell. Same shape transform as
   // startFreestyle so the active-workout view doesn't notice it.
   const startFromLastWorkout = () => {
@@ -1124,7 +1130,7 @@ export default function Workout() {
       // Preserve the tagged-set metadata from the prior session
       // (warmup, failed, RPE, RIR, feel_emoji, feel_note) rather than
       // flattening to weight+reps only. The user spent effort tagging
-      // these in the original session — losing them silently makes
+      // these in the original session â€” losing them silently makes
       // "Repeat last workout" feel like data loss. (Audit 09 #H-8.)
       sets: (ex.sets || []).map(s => ({
         weight:     s.weight ?? null,
@@ -1201,19 +1207,19 @@ export default function Workout() {
     setGeneratorOpen(false);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     if (clampedSomething) {
-      toast.success('Workout loaded — some sets were trimmed to realistic limits.');
+      toast.success('Workout loaded â€” some sets were trimmed to realistic limits.');
     } else {
-      toast.success('Workout loaded — log your sets!');
+      toast.success('Workout loaded â€” log your sets!');
     }
   };
 
-  // SHARED save-as-regimen handler for the AI generator modal — used at
+  // SHARED save-as-regimen handler for the AI generator modal â€” used at
   // both mount points so they can't drift.
   const saveGeneratedAsRegimen = async (workout) => {
     try {
       await regimens.create({
         name: workout.title || 'AI-Generated Workout',
-        description: `AI ${workout.focus} session · ${workout.duration_minutes} min`,
+        description: `AI ${workout.focus} session Â· ${workout.duration_minutes} min`,
         exercises: (workout.exercises || []).map(ex => ({
           name: ex.name,
           target_sets: ex.sets?.length || 3,
@@ -1301,9 +1307,9 @@ export default function Workout() {
     // warning-dialog detour, so a fast double-tap on "Save anyway" could fire
     // .mutate() twice in the same tick, producing two WorkoutLog rows AND
     // two XP grants. Both the state-based and the synchronous ref-based
-    // checks run — the ref is the actual safety net for within-tick races.
+    // checks run â€” the ref is the actual safety net for within-tick races.
     if (saveInFlightRef.current || saveMutation.isPending) return;
-    // NOTE: don't set saveInFlightRef.current = true here — saveWorkout
+    // NOTE: don't set saveInFlightRef.current = true here â€” saveWorkout
     // has many validation early-returns that don't call .mutate(), and
     // setting the ref here would strand it on the failing path. We
     // flip the ref right BEFORE the actual mutate() call below so
@@ -1314,7 +1320,7 @@ export default function Workout() {
       return;
     }
     // Detect empty / missing-data sets unless the user has confirmed.
-    // A set is incomplete if EITHER weight or reps is missing — except for
+    // A set is incomplete if EITHER weight or reps is missing â€” except for
     // cardio/bodyweight exercises where 0 weight is legitimate.
     if (!forceIgnoreMissing) {
       const missing = [];
@@ -1375,7 +1381,7 @@ export default function Workout() {
       duration_minutes: ex.duration_minutes != null ? (Number(ex.duration_minutes) || null) : null,
     }));
 
-    // ── Anti-cheat: flag weight AND rep violations visibly ───────────────────
+    // â”€â”€ Anti-cheat: flag weight AND rep violations visibly â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     // Previously, reps were silently clamped. Now both are flagged so the user
     // is aware their input was outside realistic bounds and must correct it.
     const flaggedSets = [];
@@ -1412,7 +1418,7 @@ export default function Workout() {
 
     // Auto-fill duration from the live elapsed timer when the user
     // didn't supply a manual value. Strong / Hevy / Jefit all default
-    // to "real session time" — counting yourself is awful UX.
+    // to "real session time" â€” counting yourself is awful UX.
     const elapsedMin = startedAt
       ? Math.max(1, Math.round((Date.now() - new Date(startedAt).getTime()) / 60000))
       : null;
@@ -1420,7 +1426,7 @@ export default function Workout() {
       ? Math.min(parseInt(duration) || 0, 360)
       : (elapsedMin ? Math.min(elapsedMin, 360) : null);
 
-    // Audit C-2 — idempotency key for double-tap / network-retry
+    // Audit C-2 â€” idempotency key for double-tap / network-retry
     // protection. crypto.randomUUID is widely supported; the fallback
     // is fine for pre-2021 browsers. The key is stable per
     // saveWorkout INVOCATION (not per mutationFn call) so the
@@ -1444,7 +1450,7 @@ export default function Workout() {
       return;
     }
 
-    // Primary-action haptic — saving a workout is THE highest-intent
+    // Primary-action haptic â€” saving a workout is THE highest-intent
     // moment in the app. Fires once at the tap; the celebration helpers
     // fire their own distinct patterns afterward if a PR or first-
     // workout milestone lands.
@@ -1491,7 +1497,7 @@ export default function Workout() {
   const resetWorkout = (clearSessionId = null) => {
     if (clearSessionId) removeSession(clearSessionId);
     // Clear the live-activity presence flag (migration 088). Fire-and-
-    // forget — a failed clear isn't catastrophic; the TTL on
+    // forget â€” a failed clear isn't catastrophic; the TTL on
     // active_until (set by markActive at workout start) caps the
     // damage to 90 minutes even if this clear never lands.
     activity.clearActive();
@@ -1505,15 +1511,293 @@ export default function Workout() {
 
   const containerVariants = {
     hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: { staggerChildren: 0.1 },
-    },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
-
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
+  };
+
+  // Returns JSX for one grid row by ID. Defined here (inside component) so it
+  // captures all state/handlers without prop-drilling. Used by both the static
+  // and Reorder-based render paths below.
+  const renderGridRow = (rowId) => {
+    // Shared â“˜ button component helper
+    const InfoBtn = ({ id }) => (
+      <button type="button"
+        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === id ? null : id); }}
+        className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+        <span className="text-[8px] font-bold leading-none italic">i</span>
+      </button>
+    );
+    // Shared info text helper
+    const InfoText = ({ id, text }) => activeInfo === id ? (
+      <p className="text-[11px] text-foreground/70 mt-1 leading-tight">{text}</p>
+    ) : null;
+
+    if (rowId === 'gen-exp') return (
+      <div className="grid grid-cols-2 gap-3">
+        {/* Generate Workout */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0}
+            aria-label={tFallback('generator.title', 'Generate Workout')}
+            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/55 hover:border-primary/75 hover:shadow-[0_0_18px_rgba(239,68,68,0.32)]"
+            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.32) 0%, rgba(244,63,94,0.22) 100%)' }}
+            onClick={() => setGeneratorOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
+          >
+            <InfoBtn id="generate" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(239,68,68,0.3)]">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title', 'Generate Workout')}</p>
+                <InfoText id="generate" text="AI builds a personalized session from your history & goals." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+        {/* Explore Regimens */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0} aria-label="Explore Regimens"
+            className="group relative overflow-hidden cursor-pointer h-full transition-all p-3 border-primary/52 hover:border-primary/72 hover:shadow-[0_0_16px_rgba(239,68,68,0.28)]"
+            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.28) 0%, rgba(244,63,94,0.20) 100%)' }}
+            onClick={() => setStoreOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
+          >
+            <InfoBtn id="explore" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
+                <Globe className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
+                <InfoText id="explore" text="Browse top-rated community training programs and adopt one." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+
+    if (rowId === 'duels-bnts') return (
+      <div className="grid grid-cols-2 gap-3">
+        {/* Duels */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0} aria-label="Duels"
+            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/52 hover:border-primary/72 hover:shadow-[0_0_16px_rgba(244,63,94,0.28)]"
+            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.28) 0%, rgba(249,115,22,0.22) 100%)' }}
+            onClick={() => navigate('/duels')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
+          >
+            <InfoBtn id="duels" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
+                <Swords className="w-5 h-5 text-rose-500" />
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <p className="font-heading font-bold text-sm leading-tight">Duels</p>
+                  {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>}
+                </div>
+                <InfoText id="duels" text="Challenge someone to a head-to-head workout battle. Winner gets bragging rights." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+        {/* Bounties */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0} aria-label="Bounties"
+            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/50 hover:border-primary/70 hover:shadow-[0_0_16px_rgba(249,115,22,0.26)]"
+            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.28) 0%, rgba(245,158,11,0.22) 100%)' }}
+            onClick={() => navigate('/bounties')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
+          >
+            <InfoBtn id="bounties" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
+                <Zap className="w-5 h-5 text-amber-500" />
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                  {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>}
+                  {!activeBountyClaim && activeBounties.length > 0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>}
+                </div>
+                <InfoText id="bounties" text="Daily fitness challenges â€” complete them to earn Flex Coins." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+
+    if (rowId === 'reg-saved') return (
+      <div className="grid grid-cols-2 gap-3">
+        {/* Regimens */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/48 hover:border-primary/68 hover:shadow-[0_0_14px_rgba(249,115,22,0.24)]"
+            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.28) 0%, rgba(251,146,60,0.20) 100%)' }}
+            onClick={() => setRegimensOpen(true)}
+          >
+            <InfoBtn id="regimens" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/18 border border-orange-500/28 flex items-center justify-center shrink-0">
+                <Dumbbell className="w-5 h-5 text-orange-500" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
+                <InfoText id="regimens" text="View and manage your saved training programs." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+        {/* Saved Workouts */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/45 hover:border-primary/65 hover:shadow-[0_0_14px_rgba(251,146,60,0.24)]"
+            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.26) 0%, rgba(251,146,60,0.18) 100%)' }}
+            onClick={() => setSavedWorkoutsOpen(true)}
+          >
+            <InfoBtn id="saved" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-orange-400/18 border border-orange-400/28 flex items-center justify-center shrink-0">
+                <History className="w-5 h-5 text-orange-400" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
+                <InfoText id="saved" text="Replay past workouts with your previous weights pre-filled." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+
+    if (rowId === 'crd-goals') return (
+      <div className="grid grid-cols-2 gap-3">
+        {/* Cardio */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-500/50 hover:border-yellow-500/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.28) 0%, rgba(251,191,36,0.18) 100%)' }}
+            onClick={() => setCardioOpen(true)}
+          >
+            <InfoBtn id="cardio" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-yellow-500/28 flex items-center justify-center shrink-0">
+                <Activity className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
+                <InfoText id="cardio" text="Log runs, rides, and cardio sessions separately from your lifting." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+        {/* Goals */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-400/48 hover:border-yellow-400/68 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.26) 0%, rgba(250,204,21,0.18) 100%)' }}
+            onClick={() => setGoalsModalOpen(true)}
+          >
+            <InfoBtn id="goals" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-yellow-400/18 border border-yellow-400/28 flex items-center justify-center shrink-0">
+                <Target className="w-5 h-5 text-yellow-500" />
+              </div>
+              <div>
+                <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
+                <InfoText id="goals" text="Set and track your fitness targets â€” strength, weight, endurance." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+
+    if (rowId === 'nemesis') return (
+      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm">
+        <div className="relative">
+          <button type="button"
+            onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
+            className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
+            <span className="text-[8px] font-bold leading-none italic">i</span>
+          </button>
+          {activeInfo === 'nemesis' && (
+            <p className="absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
+              Your auto-assigned rival â€” beat their stats to dethrone them.
+            </p>
+          )}
+          <ErrorBoundary label="NemesisCard">
+            <NemesisCard currentUserId={user?.id} />
+          </ErrorBoundary>
+        </div>
+      </div>
+    );
+
+    if (rowId === 'gaunt-fc') return (
+      <div className="grid grid-cols-2 gap-3">
+        {/* Gauntlet */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0} aria-label="Gauntlet"
+            className="group relative p-3 cursor-pointer border-yellow-500/48 hover:border-yellow-500/68 hover:shadow-[0_0_16px_rgba(234,179,8,0.26)] transition-colors h-full"
+            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.28) 0%, rgba(251,191,36,0.18) 100%)' }}
+            onClick={() => navigate('/gauntlet')}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
+          >
+            <InfoBtn id="gauntlet" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
+                <Trophy className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                  <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
+                  {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>}
+                  {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">#{gauntletProgress.current_challenge_sequence}</span>}
+                </div>
+                <InfoText id="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+        {/* Form Coach */}
+        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
+          <Card
+            role="button" tabIndex={0} aria-label="Form Coach"
+            className="group relative p-3 cursor-pointer border-primary/45 hover:border-primary/65 hover:shadow-[0_0_14px_rgba(251,191,36,0.24)] transition-colors h-full"
+            style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.26) 0%, rgba(251,191,36,0.16) 100%)' }}
+            onClick={() => setFormCoachOpen(true)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
+          >
+            <InfoBtn id="formcoach" />
+            <div className="flex flex-col items-center text-center gap-1.5">
+              <div className="w-10 h-10 rounded-xl bg-primary/15 border border-primary/25 flex items-center justify-center shrink-0">
+                <Camera className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <div className="flex items-center justify-center gap-1.5">
+                  <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
+                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
+                </div>
+                <InfoText id="formcoach" text="AI form feedback on your lifts â€” record a set and get instant coaching." />
+              </div>
+            </div>
+          </Card>
+        </motion.div>
+      </div>
+    );
+
+    return null;
   };
 
   useEffect(() => {
@@ -1536,8 +1820,8 @@ export default function Workout() {
     }
   }, []);
 
-  // Listen for the global "open form coach" event so any caller — not
-  // just a router state hand-off — can request the modal. Mirrors the
+  // Listen for the global "open form coach" event so any caller â€” not
+  // just a router state hand-off â€” can request the modal. Mirrors the
   // existing flexyn-title / flexyn:open-crew custom-event pattern so
   // we don't proliferate new orchestration shapes.
   useEffect(() => {
@@ -1557,12 +1841,12 @@ export default function Workout() {
   }, [cardioOpen]);
 
   // Deep-link entry points used by daily-quest CTAs:
-  //   /workout?openCardio=1   — CARDIO_COMPLETED / CARDIO_SECONDS quests
-  //   /workout?openGoals=1    — GOAL_COMPLETED quest
+  //   /workout?openCardio=1   â€” CARDIO_COMPLETED / CARDIO_SECONDS quests
+  //   /workout?openGoals=1    â€” GOAL_COMPLETED quest
   // The route map lives in src/lib/questCatalog.js. Without this handler
   // a user tapping a cardio/goals quest from Dashboard or StatsHub
   // would land on /workout but the corresponding panel wouldn't open
-  // — silent breakage. We strip the param after consuming it so a
+  // â€” silent breakage. We strip the param after consuming it so a
   // page reload doesn't re-fire and so the URL stays clean.
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -1613,7 +1897,7 @@ export default function Workout() {
           <GoalsAlmostComplete goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
         </motion.div>
 
-        {/* Rolling Day Banner — visible midnight → 5 AM */}
+        {/* Rolling Day Banner â€” visible midnight â†’ 5 AM */}
         {isLateNight && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -1623,7 +1907,7 @@ export default function Workout() {
           >
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>
-                🌙 Rolling Day
+                ðŸŒ™ Rolling Day
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
                 Log this session as <span className="font-semibold">{rollingDay ? yesterdayStr : todayStr}</span>
@@ -1651,11 +1935,11 @@ export default function Workout() {
           </motion.div>
         )}
 
-        {/* Injury banner — always visible in idle state */}
+        {/* Injury banner â€” always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Mobile: tiny Today chip (left) + active duel/bounty pills (right) — always visible */}
-        <div className="md:hidden flex items-center justify-between mb-3">
+        {/* Today chip (left) + active duel/bounty pills + customize button (right) â€” uniform all breakpoints */}
+        <div className="flex items-center justify-between mb-3">
           <button
             type="button"
             onClick={() => setTodayExpanded(v => !v)}
@@ -1686,31 +1970,25 @@ export default function Workout() {
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
               </button>
             )}
+            {/* Subtle grid-customize button â€” active state when editing */}
+            <button
+              type="button"
+              onClick={() => setGridEditing(v => !v)}
+              title="Customize card order"
+              className={`flex items-center justify-center w-6 h-6 rounded-full border transition-colors ${
+                gridEditing
+                  ? 'bg-primary/15 border-primary/35 text-primary'
+                  : 'bg-muted/35 border-border/35 text-muted-foreground/35 hover:text-muted-foreground hover:bg-muted/60 hover:border-border/60'
+              }`}
+            >
+              <LayoutGrid className="w-3 h-3" />
+            </button>
           </div>
         </div>
-        {/* Desktop: compact chips in sub-view, full banners on hub */}
+        {/* Desktop: full DuelBanner/BountyBanner on hub view (compact pills already in unified top row) */}
         {(activeDuel || activeBountyClaim) ? (() => {
           const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
-          if (inSubView) {
-            return (
-              <div className="hidden md:flex items-center justify-end gap-2 mb-3">
-                {activeDuel && (
-                  <button type="button" onClick={() => navigate('/duels')} aria-label="Active duel"
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500">
-                    <Swords className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
-                  </button>
-                )}
-                {activeBountyClaim && (
-                  <button type="button" onClick={() => navigate('/bounties')} aria-label="Active bounty"
-                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600">
-                    <Zap className="w-3.5 h-3.5" />
-                    <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
-                  </button>
-                )}
-              </div>
-            );
-          }
+          if (inSubView) return null;
           return (
             <div className="hidden md:block">
               {activeDuel && <DuelBanner duel={activeDuel} currentUserId={user?.id} />}
@@ -1731,8 +2009,8 @@ export default function Workout() {
         ) : !regimensOpen ? (
           <>
             {/* First-visit AI Coach starter-plan hero card. Renders when:
-                  • zero workout logs (truly first session), AND
-                  • a regimen with the canonical starter name exists.
+                  â€¢ zero workout logs (truly first session), AND
+                  â€¢ a regimen with the canonical starter name exists.
                 Goes above the freestyle CTA so the personalized plan is
                 the first thing the user sees, but freestyle stays
                 available right below for users who want to wing it. */}
@@ -1752,8 +2030,8 @@ export default function Workout() {
               );
             })()}
 
-            {/* My Routine — mobile: hidden until Today chip tapped; desktop: always visible */}
-            <div className={`${todayExpanded ? 'block' : 'hidden'} md:block`}>
+            {/* My Routine â€” hidden until Today chip tapped (uniform on all breakpoints) */}
+            <div className={todayExpanded ? 'block' : 'hidden'}>
               <RoutineTodayCard
                 onStart={(ex, label) => { startFromExerciseList(ex, label); setTodayExpanded(false); }}
                 onOpenRoutines={() => { setRoutineSheetOpen(true); setTodayExpanded(false); }}
@@ -1762,7 +2040,7 @@ export default function Workout() {
             </div>
             <MyRoutineSheet open={routineSheetOpen} onClose={() => setRoutineSheetOpen(false)} />
 
-            {/* Primary action — Freestyle */}
+            {/* Primary action â€” Freestyle */}
             <motion.button
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1833,10 +2111,10 @@ export default function Workout() {
               </div>
             </motion.button>
 
-            {/* Repeat last workout — fastest path to logging for returning
+            {/* Repeat last workout â€” fastest path to logging for returning
                 users. Pre-fills the most recent session's exercises with the
-                same weights/reps as suggestions; identical numbers → one-tap
-                save, harder numbers → bump one cell. Hidden when there's no
+                same weights/reps as suggestions; identical numbers â†’ one-tap
+                save, harder numbers â†’ bump one cell. Hidden when there's no
                 history (new users get the freestyle CTA only). */}
             {logs.length > 0 && (() => {
               const last = logs[0];
@@ -1845,7 +2123,7 @@ export default function Workout() {
               const setCount = (last.exercises || [])
                 .reduce((sum, ex) => sum + (ex.sets?.length || 0), 0);
               const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
-              // Today-highlight signal — when the most recent workout
+              // Today-highlight signal â€” when the most recent workout
               // happened on the user's local calendar day, the card
               // gets a thicker left border + "TODAY" pill so the eye
               // immediately recognizes recent activity. Calendar-day
@@ -1880,7 +2158,7 @@ export default function Workout() {
                   }`}
                   aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
                 >
-                  {/* TODAY pill — Apple/Strava-style anchor for the eye
+                  {/* TODAY pill â€” Apple/Strava-style anchor for the eye
                       when scanning a session list, even on a card with
                       just one item. */}
                   {isToday && (
@@ -1903,7 +2181,7 @@ export default function Workout() {
                       </p>
                       {subtitleParts.length > 0 && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {subtitleParts.join(' • ')}
+                          {subtitleParts.join(' â€¢ ')}
                         </p>
                       )}
                     </div>
@@ -1913,376 +2191,45 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions — 2-col mobile / 4-col desktop grid */}
-            <div className="relative mb-2">
-              <motion.div
-                className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 relative"
-                style={{ zIndex: 1 }}
-                variants={containerVariants}
-                initial="hidden"
-                animate="visible"
-              >
-                {/* ── Row 1 (mobile): Generate Workout | Explore Regimens ── */}
-
-                {/* Generate Workout — mobile: col 1 row 1 / desktop: col 3-4 row 1 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-1 md:order-2 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0}
-                    aria-label={tFallback('generator.title', 'Generate Workout')}
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-rose-500/50 hover:border-rose-500/70 hover:shadow-[0_0_18px_rgba(239,68,68,0.40)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.50) 0%, rgba(244,63,94,0.36) 100%)' }}
-                    onClick={() => setGeneratorOpen(true)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'generate' ? null : 'generate'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-5 h-5 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading font-bold text-sm leading-tight">
-                          {tFallback('generator.title', 'Generate Workout')}
-                        </p>
-                        {activeInfo === 'generate' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">AI builds a personalized session from your history &amp; goals.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">
-                          {tFallback('generator.cardSubtitle', 'AI builds a session from your history')}
-                        </p>
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* Explore Regimens — mobile: col 2 row 1 / desktop: col 1-2 row 1 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-2 md:order-1 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0} aria-label="Explore Regimens"
-                    className="group relative overflow-hidden cursor-pointer h-full transition-all p-3 md:p-4 border-rose-500/48 hover:border-rose-500/68 hover:shadow-[0_0_16px_rgba(239,68,68,0.36)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.46) 0%, rgba(244,63,94,0.32) 100%)' }}
-                    onClick={() => setStoreOpen(true)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
-                  >
-                    <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
-                    </div>
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'explore' ? null : 'explore'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-red-500/30 group-hover:to-primary/30 transition-colors">
-                        <Globe className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-center gap-2 md:justify-start">
-                          <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
-                          <span className="hidden md:inline text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-primary/15 text-primary">Community</span>
-                        </div>
-                        {activeInfo === 'explore' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Browse top-rated community training programs and adopt one.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Browse &amp; adopt top-rated community programs</p>
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* ── Row 2 (mobile): Duels | Bounties ── */}
-
-                {/* Duels — mobile: col 1 row 2 / desktop: col 1-2 row 4 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-3 md:order-7 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0} aria-label="Duels"
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-rose-500/45 hover:border-rose-500/65 hover:shadow-[0_0_16px_rgba(244,63,94,0.36)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.46) 0%, rgba(249,115,22,0.34) 100%)' }}
-                    onClick={() => navigate('/duels')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'duels' ? null : 'duels'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-rose-500/15 flex items-center justify-center shrink-0 group-hover:bg-rose-500/25 transition-colors">
-                        <Swords className="w-4 h-4 text-rose-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-center gap-2 md:justify-start">
-                          <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                          {activeDuel && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>
-                          )}
-                        </div>
-                        {activeInfo === 'duels' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Challenge someone to a head-to-head workout battle. Winner gets bragging rights.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Challenge someone to a head-to-head workout battle</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* Bounties — mobile: col 2 row 2 / desktop: col 3-4 row 4 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-4 md:order-8 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0} aria-label="Bounties"
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-500/42 hover:border-orange-500/62 hover:shadow-[0_0_16px_rgba(249,115,22,0.34)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.46) 0%, rgba(245,158,11,0.34) 100%)' }}
-                    onClick={() => navigate('/bounties')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'bounties' ? null : 'bounties'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500/15 flex items-center justify-center shrink-0 group-hover:bg-amber-500/25 transition-colors">
-                        <Zap className="w-4 h-4 text-amber-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-center gap-2 md:justify-start">
-                          <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                          {activeBountyClaim && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>
-                          )}
-                          {!activeBountyClaim && activeBounties.length > 0 && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>
-                          )}
-                        </div>
-                        {activeInfo === 'bounties' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Daily fitness challenges — complete them to earn Flex Coins.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Claim daily challenges, earn Flex Coins</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* ── Row 3 (mobile): Regimens | Saved Workouts ── */}
-
-                {/* Regimens — mobile: col 1 row 3 / desktop: col 1-2 row 2 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-5 md:order-3 md:col-span-2">
-                  <Card
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-500/40 hover:border-orange-500/60 hover:shadow-[0_0_14px_rgba(249,115,22,0.30)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.46) 0%, rgba(251,146,60,0.32) 100%)' }}
-                    onClick={() => setRegimensOpen(true)}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'regimens' ? null : 'regimens'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/12 flex items-center justify-center shrink-0 group-hover:bg-orange-500/20 transition-colors">
-                        <Dumbbell className="w-5 h-5 text-orange-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
-                        {activeInfo === 'regimens' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">View and manage your saved training programs.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('workout.regimensDesc')}</p>
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* Saved Workouts — mobile: col 2 row 3 / desktop: col 3-4 row 2 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-6 md:order-4 md:col-span-2">
-                  <Card
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-orange-400/38 hover:border-orange-400/58 hover:shadow-[0_0_14px_rgba(251,146,60,0.30)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.42) 0%, rgba(251,146,60,0.30) 100%)' }}
-                    onClick={() => setSavedWorkoutsOpen(true)}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'saved' ? null : 'saved'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-400/12 flex items-center justify-center shrink-0 group-hover:bg-orange-400/20 transition-colors">
-                        <History className="w-5 h-5 text-orange-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
-                        {activeInfo === 'saved' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Replay past workouts with your previous weights pre-filled.</p>
-                        )}
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* ── Row 4 (mobile): Cardio | Goals ── */}
-
-                {/* Cardio — mobile: col 1 row 4 / desktop: col 1-2 row 3 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-7 md:order-5 md:col-span-2">
-                  <Card
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-yellow-500/38 hover:border-yellow-500/58 hover:shadow-[0_0_14px_rgba(234,179,8,0.32)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.44) 0%, rgba(251,191,36,0.30) 100%)' }}
-                    onClick={() => setCardioOpen(true)}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'cardio' ? null : 'cardio'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-yellow-500/12 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/20 transition-colors">
-                        <Activity className="w-5 h-5 text-yellow-500" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
-                        {activeInfo === 'cardio' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Log runs, rides, and cardio sessions separately from your lifting.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{t('cardio.subtitle')}</p>
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* Goals — mobile: col 2 row 4 / desktop: col 3-4 row 3 */}
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-8 md:order-6 md:col-span-2">
-                  <Card
-                    className="group relative cursor-pointer h-full transition-colors p-3 md:p-4 border-yellow-400/36 hover:border-yellow-400/56 hover:shadow-[0_0_14px_rgba(250,204,21,0.30)]"
-                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.40) 0%, rgba(250,204,21,0.28) 100%)' }}
-                    onClick={() => setGoalsModalOpen(true)}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'goals' ? null : 'goals'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-yellow-400/12 flex items-center justify-center shrink-0 group-hover:bg-yellow-400/20 transition-colors">
-                        <Target className="w-5 h-5 text-yellow-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-                        {activeInfo === 'goals' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Set and track your fitness targets — strength, weight, endurance.</p>
-                        )}
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-
-                {/* ── Nemesis — full-width row with fire treatment (mobile + desktop) ── */}
-
-                <motion.div variants={itemVariants} className="order-9 col-span-full">
-                  {/* ring creates a glowing red border without competing with NemesisCard's inner border */}
-                  <div className="relative overflow-hidden rounded-xl ring-2 ring-rose-500/45 shadow-[0_0_22px_rgba(239,68,68,0.18)]">
-                    {/* Static fire background — no animation, always vivid */}
-                    <div className="absolute inset-0 rounded-xl pointer-events-none" style={{
-                      zIndex: 0,
-                      background: 'linear-gradient(135deg, rgba(220,38,38,0.54) 0%, rgba(249,115,22,0.44) 55%, rgba(185,28,28,0.50) 100%)',
-                    }} />
-                    <div className="relative" style={{zIndex:1}}>
-                      {/* ⓘ info button */}
-                      <button type="button"
-                        onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
-                        className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
-                        <span className="text-[8px] font-bold leading-none italic">i</span>
-                      </button>
-                      {activeInfo === 'nemesis' && (
-                        <p className="md:hidden absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
-                          Your auto-assigned rival — beat their stats to dethrone them.
-                        </p>
-                      )}
-                      <ErrorBoundary label="NemesisCard">
-                        <NemesisCard currentUserId={user?.id} />
-                      </ErrorBoundary>
-                    </div>
+            {/* Secondary actions grid â€” reorderable 2-col layout (uniform mobile + desktop) */}
+            <div className="mb-2">
+              {/* Edit-mode controls */}
+              {gridEditing && (
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag rows to reorder</p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => { localStorage.setItem('wkt-grid-order', JSON.stringify(rowOrder)); setGridEditing(false); toast.success('Layout saved.'); }}
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
+                    >Save</button>
+                    <button
+                      onClick={() => { setRowOrder(GRID_DEFAULT_ORDER); localStorage.removeItem('wkt-grid-order'); setGridEditing(false); }}
+                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors"
+                    >Reset</button>
                   </div>
-                </motion.div>
-
-                {/* ── Bottom: Gauntlet | Form Coach ── */}
-
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-10 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0} aria-label="Gauntlet"
-                    className="group relative p-3 md:p-4 cursor-pointer border-yellow-500/36 hover:border-yellow-500/56 hover:shadow-[0_0_16px_rgba(234,179,8,0.32)] transition-colors h-full"
-                    style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.44) 0%, rgba(251,191,36,0.30) 100%)' }}
-                    onClick={() => navigate('/gauntlet')}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'gauntlet' ? null : 'gauntlet'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
-                        <Trophy className="w-5 h-5 text-amber-400" />
+                </div>
+              )}
+              {/* Grid rows â€” static when browsing, Reorder.Group when editing */}
+              {gridEditing ? (
+                <Reorder.Group axis="y" values={rowOrder} onReorder={setRowOrder} className="space-y-3" as="div">
+                  {rowOrder.map(rowId => (
+                    <Reorder.Item key={rowId} value={rowId} as="div"
+                      className="relative cursor-grab active:cursor-grabbing rounded-xl"
+                      whileDrag={{ scale: 1.015, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' }}>
+                      <div className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center z-10 pointer-events-none">
+                        <GripVertical className="w-4 h-4 text-muted-foreground/45" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-center gap-2 md:justify-start">
-                          <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                          {gauntletProgress?.path_completed && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
-                          )}
-                          {!gauntletProgress?.path_completed && gauntletProgress && (
-                            <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
-                              #{gauntletProgress.current_challenge_sequence}
-                            </span>
-                          )}
-                        </div>
-                        {activeInfo === 'gauntlet' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">Complete 10 epic challenges to earn prizes and climb the leaderboard.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">10-challenge path · community gauntlet</p>
-                      </div>
-                    </div>
-                  </Card>
-                </motion.div>
-
-                <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="order-11 md:col-span-2">
-                  <Card
-                    role="button" tabIndex={0} aria-label="Form Coach"
-                    className="group relative p-3 md:p-4 cursor-pointer border-amber-400/34 hover:border-amber-400/54 hover:shadow-[0_0_14px_rgba(251,191,36,0.28)] transition-colors h-full"
-                    style={{ background: 'linear-gradient(135deg, rgba(245,158,11,0.40) 0%, rgba(251,191,36,0.26) 100%)' }}
-                    onClick={() => setFormCoachOpen(true)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
-                  >
-                    {/* ⓘ info button */}
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === 'formcoach' ? null : 'formcoach'); }}
-                      className="md:hidden absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
-                      <span className="text-[8px] font-bold leading-none italic">i</span>
-                    </button>
-                    <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:items-center md:text-left md:gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 group-hover:bg-primary/15 transition-colors">
-                        <Camera className="w-5 h-5 text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-center gap-1.5 md:justify-start">
-                          <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-primary/15 text-primary">{tFallback('formcoach.beta', 'Beta')}</span>
-                        </div>
-                        {activeInfo === 'formcoach' && (
-                          <p className="md:hidden text-[11px] text-muted-foreground mt-1 leading-tight">AI form feedback on your lifts — record a set and get instant coaching.</p>
-                        )}
-                        <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">{tFallback('formcoach.cardTagline', 'AI form check on your lifts')}</p>
-                      </div>
-                      <ArrowRight className="hidden md:block w-4 h-4 text-muted-foreground/50 group-hover:text-primary group-hover:translate-x-0.5 transition-all shrink-0" />
-                    </div>
-                  </Card>
-                </motion.div>
-              </motion.div>
+                      <div className="pl-6">{renderGridRow(rowId)}</div>
+                    </Reorder.Item>
+                  ))}
+                </Reorder.Group>
+              ) : (
+                <div className="space-y-3">
+                  {rowOrder.map(rowId => (
+                    <div key={rowId}>{renderGridRow(rowId)}</div>
+                  ))}
+                </div>
+              )}
             </div>
           </>
         ) : (
@@ -2324,7 +2271,7 @@ export default function Workout() {
                             <p className="font-heading font-bold text-sm">
                               {t('workout.resume')} {session.selectedRegimen ? session.selectedRegimen.name : t('workout.freestyle')}
                             </p>
-                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} · {t('workout.paused')}</p>
+                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} Â· {t('workout.paused')}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2385,7 +2332,7 @@ export default function Workout() {
             onSave={async (id, data) => {
               // Volume delta on edit. Without this, a user could log a heavy
               // session (huge total_volume_lbs accrual for XP/leaderboards),
-              // then edit the same log down to 0 — keeping the volume credit
+              // then edit the same log down to 0 â€” keeping the volume credit
               // even though the underlying log is empty.
               const oldVolume = calculateTotalVolume(editingLog?.exercises || []);
               const newVolume = calculateTotalVolume(data?.exercises || []);
@@ -2401,7 +2348,7 @@ export default function Workout() {
               setEditingLog(null);
             }}
             onDelete={async (id) => {
-              // Same volume accumulator concern on delete — subtract the
+              // Same volume accumulator concern on delete â€” subtract the
               // deleted log's contribution so leaderboards reflect reality.
               const deletedVolume = calculateTotalVolume(editingLog?.exercises || []);
               await db.entities.WorkoutLog.delete(id);
@@ -2418,7 +2365,7 @@ export default function Workout() {
           </Suspense>
         )}
 
-        {/* AI modals — MUST be mounted in the idle view because that's where
+        {/* AI modals â€” MUST be mounted in the idle view because that's where
             their trigger cards live (Generate Workout, Form Coach). Without
             this, clicking the cards updates state but no modal exists in
             the tree to react to the change. Each is wrapped in its own
@@ -2451,7 +2398,7 @@ export default function Workout() {
           )}
         </AnimatePresence>
 
-        {/* Comeback Screen overlay — shown when user returns after 7+ days */}
+        {/* Comeback Screen overlay â€” shown when user returns after 7+ days */}
         <AnimatePresence>
           {comebackProtocol.triggered && (
             <ComebackScreen
@@ -2474,7 +2421,7 @@ export default function Workout() {
       transition={{ type: 'spring', stiffness: 260, damping: 22 }}
       className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto"
     >
-      {/* First-workout coach-mark tutorial — only mounts when the user
+      {/* First-workout coach-mark tutorial â€” only mounts when the user
           has never logged a workout AND hasn't dismissed before. The
           banner is fixed-positioned (lives in a portal-equivalent
           stacking context) so it floats above the page chrome without
@@ -2492,7 +2439,7 @@ export default function Workout() {
             <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight">
               {selectedRegimen?.name || t('workout.freestyle')}
             </h1>
-            {/* Live elapsed timer — counts up from session start. The
+            {/* Live elapsed timer â€” counts up from session start. The
                 chip clears on workout reset / save (startedAt nulls). */}
             <WorkoutElapsedChip startedAt={startedAt} />
           </div>
@@ -2501,8 +2448,8 @@ export default function Workout() {
         <Button variant="outline" size="sm" onClick={() => resetWorkout(activeSessionId)}>{t('common.cancel')}</Button>
       </div>
 
-      {/* Live volume pill — ticks up as the user types each set.
-          Cheap dopamine — every great fitness app has a live number
+      {/* Live volume pill â€” ticks up as the user types each set.
+          Cheap dopamine â€” every great fitness app has a live number
           somewhere the user watches. */}
       <div className="mb-6">
         <LiveVolumePill exercises={exercises} includeBarWeight={!!userProfile?.include_bar_in_volume} />
@@ -2515,7 +2462,7 @@ export default function Workout() {
         </p>
       </div>
 
-      {/* Add exercise — kept above the list so users don't have to scroll
+      {/* Add exercise â€” kept above the list so users don't have to scroll
           past every added exercise to add the next one. */}
       <Card className="p-4 border-dashed mb-6">
         <p className="text-sm font-medium mb-3">{t('workout.addExercise')}</p>
@@ -2537,7 +2484,7 @@ export default function Workout() {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-        {/* Plate calculator — type any weight, see what to load per side. */}
+        {/* Plate calculator â€” type any weight, see what to load per side. */}
         <button
           type="button"
           onClick={() => setPlateCalcOpen(true)}
@@ -2566,7 +2513,7 @@ export default function Workout() {
           } else {
             // Use the exercise's stable id when available, else the
             // global index. Since freeform exercises don't carry ids,
-            // a synthetic key per name+position is good enough — we
+            // a synthetic key per name+position is good enough â€” we
             // re-key on every render anyway.
             items.push({ type: 'single', key: `ex:${ex.id || `${ex.name}-${globalIdx}`}`, exercise: ex, globalIdx });
           }
@@ -2575,7 +2522,7 @@ export default function Workout() {
 
         // Rebuild the exercises array from a new top-level key order.
         // Preserves intra-group order (the exercises inside a superset
-        // don't get re-shuffled — only the group as a whole moves).
+        // don't get re-shuffled â€” only the group as a whole moves).
         const reorderTopLevel = (nextKeys) => {
           const itemsByKey = Object.fromEntries(items.map(it => [it.key, it]));
           const nextExercises = [];
@@ -2638,7 +2585,7 @@ export default function Workout() {
                     workoutLogs={rawLogs}
                   />
                 <div className="absolute top-3 right-3 flex items-center gap-1">
-                  {/* Group with previous as a superset — one-tap pairing
+                  {/* Group with previous as a superset â€” one-tap pairing
                       that fills in group_id on both exercises so the
                       GroupBlock renderer picks them up on next render.
                       Only meaningful when the previous exercise exists
@@ -2665,7 +2612,7 @@ export default function Workout() {
                     </button>
                   )}
                   {/* Skip / remove. Always visible during an active
-                      session — if a machine is taken, the user shouldn't
+                      session â€” if a machine is taken, the user shouldn't
                       have to dig through a menu to move on. */}
                   <button
                     type="button"
@@ -2684,7 +2631,7 @@ export default function Workout() {
                           label: 'Undo',
                           onClick: () => setExercises(prev => {
                             // Best-effort reinsert near the original neighbor.
-                            // Append to end as a safe default — the user can
+                            // Append to end as a safe default â€” the user can
                             // always reorder. Better to be at the bottom than
                             // wedged between unrelated supersetted rows.
                             if (prev.some(ex => ex === undoMarker.ref)) return prev;
@@ -2741,7 +2688,7 @@ export default function Workout() {
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             One or more sets have weights or reps outside realistic limits for your profile.
-            The flagged fields have been cleared — please enter valid values before saving.
+            The flagged fields have been cleared â€” please enter valid values before saving.
           </p>
           {cheatWarningData?.flaggedSets?.length > 0 && (
             <ul className="text-xs text-muted-foreground space-y-1 mt-1">
@@ -2750,7 +2697,7 @@ export default function Workout() {
                   <span className="w-1.5 h-1.5 rounded-full bg-destructive/60 shrink-0 mt-1" />
                   <span>
                     <span className="font-medium text-foreground">{f.exName}</span>
-                    {' — '}Set {f.setIndex + 1}
+                    {' â€” '}Set {f.setIndex + 1}
                     {f.weightFlagged && f.maxWeight != null && (
                       <span className="block text-[10px]">Weight exceeds {f.maxWeight} lbs max for your profile</span>
                     )}
@@ -2768,7 +2715,7 @@ export default function Workout() {
               // Count how many fields we're about to clear so the
               // follow-up toast can be specific. Without this, the user
               // dismisses the dialog and lands on a form with mysteriously
-              // empty inputs — no breadcrumb to what changed.
+              // empty inputs â€” no breadcrumb to what changed.
               let weightsCleared = 0;
               let repsCleared = 0;
               for (const f of flaggedSets) {
@@ -2821,11 +2768,11 @@ export default function Workout() {
                   {(missingDataWarning || []).slice(0, 8).map((m, i) => (
                     <li key={i}>
                       <span className="font-medium">{m.exName}</span>
-                      {m.setIndex ? ` — set ${m.setIndex}` : ''} ({m.reason})
+                      {m.setIndex ? ` â€” set ${m.setIndex}` : ''} ({m.reason})
                     </li>
                   ))}
                   {(missingDataWarning || []).length > 8 && (
-                    <li className="text-muted-foreground">…and {missingDataWarning.length - 8} more</li>
+                    <li className="text-muted-foreground">â€¦and {missingDataWarning.length - 8} more</li>
                   )}
                 </ul>
                 <p className="pt-2">Save the workout anyway?</p>
@@ -2877,7 +2824,7 @@ export default function Workout() {
         />
       </ErrorBoundary>
 
-      {/* PR share card — opened from the firePRCelebration toast's
+      {/* PR share card â€” opened from the firePRCelebration toast's
           "Share" action via the OPEN_PR_SHARE_EVENT window event.
           Lazy-loaded since most workout saves don't hit a PR. */}
       {prShare && (
@@ -2965,14 +2912,14 @@ export default function Workout() {
         </Suspense>
       )}
 
-      {/* Injury Form — accessible during active session too */}
+      {/* Injury Form â€” accessible during active session too */}
       <AnimatePresence>
         {injuryFormOpen && (
           <InjuryForm onClose={() => setInjuryFormOpen(false)} userProfile={userProfile} />
         )}
       </AnimatePresence>
 
-      {/* Plate calculator — on-demand "what to load per side" sheet */}
+      {/* Plate calculator â€” on-demand "what to load per side" sheet */}
       <PlateCalculatorModal open={plateCalcOpen} onClose={() => setPlateCalcOpen(false)} />
     </motion.div>
   );
