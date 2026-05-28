@@ -1597,7 +1597,7 @@ export default function Workout() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="p-4 md:p-6 pb-2 max-w-5xl mx-auto"
+        className="px-4 pt-4 md:px-6 md:pt-6 lg:pb-6 max-w-5xl mx-auto"
       >
         <PageHeader
           kicker={cardioPageTitle ? 'CARDIO' : t('pageHeader.kicker.workout')}
@@ -1651,18 +1651,53 @@ export default function Workout() {
         {/* Injury banner — always visible in idle state */}
         <InjuryBanner onOpenForm={() => setInjuryFormOpen(true)} />
 
-        {/* Duel banner — shown when there's a pending or active duel */}
-        {activeDuel && (
-          <DuelBanner
-            duel={activeDuel}
-            currentUserId={user?.id}
-          />
-        )}
-
-        {/* Bounty banner — shown when user has an active bounty claim */}
-        {activeBountyClaim && (
-          <BountyBanner claim={activeBountyClaim} />
-        )}
+        {/* Duel + Bounty banners — full when we're on the main workout hub
+            (the buttons grid). When the user opens a sub-view (Regimens,
+            Store, Cardio, Saved, Form Coach, Generator), collapse them to a
+            small icon chip strip in the corner so they stay visible without
+            stealing the height the sub-view needs. Per user feedback. */}
+        {(() => {
+          const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
+          if (!activeDuel && !activeBountyClaim) return null;
+          if (inSubView) {
+            return (
+              <div className="flex items-center justify-end gap-2 mb-3">
+                {activeDuel && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/duels')}
+                    aria-label="Active duel"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-rose-500/30 bg-rose-500/10 text-rose-500"
+                  >
+                    <Swords className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Duel</span>
+                  </button>
+                )}
+                {activeBountyClaim && (
+                  <button
+                    type="button"
+                    onClick={() => navigate('/bounties')}
+                    aria-label="Active bounty"
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-600"
+                  >
+                    <Zap className="w-3.5 h-3.5" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Bounty</span>
+                  </button>
+                )}
+              </div>
+            );
+          }
+          return (
+            <>
+              {activeDuel && (
+                <DuelBanner duel={activeDuel} currentUserId={user?.id} />
+              )}
+              {activeBountyClaim && (
+                <BountyBanner claim={activeBountyClaim} />
+              )}
+            </>
+          );
+        })()}
 
         {cardioOpen ? (
           <div className="mb-8">

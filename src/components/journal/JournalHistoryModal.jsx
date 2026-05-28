@@ -5,16 +5,19 @@
 // row jumps the JournalView to that day.
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { format, parseISO } from 'date-fns';
 import { X, Loader2, Paperclip, BookOpen } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { listEntries } from '@/lib/data/journal';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function JournalHistoryModal({ userId, activeDate, onClose, onPick }) {
   const { tFallback } = useLanguage();
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
+  useBodyScrollLock(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -25,7 +28,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
     return () => { cancelled = true; };
   }, [userId]);
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -90,6 +93,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
           )}
         </div>
       </motion.div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

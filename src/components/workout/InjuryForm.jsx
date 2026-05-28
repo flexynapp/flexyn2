@@ -3,6 +3,7 @@
 // Accessible from the InjuryBanner "Log Injury" button and ProfileMenu.
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
@@ -12,6 +13,7 @@ import { toast } from 'sonner';
 import { reportError } from '@/lib/reportError';
 import { format, addDays, differenceInDays } from 'date-fns';
 import * as injuries from '@/lib/data/injuries';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core'];
 
@@ -116,6 +118,11 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
 export default function InjuryForm({ onClose }) {
   const { user } = useAuth();
   const qc = useQueryClient();
+  // Lock the page underneath + portal the overlay to <body> so a parent
+  // with `transform`/`filter`/`backdrop-filter` in its ancestor chain
+  // doesn't hijack the `fixed` positioning and render the modal behind
+  // the dashboard.
+  useBodyScrollLock(true);
 
   // ── Form state ─────────────────────────────────────────────────────────────
   const [view, setView] = useState('list'); // 'list' | 'new'
@@ -194,7 +201,7 @@ export default function InjuryForm({ onClose }) {
   const activeList  = injuryList.filter(i => i.status !== 'cleared');
   const clearedList = injuryList.filter(i => i.status === 'cleared');
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
@@ -374,6 +381,7 @@ export default function InjuryForm({ onClose }) {
           )}
         </AnimatePresence>
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

@@ -535,6 +535,14 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     try {
       await hubMessages.togglePinDmMessage(id);
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
+      // Confirmation toast so the user has a clear signal the pin landed
+      // — previously the only feedback was the small pin icon on the
+      // bubble, which beta testers were missing entirely and assumed they
+      // had to manually exit + refresh.
+      const nowPinned = !msg.is_pinned;
+      toast.success(nowPinned
+        ? tFallback('hub.chat.pinned', 'Pinned to the conversation')
+        : tFallback('hub.chat.unpinned', 'Unpinned'));
     } catch {
       setPinnedIds(prev => {
         const next = new Set(prev);
@@ -546,7 +554,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       queryClient.invalidateQueries({ queryKey: ['hubChat', conversation?.id] });
       toast.error(tFallback('hub.chat.pinError', 'Could not pin message. Try again.'));
     }
-  }, [conversation?.id, queryClient]);
+  }, [conversation?.id, queryClient, tFallback]);
 
   // ── Rich-media sends (stickers / GIFs / voice — mig 115) ────────────────
   // Each shares the existing sendMessage path; only message_type and the
@@ -1197,7 +1205,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           onTouchStart={(e) => !isOptimistic && startLongPress(m, e)}
                           onTouchEnd={cancelLongPress}
                           onTouchMove={moveLongPress}
-                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm transition-opacity cursor-pointer select-text ${
+                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm transition-opacity cursor-pointer select-none-ui ${
                             isMine
                               ? 'bg-primary text-primary-foreground rounded-br-sm'
                               : 'bg-secondary text-foreground rounded-bl-sm'

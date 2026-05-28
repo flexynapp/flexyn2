@@ -7,6 +7,7 @@
 import React, { useEffect, useLayoutEffect, useRef, useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Send, Sparkles, Loader2, Trash2, Mic, MicOff, ChevronLeft, ChevronRight } from 'lucide-react';
+import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -189,10 +190,7 @@ export default function CoachChat() {
   const isEmpty = messages.length === 0;
 
   return (
-    <div
-      className="flex flex-col"
-      style={{ height: 'calc(100dvh - 200px)', minHeight: 380 }}
-    >
+    <ChatViewportFrame className="flex flex-col" minHeight={380}>
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-border mb-3 shrink-0">
         <div className="flex items-center gap-2">
@@ -321,7 +319,7 @@ export default function CoachChat() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </ChatViewportFrame>
   );
 }
 

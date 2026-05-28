@@ -23,12 +23,14 @@
 // small (same pattern as DebriefVault / InjuryForm).
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { ChevronLeft, Trophy } from 'lucide-react';
 import AchievementsTab from '@/components/progress/AchievementsTab';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // The OPEN_ACHIEVEMENTS_EVENT constant + requestOpenAchievements helper
 // live in src/lib/achievementsFlow.js so callers can import the
@@ -37,13 +39,14 @@ import AchievementsTab from '@/components/progress/AchievementsTab';
 
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
+  useBodyScrollLock(true);
   const { data: achievements = [] } = useQuery({
     queryKey: ['achievements', user?.email],
     queryFn: () => db.entities.Achievement.filter({ created_by: user.email }),
     enabled: !!user?.email,
   });
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
@@ -75,6 +78,7 @@ export default function AchievementsVault({ onClose }) {
       <div className="flex-1 overflow-y-auto px-4 py-4">
         <AchievementsTab achievements={achievements} />
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

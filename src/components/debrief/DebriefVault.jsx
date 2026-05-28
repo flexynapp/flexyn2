@@ -7,6 +7,7 @@
 //
 // Accessible from ProfileMenu.
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
@@ -16,6 +17,7 @@ import WeeklyDebriefCard from './WeeklyDebriefCard';
 import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
 import { useNumberFormatter } from '@/lib/intl';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 // ── Mini preview card ─────────────────────────────────────────────────────────
 
@@ -179,6 +181,7 @@ export default function DebriefVault({ onClose }) {
   const [expanded, setExpanded] = useState(null);
   const thisWeek = currentWeekStart();
   const lastWeek = prevWeekStart();
+  useBodyScrollLock(true);
 
   // ── Fetch archive ──────────────────────────────────────────────────────────
   const { data: debriefs = [], isLoading } = useQuery({
@@ -262,7 +265,7 @@ export default function DebriefVault({ onClose }) {
 
   const isGenerating = genMut.isPending;
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 32 }}
       animate={{ opacity: 1, y: 0 }}
@@ -380,6 +383,7 @@ export default function DebriefVault({ onClose }) {
           />
         )}
       </AnimatePresence>
-    </motion.div>
+    </motion.div>,
+    document.body,
   );
 }

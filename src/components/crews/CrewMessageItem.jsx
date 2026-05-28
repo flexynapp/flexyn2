@@ -297,7 +297,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               onTouchStart={startLong}
               onTouchEnd={cancelLong}
               onTouchMove={cancelLong}
-              className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none cursor-default ${
+              className={`relative px-3.5 py-2.5 rounded-2xl text-sm leading-snug select-none-ui cursor-default ${
                 isOwn ? 'text-white rounded-br-sm' : 'text-foreground rounded-bl-sm bg-secondary/60'
               }`}
               style={isOwn ? { background: 'hsl(var(--primary))' } : { background: tint, border: '1px solid hsl(var(--border) / 0.6)' }}

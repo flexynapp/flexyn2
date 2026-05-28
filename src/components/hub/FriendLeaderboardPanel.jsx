@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Crown, Flame, Activity, Calendar as CalendarIcon, Users } from 'lucide-react';
+import { Crown, Flame, Activity, Calendar as CalendarIcon, Users, ChevronDown } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -56,11 +56,15 @@ export default function FriendLeaderboardPanel() {
   const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
   const [mode, setMode] = useState('weekly_xp');
+  // Default-collapsed per user feedback — the leaderboard sits below
+  // Stories, and showing the top-4 by default is too tall on mobile.
+  // Tap the header to expand; mode toggles only render when expanded.
+  const [expanded, setExpanded] = useState(false);
 
   const { data: rows = [], isLoading } = useQuery({
     queryKey: ['friendLeaderboard', user?.id, mode],
     queryFn:  () => getFriendLeaderboard({ mode, limit: 20 }),
-    enabled:  !!user?.id,
+    enabled:  !!user?.id && expanded,   // don't fetch until the user expands
     staleTime: 5 * 60_000,
   });
 
@@ -73,7 +77,12 @@ export default function FriendLeaderboardPanel() {
       transition={{ duration: 0.35 }}
       className="rounded-2xl border border-border bg-card overflow-hidden mb-4"
     >
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+      <button
+        type="button"
+        onClick={() => setExpanded(v => !v)}
+        aria-expanded={expanded}
+        className={`w-full px-4 py-3 flex items-center justify-between text-left ${expanded ? 'border-b border-border' : ''}`}
+      >
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-primary" aria-hidden="true" />
           <h3 className="font-heading font-bold text-sm">
@@ -81,10 +90,10 @@ export default function FriendLeaderboardPanel() {
           </h3>
         </div>
         <div className="flex items-center gap-1">
-          {MODES.map(({ id, label, icon: Icon }) => (
+          {expanded && MODES.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
-              onClick={() => setMode(id)}
+              onClick={(e) => { e.stopPropagation(); setMode(id); }}
               aria-pressed={mode === id}
               className={[
                 'px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center gap-1',
@@ -97,9 +106,14 @@ export default function FriendLeaderboardPanel() {
               {tFallback(`friendLeaderboard.mode.${id}`, label)}
             </button>
           ))}
+          <ChevronDown
+            className={`w-4 h-4 text-muted-foreground transition-transform ${expanded ? 'rotate-180' : ''}`}
+            aria-hidden="true"
+          />
         </div>
-      </div>
+      </button>
 
+      {expanded && (
       <div className="px-3 py-2">
         {isLoading && (
           <div className="py-6 text-center text-[11px] text-muted-foreground">
@@ -165,6 +179,7 @@ export default function FriendLeaderboardPanel() {
           </AnimatePresence>
         )}
       </div>
+      )}
     </motion.div>
   );
 }

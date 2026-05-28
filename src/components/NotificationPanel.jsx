@@ -19,7 +19,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw, Inbox } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
@@ -396,9 +396,24 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
   })();
 
   // Swipe-to-delete threshold. If user drags left past -90 px we treat
-  // it as a delete gesture. Less than that snaps back. Mirrors the
-  // iOS/Android system mail behavior so users have an intuition.
+  // it as a delete gesture. Less than that snaps back.
   const SWIPE_THRESHOLD = -90;
+  // Restrict the swipe-start to the RIGHT THIRD of the row, per user
+  // feedback. Centre swipes were firing delete by accident while just
+  // scrolling — and the centre is reserved for a future tab-toggle
+  // gesture (All ↔ Friends). Using `dragControls` instead of the default
+  // pointerdown listener gives us per-tap control with no state-race.
+  const dragControls = useDragControls();
+  const startIfRightThird = (e) => {
+    const target = e.currentTarget;
+    if (!target) return;
+    const rect = target.getBoundingClientRect();
+    const xClient = e.clientX ?? e.touches?.[0]?.clientX;
+    if (xClient == null) return;
+    if (xClient - rect.left > rect.width * (2 / 3)) {
+      dragControls.start(e);
+    }
+  };
 
   return (
     <motion.li
@@ -409,8 +424,11 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
     >
       <motion.div
         drag="x"
+        dragListener={false}
+        dragControls={dragControls}
         dragConstraints={{ left: -120, right: 0 }}
         dragElastic={0.15}
+        onPointerDown={startIfRightThird}
         onDragEnd={(_, info) => {
           if (info.offset.x < SWIPE_THRESHOLD) onDelete();
         }}
