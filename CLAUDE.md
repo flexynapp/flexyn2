@@ -370,6 +370,14 @@ violations of this rule.
        migrations / DB objects.
    Don't wait to be asked. See the paste-safety rule below — the SQL
    you hand over must survive the user's clipboard pipeline.
+   **MANDATORY, NO EXCEPTIONS (kegan, 2026-05, mobile):** ALWAYS paste the
+   actual SQL inline in chat inside a fenced ```sql code block so it has a
+   one-tap copy button. NEVER tell the user to open / copy a file from the
+   repo or GitHub — they are on mobile and cannot open files. This applies
+   no matter how long the SQL is; if a bundle is huge, split it across
+   several ```sql blocks in the SAME reply (each its own copy button) and
+   tell them the run order — but it must all be in chat. A file path is
+   NEVER an acceptable substitute for the inline SQL.
 7. **Paste-safe SQL is mandatory.** The user's paste pipeline mangles
    short `alias.column` tokens AND record-field `.id` tokens (e.g.
    `up.id`, `v_verif.id`, `v_capsule.id`) → `42601 syntax error at "<"`.
