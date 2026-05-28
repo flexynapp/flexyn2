@@ -21,7 +21,7 @@ export const TIERS = [
     // "shiny patina" instead of "rust." Pairs with a bronze ring border
     // on the card to outline it without making it look heavy.
     gradient: 'from-amber-500 via-orange-500 to-yellow-700',
-    ringClass: 'ring-1 ring-amber-400/60',
+    ringClass: 'ring-2 ring-amber-400/70',
     promote: 10,
     demote: 0, // never demoted out of bronze
     rewardCoins: 50,

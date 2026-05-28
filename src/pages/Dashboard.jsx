@@ -965,19 +965,21 @@ export default function Dashboard() {
       }
       case 'recovery': return (
         <React.Fragment key="recovery">
-          <SectionHeader
-            label={tFallback('dashboard.section.recovery', 'Recovery')}
-            open={recoveryOpen}
-            onToggle={toggleRecovery}
-            tFallback={tFallback}
-          />
-          <Collapsible open={recoveryOpen}>
-            {/* Wrapped in a single outer Card with the same shape as
-                Daily Quests — light tint background (blue, to
-                differentiate from the orange Quests card), inner
-                widgets keep their own white/card backgrounds. Order
-                inverted: Macros → Calories → Hydration+Mood → Steps. */}
-            <Card className="p-3 bg-gradient-to-br from-blue-200/25 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
+          {/* Recovery card — mirrors Daily Quests exactly: outer Card
+              always visible, the header (icon + label) lives inside,
+              widgets are conditionally rendered, chevron at the bottom
+              toggles. Hitting collapse no longer wipes the whole
+              section like the old SectionHeader + Collapsible
+              wrappers did. */}
+          <Card className="p-4 md:p-5 bg-gradient-to-br from-blue-200/30 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="w-4 h-4 text-sky-500" />
+              <h3 className="font-heading font-bold text-sm tracking-tight">
+                {tFallback('dashboard.section.recovery', 'Recovery')}
+              </h3>
+            </div>
+
+            {recoveryOpen && (
               <div className="space-y-2">
                 <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
                 <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
@@ -987,17 +989,18 @@ export default function Dashboard() {
                 </div>
                 <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
               </div>
-              <button
-                type="button"
-                onClick={toggleRecovery}
-                aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
-                aria-expanded={recoveryOpen}
-                className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
-              >
-                <ChevronUp className="w-3.5 h-3.5" />
-              </button>
-            </Card>
-          </Collapsible>
+            )}
+
+            <button
+              type="button"
+              onClick={toggleRecovery}
+              aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
+              aria-expanded={recoveryOpen}
+              className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
+            >
+              {recoveryOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            </button>
+          </Card>
         </React.Fragment>
       );
       case 'challenges': return (
