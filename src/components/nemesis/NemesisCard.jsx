@@ -144,7 +144,7 @@ export default function NemesisCard({ currentUserId }) {
       <motion.div
         initial={{ opacity: 0, y: 6 }}
         animate={{ opacity: 1, y: 0 }}
-        className="rounded-2xl border border-rose-500/20 bg-rose-500/3 overflow-hidden mb-4"
+        className="rounded-2xl border border-rose-500/20 bg-rose-500/3 overflow-hidden"
       >
         {/* Label */}
         <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">

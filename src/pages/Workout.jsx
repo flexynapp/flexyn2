@@ -191,18 +191,22 @@ export default function Workout() {
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [activeInfo, setActiveInfo] = useState(null); // which card's â"˜ tooltip is open
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip â†' expands RoutineTodayCard
-  const GRID_DEFAULT_ORDER = ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc', 'crew'];
-  const [rowOrder, setRowOrder] = useState(() => {
+  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis','gauntlet','formcoach','crew'];
+  const [cardOrder, setCardOrder] = useState(() => {
     try {
-      const s = localStorage.getItem('wkt-grid-order');
-      if (s) { const p = JSON.parse(s); if (p.includes('crew')) return p; }
+      const s = localStorage.getItem('wkt-card-order');
+      if (s) {
+        const p = JSON.parse(s);
+        if (CARD_ORDER_DEFAULT.every(c => p.includes(c)) && p.length === CARD_ORDER_DEFAULT.length) return p;
+      }
     } catch {}
-    return ['gen-exp', 'duels-bnts', 'reg-saved', 'crd-goals', 'nemesis', 'gaunt-fc', 'crew'];
+    return [...CARD_ORDER_DEFAULT];
   });
   const [gridEditing, setGridEditing] = useState(false);
   const HERO_COUNT = 3;
   const [[heroSlide, heroDir], setHeroState] = useState([0, 0]);
   const paginateHero = (dir) => setHeroState(([cur]) => [((cur + dir) % HERO_COUNT + HERO_COUNT) % HERO_COUNT, dir]);
+  const heroDragging = useRef(false);
   const [cheatWarningData, setCheatWarningData] = useState(null);
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
@@ -1526,218 +1530,208 @@ export default function Workout() {
 
   // Returns JSX for one grid row by ID. Defined here (inside component) so it
   // captures all state/handlers without prop-drilling. Used by both the static
-  // and Reorder-based render paths below.
-  const renderGridRow = (rowId) => {
-    // Shared â"˜ button component helper
-    const InfoBtn = ({ id }) => (
+  // Position-based colour palette (top=red, bottom=yellow) so colours
+  // stay gradient-consistent regardless of which card occupies a slot.
+  const getCardPalette = (idx) => {
+    const P = [
+      { bg:'rgba(220,38,38,0.32) 0%,rgba(244,63,94,0.22) 100%',  cls:'border-rose-500/55 hover:border-rose-500/75 hover:shadow-[0_0_18px_rgba(239,68,68,0.32)]' },
+      { bg:'rgba(220,38,38,0.30) 0%,rgba(244,63,94,0.22) 100%',  cls:'border-rose-500/52 hover:border-rose-500/72 hover:shadow-[0_0_16px_rgba(239,68,68,0.30)]' },
+      { bg:'rgba(220,38,38,0.28) 0%,rgba(249,115,22,0.22) 100%', cls:'border-primary/52  hover:border-primary/72  hover:shadow-[0_0_16px_rgba(244,63,94,0.28)]'  },
+      { bg:'rgba(249,115,22,0.28) 0%,rgba(245,158,11,0.22) 100%',cls:'border-primary/50  hover:border-primary/70  hover:shadow-[0_0_16px_rgba(249,115,22,0.26)]' },
+      { bg:'rgba(249,115,22,0.28) 0%,rgba(251,146,60,0.20) 100%',cls:'border-primary/48  hover:border-primary/68  hover:shadow-[0_0_14px_rgba(249,115,22,0.24)]' },
+      { bg:'rgba(249,115,22,0.26) 0%,rgba(251,146,60,0.18) 100%',cls:'border-primary/45  hover:border-primary/65  hover:shadow-[0_0_14px_rgba(251,146,60,0.24)]' },
+      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-500/50 hover:border-yellow-500/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
+      { bg:'rgba(234,179,8,0.26) 0%,rgba(250,204,21,0.18) 100%', cls:'border-yellow-400/48 hover:border-yellow-400/68 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]' },
+      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-500/48 hover:border-yellow-500/68 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
+      { bg:'rgba(234,179,8,0.26) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-400/45 hover:border-yellow-400/65 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]' },
+      { bg:'rgba(234,179,8,0.30) 0%,rgba(251,191,36,0.20) 100%', cls:'border-yellow-500/55 hover:border-yellow-500/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
+      { bg:'rgba(234,179,8,0.28) 0%,rgba(251,191,36,0.18) 100%', cls:'border-yellow-400/50 hover:border-yellow-400/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]' },
+    ];
+    const e = P[Math.min(Math.max(idx,0), P.length-1)];
+    return { background:`linear-gradient(135deg,${e.bg})`, borderClass: e.cls };
+  };
+
+  // Renders a single grid card by ID. idx = position among non-nemesis cards
+  // (drives colour palette so red stays at top, yellow at bottom).
+  const renderCard = (id, idx) => {
+    const InfoBtn = ({ bid }) => (
       <button type="button"
-        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === id ? null : id); }}
+        onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
         className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
         <span className="text-[8px] font-bold leading-none italic">i</span>
       </button>
     );
-    // Shared info text helper
-    const InfoText = ({ id, text }) => activeInfo === id ? (
-      <p className="text-[11px] text-foreground/70 mt-1 leading-tight">{text}</p>
-    ) : null;
+    const InfoText = ({ bid, text }) => activeInfo === bid
+      ? <p className="text-[11px] text-foreground/70 mt-1 leading-tight">{text}</p>
+      : null;
 
-    if (rowId === 'gen-exp') return (
-      <div className="grid grid-cols-2 gap-3">
-        {/* Generate Workout */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0}
-            aria-label={tFallback('generator.title', 'Generate Workout')}
-            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/55 hover:border-primary/75 hover:shadow-[0_0_18px_rgba(239,68,68,0.32)]"
-            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.32) 0%, rgba(244,63,94,0.22) 100%)' }}
-            onClick={() => setGeneratorOpen(true)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
-          >
-            <InfoBtn id="generate" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(239,68,68,0.3)]">
-                <Sparkles className="w-5 h-5 text-white" />
-              </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title', 'Generate Workout')}</p>
-                <InfoText id="generate" text="AI builds a personalized session from your history & goals." />
-              </div>
+    const pal = getCardPalette(idx);
+    const cardBase = `group relative cursor-pointer h-full transition-colors p-3 ${pal.borderClass}`;
+
+    if (id === 'generate') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Generate Workout"
+          className={cardBase} style={{ background: pal.background }}
+          onClick={() => setGeneratorOpen(true)}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setGeneratorOpen(true);} }}>
+          <InfoBtn bid="generate" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(239,68,68,0.3)]">
+              <Sparkles className="w-5 h-5 text-white" />
             </div>
-          </Card>
-        </motion.div>
-        {/* Explore Regimens */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0} aria-label="Explore Regimens"
-            className="group relative overflow-hidden cursor-pointer h-full transition-all p-3 border-primary/52 hover:border-primary/72 hover:shadow-[0_0_16px_rgba(239,68,68,0.28)]"
-            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.28) 0%, rgba(244,63,94,0.20) 100%)' }}
-            onClick={() => setStoreOpen(true)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
-          >
-            <InfoBtn id="explore" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
-                <Globe className="w-5 h-5 text-rose-500" />
-              </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
-                <InfoText id="explore" text="Browse top-rated community training programs and adopt one." />
-              </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>
+              <InfoText bid="generate" text="AI builds a personalised session from your history and goals." />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
-    if (rowId === 'duels-bnts') return (
-      <div className="grid grid-cols-2 gap-3">
-        {/* Duels */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0} aria-label="Duels"
-            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/52 hover:border-primary/72 hover:shadow-[0_0_16px_rgba(244,63,94,0.28)]"
-            style={{ background: 'linear-gradient(135deg, rgba(220,38,38,0.28) 0%, rgba(249,115,22,0.22) 100%)' }}
-            onClick={() => navigate('/duels')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/duels'); } }}
-          >
-            <InfoBtn id="duels" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
-                <Swords className="w-5 h-5 text-rose-500" />
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                  <p className="font-heading font-bold text-sm leading-tight">Duels</p>
-                  {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>}
-                </div>
-                <InfoText id="duels" text="Challenge someone to a head-to-head workout battle. Winner gets bragging rights." />
-              </div>
+    if (id === 'explore') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Explore Regimens"
+          className={`${cardBase} overflow-hidden`} style={{ background: pal.background }}
+          onClick={() => setStoreOpen(true)}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setStoreOpen(true);} }}>
+          <InfoBtn bid="explore" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
+              <Globe className="w-5 h-5 text-rose-500" />
             </div>
-          </Card>
-        </motion.div>
-        {/* Bounties */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0} aria-label="Bounties"
-            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/50 hover:border-primary/70 hover:shadow-[0_0_16px_rgba(249,115,22,0.26)]"
-            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.28) 0%, rgba(245,158,11,0.22) 100%)' }}
-            onClick={() => navigate('/bounties')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/bounties'); } }}
-          >
-            <InfoBtn id="bounties" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-amber-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
-                <Zap className="w-5 h-5 text-amber-500" />
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                  <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
-                  {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>}
-                  {!activeBountyClaim && activeBounties.length > 0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>}
-                </div>
-                <InfoText id="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
-              </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">Explore Regimens</p>
+              <InfoText bid="explore" text="Browse top-rated community training programs and adopt one." />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
-    if (rowId === 'reg-saved') return (
-      <div className="grid grid-cols-2 gap-3">
-        {/* Regimens */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/48 hover:border-primary/68 hover:shadow-[0_0_14px_rgba(249,115,22,0.24)]"
-            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.28) 0%, rgba(251,146,60,0.20) 100%)' }}
-            onClick={() => setRegimensOpen(true)}
-          >
-            <InfoBtn id="regimens" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-orange-500/18 border border-orange-500/28 flex items-center justify-center shrink-0">
-                <Dumbbell className="w-5 h-5 text-orange-500" />
-              </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
-                <InfoText id="regimens" text="View and manage your saved training programs." />
-              </div>
+    if (id === 'duels') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Duels"
+          className={cardBase} style={{ background: pal.background }}
+          onClick={() => navigate('/duels')}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/duels');} }}>
+          <InfoBtn bid="duels" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/18 border border-rose-500/28 flex items-center justify-center shrink-0">
+              <Swords className="w-5 h-5 text-rose-500" />
             </div>
-          </Card>
-        </motion.div>
-        {/* Saved Workouts */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            className="group relative cursor-pointer h-full transition-colors p-3 border-primary/45 hover:border-primary/65 hover:shadow-[0_0_14px_rgba(251,146,60,0.24)]"
-            style={{ background: 'linear-gradient(135deg, rgba(249,115,22,0.26) 0%, rgba(251,146,60,0.18) 100%)' }}
-            onClick={() => setSavedWorkoutsOpen(true)}
-          >
-            <InfoBtn id="saved" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-orange-400/18 border border-orange-400/28 flex items-center justify-center shrink-0">
-                <History className="w-5 h-5 text-orange-400" />
+            <div>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                <p className="font-heading font-bold text-sm leading-tight">Duels</p>
+                {activeDuel && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-500">Active</span>}
               </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts', 'Saved Workouts')}</p>
-                <InfoText id="saved" text="Replay past workouts with your previous weights pre-filled." />
-              </div>
+              <InfoText bid="duels" text="Challenge someone to a head-to-head workout battle." />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
-    if (rowId === 'crd-goals') return (
-      <div className="grid grid-cols-2 gap-3">
-        {/* Cardio */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-500/50 hover:border-yellow-500/70 hover:shadow-[0_0_14px_rgba(234,179,8,0.26)]"
-            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.28) 0%, rgba(251,191,36,0.18) 100%)' }}
-            onClick={() => setCardioOpen(true)}
-          >
-            <InfoBtn id="cardio" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-yellow-500/28 flex items-center justify-center shrink-0">
-                <Activity className="w-5 h-5 text-yellow-500" />
-              </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
-                <InfoText id="cardio" text="Log runs, rides, and cardio sessions separately from your lifting." />
-              </div>
+    if (id === 'bounties') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Bounties"
+          className={cardBase} style={{ background: pal.background }}
+          onClick={() => navigate('/bounties')}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/bounties');} }}>
+          <InfoBtn bid="bounties" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
+              <Zap className="w-5 h-5 text-amber-500" />
             </div>
-          </Card>
-        </motion.div>
-        {/* Goals */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-400/48 hover:border-yellow-400/68 hover:shadow-[0_0_14px_rgba(250,204,21,0.24)]"
-            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.26) 0%, rgba(250,204,21,0.18) 100%)' }}
-            onClick={() => setGoalsModalOpen(true)}
-          >
-            <InfoBtn id="goals" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-yellow-400/18 border border-yellow-400/28 flex items-center justify-center shrink-0">
-                <Target className="w-5 h-5 text-yellow-500" />
+            <div>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                <p className="font-heading font-bold text-sm leading-tight">Bounties</p>
+                {activeBountyClaim && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">Active</span>}
+                {!activeBountyClaim && activeBounties.length>0 && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600">{activeBounties.length} open</span>}
               </div>
-              <div>
-                <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
-                <InfoText id="goals" text="Set and track your fitness targets — strength, weight, endurance." />
-              </div>
+              <InfoText bid="bounties" text="Daily fitness challenges — complete them to earn Flex Coins." />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
-    if (rowId === 'nemesis') return (
+    if (id === 'regimens') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card className={cardBase} style={{ background: pal.background }} onClick={() => setRegimensOpen(true)}>
+          <InfoBtn bid="regimens" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-orange-500/18 border border-orange-500/28 flex items-center justify-center shrink-0">
+              <Dumbbell className="w-5 h-5 text-orange-500" />
+            </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">{t('workout.regimens')}</p>
+              <InfoText bid="regimens" text="View and manage your saved training programs." />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+
+    if (id === 'saved') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card className={cardBase} style={{ background: pal.background }} onClick={() => setSavedWorkoutsOpen(true)}>
+          <InfoBtn bid="saved" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-orange-400/18 border border-orange-400/28 flex items-center justify-center shrink-0">
+              <History className="w-5 h-5 text-orange-400" />
+            </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts','Saved Workouts')}</p>
+              <InfoText bid="saved" text="Replay past workouts with your previous weights pre-filled." />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+
+    if (id === 'cardio') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card className={cardBase} style={{ background: pal.background }} onClick={() => setCardioOpen(true)}>
+          <InfoBtn bid="cardio" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-yellow-500/28 flex items-center justify-center shrink-0">
+              <Activity className="w-5 h-5 text-yellow-500" />
+            </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">{t('cardio.title')}</p>
+              <InfoText bid="cardio" text="Log runs, rides, and cardio sessions separately from your lifting." />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+
+    if (id === 'goals') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card className={cardBase} style={{ background: pal.background }} onClick={() => setGoalsModalOpen(true)}>
+          <InfoBtn bid="goals" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-yellow-400/18 border border-yellow-400/28 flex items-center justify-center shrink-0">
+              <Target className="w-5 h-5 text-yellow-500" />
+            </div>
+            <div>
+              <p className="font-heading font-bold text-sm leading-tight">{t('workout.goals')}</p>
+              <InfoText bid="goals" text="Set and track your fitness targets — strength, weight, endurance." />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+
+    if (id === 'nemesis') return (
       <div className="rounded-xl border-2 border-rose-500/60 bg-card overflow-hidden shadow-[0_0_18px_rgba(239,68,68,0.14)]">
         <div className="relative">
           <button type="button"
-            onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo === 'nemesis' ? null : 'nemesis'); }}
+            onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
             className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
             <span className="text-[8px] font-bold leading-none italic">i</span>
           </button>
-          {activeInfo === 'nemesis' && (
+          {activeInfo==='nemesis' && (
             <p className="absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
               Your auto-assigned rival — beat their stats to dethrone them.
             </p>
@@ -1749,78 +1743,68 @@ export default function Workout() {
       </div>
     );
 
-    if (rowId === 'gaunt-fc') return (
-      <div className="grid grid-cols-2 gap-3">
-        {/* Gauntlet */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0} aria-label="Gauntlet"
-            className="group relative p-3 cursor-pointer border-yellow-500/48 hover:border-yellow-500/68 hover:shadow-[0_0_16px_rgba(234,179,8,0.26)] transition-colors h-full"
-            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.28) 0%, rgba(251,191,36,0.18) 100%)' }}
-            onClick={() => navigate('/gauntlet')}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
-          >
-            <InfoBtn id="gauntlet" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
-                <Trophy className="w-5 h-5 text-amber-400" />
-              </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5 flex-wrap">
-                  <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
-                  {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>}
-                  {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">#{gauntletProgress.current_challenge_sequence}</span>}
-                </div>
-                <InfoText id="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
-              </div>
+    if (id === 'gauntlet') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Gauntlet"
+          className={cardBase} style={{ background: pal.background }}
+          onClick={() => navigate('/gauntlet')}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/gauntlet');} }}>
+          <InfoBtn bid="gauntlet" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-yellow-500/18 border border-amber-500/28 flex items-center justify-center shrink-0">
+              <Trophy className="w-5 h-5 text-amber-400" />
             </div>
-          </Card>
-        </motion.div>
-        {/* Form Coach */}
-        <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-          <Card
-            role="button" tabIndex={0} aria-label="Form Coach"
-            className="group relative p-3 cursor-pointer border-yellow-400/55 hover:border-yellow-400/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.30)] transition-colors h-full"
-            style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.32) 0%, rgba(251,191,36,0.22) 100%)' }}
-            onClick={() => setFormCoachOpen(true)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setFormCoachOpen(true); } }}
-          >
-            <InfoBtn id="formcoach" />
-            <div className="flex flex-col items-center text-center gap-1.5">
-              <div className="w-10 h-10 rounded-xl bg-yellow-400/22 border border-yellow-400/35 flex items-center justify-center shrink-0">
-                <Camera className="w-5 h-5 text-yellow-500" />
+            <div>
+              <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                <p className="font-heading font-bold text-sm leading-tight">Gauntlet</p>
+                {gauntletProgress?.path_completed && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>}
+                {!gauntletProgress?.path_completed && gauntletProgress && <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">#{gauntletProgress.current_challenge_sequence}</span>}
               </div>
-              <div>
-                <div className="flex items-center justify-center gap-1.5">
-                  <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title', 'Form Coach')}</p>
-                  <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-yellow-400/20 text-yellow-600">{tFallback('formcoach.beta', 'Beta')}</span>
-                </div>
-                <InfoText id="formcoach" text="AI form feedback on your lifts — record a set and get instant coaching." />
-              </div>
+              <InfoText bid="gauntlet" text="Complete 10 epic challenges to earn prizes and climb the leaderboard." />
             </div>
-          </Card>
-        </motion.div>
-      </div>
+          </div>
+        </Card>
+      </motion.div>
     );
 
-    if (rowId === 'crew') return (
-      <motion.div whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }}>
-        <Card
-          role="button" tabIndex={0} aria-label="Crew Wars"
-          className="group relative cursor-pointer h-full transition-colors p-3 border-yellow-500/55 hover:border-yellow-500/75 hover:shadow-[0_0_16px_rgba(234,179,8,0.28)]"
-          style={{ background: 'linear-gradient(135deg, rgba(234,179,8,0.30) 0%, rgba(251,191,36,0.20) 100%)' }}
-          onClick={() => navigate('/hub', { state: { openCrewWars: true } })}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/hub', { state: { openCrewWars: true } }); } }}
-        >
-          <InfoBtn id="crew" />
-          <div className="flex flex-col items-center text-center gap-1.5 md:flex-row md:text-left md:gap-3">
+    if (id === 'formcoach') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Form Coach"
+          className={`${cardBase} border-yellow-400/55 hover:border-yellow-400/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.30)]`}
+          style={{ background:'linear-gradient(135deg,rgba(234,179,8,0.32) 0%,rgba(251,191,36,0.22) 100%)' }}
+          onClick={() => setFormCoachOpen(true)}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setFormCoachOpen(true);} }}>
+          <InfoBtn bid="formcoach" />
+          <div className="flex flex-col items-center text-center gap-1.5">
+            <div className="w-10 h-10 rounded-xl bg-yellow-400/22 border border-yellow-400/35 flex items-center justify-center shrink-0">
+              <Camera className="w-5 h-5 text-yellow-500" />
+            </div>
+            <div>
+              <div className="flex items-center justify-center gap-1.5">
+                <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title','Form Coach')}</p>
+                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-yellow-400/20 text-yellow-600">{tFallback('formcoach.beta','Beta')}</span>
+              </div>
+              <InfoText bid="formcoach" text="AI form feedback on your lifts — record a set and get instant coaching." />
+            </div>
+          </div>
+        </Card>
+      </motion.div>
+    );
+
+    if (id === 'crew') return (
+      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
+        <Card role="button" tabIndex={0} aria-label="Crew Wars"
+          className={cardBase} style={{ background: pal.background }}
+          onClick={() => navigate('/hub', { state:{ openCrewWars:true } })}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/hub',{state:{openCrewWars:true}});} }}>
+          <InfoBtn bid="crew" />
+          <div className="flex flex-col items-center text-center gap-1.5">
             <div className="w-10 h-10 rounded-xl bg-yellow-500/22 border border-yellow-500/35 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-yellow-500" />
             </div>
-            <div className="flex-1 min-w-0">
+            <div>
               <p className="font-heading font-bold text-sm leading-tight">Crew Wars</p>
-              <InfoText id="crew" text="Battle rival crews — contribute XP and fight for crew supremacy." />
-              <p className="hidden md:block text-xs text-muted-foreground mt-0.5 line-clamp-1">Lead your crew to victory</p>
+              <InfoText bid="crew" text="Battle rival crews — contribute XP and fight for crew supremacy." />
             </div>
           </div>
         </Card>
@@ -1829,6 +1813,7 @@ export default function Workout() {
 
     return null;
   };
+
 
   useEffect(() => {
     const state = location?.state;
@@ -2085,16 +2070,18 @@ export default function Workout() {
                     drag="x"
                     dragConstraints={{ left: 0, right: 0 }}
                     dragElastic={0.15}
+                    onDragStart={() => { heroDragging.current = true; }}
                     onDragEnd={(_, { offset, velocity }) => {
                       const swipe = Math.abs(offset.x) * Math.abs(velocity.x);
                       if (offset.x < -60 || swipe > 8000) paginateHero(1);
                       else if (offset.x > 60 || swipe < -8000) paginateHero(-1);
+                      setTimeout(() => { heroDragging.current = false; }, 80);
                     }}
                     className="absolute inset-0 w-full cursor-grab active:cursor-grabbing"
                     style={{ zIndex: 1 }}
                   >
                     {heroSlide === 0 && (
-                      <button type="button" onClick={startFreestyle} onPointerDown={(e) => e.stopPropagation()}
+                      <button type="button" onClick={() => { if (!heroDragging.current) startFreestyle(); }}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
                         style={{ background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)', boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2127,7 +2114,7 @@ export default function Workout() {
                       </button>
                     )}
                     {heroSlide === 1 && (
-                      <button type="button" onClick={() => navigate('/gauntlet')} onPointerDown={(e) => e.stopPropagation()}
+                      <button type="button" onClick={() => { if (!heroDragging.current) navigate('/gauntlet'); }}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
                         style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)', boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2160,7 +2147,7 @@ export default function Workout() {
                       </button>
                     )}
                     {heroSlide === 2 && (
-                      <button type="button" onClick={() => navigate('/hub', { state: { openCrewWars: true } })} onPointerDown={(e) => e.stopPropagation()}
+                      <button type="button" onClick={() => { if (!heroDragging.current) navigate('/hub', { state: { openCrewWars: true } }); }}
                         className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
                         style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
@@ -2196,8 +2183,8 @@ export default function Workout() {
                 </AnimatePresence>
                 {/* Height placeholder so container does not collapse */}
                 <div className="invisible pointer-events-none" aria-hidden="true">
-                  <div className="flex items-center justify-between gap-4 p-6 md:p-8">
-                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none">x</span><span className="text-[13px] mt-2.5 block">placeholder</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">x</span></div>
+                  <div className="flex items-center justify-between gap-4 p-6 md:p-8 pb-9 md:pb-10">
+                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none">x</span><span className="text-[13px] mt-2.5 block">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">badge placeholder</span></div>
                     <div className="w-16 h-16 rounded-2xl shrink-0" />
                   </div>
                 </div>
@@ -2299,45 +2286,53 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions grid — reorderable 2-col layout (uniform mobile + desktop) */}
+            {/* Secondary actions grid — individual card drag-to-reorder */}
             <div className="mb-2">
-              {/* Edit-mode controls */}
               {gridEditing && (
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag rows to reorder</p>
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag cards individually to reorder</p>
                   <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => { localStorage.setItem('wkt-grid-order', JSON.stringify(rowOrder)); setGridEditing(false); toast.success('Layout saved.'); }}
-                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors"
-                    >Save</button>
-                    <button
-                      onClick={() => { setRowOrder(GRID_DEFAULT_ORDER); localStorage.removeItem('wkt-grid-order'); setGridEditing(false); }}
-                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors"
-                    >Reset</button>
+                    <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); }}
+                      className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">Save</button>
+                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); }}
+                      className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
               )}
-              {/* Grid rows — static when browsing, Reorder.Group when editing */}
-              {gridEditing ? (
-                <Reorder.Group axis="y" values={rowOrder} onReorder={setRowOrder} className="space-y-3" as="div">
-                  {rowOrder.map(rowId => (
-                    <Reorder.Item key={rowId} value={rowId} as="div"
-                      className="relative cursor-grab active:cursor-grabbing rounded-xl"
-                      whileDrag={{ scale: 1.015, boxShadow: '0 12px 32px rgba(0,0,0,0.16)' }}>
-                      <div className="absolute left-0 top-0 bottom-0 w-6 flex items-center justify-center z-10 pointer-events-none">
-                        <GripVertical className="w-4 h-4 text-muted-foreground/45" />
-                      </div>
-                      <div className="pl-6">{renderGridRow(rowId)}</div>
-                    </Reorder.Item>
-                  ))}
-                </Reorder.Group>
-              ) : (
-                <div className="space-y-3">
-                  {rowOrder.map(rowId => (
-                    <div key={rowId}>{renderGridRow(rowId)}</div>
-                  ))}
-                </div>
-              )}
+              {(() => {
+                const nonNemesis = cardOrder.filter(id => id !== 'nemesis');
+                if (gridEditing) {
+                  return (
+                    <Reorder.Group axis="y" values={cardOrder} onReorder={setCardOrder} className="space-y-2" as="div">
+                      {cardOrder.map((id) => {
+                        const idx = nonNemesis.indexOf(id);
+                        return (
+                          <Reorder.Item key={id} value={id} as="div"
+                            className="cursor-grab active:cursor-grabbing rounded-xl"
+                            whileDrag={{ scale:1.02, boxShadow:'0 8px 24px rgba(0,0,0,0.15)' }}>
+                            <div className="flex items-center gap-1.5">
+                              <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0 ml-1" />
+                              <div className="flex-1">{renderCard(id, idx)}</div>
+                            </div>
+                          </Reorder.Item>
+                        );
+                      })}
+                    </Reorder.Group>
+                  );
+                }
+                return (
+                  <div className="grid grid-cols-2 gap-3">
+                    {cardOrder.map((id) => {
+                      const idx = nonNemesis.indexOf(id);
+                      return (
+                        <div key={id} className={id === 'nemesis' ? 'col-span-2' : ''}>
+                          {renderCard(id, idx)}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           </>
         ) : (
