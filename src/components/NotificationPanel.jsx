@@ -20,7 +20,7 @@ import { createPortal } from 'react-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw, ExternalLink } from 'lucide-react';
+import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw, Inbox } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
@@ -219,7 +219,7 @@ export default function NotificationPanel({ open, onClose }) {
                 title={tFallback('notifications.openFull', 'Open full notifications page')}
                 className="p-1.5 rounded-md text-muted-foreground hover:text-primary hover:bg-secondary transition-colors"
               >
-                <ExternalLink className="w-4 h-4" aria-hidden="true" />
+                <Inbox className="w-4 h-4" aria-hidden="true" />
               </button>
               {hasUnread && (
                 <button
@@ -260,28 +260,28 @@ export default function NotificationPanel({ open, onClose }) {
             <button
               onClick={() => setTab('all')}
               aria-pressed={tab === 'all'}
-              className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+              className={`flex-1 px-4 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
                 tab === 'all'
                   ? 'text-primary border-primary'
                   : 'text-muted-foreground border-transparent hover:text-foreground'
               }`}
             >
               {tFallback('notifications.tab.all', 'All')}
-              <span className="ms-1.5 text-[10px] text-muted-foreground/70">
+              <span className="ms-2 text-xs text-muted-foreground/70">
                 {rows.length}
               </span>
             </button>
             <button
               onClick={() => setTab('friends')}
               aria-pressed={tab === 'friends'}
-              className={`flex-1 px-3 py-2 text-xs font-semibold transition-colors border-b-2 ${
+              className={`flex-1 px-4 py-3.5 text-sm font-semibold transition-colors border-b-2 ${
                 tab === 'friends'
                   ? 'text-primary border-primary'
                   : 'text-muted-foreground border-transparent hover:text-foreground'
               }`}
             >
               {tFallback('notifications.tab.friends', 'Friends')}
-              <span className="ms-1.5 text-[10px] text-muted-foreground/70">
+              <span className="ms-2 text-xs text-muted-foreground/70">
                 {friendsCount}
               </span>
             </button>

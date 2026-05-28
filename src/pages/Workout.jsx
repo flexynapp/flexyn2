@@ -1868,7 +1868,7 @@ export default function Workout() {
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   role="button" tabIndex={0} aria-label="Explore Regimens"
-                  className="group relative overflow-hidden p-4 cursor-pointer border-primary/25 bg-gradient-to-r from-primary/5 via-violet-500/5 to-primary/5 hover:border-primary/50 hover:from-primary/10 hover:via-violet-500/8 hover:to-primary/10 transition-all h-full"
+                  className="group relative overflow-hidden p-4 cursor-pointer border-primary/25 bg-gradient-to-r from-red-500/5 via-primary/5 to-orange-400/5 hover:border-primary/50 hover:from-red-500/10 hover:via-primary/10 hover:to-orange-400/10 transition-all h-full"
                   onClick={() => setStoreOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStoreOpen(true); } }}
                 >
@@ -1876,7 +1876,7 @@ export default function Workout() {
                     <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
                   </div>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary/20 to-violet-500/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-primary/30 group-hover:to-violet-500/30 transition-colors">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500/20 to-primary/20 border border-primary/20 flex items-center justify-center shrink-0 group-hover:from-red-500/30 group-hover:to-primary/30 transition-colors">
                       <Globe className="w-5 h-5 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1895,12 +1895,12 @@ export default function Workout() {
                 <Card
                   role="button" tabIndex={0}
                   aria-label={tFallback('generator.title', 'Generate Workout')}
-                  className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-primary/5 via-fuchsia-500/5 to-violet-500/5 hover:border-primary/50 transition-colors h-full"
+                  className="group p-4 cursor-pointer border-primary/20 bg-gradient-to-br from-red-500/5 via-primary/5 to-orange-400/5 hover:border-primary/50 transition-colors h-full"
                   onClick={() => setGeneratorOpen(true)}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setGeneratorOpen(true); } }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0">
                       <Sparkles className="w-5 h-5 text-white" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -2056,12 +2056,12 @@ export default function Workout() {
               <motion.div variants={itemVariants} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }} transition={{ type: 'spring', stiffness: 380, damping: 22 }} className="md:col-span-2">
                 <Card
                   role="button" tabIndex={0} aria-label="Gauntlet"
-                  className="group p-4 cursor-pointer border-purple-500/20 bg-gradient-to-br from-purple-500/5 via-amber-500/5 to-purple-500/5 hover:border-purple-500/40 hover:from-purple-500/10 transition-colors h-full"
+                  className="group p-4 cursor-pointer border-yellow-500/20 bg-gradient-to-br from-amber-500/5 via-yellow-500/5 to-amber-500/5 hover:border-yellow-500/40 hover:from-amber-500/10 transition-colors h-full"
                   onClick={() => navigate('/gauntlet')}
                   onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/gauntlet'); } }}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0 group-hover:bg-purple-500/25 transition-colors">
+                    <div className="w-9 h-9 rounded-xl bg-yellow-500/15 flex items-center justify-center shrink-0 group-hover:bg-yellow-500/25 transition-colors">
                       <Trophy className="w-5 h-5 text-amber-400" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -2071,7 +2071,7 @@ export default function Workout() {
                           <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-500">Done</span>
                         )}
                         {!gauntletProgress?.path_completed && gauntletProgress && (
-                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400">
+                          <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-yellow-500/15 text-yellow-500">
                             #{gauntletProgress.current_challenge_sequence}
                           </span>
                         )}

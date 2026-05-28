@@ -140,12 +140,20 @@ export default function TrainerStudio() {
       </div>
 
       {!isTrainer ? (
-        <EmptyState
-          icon={Sparkles}
-          title="Become a creator"
-          body="Turn your best regimens into paid programs. Flexyn handles checkout and takes a 15% platform fee; you keep 85%."
-          action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
-        />
+        <>
+          <div className="mb-3 flex items-start gap-2 px-3 py-2 rounded-xl border border-amber-500/30 bg-amber-500/10">
+            <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" aria-hidden="true" />
+            <p className="text-xs text-foreground/80">
+              <span className="font-bold text-amber-600">Beta</span> · creator mode is rolling out — the storefront, payouts and review tools come online over the next few weeks.
+            </p>
+          </div>
+          <EmptyState
+            icon={Sparkles}
+            title="Become a creator"
+            body="Turn your best regimens into paid programs. Flexyn handles checkout and takes a 15% platform fee; you keep 85%."
+            action={{ label: 'Enable creator mode', onClick: handleBecomeTrainer }}
+          />
+        </>
       ) : (
         <ErrorBoundary label="TrainerStudio.body">
           {/* Revenue summary */}

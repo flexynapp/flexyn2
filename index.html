@@ -15,7 +15,12 @@
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
 
     <!-- Viewport -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- maximum-scale=1.0 + user-scalable=no kills the accidental pinch-
+         zoom on chat, the daily-quotes carousel, and the story editor.
+         Trade-off: removes the user's built-in zoom affordance — acceptable
+         per product, since the app's own gestures already include
+         pinch-to-zoom where it's useful (story text). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
 
     <!-- PWA. vite-plugin-pwa emits manifest.webmanifest; the old
          /manifest.json reference 404'd silently and broke the

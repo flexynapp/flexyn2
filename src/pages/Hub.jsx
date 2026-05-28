@@ -260,12 +260,8 @@ export default function Hub() {
           to first-week retention because an empty feed = bounce. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FollowSuggestionRail />}
 
-      {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
-          Sessions toggle. Competitive without crew commitment — your
-          name surfaces against your real friends, not random strangers. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
-
-      {/* Stories tray — hidden on Crews tab */}
+      {/* Stories tray — hidden on Crews tab. Moved above the leaderboard
+          per user feedback (the rule is "stories stay on top"). */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <StoriesRow
           onViewProfile={(u) => {
@@ -274,6 +270,11 @@ export default function Hub() {
           }}
         />
       )}
+
+      {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
+          Sessions toggle. Now sits below stories — was above, swapped per
+          user feedback. */}
+      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
 
       {/* Marketplace + New Post row — shown on feed tabs, not crews */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (

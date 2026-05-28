@@ -256,3 +256,18 @@
   50%      { opacity: 0.55; }
 }
 
+/* ── Level-card animated gradient — used on the StatsHub level hero and
+   the LevelBar expanded panel. Slowly slides the gradient horizontally so
+   the teal/fuchsia bands feel alive without being distracting. Apply via
+   `.level-card-aurora` to any gradient element; we set the gradient via
+   className/style as usual and this just stretches + animates it. */
+.level-card-aurora {
+  background-size: 220% 220%;
+  animation: level-card-shift 9s ease-in-out infinite;
+}
+@keyframes level-card-shift {
+  0%   { background-position: 0%   50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0%   50%; }
+}
+

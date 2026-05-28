@@ -159,12 +159,12 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
                   <div className="px-5 pt-3 pb-2 border-t border-border">
                     <motion.button
                       onClick={() => { setShowTooltip(false); setLeaderboardsOpen(true); }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 hover:from-amber-500/15 hover:via-fuchsia-500/15 hover:to-cyan-500/15 border border-border/60 transition-all"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 level-card-aurora hover:from-amber-500/15 hover:via-fuchsia-500/15 hover:to-cyan-500/15 border border-border/60 transition-all"
                       whileHover={{ y: -1 }}
                       whileTap={{ scale: 0.98 }}
                       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
                     >
-                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 via-fuchsia-500 to-cyan-500 flex items-center justify-center shrink-0 shadow-md">
+                      <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 via-fuchsia-500 to-cyan-500 level-card-aurora flex items-center justify-center shrink-0 shadow-md">
                         <Trophy className="w-4 h-4 text-white drop-shadow" />
                       </div>
                       <div className="flex-1 text-start">

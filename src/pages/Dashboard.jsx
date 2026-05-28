@@ -31,7 +31,6 @@ import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
 import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
-import NemesisCard from '@/components/nemesis/NemesisCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
@@ -649,11 +648,9 @@ export default function Dashboard() {
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="mb-3">
             <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
           </motion.div>
-          {user?.id && (
-            <div className="mb-5 md:mb-6">
-              <ErrorBoundary label="NemesisCard"><NemesisCard currentUserId={user.id} /></ErrorBoundary>
-            </div>
-          )}
+          {/* Nemesis card moved off the Dashboard per user feedback —
+              still surfaces on the Workout screen so it stays competitive
+              without doubling up here. */}
         </React.Fragment>
       );
       case 'progress': return (

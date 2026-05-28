@@ -117,7 +117,7 @@ export default function StatsHubModal({ open, onClose }) {
               cosmetics earned via capsules now render on HubProfile,
               HubPostCard, AND in this Stats Hub. Radix DialogContent
               ships its own close X — we don't add a second one. */}
-          <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 px-5 pt-5 pb-6 text-white">
+          <div className="relative bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 level-card-aurora px-5 pt-5 pb-6 text-white">
             <p className="text-[10px] uppercase tracking-[0.2em] font-bold opacity-80 mb-3">
               {tFallback('statsHub.title', 'Your stats')}
             </p>
