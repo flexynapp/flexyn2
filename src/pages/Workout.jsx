@@ -1985,17 +1985,6 @@ export default function Workout() {
             </button>
           </div>
         </div>
-        {/* Desktop: full DuelBanner/BountyBanner on hub view (compact pills already in unified top row) */}
-        {(activeDuel || activeBountyClaim) ? (() => {
-          const inSubView = regimensOpen || storeOpen || cardioOpen || savedWorkoutsOpen;
-          if (inSubView) return null;
-          return (
-            <div className="hidden md:block">
-              {activeDuel && <DuelBanner duel={activeDuel} currentUserId={user?.id} />}
-              {activeBountyClaim && <BountyBanner claim={activeBountyClaim} />}
-            </div>
-          );
-        })() : null}
 
         {cardioOpen ? (
           <div className="mb-8">
