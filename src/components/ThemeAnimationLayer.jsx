@@ -100,9 +100,11 @@ function CoralRushLayer() {
   );
 }
 
-// ─── Rose Quartz — cherry blossom branches + falling petals ─────────────
+// ─── Rose Quartz — central cherry tree canopy + branch lines + petals
+// Wave 69: redesigned from two corner branches to a big central blossom
+// canopy with branch lines descending and more petals falling.
 function RoseQuartzLayer() {
-  const petals = useMemo(() => Array.from({ length: 24 }, () => ({
+  const petals = useMemo(() => Array.from({ length: 32 }, () => ({
     x: rand(0, 100),
     dur: rand(12, 22),
     delay: rand(0, 15),
@@ -111,8 +113,10 @@ function RoseQuartzLayer() {
   return (
     <>
       <div className="rose-bg" />
-      <div className="rose-branch l" />
-      <div className="rose-branch r" />
+      <div className="rose-branch-line l" />
+      <div className="rose-branch-line r" />
+      <div className="rose-branch-line main" />
+      <div className="rose-canopy" />
       {petals.map((p, i) => (
         <div key={i} className="rose-petal-fall"
           style={{
@@ -130,9 +134,21 @@ function RoseQuartzLayer() {
 // UNCOMMON — scene + light animation
 // ════════════════════════════════════════════════════════════════════════
 
-// ─── Dusk Protocol — slow warm wash ─────────────────────────────────────
+// ─── Dusk Protocol — desert sundown (Wave 69 redesign)
+// Layered dunes + huge sun on horizon + lens flare line + drifting dust
+// on the wind. Sky slowly cycles amber → magenta.
 function DuskLayer() {
-  return <div className="dusk-wash" />;
+  return (
+    <>
+      <div className="dusk-sky" />
+      <div className="dusk-dust a" />
+      <div className="dusk-dust b" />
+      <div className="dusk-sun" />
+      <div className="dusk-flare" />
+      <div className="dusk-dunes-far" />
+      <div className="dusk-dunes-near" />
+    </>
+  );
 }
 
 // ─── Tidal Force — beach + crashing waves + gulls ───────────────────────
@@ -250,7 +266,10 @@ function ArcticLayer() {
 // RARE — multiple animated layers
 // ════════════════════════════════════════════════════════════════════════
 
-// ─── Nebula — purple cloud + drifting stars ─────────────────────────────
+// ─── Nebula — gas-giant planet + drifting cosmic clouds + dense stars
+// Wave 69: added the planet silhouette at top-left and three layered
+// drifting nebula clouds (pink/blue/violet) so this reads as a proper
+// nebula and is visually distinct from Galactic's ringed-planet scene.
 function NebulaLayer() {
   const far = useMemo(() => Array.from({ length: 90 }, () => ({
     x: rand(0, 100), y: rand(0, 100),
@@ -267,6 +286,10 @@ function NebulaLayer() {
   return (
     <>
       <div className="nebula-grad" />
+      <div className="nebula-cloud-a" />
+      <div className="nebula-cloud-b" />
+      <div className="nebula-cloud-c" />
+      <div className="nebula-planet" />
       {far.map((s, i) => (
         <div key={i} className="star twinkle"
           style={{
@@ -356,7 +379,11 @@ function VolcanoLayer() {
 // EPIC — full atmospheric animation
 // ════════════════════════════════════════════════════════════════════════
 
-// ─── Aurora — sweeping bands over faint star field ──────────────────────
+// ─── Aurora — sweeping bands + arctic ridge + snowfield with reflection
+// Wave 69: added the arctic mountain ridgeline in the middle distance
+// and a snowfield in the foreground (whose ::before paints an aurora
+// reflection) so the bands have a landscape to dance over instead of
+// just floating in the void.
 function AuroraLayer() {
   const bands = [
     { color: 'rgba(45,212,191,0.30)', delay: 0, dur: 9 },
@@ -390,6 +417,8 @@ function AuroraLayer() {
           }}
         />
       ))}
+      <div className="aurora-mountains" />
+      <div className="aurora-snowfield" />
     </>
   );
 }
@@ -523,7 +552,10 @@ function GalaxyLayer() {
 // LEGENDARY — chrome-transforming
 // ════════════════════════════════════════════════════════════════════════
 
-// ─── Prismatic — conic halo + popping particles + JS hue cycle ──────────
+// ─── Prismatic — rainbow rays + pulsing core + halo + popping particles
+// + JS-driven hue cycle. Wave 69: redesigned from a barely-visible
+// conic tint into a proper chroma show — 12 rotating colored beams
+// radiating from center, a bright pulsing core, and 50 burst particles.
 function PrismLayer() {
   const hueRef = useRef(0);
   useEffect(() => {
@@ -539,13 +571,40 @@ function PrismLayer() {
     const id = setInterval(tick, 32);
     return () => clearInterval(id);
   }, []);
-  const particles = useMemo(() => Array.from({ length: 28 }, () => ({
+  const particles = useMemo(() => Array.from({ length: 50 }, () => ({
     x: rand(0, 100), y: rand(0, 100),
-    size: rand(1, 4), dur: rand(1.5, 4.5), delay: rand(0, 4),
+    size: rand(1, 5), dur: rand(1.5, 4.5), delay: rand(0, 4),
   })), []);
+  // Rainbow rays radiating out from center — each is a rotating beam.
+  const rays = useMemo(() => {
+    const colors = [
+      'rgba(244,63,94,0.55)',
+      'rgba(251,146,60,0.55)',
+      'rgba(250,204,21,0.55)',
+      'rgba(34,197,94,0.55)',
+      'rgba(59,130,246,0.55)',
+      'rgba(168,85,247,0.55)',
+    ];
+    return Array.from({ length: 12 }, (_, i) => ({
+      rot: i * 30,
+      color: colors[i % colors.length],
+      dur: rand(4, 7),
+      delay: rand(0, 4),
+    }));
+  }, []);
   return (
     <>
       <div className="prism-halo" />
+      <div className="prism-core" />
+      {rays.map((r, i) => (
+        <div key={`ray${i}`} className="prism-ray"
+          style={{
+            transform: `translateX(-50%) rotate(${r.rot}deg)`,
+            background: `linear-gradient(to bottom, transparent, ${r.color}, transparent)`,
+            '--dur': `${r.dur}s`, '--delay': `${r.delay}s`,
+          }}
+        />
+      ))}
       {particles.map((p, i) => (
         <div key={i} className="prism-particle"
           style={{
