@@ -82,53 +82,43 @@ export default function MoodLogCard() {
       transition={{ duration: 0.3 }}
       className="h-full"
     >
-      <Card className="px-4 py-3 h-full flex items-center">
-        <div className="flex items-center justify-between gap-2 w-full">
-          <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
-              {tFallback('mood.kicker', 'Today')}
-            </p>
-            <p className="text-sm font-heading font-bold leading-tight mt-0.5">
-              {(() => {
-                // Clamp current to 1-5 before lookup so corrupt rows
-                // (e.g. mood=0 or mood=7) don't index out of bounds and
-                // render the literal i18n key string. (Audit 08 #31.)
-                if (!current) return tFallback('mood.prompt', 'How are you feeling?');
-                const safe = Math.max(1, Math.min(5, Math.round(current)));
-                return tFallback(`mood.label.${safe}`, MOOD_LABELS[safe - 1] || 'Logged');
-              })()}
-            </p>
-          </div>
-          <div
-            className="flex items-center gap-1 shrink-0"
-            role="radiogroup"
-            aria-label={tFallback('mood.aria', 'Log your mood')}
-          >
-            {MOOD_EMOJIS.map((emoji, i) => {
-              const mood = i + 1;
-              const isActive = current === mood;
-              const isBusy = submitting === mood;
-              return (
-                <button
-                  key={mood}
-                  type="button"
-                  onClick={() => handleTap(mood)}
-                  role="radio"
-                  aria-checked={isActive}
-                  aria-label={MOOD_LABELS[i]}
-                  className={[
-                    'w-9 h-9 rounded-full text-lg transition-transform flex items-center justify-center',
-                    isActive
-                      ? 'bg-primary/15 scale-110'
-                      : 'opacity-50 hover:opacity-100 hover:scale-110',
-                    isBusy ? 'animate-pulse' : '',
-                  ].join(' ')}
-                >
-                  <span aria-hidden="true">{emoji}</span>
-                </button>
-              );
-            })}
-          </div>
+      <Card className="px-3 py-2 h-full flex flex-col justify-center gap-1.5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
+          {(() => {
+            if (!current) return tFallback('mood.prompt', 'How are you feeling?');
+            const safe = Math.max(1, Math.min(5, Math.round(current)));
+            return tFallback(`mood.label.${safe}`, MOOD_LABELS[safe - 1] || 'Logged');
+          })()}
+        </p>
+        <div
+          className="flex items-center justify-between gap-0.5"
+          role="radiogroup"
+          aria-label={tFallback('mood.aria', 'Log your mood')}
+        >
+          {MOOD_EMOJIS.map((emoji, i) => {
+            const mood = i + 1;
+            const isActive = current === mood;
+            const isBusy = submitting === mood;
+            return (
+              <button
+                key={mood}
+                type="button"
+                onClick={() => handleTap(mood)}
+                role="radio"
+                aria-checked={isActive}
+                aria-label={MOOD_LABELS[i]}
+                className={[
+                  'flex-1 aspect-square max-w-8 rounded-full text-base transition-transform flex items-center justify-center',
+                  isActive
+                    ? 'bg-primary/15 scale-110'
+                    : 'opacity-50 hover:opacity-100 hover:scale-110',
+                  isBusy ? 'animate-pulse' : '',
+                ].join(' ')}
+              >
+                <span aria-hidden="true">{emoji}</span>
+              </button>
+            );
+          })}
         </div>
       </Card>
     </motion.div>

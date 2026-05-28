@@ -98,8 +98,8 @@ export default function ReadinessCard({ logs = [], compact = false }) {
   const action = ACTION_BY_LABEL[label] || ACTION_BY_LABEL.Ready;
 
   // Ring geometry
-  const SIZE = compact ? 44 : 64;
-  const STROKE = compact ? 4 : 6;
+  const SIZE = compact ? 36 : 64;
+  const STROKE = compact ? 3 : 6;
   const RADIUS = (SIZE - STROKE) / 2;
   const CIRC = 2 * Math.PI * RADIUS;
   const dashOffset = CIRC * (1 - score / 100);
@@ -114,7 +114,7 @@ export default function ReadinessCard({ logs = [], compact = false }) {
         transition={{ duration: 0.4 }}
         className="h-full"
       >
-        <Card className={`px-2 py-2 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-1`}>
+        <Card className={`px-2 py-1.5 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5`}>
           <div className="relative" style={{ width: SIZE, height: SIZE }}>
             <svg width={SIZE} height={SIZE} className="-rotate-90">
               <circle
@@ -136,10 +136,10 @@ export default function ReadinessCard({ logs = [], compact = false }) {
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="font-heading font-black text-sm tabular-nums">{score}</span>
+              <span className="font-heading font-black text-xs tabular-nums">{score}</span>
             </div>
           </div>
-          <span className={`text-[9px] font-bold uppercase tracking-[0.14em] ${colors.text} leading-none`}>
+          <span className={`text-[8px] font-bold uppercase tracking-[0.12em] ${colors.text} leading-none`}>
             {tFallback('readiness.kicker', 'Readiness')}
           </span>
         </Card>
