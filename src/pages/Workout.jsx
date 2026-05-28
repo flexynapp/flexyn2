@@ -2218,7 +2218,6 @@ export default function Workout() {
                 ))}
               </div>
             </motion.div>
-            </motion.div>
 
             {/* Repeat last workout — fastest path to logging for returning
                 users. Pre-fills the most recent session's exercises with the
