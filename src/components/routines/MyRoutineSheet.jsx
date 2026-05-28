@@ -222,7 +222,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 const isToday = idx === todayIndex();
                 const isOpen = expandedDay === idx;
                 return (
-                  <div key={idx} className={`rounded-2xl border bg-card overflow-hidden ${isToday ? 'border-primary/60' : 'border-border'}`}>
+                  <div key={idx} className={`rounded-2xl border bg-card ${isOpen ? '' : 'overflow-hidden'} ${isToday ? 'border-primary/60' : 'border-border'}`}>
                     <button onClick={() => setExpandedDay(isOpen ? null : idx)} className="w-full flex items-center gap-3 p-3 text-left">
                       <div className="w-12 shrink-0">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
