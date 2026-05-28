@@ -29,6 +29,7 @@ import CalorieProgressWidget from '@/components/dashboard/CalorieProgressWidget'
 import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
 import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
+import StepsLogCard from '@/components/dashboard/StepsLogCard';
 import NemesisCard from '@/components/nemesis/NemesisCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
@@ -612,6 +613,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5 md:mb-6">
             <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
+            <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
             <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
             <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
             <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
