@@ -4,40 +4,28 @@ import { Droplet, Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 
-/* ── Smooth count-up from previous value ──────────────────────────────── */
 function useAnimatedValue(target, duration = 550) {
   const [display, setDisplay] = useState(target);
   const displayRef = useRef(target);
   const timerRef = useRef(null);
-
   useEffect(() => {
     const from = displayRef.current;
     if (target === from) return;
     if (timerRef.current) clearInterval(timerRef.current);
-
     const steps = 36;
     const diff = target - from;
     let step = 0;
-
     timerRef.current = setInterval(() => {
       step++;
-      // Cubic ease-out for a very smooth deceleration
       const t = step / steps;
       const eased = 1 - Math.pow(1 - t, 3);
       const current = step >= steps ? target : from + diff * eased;
       displayRef.current = current;
       setDisplay(current);
-      if (step >= steps) {
-        clearInterval(timerRef.current);
-        timerRef.current = null;
-      }
+      if (step >= steps) { clearInterval(timerRef.current); timerRef.current = null; }
     }, duration / steps);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
+    return () => { if (timerRef.current) clearInterval(timerRef.current); };
   }, [target, duration]);
-
   return display;
 }
 
@@ -49,10 +37,6 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
     const gender = userProfile?.gender || 'male';
     let age = 30;
     if (userProfile?.birthday) {
-      // parseLocalDate interprets `YYYY-MM-DD` in the user's local zone.
-      // `new Date('1985-04-15')` would parse as UTC midnight, which for
-      // anyone west of UTC ticks the birthday boundary a day early and
-      // ages users 0-365 days off. (Audit 11 #40.)
       const birth = parseLocalDate(userProfile.birthday) || new Date(userProfile.birthday);
       const now = new Date();
       age = now.getFullYear() - birth.getFullYear();
@@ -63,9 +47,8 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
     }
     let baseOz = gender === 'female' ? 73 : 100;
     if (weight) {
-      const referenceWeight = gender === 'female' ? 125 : 154;
-      const clampedFactor = Math.min(Math.max(weight / referenceWeight, 0.7), 1.3);
-      baseOz = Math.round(baseOz * clampedFactor);
+      const ref = gender === 'female' ? 125 : 154;
+      baseOz = Math.round(baseOz * Math.min(Math.max(weight / ref, 0.7), 1.3));
     }
     if (age < 18) baseOz = Math.round(baseOz * 0.9);
     else if (age > 55) baseOz = Math.round(baseOz * 0.95);
@@ -75,41 +58,17 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
   const progressPercent = Math.min((waterOz / dailyRecOz) * 100, 100);
   const isGoalReached = progressPercent >= 100;
 
-  // Droplet grid
-  const TOTAL_DROPLETS = 8;
-  const ozPerDroplet = dailyRecOz / TOTAL_DROPLETS;
-  const numFilledDroplets = Math.floor(waterOz / ozPerDroplet);
-  const partialFillPercent = ((waterOz % ozPerDroplet) / ozPerDroplet) * 100;
-  const isEmpty = waterOz === 0;
-
-  // Animated values
   const animatedOz = useAnimatedValue(ozToDisplay(waterOz));
   const animatedProgress = useAnimatedValue(progressPercent);
 
-  // Ring geometry — bigger ring
-  // Ring sized down from 160→120 + R 62→48 to make the whole water
-  // tracker more compact and more square-shaped per user feedback.
-  const R = 48;
-  const SIZE = 120;
-  const circumference = 2 * Math.PI * R;
-  const strokeDashoffset = circumference - (animatedProgress / 100) * circumference;
-
-  // Detect a new addition to pulse the ring
   const prevOzRef = useRef(waterOz);
   const [pulse, setPulse] = useState(false);
   useEffect(() => {
-    if (waterOz > prevOzRef.current) {
-      setPulse(true);
-      setTimeout(() => setPulse(false), 700);
-    }
+    if (waterOz > prevOzRef.current) { setPulse(true); setTimeout(() => setPulse(false), 700); }
     prevOzRef.current = waterOz;
   }, [waterOz]);
 
-  const fmt = (v) => {
-    if (waterUnit === 'L') return parseFloat(v).toFixed(2);
-    return Math.round(v);
-  };
-
+  const fmt = (v) => waterUnit === 'L' ? parseFloat(v).toFixed(2) : Math.round(v);
   const displayDailyRec = waterUnit === 'ml'
     ? Math.round(ozToDisplay(dailyRecOz))
     : waterUnit === 'L'
@@ -118,20 +77,21 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
 
   const ringColor = 'hsl(var(--primary))';
 
+  // Compact ring dimensions
+  const R = 30, SIZE = 72, circumference = 2 * Math.PI * R;
+  const strokeDashoffset = circumference - (animatedProgress / 100) * circumference;
+
   return (
     <div className="space-y-3">
-      {/* Compact single-row: ring LEFT, stats RIGHT */}
+      {/* ── Single long horizontal strip ── */}
       <div className="flex items-center gap-4">
-        {/* Ring — compact, left-aligned */}
+        {/* Mini ring — left side */}
         <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
           <AnimatePresence>
             {pulse && (
-              <motion.div
-                key="pulse"
-                initial={{ opacity: 0.6, scale: 0.95 }}
-                animate={{ opacity: 0, scale: 1.18 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.65, ease: 'easeOut' }}
+              <motion.div key="pulse"
+                initial={{ opacity: 0.6, scale: 0.95 }} animate={{ opacity: 0, scale: 1.25 }} exit={{ opacity: 0 }}
+                transition={{ duration: 0.6, ease: 'easeOut' }}
                 className="absolute inset-0 rounded-full pointer-events-none"
                 style={{ background: `radial-gradient(circle, ${ringColor}33 0%, transparent 70%)` }}
               />
@@ -139,92 +99,68 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
           </AnimatePresence>
           <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ transform: 'rotate(-90deg)' }}>
             <defs>
-              <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="wRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
                 <stop offset="100%" stopColor="hsl(var(--primary))" />
               </linearGradient>
             </defs>
-            <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
+            <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
             <motion.circle
               cx={SIZE/2} cy={SIZE/2} r={R} fill="none"
-              stroke="url(#ringGradient)" strokeWidth="8" strokeLinecap="round"
+              stroke="url(#wRingGrad)" strokeWidth="6" strokeLinecap="round"
               strokeDasharray={circumference}
               animate={{ strokeDashoffset }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             />
           </svg>
-          <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-0">
             <motion.span
-              key={fmt(animatedOz)}
-              animate={pulse ? { scale: [1, 1.08, 1] } : {}}
+              animate={pulse ? { scale: [1, 1.1, 1] } : {}}
               transition={{ duration: 0.4 }}
               className="font-heading font-black tabular-nums leading-none"
-              style={{ fontSize: 26, color: ringColor }}
+              style={{ fontSize: 17, color: ringColor }}
             >
               {fmt(animatedOz)}
             </motion.span>
-            <span className="text-xs font-medium text-muted-foreground mt-0.5">{waterUnit}</span>
-            <span className="text-[10px] text-muted-foreground">{t('nutrition.macros.of')} {displayDailyRec}</span>
+            <span className="text-[9px] font-medium text-muted-foreground leading-tight">{waterUnit}</span>
           </div>
         </div>
 
-        {/* Stats stacked to the right of ring */}
-        <div className="flex-1 grid grid-cols-2 gap-2">
-          {[
-            { label: t('nutrition.water.daily'), value: `${displayDailyRec} ${waterUnit}` },
-            { label: t('progress.title'), value: `${Math.round(animatedProgress)}%` },
-          ].map((stat, i) => (
-            <div key={stat.label} className="bg-secondary/50 rounded-xl px-3 py-2 text-center">
-              <p className="text-[10px] text-muted-foreground font-medium">{stat.label}</p>
-              <p className="font-heading font-bold text-sm text-foreground mt-0.5">{stat.value}</p>
-            </div>
-          ))}
+        {/* Right side: label + progress bar */}
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-baseline mb-1.5">
+            <span className="text-sm font-bold text-foreground">
+              {fmt(animatedOz)} <span className="text-muted-foreground font-normal text-xs">{waterUnit}</span>
+            </span>
+            <span className="text-xs text-muted-foreground">
+              {t('nutrition.macros.of')} {displayDailyRec} {waterUnit}
+            </span>
+          </div>
+          {/* Progress bar */}
+          <div className="h-2.5 bg-border/30 rounded-full overflow-hidden">
+            <motion.div
+              className="h-full rounded-full"
+              style={{ background: `linear-gradient(90deg, hsl(var(--primary)/0.8), hsl(var(--primary)))` }}
+              animate={{ width: `${Math.min(animatedProgress, 100)}%` }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {Math.round(animatedProgress)}% {t('progress.title') || 'of daily goal'}
+          </p>
         </div>
       </div>
-
-      {/* Droplet grid — only shown when water has been logged */}
-      <AnimatePresence mode="wait">
-        {!isEmpty && (
-          <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-8 gap-1.5">
-            {Array.from({ length: TOTAL_DROPLETS }).map((_, idx) => {
-              const isFilled = idx < numFilledDroplets;
-              const isPartial = idx === numFilledDroplets && partialFillPercent > 0;
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, scale: 0.6 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: idx * 0.04 }}
-                  className="h-9 rounded-lg flex items-center justify-center relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-border/20 border border-dashed border-border/40 rounded-lg" />
-                  <motion.div
-                    className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-500 rounded-lg"
-                    initial={{ scaleY: 0, opacity: 0 }}
-                    animate={{ scaleY: isFilled ? 1 : isPartial ? partialFillPercent / 100 : 0, opacity: isFilled || isPartial ? 1 : 0 }}
-                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                    style={{ originY: 1 }}
-                  />
-                  {(isFilled || isPartial) && <Droplet className="relative z-10 w-4 h-4 text-white" />}
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Goal reached banner */}
       <AnimatePresence>
         {isGoalReached && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: -8 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: -8 }}
+            initial={{ opacity: 0, scale: 0.9, y: -6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-            className="flex items-center justify-center gap-2 p-4 rounded-xl bg-green-500/10 border border-green-500/30"
+            className="flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-green-500/10 border border-green-500/30"
           >
             <motion.div animate={{ scale: [1, 1.2, 1] }} transition={{ duration: 0.8, repeat: Infinity }}>
-              <Check className="w-5 h-5 text-green-600" />
+              <Check className="w-4 h-4 text-green-600" />
             </motion.div>
             <span className="text-sm font-semibold text-green-700 dark:text-green-400">
               {t('nutrition.water.goalReached')}

@@ -299,8 +299,9 @@ export default function Nutrition() {
   // page; can be dragged in edit mode and persists to localStorage
   // per-user. CalorieTopBar is intentionally NOT in this list — it
   // stays pinned at the top as the headline.
-  // 'shortcuts' is now pinned above CalorieTopBar — not in the reorderable list
-  const DEFAULT_NUTRITION_ORDER = ['logForm', 'water', 'fasting', 'tabs', 'meals'];
+  // 'shortcuts' carousel is pinned above CalorieTopBar (not reorderable)
+  // 'portionGuide' is its own reorderable section
+  const DEFAULT_NUTRITION_ORDER = ['logForm', 'portionGuide', 'water', 'fasting', 'tabs', 'meals'];
   const [editMode, setEditMode] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState(DEFAULT_NUTRITION_ORDER);
   const [showScanner, setShowScanner] = useState(false);
@@ -327,7 +328,13 @@ export default function Nutrition() {
   const [entries, setEntries] = useState([]);
   // waterOz is derived from persisted logs
   const [waterUnit, setWaterUnit] = useState('oz');
-  const [customBottles, setCustomBottles] = useState([]);
+  const [customBottles, setCustomBottles] = useState(() => {
+    // Per-user persistence so bottles survive refresh and across sessions
+    try {
+      const raw = localStorage.getItem('flexyn.customBottles.default');
+      return raw ? JSON.parse(raw) : [];
+    } catch { return []; }
+  });
   // Selected meal context for the next log. Auto-picks from local
   // clock on mount so the user doesn't have to choose mid-day; can
   // be overridden via MealTypePicker.
@@ -368,9 +375,32 @@ export default function Nutrition() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
-  // Load saved widget order on user resolve. Mirrors the dashboard
-  // merge-with-defaults logic so adding a new section id in the
-  // future doesn't wipe existing users' customization.
+  // Re-key custom bottles to the real user id once auth resolves,
+  // and persist on every change going forward.
+  useEffect(() => {
+    if (!user?.id) return;
+    const key = `flexyn.customBottles.${user.id}`;
+    // Migrate from the default key if present
+    const defaultRaw = localStorage.getItem('flexyn.customBottles.default');
+    if (defaultRaw) {
+      try { localStorage.setItem(key, defaultRaw); } catch {}
+      localStorage.removeItem('flexyn.customBottles.default');
+      try { setCustomBottles(JSON.parse(defaultRaw)); } catch {}
+    } else {
+      try {
+        const saved = localStorage.getItem(key);
+        if (saved) setCustomBottles(JSON.parse(saved));
+      } catch {}
+    }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Persist bottles on every change (user.id known at this point)
+  useEffect(() => {
+    if (!user?.id) return;
+    try { localStorage.setItem(`flexyn.customBottles.${user.id}`, JSON.stringify(customBottles)); } catch {}
+  }, [customBottles, user?.id]);
+
+  // Load saved widget order on user resolve.
   useEffect(() => {
     if (!user?.id) return;
     try {
@@ -860,6 +890,7 @@ export default function Nutrition() {
   const [showBottleModal, setShowBottleModal] = useState(false);
   const [bottleInput, setBottleInput] = useState('');
   const [bottleInputUnit, setBottleInputUnit] = useState('oz');
+  const [bottleNickname, setBottleNickname] = useState('');
 
   // Largest commercial bottle: 5-gallon jug = 640 oz
   const MAX_BOTTLE_OZ = 640;
@@ -881,15 +912,18 @@ export default function Nutrition() {
       toast.error(`Max bottle size is ${maxBottleInUnit(bottleInputUnit)} (5-gallon jug).`);
       return;
     }
+    const nick = bottleNickname.trim();
     setCustomBottles([...customBottles, {
       id: Date.now().toString(),
-      label: `${bottleInput} ${bottleInputUnit}`,
+      label: nick || `${bottleInput} ${bottleInputUnit}`,
+      nickname: nick || null,
       oz: convertedOz,
       displayAmount: amount,
       displayUnit: bottleInputUnit
     }]);
     setShowBottleModal(false);
     setBottleInput('');
+    setBottleNickname('');
   };
 
   const handleDeleteBottle = (id) => {
@@ -1185,7 +1219,7 @@ export default function Nutrition() {
         </ErrorBoundary>
       )}
 
-      {/* Shortcuts carousel — pinned at top so it's always the first thing seen */}
+      {/* Shortcuts carousel — pinned at top */}
       <NutritionShortcutsCarousel
         onScan={startScanner}
         onRecipes={() => setShowRecipeBuilder(true)}
@@ -1194,7 +1228,24 @@ export default function Nutrition() {
         onPlanner={() => setShowWeeklyPlanner(true)}
       />
 
-      {/* Calorie counter — just below the carousel */}
+      {/* Quick-access row — same 5 actions as icon buttons for users who miss the carousel */}
+      <div className="flex gap-2 mb-1">
+        {[
+          { label: 'Scan',    icon: ScanLine,   action: startScanner },
+          { label: 'Recipes', icon: ChefHat,    action: () => setShowRecipeBuilder(true) },
+          { label: 'History', icon: History,    action: () => setShowMealHistory(true) },
+          { label: 'Plans',   icon: ListChecks, action: () => setShowNutritionPlans(true) },
+          { label: 'Planner', icon: Calendar,   action: () => setShowWeeklyPlanner(true) },
+        ].map(({ label, icon: Icon, action }) => (
+          <button key={label} type="button" onClick={action}
+            className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
+            <Icon className="w-4 h-4" />
+            <span className="text-[10px] font-semibold">{label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Calorie counter — just below the shortcut row */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
       {/* ═══ Reorderable sections — drag in edit mode to reorder.
@@ -1215,12 +1266,12 @@ export default function Nutrition() {
               <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-primary/50" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
-                  {rowId === 'tabs' ? 'Nutrition tabs'
-                    : rowId === 'shortcuts' ? 'Shortcuts'
-                    : rowId === 'logForm'   ? 'Log a meal'
-                    : rowId === 'water'     ? 'Water intake'
-                    : rowId === 'fasting'   ? 'Intermittent fasting'
-                    : rowId === 'meals'     ? "Today's meals"
+                  {rowId === 'tabs'         ? 'Nutritional Values'
+                    : rowId === 'logForm'   ? 'Log A Meal'
+                    : rowId === 'portionGuide' ? 'Portion Guide'
+                    : rowId === 'water'     ? 'Water Intake'
+                    : rowId === 'fasting'   ? 'Intermittent Fasting'
+                    : rowId === 'meals'     ? "Today's Meals"
                     : rowId}
                 </span>
               </div>
@@ -1264,7 +1315,13 @@ export default function Nutrition() {
 
       )}
 
-{/* shortcuts is now pinned above CalorieTopBar — not rendered here */}
+{/* shortcuts is pinned above CalorieTopBar — not rendered here */}
+
+      {rowId === 'portionGuide' && (
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mb-4">
+        <PortionGuide />
+      </motion.div>
+      )}
 
       {rowId === 'logForm' && (
       <motion.div
@@ -1274,7 +1331,11 @@ export default function Nutrition() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mb-6 scroll-mt-24"
       >
-        {/* Log meal form first */}
+        {/* Meal-type compact pills — right above the form */}
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Meal</p>
+          <MealTypePicker value={mealType} onChange={setMealType} />
+        </div>
         <ErrorBoundary label="LogMealForm">
           <LogMealForm
             newEntry={newEntry}
@@ -1286,15 +1347,6 @@ export default function Nutrition() {
             defaultOpen={openLogMeal}
           />
         </ErrorBoundary>
-
-        {/* Meal-type selector — bigger buttons, below the form */}
-        <div className="mt-3 mb-3">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Log as</p>
-          <MealTypePicker value={mealType} onChange={setMealType} size="lg" className="w-full" />
-        </div>
-
-        {/* Portion guide at the bottom */}
-        <PortionGuide />
       </motion.div>
 
       )}
@@ -1419,6 +1471,17 @@ export default function Nutrition() {
             <p className="text-xs text-muted-foreground mt-1">{t('nutrition.bottleSize')}</p>
           </DialogHeader>
           <div className="space-y-4">
+            <div>
+              <label htmlFor="bottle-nickname" className="text-sm font-medium mb-2 block">Nickname <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <Input
+                id="bottle-nickname"
+                type="text"
+                placeholder="e.g. My Nalgene, Office Bottle"
+                value={bottleNickname}
+                onChange={e => setBottleNickname(e.target.value)}
+                maxLength={30}
+              />
+            </div>
             <div>
               <label htmlFor="bottle-amount" className="text-sm font-medium mb-2 block">{t('nutrition.amount')}</label>
               <Input
