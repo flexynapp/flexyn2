@@ -369,54 +369,102 @@
   opacity: 0.6;
 }
 
-/* ─── Nebula (rare) — gas giant + drifting cosmic clouds + stars
-   Wave 69: redesigned from a faint purple cloud into a proper nebula
-   scene — visually distinct from Galactic. ─── */
-.nebula-grad {
+/* ─── Nebula (rare) — parallax cosmic clouds + 4-point sparkles
+   Wave 70: redesigned away from "gas giant + drifting clouds" into a
+   cloud-forward, planet-free composition so it's clearly distinct from
+   Galactic. 5 colored cloud blobs + a dark dust lane + glowing core +
+   sparkling 4-point stars over a faint twinkling field. ─── */
+.neb-sky {
   position: absolute; inset: 0;
   background:
-    radial-gradient(ellipse 70% 50% at 20% 30%, rgba(168,85,247,0.30), transparent 60%),
-    radial-gradient(ellipse 60% 45% at 80% 75%, rgba(99,102,241,0.24), transparent 60%),
-    radial-gradient(ellipse 90% 70% at 50% 100%, rgba(76,29,149,0.20), transparent 65%);
+    radial-gradient(ellipse 130% 100% at 50% 45%, rgba(40,15,75,0.55), transparent 70%),
+    linear-gradient(to bottom, hsl(265, 65%, 6%), hsl(250, 70%, 4%));
 }
-.nebula-planet {
-  position: absolute; left: 8%; top: 14%;
-  width: 180px; height: 180px;
+/* Concentrated nebula formation built from several overlapping colored
+   blobs (no blend mode — solid additive-looking rgba so it always
+   shows). The whole cluster sits center-frame and drifts as parallax. */
+.neb-cloud {
+  position: absolute;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 30% 30%, rgba(244,114,182,0.55) 0%, transparent 35%),
-    radial-gradient(circle at 70% 65%, rgba(168,85,247,0.75) 0%, transparent 50%),
-    linear-gradient(135deg, hsl(290, 65%, 32%) 0%, hsl(265, 75%, 16%) 100%);
-  box-shadow:
-    inset -30px -30px 60px rgba(15,9,40,0.85),
-    0 0 60px rgba(236,72,153,0.45);
-  opacity: 0.8;
+  filter: blur(30px);
 }
-.nebula-cloud-a {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 65% 45% at 65% 35%, rgba(236,72,153,0.35), transparent 60%);
-  filter: blur(24px);
-  animation: scene-nebula-drift-a 28s ease-in-out infinite;
+.neb-cloud.c1 {
+  left: 22%; top: 22%; width: 56%; height: 56%;
+  background: radial-gradient(ellipse 55% 55% at 45% 45%, rgba(236,72,153,0.75), rgba(190,40,120,0.25) 55%, transparent 75%);
+  animation: scene-neb-float-1 26s ease-in-out infinite;
 }
-.nebula-cloud-b {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 50% 40% at 30% 75%, rgba(99,102,241,0.32), transparent 60%);
-  filter: blur(20px);
-  animation: scene-nebula-drift-b 34s ease-in-out infinite;
+.neb-cloud.c2 {
+  left: 34%; top: 30%; width: 48%; height: 50%;
+  background: radial-gradient(ellipse 55% 55% at 55% 50%, rgba(129,90,248,0.8), rgba(76,29,149,0.3) 55%, transparent 78%);
+  animation: scene-neb-float-2 32s ease-in-out infinite;
 }
-.nebula-cloud-c {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 40% 30% at 80% 75%, rgba(168,85,247,0.30), transparent 60%);
-  filter: blur(18px);
-  animation: scene-nebula-drift-a 40s ease-in-out infinite reverse;
+.neb-cloud.c3 {
+  left: 16%; top: 38%; width: 46%; height: 44%;
+  background: radial-gradient(ellipse 55% 55% at 50% 50%, rgba(56,189,248,0.6), rgba(14,116,180,0.22) 55%, transparent 78%);
+  animation: scene-neb-float-3 38s ease-in-out infinite;
 }
-@keyframes scene-nebula-drift-a {
+.neb-cloud.c4 {
+  left: 48%; top: 20%; width: 40%; height: 44%;
+  background: radial-gradient(ellipse 55% 55% at 50% 50%, rgba(251,113,133,0.6), rgba(190,40,80,0.2) 55%, transparent 78%);
+  animation: scene-neb-float-2 44s ease-in-out infinite reverse;
+}
+.neb-cloud.c5 {
+  left: 40%; top: 48%; width: 34%; height: 34%;
+  background: radial-gradient(ellipse 55% 55% at 50% 50%, rgba(45,212,191,0.45), transparent 72%);
+  animation: scene-neb-float-1 50s ease-in-out infinite reverse;
+}
+/* dark dust lane cutting across — gives the nebula structure */
+.neb-dust {
+  position: absolute; left: 18%; top: 44%;
+  width: 60%; height: 14%;
+  background: linear-gradient(100deg, transparent, rgba(20,8,40,0.75) 45%, rgba(20,8,40,0.75) 55%, transparent);
+  filter: blur(22px);
+  transform: rotate(-12deg);
+  animation: scene-neb-float-3 40s ease-in-out infinite;
+}
+.neb-core {
+  position: absolute; left: 43%; top: 40%;
+  width: 14%; height: 16%;
+  background: radial-gradient(circle, rgba(255,255,255,0.95), rgba(236,72,153,0.5) 40%, transparent 72%);
+  filter: blur(14px);
+  animation: scene-neb-core 7s ease-in-out infinite;
+}
+@keyframes scene-neb-core {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.15); }
+}
+@keyframes scene-neb-float-1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(3%, -2%) scale(1.06); }
+  50%      { transform: translate(4%, -3%) scale(1.08); }
 }
-@keyframes scene-nebula-drift-b {
+@keyframes scene-neb-float-2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-3%, 1%) scale(1.05); }
+  50%      { transform: translate(-5%, 2%) scale(1.1); }
+}
+@keyframes scene-neb-float-3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(3%, 4%) scale(1.06); }
+}
+/* Sparkling 4-point stars scattered throughout (shared primitive — also
+   used by other scenes that want a bright crystal twinkle). */
+.theme-scene .sparkle {
+  position: absolute;
+  width: var(--s, 10px); height: var(--s, 10px);
+  background: radial-gradient(circle, rgba(255,255,255,0.95) 0%, transparent 18%);
+  animation: scene-sparkle var(--dur, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+.theme-scene .sparkle::before, .theme-scene .sparkle::after {
+  content: ''; position: absolute; left: 50%; top: 50%;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,0.95), transparent);
+  transform: translate(-50%, -50%);
+}
+.theme-scene .sparkle::before { width: 100%; height: 1px; }
+.theme-scene .sparkle::after  { width: 1px; height: 100%; }
+@keyframes scene-sparkle {
+  0%, 100% { opacity: 0; transform: scale(0.4) rotate(0deg); }
+  50%      { opacity: 1; transform: scale(1)   rotate(45deg); }
 }
 
 /* ─── Volcano (rare) — cone silhouette + lava floor + magma sparks ─── */
@@ -566,39 +614,44 @@
   100% { transform: translate(var(--dx, 20px), 110vh); opacity: 0; }
 }
 
-/* ─── Mint Frost (common) — pine forest horizon + drifting mist ─── */
+/* ─── Mint Frost (common) — layered pine forest + drifting mist
+   Wave 70: spike polygon replaced with a hill silhouette + real conifer
+   trees (two depth rows: back row small + faded, front row larger +
+   darker). The treeline now reads as actual trees, not spikes. ─── */
 .mint-bg {
   position: absolute; inset: 0;
   background:
     radial-gradient(ellipse 70% 40% at 50% 35%, rgba(167,243,208,0.5), transparent 70%),
     linear-gradient(to bottom, hsl(160, 45%, 88%) 0%, hsl(152, 50%, 78%) 55%, hsl(152, 55%, 62%) 100%);
 }
-.mint-pines {
-  position: absolute; left: 0; right: 0; bottom: 0; height: 38%;
-  background: linear-gradient(to bottom, hsl(152, 55%, 22%) 0%, hsl(152, 50%, 14%) 100%);
+.mint-hill {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 22%;
+  background: linear-gradient(to top, hsl(152, 50%, 12%), hsl(152, 48%, 18%));
+  clip-path: polygon(0 100%, 0 38%, 18% 28%, 40% 40%, 62% 26%, 82% 38%, 100% 30%, 100% 100%);
+}
+/* A single conifer silhouette — three stacked tiers + trunk. Placed
+   and sized individually so the treeline reads as actual trees. */
+.pine {
+  position: absolute; bottom: var(--base, 14%);
+  width: var(--w, 70px); height: var(--h, 150px);
+  background: var(--fill, hsl(152, 52%, 17%));
   clip-path: polygon(
-    0 100%, 0 60%,
-    2% 78%, 4% 50%, 6% 78%, 7% 82%,
-    9% 58%, 11% 32%, 13% 58%, 14% 72%,
-    16% 40%, 18% 14%, 20% 40%, 21% 65%,
-    23% 72%, 25% 46%, 27% 72%, 28% 78%,
-    30% 56%, 32% 30%, 34% 56%, 35% 64%,
-    37% 40%, 39% 10%, 41% 40%, 42% 60%,
-    44% 66%, 46% 42%, 48% 66%, 49% 72%,
-    51% 52%, 53% 22%, 55% 52%, 56% 60%,
-    58% 36%, 60% 8%, 62% 36%, 63% 60%,
-    65% 66%, 67% 42%, 69% 66%, 70% 76%,
-    72% 56%, 74% 30%, 76% 56%, 77% 70%,
-    79% 76%, 81% 50%, 83% 76%, 84% 80%,
-    86% 42%, 88% 16%, 90% 42%, 91% 64%,
-    93% 70%, 95% 46%, 97% 70%, 99% 74%,
-    100% 78%, 100% 100%
+    50% 0%,
+    62% 22%, 56% 22%,
+    68% 46%, 58% 46%,
+    76% 72%, 60% 72%,
+    60% 100%, 40% 100%,
+    40% 72%, 24% 72%,
+    42% 46%, 32% 46%,
+    44% 22%, 38% 22%
   );
 }
-.mint-pines::after {
+.pine::after {
+  /* subtle snow-dusting highlight on the left of each tier */
   content: '';
   position: absolute; inset: 0;
-  background: linear-gradient(to top, transparent 0%, rgba(167,243,208,0.18) 100%);
+  background: linear-gradient(115deg, rgba(224,255,244,0.22) 0%, transparent 42%);
+  clip-path: inherit;
 }
 .mint-mist {
   position: absolute;
@@ -1139,6 +1192,516 @@
 @keyframes scene-prism-pop {
   0%, 100% { transform: scale(0.5); opacity: 0; }
   50%      { transform: scale(2);   opacity: 0.8; }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Wave 70 — third-pass theme refinements
+   New primitives: Solar Flare + Jade Stone scenes (those two themes
+   had `animation: null` before); Tidal beach props; Volcano lava
+   streams + blobs + eruption; Cyber per-building window grids; Mini
+   galaxies for Galactic; Prism shards + burst + grid. Existing scenes
+   for Mint Frost and Nebula were rewritten in their original blocks
+   above.
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ─── Solar Flare (common) — blazing sun + corona + dancing rays
+   + heat haze. The disc breathes, the corona spins, the rays dance. ─── */
+.solar-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 70% at 50% 42%, rgba(251,191,36,0.55), transparent 60%),
+    linear-gradient(to bottom, hsl(38, 90%, 60%) 0%, hsl(28, 90%, 48%) 45%, hsl(18, 85%, 32%) 100%);
+}
+.solar-disc {
+  position: absolute; left: 50%; top: 42%;
+  width: 240px; height: 240px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle,
+    rgba(255,255,255,1) 0%,
+    rgba(254,243,199,0.98) 30%,
+    rgba(251,191,36,0.9) 60%,
+    rgba(251,146,60,0.6) 85%,
+    transparent 100%);
+  box-shadow: 0 0 120px rgba(251,191,36,0.8);
+  animation: scene-solar-breathe 6s ease-in-out infinite;
+}
+@keyframes scene-solar-breathe {
+  0%, 100% { transform: translate(-50%, -50%) scale(1); }
+  50%      { transform: translate(-50%, -50%) scale(1.06); }
+}
+.solar-corona {
+  position: absolute; left: 50%; top: 42%;
+  width: 420px; height: 420px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: conic-gradient(from 0deg,
+    rgba(254,240,138,0.0) 0deg, rgba(254,240,138,0.35) 8deg, rgba(254,240,138,0.0) 16deg,
+    rgba(254,240,138,0.0) 30deg, rgba(254,240,138,0.30) 38deg, rgba(254,240,138,0.0) 46deg,
+    rgba(254,240,138,0.0) 60deg, rgba(254,240,138,0.35) 68deg, rgba(254,240,138,0.0) 76deg,
+    rgba(254,240,138,0.0) 90deg, rgba(254,240,138,0.28) 98deg, rgba(254,240,138,0.0) 106deg,
+    rgba(254,240,138,0.0) 120deg, rgba(254,240,138,0.35) 128deg, rgba(254,240,138,0.0) 136deg,
+    rgba(254,240,138,0.0) 150deg, rgba(254,240,138,0.30) 158deg, rgba(254,240,138,0.0) 166deg,
+    rgba(254,240,138,0.0) 180deg, rgba(254,240,138,0.35) 188deg, rgba(254,240,138,0.0) 196deg,
+    rgba(254,240,138,0.0) 210deg, rgba(254,240,138,0.28) 218deg, rgba(254,240,138,0.0) 226deg,
+    rgba(254,240,138,0.0) 240deg, rgba(254,240,138,0.35) 248deg, rgba(254,240,138,0.0) 256deg,
+    rgba(254,240,138,0.0) 270deg, rgba(254,240,138,0.30) 278deg, rgba(254,240,138,0.0) 286deg,
+    rgba(254,240,138,0.0) 300deg, rgba(254,240,138,0.35) 308deg, rgba(254,240,138,0.0) 316deg,
+    rgba(254,240,138,0.0) 330deg, rgba(254,240,138,0.28) 338deg, rgba(254,240,138,0.0) 346deg,
+    rgba(254,240,138,0.0) 360deg);
+  filter: blur(6px);
+  -webkit-mask-image: radial-gradient(circle, transparent 28%, black 40%, black 60%, transparent 70%);
+          mask-image: radial-gradient(circle, transparent 28%, black 40%, black 60%, transparent 70%);
+  animation: scene-spin 90s linear infinite;
+}
+.solar-flare-arc {
+  position: absolute; left: 50%; top: 42%;
+  width: 300px; height: 300px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  border: 2px solid rgba(254,240,138,0.0);
+  border-top-color: rgba(254,240,138,0.5);
+  filter: blur(3px);
+  animation: scene-spin 14s linear infinite;
+}
+.solar-haze {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 35%;
+  background: linear-gradient(to top, rgba(251,146,60,0.4), transparent);
+  filter: blur(2px);
+  animation: scene-solar-haze 5s ease-in-out infinite;
+}
+@keyframes scene-solar-haze {
+  0%, 100% { transform: scaleY(1);    opacity: 0.7; }
+  50%      { transform: scaleY(1.12); opacity: 1; }
+}
+.solar-ray {
+  position: absolute; left: 50%; top: 42%;
+  width: var(--rw, 6px); height: var(--rh, 320px);
+  transform-origin: 50% 0%;
+  background: linear-gradient(to bottom,
+    rgba(254,243,199,0.85) 0%, rgba(254,240,138,0.5) 30%, transparent 75%);
+  filter: blur(2px);
+  border-radius: 50%;
+  animation: scene-solar-ray-dance var(--dur, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-solar-ray-dance {
+  0%, 100% { transform: translate(-50%, 0) rotate(var(--rot, 0deg)) scaleY(1);    opacity: 0.4; }
+  50%      { transform: translate(-50%, 0) rotate(calc(var(--rot, 0deg) + var(--sway, 6deg))) scaleY(1.18); opacity: 0.85; }
+}
+
+/* ─── Jade Stone (common) — bamboo grove + mist + fireflies + falling
+   leaves. Mostly static (it's common) but the leaves drift down and
+   fireflies blink, so it has gentle ambient life. ─── */
+.jade-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(16,185,129,0.25), transparent 70%),
+    linear-gradient(to bottom, hsl(158, 45%, 18%) 0%, hsl(160, 50%, 10%) 100%);
+}
+.bamboo {
+  position: absolute; top: 0; bottom: 0;
+  width: var(--w, 14px);
+  background: linear-gradient(to right,
+    hsl(150, 45%, 14%) 0%,
+    hsl(145, 50%, 30%) 35%,
+    hsl(140, 55%, 42%) 50%,
+    hsl(145, 50%, 30%) 65%,
+    hsl(150, 45%, 14%) 100%);
+  opacity: var(--op, 0.8);
+}
+/* bamboo nodes — horizontal banding via repeating gradient */
+.bamboo::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom,
+    transparent 0, transparent calc(var(--seg, 90px) - 4px),
+    hsl(150, 40%, 10%) calc(var(--seg, 90px) - 4px), hsl(150, 40%, 10%) var(--seg, 90px));
+}
+.bamboo-leaf {
+  position: absolute;
+  width: 46px; height: 12px;
+  background: hsl(145, 55%, 35%);
+  border-radius: 0 100% 0 100% / 0 100% 0 100%;
+  opacity: 0.7;
+  transform-origin: 0 50%;
+  animation: scene-leaf-sway var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-leaf-sway {
+  0%, 100% { transform: rotate(var(--rot, 20deg)); }
+  50%      { transform: rotate(calc(var(--rot, 20deg) + 8deg)); }
+}
+.jade-mist {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 40%;
+  background: linear-gradient(to top, rgba(167,243,208,0.18), transparent);
+  filter: blur(8px);
+  animation: scene-jade-mist 12s ease-in-out infinite;
+}
+@keyframes scene-jade-mist {
+  0%, 100% { opacity: 0.5; transform: translateX(0); }
+  50%      { opacity: 0.8; transform: translateX(4%); }
+}
+.firefly {
+  position: absolute;
+  width: 4px; height: 4px;
+  border-radius: 50%;
+  background: #fde68a;
+  box-shadow: 0 0 8px #fde68a, 0 0 14px rgba(253,224,71,0.6);
+  animation: scene-firefly var(--dur, 6s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes scene-firefly {
+  0%, 100% { opacity: 0;   transform: translate(0, 0); }
+  25%      { opacity: 1; }
+  50%      { opacity: 0.6; transform: translate(var(--dx, 20px), var(--dy, -20px)); }
+  75%      { opacity: 1; }
+}
+.jade-leaf-fall {
+  position: absolute; top: -6%;
+  width: 16px; height: 8px;
+  border-radius: 0 100% 0 100% / 0 100% 0 100%;
+  opacity: 0;
+  animation: scene-jade-leaf-fall var(--dur, 14s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-jade-leaf-fall {
+  0%   { transform: translate(0, 0) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.85; }
+  92%  { opacity: 0.85; }
+  100% { transform: translate(var(--dx, 60px), 112vh) rotate(540deg); opacity: 0; }
+}
+
+/* ─── Tidal Force — beach props (Wave 70 addition)
+   Palm trees, sandcastle + flag, bucket, shovel, crab, periodic big
+   breaking wave. Sits on top of the existing beach-sky/ocean/sand
+   from Wave 65. ─── */
+.palm {
+  position: absolute; bottom: var(--base, 22%);
+  width: 8px; height: var(--ph, 120px);
+  transform-origin: 50% 100%;
+  animation: scene-palm-sway var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.palm-trunk {
+  position: absolute; left: 50%; bottom: 0;
+  width: 8px; height: 100%;
+  transform: translateX(-50%);
+  background: linear-gradient(to right, hsl(28, 45%, 22%), hsl(32, 50%, 38%), hsl(28, 45%, 22%));
+  border-radius: 4px;
+  clip-path: polygon(20% 0, 80% 0, 100% 100%, 0% 100%);
+}
+.palm-frond {
+  position: absolute; top: -6px; left: 50%;
+  width: 64px; height: 22px;
+  background: hsl(150, 55%, 30%);
+  border-radius: 0 100% 0 100% / 0 100% 0 100%;
+  transform-origin: 0% 50%;
+}
+.palm-frond.f1 { transform: translateX(-2px) rotate(-18deg); }
+.palm-frond.f2 { transform: translateX(-2px) rotate(18deg) scaleY(-1); }
+.palm-frond.f3 { transform: translateX(-2px) rotate(-52deg); width: 54px; }
+.palm-frond.f4 { transform: translateX(-2px) rotate(52deg) scaleY(-1); width: 54px; }
+.palm-frond.f5 { transform: translateX(-2px) rotate(-90deg); width: 44px; }
+.palm-frond.f6 { transform: translateX(-2px) rotate(90deg) scaleY(-1); width: 44px; }
+@keyframes scene-palm-sway {
+  0%, 100% { transform: rotate(-2deg); }
+  50%      { transform: rotate(2deg); }
+}
+.coconut {
+  position: absolute; top: -2px; left: 50%;
+  width: 7px; height: 7px; border-radius: 50%;
+  background: hsl(28, 45%, 25%);
+  transform: translateX(-50%);
+}
+.sandcastle {
+  position: absolute; bottom: 12%;
+  width: 90px; height: 56px;
+}
+.castle-body {
+  position: absolute; bottom: 0; left: 12px;
+  width: 66px; height: 32px;
+  background: linear-gradient(to top, hsl(34, 50%, 52%), hsl(38, 55%, 64%));
+  border-radius: 3px 3px 0 0;
+}
+.castle-tower {
+  position: absolute; bottom: 0;
+  width: 20px; height: 50px;
+  background: linear-gradient(to top, hsl(34, 50%, 50%), hsl(38, 55%, 66%));
+  border-radius: 3px 3px 0 0;
+}
+.castle-tower::before {
+  content: ''; position: absolute; top: 0; left: 50%;
+  width: 5px; height: 6px; background: inherit;
+  transform: translateX(-50%);
+}
+.castle-tower.l { left: 0; }
+.castle-tower.r { right: 0; }
+.castle-tower.m { left: 50%; transform: translateX(-50%); width: 24px; height: 58px; }
+.castle-flag {
+  position: absolute; left: 50%; top: -14px;
+  width: 1.5px; height: 16px;
+  background: hsl(28, 40%, 30%);
+  transform: translateX(-50%);
+}
+.castle-flag::after {
+  content: ''; position: absolute; top: 0; left: 1.5px;
+  width: 12px; height: 8px;
+  background: hsl(0, 75%, 58%);
+  clip-path: polygon(0 0, 100% 35%, 0 70%);
+  animation: scene-flag-wave 1.6s ease-in-out infinite;
+  transform-origin: 0 50%;
+}
+@keyframes scene-flag-wave {
+  0%, 100% { transform: scaleX(1); }
+  50%      { transform: scaleX(0.7); }
+}
+.bucket {
+  position: absolute; bottom: 12%;
+  width: 26px; height: 24px;
+  background: linear-gradient(to bottom, hsl(345, 80%, 58%), hsl(345, 75%, 48%));
+  clip-path: polygon(8% 0, 92% 0, 80% 100%, 20% 100%);
+  border-radius: 0 0 4px 4px;
+}
+.bucket::before {
+  content: ''; position: absolute; top: -8px; left: 50%;
+  width: 22px; height: 16px;
+  border: 2px solid hsl(345, 70%, 42%);
+  border-bottom: none; border-radius: 12px 12px 0 0;
+  transform: translateX(-50%);
+}
+.shovel {
+  position: absolute; bottom: 12%;
+  width: 8px; height: 44px;
+  transform: rotate(28deg);
+  transform-origin: 50% 100%;
+}
+.shovel-handle {
+  position: absolute; left: 50%; top: 0;
+  width: 3px; height: 30px;
+  background: hsl(199, 80%, 50%);
+  transform: translateX(-50%);
+}
+.shovel-scoop {
+  position: absolute; left: 50%; bottom: 0;
+  width: 14px; height: 16px;
+  background: hsl(199, 80%, 50%);
+  border-radius: 0 0 50% 50%;
+  transform: translateX(-50%);
+}
+.crab {
+  position: absolute; bottom: 9%;
+  width: 30px; height: 18px;
+  animation: scene-crab-walk var(--dur, 22s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+.crab-body {
+  position: absolute; bottom: 4px; left: 50%;
+  width: 22px; height: 13px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 35%, hsl(8, 80%, 60%), hsl(6, 75%, 48%));
+  border-radius: 60% 60% 50% 50%;
+}
+.crab-eye {
+  position: absolute; top: -4px;
+  width: 3px; height: 6px; border-radius: 50%;
+  background: hsl(6, 70%, 38%);
+}
+.crab-eye.l { left: 9px; }
+.crab-eye.r { right: 9px; }
+.crab-eye::after {
+  content: ''; position: absolute; top: 0; left: 0;
+  width: 3px; height: 3px; border-radius: 50%;
+  background: hsl(8, 80%, 60%);
+}
+.crab-claw {
+  position: absolute; bottom: 6px;
+  width: 9px; height: 9px;
+  background: hsl(6, 75%, 50%);
+  border-radius: 50% 50% 50% 0;
+  animation: scene-crab-claw 1.2s ease-in-out infinite;
+}
+.crab-claw.r { right: -2px; }
+.crab-claw.l { left: -2px; animation-name: scene-crab-claw-l; }
+@keyframes scene-crab-claw {
+  0%, 100% { transform: rotate(0deg); }
+  50%      { transform: rotate(-18deg); }
+}
+@keyframes scene-crab-claw-l {
+  0%, 100% { transform: scaleX(-1) rotate(0deg); }
+  50%      { transform: scaleX(-1) rotate(-18deg); }
+}
+.crab-leg {
+  position: absolute; bottom: 0;
+  width: 6px; height: 7px;
+  border-bottom: 2px solid hsl(6, 75%, 44%);
+  border-radius: 0 0 0 6px;
+}
+@keyframes scene-crab-walk {
+  0%     { left: 8%; }
+  50%    { left: 78%; }
+  50.01% { transform: scaleX(-1); }
+  100%   { left: 8%; }
+}
+.big-wave {
+  position: absolute; left: 0; right: 0; bottom: 24%;
+  height: 60px;
+  background: radial-gradient(ellipse 80% 100% at 50% 100%, rgba(255,255,255,0.9), rgba(186,230,253,0.5) 45%, transparent 75%);
+  filter: blur(2px);
+  transform-origin: 50% 100%;
+  opacity: 0;
+  animation: scene-big-wave 9s ease-in-out infinite;
+}
+@keyframes scene-big-wave {
+  0%, 100% { transform: translateY(40px) scaleY(0.3); opacity: 0; }
+  45%      { transform: translateY(0)    scaleY(1);   opacity: 0.9; }
+  70%      { transform: translateY(-10px) scaleY(0.9); opacity: 0.5; }
+}
+
+/* ─── Volcanic (rare) — erupting lava (Wave 70 addition)
+   Lava streams cascading down the cone + launched magma blobs + a
+   pulsing eruption glow. Sits on top of the existing volcano-sky/
+   cone/smoke/floor from Wave 65. ─── */
+.lava-stream {
+  position: absolute;
+  width: var(--lw, 8px);
+  transform-origin: 50% 0;
+  background: repeating-linear-gradient(to bottom,
+    #fff7cc 0px, #fde047 6px, #f97316 14px, #ef4444 22px, #b91c1c 28px, #ef4444 34px);
+  background-size: 100% 34px;
+  box-shadow: 0 0 10px rgba(251,146,60,0.85), 0 0 20px rgba(239,68,68,0.5);
+  border-radius: 0 0 50% 50%;
+  animation: scene-lava-flow var(--dur, 2s) linear infinite;
+}
+@keyframes scene-lava-flow {
+  0%   { background-position: 0 0; }
+  100% { background-position: 0 34px; }
+}
+.lava-blob {
+  position: absolute; border-radius: 50%;
+  background: radial-gradient(circle, #fde047, #f97316 50%, #ef4444);
+  box-shadow: 0 0 12px rgba(251,146,60,0.9);
+  animation: scene-lava-launch var(--dur, 2.6s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes scene-lava-launch {
+  0%   { transform: translate(0, 0) scale(1); opacity: 0; }
+  15%  { opacity: 1; }
+  100% { transform: translate(var(--dx, 0), var(--dy, -160px)) scale(0.3); opacity: 0; }
+}
+.volcano-eruption {
+  position: absolute; left: 50%; bottom: 50%;
+  width: 120px; height: 120px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 60% 90% at 50% 100%,
+    rgba(254,240,138,0.9), rgba(251,146,60,0.6) 40%, transparent 75%);
+  filter: blur(4px);
+  transform-origin: 50% 100%;
+  animation: scene-eruption 3.5s ease-in-out infinite;
+}
+@keyframes scene-eruption {
+  0%, 100% { transform: translateX(-50%) scaleY(0.7) scaleX(0.9); opacity: 0.7; }
+  50%      { transform: translateX(-50%) scaleY(1.3) scaleX(1.1); opacity: 1; }
+}
+
+/* ─── Cyberpunk (epic) — aligned building grids (Wave 70 redesign)
+   Replaces the old single-clip-path skyline with real building boxes —
+   each building owns a grid of windows, so windows always sit INSIDE
+   their building (no more floating dots misaligned with the skyline).
+   The old .cyber-skyline + free-floating .cyber-window rules from
+   Wave 65 are still in src/index.css but no longer rendered. ─── */
+.cyber-buildings {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 6px;
+  height: 55%;
+  padding: 0 8px;
+}
+.cyber-bldg {
+  position: relative;
+  background: linear-gradient(to bottom, hsl(255, 50%, 9%), hsl(245, 60%, 4%));
+  border-top: 1px solid rgba(6,182,212,0.35);
+  box-shadow: 0 0 12px rgba(6,182,212,0.12);
+  display: grid;
+  gap: 4px 5px;
+  padding: 7px 5px;
+  align-content: start;
+  justify-content: center;
+}
+.cyber-bldg-win {
+  width: 4px; height: 5px;
+  border-radius: 1px;
+  box-shadow: 0 0 5px currentColor;
+  animation: scene-win-blink var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ─── Galactic (epic) — mini spiral galaxies in the deep field
+   (Wave 70 addition). 4 small rotating spiral galaxies layered over
+   the existing parallax starfield + planet from Wave 65. ─── */
+.mini-galaxy {
+  position: absolute;
+  width: var(--g, 120px); height: var(--g, 120px);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(255,255,255,1) 0%, rgba(255,246,224,0.85) 5%, rgba(253,224,138,0.4) 11%, transparent 20%),
+    conic-gradient(from 0deg at 50% 50%,
+      rgba(196,181,253,0.0) 0deg, rgba(216,180,254,0.85) 45deg, rgba(168,85,247,0.2) 110deg, rgba(168,85,247,0.0) 150deg,
+      rgba(244,114,182,0.0) 195deg, rgba(167,139,250,0.8) 235deg, rgba(99,102,241,0.2) 300deg, rgba(99,102,241,0.0) 340deg);
+  filter: blur(1.5px);
+  -webkit-mask-image: radial-gradient(circle, black 0%, black 40%, rgba(0,0,0,0.4) 60%, transparent 74%);
+          mask-image: radial-gradient(circle, black 0%, black 40%, rgba(0,0,0,0.4) 60%, transparent 74%);
+  box-shadow: 0 0 30px rgba(168,139,250,0.4);
+  animation: scene-spin var(--dur, 60s) linear infinite;
+  opacity: var(--op, 0.8);
+}
+.mini-galaxy.rev { animation-direction: reverse; }
+
+/* ─── Prismatic (legendary) — extras (Wave 70 addition)
+   Burst rings expanding outward + orbiting prism shards + a color-
+   cycling grid. Layered with the Wave 69 halo + core + rays. ─── */
+.prism-burst {
+  position: absolute; left: 50%; top: 50%;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,1), transparent 70%);
+  transform: translate(-50%, -50%);
+  animation: scene-prism-burst 5s ease-out infinite;
+}
+@keyframes scene-prism-burst {
+  0%   { transform: translate(-50%, -50%) scale(0);  opacity: 1; }
+  40%  { opacity: 0.4; }
+  100% { transform: translate(-50%, -50%) scale(28); opacity: 0; }
+}
+.prism-shard {
+  position: absolute; left: 50%; top: 50%;
+  width: 14px; height: 90px;
+  transform-origin: 50% 100%;
+  background: linear-gradient(to top, transparent, var(--col, #f0abfc), rgba(255,255,255,0.9));
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: blur(0.5px) drop-shadow(0 0 8px var(--col, #f0abfc));
+  animation: scene-shard-orbit var(--dur, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes scene-shard-orbit {
+  0%   { transform: rotate(var(--rot, 0deg)) translateY(-140px) scale(1); }
+  50%  { transform: rotate(calc(var(--rot, 0deg) + 180deg)) translateY(-180px) scale(1.3); }
+  100% { transform: rotate(calc(var(--rot, 0deg) + 360deg)) translateY(-140px) scale(1); }
+}
+.prism-grid {
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 40px),
+    repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 40px);
+  animation: scene-prism-grid-hue 6s linear infinite;
+  -webkit-mask-image: radial-gradient(circle at 50% 50%, transparent 20%, black 80%);
+          mask-image: radial-gradient(circle at 50% 50%, transparent 20%, black 80%);
+}
+@keyframes scene-prism-grid-hue {
+  0%   { filter: hue-rotate(0deg); }
+  100% { filter: hue-rotate(360deg); }
 }
 
 /* ─── Reduced-motion: park all scene animations

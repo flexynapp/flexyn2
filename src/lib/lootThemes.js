@@ -280,11 +280,11 @@ export const LOOT_THEMES = [
   {
     id: 'loot_solar',
     name: 'Solar Flare',
-    description: 'Burning bright',
+    description: 'Blazing sun + dancing corona',
     rarity: 'common',
     emoji: '☀️',
-    animated: false,
-    animation: null,
+    animated: true,
+    animation: 'solarFlare',  // Wave 70 — newly wired
     preview: ['#fbbf24', '#451a03'],
     vars: {
       '--primary': '38 92% 55%',
@@ -294,16 +294,25 @@ export const LOOT_THEMES = [
       '--ring': '38 92% 55%',
       '--sidebar-primary': '38 92% 55%',
       '--sidebar-ring': '38 92% 55%',
+      // Solar wants a warm dark backdrop so the sun pops + the cards
+      // stand out against the orange/amber gradient.
+      '--background': '20 75% 8%',
+      '--foreground': '38 40% 96%',
+      '--card': '20 55% 13%',
+      '--card-foreground': '38 40% 96%',
+      '--muted': '20 35% 18%',
+      '--muted-foreground': '38 25% 88%',
+      '--border': '20 35% 24%',
     },
   },
   {
     id: 'loot_jade',
     name: 'Jade Stone',
-    description: 'Deep, earthy green',
+    description: 'Bamboo grove + fireflies',
     rarity: 'common',
     emoji: '🟢',
-    animated: false,
-    animation: null,
+    animated: true,
+    animation: 'jadeStone',  // Wave 70 — newly wired
     preview: ['#10b981', '#022c22'],
     vars: {
       '--primary': '160 84% 39%',
@@ -313,6 +322,14 @@ export const LOOT_THEMES = [
       '--ring': '160 84% 39%',
       '--sidebar-primary': '160 84% 39%',
       '--sidebar-ring': '160 84% 39%',
+      // Jade scene is a dark grove at dusk — chrome matches.
+      '--background': '160 50% 7%',
+      '--foreground': '152 30% 96%',
+      '--card': '158 40% 12%',
+      '--card-foreground': '152 30% 96%',
+      '--muted': '158 30% 17%',
+      '--muted-foreground': '152 20% 88%',
+      '--border': '158 30% 23%',
     },
   },
 
