@@ -1,6 +1,46 @@
 // src/lib/lootCatalog.js
 // Client-side item catalog and rarity configuration for the loot system.
 
+// ── Flexyn-branded merch ─────────────────────────────────────────────
+// Stickers + titles + frames carrying the Flexyn brand. Surfaced via
+// the Daily Drop on the Marketplace — three rotate in every 24h,
+// deterministic by day-of-year so every user sees the same drop on
+// the same calendar day.
+// Server-side prices live in migration 165's add_branded_shop_skus.
+export const BRANDED_ITEMS = [
+  { id: 'flx_logo',     type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Logo',     description: 'The OG dumbbell.',                   emoji: '🟧', baseCoins: 50,  branded: true },
+  { id: 'flx_og',       type: 'title',   rarity: 'rare',      name: 'OG',              description: 'Day-one Flexyn member title.',       emoji: '🏷️', baseCoins: 120, branded: true },
+  { id: 'flx_day_one',  type: 'sticker', rarity: 'uncommon',  name: 'Day One',         description: 'You were here from the start.',      emoji: '①',  baseCoins: 50,  branded: true },
+  { id: 'flx_anvil',    type: 'sticker', rarity: 'rare',      name: 'Flex Anvil',      description: 'Forge yourself.',                    emoji: '⚒️', baseCoins: 80,  branded: true },
+  { id: 'flx_dumbbell', type: 'sticker', rarity: 'common',    name: 'Iron Dumbbell',   description: 'The Flexyn classic.',                emoji: '🏋️', baseCoins: 25,  branded: true },
+  { id: 'flx_band',     type: 'sticker', rarity: 'common',    name: 'Wristband',       description: 'Tighten up.',                        emoji: '⚪', baseCoins: 25,  branded: true },
+  { id: 'flx_streak',   type: 'sticker', rarity: 'epic',      name: 'Streak Flame',    description: '100-day glow.',                      emoji: '🔥', baseCoins: 200, branded: true },
+  { id: 'flx_crown',    type: 'frame',   rarity: 'legendary', name: 'Champion Frame',  description: 'Gold border for your profile.',      emoji: '👑', baseCoins: 400, branded: true },
+  { id: 'flx_belt',     type: 'sticker', rarity: 'rare',      name: 'Lifting Belt',    description: 'Stay tight, stay safe.',             emoji: '🥋', baseCoins: 100, branded: true },
+  { id: 'flx_chalk',    type: 'sticker', rarity: 'common',    name: 'Chalk Bag',       description: 'Grip game on lock.',                 emoji: '⬜', baseCoins: 25,  branded: true },
+  { id: 'flx_keychain', type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Keychain', description: 'Tag for your gym bag.',              emoji: '🔑', baseCoins: 50,  branded: true },
+  { id: 'flx_bottle',   type: 'sticker', rarity: 'uncommon',  name: 'Hydro Bottle',    description: 'Drink up. Branded.',                 emoji: '🧊', baseCoins: 50,  branded: true },
+];
+
+/**
+ * Deterministic daily rotation. Same day-of-year always returns the
+ * same N items so every user sees the same drop on May 29th. Refresh
+ * happens at local midnight (the day-of-year flips client-side).
+ *
+ * @param {Date} [today] override for testing
+ * @param {number} [count=3] how many items to surface
+ */
+export function getDailyDrop(today = new Date(), count = 3) {
+  const start = new Date(today.getFullYear(), 0, 0);
+  const diff = today - start;
+  const dayOfYear = Math.floor(diff / 86_400_000);
+  const out = [];
+  for (let i = 0; i < count && i < BRANDED_ITEMS.length; i++) {
+    out.push(BRANDED_ITEMS[(dayOfYear + i * 7) % BRANDED_ITEMS.length]);
+  }
+  return out;
+}
+
 export const RARITY = {
   common: {
     label: 'Common',

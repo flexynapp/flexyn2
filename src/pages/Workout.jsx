@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
+import { isAppAdmin } from '@/lib/adminRoles';
+import { setLayoutDefault } from '@/lib/data/layoutDefaults';
 import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -2296,6 +2298,21 @@ export default function Workout() {
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">Save</button>
+                    {isAppAdmin(user) && (
+                      <button
+                        onClick={async () => {
+                          const res = await setLayoutDefault('workout', cardOrder, null);
+                          if (res.ok) toast.success('Saved — new users will see this card layout.');
+                          else if (res.error === 'rpc_missing') toast.error('Apply migration 166.');
+                          else if (res.error === 'admin_only')  toast.error('Admins only.');
+                          else toast.error('Could not save default layout.');
+                        }}
+                        title="Save this layout as default for all new users"
+                        className="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-600 dark:text-amber-400 text-[10px] font-bold hover:bg-amber-500/25 transition-colors"
+                      >
+                        Set default
+                      </button>
+                    )}
                     <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
                   </div>

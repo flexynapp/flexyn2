@@ -242,6 +242,19 @@ const TROPHY_LABELS = {
   '🎮':'Gaming','🕹️':'Joystick','🎲':'Dice','♟️':'Chess','🎸':'Guitar',
   '🥁':'Drums','🎤':'Mic','🎬':'Film','📸':'Photo','🚀':'Rocket',
   '🛸':'UFO','🌍':'Earth','🌠':'Shooting Star','✨':'Sparkles',
+  // ─── 2026-05-29 expansion — fitness + competitive + nature + elemental ──
+  '🐅':'Tiger','🐻':'Bear','🦈':'Shark','🐍':'Snake','🐎':'Horse',
+  '🦌':'Stag','🦬':'Bison','🐂':'Bull','🦏':'Rhino','🐊':'Crocodile',
+  '🦂':'Scorpion','🕷️':'Spider','🐝':'Hornet','🦋':'Butterfly','🪐':'Saturn',
+  '🌞':'Sun','🌚':'Eclipse','🌖':'Waning','🌗':'Half','🌘':'Crescent',
+  '☄️':'Comet','🌅':'Sunrise','🌃':'Skyline','🗻':'Peak','🏟️':'Stadium',
+  '⛰️':'Summit','🗽':'Statue','🏛️':'Temple','⛩️':'Shrine','🛕':'Sanctum',
+  '🧿':'Evil Eye','🪬':'Hamsa','🔱':'Trident','⚜️':'Fleur-de-lis','♾️':'Infinity',
+  '🌹':'Rose','🌻':'Sunflower','🍁':'Maple','🌴':'Palm','🌵':'Cactus',
+  '🎺':'Trumpet','🪗':'Accordion','🥇':'Gold','🪙':'Coin','💰':'Bag',
+  '🎰':'Jackpot','🃏':'Wild Card','🎯':'Bullseye','⛓️':'Chain','🪓':'Axe',
+  '🗡️':'Dagger','🏹':'Bow','🔨':'Hammer','⚒️':'Forge','⚙️':'Gear',
+  '🔩':'Bolt','🪜':'Ladder','🪧':'Sign','🎪':'Big Top',
 };
 
 // Converts a flag emoji to a Twemoji SVG URL (works on all platforms including Windows Chrome)
@@ -1726,7 +1739,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-2">
-                {['🏆','🥇','🥈','🥉','🎯','💪','🔥','⚡','🌟','⭐','🎖️','🏅','🏋️','🤸','🏊','🚴','🧗','🥊','🥋','🎽','💯','👑','🦁','🐺','🦅','🦊','🐉','⚔️','🛡️','💎','🌈','🌊','🎆','🎇','🎉','🎊','🎁','🌙','☀️','🌸','🍀','❄️','🔮','🌀','🌪️','🏔️','🌋','🦾','🧠','💥','🎪','🎭','🎮','🕹️','🎲','♟️','🎸','🥁','🎤','🎬','📸','🚀','🛸','🌍','🌠','✨'].map(emoji => (
+                {['🏆','🥇','🥈','🥉','🎯','💪','🔥','⚡','🌟','⭐','🎖️','🏅','🏋️','🤸','🏊','🚴','🧗','🥊','🥋','🎽','💯','👑','🦁','🐺','🦅','🦊','🐉','⚔️','🛡️','💎','🌈','🌊','🎆','🎇','🎉','🎊','🎁','🌙','☀️','🌸','🍀','❄️','🔮','🌀','🌪️','🏔️','🌋','🦾','🧠','💥','🎪','🎭','🎮','🕹️','🎲','♟️','🎸','🥁','🎤','🎬','📸','🚀','🛸','🌍','🌠','✨','🐅','🐻','🦈','🐍','🐎','🦌','🦬','🐂','🦏','🐊','🦂','🕷️','🐝','🦋','🪐','🌞','🌚','☄️','🌅','🗻','🏟️','⛰️','🗽','🏛️','⛩️','🛕','🧿','🪬','🔱','⚜️','♾️','🌹','🌻','🍁','🌴','🌵','🎺','🪗','🪙','💰','🎰','🃏','⛓️','🪓','🗡️','🏹','🔨','⚒️','⚙️','🔩'].map(emoji => (
                   <motion.button
                     key={emoji}
                     type="button"

@@ -13,7 +13,9 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { isAppAdmin } from '@/lib/adminRoles';
+import { setLayoutDefault } from '@/lib/data/layoutDefaults';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -424,6 +426,20 @@ export default function Nutrition() {
   const handleResetOrder = () => {
     setWidgetOrder(DEFAULT_NUTRITION_ORDER);
     try { localStorage.removeItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`); } catch { /* ignore */ }
+  };
+  // Admin: snapshot current widgetOrder as the default for new users.
+  const canSetAsDefault = isAppAdmin(user);
+  const handleSetAsDefault = async () => {
+    const res = await setLayoutDefault('nutrition', widgetOrder, null);
+    if (res.ok) {
+      toast.success('Saved — new users will see this nutrition layout.');
+    } else if (res.error === 'rpc_missing') {
+      toast.error('Default-layouts RPC not deployed yet. Apply migration 166.');
+    } else if (res.error === 'admin_only') {
+      toast.error('Admins only.');
+    } else {
+      toast.error('Could not save default layout — try again.');
+    }
   };
 
   const { data: userProfile = {} } = useQuery({
@@ -969,6 +985,17 @@ export default function Nutrition() {
                   <LayoutGrid className="w-3.5 h-3.5" />
                 )}
               </button>
+              {editMode && canSetAsDefault && (
+                <button
+                  type="button"
+                  onClick={handleSetAsDefault}
+                  title="Save this layout as default for all new users"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+                >
+                  <Save className="w-3 h-3" />
+                  Set default
+                </button>
+              )}
               {editMode && (
                 <button
                   type="button"

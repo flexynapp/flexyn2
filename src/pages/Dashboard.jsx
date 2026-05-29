@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon, Save } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -41,6 +41,9 @@ import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PrestigePrompt from '@/components/prestige/PrestigePrompt';
 import { isPrestigeEligible } from '@/lib/data/prestige';
+import { isAppAdmin } from '@/lib/adminRoles';
+import { setLayoutDefault } from '@/lib/data/layoutDefaults';
+import { toast } from 'sonner';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -636,6 +639,23 @@ export default function Dashboard() {
   // back to factory defaults. Used by the "Reset" button in edit mode
   // so a user who doesn't like their tweaks can go back without
   // dragging every section around manually.
+  // Admin-only: snapshot the current widgetOrder + sectionLayouts and
+  // write them to app_layout_defaults so new users (and Reset) read
+  // from there. NOT a live sync — re-tap to push a new snapshot.
+  const canSetAsDefault = isAppAdmin(user);
+  const handleSetAsDefault = async () => {
+    const res = await setLayoutDefault('dashboard', widgetOrder, sectionLayouts);
+    if (res.ok) {
+      toast.success('Saved — new users will see this dashboard layout.');
+    } else if (res.error === 'rpc_missing') {
+      toast.error('Default-layouts RPC not deployed yet. Apply migration 166.');
+    } else if (res.error === 'admin_only') {
+      toast.error('Admins only.');
+    } else {
+      toast.error('Could not save default layout — try again.');
+    }
+  };
+
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
@@ -1215,6 +1235,17 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 shrink-0 mt-1">
             {/* Reset-customize — only shown in edit mode. Restores
                 the default widgetOrder + sectionLayouts. */}
+            {editMode && canSetAsDefault && (
+              <button
+                type="button"
+                onClick={handleSetAsDefault}
+                title="Save this layout as the default for all new users"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors"
+              >
+                <Save className="w-3.5 h-3.5" />
+                <span>Set default</span>
+              </button>
+            )}
             {editMode && (
               <button
                 type="button"
