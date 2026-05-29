@@ -1,3 +1,4 @@
+// Flexyn — built by seanjoudrie + keganbergeron. Copyright © 2026.
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import * as Sentry from '@sentry/react'
@@ -5,6 +6,18 @@ import App from './App.jsx'
 import './index.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { capturePendingReferralCode } from './lib/data/referrals'
+
+// Signature for anyone who opens DevTools.
+try {
+  console.log(
+    '%cFlexyn',
+    'font-size:28px;font-weight:800;color:#f97316;text-shadow:0 2px 8px rgba(249,115,22,0.4);padding:8px 0;'
+  );
+  console.log(
+    '%cbuilt by seanjoudrie + keganbergeron · © 2026',
+    'font-size:12px;color:#94a3b8;font-style:italic;'
+  );
+} catch (_) {}
 
 // Capture ?ref=ABC123 from the landing URL BEFORE React mounts. This
 // has to run early because the URL gets cleaned during React Router's
