@@ -452,56 +452,44 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   return (
     <div className="space-y-3">
-      {/* ── Sort / Filter bar (Reddit-style) ───────────────────────────── */}
+      {/* ── Sort / Filter + Go Live — single compact row ───────────────── */}
       <div className="flex items-center gap-2 flex-wrap">
-        {/* Primary sort toggle */}
-        <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
-          <button
-            type="button"
+        {/* New | Hot toggle */}
+        <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold shrink-0">
+          <button type="button"
             onClick={() => { setSort('newest'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
-          >
-            <Clock className="w-3 h-3" />
-            New
+            className={`flex items-center gap-1 px-2.5 py-1.5 transition-colors ${sort === 'newest' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+            <Clock className="w-3 h-3" />New
           </button>
-          <button
-            type="button"
+          <button type="button"
             onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
-          >
-            <Flame className="w-3 h-3" />
-            Hot
+            className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+            <Flame className="w-3 h-3" />Hot
           </button>
         </div>
-        {/* Time filter — only visible for Popular */}
+        {/* Time sub-filter (Hot only) */}
         {sort === 'popular' && (
-          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
-            {[['today', 'Today'], ['week', 'This Week'], ['all', 'All Time']].map(([val, label]) => (
-              <button
-                key={val}
-                type="button"
+          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold shrink-0">
+            {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
+              <button key={val} type="button"
                 onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
-                className={`px-2.5 py-1.5 border-l first:border-l-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}
-              >
+                className={`px-2.5 py-1.5 border-l first:border-l-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
                 {label}
               </button>
             ))}
           </div>
         )}
+        {/* Go Live — tucked inline, compact */}
+        <button onClick={() => setBroadcasterOpen(true)}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-500/30 bg-red-500/5 text-red-500 text-[11px] font-bold hover:bg-red-500/12 transition-colors shrink-0 ml-auto">
+          <span className="relative flex w-2 h-2 shrink-0">
+            <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
+            <span className="relative inline-flex w-2 h-2 rounded-full bg-red-500" />
+          </span>
+          <Radio className="w-3 h-3" />
+          Go Live
+        </button>
       </div>
-
-      {/* ── Go Live button ─────────────────────────────────────────────── */}
-      <button
-        onClick={() => setBroadcasterOpen(true)}
-        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-red-500/30 bg-red-500/5 text-red-500 text-sm font-semibold hover:bg-red-500/10 transition-colors"
-      >
-        <span className="relative flex w-2.5 h-2.5 shrink-0">
-          <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
-          <span className="relative inline-flex w-2.5 h-2.5 rounded-full bg-red-500" />
-        </span>
-        <Radio className="w-4 h-4" />
-        Go Live — broadcast your workout
-      </button>
 
       {/* ── Live session cards ─────────────────────────────────────────── */}
       <Suspense fallback={null}>

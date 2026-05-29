@@ -418,19 +418,18 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
         />
 
         <div className="relative p-4 md:p-5 min-h-[120px] flex flex-col justify-between gap-3">
-          {/* Big translucent emoji on the right — fills the dead space
-              and reads as illustration. -bottom-2 lets the bottom of
-              tall emoji glyphs clip into the rounded card edge for a
-              subtle "spilling out" feel. */}
-          {slide.emoji && (
-            <span
-              aria-hidden="true"
-              className="absolute end-3 -bottom-2 select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
-              style={{ fontSize: '6rem', lineHeight: 1, opacity: 0.85 }}
-            >
-              {slide.emoji}
-            </span>
-          )}
+          {/* Large translucent icon on the right-centre — Lucide symbol,
+              not an emoji, so it scales crisply at any resolution. */}
+          {slide.icon && (() => {
+            const IconComp = slide.icon;
+            return (
+              <IconComp
+                aria-hidden="true"
+                className="absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+                style={{ width: 96, height: 96, opacity: 0.13, color: 'white' }}
+              />
+            );
+          })()}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
               <Icon className="w-4 h-4 text-white/85" />

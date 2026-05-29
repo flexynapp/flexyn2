@@ -203,6 +203,8 @@ export default function Workout() {
     return [...CARD_ORDER_DEFAULT];
   });
   const [gridEditing, setGridEditing] = useState(false);
+  const [dragSrcIdx, setDragSrcIdx] = useState(null);
+  const [dragOverIdx, setDragOverIdx] = useState(null);
   const HERO_COUNT = 3;
   const [[heroSlide, heroDir], setHeroState] = useState([0, 0]);
   const paginateHero = (dir) => setHeroState(([cur]) => [((cur + dir) % HERO_COUNT + HERO_COUNT) % HERO_COUNT, dir]);
@@ -2286,53 +2288,57 @@ export default function Workout() {
               );
             })()}
 
-            {/* Secondary actions grid — individual card drag-to-reorder */}
+            {/* Secondary actions grid — drag-and-drop in the same 2-col layout */}
             <div className="mb-2">
               {gridEditing && (
                 <div className="flex items-center justify-between mb-3 px-1">
-                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag cards individually to reorder</p>
+                  <p className="text-[10px] text-muted-foreground/60 font-medium">Drag cards to reorder</p>
                   <div className="flex items-center gap-1.5">
-                    <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); }}
+                    <button onClick={() => { localStorage.setItem('wkt-card-order', JSON.stringify(cardOrder)); setGridEditing(false); toast.success('Layout saved.'); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold hover:bg-primary/90 transition-colors">Save</button>
-                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); }}
+                    <button onClick={() => { setCardOrder([...CARD_ORDER_DEFAULT]); localStorage.removeItem('wkt-card-order'); setGridEditing(false); setDragSrcIdx(null); setDragOverIdx(null); }}
                       className="px-2.5 py-1 rounded-lg bg-secondary text-muted-foreground text-[10px] font-semibold hover:bg-secondary/80 transition-colors">Reset</button>
                   </div>
                 </div>
               )}
-              {(() => {
-                const nonNemesis = cardOrder.filter(id => id !== 'nemesis');
-                if (gridEditing) {
+              {/* Always 2-col grid — HTML5 drag handles in edit mode */}
+              <div className="grid grid-cols-2 gap-3">
+                {cardOrder.map((id, posIdx) => {
+                  const nonNemesis = cardOrder.filter(x => x !== 'nemesis');
+                  const colorIdx = nonNemesis.indexOf(id);
+                  const isDragging = gridEditing && dragSrcIdx === posIdx;
+                  const isOver    = gridEditing && dragOverIdx === posIdx && dragSrcIdx !== posIdx;
                   return (
-                    <Reorder.Group axis="y" values={cardOrder} onReorder={setCardOrder} className="space-y-2" as="div">
-                      {cardOrder.map((id) => {
-                        const idx = nonNemesis.indexOf(id);
-                        return (
-                          <Reorder.Item key={id} value={id} as="div"
-                            className="cursor-grab active:cursor-grabbing rounded-xl"
-                            whileDrag={{ scale:1.02, boxShadow:'0 8px 24px rgba(0,0,0,0.15)' }}>
-                            <div className="flex items-center gap-1.5">
-                              <GripVertical className="w-4 h-4 text-muted-foreground/40 shrink-0 ml-1" />
-                              <div className="flex-1">{renderCard(id, idx)}</div>
-                            </div>
-                          </Reorder.Item>
-                        );
-                      })}
-                    </Reorder.Group>
+                    <div
+                      key={id}
+                      className={id === 'nemesis' ? 'col-span-2' : ''}
+                      draggable={gridEditing}
+                      onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragSrcIdx(posIdx); }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverIdx(posIdx); }}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (dragSrcIdx === null || dragSrcIdx === posIdx) return;
+                        const next = [...cardOrder];
+                        const [moved] = next.splice(dragSrcIdx, 1);
+                        next.splice(posIdx, 0, moved);
+                        setCardOrder(next);
+                        setDragSrcIdx(null); setDragOverIdx(null);
+                      }}
+                      onDragEnd={() => { setDragSrcIdx(null); setDragOverIdx(null); }}
+                      style={{
+                        opacity:   isDragging ? 0.45 : 1,
+                        outline:   isOver ? '2px solid hsl(var(--primary))' : 'none',
+                        outlineOffset: '2px',
+                        borderRadius: 12,
+                        cursor:    gridEditing ? 'grab' : 'default',
+                        transition: 'opacity 0.15s, outline 0.1s',
+                      }}
+                    >
+                      {renderCard(id, colorIdx)}
+                    </div>
                   );
-                }
-                return (
-                  <div className="grid grid-cols-2 gap-3">
-                    {cardOrder.map((id) => {
-                      const idx = nonNemesis.indexOf(id);
-                      return (
-                        <div key={id} className={id === 'nemesis' ? 'col-span-2' : ''}>
-                          {renderCard(id, idx)}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
+                })}
+              </div>
             </div>
           </>
         ) : (

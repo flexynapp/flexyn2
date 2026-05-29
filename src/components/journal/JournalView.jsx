@@ -23,8 +23,38 @@ import { toast } from 'sonner';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {
-  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries,
+  getEntry, upsertEntry, uploadAttachment, migrateLocalEntries, listEntries,
 } from '@/lib/data/journal';
+
+// ── Lightweight markdown renderer (bold + bullets only) ───────────────────────
+function renderInline(text) {
+  const parts = text.split(/(\*\*[^*\n]+\*\*)/g);
+  return parts.map((p, i) =>
+    /^\*\*[^*\n]+\*\*$/.test(p)
+      ? <strong key={i}>{p.slice(2, -2)}</strong>
+      : <React.Fragment key={i}>{p}</React.Fragment>
+  );
+}
+function MarkdownBody({ text, placeholder }) {
+  if (!text || !text.trim()) return <p className="text-muted-foreground/50 text-sm">{placeholder}</p>;
+  const lines = text.split('\n');
+  const nodes = [];
+  let listItems = [];
+  const flushList = () => {
+    if (listItems.length) { nodes.push(<ul key={`ul-${nodes.length}`} className="list-disc list-inside space-y-0.5 my-1">{listItems}</ul>); listItems = []; }
+  };
+  lines.forEach((line, i) => {
+    if (/^[-*]\s/.test(line)) {
+      listItems.push(<li key={i} className="text-sm leading-relaxed">{renderInline(line.slice(2))}</li>);
+    } else {
+      flushList();
+      if (line.trim() === '') { nodes.push(<div key={i} className="h-3" />); }
+      else { nodes.push(<p key={i} className="text-sm leading-relaxed">{renderInline(line)}</p>); }
+    }
+  });
+  flushList();
+  return <div className="space-y-0.5">{nodes}</div>;
+}
 import JournalHistoryModal from './JournalHistoryModal';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
@@ -55,6 +85,15 @@ export default function JournalView({ userId, userEmail, onClose }) {
   const [retryNonce, setRetryNonce] = useState(0);
   const retryTimerRef = useRef(null);
   const retryCountRef = useRef(0);
+
+  // Dates that have entries (for skip-empty navigation)
+  const [entryDates, setEntryDates] = useState(new Set());
+  useEffect(() => {
+    if (!userId) return;
+    listEntries(userId, 365).then(rows => {
+      setEntryDates(new Set(rows.map(r => r.entry_date)));
+    }).catch(() => {});
+  }, [userId]);
 
   const bodyRef = useRef(null);
   const fileRef = useRef(null);
@@ -252,8 +291,33 @@ export default function JournalView({ userId, userEmail, onClose }) {
     loadDay(d);
   }, [dateStr, flush, loadDay]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const goPrev = () => goToDay(subDays(activeDate, 1));
-  const goNext = () => { if (!isToday) goToDay(addDays(activeDate, 1)); };
+  // Navigate backward, skipping empty past days (no blank pages)
+  const goPrev = () => {
+    let d = subDays(activeDate, 1);
+    // Skip up to 365 empty days backward to find one with an entry
+    if (entryDates.size > 0) {
+      for (let i = 0; i < 365; i++) {
+        const s = format(d, 'yyyy-MM-dd');
+        if (entryDates.has(s)) break;
+        d = subDays(d, 1);
+      }
+    }
+    goToDay(d);
+  };
+  const goNext = () => {
+    if (isToday) return;
+    let d = addDays(activeDate, 1);
+    // Skip forward through empty days up to today
+    if (entryDates.size > 0) {
+      const todayD = new Date();
+      for (let i = 0; i < 365; i++) {
+        const s = format(d, 'yyyy-MM-dd');
+        if (entryDates.has(s) || s >= format(todayD, 'yyyy-MM-dd')) break;
+        d = addDays(d, 1);
+      }
+    }
+    goToDay(d);
+  };
 
   // Swipe between days. Attached to the card but ignores swipes that
   // start inside the textarea / inputs so text selection still works.
@@ -457,20 +521,23 @@ export default function JournalView({ userId, userEmail, onClose }) {
             </div>
           )}
 
-          {/* Body */}
+          {/* Body — rendered markdown in read-only, editable textarea today */}
           <div className="flex-1 px-4 overflow-y-auto">
-            <textarea
-              ref={bodyRef}
-              value={body}
-              onChange={(e) => onBodyChange(e.target.value)}
-              readOnly={readOnly}
-              placeholder={readOnly
-                ? (body ? '' : tFallback('profile.journal.placeholderPast', 'No entry for this day.'))
-                : tFallback('profile.journal.placeholderToday', 'How was your session today? Use the toolbar for bullets, bold, voice, or attachments…')}
-              className="w-full min-h-[40vh] bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
-              style={{ fontFamily: 'inherit' }}
-              data-no-swipe
-            />
+            {readOnly ? (
+              <div className="min-h-[40vh] py-1" data-no-swipe>
+                <MarkdownBody text={body} placeholder={tFallback('profile.journal.placeholderPast', 'No entry for this day.')} />
+              </div>
+            ) : (
+              <textarea
+                ref={bodyRef}
+                value={body}
+                onChange={(e) => onBodyChange(e.target.value)}
+                placeholder={tFallback('profile.journal.placeholderToday', 'How was your session today? Use the toolbar for bullets, bold, voice, or attachments…')}
+                className="w-full min-h-[40vh] bg-transparent text-foreground text-sm leading-relaxed resize-none focus:outline-none placeholder:text-muted-foreground/50"
+                style={{ fontFamily: 'inherit' }}
+                data-no-swipe
+              />
+            )}
 
             {/* Attachments */}
             {attachments.length > 0 && (
