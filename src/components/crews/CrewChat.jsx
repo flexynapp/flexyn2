@@ -25,6 +25,7 @@ import CrewMessageItem from './CrewMessageItem';
 import CrewMemberDirectory from './CrewMemberDirectory';
 import CrewChallengeCard from './CrewChallengeCard';
 import CrewStatsPanel from './CrewStatsPanel';
+import AvatarCropModal from './AvatarCropModal';
 
 // ── Crew "hype" triggers ────────────────────────────────────────────────────
 // Posting a hype phrase in crew chat pops a burst of emoji over the thread.
@@ -358,15 +359,28 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
   const isCurrentAdmin = myRole === 'leader';
   const isCurrentModerator = myRole === 'leader' || myRole === 'moderator';
 
-  // ── Crew avatar upload ────────────────────────────────────────────────────
-  const avatarInputRef = useRef(null);
+  // ── Crew avatar upload (with crop/zoom) ──────────────────────────────────
+  const avatarInputRef  = useRef(null);
   const [avatarUploading, setAvatarUploading] = useState(false);
-  const handleAvatarUpload = async (e) => {
+  const [cropFile,        setCropFile]        = useState(null); // pending crop
+
+  // Step 1 — user picks a file → open the crop modal instead of uploading directly.
+  const handleAvatarFilePick = (e) => {
     const file = e.target.files?.[0];
+    e.target.value = '';
     if (!file || !crew?.id) return;
+    setCropFile(file);
+  };
+
+  // Step 2 — user confirms crop → receive the cropped Blob and upload it.
+  const handleCropConfirm = async (blob) => {
+    setCropFile(null);
+    if (!blob || !crew?.id) return;
     setAvatarUploading(true);
     try {
-      const url = await crewsData.uploadCrewMedia(file);
+      // Convert blob to a File so uploadCrewMedia gets a filename + type.
+      const croppedFile = new File([blob], 'crew-avatar.jpg', { type: 'image/jpeg' });
+      const url = await crewsData.uploadCrewMedia(croppedFile);
       await crewsData.updateCrewProfile(crew.id, { avatar_url: url });
       queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
@@ -375,7 +389,6 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       toast.error('Could not update crew photo — try again.');
     } finally {
       setAvatarUploading(false);
-      if (avatarInputRef.current) avatarInputRef.current.value = '';
     }
   };
 
@@ -611,7 +624,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
                     ? <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
                     : <Upload className="w-2.5 h-2.5 text-white" />}
                 </button>
-                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarUpload} />
+                <input ref={avatarInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarFilePick} />
               </>
             )}
           </div>
@@ -883,6 +896,18 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             isCurrentAdmin={isCurrentAdmin}
             onClose={() => setMemberPanelOpen(false)}
             onViewProfile={(u) => { setMemberPanelOpen(false); onViewProfile?.(u); }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Avatar crop modal — mounts when admin picks a new crew photo */}
+      <AnimatePresence>
+        {cropFile && (
+          <AvatarCropModal
+            key="avatar-crop"
+            file={cropFile}
+            onCrop={handleCropConfirm}
+            onClose={() => setCropFile(null)}
           />
         )}
       </AnimatePresence>

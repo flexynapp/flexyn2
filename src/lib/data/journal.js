@@ -17,7 +17,7 @@ export async function getEntry(userId, dateStr) {
   if (!userId || !dateStr) return null;
   const { data, error } = await supabase
     .from('journal_entries')
-    .select('id, entry_date, title, body, attachments, updated_at')
+    .select('id, entry_date, title, body, attachments, mood_score, updated_at')
     .eq('user_id', userId)
     .eq('entry_date', dateStr)
     .maybeSingle();
@@ -70,7 +70,7 @@ export async function listEntries(userId, limit = 365) {
   if (!userId) return [];
   const { data, error } = await supabase
     .from('journal_entries')
-    .select('id, entry_date, title, body, attachments')
+    .select('id, entry_date, title, body, attachments, mood_score')
     .eq('user_id', userId)
     .order('entry_date', { ascending: false })
     .limit(limit);
@@ -83,6 +83,7 @@ export async function listEntries(userId, limit = 365) {
     title: e.title,
     snippet: (e.body || '').replace(/[#*_>-]/g, '').replace(/\s+/g, ' ').trim().slice(0, 90),
     attachmentCount: Array.isArray(e.attachments) ? e.attachments.length : 0,
+    mood_score: e.mood_score ?? null,
   }));
 }
 
@@ -135,4 +136,54 @@ export async function migrateLocalEntries(userId, userEmail) {
   }
   try { localStorage.setItem(flagKey, '1'); } catch { /* ignore */ }
   return migrated;
+}
+
+/**
+ * Tag today's (or any day's) journal entry with a mood score without
+ * touching the entry's title / body / attachments.
+ *
+ * • If a row already exists for that date → UPDATE mood_score only.
+ * • If no row exists yet → INSERT a skeleton row so the mood is
+ *   persisted even before the user writes anything.
+ *
+ * Used by MoodLogCard so every mood tap automatically labels that day's
+ * journal entry.
+ */
+export async function tagMood(userId, userEmail, moodScore, dateStr) {
+  if (!userId || !moodScore || !dateStr) return { ok: false };
+
+  // Try to update an existing row first (avoids clobbering body/title
+  // that a plain upsert would do if we only pass mood_score).
+  const { data: updated, error: updateErr } = await supabase
+    .from('journal_entries')
+    .update({ mood_score: moodScore, updated_at: new Date().toISOString() })
+    .eq('user_id', userId)
+    .eq('entry_date', dateStr)
+    .select('id');
+
+  if (updateErr) {
+    if (MISSING(updateErr.code)) return { ok: false, error: 'PIPELINE_MISSING' };
+    return { ok: false, error: updateErr.message };
+  }
+
+  // Row existed → done.
+  if (updated && updated.length > 0) return { ok: true };
+
+  // No row yet → insert a skeleton so the mood is stored.
+  const { error: insertErr } = await supabase
+    .from('journal_entries')
+    .insert({
+      user_id:    userId,
+      user_email: userEmail || null,
+      entry_date: dateStr,
+      mood_score: moodScore,
+      attachments: [],
+      updated_at: new Date().toISOString(),
+    });
+
+  if (insertErr) {
+    if (MISSING(insertErr.code)) return { ok: false, error: 'PIPELINE_MISSING' };
+    return { ok: false, error: insertErr.message };
+  }
+  return { ok: true };
 }

@@ -703,6 +703,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   if (slide.kind === 'streak') {
     return (
       <div className="relative flex flex-col justify-between gap-5 min-w-0">
+        {/* Decorative icon — right-centre, translucent */}
+        <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
+          style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -770,6 +773,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     const FeatureIcon = slide.icon || Sparkles;
     return (
       <div className="relative flex flex-col justify-between gap-4 min-w-0">
+        <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
+          style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />
         {/* Purple overlay that tints the slideshow column without
             touching the hero's primary chrome. */}
         <div
@@ -845,6 +850,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
 
   return (
     <div className="relative flex flex-col justify-between gap-5 min-w-0">
+      {/* Contextual icon — right-centre, translucent symbol not emoji */}
+      {SlideIcon && <SlideIcon aria-hidden="true" className="absolute pointer-events-none select-none"
+        style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
           <SlideIcon className="w-4 h-4 text-white" />

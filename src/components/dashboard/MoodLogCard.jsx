@@ -13,6 +13,7 @@ import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { upsertMoodLog, getTodayMoodLog, MOOD_EMOJIS, MOOD_LABELS } from '@/lib/data/moodLogs';
+import { tagMood } from '@/lib/data/journal';
 
 export default function MoodLogCard() {
   const { user } = useAuth();
@@ -61,6 +62,15 @@ export default function MoodLogCard() {
       if (!mountedRef.current) return; // bail if unmounted mid-request
       if (res.ok) {
         qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
+        // Auto-tag today's journal entry with the mood score so the
+        // journal widget (and history log) surface the emoji for that day.
+        // Fire-and-forget — journal tagging failure is non-fatal.
+        const todayStr = (() => {
+          const d = new Date();
+          return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        })();
+        tagMood(user.id, user.email, mood, todayStr).catch(() => {});
+        qc.invalidateQueries({ queryKey: ['journalEntry', user?.id] });
       } else {
         setOptimistic(today?.mood ?? null); // revert
         toast.error(tFallback('mood.saveFailed', 'Could not save mood — try again.'));

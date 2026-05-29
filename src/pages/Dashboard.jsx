@@ -29,6 +29,7 @@ import CalorieProgressWidget from '@/components/dashboard/CalorieProgressWidget'
 import MacroRingWidget from '@/components/dashboard/MacroRingWidget';
 import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
+import JournalWidget from '@/components/dashboard/JournalWidget';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
@@ -479,6 +480,7 @@ export default function Dashboard() {
     'chest',
     'recovery',
     'progress',
+    'journal',               // daily journal preview widget
     'discover', 'motivation',
     'onboarding',
     'customize',
@@ -588,14 +590,16 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id) return;
     try {
-      const saved = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
-      if (!saved) return;
-      const parsed = JSON.parse(saved);
+      // First try user-specific saved order, then fall back to admin-set default
+      const userSaved  = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
+      const appDefault = localStorage.getItem('flexyn.dashWidgetOrder.default');
+      const raw = userSaved || appDefault;
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
       const known   = parsed.filter(id => defaultWidgetOrder.includes(id));
       const missing = defaultWidgetOrder.filter(id => !known.includes(id));
       const merged  = [...known, ...missing];
-      // Skip the setState if nothing changed (keeps the default order).
       if (merged.length > 0 && merged.join('|') !== defaultWidgetOrder.join('|')) {
         setWidgetOrder(merged);
       }
@@ -1144,6 +1148,13 @@ export default function Dashboard() {
           </React.Fragment>
         );
       }
+      case 'journal': return (
+        <React.Fragment key="journal">
+          <ErrorBoundary label="JournalWidget">
+            <JournalWidget userId={user?.id} userEmail={user?.email} />
+          </ErrorBoundary>
+        </React.Fragment>
+      );
       case 'discover': return (
         <React.Fragment key="discover">
           <ErrorBoundary label="DiscoveryCards">
@@ -1282,6 +1293,21 @@ export default function Dashboard() {
                     }`}
                   />
                 </span>
+              </button>
+            )}
+            {editMode && (
+              <button
+                onClick={() => {
+                  try {
+                    localStorage.setItem('flexyn.dashWidgetOrder.default', JSON.stringify(widgetOrder));
+                    localStorage.setItem('flexyn.dashSectionLayouts.default', JSON.stringify(sectionLayouts));
+                  } catch {}
+                  toast.success('Layout set as default for new users.');
+                }}
+                title="Set this layout as the default for all new users"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <RotateCcw className="w-3.5 h-3.5" /><span>Set Default</span>
               </button>
             )}
             <button

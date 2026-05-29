@@ -8,6 +8,7 @@ export const WIDGET_DEFINITIONS = [
   { id: 'workout-streak',   nameKey: 'widgetDefs.workoutStreak.name',   descriptionKey: 'widgetDefs.workoutStreak.desc',   category: 'motivation',   icon: '🔥' },
   { id: 'top-exercises',    nameKey: 'widgetDefs.topExercises.name',    descriptionKey: 'widgetDefs.topExercises.desc',    category: 'analytics',    icon: '⭐' },
   { id: 'stats-slideshow',  nameKey: 'widgetDefs.statsSlideshow.name',  descriptionKey: 'widgetDefs.statsSlideshow.desc',  category: 'summary',      icon: '🎠' },
+  { id: 'journal',          nameKey: 'widgetDefs.journal.name',          descriptionKey: 'widgetDefs.journal.desc',          category: 'wellbeing',    icon: '📓' },
 ];
 
 export const WIDGET_CATEGORIES = [
@@ -16,4 +17,5 @@ export const WIDGET_CATEGORIES = [
   { id: 'achievements', labelKey: 'widgetDefs.cat.achievements' },
   { id: 'goals',        labelKey: 'widgetDefs.cat.goals' },
   { id: 'motivation',   labelKey: 'widgetDefs.cat.motivation' },
+  { id: 'wellbeing',    labelKey: 'widgetDefs.cat.wellbeing' },
 ];
