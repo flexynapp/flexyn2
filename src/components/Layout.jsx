@@ -38,6 +38,11 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
     <motion.div
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+      // Wave 71: the Hub tab gets elevated — it's the center "FAB" of
+      // the bottom nav and should sit visually above the other tabs as
+      // a clear visual cue. -mt-3 pulls its content up; the ring +
+      // shadow already make it the focal point, this just raises it.
+      className={isHubItem ? '-mt-3' : ''}
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">

@@ -162,10 +162,14 @@ export default function Header() {
               the right edge. Stays a separate tappable button so
               both the profile and the Lv pill are individually
               clickable + readable. Previous `-bottom-2.5 end-2`
-              placement made the badge overlap the "Sean" name. */}
+              placement made the badge overlap the "Sean" name.
+              Wave 71: end-1 → end-2 + -mt-1 → -mt-2 so the pill
+              sits a few pixels in from the viewport edge (was visibly
+              clipping on narrow screens) and slightly closer to the
+              avatar baseline. */}
           <div className="relative -ml-2">
             <ProfileMenu />
-            <div className="absolute top-full -mt-1 end-1 z-10 origin-top-right scale-75 pointer-events-auto">
+            <div className="absolute top-full -mt-2 end-2 z-10 origin-top-right scale-75 pointer-events-auto">
               <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
             </div>
           </div>
