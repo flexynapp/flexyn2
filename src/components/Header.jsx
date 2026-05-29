@@ -157,14 +157,15 @@ export default function Header() {
             )}
           </button>
           <NotificationBell />
-          {/* Profile + Level cluster — LevelBar is offset to hang OFF
-              the bottom-end of the ProfileMenu cluster (absolute
-              positioned with -bottom-2.5 end-2). Frees horizontal
-              space in the top row so the Flexyn logo no longer
-              truncates. */}
+          {/* Profile + Level cluster — LevelBar hangs BELOW the
+              ProfileMenu (top-full + small overlap up), aligned to
+              the right edge. Stays a separate tappable button so
+              both the profile and the Lv pill are individually
+              clickable + readable. Previous `-bottom-2.5 end-2`
+              placement made the badge overlap the "Sean" name. */}
           <div className="relative -ml-2">
             <ProfileMenu />
-            <div className="absolute -bottom-2.5 end-2 z-10 origin-top-right scale-75 pointer-events-auto">
+            <div className="absolute top-full -mt-1 end-1 z-10 origin-top-right scale-75 pointer-events-auto">
               <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
             </div>
           </div>
