@@ -3,7 +3,8 @@
 // Intermittent-fasting tracker card for the Nutrition page. Two states:
 //
 //   • Not fasting → "Start fast" CTA with a small preset picker
-//     (16:8, 18:6, OMAD 20:4, custom).
+//     (16:8, 18:6, OMAD 20:4) plus a manual-hours input for any
+//     custom duration the user wants.
 //   • In a fast    → live countdown ring + start time + "End fast"
 //     button. Auto-detects "done" when elapsed >= target.
 //
@@ -33,6 +34,9 @@ export default function FastingTrackerCard() {
   const { user } = useAuth();
   const [state, setState] = useState(() => readState(user?.email));
   const [, tick] = useState(0);
+  // Manual-hours input. Inline under the preset row so the user can
+  // type any duration without leaving the card.
+  const [customHours, setCustomHours] = useState('');
 
   // 1Hz ticker while a fast is in progress so the countdown updates.
   useEffect(() => {
@@ -45,6 +49,15 @@ export default function FastingTrackerCard() {
     const next = startFast(user?.email, hours);
     setState(next);
     toast.success(`Fasting clock started · ${hours}h target.`);
+  };
+  const handleStartCustom = () => {
+    const n = Number(customHours);
+    if (!Number.isFinite(n) || n <= 0 || n > 48) {
+      toast.error('Enter a fasting duration between 1 and 48 hours.');
+      return;
+    }
+    handleStart(n);
+    setCustomHours('');
   };
   const handleEnd = () => {
     endFast(user?.email);
@@ -60,9 +73,9 @@ export default function FastingTrackerCard() {
           <h3 className="font-heading font-bold text-sm">Intermittent fasting</h3>
         </div>
         <p className="text-xs text-muted-foreground mb-3">
-          Start a fasting clock — tracks your eating window without nagging.
+          Pick a preset or set your own duration — tracks your eating window without nagging.
         </p>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-2 mb-3">
           {PRESETS.map(p => (
             <button
               key={p.id}
@@ -74,6 +87,33 @@ export default function FastingTrackerCard() {
               <p className="text-[10px] text-muted-foreground">{p.desc}</p>
             </button>
           ))}
+        </div>
+        {/* Manual-hours input — for users who want a duration the
+            presets don't cover (e.g. 14h, 22h, 24h). */}
+        <div className="flex items-center gap-2">
+          <label className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold shrink-0">
+            Custom
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            min="1"
+            max="48"
+            placeholder="hours"
+            value={customHours}
+            onChange={e => setCustomHours(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') handleStartCustom(); }}
+            className="flex-1 min-w-0 h-8 rounded-md border border-border bg-secondary/30 px-2 text-sm tabular-nums focus:outline-none focus:border-primary/50"
+            aria-label="Custom fasting hours"
+          />
+          <button
+            type="button"
+            onClick={handleStartCustom}
+            disabled={!customHours}
+            className="h-8 px-3 rounded-md bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity"
+          >
+            Start
+          </button>
         </div>
       </div>
     );

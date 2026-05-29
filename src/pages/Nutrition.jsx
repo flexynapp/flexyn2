@@ -13,8 +13,8 @@ import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, Settings as SettingsIcon, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2 } from 'lucide-react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
 import WaterTracker from '@/components/nutrition/WaterTracker';
@@ -52,6 +52,212 @@ const isWaterEntry = (e) => e.food_name === 'Water' || e.food_name?.startsWith('
 const waterEntryOz = (e) => e.water_oz ?? (e.food_name?.startsWith('Water|') ? Number(e.food_name.split('|')[1]) : 8);
 const waterFoodName = (oz) => oz === 8 ? 'Water' : `Water|${oz}`;
 
+/* ──────────────────────────────────────────────────────────────────
+ *  NutritionShortcutsCarousel — mirrors the Progress carousel pattern.
+ *  5 slides, each one a feature shortcut:
+ *    1. Scan Food (barcode)  ← surfaced first per user request
+ *    2. Recipes
+ *    3. Meal History
+ *    4. Nutrition Plans
+ *    5. Weekly Planner
+ *  Each slide has a big translucent emoji on the right, a tinted
+ *  gradient mesh matching its color, and a CTA button.
+ * ────────────────────────────────────────────────────────────────── */
+
+function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onPlanner }) {
+  const slides = [
+    {
+      id: 'scan',
+      icon: ScanLine,
+      emoji: '📷',
+      color: '20 95% 55%',
+      kicker: 'Scan a barcode',
+      title: 'Scan Food',
+      tip: 'Snap any package and we autofill macros, calories, and serving size. Fastest way to log.',
+      ctaLabel: 'Open scanner',
+      onCta: onScan,
+    },
+    {
+      id: 'recipes',
+      icon: ChefHat,
+      emoji: '🥘',
+      color: '160 80% 50%',
+      kicker: 'Recipes',
+      title: 'Recipes',
+      tip: 'Build a recipe once, log it in one tap forever. Macros computed from your ingredient list.',
+      ctaLabel: 'Open recipes',
+      onCta: onRecipes,
+    },
+    {
+      id: 'history',
+      icon: History,
+      emoji: '📖',
+      color: '220 85% 60%',
+      kicker: 'Meal History',
+      title: 'Meal History',
+      tip: 'Every meal you\'ve logged. Search, filter, and re-log past meals in two taps.',
+      ctaLabel: 'Browse history',
+      onCta: onHistory,
+    },
+    {
+      id: 'plans',
+      icon: ListChecks,
+      emoji: '📋',
+      color: '270 85% 60%',
+      kicker: 'Nutrition Plans',
+      title: 'Nutrition Plans',
+      tip: 'Pre-built macro splits — cut, bulk, recomp, keto, maintenance. Apply one and your goals update.',
+      ctaLabel: 'See plans',
+      onCta: onPlans,
+    },
+    {
+      id: 'planner',
+      icon: Calendar,
+      emoji: '📅',
+      color: '330 80% 60%',
+      kicker: 'Weekly Planner',
+      title: 'Weekly Planner',
+      tip: 'Drop meals into a 7-day grid. Hit your macro targets across the week, not just one day.',
+      ctaLabel: 'Plan the week',
+      onCta: onPlanner,
+    },
+  ];
+
+  const [idx, setIdx] = useState(0);
+  const [paused, setPaused] = useState(false);
+  const pauseTimerRef = useRef(null);
+
+  const goTo = (i) => {
+    setIdx(i);
+    setPaused(true);
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+    pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
+  };
+  const next = () => goTo((idx + 1) % slides.length);
+  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
+
+  useEffect(() => {
+    if (paused || slides.length <= 1) return;
+    const t = setTimeout(() => setIdx(i => (i + 1) % slides.length), 8000);
+    return () => clearTimeout(t);
+  }, [idx, paused, slides.length]);
+
+  useEffect(() => () => {
+    if (pauseTimerRef.current) clearTimeout(pauseTimerRef.current);
+  }, []);
+
+  const handleDragEnd = (_e, info) => {
+    if (slides.length <= 1) return;
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    if (dx < -50 || vx < -500) next();
+    else if (dx > 50 || vx > 500) prev();
+  };
+
+  const slide = slides[idx];
+  if (!slide) return null;
+  const Icon = slide.icon;
+
+  return (
+    <div className="relative mb-3">
+      {slides.length > 1 && (
+        <button
+          type="button"
+          onClick={next}
+          aria-label="Next slide"
+          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-9 h-9 rounded-full bg-foreground/80 backdrop-blur-sm text-background hover:bg-foreground active:scale-95 flex items-center justify-center shadow-lg transition-all"
+        >
+          <ChevronRight className="w-5 h-5 rtl:scale-x-[-1]" />
+        </button>
+      )}
+      <motion.div
+        drag={slides.length > 1 ? 'x' : false}
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.18}
+        onDragEnd={handleDragEnd}
+        className="relative overflow-hidden rounded-2xl text-white shadow-xl shadow-black/20 touch-pan-y"
+        style={{ background: 'hsl(210 18% 11%)' }}
+      >
+        <motion.div
+          key={`mesh-tr-${slide.id}`}
+          initial={{ opacity: 0.5 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
+          className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
+        />
+        <motion.div
+          key={`mesh-bl-${slide.id}`}
+          className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
+          animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
+          transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
+        />
+
+        <div className="relative p-4 md:p-5 min-h-[140px] flex flex-col justify-between gap-3">
+          {slide.emoji && (
+            <span
+              aria-hidden="true"
+              className="absolute end-3 -bottom-2 select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
+              style={{ fontSize: '6rem', lineHeight: 1, opacity: 0.82 }}
+            >
+              {slide.emoji}
+            </span>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+              <Icon className="w-4 h-4 text-white/85" />
+            </div>
+            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+              {slide.kicker}
+            </span>
+          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={slide.id}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="min-w-0 pe-20"
+            >
+              <h3 className="font-heading font-bold leading-none tracking-tight" style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}>
+                {slide.title}
+              </h3>
+              <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+                {slide.tip}
+              </p>
+              <button
+                type="button"
+                onClick={slide.onCta}
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/35 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
+              >
+                {slide.ctaLabel}
+                <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
+              </button>
+            </motion.div>
+          </AnimatePresence>
+          {slides.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              {slides.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => goTo(i)}
+                  aria-label={`Slide ${i + 1}`}
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                  }`}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function Nutrition() {
   const { t, tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -88,6 +294,15 @@ export default function Nutrition() {
   }, [location?.state?.openLogMeal, location.search]);
   // Date is always today's local date — Nutrition no longer supports past-day viewing.
   const date = format(new Date(), 'yyyy-MM-dd');
+
+  // Reorderable sections — same mechanism as Dashboard customize.
+  // Defaults to the order shown when the user opens a fresh Nutrition
+  // page; can be dragged in edit mode and persists to localStorage
+  // per-user. CalorieTopBar is intentionally NOT in this list — it
+  // stays pinned at the top as the headline.
+  const DEFAULT_NUTRITION_ORDER = ['tabs', 'shortcuts', 'logForm', 'water', 'fasting', 'meals'];
+  const [editMode, setEditMode] = useState(false);
+  const [widgetOrder, setWidgetOrder] = useState(DEFAULT_NUTRITION_ORDER);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerStatus, setScannerStatus] = useState('idle');
   const [scannerError, setScannerError] = useState(null);
@@ -152,6 +367,34 @@ export default function Nutrition() {
   const lastBarcodeRef = useRef(null);
   const queryClient = useQueryClient();
   const { user } = useAuth();
+
+  // Load saved widget order on user resolve. Mirrors the dashboard
+  // merge-with-defaults logic so adding a new section id in the
+  // future doesn't wipe existing users' customization.
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const saved = localStorage.getItem(`flexyn.nutritionWidgetOrder.${user.id}`);
+      if (!saved) return;
+      const parsed = JSON.parse(saved);
+      if (!Array.isArray(parsed)) return;
+      const known   = parsed.filter(id => DEFAULT_NUTRITION_ORDER.includes(id));
+      const missing = DEFAULT_NUTRITION_ORDER.filter(id => !known.includes(id));
+      const merged  = [...known, ...missing];
+      if (merged.length > 0 && merged.join('|') !== DEFAULT_NUTRITION_ORDER.join('|')) {
+        setWidgetOrder(merged);
+      }
+    } catch { /* ignore */ }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleReorder = (newOrder) => {
+    setWidgetOrder(newOrder);
+    try { localStorage.setItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`, JSON.stringify(newOrder)); } catch { /* ignore */ }
+  };
+  const handleResetOrder = () => {
+    setWidgetOrder(DEFAULT_NUTRITION_ORDER);
+    try { localStorage.removeItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`); } catch { /* ignore */ }
+  };
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -672,9 +915,39 @@ export default function Nutrition() {
         initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         className="flex items-start justify-between gap-4 mb-6"
       >
-        {/* Left — title + date */}
+        {/* Left — title + date + customize toggle */}
         <div className="min-w-0">
-          <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setEditMode(e => !e)}
+                title={editMode ? 'Done editing' : 'Customize'}
+                className={`flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                  editMode
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted-foreground/60 hover:text-foreground hover:bg-secondary'
+                }`}
+              >
+                {editMode ? (
+                  <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
+                ) : (
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                )}
+              </button>
+              {editMode && (
+                <button
+                  type="button"
+                  onClick={handleResetOrder}
+                  title="Reset to default"
+                  className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
+                </button>
+              )}
+            </div>
+          </div>
           <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </div>
 
@@ -917,11 +1190,36 @@ export default function Nutrition() {
           question ("how much can I still eat today?") above the fold. */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
-      {/* Fasting tracker moved further down — used to live above the
-          tabs but the user wants it nearer the bottom. Now renders
-          right above the Today's Meals entries list. */}
+      {/* ═══ Reorderable sections — drag in edit mode to reorder.
+              Each Reorder.Item iteration matches widgetOrder; inside,
+              a chain of `{id === 'X' && (...)}` conditionals filters
+              to the one section that matches the id. Per-user
+              localStorage via flexyn.nutritionWidgetOrder.<userId>. ═══ */}
+      <Reorder.Group axis="y" values={widgetOrder} onReorder={handleReorder} as="div">
+        {widgetOrder.map(rowId => (
+          <Reorder.Item
+            key={rowId}
+            value={rowId}
+            as="div"
+            dragListener={editMode}
+            className={`relative ${editMode ? 'touch-none select-none' : ''}`}
+          >
+            {editMode && (
+              <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
+                <GripVertical className="w-4 h-4 text-primary/50" />
+                <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
+                  {rowId === 'tabs' ? 'Nutrition tabs'
+                    : rowId === 'shortcuts' ? 'Shortcuts'
+                    : rowId === 'logForm'   ? 'Log a meal'
+                    : rowId === 'water'     ? 'Water intake'
+                    : rowId === 'fasting'   ? 'Intermittent fasting'
+                    : rowId === 'meals'     ? "Today's meals"
+                    : rowId}
+                </span>
+              </div>
+            )}
 
-      {/* Nutrition Tabs */}
+      {rowId === 'tabs' && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
         <div className="flex gap-1 p-1 bg-secondary rounded-lg mb-4 border border-border">
           {[
@@ -957,41 +1255,19 @@ export default function Nutrition() {
         </AnimatePresence>
       </motion.div>
 
-      {/* Nutrition Goals & Plans */}
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.3 }} className="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-2">
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={() => setShowRecipeBuilder(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
-            <span className="mr-1">🥘</span>
-            <span className="truncate">Recipes</span>
-          </Button>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={openGoalsEditor} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
-            <SettingsIcon className="w-4 h-4 mr-1.5 shrink-0" />
-            <span className="truncate">{t('nutrition.editGoals')}</span>
-          </Button>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={() => setShowMealHistory(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
-            <History className="w-4 h-4 mr-1.5 shrink-0" />
-            <span className="truncate">Meal History</span>
-          </Button>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={() => setShowNutritionPlans(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
-            <span className="mr-1">📋</span>
-            <span className="truncate">{t('nutrition.nutritionPlans')}</span>
-          </Button>
-        </motion.div>
-        <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.96 }} transition={{ type: 'spring', stiffness: 380, damping: 20 }}>
-          <Button onClick={() => setShowWeeklyPlanner(true)} variant="outline" className="w-full h-12 font-heading font-semibold text-xs md:text-sm">
-            <span className="mr-1">📅</span>
-            <span className="truncate">{tFallback('nutrition.weeklyPlanner', 'Weekly planner')}</span>
-          </Button>
-        </motion.div>
-      </motion.div>
+      )}
 
-      {/* Log Meal Form */}
+      {rowId === 'shortcuts' && (
+      <NutritionShortcutsCarousel
+        onScan={startScanner}
+        onRecipes={() => setShowRecipeBuilder(true)}
+        onHistory={() => setShowMealHistory(true)}
+        onPlans={() => setShowNutritionPlans(true)}
+        onPlanner={() => setShowWeeklyPlanner(true)}
+      />
+      )}
+
+      {rowId === 'logForm' && (
       <motion.div
         id="log-meal-form"
         initial={{ opacity: 0, y: 20 }}
@@ -1025,7 +1301,10 @@ export default function Nutrition() {
         </ErrorBoundary>
       </motion.div>
 
-      {/* Water Tracker */}
+      )}
+
+      {rowId === 'water' && (
+      <>
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.35 }} className="mb-6">
         <Card className="p-6 border-none shadow-sm">
           <div className="space-y-4">
@@ -1191,15 +1470,16 @@ export default function Nutrition() {
           </div>
         </DialogContent>
       </Dialog>
+      </>
+      )}
 
-      {/* Intermittent-fasting tracker — moved here from above the
-          nutrition tabs per user feedback. Sits directly above Today's
-          Meals so it reads as part of "now / today" context. */}
+      {rowId === 'fasting' && (
       <div className="mb-4">
         <FastingTrackerCard />
       </div>
+      )}
 
-      {/* Entries list */}
+      {rowId === 'meals' && (
       <motion.div className="space-y-2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.4 }}>
         <h3 className="font-heading font-bold mb-4">{t('nutrition.todaysMeals')}</h3>
         <AnimatePresence>
@@ -1243,6 +1523,11 @@ export default function Nutrition() {
           )}
         </AnimatePresence>
       </motion.div>
+      )}
+
+          </Reorder.Item>
+        ))}
+      </Reorder.Group>
 
       {/* Meal History Modal */}
       <ErrorBoundary label="RecipeBuilderModal">
