@@ -148,6 +148,13 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   useEffect(() => { overlaysRef.current = overlays; }, [overlays]);
   const [overTrash, setOverTrash] = useState(false);
   const [dragging, setDragging]   = useState(false);
+  // Ref-mirrored so the touch-end filter-swipe handler (which runs
+  // off a native listener and doesn't see fresh React state) can bail
+  // when a text overlay is actively being dragged. Without this, a
+  // text drag that ends with a left/right motion silently flips the
+  // photo filter on top of moving the text.
+  const draggingRef = useRef(false);
+  useEffect(() => { draggingRef.current = dragging; }, [dragging]);
 
   const selected = overlays.find(o => o.id === selectedId) || null;
   const textCount = overlays.filter(o => o.kind === 'text').length;
@@ -208,6 +215,12 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
     };
     const onEnd = (e) => {
       if (!single || startX == null || e.changedTouches.length !== 1) return;
+      // Lock the filter while a text/emoji overlay is being dragged —
+      // otherwise a left/right drag-to-move silently doubles as a
+      // filter-swipe at touch-end. The drag handler clears this on
+      // pointerup, so by the time the touchend fires for a NON-overlay
+      // swipe the ref is back to false.
+      if (draggingRef.current) { startX = null; return; }
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
       if (Math.abs(dx) > 60 && Math.abs(dy) < 80) cycleFilter(dx < 0 ? 1 : -1);

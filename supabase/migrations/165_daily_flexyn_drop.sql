@@ -64,18 +64,50 @@ BEGIN
   END IF;
 
   CASE p_sku
-    WHEN 'flx_logo'     THEN v_price := 50;
-    WHEN 'flx_og'       THEN v_price := 120;
-    WHEN 'flx_day_one'  THEN v_price := 50;
-    WHEN 'flx_anvil'    THEN v_price := 80;
+    -- Common (25)
     WHEN 'flx_dumbbell' THEN v_price := 25;
     WHEN 'flx_band'     THEN v_price := 25;
-    WHEN 'flx_streak'   THEN v_price := 200;
-    WHEN 'flx_crown'    THEN v_price := 400;
-    WHEN 'flx_belt'     THEN v_price := 100;
     WHEN 'flx_chalk'    THEN v_price := 25;
+    WHEN 'flx_shoes'    THEN v_price := 25;
+    WHEN 'flx_water'    THEN v_price := 25;
+    WHEN 'flx_apple'    THEN v_price := 25;
+    WHEN 'flx_egg'      THEN v_price := 25;
+    WHEN 'flx_alarm'    THEN v_price := 25;
+    WHEN 'flx_pencil'   THEN v_price := 25;
+    WHEN 'flx_sweat'    THEN v_price := 25;
+    -- Uncommon (50)
+    WHEN 'flx_logo'     THEN v_price := 50;
+    WHEN 'flx_day_one'  THEN v_price := 50;
     WHEN 'flx_keychain' THEN v_price := 50;
     WHEN 'flx_bottle'   THEN v_price := 50;
+    WHEN 'flx_muscle'   THEN v_price := 50;
+    WHEN 'flx_lightbolt' THEN v_price := 50;
+    WHEN 'flx_target'   THEN v_price := 50;
+    WHEN 'flx_med1'     THEN v_price := 50;
+    WHEN 'flx_med2'     THEN v_price := 50;
+    WHEN 'flx_med3'     THEN v_price := 50;
+    -- Rare (80-120)
+    WHEN 'flx_og'       THEN v_price := 120;
+    WHEN 'flx_anvil'    THEN v_price := 80;
+    WHEN 'flx_belt'     THEN v_price := 100;
+    WHEN 'flx_swords'   THEN v_price := 100;
+    WHEN 'flx_shield'   THEN v_price := 100;
+    WHEN 'flx_rocket'   THEN v_price := 100;
+    WHEN 'flx_diamond'  THEN v_price := 100;
+    WHEN 'flx_runner'   THEN v_price := 100;
+    -- Epic (200)
+    WHEN 'flx_streak'   THEN v_price := 200;
+    WHEN 'flx_dragon'   THEN v_price := 200;
+    WHEN 'flx_eagle'    THEN v_price := 200;
+    WHEN 'flx_galaxy'   THEN v_price := 200;
+    WHEN 'flx_lion'     THEN v_price := 200;
+    -- Legendary (400)
+    WHEN 'flx_crown'    THEN v_price := 400;
+    WHEN 'flx_trophy'   THEN v_price := 400;
+    WHEN 'flx_radiance' THEN v_price := 400;
+    WHEN 'flx_comet'    THEN v_price := 400;
+    -- Animated (1000)
+    WHEN 'flx_sparkles' THEN v_price := 1000;
     ELSE
       RAISE EXCEPTION 'unknown_sku: %', p_sku USING ERRCODE = '22023';
   END CASE;

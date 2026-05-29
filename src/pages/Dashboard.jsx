@@ -44,6 +44,7 @@ import PrestigePrompt from '@/components/prestige/PrestigePrompt';
 import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
+import { checkAndCelebrate as checkTrophies } from '@/lib/data/trophies';
 import { toast } from 'sonner';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
@@ -567,6 +568,17 @@ export default function Dashboard() {
   useEffect(() => {
     try { setIsRestDay(localStorage.getItem(restDayKey) === '1'); } catch {}
   }, [restDayKey]);
+
+  // Trophy check — fires once per dashboard mount (per user). The
+  // server-side RPC is idempotent (UNIQUE constraint on the trophies
+  // table) so re-calling never double-grants. Cheap: one round-trip
+  // with COUNT queries, returns the newly-granted IDs which trigger
+  // a celebration toast.
+  useEffect(() => {
+    if (!user?.id) return;
+    const t = setTimeout(() => { checkTrophies().catch(() => {}); }, 1500);
+    return () => clearTimeout(t);
+  }, [user?.id]);
   const handleDeclareRestDay = () => {
     try { localStorage.setItem(restDayKey, '1'); } catch {}
     setIsRestDay(true);

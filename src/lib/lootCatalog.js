@@ -1,25 +1,64 @@
 // src/lib/lootCatalog.js
 // Client-side item catalog and rarity configuration for the loot system.
 
-// ── Flexyn-branded merch ─────────────────────────────────────────────
-// Stickers + titles + frames carrying the Flexyn brand. Surfaced via
-// the Daily Drop on the Marketplace — three rotate in every 24h,
-// deterministic by day-of-year so every user sees the same drop on
-// the same calendar day.
-// Server-side prices live in migration 165's add_branded_shop_skus.
+// ── Daily Drop sticker pool ──────────────────────────────────────────
+// 40+ stickers that rotate through the Marketplace's "Today's Drop"
+// section. Three appear per day, deterministic by day-of-year so every
+// user sees the same lineup on the same calendar day. Pool is meant as
+// filler — themed around gym/fitness/effort with the rarity ladder
+// giving the cheap ones a "starter merch" feel and the legendary ones
+// a "you flex hard" feel.
+// Server-side prices live in migration 165.
 export const BRANDED_ITEMS = [
-  { id: 'flx_logo',     type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Logo',     description: 'The OG dumbbell.',                   emoji: '🟧', baseCoins: 50,  branded: true },
-  { id: 'flx_og',       type: 'title',   rarity: 'rare',      name: 'OG',              description: 'Day-one Flexyn member title.',       emoji: '🏷️', baseCoins: 120, branded: true },
-  { id: 'flx_day_one',  type: 'sticker', rarity: 'uncommon',  name: 'Day One',         description: 'You were here from the start.',      emoji: '①',  baseCoins: 50,  branded: true },
-  { id: 'flx_anvil',    type: 'sticker', rarity: 'rare',      name: 'Flex Anvil',      description: 'Forge yourself.',                    emoji: '⚒️', baseCoins: 80,  branded: true },
-  { id: 'flx_dumbbell', type: 'sticker', rarity: 'common',    name: 'Iron Dumbbell',   description: 'The Flexyn classic.',                emoji: '🏋️', baseCoins: 25,  branded: true },
-  { id: 'flx_band',     type: 'sticker', rarity: 'common',    name: 'Wristband',       description: 'Tighten up.',                        emoji: '⚪', baseCoins: 25,  branded: true },
-  { id: 'flx_streak',   type: 'sticker', rarity: 'epic',      name: 'Streak Flame',    description: '100-day glow.',                      emoji: '🔥', baseCoins: 200, branded: true },
-  { id: 'flx_crown',    type: 'frame',   rarity: 'legendary', name: 'Champion Frame',  description: 'Gold border for your profile.',      emoji: '👑', baseCoins: 400, branded: true },
-  { id: 'flx_belt',     type: 'sticker', rarity: 'rare',      name: 'Lifting Belt',    description: 'Stay tight, stay safe.',             emoji: '🥋', baseCoins: 100, branded: true },
-  { id: 'flx_chalk',    type: 'sticker', rarity: 'common',    name: 'Chalk Bag',       description: 'Grip game on lock.',                 emoji: '⬜', baseCoins: 25,  branded: true },
-  { id: 'flx_keychain', type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Keychain', description: 'Tag for your gym bag.',              emoji: '🔑', baseCoins: 50,  branded: true },
-  { id: 'flx_bottle',   type: 'sticker', rarity: 'uncommon',  name: 'Hydro Bottle',    description: 'Drink up. Branded.',                 emoji: '🧊', baseCoins: 50,  branded: true },
+  // ── Common (25 coins) — gym essentials ──
+  { id: 'flx_dumbbell', type: 'sticker', rarity: 'common',    name: 'Iron Dumbbell',   description: 'The Flexyn classic.',           emoji: '🏋️',  baseCoins: 25,  branded: true },
+  { id: 'flx_band',     type: 'sticker', rarity: 'common',    name: 'Wristband',       description: 'Tighten up.',                   emoji: '⚪',  baseCoins: 25,  branded: true },
+  { id: 'flx_chalk',    type: 'sticker', rarity: 'common',    name: 'Chalk Bag',       description: 'Grip game on lock.',            emoji: '⬜',  baseCoins: 25,  branded: true },
+  { id: 'flx_shoes',    type: 'sticker', rarity: 'common',    name: 'Lifters',         description: 'Heel-elevated. Knees out.',     emoji: '👟',  baseCoins: 25,  branded: true },
+  { id: 'flx_water',    type: 'sticker', rarity: 'common',    name: 'Hydrate',         description: 'Drink up.',                     emoji: '💧',  baseCoins: 25,  branded: true },
+  { id: 'flx_apple',    type: 'sticker', rarity: 'common',    name: 'Clean Eats',      description: 'Macros first.',                 emoji: '🍎',  baseCoins: 25,  branded: true },
+  { id: 'flx_egg',      type: 'sticker', rarity: 'common',    name: 'Protein',         description: 'The eternal staple.',           emoji: '🥚',  baseCoins: 25,  branded: true },
+  { id: 'flx_alarm',    type: 'sticker', rarity: 'common',    name: 'Early Bird',      description: '5 AM strikes back.',            emoji: '⏰',  baseCoins: 25,  branded: true },
+  { id: 'flx_pencil',   type: 'sticker', rarity: 'common',    name: 'Log It',          description: 'If it ain\'t logged...',        emoji: '📝',  baseCoins: 25,  branded: true },
+  { id: 'flx_sweat',    type: 'sticker', rarity: 'common',    name: 'Sweat Drip',      description: 'Earned every drop.',            emoji: '💦',  baseCoins: 25,  branded: true },
+
+  // ── Uncommon (50 coins) — earned vibe ──
+  { id: 'flx_logo',     type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Logo',     description: 'The OG dumbbell.',              emoji: '🟧',  baseCoins: 50,  branded: true },
+  { id: 'flx_day_one',  type: 'sticker', rarity: 'uncommon',  name: 'Day One',         description: 'You were here from the start.', emoji: '①',   baseCoins: 50,  branded: true },
+  { id: 'flx_keychain', type: 'sticker', rarity: 'uncommon',  name: 'Flexyn Keychain', description: 'Tag for your gym bag.',         emoji: '🔑',  baseCoins: 50,  branded: true },
+  { id: 'flx_bottle',   type: 'sticker', rarity: 'uncommon',  name: 'Hydro Bottle',    description: 'Drink up. Branded.',            emoji: '🧊',  baseCoins: 50,  branded: true },
+  { id: 'flx_muscle',   type: 'sticker', rarity: 'uncommon',  name: 'Flex',            description: 'Show off those gains.',         emoji: '💪',  baseCoins: 50,  branded: true },
+  { id: 'flx_lightbolt',type: 'sticker', rarity: 'uncommon',  name: 'Volt',            description: 'Pure intensity.',               emoji: '⚡',  baseCoins: 50,  branded: true },
+  { id: 'flx_target',   type: 'sticker', rarity: 'uncommon',  name: 'On Target',       description: 'Goals locked.',                 emoji: '🎯',  baseCoins: 50,  branded: true },
+  { id: 'flx_med1',     type: 'sticker', rarity: 'uncommon',  name: 'First Place',     description: 'Top of the leaderboard.',       emoji: '🥇',  baseCoins: 50,  branded: true },
+  { id: 'flx_med2',     type: 'sticker', rarity: 'uncommon',  name: 'Second Place',    description: 'Climbing.',                     emoji: '🥈',  baseCoins: 50,  branded: true },
+  { id: 'flx_med3',     type: 'sticker', rarity: 'uncommon',  name: 'Third Place',     description: 'Podium.',                       emoji: '🥉',  baseCoins: 50,  branded: true },
+
+  // ── Rare (100 coins) — gear / lifestyle ──
+  { id: 'flx_og',       type: 'title',   rarity: 'rare',      name: 'OG',              description: 'Day-one Flexyn member title.',  emoji: '🏷️',  baseCoins: 120, branded: true },
+  { id: 'flx_anvil',    type: 'sticker', rarity: 'rare',      name: 'Flex Anvil',      description: 'Forge yourself.',               emoji: '⚒️',  baseCoins: 80,  branded: true },
+  { id: 'flx_belt',     type: 'sticker', rarity: 'rare',      name: 'Lifting Belt',    description: 'Stay tight, stay safe.',        emoji: '🥋',  baseCoins: 100, branded: true },
+  { id: 'flx_swords',   type: 'sticker', rarity: 'rare',      name: 'Battle Mode',     description: 'Duel\'s on.',                   emoji: '⚔️',  baseCoins: 100, branded: true },
+  { id: 'flx_shield',   type: 'sticker', rarity: 'rare',      name: 'Crew Shield',     description: 'Squad represent.',              emoji: '🛡️',  baseCoins: 100, branded: true },
+  { id: 'flx_rocket',   type: 'sticker', rarity: 'rare',      name: 'Take Off',        description: 'On the come-up.',               emoji: '🚀',  baseCoins: 100, branded: true },
+  { id: 'flx_diamond',  type: 'sticker', rarity: 'rare',      name: 'Diamond Grip',    description: 'Forged under pressure.',        emoji: '💎',  baseCoins: 100, branded: true },
+  { id: 'flx_runner',   type: 'sticker', rarity: 'rare',      name: 'Sprinter',        description: 'Cardio merch.',                 emoji: '🏃',  baseCoins: 100, branded: true },
+
+  // ── Epic (200 coins) — flex on em ──
+  { id: 'flx_streak',   type: 'sticker', rarity: 'epic',      name: 'Streak Flame',    description: '100-day glow.',                 emoji: '🔥',  baseCoins: 200, branded: true },
+  { id: 'flx_dragon',   type: 'sticker', rarity: 'epic',      name: 'Beast Mode',      description: 'Unleash it.',                   emoji: '🐉',  baseCoins: 200, branded: true },
+  { id: 'flx_eagle',    type: 'sticker', rarity: 'epic',      name: 'Apex Predator',   description: 'Above the rest.',               emoji: '🦅',  baseCoins: 200, branded: true },
+  { id: 'flx_galaxy',   type: 'sticker', rarity: 'epic',      name: 'Cosmic Pump',     description: 'No ceiling.',                   emoji: '🌌',  baseCoins: 200, branded: true },
+  { id: 'flx_lion',     type: 'sticker', rarity: 'epic',      name: 'Pride',           description: 'King of the pride.',            emoji: '🦁',  baseCoins: 200, branded: true },
+
+  // ── Legendary (400 coins) — trophy-tier ──
+  { id: 'flx_crown',    type: 'frame',   rarity: 'legendary', name: 'Champion Frame',  description: 'Gold border for your profile.', emoji: '👑',  baseCoins: 400, branded: true },
+  { id: 'flx_trophy',   type: 'sticker', rarity: 'legendary', name: 'Hall of Fame',    description: 'Your name lives forever.',      emoji: '🏆',  baseCoins: 400, branded: true },
+  { id: 'flx_radiance', type: 'sticker', rarity: 'legendary', name: 'Radiance',        description: 'You light up the room.',        emoji: '🌟',  baseCoins: 400, branded: true },
+  { id: 'flx_comet',    type: 'sticker', rarity: 'legendary', name: 'Streak Comet',    description: 'Once-in-a-lifetime drop.',      emoji: '☄️',  baseCoins: 400, branded: true },
+
+  // ── Animated (1000 coins) — top of the wall ──
+  { id: 'flx_sparkles', type: 'sticker', rarity: 'animated',  name: 'Sparkles',        description: 'The drop everyone wants.',      emoji: '✨',  baseCoins: 1000, branded: true },
 ];
 
 /**

@@ -41,6 +41,8 @@ import { isVerified, isPoop } from '@/lib/verifiedUsers';
 import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
+import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
+import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 // Hidden easter-egg Snake game — only mounted on the @sean admin profile
@@ -785,6 +787,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const trophyCase   = Array.isArray(rawTrophy) ? rawTrophy : [];
   const trophyVisible = isSelf ? (user?.trophy_case_visible ?? true) : (targetProfile?.trophy_case_visible ?? true);
   const signatureTrophy = isSelf ? (user?.signature_trophy ?? '') : (targetProfile?.signature_trophy ?? '');
+
+  // Auto-awarded earned trophies (separate from the decorative case).
+  const { data: earnedTrophies = [] } = useQuery({
+    queryKey: ['userTrophies', email],
+    queryFn: () => listEarnedTrophies(email, true),
+    enabled: !!email,
+    staleTime: 5 * 60_000,
+  });
   const isVerifiedUser = isVerified(displayUsername);
   const isPoopUser = isPoop(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
@@ -1345,6 +1355,64 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </div>
           </div>
         </motion.div>
+
+        {/* Earned Trophies — auto-awarded milestones. Separate from
+            the picker-driven Trophy Case below. */}
+        {(earnedTrophies.length > 0 || isSelf) && (
+          <div className="mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  Earned Trophies
+                </span>
+                {earnedTrophies.length > 0 && (
+                  <span className="text-[10px] text-muted-foreground/70 tabular-nums">
+                    {earnedTrophies.length}/{TROPHIES.length}
+                  </span>
+                )}
+              </div>
+            </div>
+            {earnedTrophies.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-center">
+                <p className="text-[11px] text-muted-foreground">
+                  {isSelf ? 'Log your first workout to earn your first trophy.' : 'No trophies earned yet.'}
+                </p>
+              </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-secondary/15 p-2.5">
+                <div className="grid grid-cols-5 gap-1.5">
+                  {earnedTrophies.slice(0, 10).map(row => {
+                    const t = getTrophy(row.trophy_id);
+                    if (!t) return null;
+                    const tierMeta = TROPHY_TIERS[t.tier] || TROPHY_TIERS.bronze;
+                    return (
+                      <div
+                        key={row.trophy_id}
+                        title={`${t.name} — ${t.description}`}
+                        className="aspect-square rounded-lg bg-card border flex flex-col items-center justify-center gap-0.5 p-1"
+                        style={{ borderColor: `${tierMeta.color}66` }}
+                      >
+                        <span className="text-lg leading-none" aria-hidden="true">{t.emoji}</span>
+                        <span
+                          className="text-[7px] font-bold uppercase tracking-wider leading-none"
+                          style={{ color: tierMeta.color }}
+                        >
+                          {tierMeta.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {earnedTrophies.length > 10 && (
+                  <p className="text-[10px] text-muted-foreground text-center mt-2">
+                    + {earnedTrophies.length - 10} more
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Trophy Case */}
         {(trophyCase.length > 0 || isSelf) && (
