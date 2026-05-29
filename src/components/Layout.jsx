@@ -38,11 +38,13 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
     <motion.div
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      // Wave 71: the Hub tab gets elevated — it's the center "FAB" of
-      // the bottom nav and should sit visually above the other tabs as
-      // a clear visual cue. -mt-3 pulls its content up; the ring +
-      // shadow already make it the focal point, this just raises it.
-      className={isHubItem ? '-mt-3' : ''}
+      // Wave 71→74: the Hub tab gets a modest elevation — center "FAB"
+      // of the bottom nav. -mt-3 (12 px) clipped the ring above the nav
+      // border once Wave 73 tightened the nav padding to pt-1; -mt-2 +
+      // a w-9 ring (vs w-10) keeps Hub aligned with the other icons
+      // without the ring breaking through the top border line. Color +
+      // ring are still the dominant visual cue.
+      className={isHubItem ? '-mt-2' : ''}
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
@@ -73,7 +75,10 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
           className={[
             'relative',
             isHubItem
-              ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+              // Wave 74: ring 40 → 36 px (w-10 → w-9) so the elevated
+              // FAB doesn't punch through the nav's top border now
+              // that the nav is tighter.
+              ? `flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
                   hubBlue
                     ? (isActive
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
