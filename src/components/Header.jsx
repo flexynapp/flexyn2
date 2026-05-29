@@ -1,17 +1,16 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
-import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
-import { db } from '@/api/db';
 import { fireLogoTapEgg } from '@/lib/logoTapEgg';
 import { Button } from '@/components/ui/button';
 import ProfileMenu from './ProfileMenu';
-import LevelBar from './LevelBar';
+// LevelBar was removed from the header in Wave 72 — it was clipping
+// at the viewport's right edge on narrow screens. The Lv pill is still
+// reachable from the ProfileMenu dropdown and from /profile.
 import NotificationBell from './NotificationBell';
 import NetworkStatusChip from './NetworkStatusChip';
-import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
 
@@ -22,7 +21,6 @@ const CHILD_ROUTES = ['/workout', '/progress', '/nutrition', '/messages', '/mark
 export default function Header() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const [titleOverride, setTitleOverride] = useState(null);
 
@@ -54,12 +52,6 @@ export default function Header() {
 
   const unreadDM = useUnreadDMCount();
   const onMessages = location.pathname === '/messages';
-
-  const { data: userProfile = {} } = useQuery({
-    queryKey: ['userProfile', user?.email],
-    queryFn: () => db.auth.me(),
-    enabled: !!user?.email,
-  });
 
 
 
@@ -157,21 +149,16 @@ export default function Header() {
             )}
           </button>
           <NotificationBell />
-          {/* Profile + Level cluster — LevelBar hangs BELOW the
-              ProfileMenu (top-full + small overlap up), aligned to
-              the right edge. Stays a separate tappable button so
-              both the profile and the Lv pill are individually
-              clickable + readable. Previous `-bottom-2.5 end-2`
-              placement made the badge overlap the "Sean" name.
-              Wave 71: end-1 → end-2 + -mt-1 → -mt-2 so the pill
-              sits a few pixels in from the viewport edge (was visibly
-              clipping on narrow screens) and slightly closer to the
-              avatar baseline. */}
+          {/* Profile menu — the LevelBar pill that used to hang below
+              this was removed in Wave 72. Even after the Wave 71 nudge
+              (end-1 → end-2, -mt-1 → -mt-2) it still clipped at the
+              viewport's right edge on narrow screens. Per user
+              request, the Lv is now only visible from:
+                • the ProfileMenu dropdown
+                • the /profile page (LevelBar shown full size)
+                • the Hub profile sub-view (existing card) */}
           <div className="relative -ml-2">
             <ProfileMenu />
-            <div className="absolute top-full -mt-2 end-2 z-10 origin-top-right scale-75 pointer-events-auto">
-              <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
-            </div>
           </div>
         </div>
       </div>
