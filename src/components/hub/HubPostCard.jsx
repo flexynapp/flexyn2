@@ -354,7 +354,7 @@ function ImagePreview({ src }) {
             className="w-full h-full object-cover"
             style={{ filter: 'blur(4px)', transform: 'scale(1.05)', opacity: 0.55 }}
             loading="lazy"
-            onError={(e) => { e.currentTarget.closest('[role=button]').style.display = 'none'; }}
+            onError={(e) => { const el = e.currentTarget.closest('[role=button]'); if (el) el.style.display = 'none'; }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur-sm border border-border/60 text-xs font-semibold text-foreground shadow-sm">

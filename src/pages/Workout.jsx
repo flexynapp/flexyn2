@@ -2314,7 +2314,7 @@ export default function Workout() {
                       className={id === 'nemesis' ? 'col-span-2' : ''}
                       draggable={gridEditing}
                       onDragStart={(e) => { e.dataTransfer.effectAllowed = 'move'; setDragSrcIdx(posIdx); }}
-                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverIdx(posIdx); }}
+                      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; if (dragOverIdx !== posIdx) setDragOverIdx(posIdx); }}
                       onDrop={(e) => {
                         e.preventDefault();
                         if (dragSrcIdx === null || dragSrcIdx === posIdx) return;

@@ -292,31 +292,38 @@ export default function JournalView({ userId, userEmail, onClose }) {
   }, [dateStr, flush, loadDay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Navigate backward, skipping empty past days (no blank pages)
+  // Navigate to the nearest past entry; O(n log n) sort once, no loop burn.
+  // When entryDates is still loading (empty Set) we fall back to -1 day so the
+  // UI still responds, and the skip behaviour kicks in once the Set resolves.
   const goPrev = () => {
-    let d = subDays(activeDate, 1);
-    // Skip up to 365 empty days backward to find one with an entry
     if (entryDates.size > 0) {
-      for (let i = 0; i < 365; i++) {
-        const s = format(d, 'yyyy-MM-dd');
-        if (entryDates.has(s)) break;
-        d = subDays(d, 1);
+      // Find the most-recent entry date strictly before today's dateStr.
+      const earlier = [...entryDates].filter(s => s < dateStr).sort();
+      if (earlier.length === 0) {
+        // Already at or before the oldest entry — don't navigate into the void.
+        toast.message('No earlier journal entries.');
+        return;
       }
+      goToDay(new Date(earlier[earlier.length - 1] + 'T00:00:00'));
+    } else {
+      goToDay(subDays(activeDate, 1));
     }
-    goToDay(d);
   };
   const goNext = () => {
     if (isToday) return;
-    let d = addDays(activeDate, 1);
-    // Skip forward through empty days up to today
     if (entryDates.size > 0) {
-      const todayD = new Date();
-      for (let i = 0; i < 365; i++) {
-        const s = format(d, 'yyyy-MM-dd');
-        if (entryDates.has(s) || s >= format(todayD, 'yyyy-MM-dd')) break;
-        d = addDays(d, 1);
+      const todayStr2 = format(new Date(), 'yyyy-MM-dd');
+      // Find the earliest entry date strictly after dateStr and not in the future.
+      const later = [...entryDates].filter(s => s > dateStr && s <= todayStr2).sort();
+      if (later.length === 0) {
+        // Nothing between here and today — jump to today.
+        goToDay(new Date());
+        return;
       }
+      goToDay(new Date(later[0] + 'T00:00:00'));
+    } else {
+      goToDay(addDays(activeDate, 1));
     }
-    goToDay(d);
   };
 
   // Swipe between days. Attached to the card but ignores swipes that

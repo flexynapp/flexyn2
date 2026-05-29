@@ -296,9 +296,12 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     if (sort === 'popular') {
       // Apply time window before sorting by likes
       if (timeFilter !== 'all') {
-        const now = Date.now();
-        const cutoffMs = timeFilter === 'today' ? 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
-        const cutoff = now - cutoffMs;
+        // Use local midnight for 'today' so posts from earlier today
+        // aren't excluded by a rolling-24h window (UTC offset bug).
+        const now = new Date();
+        const cutoff = timeFilter === 'today'
+          ? new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+          : now.getTime() - 7 * 24 * 60 * 60 * 1000;
         result = result.filter(p => {
           const t = new Date(p.created_date || p.created_at).getTime();
           return t >= cutoff;
