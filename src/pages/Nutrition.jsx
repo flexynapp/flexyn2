@@ -195,14 +195,13 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
         />
 
         <div className="relative p-4 md:p-5 min-h-[140px] flex flex-col justify-between gap-3">
-          {slide.emoji && (
-            <span
+          {/* Large translucent Lucide icon right-of-centre — symbol not emoji */}
+          {Icon && (
+            <Icon
               aria-hidden="true"
-              className="absolute end-3 -bottom-2 select-none pointer-events-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.35)]"
-              style={{ fontSize: '6rem', lineHeight: 1, opacity: 0.82 }}
-            >
-              {slide.emoji}
-            </span>
+              className="absolute pointer-events-none select-none"
+              style={{ width: 100, height: 100, opacity: 0.13, color: 'white', right: 16, top: '50%', transform: 'translateY(-50%)' }}
+            />
           )}
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
@@ -300,7 +299,8 @@ export default function Nutrition() {
   // page; can be dragged in edit mode and persists to localStorage
   // per-user. CalorieTopBar is intentionally NOT in this list — it
   // stays pinned at the top as the headline.
-  const DEFAULT_NUTRITION_ORDER = ['tabs', 'shortcuts', 'logForm', 'water', 'fasting', 'meals'];
+  // 'shortcuts' is now pinned above CalorieTopBar — not in the reorderable list
+  const DEFAULT_NUTRITION_ORDER = ['logForm', 'water', 'fasting', 'tabs', 'meals'];
   const [editMode, setEditMode] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState(DEFAULT_NUTRITION_ORDER);
   const [showScanner, setShowScanner] = useState(false);
@@ -1185,9 +1185,16 @@ export default function Nutrition() {
         </ErrorBoundary>
       )}
 
-      {/* Top calorie progress bar — live tally vs goal, color-tinted
-          by how close you are. Surfaces the most-asked nutrition
-          question ("how much can I still eat today?") above the fold. */}
+      {/* Shortcuts carousel — pinned at top so it's always the first thing seen */}
+      <NutritionShortcutsCarousel
+        onScan={startScanner}
+        onRecipes={() => setShowRecipeBuilder(true)}
+        onHistory={() => setShowMealHistory(true)}
+        onPlans={() => setShowNutritionPlans(true)}
+        onPlanner={() => setShowWeeklyPlanner(true)}
+      />
+
+      {/* Calorie counter — just below the carousel */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
       {/* ═══ Reorderable sections — drag in edit mode to reorder.
@@ -1257,15 +1264,7 @@ export default function Nutrition() {
 
       )}
 
-      {rowId === 'shortcuts' && (
-      <NutritionShortcutsCarousel
-        onScan={startScanner}
-        onRecipes={() => setShowRecipeBuilder(true)}
-        onHistory={() => setShowMealHistory(true)}
-        onPlans={() => setShowNutritionPlans(true)}
-        onPlanner={() => setShowWeeklyPlanner(true)}
-      />
-      )}
+{/* shortcuts is now pinned above CalorieTopBar — not rendered here */}
 
       {rowId === 'logForm' && (
       <motion.div
@@ -1275,19 +1274,7 @@ export default function Nutrition() {
         transition={{ duration: 0.5, delay: 0.3 }}
         className="mb-6 scroll-mt-24"
       >
-        {/* Portion-size visual guide. Collapsed by default — users
-            who know the math don't see it; first-timers can expand. */}
-        <div className="mb-3">
-          <PortionGuide />
-        </div>
-
-        {/* Meal-type pill row — surfaced ABOVE the form so the user
-            sees what bucket this log will land in. Defaults to the
-            time-of-day auto-pick from MealTypePicker. */}
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Meal</p>
-          <MealTypePicker value={mealType} onChange={setMealType} />
-        </div>
+        {/* Log meal form first */}
         <ErrorBoundary label="LogMealForm">
           <LogMealForm
             newEntry={newEntry}
@@ -1299,6 +1286,15 @@ export default function Nutrition() {
             defaultOpen={openLogMeal}
           />
         </ErrorBoundary>
+
+        {/* Meal-type selector — bigger buttons, below the form */}
+        <div className="mt-3 mb-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground mb-2">Log as</p>
+          <MealTypePicker value={mealType} onChange={setMealType} size="lg" className="w-full" />
+        </div>
+
+        {/* Portion guide at the bottom */}
+        <PortionGuide />
       </motion.div>
 
       )}

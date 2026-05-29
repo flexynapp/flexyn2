@@ -36,12 +36,17 @@ export function autoPickMealType(now = new Date()) {
 }
 
 export default function MealTypePicker({ value, onChange, size = 'sm', className = '' }) {
-  const pad = size === 'sm' ? 'px-2.5 py-1 text-[11px]' : 'px-3 py-1.5 text-xs';
+  const isLg = size === 'lg';
+  const pad = size === 'sm'
+    ? 'px-2.5 py-1 text-[11px]'
+    : isLg
+    ? 'flex-1 py-3 text-sm flex-col gap-1'
+    : 'px-3 py-1.5 text-xs';
   return (
     <div
       role="radiogroup"
       aria-label="Meal type"
-      className={`flex gap-1 ${className}`}
+      className={`flex ${isLg ? 'gap-2' : 'gap-1'} ${className}`}
     >
       {MEAL_TYPES.map(({ id, label, icon: Icon }) => {
         const isActive = value === id;
@@ -52,14 +57,15 @@ export default function MealTypePicker({ value, onChange, size = 'sm', className
             role="radio"
             aria-checked={isActive}
             onClick={() => onChange(id)}
-            className={`${pad} flex items-center gap-1 rounded-full font-semibold transition-colors ${
+            className={`${pad} flex items-center justify-center rounded-xl font-semibold transition-colors active:scale-95 ${
               isActive
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary/50 text-muted-foreground hover:bg-secondary'
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'bg-secondary/60 text-muted-foreground hover:bg-secondary border border-border/50'
             }`}
           >
-            <Icon className={size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
-            {label}
+            <Icon className={isLg ? 'w-5 h-5' : size === 'sm' ? 'w-3 h-3' : 'w-3.5 h-3.5'} />
+            {isLg && <span className="text-xs font-bold mt-0.5">{label}</span>}
+            {!isLg && <span className="ml-1">{label}</span>}
           </button>
         );
       })}

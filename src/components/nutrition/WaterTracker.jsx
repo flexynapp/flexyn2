@@ -120,143 +120,98 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
 
   return (
     <div className="space-y-3">
-      <div className="grid md:grid-cols-2 gap-3 md:gap-4">
-        {/* LEFT: DROPLET GRID — empty state suppressed per user
-            feedback; an empty droplet grid is self-evident enough
-            without the "Start hydrating / Log first" copy. */}
-        <div>
-          <AnimatePresence mode="wait">
-            {!isEmpty && (
+      {/* Compact single-row: ring LEFT, stats RIGHT */}
+      <div className="flex items-center gap-4">
+        {/* Ring — compact, left-aligned */}
+        <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
+          <AnimatePresence>
+            {pulse && (
               <motion.div
-                key="grid"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="grid grid-cols-4 gap-2"
-              >
-                {Array.from({ length: TOTAL_DROPLETS }).map((_, idx) => {
-                  const isFilled = idx < numFilledDroplets;
-                  const isPartial = idx === numFilledDroplets && partialFillPercent > 0;
-                  return (
-                    <motion.div
-                      key={idx}
-                      initial={{ opacity: 0, scale: 0.6 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ type: 'spring', stiffness: 300, damping: 20, delay: idx * 0.04 }}
-                      className="h-12 rounded-xl flex items-center justify-center relative overflow-hidden"
-                    >
-                      <div className="absolute inset-0 bg-border/20 border border-dashed border-border/40 rounded-xl" />
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-500 rounded-xl"
-                        initial={{ scaleY: 0, opacity: 0 }}
-                        animate={{
-                          scaleY: isFilled ? 1 : isPartial ? partialFillPercent / 100 : 0,
-                          opacity: isFilled || isPartial ? 1 : 0,
-                        }}
-                        transition={{ duration: 0.8, ease: 'easeOut' }}
-                        style={{ originY: 1 }}
-                      />
-                      {(isFilled || isPartial) && (
-                        <Droplet className="relative z-10 w-5 h-5 text-white" />
-                      )}
-                    </motion.div>
-                  );
-                })}
-              </motion.div>
+                key="pulse"
+                initial={{ opacity: 0.6, scale: 0.95 }}
+                animate={{ opacity: 0, scale: 1.18 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.65, ease: 'easeOut' }}
+                className="absolute inset-0 rounded-full pointer-events-none"
+                style={{ background: `radial-gradient(circle, ${ringColor}33 0%, transparent 70%)` }}
+              />
             )}
           </AnimatePresence>
+          <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ transform: 'rotate(-90deg)' }}>
+            <defs>
+              <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
+                <stop offset="100%" stopColor="hsl(var(--primary))" />
+              </linearGradient>
+            </defs>
+            <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
+            <motion.circle
+              cx={SIZE/2} cy={SIZE/2} r={R} fill="none"
+              stroke="url(#ringGradient)" strokeWidth="8" strokeLinecap="round"
+              strokeDasharray={circumference}
+              animate={{ strokeDashoffset }}
+              transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+            />
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <motion.span
+              key={fmt(animatedOz)}
+              animate={pulse ? { scale: [1, 1.08, 1] } : {}}
+              transition={{ duration: 0.4 }}
+              className="font-heading font-black tabular-nums leading-none"
+              style={{ fontSize: 26, color: ringColor }}
+            >
+              {fmt(animatedOz)}
+            </motion.span>
+            <span className="text-xs font-medium text-muted-foreground mt-0.5">{waterUnit}</span>
+            <span className="text-[10px] text-muted-foreground">{t('nutrition.macros.of')} {displayDailyRec}</span>
+          </div>
         </div>
 
-        {/* RIGHT: ANIMATED RING — single source of truth */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative" style={{ width: SIZE, height: SIZE }}>
-            {/* Outer glow pulse on new water added */}
-            <AnimatePresence>
-              {pulse && (
-                <motion.div
-                  key="pulse"
-                  initial={{ opacity: 0.6, scale: 0.95 }}
-                  animate={{ opacity: 0, scale: 1.18 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.65, ease: 'easeOut' }}
-                  className="absolute inset-0 rounded-full"
-                  style={{
-                    background: `radial-gradient(circle, ${ringColor}33 0%, transparent 70%)`,
-                    pointerEvents: 'none',
-                  }}
-                />
-              )}
-            </AnimatePresence>
-
-            <svg
-              width={SIZE}
-              height={SIZE}
-              viewBox={`0 0 ${SIZE} ${SIZE}`}
-              style={{ transform: 'rotate(-90deg)' }}
-            >
-              <defs>
-                <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
-                  <stop offset="100%" stopColor="hsl(var(--primary))" />
-                </linearGradient>
-              </defs>
-              {/* Track */}
-              <circle
-                cx={SIZE / 2} cy={SIZE / 2} r={R}
-                fill="none"
-                stroke="hsl(var(--border))"
-                strokeWidth="8"
-              />
-              {/* Progress arc */}
-              <motion.circle
-                cx={SIZE / 2} cy={SIZE / 2} r={R}
-                fill="none"
-                stroke="url(#ringGradient)"
-                strokeWidth="8"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                animate={{ strokeDashoffset }}
-                transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
-              />
-            </svg>
-
-            {/* Center content */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <motion.span
-                key={fmt(animatedOz)}
-                animate={pulse ? { scale: [1, 1.08, 1] } : {}}
-                transition={{ duration: 0.4 }}
-                className="font-heading font-black tabular-nums leading-none"
-                style={{ fontSize: 26, color: ringColor, transition: 'color 0.6s ease' }}
-              >
-                {fmt(animatedOz)}
-              </motion.span>
-              <span className="text-xs font-medium text-muted-foreground mt-1">{waterUnit}</span>
-              <span className="text-xs text-muted-foreground">
-                {t('nutrition.macros.of')} {displayDailyRec}
-              </span>
+        {/* Stats stacked to the right of ring */}
+        <div className="flex-1 grid grid-cols-2 gap-2">
+          {[
+            { label: t('nutrition.water.daily'), value: `${displayDailyRec} ${waterUnit}` },
+            { label: t('progress.title'), value: `${Math.round(animatedProgress)}%` },
+          ].map((stat, i) => (
+            <div key={stat.label} className="bg-secondary/50 rounded-xl px-3 py-2 text-center">
+              <p className="text-[10px] text-muted-foreground font-medium">{stat.label}</p>
+              <p className="font-heading font-bold text-sm text-foreground mt-0.5">{stat.value}</p>
             </div>
-          </div>
-
-          {/* Compact stats — goal + progress only */}
-          <div className="grid grid-cols-2 gap-2 w-full">
-            {[
-              { label: t('nutrition.water.daily'), value: `${displayDailyRec} ${waterUnit}` },
-              { label: t('progress.title'), value: `${Math.round(animatedProgress)}%` },
-            ].map((stat, idx) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.08 }}
-                className="bg-secondary/50 rounded-xl px-3 py-2 text-center"
-              >
-                <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                <p className="font-heading font-bold text-sm text-foreground mt-0.5">{stat.value}</p>
-              </motion.div>
-            ))}
-          </div>
+          ))}
         </div>
       </div>
+
+      {/* Droplet grid — only shown when water has been logged */}
+      <AnimatePresence mode="wait">
+        {!isEmpty && (
+          <motion.div key="grid" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-8 gap-1.5">
+            {Array.from({ length: TOTAL_DROPLETS }).map((_, idx) => {
+              const isFilled = idx < numFilledDroplets;
+              const isPartial = idx === numFilledDroplets && partialFillPercent > 0;
+              return (
+                <motion.div
+                  key={idx}
+                  initial={{ opacity: 0, scale: 0.6 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 20, delay: idx * 0.04 }}
+                  className="h-9 rounded-lg flex items-center justify-center relative overflow-hidden"
+                >
+                  <div className="absolute inset-0 bg-border/20 border border-dashed border-border/40 rounded-lg" />
+                  <motion.div
+                    className="absolute inset-0 bg-gradient-to-br from-blue-400 to-blue-500 rounded-lg"
+                    initial={{ scaleY: 0, opacity: 0 }}
+                    animate={{ scaleY: isFilled ? 1 : isPartial ? partialFillPercent / 100 : 0, opacity: isFilled || isPartial ? 1 : 0 }}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    style={{ originY: 1 }}
+                  />
+                  {(isFilled || isPartial) && <Droplet className="relative z-10 w-4 h-4 text-white" />}
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Goal reached banner */}
       <AnimatePresence>
