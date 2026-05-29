@@ -1,7 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { LOGO_URL } from '@/lib/constants';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeft, MessageCircle, Sparkles } from 'lucide-react';
+import { ChevronLeft, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
 import { db } from '@/api/db';
@@ -54,7 +54,6 @@ export default function Header() {
 
   const unreadDM = useUnreadDMCount();
   const onMessages = location.pathname === '/messages';
-  const onCoach = location.pathname === '/coach';
 
   const { data: userProfile = {} } = useQuery({
     queryKey: ['userProfile', user?.email],
@@ -131,18 +130,10 @@ export default function Header() {
             users learn to glance up here. */}
         <NetworkStatusChip />
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => navigate('/coach')}
-            aria-label={tFallback('hub.coach.title', 'AI Coach')}
-            className={`p-2 rounded-lg transition-colors ${
-              onCoach
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-secondary'
-            }`}
-          >
-            <Sparkles className="w-5 h-5" />
-          </button>
+          {/* AI Coach button removed from the mobile top nav per
+              user feedback — it was crowding the bar and the logo
+              was truncating. Still reachable from the Workout page's
+              Coach surface. */}
           <button
             type="button"
             onClick={() => navigate('/messages')}
@@ -166,9 +157,16 @@ export default function Header() {
             )}
           </button>
           <NotificationBell />
-          <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
-          <div className="-ml-2">
+          {/* Profile + Level cluster — LevelBar is offset to hang OFF
+              the bottom-end of the ProfileMenu cluster (absolute
+              positioned with -bottom-2.5 end-2). Frees horizontal
+              space in the top row so the Flexyn logo no longer
+              truncates. */}
+          <div className="relative -ml-2">
             <ProfileMenu />
+            <div className="absolute -bottom-2.5 end-2 z-10 origin-top-right scale-75 pointer-events-auto">
+              <LevelBar totalXp={userProfile?.total_xp || 0} compact={true} />
+            </div>
           </div>
         </div>
       </div>
