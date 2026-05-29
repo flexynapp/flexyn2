@@ -543,7 +543,6 @@ export default function Dashboard() {
   });
   const toggleReadiness    = makeToggle('readiness',    setReadinessOpen);
   const toggleRecovery     = makeToggle('recovery',     setRecoveryOpen);
-  const toggleChallenges   = makeToggle('challenges',   setChallengesOpen);
   const toggleChest        = makeToggle('chest',        setChestOpen);
   const toggleLeague       = makeToggle('league',       setLeagueOpen);
   const toggleProgress     = makeToggle('progress',     setProgressOpen);

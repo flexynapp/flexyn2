@@ -73,7 +73,7 @@ const ACTIVE = ['#ffc800', '#e6a700'];
 // preceding challenge is cleared, gray + closed while still locked.
 const CHEST_AFTER = [3, 6];
 
-function ChestNode({ cx, cy, available }) {
+function ChestNode({ cx, cy, available, onTap }) {
   const lid  = available ? '#fcd34d' : '#e5e7eb';
   const body = available ? '#f59e0b' : '#d1d5db';
   const edge = available ? '#b45309' : '#9ca3af';
@@ -81,19 +81,28 @@ function ChestNode({ cx, cy, available }) {
   const h = 26;
   const x = cx - w / 2;
   const y = cy - h / 2;
+  // Invisible hit-target — larger than the chest art so it's easy to tap
+  const hitR = 28;
   return (
-    <g style={{ pointerEvents: 'none' }}>
+    <g
+      style={{ cursor: 'pointer' }}
+      onClick={onTap}
+      role="button"
+      aria-label={available ? 'Open reward chest' : 'Locked chest'}
+    >
+      {/* Glow + bob animation for unlocked chests */}
       {available && (
-        <>
-          <animateTransform attributeName="transform" type="translate" values="0 0; 0 -2.5; 0 0" dur="2s" repeatCount="indefinite" />
+        <g>
           <circle cx={cx} cy={cy} r={23} fill="url(#gauntletGlow)">
             <animate attributeName="opacity" values="0.75;0.2;0.75" dur="2s" repeatCount="indefinite" />
           </circle>
-        </>
+        </g>
       )}
       <rect x={x} y={y + 8} width={w} height={h - 8} rx={3} fill={body} stroke={edge} strokeWidth={1.5} />
       <rect x={x} y={y} width={w} height={11} rx={3} fill={lid} stroke={edge} strokeWidth={1.5} />
       <rect x={cx - 3.5} y={cy - 1} width={7} height={8} rx={1.5} fill={edge} />
+      {/* Transparent hit-target to make the small chest easier to tap */}
+      <circle cx={cx} cy={cy} r={hitR} fill="transparent" />
     </g>
   );
 }
@@ -104,6 +113,7 @@ export default function GauntletPath({
   completedSeqs = new Set(),
   selectedId = null,
   onSelectChallenge,
+  onChestTap,
 }) {
   const n = challenges.length;
   if (n === 0) return null;
@@ -152,7 +162,8 @@ export default function GauntletPath({
         if (i < 0 || i + 1 >= n) return null;
         const mx = (nodeX(i, n) + nodeX(i + 1, n)) / 2;
         const my = (nodeY(i) + nodeY(i + 1)) / 2;
-        return <ChestNode key={`chest-${afterSeq}`} cx={mx} cy={my} available={completedSeqs.has(afterSeq)} />;
+        return <ChestNode key={`chest-${afterSeq}`} cx={mx} cy={my} available={completedSeqs.has(afterSeq)}
+          onTap={onChestTap ? () => onChestTap(afterSeq, completedSeqs.has(afterSeq)) : undefined} />;
       })}
 
       {/* ── Nodes ──────────────────────────────────────────────────────────── */}

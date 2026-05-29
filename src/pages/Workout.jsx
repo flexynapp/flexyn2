@@ -220,7 +220,7 @@ export default function Workout() {
   const [plateCalcOpen, setPlateCalcOpen] = useState(false);
 
   const guard = useMultiProfanityGuard();
-  const { sessions, pauseWorkout, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
+  const { sessions, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
   const queryClient = useQueryClient();
   // user / location / navigate are already destructured at the top of
   // the component so the early useEffect deps arrays don't TDZ.
@@ -412,7 +412,8 @@ export default function Workout() {
     enabled: !!user?.email,
   });
 
-  const { data: activeInjuries = [] } = useQuery({
+  // InjuryBanner fetches its own data internally — this query is unused.
+  useQuery({
     queryKey: ['activeInjuries', user?.id],
     queryFn: listActiveInjuries,
     enabled: !!user?.id,
@@ -1523,10 +1524,6 @@ export default function Workout() {
     setNotes('');
   };
 
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-  };
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
@@ -1916,7 +1913,7 @@ export default function Workout() {
           <GoalsAlmostComplete goals={goals} logs={logs} onOpen={() => setGoalsModalOpen(true)} />
         </motion.div>
 
-        {/* Rolling Day Banner — visible midnight â†' 5 AM */}
+        {/* Rolling Day Banner — visible midnight to 5 AM */}
         {isLateNight && (
           <motion.div
             initial={{ opacity: 0, y: -8 }}
@@ -1926,10 +1923,10 @@ export default function Workout() {
           >
             <div className="min-w-0">
               <p className="text-sm font-bold leading-tight" style={{ color: 'hsl(var(--primary))' }}>
-                ðŸŒ™ Rolling Day
+                {'🌙'} Late-night session
               </p>
               <p className="text-xs text-muted-foreground mt-0.5 leading-tight">
-                Log this session as <span className="font-semibold">{rollingDay ? yesterdayStr : todayStr}</span>
+                Log as <span className="font-semibold">{rollingDay ? `yesterday (${yesterdayStr})` : `today (${todayStr})`}</span> — toggle to roll back
               </p>
             </div>
             <div className="flex items-center gap-2 shrink-0">

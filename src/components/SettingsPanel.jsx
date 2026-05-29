@@ -41,7 +41,8 @@ export default function SettingsPanel() {
   const [editingStat, setEditingStat] = useState(null); // 'weight_lbs' | 'height_inches' | 'birthday'
   const [statValue, setStatValue] = useState('');
   const [initialStatValue, setInitialStatValue] = useState('');
-  const [statSaving, setStatSaving] = useState(false);
+  const [statSaving,    setStatSaving]    = useState(false);
+  const [genderSaving,  setGenderSaving]  = useState(false);
   const [storyDmsDisabled,    setStoryDmsDisabled]    = useState(false);
   const [defaultPrivacy,      setDefaultPrivacy]      = useState('friends');
   const [storyBlocksOpen,     setStoryBlocksOpen]     = useState(false);
@@ -200,9 +201,10 @@ export default function SettingsPanel() {
 
   // Sex — one-tap save (no edit input). Feeds strength ceilings, volume
   // caps, and BMR/calorie math. Stored as 'male' | 'female'.
+  // Uses its own saving flag so stat-edit saves don't disable the buttons.
   const saveGender = async (g) => {
-    if (statSaving || profile?.gender === g) return;
-    setStatSaving(true);
+    if (genderSaving || (profile?.gender || '').toLowerCase() === g) return;
+    setGenderSaving(true);
     try {
       await db.auth.updateMe({ gender: g });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
@@ -210,7 +212,7 @@ export default function SettingsPanel() {
       console.error('Gender update failed:', err);
       toast.error(tFallback('settings.validation.saveFailed', 'Could not save — try again.'));
     } finally {
-      setStatSaving(false);
+      setGenderSaving(false);
     }
   };
 
@@ -1012,12 +1014,12 @@ export default function SettingsPanel() {
               </div>
               <div className="flex gap-1">
                 {[{ id: 'male', label: 'Male' }, { id: 'female', label: 'Female' }].map(({ id, label }) => {
-                  const active = (profile?.gender || '') === id;
+                  const active = (profile?.gender || '').toLowerCase() === id;
                   return (
                     <button
                       key={id}
                       onClick={() => saveGender(id)}
-                      disabled={statSaving}
+                      disabled={genderSaving}
                       className={`px-2.5 h-7 rounded-md text-xs font-semibold border transition-colors disabled:opacity-50 ${
                         active
                           ? 'bg-primary/10 border-primary text-primary'

@@ -192,9 +192,9 @@ export function resolveDuelWinner(duel) {
  * @param {'mirror'|'open'|'exercise'} opts.type
  * @param {object|null} opts.sessionTemplate   mirror duel exercise list
  * @param {string|null} opts.targetExerciseId  exercise duel focus
- * @param {number}      opts.windowHours       default 24
+ * @param {number}      opts.windowHours       default 72 (3 days to accept)
  */
-export async function createDuel({ opponentId, type = 'open', sessionTemplate = null, targetExerciseId = null, windowHours = 24 }) {
+export async function createDuel({ opponentId, type = 'open', sessionTemplate = null, targetExerciseId = null, windowHours = 72 }) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
   // Reject self-duels at the data-layer entry point so every caller is

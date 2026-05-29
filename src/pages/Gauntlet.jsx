@@ -189,6 +189,8 @@ export default function Gauntlet() {
   const qc       = useQueryClient();
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [statsModal, setStatsModal]               = useState(null);
+  // { seq: number, available: boolean } — set when user taps a chest
+  const [chestModal,  setChestModal]              = useState(null);
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const { data: challenges = [] } = useQuery({
@@ -335,6 +337,7 @@ export default function Gauntlet() {
           completedSeqs={completedSeqs}
           selectedId={selectedChallenge?.id}
           onSelectChallenge={handleSelectChallenge}
+          onChestTap={(seq, available) => setChestModal({ seq, available })}
         />
       </ErrorBoundary>
 
@@ -360,6 +363,53 @@ export default function Gauntlet() {
                 onStartWorkout={() => navigate('/workout')}
               />
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Chest tap modal ──────────────────────────────────────────────── */}
+      <AnimatePresence>
+        {chestModal && (
+          <motion.div
+            key="chest-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-end justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setChestModal(null)}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0,  opacity: 1 }}
+              exit={{ y: 40,    opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 340, damping: 28 }}
+              className="w-full max-w-sm bg-background rounded-2xl p-6 text-center shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-4xl mb-3">{chestModal.available ? '🎁' : '🔒'}</p>
+              {chestModal.available ? (
+                <>
+                  <p className="font-heading font-bold text-lg mb-1">Reward Unlocked!</p>
+                  <p className="text-sm text-muted-foreground">
+                    You've cleared challenge {chestModal.seq}. Open the chest to claim your coins and XP bonus.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-heading font-bold text-lg mb-1">Chest Locked</p>
+                  <p className="text-sm text-muted-foreground">
+                    Complete challenge {chestModal.seq} to unlock this reward.
+                  </p>
+                </>
+              )}
+              <button
+                type="button"
+                onClick={() => setChestModal(null)}
+                className="mt-5 w-full py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity"
+              >
+                Got it
+              </button>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

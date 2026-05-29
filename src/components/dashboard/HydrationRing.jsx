@@ -149,7 +149,22 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">
               {Math.round(totalOz)} / {goalOz} <span className="text-xs text-muted-foreground">oz</span>
             </p>
-            <p className="text-[10px] text-muted-foreground">{pctLabel}% of daily goal</p>
+            <p className="text-[10px] text-muted-foreground mb-1.5">{pctLabel}% of daily goal</p>
+            {/* 8-cup progress dots — each dot = goalOz/8 oz */}
+            <div className="flex gap-1" aria-label={`${Math.min(8, Math.round(totalOz / (goalOz / 8)))} of 8 cups`}>
+              {Array.from({ length: 8 }, (_, i) => {
+                const filled = totalOz >= (goalOz / 8) * (i + 1);
+                return (
+                  <motion.div
+                    key={i}
+                    className={`w-3 h-3 rounded-full transition-colors ${filled ? 'bg-cyan-400' : 'bg-secondary'}`}
+                    initial={{ scale: 0.6, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    transition={{ delay: i * 0.04, duration: 0.2 }}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
       </Card>

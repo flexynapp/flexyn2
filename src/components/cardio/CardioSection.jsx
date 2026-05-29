@@ -195,33 +195,41 @@ export default function CardioSection({ onBack }) {
               </motion.div>
             )}
 
-            {/* Activity types */}
-            <NavTile
-              icon={Footprints}
-              title={t('cardio.modes.running')}
-              description={t('cardio.subtitle')}
-              onClick={() => setView({ name: 'mode', mode: 'running' })}
-            />
-            <NavTile
-              icon={PersonStanding}
-              title={t('cardio.modes.walking')}
-              description={t('cardio.subtitle')}
-              onClick={() => setView({ name: 'mode', mode: 'walking' })}
-            />
-            <NavTile
-              icon={Bike}
-              title={t('cardio.modes.biking')}
-              description={t('cardio.subtitle')}
-              onClick={() => setView({ name: 'mode', mode: 'biking' })}
-            />
-            <NavTile
-              icon={Waves}
-              iconBg="bg-cyan-500/10"
-              iconColor="text-cyan-500"
-              title="Swimming"
-              description="Pool or open water"
-              onClick={() => setView({ name: 'mode', mode: 'swimming' })}
-            />
+            {/* Activity types — 2×2 grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <NavTile
+                icon={Footprints}
+                iconBg="bg-primary/10"
+                iconColor="text-primary"
+                title={t('cardio.modes.running')}
+                description={t('cardio.subtitle')}
+                onClick={() => setView({ name: 'mode', mode: 'running' })}
+              />
+              <NavTile
+                icon={PersonStanding}
+                iconBg="bg-emerald-500/10"
+                iconColor="text-emerald-500"
+                title={t('cardio.modes.walking')}
+                description={t('cardio.subtitle')}
+                onClick={() => setView({ name: 'mode', mode: 'walking' })}
+              />
+              <NavTile
+                icon={Bike}
+                iconBg="bg-amber-500/10"
+                iconColor="text-amber-500"
+                title={t('cardio.modes.biking')}
+                description={t('cardio.subtitle')}
+                onClick={() => setView({ name: 'mode', mode: 'biking' })}
+              />
+              <NavTile
+                icon={Waves}
+                iconBg="bg-cyan-500/10"
+                iconColor="text-cyan-500"
+                title="Swimming"
+                description="Pool or open water"
+                onClick={() => setView({ name: 'mode', mode: 'swimming' })}
+              />
+            </div>
 
             {/* Utilities */}
             <NavTile

@@ -149,12 +149,18 @@ export default function Notifications() {
 
   const handleClearAll = async () => {
     if (rows.length === 0) return;
-    // Respect the active filter. Previously this always nuked the user's
-    // ENTIRE notifications history regardless of which tab they were on —
-    // a user on the "Social" tab tapping Clear All wiped their Competitive
-    // + Achievements + System rows too with no warning. Now: when a
-    // filter is active, confirm the hidden-row count first.
-    if (tab !== 'all') {
+    // Always confirm before a destructive bulk-delete — one-tap wipe with
+    // no undo is too easy to trigger accidentally on mobile.
+    if (tab === 'all') {
+      const ok = window.confirm(
+        tFallback(
+          'notifications.clearAllConfirm',
+          `Clear all ${rows.length} notification${rows.length === 1 ? '' : 's'}? This can't be undone.`
+        )
+      );
+      if (!ok) return;
+    } else {
+      // Filter is active — warn about hidden rows too.
       const visibleCount = filtered.length;
       const hiddenCount = rows.length - visibleCount;
       if (hiddenCount > 0) {
@@ -162,6 +168,14 @@ export default function Notifications() {
           tFallback(
             'notifications.clearAllFilteredConfirm',
             `Clear ALL ${rows.length} notifications, including ${hiddenCount} hidden by the current filter?`
+          )
+        );
+        if (!ok) return;
+      } else {
+        const ok = window.confirm(
+          tFallback(
+            'notifications.clearAllConfirm',
+            `Clear all ${rows.length} notification${rows.length === 1 ? '' : 's'}? This can't be undone.`
           )
         );
         if (!ok) return;

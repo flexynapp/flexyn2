@@ -654,14 +654,14 @@ export default function Progress() {
   const level  = userProfile?.current_level  ?? 1;
 
   const heroStats = [
-    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-orange-500', bg: 'bg-orange-500/10',
-      cardBg: 'bg-gradient-to-br from-orange-500/12 to-orange-500/4 border-orange-500/20'   },
-    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-primary',    bg: 'bg-primary/10',
-      cardBg: 'bg-gradient-to-br from-primary/12 to-primary/4 border-primary/20'             },
-    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-emerald-500', bg: 'bg-emerald-500/10',
-      cardBg: 'bg-gradient-to-br from-emerald-500/12 to-emerald-500/4 border-emerald-500/20' },
-    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-violet-500', bg: 'bg-violet-500/10',
-      cardBg: 'bg-gradient-to-br from-violet-500/12 to-violet-500/4 border-violet-500/20'    },
+    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-white', bg: 'bg-white/20',
+      cardBg: 'bg-orange-500 border-orange-600 shadow-orange-500/25'   },
+    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-white', bg: 'bg-white/20',
+      cardBg: 'bg-primary border-primary/80 shadow-primary/25'             },
+    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-white', bg: 'bg-white/20',
+      cardBg: 'bg-emerald-500 border-emerald-600 shadow-emerald-500/25' },
+    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-white', bg: 'bg-white/20',
+      cardBg: 'bg-violet-500 border-violet-600 shadow-violet-500/25'    },
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
@@ -801,7 +801,7 @@ export default function Progress() {
                     <stat.icon className={`w-4 h-4 ${stat.color}`} />
                   </div>
                   <p className={`font-heading font-black text-lg leading-none ${stat.color}`}>{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
+                  <p className="text-[10px] text-white/75 mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
                 </Card>
               </motion.button>
             ))}

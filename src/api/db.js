@@ -825,13 +825,22 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
   // (Messages audit) flagged the DM path. We accept JPEG/PNG/WebP
   // and animated GIF (no script execution); SVG is explicitly
   // refused even though `accept="image/*"` would otherwise allow it.
-  const SAFE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic'];
+  const SAFE_EXTS = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif', 'avif'];
   const SAFE_MIMES = {
     jpg: 'image/jpeg', jpeg: 'image/jpeg',
-    png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic',
+    png: 'image/png', webp: 'image/webp', gif: 'image/gif',
+    heic: 'image/heic', heif: 'image/heif', avif: 'image/avif',
   };
-  const ext = (file.name || 'file').split('.').pop()?.toLowerCase() || 'jpg';
-  if (!SAFE_EXTS.includes(ext)) {
+  // Derive extension from filename first, then fall back to MIME type so
+  // files with no extension (camera captures on some Android PWA contexts,
+  // canvas-exported blobs, etc.) still upload instead of throwing.
+  const MIME_TO_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp',
+    'image/gif': 'gif', 'image/heic': 'heic', 'image/heif': 'heif', 'image/avif': 'avif' };
+  const rawExt = (file.name || '').split('.').pop()?.toLowerCase() || '';
+  const ext = (rawExt && SAFE_EXTS.includes(rawExt))
+    ? rawExt
+    : (MIME_TO_EXT[file.type?.toLowerCase()] || '');
+  if (!ext) {
     const err = new Error('Image type not supported — use JPG, PNG, WebP, GIF, or HEIC.');
     err.code = 'UNSUPPORTED_FILE_TYPE';
     throw err;

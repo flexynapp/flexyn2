@@ -57,9 +57,40 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
           {opponentName ? <span className="text-foreground"> {opponentName}</span> : null} ·{' '}
           <span className="text-muted-foreground capitalize">{duel.type}</span>
         </p>
-        <p className="text-xs text-muted-foreground">
-          {formatRelativeDate(duel.created_at, { variant: 'short' })}
-        </p>
+        {/* Deadline countdown for active/pending duels */}
+        {['pending', 'active'].includes(duel.status) && duel.expires_at && (() => {
+          const minsLeft = Math.max(0, Math.round((new Date(duel.expires_at) - Date.now()) / 60_000));
+          const hoursLeft = Math.floor(minsLeft / 60);
+          const label = hoursLeft >= 48
+            ? `${Math.floor(hoursLeft / 24)}d left`
+            : hoursLeft >= 1
+              ? `${hoursLeft}h left`
+              : minsLeft > 0 ? `${minsLeft}m left` : 'Expires soon';
+          const urgent = hoursLeft < 6;
+          return (
+            <p className={`text-xs mt-0.5 ${urgent ? 'text-rose-500 font-semibold' : 'text-muted-foreground'}`}>
+              {label}
+            </p>
+          );
+        })()}
+        {/* Score summary for completed duels */}
+        {duel.status === 'completed' && (() => {
+          const myResult   = isChallenger ? duel.challenger_result : duel.opponent_result;
+          const theirResult = isChallenger ? duel.opponent_result  : duel.challenger_result;
+          const myVol   = myResult?.volume    ?? myResult?.weight ?? myResult?.reps ?? null;
+          const theirVol = theirResult?.volume ?? theirResult?.weight ?? theirResult?.reps ?? null;
+          if (myVol == null && theirVol == null) return <p className="text-xs text-muted-foreground mt-0.5">{formatRelativeDate(duel.created_at, { variant: 'short' })}</p>;
+          return (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {myVol != null ? Math.round(myVol).toLocaleString() : '—'} vs {theirVol != null ? Math.round(theirVol).toLocaleString() : '—'}
+            </p>
+          );
+        })()}
+        {!['pending','active','completed'].includes(duel.status) && (
+          <p className="text-xs text-muted-foreground">
+            {formatRelativeDate(duel.created_at, { variant: 'short' })}
+          </p>
+        )}
       </div>
       {duel.status === 'completed' && (
         <span className={`text-xs font-bold ${won ? 'text-primary' : lost ? 'text-rose-500' : 'text-amber-500'}`}>
@@ -198,7 +229,7 @@ export default function Duels() {
       )}
 
       <div className="px-4 space-y-5">
-        {/* Active */}
+        {/* Active / Pending */}
         {active.length > 0 && (
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Active</p>
@@ -210,10 +241,10 @@ export default function Duels() {
           </div>
         )}
 
-        {/* History */}
+        {/* Completed / History */}
         {history.length > 0 && (
           <div>
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">History</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Completed</p>
             <div className="space-y-2">
               {history.map(d => (
                 <DuelRow key={d.id} duel={d} currentUserId={user?.id} opponent={opponentFor(d)} onClick={() => setSelectedDuel(d)} />
