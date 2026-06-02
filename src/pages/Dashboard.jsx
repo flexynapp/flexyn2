@@ -54,6 +54,7 @@ import { useTheme } from '@/lib/ThemeContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
+import { getDateLocale } from '@/lib/dateLocales';
 
 
 /* ──────────────────────────────────────────────────────────────────
@@ -460,7 +461,7 @@ function Collapsible({ open, children }) {
 
 
 export default function Dashboard() {
-  const { t, tFallback } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -947,7 +948,7 @@ export default function Dashboard() {
   }, [t]);
 
   const firstName = user?.username || user?.full_name?.split(' ')[0] || '';
-  const todayLabel = format(new Date(), 'EEEE, MMMM d');
+  const todayLabel = format(new Date(), 'EEEE, MMMM d', { locale: getDateLocale(language) });
 
   // Format weekly volume nicely (1.2k for big numbers).
   // Use fmt() for ALL branches so digit grouping + decimal separator
@@ -1318,12 +1319,12 @@ export default function Dashboard() {
                 title="Set this layout as the default for all new users"
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
               >
-                <RotateCcw className="w-3.5 h-3.5" /><span>Set Default</span>
+                <RotateCcw className="w-3.5 h-3.5" /><span>{tFallback('dashboard.setDefault', 'Set Default')}</span>
               </button>
             )}
             <button
               onClick={() => setEditMode(e => !e)}
-              title={editMode ? 'Done editing' : 'Customize home'}
+              title={editMode ? tFallback('dashboard.doneEditing', 'Done editing') : tFallback('dashboard.customizeHome', 'Customize home')}
               className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 editMode
                   ? 'bg-primary text-primary-foreground shadow-sm'
@@ -1331,7 +1332,7 @@ export default function Dashboard() {
               }`}
             >
               {editMode ? (
-                <><CheckCircle2 className="w-3.5 h-3.5" /><span>Done</span></>
+                <><CheckCircle2 className="w-3.5 h-3.5" /><span>{tFallback('dashboard.done', 'Done')}</span></>
               ) : (
                 <LayoutGrid className="w-4 h-4" />
               )}
