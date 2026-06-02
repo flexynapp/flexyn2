@@ -662,13 +662,13 @@ export default function Dashboard() {
   const handleSetAsDefault = async () => {
     const res = await setLayoutDefault('dashboard', widgetOrder, sectionLayouts);
     if (res.ok) {
-      toast.success('Saved — new users will see this dashboard layout.');
+      toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved — new users will see this dashboard layout.'));
     } else if (res.error === 'rpc_missing') {
-      toast.error('Default-layouts RPC not deployed yet. Apply migration 166.');
+      toast.error(tFallback('dashboard.setDefaultRpcMissing', 'Default-layouts RPC not deployed yet. Apply migration 166.'));
     } else if (res.error === 'admin_only') {
-      toast.error('Admins only.');
+      toast.error(tFallback('dashboard.adminOnly', 'Admins only.'));
     } else {
-      toast.error('Could not save default layout — try again.');
+      toast.error(tFallback('dashboard.setDefaultFailed', 'Could not save default layout — try again.'));
     }
   };
 
@@ -1314,7 +1314,7 @@ export default function Dashboard() {
                     localStorage.setItem('flexyn.dashWidgetOrder.default', JSON.stringify(widgetOrder));
                     localStorage.setItem('flexyn.dashSectionLayouts.default', JSON.stringify(sectionLayouts));
                   } catch {}
-                  toast.success('Layout set as default for new users.');
+                  toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved — new users will see this dashboard layout.'));
                 }}
                 title="Set this layout as the default for all new users"
                 className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
