@@ -154,3 +154,5 @@ GRANT EXECUTE ON FUNCTION public.is_app_admin(UUID)                 TO authentic
 GRANT EXECUTE ON FUNCTION public.list_reports_for_admin(TEXT, INT)  TO authenticated;
 GRANT EXECUTE ON FUNCTION public.resolve_report(UUID, TEXT)         TO authenticated;
 GRANT EXECUTE ON FUNCTION public.delete_reported_content(UUID)      TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

@@ -31,3 +31,5 @@ CREATE POLICY "users_manage_own_sticker_reactions"
   TO authenticated
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
+
+NOTIFY pgrst, 'reload schema';

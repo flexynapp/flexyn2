@@ -211,3 +211,5 @@ BEGIN
    WHERE id = v_user_id;
 END;
 $$;
+
+NOTIFY pgrst, 'reload schema';

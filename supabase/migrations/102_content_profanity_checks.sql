@@ -164,3 +164,5 @@ CREATE TRIGGER trg_crew_name_profanity
   BEFORE INSERT OR UPDATE OF name ON public.crews
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_crew_name_profanity();
+
+NOTIFY pgrst, 'reload schema';

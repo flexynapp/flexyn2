@@ -74,3 +74,5 @@ CREATE POLICY "story_views: insert own"
   ON public.story_views FOR INSERT
   TO authenticated
   WITH CHECK (viewer_id = auth.uid());
+
+NOTIFY pgrst, 'reload schema';

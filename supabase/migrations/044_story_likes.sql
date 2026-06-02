@@ -38,3 +38,5 @@ CREATE POLICY "story_likes: delete own"
   ON public.story_likes FOR DELETE
   TO authenticated
   USING (liker_id = auth.uid());
+
+NOTIFY pgrst, 'reload schema';

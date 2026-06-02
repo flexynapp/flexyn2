@@ -70,3 +70,5 @@ DO $$ BEGIN
       USING (bucket_id = 'uploads');
   END IF;
 END $$;
+
+NOTIFY pgrst, 'reload schema';

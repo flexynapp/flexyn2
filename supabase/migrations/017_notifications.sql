@@ -71,3 +71,5 @@ DO $$ BEGIN
 END $$;
 
 GRANT SELECT, INSERT, UPDATE ON public.notifications TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

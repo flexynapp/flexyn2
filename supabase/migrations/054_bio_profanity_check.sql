@@ -99,3 +99,5 @@ CREATE TRIGGER trg_bio_profanity
   BEFORE UPDATE OF bio ON public.user_profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_bio_profanity();
+
+NOTIFY pgrst, 'reload schema';

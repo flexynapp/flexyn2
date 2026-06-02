@@ -5,3 +5,5 @@
 
 ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS overlay_text TEXT;
 ALTER TABLE public.stories ADD COLUMN IF NOT EXISTS media_type   TEXT NOT NULL DEFAULT 'image';
+
+NOTIFY pgrst, 'reload schema';

@@ -255,8 +255,14 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         // Guard against offsetWidth === 0 (container not yet laid out,
         // or hidden via display:none mid-animation). Without the
         // fallback the centerOffset goes negative and the reel parks
-        // off-screen.
-        const containerWidth = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
+        // off-screen. Also clamp against absurdly small or large
+        // widths — a corrupt layout pass under heavy CSS load on
+        // low-end Android has been observed returning offsetWidth=1.
+        // 200..1200 covers every realistic mobile + desktop modal
+        // width; outside that we fall back to the 400 default that
+        // matches the modal's max-w-lg constraint.
+        const rawWidth = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
+        const containerWidth = (rawWidth >= 200 && rawWidth <= 1200) ? rawWidth : 400;
         const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
         const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
 
@@ -483,6 +489,13 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         exit={{ scale: 0.85, opacity: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 25 }}
       >
+        {/* Single StarField — keep this as the only render site for
+            the twinkling background. Adding a second instance to the
+            backdrop or any nested panel doubles the visual particle
+            count and pegs the GPU on low-end Android, which audit
+            sweeps have flagged historically. The starfield's z-index
+            already covers the full panel; reading both layers as
+            overlapping stars was the original concern. */}
         <StarField />
 
         {/* Header */}

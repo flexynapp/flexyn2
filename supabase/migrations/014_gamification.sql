@@ -70,3 +70,5 @@ DO $$ BEGIN
 END $$;
 
 GRANT SELECT, INSERT, UPDATE ON public.user_daily_quests TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

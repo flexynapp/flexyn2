@@ -84,3 +84,5 @@ $$;
 
 GRANT EXECUTE ON FUNCTION get_people_you_may_know(TEXT, INT) TO authenticated;
 GRANT EXECUTE ON FUNCTION get_people_you_may_know(TEXT, INT) TO service_role;
+
+NOTIFY pgrst, 'reload schema';

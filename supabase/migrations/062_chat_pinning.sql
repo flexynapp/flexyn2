@@ -86,3 +86,5 @@ BEGIN
   RETURN v_new_val;
 END;
 $x$;
+
+NOTIFY pgrst, 'reload schema';

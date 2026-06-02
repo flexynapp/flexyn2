@@ -65,3 +65,5 @@ CREATE POLICY "status_note_likes_select" ON public.status_note_likes
   FOR SELECT USING (true);
 CREATE POLICY "status_note_likes_manage" ON public.status_note_likes
   FOR ALL USING (liker_id = auth.uid());
+
+NOTIFY pgrst, 'reload schema';

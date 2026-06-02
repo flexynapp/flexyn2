@@ -112,3 +112,5 @@ DROP POLICY IF EXISTS "xp_claims_select" ON crew_xp_claims;
 CREATE POLICY "xp_claims_select" ON crew_xp_claims FOR SELECT USING (user_id = auth.uid());
 DROP POLICY IF EXISTS "xp_claims_insert" ON crew_xp_claims;
 CREATE POLICY "xp_claims_insert" ON crew_xp_claims FOR INSERT WITH CHECK (user_id = auth.uid());
+
+NOTIFY pgrst, 'reload schema';

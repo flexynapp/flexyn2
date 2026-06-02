@@ -163,3 +163,5 @@ CREATE INDEX IF NOT EXISTS crew_war_contributions_war_user_idx
   ON crew_war_contributions (war_id, user_id);
 
 -- ── Done ──────────────────────────────────────────────────────────────────────
+
+NOTIFY pgrst, 'reload schema';

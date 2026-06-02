@@ -241,3 +241,5 @@ CREATE INDEX IF NOT EXISTS idx_marketplace_seller_email    ON marketplace_listin
     🎁 Premium (uncommon) — Earned at level multiples of 5
     💠 Elite   (epic)     — Earned at level multiples of 10
 */
+
+NOTIFY pgrst, 'reload schema';

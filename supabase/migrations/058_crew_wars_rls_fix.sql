@@ -44,3 +44,5 @@ CREATE POLICY "crew_wars_update"
       )
     )
   );
+
+NOTIFY pgrst, 'reload schema';

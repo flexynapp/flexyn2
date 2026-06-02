@@ -34,3 +34,5 @@ CREATE POLICY "duels_participants"
   FOR ALL
   USING  (auth.uid() = challenger_id OR auth.uid() = opponent_id)
   WITH CHECK (auth.uid() = challenger_id OR auth.uid() = opponent_id);
+
+NOTIFY pgrst, 'reload schema';

@@ -127,3 +127,5 @@ END $$;
 
 GRANT SELECT, INSERT, UPDATE ON public.leagues          TO authenticated;
 GRANT SELECT, INSERT, UPDATE ON public.league_members   TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

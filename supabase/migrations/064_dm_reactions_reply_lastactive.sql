@@ -66,3 +66,5 @@ ALTER TABLE hub_messages
 -- ③ last_active_at on user_profiles
 ALTER TABLE user_profiles
   ADD COLUMN IF NOT EXISTS last_active_at TIMESTAMPTZ;
+
+NOTIFY pgrst, 'reload schema';

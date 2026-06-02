@@ -28,3 +28,5 @@ CREATE POLICY "injury_logs_own"
   FOR ALL
   USING  (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+NOTIFY pgrst, 'reload schema';

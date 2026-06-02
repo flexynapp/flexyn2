@@ -92,6 +92,19 @@ export default function DailyQuestsCard({ onNavigated }) {
       // failed claim still buzzed and felt like a successful reward.
       if (result?.success) triggerHaptic('primary');
       await handleClaimResult(result, questRow);
+    } catch (err) {
+      // Catch the promise rejection so a network blip or RPC throw
+      // doesn't surface as an unhandled-rejection in the console
+      // (which then becomes a Sentry noise event with no context).
+      // The user toast keeps the error visible; reportError tags it
+      // with feature + quest id for ops.
+      reportError(err, {
+        feature: 'dashboard.quest-claim',
+        level: 'warning',
+        userEmail: user?.email,
+        questId: questRow.id,
+      });
+      toast.error(t('dashboard.claimError'));
     } finally {
       claimingRef.current.delete(questRow.id);
     }

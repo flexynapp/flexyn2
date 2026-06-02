@@ -120,3 +120,5 @@ GRANT EXECUTE ON FUNCTION public.increment_copy_count(text, uuid) TO authenticat
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon;
+
+NOTIFY pgrst, 'reload schema';

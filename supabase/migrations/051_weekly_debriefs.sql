@@ -45,3 +45,5 @@ CREATE POLICY "weekly_debriefs_service_role_all"
 --   ALTER DATABASE postgres SET app.debrief_func_url = 'https://<ref>.functions.supabase.co/generateWeeklyDebriefs';
 --   ALTER DATABASE postgres SET app.debrief_cron_secret = '<secret>';
 -- These are set separately via the apply_051_cron.sql helper below.
+
+NOTIFY pgrst, 'reload schema';

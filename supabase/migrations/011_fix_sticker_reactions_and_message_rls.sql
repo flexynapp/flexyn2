@@ -69,3 +69,5 @@ CREATE POLICY "hub_messages: update"
 CREATE POLICY "hub_messages: delete"
   ON public.hub_messages FOR DELETE
   USING (auth.email() = created_by OR auth.uid() = user_id);
+
+NOTIFY pgrst, 'reload schema';

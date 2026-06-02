@@ -54,3 +54,5 @@ CREATE POLICY "crew_war_contrib_own"
   ON public.crew_war_contributions FOR ALL
   USING  (auth.uid() = user_id)
   WITH CHECK (auth.uid() = user_id);
+
+NOTIFY pgrst, 'reload schema';

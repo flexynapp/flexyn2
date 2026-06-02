@@ -49,3 +49,5 @@ BEGIN
     ALTER TABLE public.user_profiles ADD COLUMN nemesis_opt_out BOOLEAN NOT NULL DEFAULT FALSE;
   END IF;
 END $$;
+
+NOTIFY pgrst, 'reload schema';

@@ -89,3 +89,5 @@ CREATE TRIGGER trg_username_profanity
   BEFORE INSERT OR UPDATE OF username ON public.user_profiles
   FOR EACH ROW
   EXECUTE FUNCTION public.enforce_username_profanity();
+
+NOTIFY pgrst, 'reload schema';

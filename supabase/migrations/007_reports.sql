@@ -62,3 +62,5 @@ CREATE POLICY "bug_reports_insert" ON public.bug_reports
 -- ── Permissions ───────────────────────────────────────────────────────────────
 GRANT SELECT, INSERT ON public.hub_reports TO authenticated;
 GRANT SELECT, INSERT ON public.bug_reports TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

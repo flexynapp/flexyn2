@@ -89,3 +89,5 @@ ALTER TABLE public.nutrition_logs
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated, anon;
+
+NOTIFY pgrst, 'reload schema';

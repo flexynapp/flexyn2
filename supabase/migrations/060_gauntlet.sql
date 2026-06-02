@@ -278,3 +278,5 @@ VALUES (
   'active'
 )
 ON CONFLICT DO NOTHING;
+
+NOTIFY pgrst, 'reload schema';

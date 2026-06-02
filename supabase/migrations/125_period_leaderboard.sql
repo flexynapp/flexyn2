@@ -133,3 +133,5 @@ $get_period_leaderboard$;
 
 REVOKE ALL ON FUNCTION public.get_period_leaderboard(TEXT, TEXT, INT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.get_period_leaderboard(TEXT, TEXT, INT) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

@@ -15,3 +15,5 @@ ALTER TABLE journal_entries
 -- ALTER DEFAULT PRIVILEGES set in migration 085, but explicit grant
 -- here keeps the migration self-contained for replay scenarios).
 GRANT SELECT, INSERT, UPDATE ON journal_entries TO service_role;
+
+NOTIFY pgrst, 'reload schema';

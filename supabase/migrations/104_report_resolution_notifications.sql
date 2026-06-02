@@ -174,3 +174,5 @@ CREATE TRIGGER trg_notify_report_resolved
   AFTER UPDATE OF status ON public.hub_reports
   FOR EACH ROW
   EXECUTE FUNCTION public.notify_report_resolved();
+
+NOTIFY pgrst, 'reload schema';

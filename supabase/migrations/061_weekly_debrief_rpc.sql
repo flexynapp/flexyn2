@@ -192,3 +192,5 @@ BEGIN
   );
 END;
 $x$;
+
+NOTIFY pgrst, 'reload schema';
