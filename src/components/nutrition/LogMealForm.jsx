@@ -127,11 +127,18 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
   const handleLog = () => {
     if (submittingRef.current || isLogging) return;
     if (hasAnyProfanity(newEntry.food_name)) {
-      toast.error('Please remove inappropriate language from food name before saving.');
+      toast.error(t('nutrition.profanityWarning') || 'Please remove inappropriate language from food name before saving.');
       return;
     }
     submittingRef.current = true;
-    onLog();
+    try {
+      onLog();
+    } catch (err) {
+      // Reset the in-flight guard if onLog throws synchronously —
+      // otherwise the user can never retry without remounting.
+      submittingRef.current = false;
+      throw err;
+    }
   };
 
   const slideVariants = {

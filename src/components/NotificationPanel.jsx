@@ -100,10 +100,11 @@ export default function NotificationPanel({ open, onClose }) {
   }, [open, onClose]);
 
   const handleRowClick = (n) => {
-    if (n.link_url) {
-      onClose();
-      navigate(n.link_url);
-    }
+    // Fire markRead BEFORE navigating so the cache invalidation
+    // queues even if the navigation causes this component to unmount.
+    // The promise itself still runs to completion either way, but the
+    // .then() callback can be skipped by React when the originating
+    // component is gone.
     if (!n.is_read) {
       notifications.markRead(n.id)
         .then(() => queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user?.id] }))
@@ -113,6 +114,10 @@ export default function NotificationPanel({ open, onClose }) {
           userEmail: user?.email,
           notificationId: n.id,
         }));
+    }
+    if (n.link_url) {
+      onClose();
+      navigate(n.link_url);
     }
   };
 

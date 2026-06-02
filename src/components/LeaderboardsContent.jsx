@@ -97,9 +97,10 @@ export default function LeaderboardsContent({ active = true }) {
   const ranked = useMemo(() => {
     // Period-scoped path — server-side aggregation via the RPC.
     if (periodScoped) {
+      const periodSuffix = period === 'weekly' ? '/wk' : '/mo';
       const formatValue = activeBoard === 'volume'
-        ? v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}`
-        : v => `${formatNum(v)} ${activeBoard === 'level' ? (period === 'weekly' ? 'vol/wk' : 'vol/mo') : ''}`;
+        ? v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`
+        : v => `${formatNum(v)} XP${periodSuffix}`;
       return periodRows
         .filter(r => Number(r.value) > 0)
         .map((r, idx) => {

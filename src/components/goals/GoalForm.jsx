@@ -116,7 +116,8 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         notes,
       });
     } else if (goalType === 'cardio_distance') {
-      if (!cardioDistanceInput || Number(cardioDistanceInput) <= 0) {
+      const dist = Number(cardioDistanceInput);
+      if (!cardioDistanceInput || !Number.isFinite(dist) || dist <= 0) {
         toast.error(t('goals.targetRequired'));
         return;
       }
@@ -145,7 +146,8 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
         notes,
       });
     } else if (goalType === 'cardio_sessions') {
-      if (!cardioSessions || Number(cardioSessions) <= 0) {
+      const sess = Number(cardioSessions);
+      if (!cardioSessions || !Number.isFinite(sess) || sess <= 0) {
         toast.error(t('goals.targetRequired'));
         return;
       }

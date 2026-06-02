@@ -62,6 +62,11 @@ function isIosSafariNotInstalled() {
     (typeof window.matchMedia === 'function' && window.matchMedia('(display-mode: standalone)').matches);
   if (isStandalone) return false;
 
+  // Without a service worker the "install" produces a degraded PWA
+  // (no offline support, no push notifications). Don't prompt the
+  // user to install something half-baked.
+  if (!('serviceWorker' in navigator)) return false;
+
   return true;
 }
 

@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { Flame, Apple } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
+import { useLanguage } from '@/lib/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
@@ -44,6 +45,7 @@ function MacroBar({ label, consumed, goal, color }) {
 
 export default function CalorieProgressWidget({ userProfile = {} }) {
   const { user } = useAuth();
+  const { tFallback } = useLanguage();
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
 
@@ -100,7 +102,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             <div className="w-7 h-7 rounded-lg bg-orange-500/10 flex items-center justify-center">
               <Flame className="w-3.5 h-3.5 text-orange-500" />
             </div>
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Calories</span>
+            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">{tFallback('calories.kicker', 'Calories')}</span>
           </div>
           <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
             <Apple className="w-3 h-3" />
@@ -110,7 +112,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             <span>{todayLogs.filter(l => {
               const name = l.food_name || '';
               return name !== 'Water' && !name.startsWith('Water|');
-            }).length} logged</span>
+            }).length} {tFallback('calories.logged', 'logged')}</span>
           </div>
         </div>
 
@@ -120,7 +122,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             {overBudget ? '+' : ''}{overBudget ? Math.round(totals.calories - calorieGoal) : remaining}
           </span>
           <span className="text-sm text-muted-foreground">
-            {overBudget ? 'over budget' : 'kcal remaining'}
+            {overBudget ? tFallback('calories.overBudget', 'over budget') : tFallback('calories.remaining', 'kcal remaining')}
           </span>
         </div>
 
@@ -134,26 +136,26 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
           />
         </div>
         <div className="flex justify-between text-[10px] text-muted-foreground mb-3">
-          <span>{Math.round(totals.calories)} eaten</span>
-          <span>{calorieGoal} goal</span>
+          <span>{Math.round(totals.calories)} {tFallback('calories.eaten', 'eaten')}</span>
+          <span>{calorieGoal} {tFallback('calories.goal', 'goal')}</span>
         </div>
 
         {/* Macro row */}
         <div className="flex gap-3">
           <MacroBar
-            label="Protein"
+            label={tFallback('macros.protein', 'Protein')}
             consumed={totals.protein_g}
             goal={goals.protein_g || 150}
             color="bg-red-500"
           />
           <MacroBar
-            label="Carbs"
+            label={tFallback('macros.carbs', 'Carbs')}
             consumed={totals.carbs_g}
             goal={goals.carbs_g || 200}
             color="bg-amber-500"
           />
           <MacroBar
-            label="Fat"
+            label={tFallback('macros.fat', 'Fat')}
             consumed={totals.fat_g}
             goal={goals.fat_g || 65}
             color="bg-blue-500"
