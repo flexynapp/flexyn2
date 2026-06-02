@@ -108,11 +108,20 @@ function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix 
 function Sparkline({ values, color = '#fff', height = 32 }) {
   const W = 140;
   const H = height;
-  if (!Array.isArray(values) || values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  // Filter to finite values BEFORE the length check — a corrupt PR
+  // history with embedded NaN would otherwise make min/max NaN,
+  // turn trueRange into NaN, and propagate NaN through every point's
+  // y coordinate. Length must STILL be ≥2 after filtering for the
+  // line to be meaningful.
+  const finiteValues = Array.isArray(values) ? values.filter(v => Number.isFinite(v)) : [];
+  if (finiteValues.length < 2) return null;
+  const min = Math.min(...finiteValues);
+  const max = Math.max(...finiteValues);
   const trueRange = max - min;
-  const stepX = W / (values.length - 1);
+  // values.length - 1 is guaranteed ≥ 1 by the filter above; stepX
+  // stays finite. Belt-and-suspenders: clamp to W if the divisor
+  // somehow degenerates to 0 in a future refactor.
+  const stepX = finiteValues.length > 1 ? W / (finiteValues.length - 1) : W;
   const pad = 4;
   // When every value is identical (steady plateau — e.g. user has
   // bench-pressed 185 lb for 8 sessions in a row), the original
@@ -121,7 +130,9 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
   // actually a flat line. Wave 59 code review caught this. Centerline
   // is the honest render of an all-identical series.
   const midY = H / 2;
-  const points = values.map((v, i) => {
+  // Map the filtered (finite-only) value set so the point coordinates
+  // stay aligned to the actual rendered line.
+  const points = finiteValues.map((v, i) => {
     const x = i * stepX;
     const y = trueRange === 0
       ? midY

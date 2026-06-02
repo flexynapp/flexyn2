@@ -9,6 +9,13 @@
 // goal stored on user_profiles. For now, the goal is hardcoded — a
 // universal-recommendation starting point that 95% of users won't
 // argue with.
+//
+// Hydration uses brand cyan as the single accent — it's the
+// universal "water" semantic and stays the same color across themes
+// (a green hydration ring would read as fertility or money). The
+// HEX_HYDRATION constant + cyan-{400,500} Tailwind utilities are
+// kept in sync; updating one means updating both.
+const HEX_HYDRATION = '#06b6d4'; // matches Tailwind's cyan-500
 
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
@@ -135,7 +142,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
               <motion.circle
                 cx={SIZE / 2} cy={SIZE / 2} r={RADIUS}
                 fill="none"
-                stroke="#06b6d4"
+                stroke={HEX_HYDRATION}
                 strokeWidth={STROKE}
                 strokeLinecap="round"
                 strokeDasharray={CIRC}

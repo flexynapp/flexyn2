@@ -65,7 +65,11 @@ export default function LeagueCard({ onClick }) {
   // Default totalMembers to the loaded members.length so the "rank / N"
   // line never renders "/undefined" or "/0" when the RPC omits the count.
   const totalMembers = Number(data.totalMembers) || members.length || 0;
-  const me = members.find(m => m && m.user_id === user.id);
+  // user?.id (optional-chained) — the line `members.find` runs after
+  // the early-return guard for `!user?.id` above, but a future
+  // refactor that moves this code OR introduces a null-user render
+  // path would crash on bare user.id access. Defensive belt.
+  const me = members.find(m => m && m.user_id === user?.id);
   const myXp = me?.weekly_xp || 0;
 
   // Days left in the week. Guard against missing week_end — without
@@ -103,7 +107,16 @@ export default function LeagueCard({ onClick }) {
             <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
             <div className="flex-1 min-w-0">
               <p className="text-[8px] font-bold uppercase tracking-wider opacity-90 leading-tight">
-                {tier.label ? `${tier.label} ` : ''}{tFallback('league.leagueSuffix', 'League')}
+                {/* Composed via a vars-aware tFallback key so
+                    translators control the word order. Spanish would
+                    render "Liga Bronce", Japanese "ブロンズリーグ",
+                    Arabic right-to-left etc. The English fallback uses
+                    "Bronze League" but the {tier} {label} order is the
+                    translator's call. When no tier label is known we
+                    fall back to the bare "League" word. */}
+                {tier.label
+                  ? tFallback('league.tierName', '{tier} League', { tier: tier.label })
+                  : tFallback('league.leagueSuffix', 'League')}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

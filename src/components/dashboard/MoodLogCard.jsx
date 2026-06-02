@@ -118,6 +118,11 @@ export default function MoodLogCard() {
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
           {(() => {
             if (!current) return tFallback('mood.prompt', 'How are you feeling?');
+            // `safe` is clamped 1-5 above, MOOD_LABELS has 5 entries,
+            // so MOOD_LABELS[safe - 1] is always defined under normal
+            // flow. The `|| 'Logged'` defensive fallback handles only
+            // the corrupt-import case where MOOD_LABELS came back
+            // empty / undefined.
             const safe = Math.max(1, Math.min(5, Math.round(current)));
             return tFallback(`mood.label.${safe}`, MOOD_LABELS[safe - 1] || 'Logged');
           })()}
@@ -140,15 +145,19 @@ export default function MoodLogCard() {
                 aria-checked={isActive}
                 aria-label={tFallback(`mood.label.${mood}`, MOOD_LABELS[i] || `Mood ${mood}`)}
                 // min-w-[44px] min-h-[44px] hits the iOS HIG accessible
-                // touch target (the previous max-w-8 = 32px was below
-                // the threshold and led to mistaps between adjacent
-                // emoji on narrow screens).
+                // touch target. opacity-70 baseline reads on mobile
+                // where there's no hover state (the prior opacity-60 +
+                // hover-only opacity-100 left mobile users with a
+                // permanently-faded row). animate-pulse honors the
+                // motion-reduce media query so vestibular-sensitive
+                // users don't get a 700ms cycle while the save's in
+                // flight — they still see the disabled-button signal.
                 className={[
                   'flex-1 aspect-square min-w-[44px] min-h-[44px] max-w-11 rounded-full text-base transition-transform flex items-center justify-center',
                   isActive
                     ? 'bg-primary/15 scale-110'
-                    : 'opacity-60 hover:opacity-100 hover:scale-110',
-                  isBusy ? 'animate-pulse' : '',
+                    : 'opacity-70 hover:opacity-100 hover:scale-110',
+                  isBusy ? 'animate-pulse motion-reduce:animate-none' : '',
                 ].join(' ')}
               >
                 <span aria-hidden="true">{emoji}</span>

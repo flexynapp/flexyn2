@@ -798,7 +798,22 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
 
       {/* Action row */}
       <div className="flex items-center gap-3 px-6 py-5 bg-black" style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
-        <button onClick={onCancel} disabled={uploading} className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40">Cancel</button>
+        <button
+          onClick={() => {
+            // Grace check — if the user has done any editing
+            // (drawings or overlay text/emoji), ask before discarding.
+            // Previously Cancel was a one-tap drop with no undo, so a
+            // mistap on the editor's edge erased minutes of work.
+            const hasUnsaved = overlays.length > 0 || strokes.length > 0;
+            if (hasUnsaved && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+              const ok = window.confirm('Discard your edits?');
+              if (!ok) return;
+            }
+            onCancel?.();
+          }}
+          disabled={uploading}
+          className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40"
+        >Cancel</button>
         <motion.button whileTap={{ scale: 0.96 }} onClick={handleConfirm} disabled={uploading}
           className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
           {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Posting…</> : 'Post Story'}

@@ -21,12 +21,19 @@ import { getTodaySleepLog } from '@/lib/data/sleepLogs';
 import { getTodayMoodLog } from '@/lib/data/moodLogs';
 import { parseLocalDate } from '@/lib/dateUtils';
 
+// Readiness uses a fixed traffic-light palette across themes — green
+// = trained / ready, amber = moderate, red = depleted. Hex strokes
+// kept in sync with the Tailwind utility classes that render the
+// surrounding bg/border/text (each row's `ring` hex == the tailwind
+// {emerald,green,amber,orange,rose}-500 default). If the project
+// ever exposes --readiness-{primed,ready,moderate,tired,depleted}
+// CSS vars, swap these to var() refs without changing the JSX.
 const COLOR_BY_LABEL = {
-  Primed:    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500', ring: '#10b981' },
-  Ready:     { bg: 'bg-green-500/10',   border: 'border-green-500/30',   text: 'text-green-500',   ring: '#22c55e' },
-  Moderate:  { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   text: 'text-amber-500',   ring: '#f59e0b' },
-  Tired:     { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-500',  ring: '#fb923c' },
-  Depleted:  { bg: 'bg-rose-500/10',    border: 'border-rose-500/30',    text: 'text-rose-500',    ring: '#f43f5e' },
+  Primed:    { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-500', ring: '#10b981' /* emerald-500 */ },
+  Ready:     { bg: 'bg-green-500/10',   border: 'border-green-500/30',   text: 'text-green-500',   ring: '#22c55e' /* green-500 */ },
+  Moderate:  { bg: 'bg-amber-500/10',   border: 'border-amber-500/30',   text: 'text-amber-500',   ring: '#f59e0b' /* amber-500 */ },
+  Tired:     { bg: 'bg-orange-500/10',  border: 'border-orange-500/30',  text: 'text-orange-500',  ring: '#fb923c' /* orange-400 */ },
+  Depleted:  { bg: 'bg-rose-500/10',    border: 'border-rose-500/30',    text: 'text-rose-500',    ring: '#f43f5e' /* rose-500 */ },
 };
 
 // Each label maps to its English fallback + an i18n key that the
