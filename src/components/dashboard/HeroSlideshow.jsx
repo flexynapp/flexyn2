@@ -622,11 +622,15 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // isn't on the brand-new-user `path`. Achievements rotate behind it
   // every 10s. (Was previously a mutually-exclusive fallback layout —
   // a 5K milestone from 15 days ago would hide the streak entirely.)
+  // Coerce streak to a finite number — a corrupt profile column or a
+  // prop that drifts to undefined would otherwise render `NaN day
+  // streak` in the lead slide.
+  const safeStreak = Number.isFinite(Number(streak)) ? Number(streak) : 0;
   const streakSlide = mode !== 'path' ? {
     id: 'streak',
     kind: 'streak',
     color: '20 95% 55%', // warm orange — the brand
-    streak,
+    streak: safeStreak,
     hasWorkedOutToday,
     daysSinceLast,
   } : null;

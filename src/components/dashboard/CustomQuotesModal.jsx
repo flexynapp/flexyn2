@@ -140,7 +140,15 @@ export default function CustomQuotesModal({ open, onClose }) {
                   {tFallback('quotes.emptyState', 'No custom quotes yet — add one above and it’ll join your daily rotation.')}
                 </p>
               ) : (
-                quotes.map((q) => (
+                quotes
+                  // Filter rows without a stable id — react-key
+                  // collisions on `undefined` ids would lose the
+                  // animation state on duplicates AND make the
+                  // remove button send `undefined` to the RPC,
+                  // which would 400. The data layer SHOULD always
+                  // return ids; this is defensive against future drift.
+                  .filter(q => q && q.id != null)
+                  .map((q) => (
                   <div key={q.id} className="flex items-start gap-2 p-3 rounded-lg border border-border/60 bg-background/40">
                     <div className="flex-1 min-w-0">
                       <p className="text-sm leading-snug break-words">“{q.text}”</p>

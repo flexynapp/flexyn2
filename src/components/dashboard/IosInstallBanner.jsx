@@ -73,9 +73,19 @@ function isIosSafariNotInstalled() {
 export default function IosInstallBanner() {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
-  const [dismissed, setDismissed] = useState(true);
-  const [eligible, setEligible] = useState(false);
+  // Both initial states evaluate synchronously off localStorage so the
+  // banner DECISION is made on first render — no one-frame flash of
+  // 'shown then hidden' when the dismissed flag is read in an effect.
+  // The auth-resolved branch then refines `dismissed` to the per-user
+  // key once user.id arrives (the anon prefix is the conservative
+  // pre-auth default).
+  const [eligible, setEligible] = useState(() => {
+    try { return isIosSafariNotInstalled(); } catch { return false; }
+  });
+  const [dismissed, setDismissed] = useState(() => readDismissed(undefined));
 
+  // No-op effect kept as a future hook for re-running detection on
+  // visibility change if the user installs the PWA mid-session.
   useEffect(() => {
     setEligible(isIosSafariNotInstalled());
   }, []);

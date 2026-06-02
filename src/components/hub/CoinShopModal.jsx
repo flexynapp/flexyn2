@@ -6,7 +6,7 @@
 //
 // Marketplace remains player-to-player. This is the system shop.
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Coins, X, Lock, Loader2 } from 'lucide-react';
@@ -35,6 +35,14 @@ export default function CoinShopModal({ open, onClose }) {
   const queryClient = useQueryClient();
   const fmt = useNumberFormatter();
   const [busySku, setBusySku] = useState(null);
+
+  // Reset busySku when the modal closes — without this, a purchase
+  // that the user dismissed mid-flight (close X, escape, backdrop tap)
+  // left busySku pinned to the SKU. Reopening the modal showed the
+  // spinner still spinning on a stale state with no way to retry.
+  useEffect(() => {
+    if (!open) setBusySku(null);
+  }, [open]);
 
   // Admin bypass — skip RPC (which validates real DB balance) and directly grant
   const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || '';

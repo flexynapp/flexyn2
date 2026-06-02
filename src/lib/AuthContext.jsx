@@ -214,6 +214,16 @@ export function AuthProvider({ children }) {
 
     setUser(null);
     setIsAuthenticated(false);
+    // Clear React Query cache so any in-flight requests under the OLD
+    // user's email key (workoutLogs, notifications, etc.) don't
+    // resolve and surface previous-account data when the next user
+    // signs in on the same device. clearQueryCache is the wrapper
+    // around queryClientInstance.clear() so we don't have to import
+    // the QueryClient instance directly here.
+    try {
+      const { clearQueryCache } = await import('@/lib/query-client');
+      clearQueryCache();
+    } catch { /* ignore — best-effort */ }
     try {
       await supabase.auth.signOut();
     } finally {

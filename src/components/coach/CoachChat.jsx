@@ -68,6 +68,18 @@ export default function CoachChat() {
   // while listening. Captures one phrase per tap (not continuous).
   const [voiceListening, setVoiceListening] = useState(false);
   const voiceSessionRef = useRef(null);
+  // If the user changes the app language while a voice session is
+  // active, stop the in-flight recognizer so the next phrase isn't
+  // transcribed against the previous BCP-47 tag. The user can tap
+  // the mic again to restart in the new language.
+  useEffect(() => {
+    if (voiceListening && voiceSessionRef.current) {
+      try { voiceSessionRef.current.stop(); } catch { /* ignore */ }
+      voiceSessionRef.current = null;
+      setVoiceListening(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [language]);
   const handleVoiceTap = () => {
     if (voiceListening) {
       voiceSessionRef.current?.stop();

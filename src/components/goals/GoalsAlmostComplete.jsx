@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
@@ -214,14 +214,34 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
   // claimingRef. Set-of-ids so multiple goals can be in flight
   // simultaneously without contending.
   const completingRef = useRef(new Set());
+  // Clear the ref entirely on unmount so a remount (account switch,
+  // route change) starts with a clean slate — the prior instance's
+  // 'in-flight' bookkeeping would otherwise leak to the new instance.
+  useEffect(() => () => {
+    completingRef.current.clear();
+  }, []);
   const handleComplete = (goalId) => {
     if (completingRef.current.has(goalId)) return;
     completingRef.current.add(goalId);
     setCompletingId(goalId);
     completeMutation.mutate(goalId, {
+      // onSettled fires after BOTH success and error — but if the
+      // mutation throws synchronously before queuing, neither path
+      // runs and the ref stays stuck. Wrap in try/catch around the
+      // .mutate() to release the guard for that edge.
       onSettled: () => { completingRef.current.delete(goalId); },
     });
   };
+  // Failsafe: if mutate throws synchronously (rare — should always
+  // queue), the onSettled never fires. Listen for the mutation's
+  // own isPending transition to false as a secondary release path.
+  useEffect(() => {
+    if (!completeMutation.isPending && completingRef.current.size > 0 && !completeMutation.isLoading) {
+      // Mutation is no longer in flight — let any goals still
+      // marked in-flight be retried on next tap.
+      completingRef.current.clear();
+    }
+  }, [completeMutation.isPending, completeMutation.isLoading]);
 
   if (almostCompleteGoals.length === 0) {
     return null;

@@ -3,7 +3,7 @@
 // sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
@@ -77,8 +77,17 @@ export default function Hub() {
   //   ?search=open     — open the user-search overlay (empty-state CTAs)
   //   ?profile=<email> — open a profile (used by Dashboard stories tray
   //                      when tapping a no-story friend avatar)
+  //
+  // `?profile=` is handled at two layers: the synchronous useState
+  // initializer above (which makes the FIRST render land on the right
+  // section / target so we avoid a one-frame feed → profile flash),
+  // and the effect below (which strips the param so a back-nav doesn't
+  // re-fire). Track the initial-load value so the effect knows it has
+  // already been consumed at mount and only re-applies on a SECOND
+  // ?profile= deep-link that lands while Hub is already open.
   // ?bag=open is no longer handled here; callers use OPEN_BAG_EVENT
   // (see StatsHubModal "Bag & Capsules" tile).
+  const consumedInitialProfileRef = useRef(false);
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     let changed = false;
@@ -94,8 +103,16 @@ export default function Hub() {
     }
     const profileEmail = params.get('profile');
     if (profileEmail) {
-      setProfileTarget({ email: decodeURIComponent(profileEmail) });
-      setSection('profile');
+      // The first effect pass after mount lines up with the
+      // synchronous useState init — don't double-apply. The param
+      // still needs to be stripped from the URL, so we set
+      // `changed` and let the navigate() below clean it.
+      if (!consumedInitialProfileRef.current) {
+        consumedInitialProfileRef.current = true;
+      } else {
+        setProfileTarget({ email: decodeURIComponent(profileEmail) });
+        setSection('profile');
+      }
       params.delete('profile');
       changed = true;
     }

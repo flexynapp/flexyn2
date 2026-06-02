@@ -285,6 +285,11 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
       if (!blob) return;
       const file = new File([blob], `flexyn-recap-${Date.now()}.png`, { type: 'image/png' });
       // Web Share API with file support (modern Chrome / Safari iOS 15+).
+      // Safari <15 has navigator.share but NOT navigator.canShare — the
+      // file-share attempt throws synchronously there. The full triple-
+      // check (share + canShare + canShare({files})) routes those
+      // older Safari builds straight to the download fallback below
+      // instead of attempting a share that will reject.
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
         try {
           await navigator.share({

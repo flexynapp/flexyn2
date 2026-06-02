@@ -189,9 +189,40 @@ export default function NotificationPanel({ open, onClose }) {
   // "All" shows everything; "Friends" filters to types where a real
   // human triggered the row. Two tabs is the ceiling — anything more
   // would duplicate the per-category prefs in Settings.
+  // Rows with an unknown type (a future server-side notification
+  // category that hasn't been added to FRIEND_TYPES yet) still appear
+  // under "All" so users never miss messages, and the row icon falls
+  // back to the 🔔 default — but we tag the unknown type via a Sentry
+  // breadcrumb so observability flags the catalog drift before users
+  // start asking why their alert has no icon.
   const filteredRows = tab === 'friends'
     ? rows.filter(r => FRIEND_TYPES.has(r.type))
     : rows;
+  useEffect(() => {
+    if (!open || rows.length === 0) return;
+    const ALL_KNOWN_TYPES = new Set([
+      ...FRIEND_TYPES,
+      // Self-targeted / system categories — kept inline so the audit
+      // surface is just THIS file. Adding a new server-side type means
+      // also adding it here (or to FRIEND_TYPES if it's social).
+      'quest_claimed', 'streak_milestone', 'league_promoted', 'league_demoted',
+      'league_held', 'pr_set', 'capsule_earned', 'streak_break_warning',
+      'welcome_back', 'quest_expiry_warning', 'gauntlet_completed',
+      'streak_rescue_available', 'weekly_gauntlet_started',
+    ]);
+    const unknown = new Set();
+    for (const r of rows) {
+      if (r?.type && !ALL_KNOWN_TYPES.has(r.type)) unknown.add(r.type);
+    }
+    if (unknown.size > 0) {
+      import('@/lib/reportError').then(({ reportError }) => {
+        reportError(new Error(`Unmapped notification types: ${[...unknown].join(', ')}`), {
+          feature: 'notifications.unmappedType',
+          level: 'info',
+        });
+      }).catch(() => {});
+    }
+  }, [open, rows]);
 
   const hasUnread = rows.some(r => !r.is_read);
   const hasAny    = rows.length > 0;

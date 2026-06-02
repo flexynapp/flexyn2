@@ -64,6 +64,16 @@ export default function LeaderboardsContent({ active = true }) {
   // total_* columns. Boards that don't have a time-scoped definition
   // (achievements, distance) are pinned to all-time regardless.
   const [period, setPeriod] = useState('alltime');
+  // Force period back to all-time when switching to a board that
+  // doesn't have a periodic definition (achievements, distance).
+  // Previously the period stayed at weekly/monthly under the hood,
+  // and switching back to a period-scoped board re-applied the last
+  // selection without a visible signal that the user had chosen it
+  // for a different board.
+  useEffect(() => {
+    const supportsPeriod = activeBoard === 'volume' || activeBoard === 'level';
+    if (!supportsPeriod && period !== 'alltime') setPeriod('alltime');
+  }, [activeBoard, period]);
   const periodScoped = period !== 'alltime' &&
     (activeBoard === 'volume' || activeBoard === 'level');
 
@@ -328,10 +338,20 @@ export default function LeaderboardsContent({ active = true }) {
                   </motion.div>
                 );
               })()}
-              {ranked.map((row, idx) => {
-                const podium = PODIUM_STYLE[idx];
-                const isMe = row.email === user?.email;
-                return (
+              {(() => {
+                // Suppress the user's row from the list when the
+                // sticky "Your rank" pill is rendered above — otherwise
+                // they appear twice (once in the pill, once at their
+                // actual position deep in the list). The user's row
+                // stays visible in podium positions (idx < 3) because
+                // the pill explicitly skips that range.
+                const myIdx = ranked.findIndex(r => r.email === user?.email);
+                const suppressMyRow = myIdx >= 3;
+                return ranked.map((row, idx) => {
+                  if (suppressMyRow && idx === myIdx) return null;
+                  const podium = PODIUM_STYLE[idx];
+                  const isMe = row.email === user?.email;
+                  return (
                   <motion.div
                     key={row.id}
                     initial={{ opacity: 0, x: -16 }}
@@ -359,7 +379,8 @@ export default function LeaderboardsContent({ active = true }) {
                     </Card>
                   </motion.div>
                 );
-              })}
+                });
+              })()}
               {ranked.length >= 100 ? (
                 <p className="text-xs text-center text-muted-foreground mt-4">
                   {t('leaderboards.top100Footer')}

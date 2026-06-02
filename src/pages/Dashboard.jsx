@@ -723,15 +723,35 @@ export default function Dashboard() {
     } catch { /* ignore */ }
   };
 
+  // Debounced localStorage write so rapid drags (framer-motion
+  // Reorder fires onReorder on every hover-cross during the drag,
+  // not just on drop) don't hammer localStorage 30x per second.
+  // The state update is still synchronous so the UI tracks the
+  // pointer immediately — only the persistence is throttled.
+  const reorderWriteTimerRef = useRef(null);
   const handleWidgetReorder = (newRowKeys) => {
-    // newRowKeys is a list of rowKeys. Map each back to its sections
-    // and flatten to the new widgetOrder. Hotdog pairs travel together
-    // (the user moved the row, not the individual section).
     const rowMap = Object.fromEntries(dashboardRows.map(r => [r.rowKey, r.sections]));
     const newOrder = newRowKeys.flatMap(k => rowMap[k] || []);
     setWidgetOrder(newOrder);
-    try { localStorage.setItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`, JSON.stringify(newOrder)); } catch {}
+    if (reorderWriteTimerRef.current) clearTimeout(reorderWriteTimerRef.current);
+    reorderWriteTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          `flexyn.dashWidgetOrder.${user?.id || 'anon'}`,
+          JSON.stringify(newOrder),
+        );
+      } catch { /* private mode / quota */ }
+      reorderWriteTimerRef.current = null;
+    }, 200);
   };
+  // Flush any pending reorder write on unmount so a quick drag +
+  // navigate away doesn't lose the final ordering.
+  useEffect(() => () => {
+    if (reorderWriteTimerRef.current) {
+      clearTimeout(reorderWriteTimerRef.current);
+      reorderWriteTimerRef.current = null;
+    }
+  }, []);
 
   // ── Deep-link query params ───────────────────────────────────────────────
   // Layout.jsx long-press shortcuts on the Progress tab navigate to:
@@ -770,6 +790,18 @@ export default function Dashboard() {
       return () => clearTimeout(timer);
     }
   }, [showWelcome]);
+
+  // Strip location.state.fromSplash after the first render so a
+  // back-nav to /dashboard from another page doesn't re-trigger the
+  // welcome banner. The state lingered in router history otherwise,
+  // surfacing the "Welcome back, <name>" message every time the user
+  // tab-navigated to home.
+  useEffect(() => {
+    if (location.state?.fromSplash) {
+      navigate(location.pathname + location.search, { replace: true, state: null });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Audit D-4 — best-effort reconcile pass. Fixes the case where a
   // workout INSERT landed but the increment_user_volume RPC never

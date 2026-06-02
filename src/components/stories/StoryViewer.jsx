@@ -265,7 +265,21 @@ export default function StoryViewer({
     }
     const nextFirst = groups[groupIdx + 1]?.stories?.[0];
     if (nextFirst && nextFirst.media_type !== 'video' && nextFirst.image_url) urls.push(nextFirst.image_url);
-    urls.forEach((u) => { const img = new Image(); img.src = u; });
+    // Track the preloaded Image instances so the cleanup can abort
+    // their in-flight decode + drop the references for the GC. Without
+    // this, advancing through a story tray quickly stacks N×4 Image
+    // objects on the heap before the browser eventually reclaims them
+    // — visible as a stutter on the next swipe on lower-end devices.
+    const preloaded = urls.map((u) => {
+      const img = new Image();
+      img.src = u;
+      return img;
+    });
+    return () => {
+      for (const img of preloaded) {
+        try { img.src = ''; } catch { /* ignore */ }
+      }
+    };
   }, [open, groupIdx, storyIdx, groups]);
 
   useEffect(() => {

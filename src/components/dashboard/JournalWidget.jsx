@@ -42,11 +42,46 @@ export default function JournalWidget({ userId, userEmail }) {
   const [expanded, setExpanded] = useState(false);
   const [draft,    setDraft]    = useState('');
   const [saving,   setSaving]   = useState(false);
+  // Use a ref-stored draft for the unmount-flush path. The unmount
+  // cleanup needs the LATEST draft, not the value closed over at
+  // mount time (which was always '').
   const saveTimerRef = useRef(null);
   const mountedRef   = useRef(true);
+  const draftRef     = useRef('');
+  useEffect(() => { draftRef.current = draft; }, [draft]);
   useEffect(() => () => {
     mountedRef.current = false;
-    clearTimeout(saveTimerRef.current);
+    // If there's a pending autosave when the component unmounts,
+    // flush it synchronously instead of dropping the user's last
+    // few seconds of typing on the floor. handleSave is async but
+    // the network call queues regardless of whether we awaited
+    // (we can't await in cleanup anyway). The IIFE shape keeps the
+    // call site type-stable.
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+      const pending = draftRef.current;
+      if (pending != null) {
+        (async () => {
+          try {
+            // Best-effort — fire the upsert without expecting a
+            // re-render. The autosave path will pick it up on next
+            // mount via the normal query refresh.
+            const { upsertEntry } = await import('@/lib/data/journal');
+            const todayStr = (() => {
+              const d = new Date();
+              return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            })();
+            await upsertEntry(uid, email, {
+              entryDate: todayStr,
+              body: pending,
+              attachments: [],
+            });
+          } catch { /* unmount flush is best-effort */ }
+        })();
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync draft when entry loads / changes from the server (e.g. a
