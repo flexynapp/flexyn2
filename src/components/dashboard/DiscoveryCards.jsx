@@ -288,7 +288,9 @@ export default function DiscoveryCards({ logs = [], regimens = [], isLoading = f
     return null;
 
   }, [
-    isLoading, user,
+    // Specific user fields (not the whole object) so a profile-field
+    // update that doesn't affect this memo doesn't force a recompute.
+    isLoading, user?.id, user?.email,
     filteredLogs.length, filteredRegimens.length,
     push.isSupported, push.isSubscribed, push.permission,
     unopenedCapsuleCount,
