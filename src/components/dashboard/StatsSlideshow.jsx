@@ -300,7 +300,7 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
     };
   }, [allSlides.length]);
 
-  const slide = allSlides[Math.min(index, allSlides.length - 1)];
+  const slide = allSlides.length > 0 ? allSlides[Math.min(index, allSlides.length - 1)] : null;
 
   const variants = {
     enter: (dir) => ({ opacity: 0, y: dir > 0 ? 18 : -18, scale: 0.97 }),
@@ -318,7 +318,7 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-3 w-32" />
         </div>
-      ) : (
+      ) : slide ? (
         <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={slide.id}
@@ -353,7 +353,7 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
             {slide.type === 'chart-exercise' && <TopExerciseChart logs={logs} />}
           </motion.div>
         </AnimatePresence>
-      )}
+      ) : null}
 
       {/* Dot indicators */}
       <div className="flex gap-1 mt-3 justify-center">

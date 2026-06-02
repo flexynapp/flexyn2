@@ -54,8 +54,7 @@ export default function ResumeWorkoutBanner() {
         removeSession(s.id);
       }
     }
-
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sessions, removeSession]);
 
   // Cleanup any pending auto-revert when the banner unmounts (route
   // change, session removed, parent re-render). MUST be declared

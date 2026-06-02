@@ -14,7 +14,7 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture, addDays, startOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture, addDays, startOfWeek, subDays } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 
@@ -53,9 +53,10 @@ export function buildCellMap({ month = new Date(), lastLogin, streak = 0 } = {})
   catch { last = new Date(); }
   const hit = new Set();
   for (let i = 0; i < streak; i += 1) {
-    const d = new Date(last);
-    d.setDate(d.getDate() - i);
-    hit.add(format(d, 'yyyy-MM-dd'));
+    // subDays is DST-safe — manual setDate() can shift by 23 or 25
+    // hours across DST transitions and silently skip or duplicate a
+    // day in the hit set.
+    hit.add(format(subDays(last, i), 'yyyy-MM-dd'));
   }
   for (const d of eachDayOfInterval({ start: startOfMonth(month), end: endOfMonth(month) })) {
     const k = format(d, 'yyyy-MM-dd');

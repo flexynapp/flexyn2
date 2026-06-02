@@ -84,7 +84,7 @@ export default function ReadinessCard({ logs = [], compact = false }) {
   // doesn't produce soreness=6 which overshoots the recovery scale.
   // (Audit 08 #27.)
   const sorenessProxy = sleep?.soreness != null
-    ? sleep.soreness
+    ? Math.max(1, Math.min(5, sleep.soreness))
     : (mood?.mood != null ? Math.max(1, Math.min(5, 6 - mood.mood)) : undefined);
 
   const { score, label } = computeRecoveryScore({
