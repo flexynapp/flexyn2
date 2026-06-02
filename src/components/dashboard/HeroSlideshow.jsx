@@ -379,16 +379,25 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       if (!hit) continue;
       const when = hit.date ? new Date(hit.date).getTime() : 0;
       if (!when || now - when > RECENT_MS) continue;
+      const km = Number(hit.distance_meters) / 1000;
+      const sec = Number(hit.duration_seconds);
+      const avgKmh = sec > 0 && Number.isFinite(km) ? km / (sec / 3600) : null;
       slides.push({
         id: `cardio:${f.meters}:${when}`,
         icon: Footprints, iconBg: 'bg-cyan-400/20',
         kicker: 'Distance Milestone',
         title: f.label,
-        metricValue: hit.distance_meters / 1000,
+        metricValue: km,
         metricUnit: ' km',
         metricDecimals: 1,
-        sub: hit.duration_seconds
-          ? `${Math.round(hit.duration_seconds / 60)} min · avg ${(hit.distance_meters / 1000 / (hit.duration_seconds / 3600)).toFixed(1)} km/h`
+        // Guard avg km/h — without the Number.isFinite check a zero or
+        // missing duration produced "NaN km/h" / "Infinity km/h" in
+        // the subtitle. Falls back to the duration-only line when we
+        // can't compute a finite pace.
+        sub: sec > 0
+          ? (avgKmh != null && Number.isFinite(avgKmh)
+              ? `${Math.round(sec / 60)} min · avg ${avgKmh.toFixed(1)} km/h`
+              : `${Math.round(sec / 60)} min`)
           : 'Distance logged',
         when,
       });
@@ -675,8 +684,10 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     // Resume auto-rotate after 12s of no manual interaction.
     pauseTimerRef.current = setTimeout(() => setPaused(false), 12_000);
   };
-  const next = () => goTo((idx + 1) % slides.length);
-  const prev = () => goTo((idx - 1 + slides.length) % slides.length);
+  // Guard slides.length === 0 — `% 0` returns NaN, and `slides[NaN]`
+  // is undefined which crashes the render path that reads slide.id.
+  const next = () => { if (slides.length > 0) goTo((idx + 1) % slides.length); };
+  const prev = () => { if (slides.length > 0) goTo((idx - 1 + slides.length) % slides.length); };
 
   // Cleanup pause timer on unmount.
   useEffect(() => () => {

@@ -192,10 +192,18 @@ export default function DailyQuestsCard({ onNavigated }) {
 }
 
 function QuestRow({ quest, onClaim, onGo, t, tFallback }) {
+  if (!quest || !quest.definition) return null;
   const def = quest.definition;
   const completed = !!quest.completed_at;
   const claimed = !!quest.claimed_at;
-  const progressPct = Math.min(100, Math.round((quest.progress / quest.target) * 100));
+  // Guard quest.target=0 (corrupt seed row) — the bare division would
+  // produce Infinity that clamps to 100% on a zero-progress quest, or
+  // NaN when both are 0, which renders as invalid `width: NaN%`.
+  const target = Number(quest.target) || 0;
+  const progress = Number(quest.progress) || 0;
+  const progressPct = target > 0
+    ? Math.min(100, Math.max(0, Math.round((progress / target) * 100)))
+    : 0;
   const diffMeta = QUEST_DIFFICULTY[quest.difficulty];
   // Look up translated quest copy via the catalog convention `quest.<id>.label/desc`.
   // Falls back to the English label/desc baked into the catalog if the key is
