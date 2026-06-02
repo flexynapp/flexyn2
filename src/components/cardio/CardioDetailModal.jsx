@@ -192,8 +192,9 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
                 </div>
                 {splits.map(s => {
                   const isFastest = !s.partial && s.seconds === fastest;
-                  const slowest = Math.max(...splits.filter(x => !x.partial).map(x => x.seconds));
-                  const barPct = Math.min(100, (s.seconds / slowest) * 100);
+                  const nonPartialSplits = splits.filter(x => !x.partial).map(x => x.seconds);
+                  const slowest = nonPartialSplits.length > 0 ? Math.max(...nonPartialSplits) : s.seconds;
+                  const barPct = slowest > 0 ? Math.min(100, (s.seconds / slowest) * 100) : 0;
                   return (
                     <div key={s.index} className={`flex items-center px-2 py-1.5 rounded-md ${
                       isFastest ? 'bg-primary/10' : 'bg-secondary/40'
