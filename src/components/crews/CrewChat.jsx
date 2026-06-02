@@ -382,8 +382,8 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       const croppedFile = new File([blob], 'crew-avatar.jpg', { type: 'image/jpeg' });
       const url = await crewsData.uploadCrewMedia(croppedFile);
       await crewsData.updateCrewProfile(crew.id, { avatar_url: url });
-      queryClient.invalidateQueries({ queryKey: ['myCrews', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
+      qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
+      qc.invalidateQueries({ queryKey: ['crewMembers', crew.id] });
       toast.success('Crew photo updated!');
     } catch {
       toast.error('Could not update crew photo — try again.');

@@ -886,12 +886,12 @@ export default function Dashboard() {
       const d = parseLocalDate(raw);
       if (!d || isNaN(d.getTime())) return;
       const day = startOfDay(d);
-      stamps.add(`${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`);
+      stamps.add(`${day.getFullYear()}-${day.getMonth() + 1}-${day.getDate()}`);
     };
     logs.forEach(l => addStamp(l.date));
     cardioLogs.forEach(l => addStamp(l.date));
     if (stamps.size === 0) return 0;
-    const stampOf = (d) => `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    const stampOf = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
     let cursor = startOfDay(new Date());
     if (!stamps.has(stampOf(cursor))) {
       const yesterday = new Date(cursor);
@@ -1306,7 +1306,7 @@ export default function Dashboard() {
                 </span>
               </button>
             )}
-            {editMode && (
+            {editMode && canSetAsDefault && (
               <button
                 onClick={() => {
                   try {

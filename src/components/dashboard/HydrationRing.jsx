@@ -82,7 +82,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
     [todaysLogs]
   );
 
-  const pct = Math.max(0, Math.min(1, totalOz / goalOz));
+  const pct = goalOz > 0 ? Math.max(0, Math.min(1, totalOz / goalOz)) : 0;
   const pctLabel = Math.round(pct * 100);
 
   // Ring geometry — same proportions as the strea/league flames.

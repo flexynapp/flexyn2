@@ -43,7 +43,7 @@ const STATE_KEY = (userId) => `flexyn.onboardingState.${userId || 'anon'}`;
 // UTC, so a user in UTC+14 at 9pm local would see *tomorrow's* string
 // → nudge state suppressed for the rest of today, re-fires after
 // midnight tomorrow (opposite of the intent). See dateUtils.js.
-const TODAY_KEY = todayLocalDateString;
+const getTodayKey = () => todayLocalDateString();
 
 function readState(userId) {
   try {
@@ -183,7 +183,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
   const { nudge, suppressForToday } = useMemo(() => {
     if (!user?.id) return { nudge: null, suppressForToday: false };
     const state = readState(user.id);
-    if (state.lastShownDate === TODAY_KEY()) {
+    if (state.lastShownDate === getTodayKey()) {
       return { nudge: null, suppressForToday: true };
     }
     for (const n of nudges) {
@@ -198,7 +198,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
     if (!user?.id) return;
     const state = readState(user.id);
     if (!state.completed.includes(key)) state.completed.push(key);
-    state.lastShownDate = TODAY_KEY();
+    state.lastShownDate = getTodayKey();
     writeState(user.id, state);
   };
 
