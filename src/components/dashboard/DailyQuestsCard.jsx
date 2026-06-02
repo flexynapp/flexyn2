@@ -181,7 +181,7 @@ export default function DailyQuestsCard({ onNavigated }) {
       <button
         type="button"
         onClick={() => setCollapsed(c => !c)}
-        aria-label={collapsed ? 'Expand quests' : 'Collapse quests'}
+        aria-label={collapsed ? tFallback('dashboard.expandQuests', 'Expand quests') : tFallback('dashboard.collapseQuests', 'Collapse quests')}
         aria-expanded={!collapsed}
         className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
       >
