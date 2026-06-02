@@ -9,7 +9,7 @@
 // rest. Replaces vibes-based "should I go to the gym" with a
 // number the user can trust.
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
@@ -63,8 +63,10 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   // Find the most recent workout from `logs` (already in dashboard cache).
   // Use parseLocalDate so 'YYYY-MM-DD' DATE columns are interpreted in
   // local TZ. Without this, the recovery `daysSinceWorkout` term could
-  // flicker ±1 at midnight in negative-offset zones.
-  const lastWorkoutAt = (() => {
+  // flicker ±1 at midnight in negative-offset zones. Memoize so the
+  // O(N) scan only runs when logs actually changes, not on every
+  // sleep/mood query revalidation.
+  const lastWorkoutAt = useMemo(() => {
     if (!Array.isArray(logs)) return null;
     let best = null;
     for (const log of logs) {
@@ -74,25 +76,28 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
       if (!best || d > best) best = d;
     }
     return best;
-  })();
+  }, [logs]);
 
-  // Mood maps to a soreness-shaped scale (inverted): mood 5 = fresh,
-  // mood 1 = drained. We pass it through as soreness=6-mood so the
-  // existing computeRecoveryScore math handles it without a new branch.
-  // Soreness 1 = no soreness (best). Mood 5 → soreness 1.
-  // Clamp the mood-derived soreness to 1-5 so a corrupt mood=0 row
-  // doesn't produce soreness=6 which overshoots the recovery scale.
+  // Mood maps to an inverted soreness scale that computeRecoveryScore
+  // already knows how to consume — mood 5 (fresh) → soreness 1 (none),
+  // mood 1 (drained) → soreness 5 (maximum). Clamp both pathways so a
+  // corrupt mood=0 or sleep.soreness=12 row can't overshoot the scale.
   // (Audit 08 #27.)
   const sorenessProxy = sleep?.soreness != null
     ? Math.max(1, Math.min(5, sleep.soreness))
     : (mood?.mood != null ? Math.max(1, Math.min(5, 6 - mood.mood)) : undefined);
 
-  const { score, label } = computeRecoveryScore({
+  const { score: rawScore, label } = computeRecoveryScore({
     sleepHours:    sleep?.hours,
     sleepQuality:  sleep?.quality,
     soreness:      sorenessProxy,
     lastWorkoutAt,
   });
+  // Guard NaN/Infinity — computeRecoveryScore returns a number under
+  // normal inputs, but a regression in the underlying math (or a brand
+  // new user with no signal at all) could surface NaN, which then
+  // propagates into dashOffset and breaks the SVG dasharray render.
+  const score = Number.isFinite(rawScore) ? Math.max(0, Math.min(100, rawScore)) : 0;
 
   // Defensive fallback — every COLOR_BY_LABEL key is a known label,
   // but defending against a future score-engine change that returns an

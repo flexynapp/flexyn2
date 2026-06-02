@@ -71,16 +71,20 @@ export default function LeagueCard({ onClick }) {
   // Days left in the week. Guard against missing week_end — without
   // this the card rendered "NaN days left" if the data was malformed
   // (e.g. a partially-applied migration). (Audit 08 #17.)
-  const endDate = league.week_end ? parseISO(league.week_end + 'T23:59:59') : null;
+  // Append local end-of-day time so a 'YYYY-MM-DD' string is treated
+  // as "end of that local day" rather than UTC midnight — which would
+  // render "0 days left" prematurely in negative-offset zones on the
+  // last day of the week.
+  const endDate = league.week_end ? parseISO(`${league.week_end}T23:59:59`) : null;
   const daysLeft = endDate && !isNaN(endDate.getTime())
     ? Math.max(0, differenceInCalendarDays(endDate, new Date()) + 1)
     : 0;
 
-  // Promotion / demotion zones
-  const promoteRank = tier.promote;
-  const demoteRank = tier.demote > 0 ? totalMembers - tier.demote + 1 : null;
-  const inPromoteZone = myRank && myRank <= promoteRank && promoteRank > 0;
-  const inDemoteZone  = myRank && demoteRank !== null && myRank >= demoteRank;
+  // Note: promotion/demotion zone visual indicators were planned but
+  // never wired into this compact card — the full standings modal
+  // surfaces them instead. Removed the dead promoteRank / demoteRank /
+  // inPromoteZone / inDemoteZone locals that were computed every render
+  // and never read.
 
   return (
     <motion.button
@@ -114,7 +118,7 @@ export default function LeagueCard({ onClick }) {
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 >
-                  #{myRank ?? '—'}
+                  #{myRank ?? tFallback('common.dash', '—')}
                   {totalMembers > 0 && (
                     <span className="text-[10px] font-normal opacity-75 ms-0.5">/{totalMembers}</span>
                   )}
