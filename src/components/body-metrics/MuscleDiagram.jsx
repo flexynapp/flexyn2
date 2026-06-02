@@ -273,7 +273,7 @@ function Body({ variant, view, data, customAssets, onClick }) {
     }
   });
 
-  const paths = customAssets?.[variant]?.[view] || BODY_PATHS[variant][view];
+  const paths = customAssets?.[variant]?.[view] || getBodyPaths()[variant][view];
   const viewBox = customAssets?.viewBox || "0 0 280 600";
 
   return (
@@ -390,11 +390,25 @@ function buildBackMuscles(cfg, Y, cx) {
   return muscles;
 }
 
-const BODY_PATHS = {
-  male:   { front: buildBody(VARIANT_CONFIGS.male,   false), back: buildBody(VARIANT_CONFIGS.male,   true) },
-  female: { front: buildBody(VARIANT_CONFIGS.female, false), back: buildBody(VARIANT_CONFIGS.female, true) },
-  unisex: { front: buildBody(VARIANT_CONFIGS.unisex, false), back: buildBody(VARIANT_CONFIGS.unisex, true) }
-};
+// Lazy cache — building the SVG paths at module-init time meant the
+// `const BODY_PATHS = { male: buildBody(VARIANT_CONFIGS.male, false), ... }`
+// initializer invoked buildBody / buildFront / buildBack BEFORE Rollup
+// had decided their final order in the production bundle. When the
+// minifier hoists this const above VARIANT_CONFIGS (it has done so in
+// one round of audits when an adjacent statement was added), the
+// initializer reads VARIANT_CONFIGS in TDZ → `ReferenceError: Cannot
+// access 'VARIANT_CONFIGS' before initialization`. Building on first
+// use side-steps the ordering question entirely.
+let _bodyPathsCache = null;
+function getBodyPaths() {
+  if (_bodyPathsCache) return _bodyPathsCache;
+  _bodyPathsCache = {
+    male:   { front: buildBody(VARIANT_CONFIGS.male,   false), back: buildBody(VARIANT_CONFIGS.male,   true) },
+    female: { front: buildBody(VARIANT_CONFIGS.female, false), back: buildBody(VARIANT_CONFIGS.female, true) },
+    unisex: { front: buildBody(VARIANT_CONFIGS.unisex, false), back: buildBody(VARIANT_CONFIGS.unisex, true) },
+  };
+  return _bodyPathsCache;
+}
 
 const styles = {
   container: { width: "100%", background: "hsl(var(--card))", color: "hsl(var(--card-foreground))", borderRadius: 16, padding: 24, fontFamily: "'Inter', system-ui, sans-serif", boxSizing: "border-box", border: "1px solid hsl(var(--border))" },

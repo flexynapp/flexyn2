@@ -1,8 +1,16 @@
 // src/lib/data/friendLeaderboard.js
 //
-// Wrapper around migration 093's get_friend_leaderboard RPC. Three
-// sort modes ('weekly_xp', 'weekly_volume', 'weekly_sessions'),
-// returns the caller + their mutual follows ranked.
+// Wrapper around the `get_friend_leaderboard` RPC. Three sort modes
+// ('weekly_xp', 'weekly_volume', 'weekly_sessions'), returns the
+// caller + their mutual follows ranked.
+//
+// Definition history: introduced in migration 093 against
+// user_profiles.weekly_{xp,volume,sessions} — but those columns
+// never existed on user_profiles (only league_members.weekly_xp
+// exists). Migration 101 (audit_fix_batch) rewrote the RPC to
+// aggregate weekly_volume / weekly_sessions from workout_logs on
+// the fly and pull weekly_xp from league_members. Result-row shape
+// is identical so this client doesn't need a version branch.
 
 import { supabase } from '@/api/supabaseClient';
 

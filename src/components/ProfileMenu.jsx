@@ -34,10 +34,17 @@ const AchievementsVault  = lazy(() => import('./achievements/AchievementsVault')
 // history log). Lazy so its deps stay out of the entry bundle.
 const JournalView        = lazy(() => import('./journal/JournalView'));
 
-// preserveKeys: when true (Sign Out), journal entries and a small set
-// of per-device preferences survive so the same user logging back in
-// doesn't lose work (audit B-3). When false (Delete Account), wipe
-// everything.
+// preserveKeys: when true (Sign Out), a small set of per-device
+// preferences survive so the same user logging back in doesn't reset
+// them (audit B-3). When false (Delete Account), wipe everything.
+//
+// Journal entries are NOT in the preserve set — they're user PII
+// scoped to the previous account, and leaving them in localStorage
+// across a sign-out lets the next user inspect them via DevTools on a
+// shared device. The journal data layer migrates legacy entries to
+// the DB on first sign-in anyway (see src/lib/data/journal.js
+// migrateLocalJournals), so the durable copy lives server-side and
+// re-hydrates on next login.
 function wipeLocalClientState({ preserveKeys = false } = {}) {
   clearFirstLaunch();
   try {
@@ -54,7 +61,6 @@ function wipeLocalClientState({ preserveKeys = false } = {}) {
         // (haptics, sounds, weight unit, distance unit) live only
         // here and would be lost forever otherwise. (Audit 14 #14.)
         if (
-          k.startsWith('journal_') ||
           k === 'fn-theme' ||
           k === 'fn-dark-mode' ||
           k === 'fn-loot-theme' ||

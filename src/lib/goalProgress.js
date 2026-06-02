@@ -143,5 +143,11 @@ function _empty() {
 }
 
 function clamp(n, min, max) {
+  // Number.isFinite catches NaN AND Infinity — without this guard a
+  // divide-by-zero somewhere upstream produced Infinity that clamped
+  // to 100% and let a "almost complete" card mark a goal completable
+  // with zero real progress against it. NaN would silently propagate
+  // through downstream comparisons as `false`, hiding the goal entirely.
+  if (!Number.isFinite(n)) return min;
   return Math.min(Math.max(n, min), max);
 }

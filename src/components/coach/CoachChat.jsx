@@ -36,7 +36,15 @@ function loadHistory(userId) {
 }
 function saveHistory(userId, messages) {
   try {
-    const trimmed = messages.slice(-MAX_HISTORY);
+    // Strip transient error placeholders before persisting — the
+    // "Something went wrong on my side" coach reply is a UI signal
+    // for the current turn, not durable conversation history. Without
+    // this filter, a returning user re-opens Coach and sees stale
+    // error bubbles from a past network blip as if the coach had
+    // actually said them. The user's own message is kept so they
+    // remember what they asked.
+    const persistable = messages.filter(m => m?.source !== 'error');
+    const trimmed = persistable.slice(-MAX_HISTORY);
     localStorage.setItem(_historyKey(userId), JSON.stringify(trimmed));
   } catch { /* ignore quota errors */ }
 }

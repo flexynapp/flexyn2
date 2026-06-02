@@ -112,20 +112,35 @@ export default function GoalsAlmostComplete({ goals, logs, cardioLogs = [], onOp
       // Atomic state transition via complete_goal RPC (migration 030).
       // Only the FIRST caller flips the status — prevents the
       // GoalsAlmostComplete + GoalsModal racing on the same row.
+      //
+      // On pre-030 hosts the RPC is missing and we fall back to a
+      // direct UPDATE. The fallback is NOT atomic across concurrent
+      // tabs, so we read the goal's current status first and bail if
+      // it's already completed — narrows the duplicate-XP race window
+      // to the millisecond between SELECT and UPDATE, instead of the
+      // wide-open seconds it took React Query to refetch otherwise.
       let alreadyCompleted = false;
+      const runFallback = async () => {
+        const fresh = await db.entities.Goal.get?.(goalId).catch(() => null);
+        if (fresh?.status === 'completed') {
+          alreadyCompleted = true;
+          return;
+        }
+        await db.entities.Goal.update(goalId, { status: 'completed' });
+      };
       try {
         const { supabase } = await import('@/api/supabaseClient');
         const { data, error } = await supabase.rpc('complete_goal', { p_goal_id: goalId });
         if (!error) {
           if (data?.already) alreadyCompleted = true;
         } else if (error.code === '42883' || error.code === '42P01') {
-          await db.entities.Goal.update(goalId, { status: 'completed' });
+          await runFallback();
         } else {
           throw error;
         }
       } catch (rpcErr) {
         if (rpcErr?.code === '42883' || rpcErr?.code === '42P01') {
-          await db.entities.Goal.update(goalId, { status: 'completed' });
+          await runFallback();
         } else {
           throw rpcErr;
         }

@@ -863,6 +863,14 @@ export default function Nutrition() {
 
   const addEntry = () => {
     if (!newEntry.food_name.trim()) { toast.error(t('nutrition.toast.enterFoodName')); return; }
+    // Parent-side guard against re-entrant mutation calls — the form's
+    // submittingRef catches taps inside the form, but a programmatic
+    // call path (e.g. Enter key fast-firing twice before isPending
+    // flips, or a scanner that triggers addEntry alongside a tap)
+    // can still produce duplicate POSTs without this server-state
+    // check. React Query's isPending flips after the first .mutate()
+    // resolves a microtask later, leaving a brief window we close here.
+    if (saveMutation.isPending) return;
     // Per-field coercion so non-numeric values (from photo-AI / barcode
     // / paste / typed-then-edited input) never persist as strings to
     // numeric DB columns. Previously `v === '' ? 0 : v` left strings
