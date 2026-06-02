@@ -7,17 +7,22 @@
 // right goal for "today" based on whether a workout has been logged.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 const EMPTY = { training: null, rest: null };
 
 /** Read the stored cycling config. Returns the EMPTY shape when null. */
 export async function getMine(userId) {
   if (!userId) return EMPTY;
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['calorie_cycling'],
+    build: (cols) => supabase
     .from('user_profiles')
-    .select('calorie_cycling')
+    .select(cols)
     .eq('id', userId)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (error || !data?.calorie_cycling) return EMPTY;
   return data.calorie_cycling;
 }

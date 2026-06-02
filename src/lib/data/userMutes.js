@@ -9,6 +9,8 @@
 // via RLS because mute should be reversible and per-viewer cheap.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /** List the current user's mute list. Returns rows with muted_email. */
 export async function listMutes(userId) {

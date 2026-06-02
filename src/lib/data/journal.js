@@ -9,18 +9,23 @@
 // an empty editor rather than crashing.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 const MISSING = (code) => code === '42883' || code === '42P01' || code === 'PGRST205' || code === '42703';
 
 /** Fetch the entry for a given YYYY-MM-DD (or null if none). */
 export async function getEntry(userId, dateStr) {
   if (!userId || !dateStr) return null;
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['id', 'entry_date', 'title', 'body', 'attachments', 'mood_score', 'updated_at'],
+    build: (cols) => supabase
     .from('journal_entries')
-    .select('id, entry_date, title, body, attachments, mood_score, updated_at')
+    .select(cols)
     .eq('user_id', userId)
     .eq('entry_date', dateStr)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (error) return null;
   return data;
 }

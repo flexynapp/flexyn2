@@ -3,6 +3,8 @@
 // All writes go through Supabase with RLS enforced.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /**
  * Submit a content report for a post or comment.
@@ -35,13 +37,16 @@ export async function fileReport(data) {
  */
 export async function checkAlreadyReported(reporterEmail, reportedType, reportedId) {
   if (!reporterEmail) return false;
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['id'],
+    build: (cols) => supabase
     .from('hub_reports')
-    .select('id')
+    .select(cols)
     .eq('reporter_email', reporterEmail)
     .eq('reported_type', reportedType)
     .eq('reported_id', reportedId)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (error) return false;
   return !!data;
 }

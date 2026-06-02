@@ -5,15 +5,22 @@
 // (and in the UI) since quotes carry no abuse weight.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 export const MAX_CUSTOM_QUOTES = 20;
 
 /** List the caller's custom quotes, oldest first. */
 export async function listMyQuotes() {
-  const { data, error } = await supabase
-    .from('custom_quotes')
-    .select('id, text, author')
-    .order('created_at', { ascending: true });
+  // safeSelect strips columns + retries on 42703 / PGRST204 so a
+  // partial-deploy host that hasn't applied migration 153 yet
+  // doesn't crash the dashboard quote rotation.
+  const { data, error } = await safeSelect({
+    columns: ['id', 'text', 'author'],
+    build: (cols) => supabase
+      .from('custom_quotes')
+      .select(cols)
+      .order('created_at', { ascending: true }),
+  });
   if (error) return [];
   return data || [];
 }

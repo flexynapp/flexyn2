@@ -15,6 +15,8 @@
 // fine in theory, but UX-wise users expect "this week" to mean their week.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 import { format, startOfWeek, endOfWeek } from 'date-fns';
 import {
   TIERS,
@@ -79,11 +81,14 @@ export async function ensureCurrentLeague(user) {
   if (!user?.id || !user?.email) return null;
 
   // Read the user's profile for their current tier
-  const { data: profile, error: pErr } = await supabase
+  const { data: profile, error: pErr } = await safeSelect({
+    columns: ['league_tier'],
+    build: (cols) => supabase
     .from('user_profiles')
-    .select('league_tier')
+    .select(cols)
     .eq('id', user.id)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (pErr) {
     console.warn('[leagues] failed to read profile:', pErr);
     return null;

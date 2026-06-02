@@ -6,6 +6,8 @@
 // sleepLogs.js / moodLogs.js.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 import { format, subDays } from 'date-fns';
 
 const todayDateString = () => format(new Date(), 'yyyy-MM-dd');
@@ -54,12 +56,15 @@ export async function listRecentStepLogs(days = 14) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return [];
   const since = format(subDays(new Date(), days), 'yyyy-MM-dd');
-  const { data, error } = await supabase
-    .from('step_logs')
-    .select('date, steps, notes')
-    .eq('user_id', user.id)
-    .gte('date', since)
-    .order('date', { ascending: true });
+  const { data, error } = await safeSelect({
+    columns: ['date', 'steps', 'notes'],
+    build: (cols) => supabase
+      .from('step_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .gte('date', since)
+      .order('date', { ascending: true }),
+  });
   if (error) return [];
   return data ?? [];
 }
@@ -68,12 +73,15 @@ export async function listRecentStepLogs(days = 14) {
 export async function getTodayStepLog() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return null;
-  const { data, error } = await supabase
-    .from('step_logs')
-    .select('date, steps, notes')
-    .eq('user_id', user.id)
-    .eq('date', todayDateString())
-    .maybeSingle();
+  const { data, error } = await safeSelect({
+    columns: ['date', 'steps', 'notes'],
+    build: (cols) => supabase
+      .from('step_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .eq('date', todayDateString())
+      .maybeSingle(),
+  });
   if (error) return null;
   return data ?? null;
 }

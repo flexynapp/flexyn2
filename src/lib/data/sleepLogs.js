@@ -9,6 +9,8 @@
 // morning. Consistent with how Garmin / Whoop / Oura present it.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 import { format, subDays } from 'date-fns';
 
 const todayDateString = () => format(new Date(), 'yyyy-MM-dd');
@@ -59,12 +61,15 @@ export async function listRecentSleepLogs(days = 14) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return [];
   const since = format(subDays(new Date(), days), 'yyyy-MM-dd');
-  const { data, error } = await supabase
-    .from('sleep_logs')
-    .select('date, hours, quality, soreness, notes')
-    .eq('user_id', user.id)
-    .gte('date', since)
-    .order('date', { ascending: true });
+  const { data, error } = await safeSelect({
+    columns: ['date', 'hours', 'quality', 'soreness', 'notes'],
+    build: (cols) => supabase
+      .from('sleep_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .gte('date', since)
+      .order('date', { ascending: true }),
+  });
   if (error) return [];
   return data ?? [];
 }
@@ -73,12 +78,15 @@ export async function listRecentSleepLogs(days = 14) {
 export async function getTodaySleepLog() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return null;
-  const { data, error } = await supabase
-    .from('sleep_logs')
-    .select('date, hours, quality, soreness, notes')
-    .eq('user_id', user.id)
-    .eq('date', todayDateString())
-    .maybeSingle();
+  const { data, error } = await safeSelect({
+    columns: ['date', 'hours', 'quality', 'soreness', 'notes'],
+    build: (cols) => supabase
+      .from('sleep_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .eq('date', todayDateString())
+      .maybeSingle(),
+  });
   if (error) return null;
   return data ?? null;
 }

@@ -30,6 +30,8 @@
 // migration 035 — out of scope for this layer.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 export const NOTIFICATION_TYPES = {
   QUEST_CLAIMED:        'quest_claimed',

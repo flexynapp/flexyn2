@@ -75,7 +75,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
           <AnimatePresence>
             {showTooltip && (
               <>
-                <div data-portal-ignore-outside-click className="fixed inset-0 z-[199]" onClick={() => setShowTooltip(false)} />
+                <div data-portal-ignore-outside-click className="fixed inset-0 z-[199]" aria-hidden="true" onClick={() => setShowTooltip(false)} />
                 <motion.div
                   data-portal-ignore-outside-click
                   initial={{ opacity: 0, y: -12, scale: 0.93 }}

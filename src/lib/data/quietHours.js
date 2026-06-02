@@ -11,6 +11,8 @@
 // = quiet from 22:00 through 06:59.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /**
  * Returns { start, end } where each is 0-23 or null.
@@ -18,11 +20,14 @@ import { supabase } from '@/api/supabaseClient';
 export async function getMyQuietHours() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return { start: null, end: null };
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['quiet_hours_start', 'quiet_hours_end'],
+    build: (cols) => supabase
     .from('user_profiles')
-    .select('quiet_hours_start, quiet_hours_end')
+    .select(cols)
     .eq('id', user.id)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (error || !data) return { start: null, end: null };
   return {
     start: data.quiet_hours_start ?? null,

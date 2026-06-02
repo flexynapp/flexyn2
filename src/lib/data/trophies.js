@@ -9,6 +9,8 @@
 //     fire a celebration toast.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 import { toast } from 'sonner';
 import { getTrophy } from '@/lib/trophyDefinitions';
 

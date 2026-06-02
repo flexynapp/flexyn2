@@ -8,6 +8,8 @@
 // the typical call is countsFor([...itemIds]) returning a Map.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /**
  * Look up sold counts for many item ids in one query. Returns a

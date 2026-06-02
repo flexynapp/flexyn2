@@ -3,6 +3,8 @@
 // with Flex Coin rewards.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 import { reportError } from '@/lib/reportError';
 import { formatNumber } from '@/lib/intl';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -290,11 +292,14 @@ export async function generateDemoBounties() {
   if (!user) throw new Error('Not authenticated');
 
   // Fetch own profile to get email for hub_follows lookup
-  const { data: myProfile } = await supabase
+  const { data: myProfile } = await safeSelect({
+    columns: ['email', 'total_xp'],
+    build: (cols) => supabase
     .from('user_profiles')
-    .select('email, total_xp')
+    .select(cols)
     .eq('id', user.id)
-    .single();
+    .single(),
+  });
 
   if (!myProfile) throw new Error('Profile not found');
 

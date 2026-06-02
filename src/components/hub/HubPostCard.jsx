@@ -90,11 +90,20 @@ function RepostCard({ originalPostId, onAuthorClick }) {
 
   return (
     <div
-      className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 transition-colors"
+      className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       onClick={(e) => {
         e.stopPropagation();
         onAuthorClick?.({ email: original.author_email });
       }}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onAuthorClick?.({ email: original.author_email });
+        }
+      }}
+      aria-label={`Open ${displayName}'s profile`}
     >
       <div className="flex items-center gap-1.5 mb-1.5">
         <Repeat2 className="w-3 h-3 text-primary shrink-0" />

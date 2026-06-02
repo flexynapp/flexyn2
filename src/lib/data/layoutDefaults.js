@@ -7,15 +7,20 @@
 // here as a fallback before the in-code DEFAULT_* constants.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 export async function getLayoutDefault(surface) {
   if (!surface) return null;
   try {
-    const { data, error } = await supabase
+    const { data, error } = await safeSelect({
+    columns: ['widget_order', 'section_layouts', 'updated_at'],
+    build: (cols) => supabase
       .from('app_layout_defaults')
-      .select('widget_order, section_layouts, updated_at')
+      .select(cols)
       .eq('surface', surface)
-      .maybeSingle();
+      .maybeSingle(),
+  });
     if (error) {
       // 42P01 = table missing (migration not deployed yet) — silent.
       if (error.code === '42P01') return null;

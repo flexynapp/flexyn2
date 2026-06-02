@@ -5,6 +5,7 @@
 // pattern matches sleepLogs.js.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 import { format, subDays } from 'date-fns';
 
 const todayDateString = () => format(new Date(), 'yyyy-MM-dd');
@@ -45,12 +46,15 @@ export async function upsertMoodLog({ mood, notes } = {}) {
 export async function getTodayMoodLog() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return null;
-  const { data, error } = await supabase
-    .from('mood_logs')
-    .select('date, mood, notes')
-    .eq('user_id', user.id)
-    .eq('date', todayDateString())
-    .maybeSingle();
+  const { data, error } = await safeSelect({
+    columns: ['date', 'mood', 'notes'],
+    build: (cols) => supabase
+      .from('mood_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .eq('date', todayDateString())
+      .maybeSingle(),
+  });
   if (error) return null;
   return data ?? null;
 }
@@ -60,12 +64,15 @@ export async function listRecentMoodLogs(days = 30) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) return [];
   const since = format(subDays(new Date(), days), 'yyyy-MM-dd');
-  const { data, error } = await supabase
-    .from('mood_logs')
-    .select('date, mood, notes')
-    .eq('user_id', user.id)
-    .gte('date', since)
-    .order('date', { ascending: true });
+  const { data, error } = await safeSelect({
+    columns: ['date', 'mood', 'notes'],
+    build: (cols) => supabase
+      .from('mood_logs')
+      .select(cols)
+      .eq('user_id', user.id)
+      .gte('date', since)
+      .order('date', { ascending: true }),
+  });
   if (error) return [];
   return data ?? [];
 }

@@ -86,6 +86,12 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
       <div
         className="relative max-w-[84px] bg-white rounded-2xl px-2.5 py-1.5 shadow-sm cursor-pointer"
         onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
+        role={isOwn ? 'button' : undefined}
+        tabIndex={isOwn ? 0 : undefined}
+        onKeyDown={isOwn ? (e) => {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEditOwn(); }
+        } : undefined}
+        aria-label={isOwn ? tFallback('stories.editNote', 'Edit your note') : undefined}
       >
         <p className="text-[9px] text-black leading-tight text-center line-clamp-2 select-none">
           {note.text}

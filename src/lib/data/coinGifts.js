@@ -9,6 +9,8 @@
 // 124_coin_gifting.sql.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /**
  * Send flex coins to another user.

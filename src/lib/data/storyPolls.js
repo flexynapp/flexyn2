@@ -10,6 +10,8 @@
 // "63% / 37%" results display works for viewers AND owners.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /**
  * Cast a vote on a story poll. Upserts so the user can change their
@@ -54,12 +56,15 @@ export async function getResults(storyId) {
  */
 export async function getMyVote(storyId, userId) {
   if (!storyId || !userId) return null;
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['option_id'],
+    build: (cols) => supabase
     .from('story_poll_votes')
-    .select('option_id')
+    .select(cols)
     .eq('story_id', storyId)
     .eq('voter_id', userId)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   if (error) return null;
   return data?.option_id || null;
 }

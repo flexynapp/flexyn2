@@ -2,6 +2,8 @@
 // Prestige System — max-level reset with permanent status symbols.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -53,11 +55,14 @@ export async function getPrestigeProfile(userId) {
   // exist — new users without a profile row yet (mid-onboarding) used
   // to surface a PGRST116 error from .single() which the caller had to
   // swallow. (Audit 17 #F37.)
-  const { data, error } = await supabase
+  const { data, error } = await safeSelect({
+    columns: ['prestige_level', 'lifetime_xp', 'prestiged_at', 'prestige_dismissed'],
+    build: (cols) => supabase
     .from('user_profiles')
-    .select('prestige_level, lifetime_xp, prestiged_at, prestige_dismissed')
+    .select(cols)
     .eq('id', userId)
-    .maybeSingle();
+    .maybeSingle(),
+  });
   return error ? null : data;
 }
 

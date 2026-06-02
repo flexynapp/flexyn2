@@ -760,7 +760,7 @@ export default function CardioManualForm({
 
       {speedWarning && (
         <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setSpeedWarning(null)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={() => setSpeedWarning(null)} />
           <div className="relative bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-full text-center z-10">
             <div className="text-4xl mb-3">⚡</div>
             <h2 className="font-heading font-bold text-xl mb-2">That speed isn't realistic</h2>

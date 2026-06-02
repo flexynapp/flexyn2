@@ -184,7 +184,7 @@ function InsightsPanel({ storyId, onClose }) {
 
 function DeletePrompt({ onConfirm, onCancel }) {
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60" onClick={onCancel}>
+    <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60" aria-hidden="true" onClick={onCancel}>
       <div className="bg-card rounded-2xl p-6 mx-6 text-center" onClick={e => e.stopPropagation()}>
         <p className="font-heading font-bold text-base mb-1">Remove this story?</p>
         <p className="text-sm text-muted-foreground mb-5">This can't be undone.</p>

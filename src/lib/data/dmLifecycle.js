@@ -10,6 +10,8 @@
 // a retry toast.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 /** Soft-delete one of your own messages. */
 export async function deleteMyMessage(messageId) {

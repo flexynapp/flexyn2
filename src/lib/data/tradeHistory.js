@@ -19,6 +19,8 @@
 //   4. Return entries sorted newest-first.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
+
 
 const OFFER_MARKER    = '[TRADE_OFFER_V1]';
 const RESPONSE_MARKER = '[TRADE_RESPONSE_V1]';
