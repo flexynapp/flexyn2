@@ -378,8 +378,12 @@ export default function Layout() {
           snaps back on scroll-up. CSS transform is GPU-composited so no
           layout thrash. Transition is deliberately fast (220 ms) to feel
           native, not sluggish. */}
+      {/* pt-3 (not pt-2) leaves enough headroom for the active Hub
+          tab's scale-1.2 + y:-2 transform — at pt-2 the top of the Hub
+          circle was getting clipped by the nav's top border line.
+          (Screenshot feedback, 2026-06.) */}
       <nav
-        className="lg:hidden fixed bottom-0 start-0 end-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui transition-transform duration-[220ms] ease-in-out"
+        className="lg:hidden fixed bottom-0 start-0 end-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-3 select-none-ui transition-transform duration-[220ms] ease-in-out"
         style={{
           paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
           transform: navHidden ? 'translateY(100%)' : 'translateY(0)',

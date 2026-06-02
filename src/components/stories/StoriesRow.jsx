@@ -775,6 +775,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
             </>
           )}
         </div>
+        {/* Hairline divider below the stories strip — separates the
+            scrollable row from whatever sits beneath (greeting,
+            leaderboard, feed). Screenshot feedback flagged the lack
+            of a visual break between sections. Uses border instead of
+            full-width hr so it tucks neatly inside the bleed edge. */}
+        <div className="h-px bg-border/60 mx-4 md:mx-6 mt-2" />
       </div>
 
       {/* Hidden file input */}

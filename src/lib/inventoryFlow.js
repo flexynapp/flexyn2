@@ -93,6 +93,20 @@ export function useBagFlow() {
       // claim_capsule_loot had already rolled + marked the capsule
       // opened, the loot was destroyed (capsule opened, no inventory
       // row). The RPC does both writes in one transaction.
+      //
+      // Fallback path: if the RPC fails for ANY reason, retry the
+      // insert via the legacy inventory.addItem. The capsule has
+      // already been marked is_opened=true by claim_capsule_loot at
+      // this point (which ran before this callback), so the worry
+      // about "loot destroyed if addItem fails" no longer applies —
+      // the rolled rarity/category/variant are persisted on the
+      // user_capsules row and any inventory insert here is purely
+      // additive. This unblocks new users hitting RPC edge cases
+      // (missing user_profiles row on fresh signup, host without
+      // migration 074, column drift, etc.) where the inventory
+      // insert was previously failing and the user saw the bug
+      // screenshot's "Could not save item" toast.
+      let rpcError = null;
       if (capsuleId) {
         const { error } = await supabase.rpc('finalize_capsule_claim', {
           p_capsule_id:  capsuleId,
@@ -104,20 +118,21 @@ export function useBagFlow() {
           p_variant:     wonItem.variant ?? null,
         });
         if (error) {
-          if (error.code === '42883' || error.code === '42P01') {
-            // Pre-070 host. The previous non-atomic path silently
-            // dropped loot on addItem failure; we'd rather the user
-            // know and retry than have it disappear.
-            console.warn('[inventoryFlow] finalize_capsule_claim RPC missing — apply migration 070');
-            throw new Error('rpc_missing');
-          }
-          throw error;
+          rpcError = error;
+          console.warn('[inventoryFlow] finalize_capsule_claim failed — falling back to addItem:', error.code, error.message);
         }
-      } else {
-        // No capsuleId — caller is granting an inventory item outside
-        // the capsule path (rare). Use the direct insert; no atomicity
-        // concern since there's no capsule to roll back.
-        await inventory.addItem(userProfile?.id || user?.id, user.email, wonItem, 'capsule');
+      }
+      if (!capsuleId || rpcError) {
+        // No capsuleId OR RPC failed — direct insert via legacy path.
+        // Returns null silently if userId/userEmail/item are missing,
+        // so wrap in try and throw if the row didn't land.
+        const row = await inventory.addItem(
+          userProfile?.id || user?.id,
+          user.email,
+          wonItem,
+          'capsule',
+        );
+        if (!row) throw rpcError || new Error('inventory_insert_failed');
       }
 
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
@@ -125,7 +140,7 @@ export function useBagFlow() {
       queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
     } catch (err) {
-      console.error('[inventoryFlow] capsule claim failed:', err);
+      console.error('[inventoryFlow] capsule claim failed (both paths):', err);
       toast.error('Could not save item. Try again.');
     }
   }, [openingCapsule, user, userProfile, queryClient]);

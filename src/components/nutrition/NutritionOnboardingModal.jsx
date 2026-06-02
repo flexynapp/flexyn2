@@ -1,5 +1,6 @@
 // src/components/nutrition/NutritionOnboardingModal.jsx
 import React, { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -104,6 +105,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   // Per-user localStorage key per CLAUDE.md convention. Previously
   // wrote bare `fn-nutrition-onboarded` which meant User A completing
   // onboarding caused User B (on the same device) to never see the
@@ -186,6 +188,19 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
       }
       await db.auth.updateMe(payload);
       try { localStorage.setItem(onboardedKey, 'true'); } catch { /* ignore */ }
+      // Update the userProfile cache OPTIMISTICALLY so the parent's
+      // auto-open useEffect sees nutrition_onboarding_complete=true
+      // BEFORE its background refetch lands. Without this, the modal
+      // close + immediate re-render race could re-fire the auto-open
+      // path while the cached profile still showed onboarding=false,
+      // leaving the user trapped on step 0 with the "saved" toast
+      // visible — exactly the screenshot bug.
+      try {
+        queryClient.setQueriesData(
+          { queryKey: ['userProfile'] },
+          (prev) => prev ? { ...prev, nutrition_onboarding_complete: true } : prev,
+        );
+      } catch { /* ignore — cache shape mismatch isn't fatal */ }
       toast.success(t('nutritionOnboarding.toast.saved'));
     } catch (err) {
       console.error('Nutrition onboarding save failed:', err);
@@ -228,9 +243,20 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
           />
         </div>
 
-        {/* Note: Radix DialogContent ships its own close X in the top-right
-            corner. We previously added a second one here which created a
-            duplicate-X bug; relying on the built-in keeps a single button. */}
+        {/* Invisible 44px hit-target overlay sitting on top of Radix's
+            built-in close X. The default Close button's hit area is
+            ~16px which is well under iOS's 44px touch minimum — the
+            screenshot feedback ("hit the X button like five times")
+            was the missed-tap symptom. This transparent button covers
+            the corner so any tap in the X region reliably dismisses,
+            while Radix's icon stays the visible affordance. */}
+        <button
+          type="button"
+          onClick={handleDismissWithoutCompleting}
+          aria-label="Close"
+          className="absolute end-0 top-0 z-20 w-12 h-12 bg-transparent touch-manipulation"
+        />
+
 
         <div className="p-6">
           <AnimatePresence mode="wait">

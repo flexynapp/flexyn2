@@ -736,9 +736,14 @@ const ASSESSMENT_QUESTIONS = [
 ];
 
 const ASSESSMENT_ANSWERS = [
+  // Removed the "No" option per screenshot feedback. Three buttons read
+  // as a harsh verdict — Yes/Not yet/NO felt judgmental for a fitness
+  // app's optional self-assessment. With just Yes + Not yet the user
+  // never has to declare a permanent "no I cannot," which keeps the
+  // tone aspirational and is also more accurate (everyone is "not yet"
+  // until they're not). Two-column layout reads cleaner too.
   { id: 'yes',     label: 'Yes',     hue: 'hsl(142 71% 45%)' },
   { id: 'not_yet', label: 'Not yet', hue: 'hsl(38 92% 50%)'  },
-  { id: 'no',     label: 'No',      hue: 'hsl(220 9% 46%)'   },
 ];
 
 function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }) {
@@ -783,7 +788,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
                   {q.question}
                 </p>
               </div>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {ASSESSMENT_ANSWERS.map(a => {
                   const selected = answers[q.id] === a.id;
                   return (

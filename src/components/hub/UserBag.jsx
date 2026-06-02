@@ -644,7 +644,13 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      {/* Centered modal (was bottom-sheet w/ drag handle). Screenshot
+          feedback flagged that the drag handle at the top suggested the
+          sheet could expand to fullscreen, but that interaction didn't
+          do anything — so they're back to a centered popup with no
+          drag affordance. Also dropped the drag-to-dismiss because
+          there's no longer a handle to grip. */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div
           className="absolute inset-0 bg-black/70 backdrop-blur-sm"
@@ -654,25 +660,14 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
           onClick={onClose}
         />
 
-        {/* Sheet / modal — drag down to dismiss */}
+        {/* Centered modal — zoom-in entrance, no drag */}
         <motion.div
-          className="relative z-10 bg-[#0a0a1a] border border-white/10 shadow-2xl w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
-          initial={{ y: '100%', opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: '100%', opacity: 0 }}
-          transition={{ type: 'spring', stiffness: 320, damping: 32 }}
-          drag="y"
-          dragConstraints={{ top: 0, bottom: 0 }}
-          dragElastic={{ top: 0, bottom: 0.3 }}
-          onDragEnd={(_e, info) => {
-            if (info.velocity.y >= 300 || info.offset.y >= 80) onClose();
-          }}
+          className="relative z-10 bg-[#0a0a1a] border border-white/10 shadow-2xl w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          initial={{ scale: 0.92, opacity: 0, y: 12 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.92, opacity: 0, y: 12 }}
+          transition={{ type: 'spring', stiffness: 320, damping: 28 }}
         >
-          {/* Mobile drag handle */}
-          <div className="sm:hidden flex justify-center pt-3 pb-1">
-            <div className="w-10 h-1 rounded-full bg-gray-600" />
-          </div>
-
           {/* Header */}
           <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
             <div className="flex items-center gap-3">
