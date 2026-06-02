@@ -7,12 +7,14 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { X, Radio, StopCircle, ChevronUp, ChevronDown, Users, Loader2 } from 'lucide-react';
+import { X, Radio, StopCircle, ChevronUp, ChevronDown, Users, Loader2, Check } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
+import { db } from '@/api/db';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 export default function LiveSessionBroadcaster({ onClose }) {
   const { user } = useAuth();
@@ -24,6 +26,13 @@ export default function LiveSessionBroadcaster({ onClose }) {
   const [set, setSet]           = useState(1);
   const [reps, setReps]         = useState(0);
   const [viewers, setViewers]   = useState(0);
+  // Set history — accumulates as the user logs sets during the live
+  // session. Without this, the entire workout was discarded when the
+  // session ended (the user reported "I tested the live stream, but
+  // there's no log that it ever happened"). On end we serialize this
+  // into a workout_log row.
+  const [history, setHistory]   = useState([]); // [{ exercise, set, reps }]
+  const [sessionStartedAt, setSessionStartedAt] = useState(null);
   const channelRef              = useRef(null);
   const broadcastTimerRef       = useRef(null);
   // Tracks mount state so an async startSession that resolves after the
@@ -64,6 +73,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
         return;
       }
       setSessionId(sid);
+      setSessionStartedAt(new Date());
 
       // Subscribe to Realtime presence to count viewers
       const channel = supabase.channel(`live-session-${sid}`, {
@@ -89,6 +99,19 @@ export default function LiveSessionBroadcaster({ onClose }) {
     }
   };
 
+  // Commit the current set to history. The user taps this between
+  // each set so the workout is preserved when the session ends.
+  const logCurrentSet = () => {
+    if (!exercise.trim() || !reps) {
+      toast.error('Enter an exercise and reps first.');
+      return;
+    }
+    setHistory(h => [...h, { exercise: exercise.trim(), set, reps }]);
+    setSet(s => s + 1);
+    setReps(0);
+    try { navigator.vibrate?.(8); } catch { /* ignore */ }
+  };
+
   const endLive = async () => {
     setPhase('ending');
     if (broadcastTimerRef.current) clearInterval(broadcastTimerRef.current);
@@ -96,7 +119,50 @@ export default function LiveSessionBroadcaster({ onClose }) {
     if (sessionId) {
       await hubLiveSessions.endSession(sessionId).catch(() => {});
     }
-    toast.success('Session ended. Great workout! 💪');
+    // Persist the accumulated set history as a workout_log so the
+    // session shows up in the user's workout history (and counts toward
+    // streak / XP / weekly volume). Skip if no sets were logged so we
+    // don't write empty workout rows. The user gets a toast either way
+    // — "saved as workout" vs. "no sets logged so nothing saved" —
+    // because the previous silent-discard behavior was the reported bug.
+    let savedToHistory = false;
+    if (history.length > 0 && user?.email) {
+      try {
+        // Group consecutive sets by exercise name into the standard
+        // workout_log shape: { exercises: [{ name, sets: [{set, reps}] }] }.
+        const grouped = [];
+        for (const h of history) {
+          const last = grouped[grouped.length - 1];
+          if (last && last.name === h.exercise) {
+            last.sets.push({ set: h.set, reps: h.reps, weight: null });
+          } else {
+            grouped.push({ name: h.exercise, sets: [{ set: h.set, reps: h.reps, weight: null }] });
+          }
+        }
+        const elapsedMin = sessionStartedAt
+          ? Math.max(1, Math.round((Date.now() - sessionStartedAt.getTime()) / 60000))
+          : null;
+        await db.entities.WorkoutLog.create({
+          date: format(new Date(), 'yyyy-MM-dd'),
+          title: title || 'Live Workout',
+          exercises: grouped,
+          duration_minutes: elapsedMin,
+          source: 'live_session',
+        });
+        savedToHistory = true;
+      } catch (err) {
+        console.warn('[live] save-as-workout failed:', err);
+      }
+    }
+    if (savedToHistory) {
+      toast.success(`Saved ${history.length} set${history.length === 1 ? '' : 's'} to your workout history. 💪`);
+    } else if (history.length === 0) {
+      toast.message('Session ended. No sets logged — nothing saved to history.', {
+        description: 'Tap "Log set" between each set during your next live session.',
+      });
+    } else {
+      toast.success('Session ended. Great workout! 💪');
+    }
     onClose();
   };
 
@@ -240,6 +306,21 @@ export default function LiveSessionBroadcaster({ onClose }) {
                   </div>
                 </div>
               </div>
+
+              {/* Log-set button — commits the current (exercise, set,
+                  reps) tuple to the session's history so we can save
+                  the workout when the session ends. Auto-increments
+                  the set counter + resets reps so the next set is
+                  ready to log. Without this button there was no path
+                  to persist the live workout — the reported bug. */}
+              <button
+                onClick={logCurrentSet}
+                disabled={!exercise.trim() || !reps}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-primary text-primary-foreground font-bold hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <Check className="w-4 h-4" />
+                Log set {history.length > 0 ? `· ${history.length} saved` : ''}
+              </button>
 
               <button
                 onClick={endLive}

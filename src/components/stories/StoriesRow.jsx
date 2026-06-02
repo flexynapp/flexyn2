@@ -266,11 +266,19 @@ function StoryAvatarButton({
 // Same paddingTop:40 as note-bearing avatars so circles align with `items-end`.
 // The "+ Add" pill occupies that top padding area, mirroring where notes appear.
 
-function QuickAddAvatarItem({ profile, onAdd }) {
+function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
   const { tFallback } = useLanguage();
   const [state, setState] = useState('idle'); // idle | adding | added
 
-  const handleTap = useCallback(async () => {
+  // Add is now triggered ONLY by the "+ Add" pill. Tapping the avatar
+  // or username opens the user's profile so you can vet someone before
+  // following. The previous behavior — the whole cell being one big
+  // add-button — auto-followed people the user only intended to look
+  // at. (Screenshot feedback: "When you tap someone's profile, it
+  // should bring you to their profile instead of automatically adding
+  // them from quick add.")
+  const handleAddClick = useCallback(async (e) => {
+    e.stopPropagation();
     if (state !== 'idle') return;
     setState('adding');
     try {
@@ -281,19 +289,27 @@ function QuickAddAvatarItem({ profile, onAdd }) {
     }
   }, [state, onAdd, profile.email]);
 
+  const handleViewProfile = useCallback(() => {
+    onViewProfile?.({
+      email: profile.email,
+      username: profile.username,
+      avatar_url: profile.avatar_url,
+    });
+  }, [onViewProfile, profile.email, profile.username, profile.avatar_url]);
+
   return (
-    <motion.button
-      whileTap={{ scale: 0.90 }}
-      onClick={handleTap}
-      disabled={state === 'adding'}
-      className="flex flex-col items-center gap-1 shrink-0 focus:outline-none relative"
+    <div
+      className="flex flex-col items-center gap-1 shrink-0 relative"
       style={{ minWidth: 68, paddingTop: 40 }}
-      aria-label={`Add ${profile.username}`}
     >
       <div className="relative w-full flex justify-center">
-
-        {/* "+ Add" pill — sits in the top-padding zone above the circle */}
-        <div
+        {/* "+ Add" pill — its own button now, no longer the whole cell */}
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.90 }}
+          onClick={handleAddClick}
+          disabled={state === 'adding'}
+          aria-label={`Add ${profile.username}`}
           style={{
             position:  'absolute',
             bottom:    '100%',
@@ -303,6 +319,7 @@ function QuickAddAvatarItem({ profile, onAdd }) {
             zIndex: 10,
             width: 68,
           }}
+          className="focus:outline-none"
         >
           <div
             className={`flex items-center justify-center gap-0.5 px-2 py-1 rounded-xl border transition-colors ${
@@ -320,18 +337,29 @@ function QuickAddAvatarItem({ profile, onAdd }) {
                 : tFallback('stories.quickAdd.add',   'Add')}
             </span>
           </div>
-        </div>
+        </motion.button>
 
-        {/* Avatar circle — no ring, subtle border */}
-        <div className="w-[60px] h-[60px] rounded-full overflow-hidden ring-1 ring-border/60 bg-secondary">
+        {/* Avatar circle — its own button: opens the user's profile */}
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.90 }}
+          onClick={handleViewProfile}
+          aria-label={`View ${profile.username}'s profile`}
+          className="w-[60px] h-[60px] rounded-full overflow-hidden ring-1 ring-border/60 bg-secondary focus:outline-none"
+        >
           <AvatarImage avatarUrl={profile.avatar_url} username={profile.username} />
-        </div>
+        </motion.button>
       </div>
 
-      <span className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground">
+      <button
+        type="button"
+        onClick={handleViewProfile}
+        aria-label={`View ${profile.username}'s profile`}
+        className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground hover:text-foreground transition-colors focus:outline-none"
+      >
         @{profile.username}
-      </span>
-    </motion.button>
+      </button>
+    </div>
   );
 }
 
@@ -752,6 +780,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
                       key={profile.email}
                       profile={profile}
                       onAdd={handleQuickAdd}
+                      onViewProfile={onViewProfile}
                     />
                   ))}
                 </>

@@ -8,7 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink, Coins } from 'lucide-react';
+import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink, Coins, Swords } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -46,6 +46,7 @@ import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
+const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'));
 // Hidden easter-egg Snake game — only mounted on the @sean admin profile
 // (gated by showSnakeEgg below). Lazy so its canvas/game code stays out
 // of the entry + Hub bundles for everyone else.
@@ -302,6 +303,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [flagPickerOpen, setFlagPickerOpen] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [giftOpen, setGiftOpen] = useState(false);
+  // Duel-from-profile modal. Screenshot feedback: "There should be a
+  // button to dual someone" on the profile page. Reuses
+  // CreateDuelModal which already knows how to pre-fill with an
+  // opponentId + username, the same flow Nemesis uses.
+  const [duelOpen, setDuelOpen] = useState(false);
   const [snakeOpen, setSnakeOpen] = useState(false);
   const [birdOpen, setBirdOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
@@ -1654,6 +1660,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               );
             })()}
             <button
+              onClick={() => setDuelOpen(true)}
+              disabled={!targetProfile?.id}
+              className="px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+              aria-label={tFallback('hub.profile.duel', 'Challenge to a duel')}
+              title={tFallback('hub.profile.duel', 'Challenge to a duel')}
+            >
+              <Swords className="w-4 h-4 text-primary" />
+            </button>
+            <button
               onClick={() => setGiftOpen(true)}
               disabled={!targetProfile?.id}
               className="px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1665,6 +1680,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           </div>
         )}
       </motion.div>
+
+      {/* Duel challenge modal — opened by the Swords button above.
+          Pre-filled with the profile's id + username so the user lands
+          straight on the configure step. */}
+      {duelOpen && targetProfile?.id && (
+        <Suspense fallback={null}>
+          <CreateDuelModal
+            opponentId={targetProfile.id}
+            opponentUsername={ownerUsername}
+            onClose={() => setDuelOpen(false)}
+            onCreated={() => setDuelOpen(false)}
+          />
+        </Suspense>
+      )}
 
       {giftOpen && (
         <Suspense fallback={null}>

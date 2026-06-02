@@ -225,7 +225,20 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
     // re-fire "Draft restored" the next time the create-regimen form
     // opens. No-op in edit mode (the draft hook was disabled there).
     draft.clear();
-    onSubmit({ name, description, exercises: normalised, is_public: isPublic });
+    // Set BOTH flags when publishing. is_public is legacy (mig 005);
+    // is_public_free is the new SELECT-policy gate added in mig 143.
+    // Without is_public_free=true, the gated marketplace read policy
+    // blocks every non-owner from seeing the regimen — which is why
+    // user-published regimens stopped appearing in the public list
+    // ("I published a bunch on my main account, but there are none
+    // here huge issue" — screenshot feedback, 2026-06).
+    onSubmit({
+      name,
+      description,
+      exercises: normalised,
+      is_public: isPublic,
+      is_public_free: isPublic,
+    });
   };
 
   // ── Build grouped render list ───────────────────────────────────────────────

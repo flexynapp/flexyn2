@@ -159,8 +159,15 @@ export default function RegimensSection({ onStartRegimen }) {
 
   const togglePublic = (r) => {
     const next = !r.is_public;
+    // Mirror is_public_free with is_public so the RLS gate (mig 143)
+    // surfaces newly-published regimens to non-owners. Without this,
+    // toggling Public from this UI sets only the legacy flag and the
+    // regimen stays invisible in the public store. (Screenshot
+    // feedback — "I published a bunch on my main account, but there
+    // are none here.") db.update strip-and-retry handles pre-mig-143
+    // hosts that lack the column.
     updateMutation.mutate(
-      { id: r.id, data: { is_public: next } },
+      { id: r.id, data: { is_public: next, is_public_free: next } },
       {
         onSuccess: () => toast.success(next ? t('regimens.toast.madePublic') : t('regimens.toast.madePrivate')),
       }
@@ -285,84 +292,102 @@ export default function RegimensSection({ onStartRegimen }) {
               whileTap={{ scale: 0.98 }}
             >
             <Card className="p-4 border-none shadow-sm hover:shadow-md transition-shadow overflow-hidden">
-              <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
-                  {r.is_active && (
-                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 shrink-0">
-                      <Zap className="w-2.5 h-2.5 fill-current" /> Active
-                    </span>
+              {/* TWO-ROW layout: title + description on row 1 (with just
+                  the prominent Start button on the right), all the
+                  ghost-button actions on row 2 below. Previously the 7
+                  buttons sat next to the title in one squeezed row, so
+                  long names like "Your Starter Plan — Build Strength"
+                  wrapped + truncated to "Your Starter Plan — Build
+                  Strength re..." with the buttons covering the title
+                  area. (Screenshot feedback: "The automated built
+                  regimen looks like shit. It's all cut off.") */}
+              <div className="flex items-start justify-between gap-3 mb-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="font-heading font-bold break-words leading-tight">{r.name}</h3>
+                    {r.is_active && (
+                      <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 shrink-0">
+                        <Zap className="w-2.5 h-2.5 fill-current" /> Active
+                      </span>
+                    )}
+                  </div>
+                  {r.original_author_username && (
+                    <p className="text-xs text-muted-foreground mt-1 break-words">
+                      {t('regimens.copiedFrom').replace('{author}', r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}`)}
+                    </p>
                   )}
+                  {r.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2 break-words">{r.description}</p>}
                 </div>
-                {r.original_author_username && (
-                  <p className="text-xs text-muted-foreground mt-2 break-words">
-                    {t('regimens.copiedFrom').replace('{author}', r.original_author_username.startsWith('@') ? r.original_author_username : `@${r.original_author_username}`)}
-                  </p>
-                )}
-                {r.description && <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1 break-words">{r.description}</p>}
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 420, damping: 18 }}
+                  className="shrink-0"
+                >
+                  <Button size="sm" onClick={() => onStartRegimen(r)} className="text-xs">
+                    {t('regimens.start')}
+                  </Button>
+                </motion.div>
               </div>
-                <div className="flex gap-1 ms-2">
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button size="sm" onClick={() => onStartRegimen(r)} className="text-xs">{t('regimens.start')}</Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button variant="ghost" size="icon" onClick={() => toggleExpand(r.id)} title="View exercises">
-                      {expandedId === r.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
-                      <Pencil className="w-4 h-4" />
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title={r.is_public ? t('regimens.makePrivate') : t('regimens.makePublic')}
-                      onClick={() => togglePublic(r)}
-                    >
-                      {r.is_public
-                        ? <Globe className="w-4 h-4 text-primary" />
-                        : <Lock className="w-4 h-4 text-muted-foreground" />}
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      title={r.is_active ? 'Active plan (tap to deactivate)' : 'Set as active plan'}
-                      onClick={() => toggleActive(r)}
-                    >
-                      <Zap className={`w-4 h-4 ${r.is_active ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
-                    </Button>
-                  </motion.div>
-                  <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                    <Button variant="ghost" size="icon" title={t('regimens.shareToHub')} onClick={() => openShare(r)}>
-                      <Send className="w-4 h-4" />
-                    </Button>
-                  </motion.div>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
-                        <Button variant="ghost" size="icon">
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </motion.div>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t('regimens.deleteConfirm')}</AlertDialogTitle>
-                        <AlertDialogDescription>"{r.name}" {t('regimens.deleteConfirmDesc')}</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => deleteMutation.mutate(r.id)}>{t('common.delete')}</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
+
+              {/* Ghost-button action row — wraps cleanly on narrow phones */}
+              <div className="flex flex-wrap items-center gap-1 mb-2 -ms-2">
+                <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                  <Button variant="ghost" size="icon" onClick={() => toggleExpand(r.id)} title="View exercises">
+                    {expandedId === r.id ? <ChevronUp className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                  <Button variant="ghost" size="icon" onClick={() => openEdit(r)}>
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title={r.is_public ? t('regimens.makePrivate') : t('regimens.makePublic')}
+                    onClick={() => togglePublic(r)}
+                  >
+                    {r.is_public
+                      ? <Globe className="w-4 h-4 text-primary" />
+                      : <Lock className="w-4 h-4 text-muted-foreground" />}
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    title={r.is_active ? 'Active plan (tap to deactivate)' : 'Set as active plan'}
+                    onClick={() => toggleActive(r)}
+                  >
+                    <Zap className={`w-4 h-4 ${r.is_active ? 'fill-amber-400 text-amber-400' : 'text-muted-foreground'}`} />
+                  </Button>
+                </motion.div>
+                <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                  <Button variant="ghost" size="icon" title={t('regimens.shareToHub')} onClick={() => openShare(r)}>
+                    <Send className="w-4 h-4" />
+                  </Button>
+                </motion.div>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
+                      <Button variant="ghost" size="icon">
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </motion.div>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>{t('regimens.deleteConfirm')}</AlertDialogTitle>
+                      <AlertDialogDescription>"{r.name}" {t('regimens.deleteConfirmDesc')}</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => deleteMutation.mutate(r.id)}>{t('common.delete')}</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
               <div className="flex flex-wrap gap-1">
                 {r.exercises?.map((ex, i) => {

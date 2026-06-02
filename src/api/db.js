@@ -160,11 +160,36 @@ function makeEntity(entityName) {
       throw new Error(`[Supabase] insert into ${table} failed after stripping unknown columns`);
     },
 
-    /** update(id, data) — patch and return the updated row */
+    /** update(id, data) — patch and return the updated row.
+     *
+     * Mirrors create()'s strip-and-retry so unknown columns get
+     * dropped silently when the running schema lags the client (e.g.
+     * is_public_free landed in mig 143 — pre-143 hosts would 42703
+     * here without this loop). */
     async update(id, data) {
-      const { data: row, error } = await supabase.from(table).update(data).eq('id', id).select().single();
-      if (error) throw error;
-      return row;
+      let payload = { ...data };
+      for (let attempt = 0; attempt < 15; attempt++) {
+        const { data: row, error } = await supabase.from(table).update(payload).eq('id', id).select().single();
+        if (!error) return row;
+        if (error.code === '42703') {
+          const match = error.message?.match(/column "([^"]+)"/);
+          if (match?.[1] && match[1] in payload) {
+            console.warn(`[Supabase] update column "${match[1]}" not in ${table} yet — skipping`);
+            delete payload[match[1]];
+            continue;
+          }
+        }
+        if (error.code === 'PGRST204') {
+          const match = error.message?.match(/the '([^']+)' column/);
+          if (match?.[1] && match[1] in payload) {
+            console.warn(`[Supabase] PGRST204: update column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
+            delete payload[match[1]];
+            continue;
+          }
+        }
+        throw error;
+      }
+      throw new Error(`[Supabase] update on ${table} failed after stripping unknown columns`);
     },
 
     /** delete(id) — remove the row */

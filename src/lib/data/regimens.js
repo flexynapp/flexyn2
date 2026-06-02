@@ -27,10 +27,35 @@ export const update = (id, data) => {
 };
 export const remove = (id) => db.entities.Regimen.delete(id);
 
-/** Fetch all public templates from any user, sorted by copy count then date. */
+/**
+ * Fetch all public templates from any user, sorted by copy count.
+ *
+ * Reads from a UNION of is_public=true and is_public_free=true. The two
+ * columns drifted in migration 143 (the gated SELECT policy was scoped
+ * to is_public_free, but client code kept writing is_public alone), so
+ * a strict filter on either column missed regimens published under the
+ * other flag. We OR them with a single raw .or() call.
+ */
 export const listPublic = async (limit = 100) => {
-  const rows = await db.entities.Regimen.filter({ is_public: true }, '-copy_count', limit).catch(() => []);
-  return rows;
+  const { data, error } = await supabase
+    .from('regimens')
+    .select('*')
+    .or('is_public.eq.true,is_public_free.eq.true')
+    .order('copy_count', { ascending: false })
+    .limit(limit);
+  if (error) {
+    // Pre-mig-143 hosts won't have is_public_free at all — the .or()
+    // 42703s on those. Fall back to the legacy is_public-only path so
+    // older deployments still surface public regimens.
+    if (error.code === '42703') {
+      const rows = await db.entities.Regimen
+        .filter({ is_public: true }, '-copy_count', limit)
+        .catch(() => []);
+      return rows;
+    }
+    return [];
+  }
+  return data ?? [];
 };
 
 /**
