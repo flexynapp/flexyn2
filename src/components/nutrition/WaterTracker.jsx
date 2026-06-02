@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Droplet, Check } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { parseLocalDate } from '@/lib/dateUtils';
 

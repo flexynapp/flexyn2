@@ -40,7 +40,7 @@ const SPECIAL_PIN_CODES = new Set(['WKF2QPWT']);
 // the top-left corner of the map container (the reported bug).
 // All hover scaling is now applied to an INNER wrapper so the outer
 // transform stays MapLibre's exclusive property.
-function buildFlexynPin({ gym, compact, onClick }) {
+function buildFlexynPin({ gym, compact, onClick, signal }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -65,13 +65,18 @@ function buildFlexynPin({ gym, compact, onClick }) {
   });
   inner.textContent = compact ? '🏋' : (gym.member_count > 0 ? String(gym.member_count) : '🏋');
   el.appendChild(inner);
-  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; });
-  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
-  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
+  // signal: an AbortSignal from the caller's effect so all listeners
+  // tear down together when the marker (or the parent map) unmounts.
+  // Without this, removed markers' closures kept onClick + the gym
+  // object pinned in memory after the map cleared.
+  const opts = signal ? { signal } : undefined;
+  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2)'; }, opts);
+  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
+  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); }, opts);
   return el;
 }
 
-function buildOrangePin({ gym, onClick }) {
+function buildOrangePin({ gym, onClick, signal }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -103,13 +108,14 @@ function buildOrangePin({ gym, onClick }) {
     <circle cx="16" cy="15" r="4" fill="rgba(255,255,255,0.55)"/>
   </svg>`;
   el.appendChild(inner);
-  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2) translateY(-3px)'; });
-  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; });
-  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
+  const opts = signal ? { signal } : undefined;
+  el.addEventListener('mouseenter', () => { inner.style.transform = 'scale(1.2) translateY(-3px)'; }, opts);
+  el.addEventListener('mouseleave', () => { inner.style.transform = 'scale(1)'; }, opts);
+  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); }, opts);
   return el;
 }
 
-function buildOsmPin({ gym, onClick }) {
+function buildOsmPin({ gym, onClick, signal }) {
   const el = document.createElement('button');
   el.type  = 'button';
   el.title = gym.name;
@@ -142,15 +148,16 @@ function buildOsmPin({ gym, onClick }) {
   </svg>`;
   el.appendChild(inner);
   const path = inner.querySelector('path');
+  const opts = signal ? { signal } : undefined;
   el.addEventListener('mouseenter', () => {
     inner.style.transform = 'scale(1.6) translateY(-2px)';
     if (path) path.setAttribute('fill', '#6b7280');
-  });
+  }, opts);
   el.addEventListener('mouseleave', () => {
     inner.style.transform = 'scale(1)';
     if (path) path.setAttribute('fill', '#9ca3af');
-  });
-  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); });
+  }, opts);
+  el.addEventListener('click', e => { e.stopPropagation(); onClick(gym); }, opts);
   return el;
 }
 
@@ -460,6 +467,12 @@ export default function GymMap() {
     markersRef.current.forEach(m => { try { m.remove(); } catch { /* ignore */ } });
     markersRef.current = [];
 
+    // AbortController + signal passed to every pin builder so all
+    // hover + click listeners tear down in one shot on effect cleanup.
+    // Without this, removed markers' onClick closures pinned the gym
+    // objects in memory after re-rendering the pin set (re-search,
+    // re-zoom, re-load).
+    const ac = new AbortController();
     const compact = currentZoom < 5;
     const q       = search.trim().toLowerCase();
     const visible = q
@@ -471,13 +484,14 @@ export default function GymMap() {
     for (const g of visible) {
       const special = SPECIAL_PIN_CODES.has(g.flexyn_code);
       const el      = special
-        ? buildOrangePin({ gym: g, onClick: setSelected })
-        : buildFlexynPin({ gym: g, compact, onClick: setSelected });
+        ? buildOrangePin({ gym: g, onClick: setSelected, signal: ac.signal })
+        : buildFlexynPin({ gym: g, compact, onClick: setSelected, signal: ac.signal });
       const marker  = new maplibregl.Marker({ element: el, anchor: special ? 'bottom' : 'center' })
         .setLngLat([g.longitude, g.latitude])
         .addTo(map);
       markersRef.current.push(marker);
     }
+    return () => { ac.abort(); };
   }, [gyms, currentZoom, search]);
 
   // ── OSM pin rendering ──────────────────────────────────────────────────
@@ -488,13 +502,15 @@ export default function GymMap() {
     osmMarkersRef.current.forEach(m => { try { m.remove(); } catch { /* ignore */ } });
     osmMarkersRef.current = [];
 
+    const ac = new AbortController();
     for (const g of osmGyms) {
-      const el     = buildOsmPin({ gym: g, onClick: setSelectedOsm });
+      const el     = buildOsmPin({ gym: g, onClick: setSelectedOsm, signal: ac.signal });
       const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
         .setLngLat([g.lon, g.lat])
         .addTo(map);
       osmMarkersRef.current.push(marker);
     }
+    return () => { ac.abort(); };
   }, [osmGyms]);
 
   // ── Search fly-to ──────────────────────────────────────────────────────

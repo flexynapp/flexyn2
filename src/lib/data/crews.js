@@ -235,7 +235,13 @@ export async function respondToRollCall(messageId, userId, vote) {
 
 export async function notifyCrewRollCall(crewId, question, senderName) {
   const members = await getCrewMembers(crewId);
-  await Promise.allSettled(
+  // Per-member RPC failures used to swallow with bare .catch(() => {})
+  // — a regression in create_notification_for (e.g. migration missing
+  // on a partial deploy) would result in silently delivered roll-
+  // calls. Report the first failure with member count context so
+  // observability catches an outage even though we still tolerate
+  // individual rows failing.
+  const results = await Promise.allSettled(
     members.map(m =>
       supabase.rpc('create_notification_for', {
         p_user_id:  m.user_id,
@@ -245,9 +251,23 @@ export async function notifyCrewRollCall(crewId, question, senderName) {
         p_icon:     '📣',
         p_link_url: '/hub',
         p_metadata: { crew_id: crewId },
-      }).catch(() => {}),
+      }),
     ),
   );
+  const firstFailure = results.find(r => r.status === 'rejected' || r.value?.error);
+  if (firstFailure) {
+    const err = firstFailure.reason || firstFailure.value?.error;
+    try {
+      const { reportError } = await import('@/lib/reportError');
+      reportError(err, {
+        feature: 'crews.notifyRollCall',
+        level: 'warning',
+        crewId,
+        memberCount: members.length,
+        failedCount: results.filter(r => r.status === 'rejected' || r.value?.error).length,
+      });
+    } catch { /* reportError unavailable */ }
+  }
 }
 
 // ── Regimen Equip ─────────────────────────────────────────────────────────────

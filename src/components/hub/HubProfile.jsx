@@ -1123,7 +1123,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               const now = new Date();
               const daysOld = Math.floor((now - since) / (1000 * 60 * 60 * 24));
               if (daysOld < 30) return null; // brand-new relationships read as noise
-              const monthYear = since.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+              // Locale picked from the app language, not hardcoded en-US —
+              // a German user reading their own profile previously saw
+              // "October 2024" instead of "Oktober 2024".
+              const monthLocale = language === 'zh' ? 'zh-CN' : language === 'ja' ? 'ja-JP' : language;
+              const monthYear = since.toLocaleString(monthLocale, { month: 'long', year: 'numeric' });
               // Anniversary glow: within 7 days of the month/day each year.
               const isAnniversaryWeek =
                 since.getMonth() === now.getMonth() &&

@@ -2,6 +2,17 @@
 // Marketplace data-access layer — backed by Supabase marketplace_listings.
 
 import { supabase } from '@/api/supabaseClient';
+import { reportError } from '@/lib/reportError';
+
+// Funnel data-layer throws through a single helper so every failure
+// reaches Sentry with a consistent feature tag. Callers (React
+// components) still see the original error and can show their own
+// user-facing copy — this wrapper just adds observability without
+// changing the throw shape.
+function throwReported(err, feature, ctx) {
+  try { reportError(err, { feature, level: 'warning', ...(ctx || {}) }); } catch { /* never block throw on reporting failure */ }
+  throw err;
+}
 
 /**
  * List all active marketplace listings.
@@ -24,7 +35,7 @@ export async function listActive(limit = 50, sortBy = 'recent', sortDir = 'desc'
     .or(`available_until.is.null,available_until.gt.${now}`)
     .order(column, { ascending })
     .limit(limit);
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   return data ?? [];
 }
 
@@ -53,7 +64,7 @@ export async function createListing(data) {
     p_asking_price:     data.asking_price ?? null,
     p_trade_for_rarity: data.trade_for_rarity ?? null,
   });
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   // Fetch the freshly-created row for the caller.
   const { data: row } = await supabase
     .from('marketplace_listings')
@@ -77,7 +88,7 @@ export async function purchaseListing(listingId) {
   const { data, error } = await supabase.rpc('purchase_listing', {
     p_listing_id: listingId,
   });
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   return data;
 }
 
@@ -125,7 +136,7 @@ export async function listBySeller(sellerEmail) {
     .select('*')
     .eq('seller_email', sellerEmail)
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   return data ?? [];
 }
 
@@ -139,7 +150,7 @@ export async function listActiveBundles() {
     .select('*')
     .eq('status', 'active')
     .order('created_at', { ascending: false });
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   return data ?? [];
 }
 
@@ -153,7 +164,7 @@ export async function purchaseBundle(bundleId) {
   const { data, error } = await supabase.rpc('purchase_bundle', {
     p_bundle_id: bundleId,
   });
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
   return data;
 }
 
@@ -166,5 +177,5 @@ export async function completeListing(listingId) {
     .from('marketplace_listings')
     .update({ status: 'completed' })
     .eq('id', listingId);
-  if (error) throw error;
+  if (error) throwReported(error, 'marketplace');
 }

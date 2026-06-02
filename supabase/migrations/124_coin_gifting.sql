@@ -153,3 +153,5 @@ $gift_flex_coins$;
 
 REVOKE ALL ON FUNCTION public.gift_flex_coins(UUID, INTEGER, TEXT) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.gift_flex_coins(UUID, INTEGER, TEXT) TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

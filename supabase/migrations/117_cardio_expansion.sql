@@ -77,3 +77,5 @@ CREATE POLICY "planned_cardio_own" ON planned_cardio
   USING (created_by = (SELECT email FROM user_profiles WHERE id = auth.uid()));
 
 GRANT ALL ON planned_cardio TO authenticated;
+
+NOTIFY pgrst, 'reload schema';

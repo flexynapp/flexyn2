@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 
@@ -10,60 +10,82 @@ export default function PullToRefresh({ children }) {
   const [refreshing, setRefreshing] = useState(false);
   const startY = useRef(null);
   const pulling = useRef(false);
+  const containerRef = useRef(null);
+  // Mirror state into refs so the native passive listeners (no React
+  // re-render binding) read the latest values without re-attaching.
+  const refreshingRef = useRef(refreshing);
+  const pullYRef = useRef(pullY);
+  useEffect(() => { refreshingRef.current = refreshing; }, [refreshing]);
+  useEffect(() => { pullYRef.current = pullY; }, [pullY]);
 
-  const onTouchStart = useCallback((e) => {
-    // Only activate when scrolled to the very top
-    if (window.scrollY !== 0) return;
-    startY.current = e.touches[0].clientY;
-    pulling.current = true;
-  }, []);
+  // Attach touch listeners as native + passive so Chrome can scroll
+  // synchronously instead of waiting to see if we'll preventDefault.
+  // React's onTouchMove synthetic-event binding doesn't expose the
+  // {passive: true} option and the browser conservatively assumes
+  // non-passive, costing us scroll smoothness. We never preventDefault
+  // in any of these handlers, so passive is correct.
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
 
-  const onTouchMove = useCallback((e) => {
-    if (!pulling.current || startY.current === null || refreshing) return;
-    const delta = e.touches[0].clientY - startY.current;
-    if (delta <= 0) {
+    const onTouchStart = (e) => {
+      if (window.scrollY !== 0) return;
+      startY.current = e.touches[0].clientY;
+      pulling.current = true;
+    };
+
+    const onTouchMove = (e) => {
+      if (!pulling.current || startY.current === null || refreshingRef.current) return;
+      const delta = e.touches[0].clientY - startY.current;
+      if (delta <= 0) {
+        setPullY(0);
+        return;
+      }
+      // Proper rubber-band damping: linear up to the threshold, then
+      // square-root falloff so the user feels increasing resistance as
+      // they pull farther.
+      let damped;
+      if (delta <= THRESHOLD) {
+        damped = delta * 0.55;
+      } else {
+        const over = delta - THRESHOLD;
+        damped = THRESHOLD * 0.55 + Math.sqrt(over) * 4;
+      }
+      setPullY(Math.min(damped, THRESHOLD + 40));
+    };
+
+    const onTouchEnd = async () => {
+      if (!pulling.current) return;
+      pulling.current = false;
+      startY.current = null;
+
+      if (pullYRef.current >= THRESHOLD * 0.45) {
+        setRefreshing(true);
+        setPullY(THRESHOLD);
+        await queryClient.invalidateQueries();
+        await new Promise(r => setTimeout(r, 600));
+        setRefreshing(false);
+      }
       setPullY(0);
-      return;
-    }
-    // Proper rubber-band damping: linear up to the threshold, then
-    // square-root falloff so the user feels increasing resistance as
-    // they pull farther. Previous formula (delta * 0.45 hard-capped at
-    // THRESHOLD+20) snapped to a max immediately and felt mechanical
-    // — no tactile signal that the user was nearing the limit.
-    let damped;
-    if (delta <= THRESHOLD) {
-      damped = delta * 0.55;
-    } else {
-      const over = delta - THRESHOLD;
-      damped = THRESHOLD * 0.55 + Math.sqrt(over) * 4;
-    }
-    setPullY(Math.min(damped, THRESHOLD + 40));
-  }, [refreshing]);
+    };
 
-  const onTouchEnd = useCallback(async () => {
-    if (!pulling.current) return;
-    pulling.current = false;
-    startY.current = null;
-
-    if (pullY >= THRESHOLD * 0.45) {
-      setRefreshing(true);
-      setPullY(THRESHOLD);
-      await queryClient.invalidateQueries();
-      // Small delay so the spinner is visible
-      await new Promise(r => setTimeout(r, 600));
-      setRefreshing(false);
-    }
-    setPullY(0);
-  }, [pullY, queryClient]);
+    const opts = { passive: true };
+    el.addEventListener('touchstart', onTouchStart, opts);
+    el.addEventListener('touchmove',  onTouchMove,  opts);
+    el.addEventListener('touchend',   onTouchEnd,   opts);
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart, opts);
+      el.removeEventListener('touchmove',  onTouchMove,  opts);
+      el.removeEventListener('touchend',   onTouchEnd,   opts);
+    };
+  }, [queryClient]);
 
   const progress = Math.min(pullY / (THRESHOLD * 0.45), 1);
 
   return (
     <div
+      ref={containerRef}
       className="relative flex flex-col md:contents"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
     >
       {/* Indicator — only visible on mobile */}
       <div

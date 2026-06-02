@@ -5,7 +5,7 @@
 // card shrinks to a "logged" pill showing today's choice — gives the
 // user closure without occupying full real estate after the action.
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';

@@ -155,3 +155,5 @@ CREATE INDEX IF NOT EXISTS idx_hub_live_sessions_active
 
 CREATE INDEX IF NOT EXISTS idx_poll_votes_post
   ON poll_votes (post_id, created_at);
+
+NOTIFY pgrst, 'reload schema';

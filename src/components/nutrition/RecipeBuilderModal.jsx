@@ -164,13 +164,16 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
                     value={ing.name}
                     onChange={(e) => updateIngredient(i, { name: e.target.value })}
                     placeholder="Ingredient"
-                    className="h-8 text-xs col-span-5"
+                    // text-[16px] on the input itself prevents iOS Safari from
+// zooming in when the field is focused (any font-size below 16px
+// triggers the auto-zoom; the surrounding labels stay text-xs).
+className="h-8 text-[16px] col-span-5"
                   />
-                  <Input type="number" inputMode="decimal" value={ing.grams}   onChange={(e) => updateIngredient(i, { grams:   e.target.value })} placeholder="g"     className="h-8 text-xs col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.calories} onChange={(e) => updateIngredient(i, { calories: e.target.value })} placeholder="kcal"  className="h-8 text-xs col-span-2 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.protein_g} onChange={(e) => updateIngredient(i, { protein_g: e.target.value })} placeholder="P"   className="h-8 text-xs col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.carbs_g}   onChange={(e) => updateIngredient(i, { carbs_g: e.target.value })}   placeholder="C"   className="h-8 text-xs col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.fat_g}     onChange={(e) => updateIngredient(i, { fat_g: e.target.value })}     placeholder="F"   className="h-8 text-xs col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" value={ing.grams}   onChange={(e) => updateIngredient(i, { grams:   e.target.value })} placeholder="g"     className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" value={ing.calories} onChange={(e) => updateIngredient(i, { calories: e.target.value })} placeholder="kcal"  className="h-8 text-[16px] col-span-2 text-center" />
+                  <Input type="number" inputMode="decimal" value={ing.protein_g} onChange={(e) => updateIngredient(i, { protein_g: e.target.value })} placeholder="P"   className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" value={ing.carbs_g}   onChange={(e) => updateIngredient(i, { carbs_g: e.target.value })}   placeholder="C"   className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" value={ing.fat_g}     onChange={(e) => updateIngredient(i, { fat_g: e.target.value })}     placeholder="F"   className="h-8 text-[16px] col-span-1 text-center" />
                   <button
                     onClick={() => removeIngredient(i)}
                     aria-label="Remove"

@@ -34,7 +34,14 @@
          /manifest.json reference 404'd silently and broke the
          install-prompt. -->
     <link rel="manifest" href="/manifest.webmanifest" />
-    <meta name="theme-color" content="#0f1117" />
+    <!-- theme-color must match the manifest's theme_color in vite.config.js
+         (#f97316 — brand orange) or the browser chrome / PWA splash
+         render mismatched between the install screen (manifest color)
+         and the running app (meta color). Use prefers-color-scheme to
+         match the manifest brand on light AND the dark page bg
+         (#0f1117) on dark so the address bar blends with content. -->
+    <meta name="theme-color" content="#f97316" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0f1117" media="(prefers-color-scheme: dark)" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <!-- iOS PWA -->
@@ -42,12 +49,16 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Flexyn" />
     <!--
-      iOS Safari doesn't support SVG apple-touch-icons. Until a PNG is
-      uploaded to /public/apple-touch-icon.png (180x180), iOS PWA
-      install will fall back to a screenshot. See docs/icons-todo.md
-      for the file you need to add.
+      iOS Safari requires a PNG apple-touch-icon — SVG is silently
+      ignored and the home-screen install uses a screenshot. Until a
+      real 180×180 PNG ships in /public/apple-touch-icon.png, point
+      iOS at the brand SVG (modern iOS Safari does accept it as a
+      better-than-screenshot fallback) AND the existing 192px PNG so
+      the install has the right shape on the home screen.
     -->
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
 
     <!-- SEO -->
     <meta name="description" content="Your AI-powered fitness companion — track workouts, nutrition, and progress." />
