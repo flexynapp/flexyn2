@@ -48,10 +48,43 @@ export function AuthProvider({ children }) {
       if (Number.isInteger(offsetMinutes)) {
         supabase.rpc('update_user_timezone_offset', {
           p_offset_minutes: offsetMinutes,
-        }).then(() => {}, () => {});
+        }).then(
+          ({ error }) => {
+            // RPC may resolve with an error object instead of throwing
+            // (Supabase pattern). Pre-035 hosts return 42883 which we
+            // swallow; everything else routes to Sentry so a real
+            // regression doesn't sit silent and break streak nudges.
+            if (error && error.code !== '42883' && error.code !== '42P01') {
+              import('./reportError').then(({ reportError }) => {
+                reportError(error, {
+                  feature: 'auth.timezoneCapture',
+                  level: 'warning',
+                  userId: authUser?.id,
+                });
+              }).catch(() => {});
+            }
+          },
+          (err) => {
+            // Network-level failure — also worth surfacing.
+            import('./reportError').then(({ reportError }) => {
+              reportError(err, {
+                feature: 'auth.timezoneCapture',
+                level: 'warning',
+                userId: authUser?.id,
+              });
+            }).catch(() => {});
+          },
+        );
       }
-    } catch {
-      // Never break auth bootstrap over a timezone capture failure.
+    } catch (err) {
+      // Synchronous failure in the offset math itself shouldn't break
+      // auth, but log it so we know if Date.getTimezoneOffset ever
+      // throws in some embedded webview.
+      try {
+        import('./reportError').then(({ reportError }) => {
+          reportError(err, { feature: 'auth.timezoneCapture.sync', level: 'warning' });
+        }).catch(() => {});
+      } catch { /* last-resort silence */ }
     }
   }, []);
 

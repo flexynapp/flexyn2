@@ -78,7 +78,13 @@ export default function MoodLogCard() {
       const res = await upsertMoodLog({ mood });
       if (!mountedRef.current) return; // bail if unmounted mid-request
       if (res.ok) {
-        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id] });
+        // Invalidate the 3-key form to match the query above. Prefix
+        // matching meant the 2-key form ['moodLogToday', user?.id]
+        // technically also worked, but the explicit shape removes the
+        // ambiguity for the next reader and avoids accidentally
+        // invalidating any sibling query that might key on
+        // ['moodLogToday', user?.id, <other>] in the future.
+        qc.invalidateQueries({ queryKey: ['moodLogToday', user?.id, todayDateKey] });
         // Auto-tag today's journal entry with the mood score so the
         // journal widget (and history log) surface the emoji for that day.
         // Fire-and-forget — journal tagging failure is non-fatal.

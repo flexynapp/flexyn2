@@ -46,6 +46,16 @@ export default function StatsHubModal({ open, onClose }) {
   const [leaderboardsOpen, setLeaderboardsOpen] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
 
+  // Open a nested modal only AFTER the parent Dialog finishes its
+  // exit animation. Without this, both modals briefly overlap at the
+  // same z-index for ~150ms — backdrops stack, focus ping-pongs, and
+  // the parent's close transition reads as a flicker on top of the
+  // child. Radix Dialog exit defaults to ~150ms; 180 gives a margin.
+  const openNested = (setOpen) => {
+    onClose();
+    setTimeout(() => setOpen(true), 180);
+  };
+
   // Live-refresh the showcase when the user equips a new title/frame/theme
   // — without this, the hero would only update on next modal open.
   // Pin the userId at effect time so a sign-out / account switch between
@@ -214,7 +224,7 @@ export default function StatsHubModal({ open, onClose }) {
 
             {/* League */}
             <ErrorBoundary label="StatsHub.League">
-              <LeagueCard onClick={() => { onClose(); setLeagueOpen(true); }} />
+              <LeagueCard onClick={() => openNested(setLeagueOpen)} />
             </ErrorBoundary>
 
             {/* Daily Quests — clicking a quest closes the modal and routes
@@ -241,7 +251,7 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Trophy}
                 label={tFallback('statsHub.leaderboards', 'Leaderboards')}
-                onClick={() => { onClose(); setLeaderboardsOpen(true); }}
+                onClick={() => openNested(setLeaderboardsOpen)}
               />
               <NavTile
                 icon={Sparkles}
@@ -256,7 +266,7 @@ export default function StatsHubModal({ open, onClose }) {
               <NavTile
                 icon={Coins}
                 label={tFallback('statsHub.shop', 'Coin Shop')}
-                onClick={() => { onClose(); setShopOpen(true); }}
+                onClick={() => openNested(setShopOpen)}
               />
             </div>
           </div>

@@ -32,18 +32,26 @@ export default function SyncStatus({ dataUpdatedAt }) {
   // restore catches the user up.
   useEffect(() => {
     let id = null;
+    // Track unmount so a queued visibilitychange handler that fires
+    // AFTER cleanup ran can't start an orphaned setInterval. Without
+    // this guard, a tab returning to visibility during the
+    // teardown window would leave the interval ticking forever.
+    let unmounted = false;
     const start = () => {
+      if (unmounted) return;
       if (id) clearInterval(id);
       id = setInterval(() => setNow(Date.now()), 30_000);
     };
     const stop = () => { if (id) { clearInterval(id); id = null; } };
     const onVis = () => {
+      if (unmounted) return;
       if (document.visibilityState === 'visible') { setNow(Date.now()); start(); }
       else stop();
     };
     if (document.visibilityState === 'visible') start();
     document.addEventListener('visibilitychange', onVis);
     return () => {
+      unmounted = true;
       stop();
       document.removeEventListener('visibilitychange', onVis);
     };

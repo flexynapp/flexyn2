@@ -82,7 +82,13 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
     [todaysLogs]
   );
 
-  const pct = goalOz > 0 ? Math.max(0, Math.min(1, totalOz / goalOz)) : 0;
+  // Belt-and-suspenders: ensure pct + dashOffset are always finite.
+  // The goalOz>0 guard above protects the divide, but a corrupt
+  // totalOz (NaN from a malformed water_oz row that slipped past
+  // waterEntryOz) would still produce NaN dashOffset and a broken
+  // SVG stroke-dasharray render.
+  const rawPct = goalOz > 0 ? totalOz / goalOz : 0;
+  const pct = Number.isFinite(rawPct) ? Math.max(0, Math.min(1, rawPct)) : 0;
   const pctLabel = Math.round(pct * 100);
 
   // Ring geometry — same proportions as the strea/league flames.

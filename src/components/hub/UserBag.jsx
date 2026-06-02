@@ -263,6 +263,18 @@ function TitleList({ items, userId }) {
   // the same pre-invalidate equippedId of `null` and re-equip the title
   // instead of clearing it.
   const intentRef = useRef(null);
+  // Clear the intent ref once the query has caught up — leaving it
+  // pinned forever caused a flicker when the server value moved
+  // independently (e.g. another device cleared the title; this device
+  // kept showing the local intent). Empty sentinel '' = explicitly
+  // unequipped; null = no intent expressed yet.
+  useEffect(() => {
+    if (intentRef.current == null) return;
+    const intentMatchesServer =
+      (intentRef.current === '' && (profile?.equipped_title_id == null))
+      || intentRef.current === profile?.equipped_title_id;
+    if (intentMatchesServer) intentRef.current = null;
+  }, [profile?.equipped_title_id]);
   const equippedId = intentRef.current ?? profile?.equipped_title_id;
 
   const equip = async (titleId) => {
@@ -378,8 +390,16 @@ function FrameList({ items, userId }) {
   });
   // See TitleList for the rationale on the intent ref — prevents a fast
   // double-tap from reading the same pre-invalidate cache and re-equipping
-  // a frame that the user was trying to toggle off.
+  // a frame that the user was trying to toggle off. Same flicker-clear
+  // pattern as TitleList — drop the intent once the server converges.
   const intentRef = useRef(null);
+  useEffect(() => {
+    if (intentRef.current == null) return;
+    const matches =
+      (intentRef.current === '' && (profile?.equipped_frame_id == null))
+      || intentRef.current === profile?.equipped_frame_id;
+    if (matches) intentRef.current = null;
+  }, [profile?.equipped_frame_id]);
   const equippedId = intentRef.current ?? profile?.equipped_frame_id;
 
   const equip = async (frameId) => {
@@ -475,6 +495,18 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const [selling, setSelling] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
   const [query, setQuery] = useState('');
+
+  // Reset to the capsules tab when the bag is closed AND reset the
+  // search query — otherwise the next user (account switch on a shared
+  // device) opens to the prior session's tab + query, which can
+  // surface unexpected results if the new account doesn't own that
+  // inventory category.
+  useEffect(() => {
+    if (!open) {
+      setActiveTab('capsules');
+      setQuery('');
+    }
+  }, [open]);
 
   const handleApplyTheme = useCallback((itemId) => {
     if (lootThemeId === itemId) {

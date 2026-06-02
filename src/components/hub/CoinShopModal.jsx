@@ -9,7 +9,7 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, X, Lock } from 'lucide-react';
+import { Coins, X, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -215,7 +215,13 @@ function ShopRow({ item, balance, busy, onBuy, t }) {
         disabled={!affordable || busy}
         className="flex items-center gap-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
       >
-        {!affordable && <Lock className="w-3 h-3" />}
+        {/* Show a spinner while the purchase RPC is in flight — the
+            disabled-button state alone gave no signal that anything
+            was happening and users would tap again, blocked by busySku
+            but with no feedback explaining why. */}
+        {busy
+          ? <Loader2 className="w-3 h-3 animate-spin" />
+          : (!affordable && <Lock className="w-3 h-3" />)}
         <Coins className="w-3 h-3" />
         <span className="tabular-nums">{item.price}</span>
       </button>

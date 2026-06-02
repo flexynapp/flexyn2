@@ -78,10 +78,16 @@ export default function LeaderboardsContent({ active = true }) {
   });
   // Period-scoped feed from the RPC. Only fired when period is
   // weekly/monthly AND the active board has a period-scoped definition.
+  // Match the cache key to the SERVER board param ('xp' / 'volume'),
+  // not the UI's activeBoard name — the previous shape keyed the
+  // cache by 'level' while sending board:'xp' to the RPC, so a sibling
+  // surface that also reads ['periodLeaderboard', 'xp', period] would
+  // miss this cache and trigger a duplicate fetch.
+  const serverBoard = activeBoard === 'level' ? 'xp' : 'volume';
   const { data: periodRows = [], isLoading: isLoadingPeriodRaw } = useQuery({
-    queryKey: ['periodLeaderboard', activeBoard, period],
+    queryKey: ['periodLeaderboard', serverBoard, period],
     queryFn:  () => getPeriodLeaderboard({
-      board:  activeBoard === 'level' ? 'xp' : 'volume',
+      board:  serverBoard,
       period,
       limit:  100,
     }),

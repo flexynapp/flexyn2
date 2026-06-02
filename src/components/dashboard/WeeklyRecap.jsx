@@ -49,7 +49,12 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
     [logs, cardioLogs]
   );
 
-  if (!recap) return null;
+  // Gate on user.email — without it the share card falls back to
+  // 'Athlete' for every user (which is bad), but more importantly
+  // any downstream share that posts via Hub requires an email-keyed
+  // author lookup. Bailing here keeps the recap silent during the
+  // auth-loading window instead of rendering a half-broken share path.
+  if (!user?.email || !recap) return null;
 
   const volumeDisplay = formatVolume(Math.round(fromLbs(recap.volumeLbs, weightUnit)));
   const bestLiftDisplay = recap.bestLift

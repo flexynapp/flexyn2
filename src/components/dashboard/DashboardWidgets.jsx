@@ -145,7 +145,12 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => handleRemoveWidget(widgetId)}
-                className="absolute -top-2 -end-2 w-7 h-7 rounded-full bg-destructive text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                // opacity-60 on small screens (where there's no hover
+                // event), opacity-0+group-hover on md+ where the user
+                // has a mouse. The previous opacity-0 only state meant
+                // mobile users — the majority — had no visible way to
+                // remove a widget; the button was invisible until tap.
+                className="absolute -top-2 -end-2 w-7 h-7 rounded-full bg-destructive text-white flex items-center justify-center opacity-60 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:opacity-100 transition-opacity shadow-sm"
                 title={t('dashboard.removeWidget') || 'Remove widget'}
                 aria-label={t('dashboard.removeWidget') || 'Remove widget'}
               >

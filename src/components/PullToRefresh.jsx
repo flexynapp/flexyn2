@@ -25,8 +25,19 @@ export default function PullToRefresh({ children }) {
       setPullY(0);
       return;
     }
-    // Apply rubber-band damping
-    setPullY(Math.min(delta * 0.45, THRESHOLD + 20));
+    // Proper rubber-band damping: linear up to the threshold, then
+    // square-root falloff so the user feels increasing resistance as
+    // they pull farther. Previous formula (delta * 0.45 hard-capped at
+    // THRESHOLD+20) snapped to a max immediately and felt mechanical
+    // — no tactile signal that the user was nearing the limit.
+    let damped;
+    if (delta <= THRESHOLD) {
+      damped = delta * 0.55;
+    } else {
+      const over = delta - THRESHOLD;
+      damped = THRESHOLD * 0.55 + Math.sqrt(over) * 4;
+    }
+    setPullY(Math.min(damped, THRESHOLD + 40));
   }, [refreshing]);
 
   const onTouchEnd = useCallback(async () => {

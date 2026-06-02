@@ -41,12 +41,16 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
 
-  // Use the SAME query keys as MoodLogCard / SleepLog so that when the
-  // user taps a mood (which invalidates ['moodLogToday', user?.id]),
-  // the Readiness score recomputes immediately. Previously this card
-  // had its own ['readinessMood', ...] / ['readinessSleep', ...] keys,
-  // so the two cards drifted out of sync for up to 5 minutes (the
-  // staleTime) after a tap. Visible because they render side-by-side.
+  // Use a query key prefix that matches MoodLogCard / SleepLog so an
+  // invalidate from those components reaches us too. MoodLogCard's
+  // full key is ['moodLogToday', user?.id, todayDateKey]; React Query
+  // matches by prefix on invalidation so the 2-key form here picks
+  // up the invalidation regardless of the third element. The trade-
+  // off: this card doesn't auto-roll at midnight (no date in the key
+  // means React Query holds onto yesterday's row until the staleTime
+  // refetch fires). MoodLog's per-minute tick in the underlying
+  // useQuery causes a refetch when the day flips, so this card
+  // reconciles naturally on the next refetch.
   const { data: sleep } = useQuery({
     queryKey: ['sleepLogToday', user?.id],
     queryFn: getTodaySleepLog,

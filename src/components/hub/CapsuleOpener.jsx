@@ -102,13 +102,24 @@ function buildReel(winItem) {
   // Defensive fallback — if a corrupt catalog yields no fillers
   // (weightedRandomItem returned undefined), substitute a placeholder
   // so React doesn't render the row as `undefined` and crash on .id.
-  const safeFiller = () => weightedRandomItem() || {
-    id: '__filler__', emoji: '✨', name: '???', rarity: 'common', type: 'sticker',
+  const placeholder = { id: '__filler__', emoji: '✨', name: '???', rarity: 'common', type: 'sticker' };
+  // Avoid back-to-back duplicates so the spinning reel doesn't look
+  // like the same card slid by twice — naive Math.random() repeats
+  // ~5% of the time and the visual jitter is obvious during a slow
+  // 'tease' variant. Up to 4 retries before accepting whatever the
+  // PRNG returned so a sparse catalog can't deadlock the loop.
+  const safeFiller = (prev) => {
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const next = weightedRandomItem();
+      if (!next) return placeholder;
+      if (!prev || next.id !== prev.id) return next;
+    }
+    return placeholder;
   };
-  for (let i = 0; i < 17; i++) cards.push(safeFiller());
+  for (let i = 0; i < 17; i++) cards.push(safeFiller(cards[cards.length - 1]));
   cards.push({ id: '__mystery__', emoji: '❓', name: '???', rarity: 'common', type: 'sticker' });
   cards.push(winItem);
-  for (let i = 0; i < 3; i++) cards.push(safeFiller());
+  for (let i = 0; i < 3; i++) cards.push(safeFiller(cards[cards.length - 1]));
   return cards; // 22 cards total
 }
 
@@ -145,8 +156,19 @@ function ItemCard({ item, highlight = false }) {
   );
 }
 
+// Honors prefers-reduced-motion at the component level — the OS toggle
+// means "no infinite-loop ambient animation", which covers both the
+// breathing capsule emoji and the twinkling starfield. Defined once so
+// every animation site can branch on the same flag.
+const prefersReducedMotion = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+  catch { return false; }
+};
+
 // ─── Star field backdrop ──────────────────────────────────────────────────────
 function StarField() {
+  const reduce = prefersReducedMotion();
   const stars = useMemo(() =>
     Array.from({ length: 60 }, (_, i) => ({
       id: i,
@@ -164,8 +186,11 @@ function StarField() {
           key={s.id}
           className="absolute rounded-full bg-white"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, opacity: s.opacity }}
-          animate={{ opacity: [s.opacity, s.opacity * 0.3, s.opacity] }}
-          transition={{ duration: s.duration, repeat: Infinity, ease: 'easeInOut' }}
+          // Honor reduced-motion — skip the infinite opacity tween so
+          // a vestibular-sensitive user isn't subjected to 60 pulsing
+          // dots behind the reel. Static dots still set the mood.
+          animate={reduce ? undefined : { opacity: [s.opacity, s.opacity * 0.3, s.opacity] }}
+          transition={reduce ? undefined : { duration: s.duration, repeat: Infinity, ease: 'easeInOut' }}
         />
       ))}
     </div>
@@ -175,6 +200,7 @@ function StarField() {
 // ─── Component ────────────────────────────────────────────────────────────────
 // Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
 export default function CapsuleOpener({ capsule, onClaim, onClose }) {
+  const reduce = prefersReducedMotion();
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
   const [reel,    setReel]    = useState([]);
@@ -366,22 +392,30 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const rarityConfig = wonItem ? (RARITY[wonItem.rarity] ?? RARITY.common) : null;
   const cardStyle    = wonItem ? (RARITY_CARD[wonItem.rarity] ?? RARITY_CARD.common) : null;
 
-  // Escape-to-close + body scroll lock. Keyboard-only users previously had
-  // no way to dismiss this overlay because it's a raw <div> rather than a
-  // Radix Dialog. We also only allow Escape while in the 'idle' phase so
-  // a user can't escape mid-reveal animation and re-open a still-unopened
-  // capsule (the server-side claim is atomic but the UX would be jarring).
+  // Scroll lock — capture the ORIGINAL overflow value once at mount
+  // and restore it once at unmount. The previous combined effect's
+  // dep on [phase, onClose] meant every phase change ran cleanup +
+  // re-setup; on the second run the "prevOverflow" captured the
+  // 'hidden' value the FIRST run had set, leaking 'hidden' into the
+  // restore path and leaving the body un-scrollable after the modal
+  // closed.
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prevOverflow; };
+  }, []);
+
+  // Escape-to-close. Keyboard-only users previously had no way to
+  // dismiss this overlay because it's a raw <div> rather than a Radix
+  // Dialog. Allow Escape only in the 'idle' phase so a user can't
+  // escape mid-reveal animation and re-open a still-unopened capsule
+  // (the server-side claim is atomic but the UX would be jarring).
   useEffect(() => {
     const onKey = (e) => {
       if (e.key === 'Escape' && phase === 'idle') onClose?.();
     };
     window.addEventListener('keydown', onKey);
-    const prevOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prevOverflow;
-    };
+    return () => window.removeEventListener('keydown', onKey);
   }, [phase, onClose]);
 
   return (
@@ -391,13 +425,17 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
       aria-modal="true"
       aria-labelledby="capsule-opener-title"
     >
-      {/* Backdrop */}
+      {/* Backdrop — clickable in both 'idle' and 'claimed' phases. The
+          previous gate (idle only) left the user with NO way to
+          dismiss after claiming on devices without a visible X button
+          edge case. Spinning + revealing phases are still locked so a
+          stray tap can't kill the moment mid-animation. */}
       <motion.div
         className="absolute inset-0 bg-black/80 backdrop-blur-sm"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        onClick={phase === 'idle' ? onClose : undefined}
+        onClick={(phase === 'idle' || phase === 'claimed') ? onClose : undefined}
       />
 
       {/* Panel */}
@@ -439,8 +477,8 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               exit={{ opacity: 0, y: -20 }}
             >
               <motion.div
-                animate={{ scale: [1, 1.06, 1] }}
-                transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+                animate={reduce ? undefined : { scale: [1, 1.06, 1] }}
+                transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 className="relative"
               >
                 <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl scale-150" />

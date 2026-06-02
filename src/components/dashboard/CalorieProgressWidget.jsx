@@ -7,7 +7,7 @@
 // Calorie goal is computed via nutritionDefaults.js — same formula
 // used on the Nutrition page. No extra DB column needed.
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Flame, Apple } from 'lucide-react';
@@ -47,7 +47,19 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const navigate = useNavigate();
-  const today = format(new Date(), 'yyyy-MM-dd');
+  // Re-derive on a 60s tick so a PWA left open across midnight rolls
+  // the query key forward instead of forever showing yesterday's
+  // totals. The previous render-time format(new Date()) only updated
+  // when something else triggered a re-render, which can be never on
+  // an idle dashboard.
+  const [today, setToday] = useState(() => format(new Date(), 'yyyy-MM-dd'));
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = format(new Date(), 'yyyy-MM-dd');
+      setToday(prev => (prev === next ? prev : next));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Today's nutrition logs
   const { data: todayLogs = [] } = useQuery({

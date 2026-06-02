@@ -606,7 +606,14 @@ export default function Dashboard() {
       const userSaved  = localStorage.getItem(`flexyn.dashWidgetOrder.${user.id}`);
       const appDefault = localStorage.getItem('flexyn.dashWidgetOrder.default');
       const raw = userSaved || appDefault;
-      if (!raw) return;
+      if (!raw) {
+        // Account switch on a shared device — the previous user's
+        // widgetOrder still lives in React state from before user.id
+        // changed. Reset to the baseline so we don't render User A's
+        // layout to User B for the first paint.
+        setWidgetOrder(defaultWidgetOrder);
+        return;
+      }
       const parsed = JSON.parse(raw);
       if (!Array.isArray(parsed)) return;
       const known   = parsed.filter(id => defaultWidgetOrder.includes(id));

@@ -91,12 +91,24 @@ export default function NotificationPanel({ open, onClose }) {
   }, [open, rows, user?.id, queryClient]);
 
   // Escape closes the panel — standard dialog convention. The outside-click
-  // is already handled by the backdrop's onClick.
+  // is already handled by the backdrop's onClick. Stop propagation so a
+  // single Escape doesn't ALSO close a Radix Dialog rendered behind this
+  // panel (e.g. when the notification bell is opened from inside another
+  // dialog). Holding Escape can still queue up multiple fires before the
+  // component unmounts; ignore once we've initiated close.
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    let closed = false;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (closed) return;
+      closed = true;
+      e.stopPropagation();
+      onClose();
+    };
+    // capture phase so we win over the parent Dialog's bubble listener
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open, onClose]);
 
   const handleRowClick = (n) => {
@@ -151,15 +163,19 @@ export default function NotificationPanel({ open, onClose }) {
 
   const handleClearAll = async () => {
     if (!user?.id || rows.length === 0) return;
-    // Same optimistic pattern as single-delete.
-    const previous = rows;
-    queryClient.setQueryData(['notificationsList', user.id], []);
+    // Pin uid + the cache snapshot at handler-entry so a sign-out /
+    // account switch mid-request doesn't write the revert back into
+    // the NEW user's cache key. Previously `previous = rows` plus the
+    // cache writes used a live `user.id` which could shift under us.
+    const uid = user.id;
+    const previous = queryClient.getQueryData(['notificationsList', uid]) || rows;
+    queryClient.setQueryData(['notificationsList', uid], []);
     const res = await notifications.deleteAllForUser(user);
     if (!res.ok) {
-      queryClient.setQueryData(['notificationsList', user.id], previous);
+      queryClient.setQueryData(['notificationsList', uid], previous);
       toast.error(tFallback('notifications.clearAllFailed', 'Could not clear — try again.'));
     } else {
-      queryClient.invalidateQueries({ queryKey: ['notificationsUnread', user.id] });
+      queryClient.invalidateQueries({ queryKey: ['notificationsUnread', uid] });
     }
   };
 
