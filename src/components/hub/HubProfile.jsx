@@ -23,6 +23,7 @@ import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as me from '@/lib/data/me';
 import * as statusNotesData from '@/lib/data/statusNotes';
+import { hasAnyProfanity } from '@/lib/useProfanityGuard';
 import HubPostCard from './HubPostCard';
 import ReferralCard from './ReferralCard';
 import ProfileBadgeShowcase from './ProfileBadgeShowcase';
@@ -698,6 +699,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   // ── Profile edit save ────────────────────────────────────────────────────────
   const handleSaveProfile = async () => {
+    if (hasAnyProfanity(bioDraft, cityDraft)) {
+      toast.error('Please remove inappropriate language before saving.');
+      return;
+    }
     setSavingProfile(true);
     try {
       const updates = { city: cityDraft.trim(), bio: bioDraft.trim() || null };

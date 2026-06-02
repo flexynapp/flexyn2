@@ -124,10 +124,9 @@ export default function CoinShopModal({ open, onClose }) {
     }
   };
 
-  if (!open) return null;
-
   return (
     <AnimatePresence>
+      {open && (
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -188,6 +187,7 @@ export default function CoinShopModal({ open, onClose }) {
           </div>
         </motion.div>
       </motion.div>
+      )}
     </AnimatePresence>
   );
 }

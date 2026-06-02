@@ -42,8 +42,8 @@ export default function AchievementsTab({ achievements = [] }) {
       user,
       achievement: {
         ...ach,
-        name:        t(ach.nameKey)        || ach.name,
-        description: t(ach.descriptionKey) || ach.description,
+        name:        tFallback(ach.nameKey,        ach.name),
+        description: tFallback(ach.descriptionKey, ach.description),
       },
     });
     setSharingId(null);
@@ -157,7 +157,7 @@ export default function AchievementsTab({ achievements = [] }) {
           return (
             <div key={category}>
               <h3 className="font-heading font-bold text-sm mb-3 capitalize">
-                {t(`achievementDefs.cat.${category}`) || category}
+                {tFallback(`achievementDefs.cat.${category}`, category)}
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <AnimatePresence>
@@ -195,11 +195,11 @@ export default function AchievementsTab({ achievements = [] }) {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="font-semibold text-sm">{t(ach.nameKey)}</p>
+                                <p className="font-semibold text-sm">{tFallback(ach.nameKey, ach.name)}</p>
                                 <p className={`text-xs mt-0.5 ${
                                   ach.unlocked ? 'text-muted-foreground' : 'text-muted-foreground/70'
                                 }`}>
-                                  {t(ach.descriptionKey)}
+                                  {tFallback(ach.descriptionKey, ach.description)}
                                 </p>
                               </div>
                               {ach.unlocked && (

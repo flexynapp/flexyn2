@@ -72,8 +72,10 @@ self.addEventListener('push', (event) => {
     // sees the latest count, not 3 separate banners.
     tag: payload.tag,
     // Store the deep-link URL on the notification so the click handler
-    // can route the user to the right page.
-    data: { url: payload.url || '/' },
+    // can route the user to the right page. Default to /dashboard
+    // rather than / — root is the Splash page; signed-in users land
+    // on the dashboard for free, so an empty url should match.
+    data: { url: payload.url || '/dashboard' },
     // Make the notification require user interaction (won't auto-dismiss
     // before the user notices it). Good for important nudges; relax
     // per-notification if needed.
@@ -89,7 +91,7 @@ self.addEventListener('push', (event) => {
 // stamped on the notification.
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const targetUrl = event.notification.data?.url || '/';
+  const targetUrl = event.notification.data?.url || '/dashboard';
 
   event.waitUntil(
     (async () => {

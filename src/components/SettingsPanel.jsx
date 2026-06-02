@@ -138,6 +138,14 @@ export default function SettingsPanel() {
           toast.error(tFallback('settings.validation.invalidDate', 'Invalid date.'));
           return;
         }
+        // Catch dates like '2023-02-29' that JavaScript silently
+        // rolls forward (to March 1, 2023) instead of rejecting. Round
+        // trip the date through ISO and require an exact match.
+        const isoRoundTrip = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        if (typeof statValue === 'string' && statValue.length >= 10 && isoRoundTrip !== statValue.slice(0, 10)) {
+          toast.error(tFallback('settings.validation.invalidDate', 'Invalid date.'));
+          return;
+        }
         if (d > new Date()) {
           toast.error(tFallback('settings.validation.birthdayFuture', "Birthday can't be in the future."));
           return;

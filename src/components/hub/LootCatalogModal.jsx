@@ -16,14 +16,15 @@ import { ITEMS, RARITY } from '@/lib/lootCatalog';
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 import { LOOT_THEMES } from '@/lib/lootThemes';
+import { useLanguage } from '@/lib/LanguageContext';
 
 const RARITY_ORDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'animated'];
 
-const TABS = [
-  { id: 'stickers', label: 'Stickers', Icon: Sparkles, source: () => ITEMS.filter(i => i.type === 'sticker') },
-  { id: 'titles',   label: 'Titles',   Icon: Crown,    source: () => LOOT_TITLES   || [] },
-  { id: 'frames',   label: 'Frames',   Icon: SquareIcon, source: () => LOOT_FRAMES || [] },
-  { id: 'themes',   label: 'Themes',   Icon: Palette,  source: () => LOOT_THEMES   || [] },
+const TAB_DEFS = [
+  { id: 'stickers', labelKey: 'lootCatalog.tab.stickers', defaultLabel: 'Stickers', Icon: Sparkles, source: () => ITEMS.filter(i => i.type === 'sticker') },
+  { id: 'titles',   labelKey: 'lootCatalog.tab.titles',   defaultLabel: 'Titles',   Icon: Crown,    source: () => LOOT_TITLES   || [] },
+  { id: 'frames',   labelKey: 'lootCatalog.tab.frames',   defaultLabel: 'Frames',   Icon: SquareIcon, source: () => LOOT_FRAMES || [] },
+  { id: 'themes',   labelKey: 'lootCatalog.tab.themes',   defaultLabel: 'Themes',   Icon: Palette,  source: () => LOOT_THEMES   || [] },
 ];
 
 function Item({ item, kind }) {
@@ -75,8 +76,10 @@ function Item({ item, kind }) {
 }
 
 export default function LootCatalogModal({ open, onClose }) {
+  const { tFallback } = useLanguage();
   const [activeTab, setActiveTab] = useState('stickers');
   if (!open) return null;
+  const TABS = TAB_DEFS.map(t => ({ ...t, label: tFallback(t.labelKey, t.defaultLabel) }));
   const tabConfig = TABS.find(t => t.id === activeTab);
   const items = tabConfig?.source?.() || [];
   const grouped = RARITY_ORDER.map(r => ({
@@ -99,8 +102,8 @@ export default function LootCatalogModal({ open, onClose }) {
           style={{ maxHeight: '88vh' }}
         >
           <div className="flex items-center justify-between px-4 pt-4 pb-2">
-            <h2 className="font-heading font-bold text-base text-white">What's inside?</h2>
-            <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center">
+            <h2 className="font-heading font-bold text-base text-white">{tFallback('lootCatalog.title', "What's inside?")}</h2>
+            <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="w-7 h-7 rounded-full bg-white/10 text-white flex items-center justify-center">
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -119,7 +122,7 @@ export default function LootCatalogModal({ open, onClose }) {
           </div>
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
             {grouped.length === 0 ? (
-              <p className="text-center text-xs text-white/50 py-6">No items in this catalog yet.</p>
+              <p className="text-center text-xs text-white/50 py-6">{tFallback('lootCatalog.empty', 'No items in this catalog yet.')}</p>
             ) : grouped.map(({ rarity, meta, items: rarityItems }) => (
               <div key={rarity}>
                 <div className="flex items-center gap-1.5 mb-1">

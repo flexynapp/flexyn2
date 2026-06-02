@@ -278,12 +278,16 @@ function TitleList({ items, userId }) {
     const newId = equippedId === titleId ? null : titleId;
     // Record intent immediately so a follow-up tap sees the projected state.
     // Sentinel '' = unequipped (so it isn't confused with "unknown" null).
+    const priorIntent = intentRef.current;
     intentRef.current = newId == null ? '' : newId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_title_id: newId })
       .eq('id', id);
     if (error) {
+      // Revert intent on failure so the UI doesn't show the wrong
+      // equipped state forever while the server still has the old value.
+      intentRef.current = priorIntent;
       // Route to Sentry with full detail (feature tag + error). The user
       // toast is intentionally generic — surfacing raw error.message
       // leaks Postgres error codes / column names / RLS hints that aid
@@ -389,12 +393,15 @@ function FrameList({ items, userId }) {
       return;
     }
     const newId = equippedId === frameId ? null : frameId;
+    const priorIntent = intentRef.current;
     intentRef.current = newId == null ? '' : newId;
     const { error } = await supabase
       .from('user_profiles')
       .update({ equipped_frame_id: newId })
       .eq('id', id);
     if (error) {
+      // Revert intent on failure so the UI doesn't drift from the server state.
+      intentRef.current = priorIntent;
       // See TitleList equip for the rationale on generic toast + Sentry routing.
       reportError(error, { feature: 'userBag.equip-frame', level: 'warning', userId: id });
       if (error.code === '42703' || /column.*equipped_frame_id/i.test(error.message || '')) {
@@ -497,11 +504,15 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
     staleTime: 30_000,
   });
 
-  // Group stickers by item_id so duplicates are visible
+  // Group stickers by item_id so duplicates are visible. Skip rows
+  // with no item_id rather than collapsing them all under an
+  // 'undefined' key — corrupt rows would otherwise merge unrelated
+  // stickers into a single visual group.
   const stickers = inventoryItems.filter(i => i.item_type === 'sticker');
   const stickerGroups = Object.values(
     stickers.reduce((acc, item) => {
       const key = item.item_id;
+      if (key == null) return acc;
       if (!acc[key]) acc[key] = [];
       acc[key].push(item);
       return acc;
