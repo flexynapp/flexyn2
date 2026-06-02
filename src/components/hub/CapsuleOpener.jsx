@@ -99,10 +99,16 @@ function weightedRandomItem() {
 // Layout: [17 fillers] [mystery "???"] [winItem] [3 fillers after]
 function buildReel(winItem) {
   const cards = [];
-  for (let i = 0; i < 17; i++) cards.push(weightedRandomItem());
+  // Defensive fallback — if a corrupt catalog yields no fillers
+  // (weightedRandomItem returned undefined), substitute a placeholder
+  // so React doesn't render the row as `undefined` and crash on .id.
+  const safeFiller = () => weightedRandomItem() || {
+    id: '__filler__', emoji: '✨', name: '???', rarity: 'common', type: 'sticker',
+  };
+  for (let i = 0; i < 17; i++) cards.push(safeFiller());
   cards.push({ id: '__mystery__', emoji: '❓', name: '???', rarity: 'common', type: 'sticker' });
   cards.push(winItem);
-  for (let i = 0; i < 3; i++) cards.push(weightedRandomItem());
+  for (let i = 0; i < 3; i++) cards.push(safeFiller());
   return cards; // 22 cards total
 }
 
@@ -201,7 +207,11 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
       const raf2 = requestAnimationFrame(() => {
         if (!el.isConnected) return; // unmounted between frames
         const ct = containerRef.current;
-        const containerWidth = ct ? ct.offsetWidth : 400;
+        // Guard against offsetWidth === 0 (container not yet laid out,
+        // or hidden via display:none mid-animation). Without the
+        // fallback the centerOffset goes negative and the reel parks
+        // off-screen.
+        const containerWidth = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
         const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
         const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
 
@@ -217,9 +227,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         el.style.transform  = `translateX(${-winOffset}px)`;
 
         // 3. Advance to revealing after the transition finishes.
-        el.addEventListener('transitionend', () => {
+        // Filter by propertyName so a CSS transition on a sibling
+        // property (opacity, box-shadow on hover) doesn't fire the
+        // listener prematurely and short-circuit the reveal.
+        const onTransitionEnd = (ev) => {
+          if (ev.propertyName && ev.propertyName !== 'transform') return;
+          el.removeEventListener('transitionend', onTransitionEnd);
           setTimeout(() => setPhase('revealing'), 200);
-        }, { once: true });
+        };
+        el.addEventListener('transitionend', onTransitionEnd);
       });
       // Store raf2 ID on the element so we can cancel it if the element
       // unmounts during the first RAF (rare but possible).
@@ -302,7 +318,13 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         openGuardRef.current = false;
         return;
       }
-      rolledVariant = data.variant || null;
+      // Validate variant against the known catalog before trusting
+      // the server. A future server change emitting a typo like
+      // `'gld'` would otherwise be propagated into the wonItem object
+      // and broken at the rendering site rather than caught here.
+      rolledVariant = (data.variant && VARIANTS && VARIANTS[data.variant])
+        ? data.variant
+        : null;
       rolledItem    = pickItemForRoll(data.category, data.rarity);
       // If the catalog has no match for the server-rolled tuple (server
       // rolled a rarity that no client item supports yet), fall back to

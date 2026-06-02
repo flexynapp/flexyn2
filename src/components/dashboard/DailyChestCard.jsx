@@ -7,7 +7,7 @@
 // a safe no-op. After a successful claim we pop the Bag open so the fresh
 // capsule is one tap from opening ("instant open").
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Gift, Loader2 } from 'lucide-react';
@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import { isDailyChestReady } from '@/lib/dailyChest';
+import { reportError } from '@/lib/reportError';
 
 export default function DailyChestCard() {
   const { user } = useAuth();
@@ -24,6 +25,21 @@ export default function DailyChestCard() {
   const qc = useQueryClient();
   const [ready, setReady] = useState(() => isDailyChestReady(user?.id));
   const [loading, setLoading] = useState(false);
+
+  // Re-check chest readiness on midnight rollover (and when the user
+  // returns to the tab) so a PWA left open overnight surfaces the
+  // fresh chest without requiring a manual refresh.
+  useEffect(() => {
+    if (!user?.id) return undefined;
+    const recheck = () => setReady(isDailyChestReady(user.id));
+    const id = setInterval(recheck, 60 * 1000);
+    const onVis = () => { if (document.visibilityState === 'visible') recheck(); };
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, [user?.id]);
 
   if (!user?.id || !ready) return null;
 
@@ -41,7 +57,10 @@ export default function DailyChestCard() {
       try { navigator.vibrate?.(20); } catch { /* ignore */ }
       toast.success(tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'));
       requestOpenBag(); // instant-open: jump straight to the Bag
-    } catch {
+    } catch (err) {
+      // Report so a regression in the claim RPC isn't silent — the user
+      // sees a toast, but observability needs the underlying error too.
+      reportError(err, { feature: 'dashboard.dailyChest.claim', level: 'warning', userId: user?.id });
       toast.error(tFallback('marketplace.dailyChest.claimFailed', 'Could not claim — try again in a moment.'));
     } finally {
       setLoading(false);

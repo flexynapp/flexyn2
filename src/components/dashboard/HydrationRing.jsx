@@ -147,7 +147,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
               {tFallback('hydration.kicker', 'Hydration')}
             </p>
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">
-              {Math.round(totalOz)} / {goalOz} <span className="text-xs text-muted-foreground">oz</span>
+              {Math.round(totalOz)} / {goalOz} <span className="text-xs text-muted-foreground">{tFallback('hydration.unit.oz', 'oz')}</span>
             </p>
             <p className="text-[10px] text-muted-foreground mb-1.5">
               {tFallback('hydration.dailyGoal', '{pct}% of daily goal', { pct: pctLabel })}

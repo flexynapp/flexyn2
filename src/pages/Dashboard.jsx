@@ -612,7 +612,11 @@ export default function Dashboard() {
       const known   = parsed.filter(id => defaultWidgetOrder.includes(id));
       const missing = defaultWidgetOrder.filter(id => !known.includes(id));
       const merged  = [...known, ...missing];
-      if (merged.length > 0 && merged.join('|') !== defaultWidgetOrder.join('|')) {
+      // Use JSON.stringify for the equality check — joining on a single
+      // delimiter ('|') aliases two different orderings when an id
+      // happens to contain that delimiter ("foo|bar" + "baz" joins
+      // identical to "foo" + "bar" + "baz").
+      if (merged.length > 0 && JSON.stringify(merged) !== JSON.stringify(defaultWidgetOrder)) {
         setWidgetOrder(merged);
       }
     } catch {}
@@ -817,10 +821,16 @@ export default function Dashboard() {
   // a workout that happened on the 7-day boundary fall in or out of
   // "this week" depending on which side of midnight UTC the user is on.
   const thisWeekLogs = useMemo(
-    () => logs.filter(l => {
-      const d = parseLocalDate(l.date);
-      return d && isAfter(d, subDays(new Date(), 7));
-    }),
+    () => {
+      // Hoist out of the filter callback — new Date() inside the
+      // predicate fires once per log row when N items can be 50+,
+      // which is wasteful when the reference instant is unchanged.
+      const cutoff = subDays(new Date(), 7);
+      return logs.filter(l => {
+        const d = parseLocalDate(l.date);
+        return d && isAfter(d, cutoff);
+      });
+    },
     [logs]
   );
 
@@ -837,11 +847,18 @@ export default function Dashboard() {
 
   // ── Last-week stats for trend arrows ──────────────────────────────────────
   const lastWeekLogs = useMemo(
-    () => logs.filter(l => {
-      const d = parseLocalDate(l.date);
-      if (!d) return false;
-      return isAfter(d, subDays(new Date(), 14)) && !isAfter(d, subDays(new Date(), 7));
-    }),
+    () => {
+      // Hoist reference instants — calling new Date() twice per filter
+      // call is both wasteful and risks edge cases where the two calls
+      // straddle midnight (extremely unlikely but theoretically possible).
+      const sevenAgo = subDays(new Date(), 7);
+      const fourteenAgo = subDays(new Date(), 14);
+      return logs.filter(l => {
+        const d = parseLocalDate(l.date);
+        if (!d) return false;
+        return isAfter(d, fourteenAgo) && !isAfter(d, sevenAgo);
+      });
+    },
     [logs]
   );
 

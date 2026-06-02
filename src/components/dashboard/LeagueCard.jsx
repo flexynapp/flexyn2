@@ -99,7 +99,7 @@ export default function LeagueCard({ onClick }) {
             <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
             <div className="flex-1 min-w-0">
               <p className="text-[8px] font-bold uppercase tracking-wider opacity-90 leading-tight">
-                {tier.label} {tFallback('league.leagueSuffix', 'League')}
+                {tier.label ? `${tier.label} ` : ''}{tFallback('league.leagueSuffix', 'League')}
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span

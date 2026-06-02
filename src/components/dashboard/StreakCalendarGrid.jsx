@@ -14,9 +14,15 @@
 
 import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture, addDays, startOfWeek, subDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth, eachDayOfInterval, parseISO, isToday, isFuture, addDays, startOfWeek, subDays, isValid } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
+
+// Cap streak iteration so a corrupt user_profiles row reading
+// login_streak = 10_000_000 (or NaN coerced upstream) doesn't lock
+// the UI thread building a 10M-entry hit Set. ~10 years is far past
+// any realistic streak we'd render.
+const STREAK_CAP = 3650;
 
 // Mon-start convention matches the firstDayOffset math below. We keep
 // the visual order fixed (Mon→Sun) but localize the letter via
@@ -48,11 +54,14 @@ export function buildCellMap({ month = new Date(), lastLogin, streak = 0 } = {})
     }
     return map;
   }
-  let last;
-  try { last = typeof lastLogin === 'string' ? parseISO(lastLogin) : lastLogin; }
-  catch { last = new Date(); }
+  // parseISO never throws — it returns Invalid Date. Use isValid()
+  // to detect bad input instead of relying on a try/catch that the
+  // call site never fires.
+  let last = typeof lastLogin === 'string' ? parseISO(lastLogin) : lastLogin;
+  if (!isValid(last)) last = new Date();
   const hit = new Set();
-  for (let i = 0; i < streak; i += 1) {
+  const iterCount = Math.min(Math.max(0, Math.floor(streak)), STREAK_CAP);
+  for (let i = 0; i < iterCount; i += 1) {
     // subDays is DST-safe — manual setDate() can shift by 23 or 25
     // hours across DST transitions and silently skip or duplicate a
     // day in the hit set.
@@ -68,7 +77,7 @@ export function buildCellMap({ month = new Date(), lastLogin, streak = 0 } = {})
 }
 
 export default function StreakCalendarGrid({ profile, month = new Date() }) {
-  const { language } = useLanguage();
+  const { language, tFallback } = useLanguage();
   const weekdayLetters = useMemo(() => buildWeekdayLetters(language), [language]);
   const cells = useMemo(
     () => buildCellMap({
@@ -84,15 +93,16 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
   );
   const firstDayOffset = (startOfMonth(month).getDay() + 6) % 7; // Mon-start
   const hitCount = Array.from(cells.values()).filter(v => v === 'hit').length;
+  const dateLocale = getDateLocale(language);
 
   return (
     <div className="rounded-xl border border-border bg-card p-3">
       <div className="flex items-baseline justify-between mb-2">
         <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-          {format(month, 'MMMM', { locale: getDateLocale(language) })}
+          {format(month, 'MMMM', { locale: dateLocale })}
         </p>
         <p className="text-[10px] text-muted-foreground tabular-nums">
-          <span className="font-bold text-foreground">{hitCount}</span> days hit
+          <span className="font-bold text-foreground">{hitCount}</span> {tFallback('streakCalendar.daysHit', 'days hit')}
         </p>
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1">
@@ -114,6 +124,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
             status === 'future' ? 'bg-secondary/20 text-muted-foreground/30' :
             status === 'hit'    ? 'bg-emerald-500/25 text-emerald-300' :
                                    'bg-secondary/40 text-muted-foreground/60';
+          const statusLabel = tFallback(`streakCalendar.status.${status}`, status || 'miss');
           return (
             <motion.div
               key={key}
@@ -121,7 +132,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: d.getDate() * 0.012 }}
               className={`aspect-square rounded-md flex items-center justify-center text-[10px] font-bold tabular-nums ${cellClass} ${today ? 'ring-2 ring-primary' : ''}`}
-              aria-label={`${format(d, 'MMMM d')}: ${status}`}
+              aria-label={`${format(d, 'MMMM d', { locale: dateLocale })}: ${statusLabel}`}
             >
               {d.getDate()}
             </motion.div>

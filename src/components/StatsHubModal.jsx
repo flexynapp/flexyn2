@@ -48,8 +48,14 @@ export default function StatsHubModal({ open, onClose }) {
 
   // Live-refresh the showcase when the user equips a new title/frame/theme
   // — without this, the hero would only update on next modal open.
+  // Pin the userId at effect time so a sign-out / account switch between
+  // event registration and dispatch doesn't invalidate a stale
+  // user.id's query (or — worse — the new user's query keyed off the
+  // previous user's id).
   useEffect(() => {
-    const handler = () => qc.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
+    const userId = user?.id;
+    if (!userId) return undefined;
+    const handler = () => qc.invalidateQueries({ queryKey: ['statsHubProfile', userId] });
     window.addEventListener('flexyn:loot-equipped', handler);
     window.addEventListener('flexyn:theme-changed', handler);
     return () => {
@@ -78,6 +84,13 @@ export default function StatsHubModal({ open, onClose }) {
     },
     enabled: !!user?.id && open,
     staleTime: 15_000,
+    // Surface read failures so a regression in user_profiles RLS
+    // doesn't silently leave the modal half-rendered with stale data.
+    onError: (err) => {
+      import('@/lib/reportError').then(({ reportError }) => {
+        reportError(err, { feature: 'statsHub.profileFetch', level: 'warning', userId: user?.id });
+      }).catch(() => {});
+    },
   });
 
   const totalXp = profile?.total_xp || 0;
@@ -94,9 +107,12 @@ export default function StatsHubModal({ open, onClose }) {
   const equippedFrame = equippedFrameId ? getLootFrameById(equippedFrameId) : null;
   const titleRarity = equippedTitle ? (RARITY[equippedTitle.rarity] ?? RARITY.common) : null;
   const avatarUrl = profile?.avatar_url || user?.avatar_url || null;
-  const initials = (profile?.username || user?.username || user?.email || '?')
-    .slice(0, 2)
-    .toUpperCase();
+  // Strip whitespace before slicing — a username like " kegan" would
+  // otherwise render initials " K" (a leading space + K) which looks
+  // like a one-letter avatar with extra padding. Default to '?' if
+  // everything trims to empty.
+  const initialsSource = (profile?.username || user?.username || user?.email || '').trim();
+  const initials = (initialsSource ? initialsSource.slice(0, 2) : '?').toUpperCase();
 
   return (
     <>

@@ -119,7 +119,7 @@ export default function MoodLogCard() {
                 onClick={() => handleTap(mood)}
                 role="radio"
                 aria-checked={isActive}
-                aria-label={MOOD_LABELS[i]}
+                aria-label={tFallback(`mood.label.${mood}`, MOOD_LABELS[i] || `Mood ${mood}`)}
                 className={[
                   'flex-1 aspect-square max-w-8 rounded-full text-base transition-transform flex items-center justify-center',
                   isActive

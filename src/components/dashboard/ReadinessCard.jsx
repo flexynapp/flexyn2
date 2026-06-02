@@ -37,7 +37,7 @@ const ACTION_BY_LABEL = {
   Depleted: 'Take a rest day. Sleep + protein.',
 };
 
-export default function ReadinessCard({ logs = [], compact = false }) {
+export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
 
@@ -94,8 +94,17 @@ export default function ReadinessCard({ logs = [], compact = false }) {
     lastWorkoutAt,
   });
 
-  const colors = COLOR_BY_LABEL[label] || COLOR_BY_LABEL.Ready;
-  const action = ACTION_BY_LABEL[label] || ACTION_BY_LABEL.Ready;
+  // Defensive fallback — every COLOR_BY_LABEL key is a known label,
+  // but defending against a future score-engine change that returns an
+  // unmapped label keeps the card from rendering as a blank.
+  const safeLabel = COLOR_BY_LABEL[label] ? label : 'Ready';
+  const colors = COLOR_BY_LABEL[safeLabel];
+  const action = ACTION_BY_LABEL[safeLabel];
+  // Translate-safe key — only build the dynamic key off of a label we
+  // verified is in COLOR_BY_LABEL. Otherwise an unmapped label like
+  // " Ready " (whitespace from a future bug) would yield a malformed
+  // `readiness.action. Ready ` key that translators can't write copy for.
+  const actionKey = `readiness.action.${safeLabel}`;
 
   // Ring geometry
   const SIZE = compact ? 28 : 64;
@@ -106,6 +115,17 @@ export default function ReadinessCard({ logs = [], compact = false }) {
 
   if (!user?.id) return null;
 
+  // Wraps the card in a button when an onClick is provided so users
+  // get keyboard focus + the proper affordance. Default is a static div.
+  const Wrapper = onClick ? 'button' : 'div';
+  const wrapperProps = onClick
+    ? {
+        type: 'button',
+        onClick,
+        'aria-label': tFallback('readiness.openLabel', 'Readiness — tap for details'),
+      }
+    : {};
+
   if (compact) {
     return (
       <motion.div
@@ -114,7 +134,14 @@ export default function ReadinessCard({ logs = [], compact = false }) {
         transition={{ duration: 0.4 }}
         className="h-full"
       >
-        <Card className={`px-2 py-1 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5`}>
+        <Card
+          className={`px-2 py-1 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5 ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+          // Compact mode hides the action copy — surface it as a
+          // tooltip + aria-label so screen readers + hover users still
+          // get the context behind the bare score number.
+          title={`${tFallback('readiness.kicker', 'Readiness')} ${score} — ${tFallback(actionKey, action)}`}
+          {...(onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})}
+        >
           <div className="relative" style={{ width: SIZE, height: SIZE }}>
             <svg width={SIZE} height={SIZE} className="-rotate-90">
               <circle
@@ -153,6 +180,10 @@ export default function ReadinessCard({ logs = [], compact = false }) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
     >
+      <Wrapper
+        {...wrapperProps}
+        className={`block w-full text-start ${onClick ? 'cursor-pointer hover:opacity-95 transition-opacity' : ''}`}
+      >
       <Card className={`px-4 py-3 border ${colors.border} ${colors.bg}`}>
         <div className="flex items-center gap-3">
           <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
@@ -185,14 +216,15 @@ export default function ReadinessCard({ logs = [], compact = false }) {
               <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${colors.text}`}>
                 {tFallback('readiness.kicker', 'Readiness')}
               </span>
-              <span className={`text-sm font-heading font-bold ${colors.text}`}>{label}</span>
+              <span className={`text-sm font-heading font-bold ${colors.text}`}>{safeLabel}</span>
             </div>
             <p className="text-xs text-foreground leading-snug mt-0.5">
-              {tFallback(`readiness.action.${label}`, action)}
+              {tFallback(actionKey, action)}
             </p>
           </div>
         </div>
       </Card>
+      </Wrapper>
     </motion.div>
   );
 }
