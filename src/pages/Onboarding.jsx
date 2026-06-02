@@ -1239,9 +1239,15 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 aria-label="Tap to type your age"
                 style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
               >
+                {/* paddingRight + letterSpacing tightened so two-digit ages
+                    (e.g. "48", "60") don't visually clip on the right edge.
+                    Negative letter-spacing was eating the trailing digit
+                    inside the card's overflow-hidden bounds.
+                    (Onboarding screenshot feedback, 2026-06.) */}
                 <div style={{
                   fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800,
-                  fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.06em',
+                  fontSize: 120, lineHeight: 0.9, letterSpacing: '-0.03em',
+                  paddingRight: '0.1em',
                   color: 'hsl(var(--foreground))',
                   transform: isDragging ? 'scale(0.97)' : 'scale(1)',
                   transition: 'transform 0.15s ease-out',
@@ -1250,7 +1256,22 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
                 </div>
               </button>
             )}
-            <div className="font-mono text-[11px] font-600 tracking-[0.3em] uppercase text-muted-foreground mt-2">YEARS OLD · TAP TO TYPE</div>
+            {/* The hint underneath the number is now ALSO tappable so
+                users who fixate on the "TAP TO TYPE" copy and tap it
+                actually open the keypad. Previously only the number itself
+                was the hit target, which was unintuitive given the label.
+                (Onboarding screenshot feedback, 2026-06.) */}
+            {!editingAge && (
+              <button
+                type="button"
+                onClick={handleAgeTap}
+                aria-label="Tap to type your age"
+                className="font-mono text-[11px] font-semibold tracking-[0.3em] uppercase text-muted-foreground mt-2 hover:text-foreground transition-colors"
+                style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}
+              >
+                YEARS OLD · TAP TO TYPE
+              </button>
+            )}
 
             {/* Life-stage chip */}
             <motion.div
@@ -1333,8 +1354,19 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
           <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground mb-3">
             Sex <span className="normal-case font-normal opacity-70">· tunes your strength + calorie targets</span>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {[{ id: 'male', label: 'Male' }, { id: 'female', label: 'Female' }].map(o => {
+          {/* Three-option layout so users who don't identify as binary
+              male/female have an "Other" path that still records a value
+              (vs. silently leaving it null, which the strength/calorie
+              calibrators default to 'male'). Stored as 'other' — consumers
+              treat it the same as the unset default for now, but the value
+              survives so we can surface inclusive copy downstream.
+              (Onboarding screenshot feedback, 2026-06.) */}
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { id: 'male', label: 'Male' },
+              { id: 'female', label: 'Female' },
+              { id: 'other', label: 'Other' },
+            ].map(o => {
               const active = gender === o.id;
               return (
                 <button
@@ -1378,7 +1410,11 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
   };
 
   const value = unit === 'cm' ? stats.heightCm : stats.heightIn;
-  const range = unit === 'cm' ? [120, 220] : [48, 84];
+  // Expanded range from [48,84]→[36,96] (3-8 ft) and [120,220]→[90,245] cm.
+  // The narrow range cut off shorter people (<4ft, e.g. accessibility/kids
+  // accounts) and taller athletes (>7ft NBA-range), forcing them to bail.
+  // (Onboarding screenshot feedback, 2026-06.)
+  const range = unit === 'cm' ? [90, 245] : [36, 96];
   const PX = unit === 'cm' ? 6 : 12;
   const setValue = (v) => unit === 'cm'
     ? onChange({ ...stats, heightCm: v, heightIn: inFromCm(v) })
@@ -1481,8 +1517,15 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
 
   const displayPrimary = unit === 'cm' ? `${value} cm` : `${Math.floor(value / 12)}'${value % 12}"`;
   const displaySecondary = unit === 'cm' ? `${Math.floor(inFromCm(value) / 12)}'${inFromCm(value) % 12}"` : `${cmFromIn(value)} cm`;
-  const minPct = (value - range[0]) / (range[1] - range[0]);
-  const silhouetteH = 70 + minPct * 25;
+  // Pin minPct against a stable 4ft-7ft window so the silhouette scales
+  // by ACTUAL height, not by position within the (now-wider) input range.
+  // Previously the figure was sized off `value vs [range[0],range[1]]` so
+  // a 6-foot user appeared the same size as a 5-foot user (because both
+  // sat near the middle of the range). The screenshot feedback flagged
+  // that the silhouette didn't visibly change with the selected value.
+  const valueIn = unit === 'cm' ? inFromCm(value) : value;
+  const silhouettePct = Math.max(0, Math.min(1, (valueIn - 48) / 36)); // 4ft → 7ft
+  const silhouetteH = 55 + silhouettePct * 45; // 55%–100% range, very visible
 
   const ticks = useMemo(() => {
     const arr = []; for (let v = range[0]; v <= range[1]; v++) arr.push(v); return arr;
@@ -1510,13 +1553,20 @@ function HeightStep({ stats, onChange, onNext, onBack, step, total }) {
             background: 'linear-gradient(180deg, transparent, hsl(var(--card) / 0.6))',
             borderRadius: 18, overflow: 'hidden', border: '1px solid hsl(var(--border))',
           }}>
-            {/* Reference lines */}
-            {[{label:"6'0\"",cm:183,in:72},{label:"5'6\"",cm:168,in:66},{label:"5'0\"",cm:152,in:60}].map(m => {
+            {/* Reference lines — labels are unit-aware so cm-mode users
+                aren't asked to mentally convert 6'0" → 183 cm.
+                (Onboarding screenshot feedback, 2026-06.) */}
+            {[
+              { cm: 183, in: 72, cmLabel: '183 cm', inLabel: "6'0\"" },
+              { cm: 168, in: 66, cmLabel: '168 cm', inLabel: "5'6\"" },
+              { cm: 152, in: 60, cmLabel: '152 cm', inLabel: "5'0\"" },
+            ].map(m => {
               const rv = unit === 'cm' ? m.cm : m.in;
+              const label = unit === 'cm' ? m.cmLabel : m.inLabel;
               const pct = (rv - range[0]) / (range[1] - range[0]);
               return (
-                <div key={m.label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${pct * 88}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
-                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{m.label}</span>
+                <div key={label} style={{ position: 'absolute', left: 8, right: 8, bottom: `${pct * 88}%`, height: 1, background: 'hsl(var(--muted-foreground) / 0.18)' }}>
+                  <span style={{ position: 'absolute', left: 4, top: -9, fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: 'hsl(var(--muted-foreground) / 0.6)' }}>{label}</span>
                 </div>
               );
             })}
@@ -1831,9 +1881,28 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         {/* Barbell */}
         <BarbellVisualizer kg={valueKg} />
 
+        {/* Drag-here hint — subtle bouncing chevrons above the scrubber
+            so users discover the horizontal drag gesture. The gauge looks
+            tappable but is actually scrub-by-drag, and the screenshot
+            feedback flagged that users miss the gesture entirely.
+            (Onboarding screenshot feedback, 2026-06.) */}
+        <div className="flex items-center justify-center gap-1.5 mt-2 mb-1" aria-hidden="true">
+          <motion.span
+            animate={{ x: [-3, 0, -3] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-primary/70 font-bold text-sm leading-none"
+          >‹</motion.span>
+          <span className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag to set</span>
+          <motion.span
+            animate={{ x: [3, 0, 3] }}
+            transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            className="text-primary/70 font-bold text-sm leading-none"
+          >›</motion.span>
+        </div>
+
         {/* Horizontal scrubber */}
         <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-          style={{ position: 'relative', height: 44, marginTop: 10, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
+          style={{ position: 'relative', height: 44, marginTop: 4, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
           <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offsetX}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
             {ticks.map(v => {
               const isMajor = unit === 'kg' ? v % 10 === 0 : v % 25 === 0;
@@ -1954,6 +2023,22 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
   const count = days.length;
   const intensityLabel = count === 0 ? '—' : count <= 2 ? 'Light cadence' : count <= 4 ? 'Balanced' : count <= 5 ? 'Serious' : 'Hardcore';
 
+  // preferredTime is now a string ARRAY so users who train at multiple
+  // times of day (e.g. morning lifting + evening cardio) can pick all
+  // that apply. Tolerant of legacy single-string drafts saved before the
+  // array migration — coerce to [] for stale localStorage. (Onboarding
+  // screenshot feedback, 2026-06.)
+  const selectedTimes = Array.isArray(preferredTime)
+    ? preferredTime
+    : (typeof preferredTime === 'string' && preferredTime ? [preferredTime] : []);
+  const toggleTime = (t) => {
+    const next = selectedTimes.includes(t)
+      ? selectedTimes.filter(x => x !== t)
+      : [...selectedTimes, t];
+    onTimeChange(next);
+    if (navigator.vibrate) navigator.vibrate(4);
+  };
+
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
@@ -1997,21 +2082,30 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
           })}
         </motion.div>
 
-        {/* Preferred time */}
+        {/* Preferred time — multi-select. Many users train at more than
+            one slot (morning lifts + evening cardio, weekday lunch +
+            weekend morning, etc.) and the previous single-select forced
+            them to lie. */}
         <div>
-          <div className="font-mono text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground mb-3">Preferred time</div>
+          <div className="flex items-baseline justify-between mb-3">
+            <div className="font-mono text-[11px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Preferred time</div>
+            <div className="font-mono text-[9px] font-medium tracking-wider uppercase text-muted-foreground/70">Pick all that apply</div>
+          </div>
           <div className="grid grid-cols-2 gap-2">
-            {TIMES.map(t => (
-              <button key={t} onClick={() => onTimeChange(t)}
-                className="py-3 rounded-xl border text-sm font-medium cursor-pointer transition-all"
-                style={{
-                  borderColor: preferredTime === t ? 'hsl(var(--primary))' : 'hsl(var(--border))',
-                  background: preferredTime === t ? 'hsl(var(--primary) / 0.07)' : 'hsl(var(--card))',
-                  color: preferredTime === t ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
-                }}>
-                {t}
-              </button>
-            ))}
+            {TIMES.map(t => {
+              const active = selectedTimes.includes(t);
+              return (
+                <button key={t} onClick={() => toggleTime(t)}
+                  className="py-3 rounded-xl border text-sm font-medium cursor-pointer transition-all"
+                  style={{
+                    borderColor: active ? 'hsl(var(--primary))' : 'hsl(var(--border))',
+                    background: active ? 'hsl(var(--primary) / 0.07)' : 'hsl(var(--card))',
+                    color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  }}>
+                  {t}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -2034,7 +2128,10 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
 
 const MEASURE_FIELDS = [
   { key: 'waistCm',   label: 'Waist',   icon: '📏', min: 40,  max: 180 },
-  { key: 'chestCm',   label: 'Chest',   icon: '💪', min: 50,  max: 200 },
+  // Chest icon was 💪 (flexed bicep) which screenshot feedback flagged as
+  // confusing — users read it as "arm/bicep" instead of "chest". Switched
+  // to 👕 (t-shirt) which sits clearly over the chest area.
+  { key: 'chestCm',   label: 'Chest',   icon: '👕', min: 50,  max: 200 },
   { key: 'hipCm',     label: 'Hips',    icon: '🍑', min: 50,  max: 200 },
   { key: 'bodyFatPct',label: 'Body fat',icon: '📊', min: 3,   max: 60, unit: '%', isPercent: true },
 ];
@@ -2131,17 +2228,45 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
         </div>
       </div>
 
+      {/* Visual hierarchy swaps based on whether the user has filled
+          anything in. Most users don't know their tape-measure stats off
+          the top of their head, so we don't want "Save & continue" to be
+          the loudest button — that pressures them into faking numbers.
+          When NO field is filled, Skip becomes the primary visual action.
+          When the user HAS entered something, Save returns to primary so
+          they don't lose their data by hitting Skip out of habit.
+          (Onboarding screenshot feedback, 2026-06.) */}
       <div className="pb-2 pt-2 space-y-2 shrink-0">
-        <PrimaryBtn onClick={onNext}>
-          {hasAny ? 'Save & continue' : 'Continue'}
-        </PrimaryBtn>
-        <button
-          type="button"
-          onClick={onSkip}
-          className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
-        >
-          Skip for now
-        </button>
+        {hasAny ? (
+          <>
+            <PrimaryBtn onClick={onNext}>
+              Save & continue
+            </PrimaryBtn>
+            <button
+              type="button"
+              onClick={onSkip}
+              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              Skip for now
+            </button>
+          </>
+        ) : (
+          <>
+            <PrimaryBtn onClick={onSkip}>
+              Skip for now <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+            </PrimaryBtn>
+            <button
+              type="button"
+              onClick={onNext}
+              className="w-full py-3 rounded-2xl border border-border bg-secondary/60 text-sm font-semibold text-foreground/80 hover:bg-secondary hover:text-foreground transition-colors"
+            >
+              I know my measurements — let me enter them
+            </button>
+            <p className="text-[11px] text-muted-foreground/70 text-center pt-1">
+              You can add these anytime from Progress.
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
@@ -2582,7 +2707,9 @@ export default function Onboarding() {
       heightUnit: 'in', weightUnit: 'lb',
     },
     days: [],
-    preferredTime: '',
+    // Array — multi-select preferred training times. See DaysStep for
+    // the coercion-from-legacy-string fallback.
+    preferredTime: [],
     // 4-question lift-estimate assessment. Optional — empty object
     // means "skipped." See `assessment` step + buildStarterRegimen.
     assessment: {},
@@ -2854,7 +2981,12 @@ export default function Onboarding() {
       fitness_goals_arr:      Array.isArray(data.goal) ? data.goal : [],
       fitness_level:          data.level,
       training_days:          Array.isArray(data.days) ? data.days : [],
-      preferred_workout_time: data.preferredTime || '',
+      // Multi-time array → comma-joined string for the DB column (which
+      // is still TEXT). Backwards-compatible: a single value reads back
+      // as a 1-element array.
+      preferred_workout_time: Array.isArray(data.preferredTime)
+        ? data.preferredTime.join(',')
+        : (data.preferredTime || ''),
       age:           ageVal,
       height_cm:     String(heightCmVal),
       height_inches: String(heightInVal),
