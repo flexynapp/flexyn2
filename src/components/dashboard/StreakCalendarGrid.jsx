@@ -97,7 +97,7 @@ export default function StreakCalendarGrid({ profile, month = new Date() }) {
       </div>
       <div className="grid grid-cols-7 gap-1 mb-1">
         {weekdayLetters.map((d, i) => (
-          <span key={i} className="text-[9px] text-center font-bold uppercase tracking-wide text-muted-foreground/70">
+          <span key={`wd-${i}-${d}`} className="text-[9px] text-center font-bold uppercase tracking-wide text-muted-foreground/70">
             {d}
           </span>
         ))}

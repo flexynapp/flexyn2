@@ -137,11 +137,11 @@ export default function DailyQuestsCard({ onNavigated }) {
 
   return (
     <Card className="p-4 md:p-5 bg-gradient-to-br from-orange-200/30 to-orange-100/10 dark:from-orange-500/8 dark:to-orange-500/5 border-orange-200/40 dark:border-orange-500/20 theme-card-accent">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <h3 className="font-heading font-bold text-sm tracking-tight">{t('dashboard.dailyQuests')}</h3>
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+      <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <Sparkles className="w-4 h-4 text-primary shrink-0" />
+          <h3 className="font-heading font-bold text-sm tracking-tight truncate">{t('dashboard.dailyQuests')}</h3>
+          <span className="text-[10px] text-muted-foreground tabular-nums shrink-0">
             {completedCount}/{annotated.length}
           </span>
         </div>

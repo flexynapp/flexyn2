@@ -149,9 +149,18 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
             <p className="text-sm font-heading font-bold leading-tight tabular-nums">
               {Math.round(totalOz)} / {goalOz} <span className="text-xs text-muted-foreground">oz</span>
             </p>
-            <p className="text-[10px] text-muted-foreground mb-1.5">{pctLabel}% of daily goal</p>
+            <p className="text-[10px] text-muted-foreground mb-1.5">
+              {tFallback('hydration.dailyGoal', '{pct}% of daily goal', { pct: pctLabel })}
+            </p>
             {/* 8-cup progress dots — each dot = goalOz/8 oz */}
-            <div className="flex gap-1" aria-label={`${Math.min(8, Math.round(totalOz / (goalOz / 8)))} of 8 cups`}>
+            <div
+              className="flex gap-1"
+              aria-label={tFallback(
+                'hydration.cupsAria',
+                '{filled} of 8 cups',
+                { filled: goalOz > 0 ? Math.min(8, Math.round(totalOz / (goalOz / 8))) : 0 },
+              )}
+            >
               {Array.from({ length: 8 }, (_, i) => {
                 const filled = totalOz >= (goalOz / 8) * (i + 1);
                 return (

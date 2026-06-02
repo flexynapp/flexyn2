@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, Zap, Trophy, Target } from 'lucide-react';
+import { subDays } from 'date-fns';
 import StatsSlideshow from './StatsSlideshow';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, getExerciseDisplay } from '@/lib/exerciseTranslations';
@@ -13,7 +14,7 @@ import { fromLbs, formatWeight } from '@/lib/weightUnit';
 
 // Exercise Trends Widget
 function ExerciseTrendsWidget({ logs, isLoading }) {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const data = useMemo(() => {
     if (!logs?.length) return [];
@@ -53,7 +54,7 @@ function ExerciseTrendsWidget({ logs, isLoading }) {
             <XAxis dataKey="displayName" tick={{ fontSize: 12 }} />
             <YAxis tick={{ fontSize: 12 }} />
             <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }} />
-            <Bar dataKey="maxWeightDisplay" fill="hsl(var(--primary))" name={t('workout.weightWithUnit').replace('lbs', weightUnit)} />
+            <Bar dataKey="maxWeightDisplay" fill="hsl(var(--primary))" name={tFallback('workout.weightWithUnit', 'Weight ({unit})', { unit: weightUnit })} />
           </BarChart>
         </ResponsiveContainer>
       )}
@@ -66,9 +67,11 @@ function WeeklyVolumeWidget({ logs, isLoading }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const totalVolume = useMemo(() => {
-    const now = new Date();
-    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    
+    // subDays is DST-safe — `now - 7*24*60*60*1000` is off by an hour
+    // around DST transitions and would silently exclude or include
+    // workouts on the boundary day.
+    const weekAgo = subDays(new Date(), 7);
+
     return logs
       ?.filter(log => {
         const d = parseLocalDate(log.date);
@@ -170,7 +173,18 @@ function MuscleGroupsWidget({ logs, isLoading }) {
       .slice(0, 6);
   }, [logs]);
 
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', 'hsl(var(--secondary))', '#f97316', '#8b5cf6', '#06b6d4'];
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#f97316', '#8b5cf6', '#06b6d4', '#10b981'];
+  // Stable color assignment by name hash so a muscle group keeps the
+  // same wedge color across re-orderings (previously list order
+  // determined color — adding a new group reshuffled the palette).
+  const hashName = (s) => {
+    let h = 0;
+    for (let i = 0; i < (s || '').length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return h;
+  };
 
   return (
     <Card className="p-4">
@@ -193,8 +207,8 @@ function MuscleGroupsWidget({ logs, isLoading }) {
               paddingAngle={2}
               dataKey="value"
             >
-              {muscleData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              {muscleData.map((entry) => (
+                <Cell key={`cell-${entry.name}`} fill={COLORS[Math.abs(hashName(entry.name)) % COLORS.length]} />
               ))}
             </Pie>
             <Tooltip contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }} />
@@ -232,12 +246,12 @@ export const WIDGET_COMPONENTS = {
 
 export default function WidgetRenderer({ widgetId, logs, goals, isLoading }) {
   const Component = WIDGET_COMPONENTS[widgetId];
-  
-  const { t } = useLanguage();
+
+  const { tFallback } = useLanguage();
   if (!Component) {
     return (
       <Card className="p-4 text-center text-muted-foreground text-sm">
-        {t('progress.noData')}
+        {tFallback('widgets.unknown', 'Unknown widget — try removing and re-adding it.')}
       </Card>
     );
   }

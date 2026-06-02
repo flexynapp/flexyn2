@@ -4,7 +4,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import WidgetLibrary from './WidgetLibrary';
-import WidgetRenderer from './WidgetRenderer';
+import WidgetRenderer, { WIDGET_COMPONENTS } from './WidgetRenderer';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 
@@ -30,17 +30,21 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
   // private-mode + iOS quota-exceeded — both throw on the bare
   // `localStorage.getItem` call before any JSON parsing happens.
   useEffect(() => {
+    // Filter out widget IDs that aren't in the current WIDGET_COMPONENTS
+    // catalog — a deprecated/renamed widget left in saved state would
+    // otherwise render as a row of "Unknown widget" cards forever.
+    const dropStale = (arr) => (Array.isArray(arr) ? arr.filter(id => id in WIDGET_COMPONENTS) : []);
     try {
       const saved = localStorage.getItem(STORAGE_KEY(user?.id));
       if (saved) {
-        setActiveWidgets(JSON.parse(saved));
+        setActiveWidgets(dropStale(JSON.parse(saved)));
       } else {
         // One-shot migration from the legacy non-namespaced key — only
         // the first-loaded user inherits it; subsequent users get a
         // clean slate. Avoids the multi-user data leak retroactively.
         const legacy = localStorage.getItem(LEGACY_KEY);
         if (legacy) {
-          setActiveWidgets(JSON.parse(legacy));
+          setActiveWidgets(dropStale(JSON.parse(legacy)));
           try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
         } else {
           setActiveWidgets([]);

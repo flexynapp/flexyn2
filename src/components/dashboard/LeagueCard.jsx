@@ -61,7 +61,10 @@ export default function LeagueCard({ onClick }) {
     return null;
   }
 
-  const { league, tier, members, totalMembers } = data;
+  const { league, tier, members } = data;
+  // Default totalMembers to the loaded members.length so the "rank / N"
+  // line never renders "/undefined" or "/0" when the RPC omits the count.
+  const totalMembers = Number(data.totalMembers) || members.length || 0;
   const me = members.find(m => m && m.user_id === user.id);
   const myXp = me?.weekly_xp || 0;
 
@@ -100,14 +103,21 @@ export default function LeagueCard({ onClick }) {
               </p>
               <div className="flex items-baseline gap-1">
                 <motion.span
-                  key={myRank}
+                  // Stable key — `key={myRank}` caused a full remount +
+                  // re-animation on every poll even when the rank
+                  // hadn't changed (myRank toggles between number and
+                  // null during refetch). The delta animation is
+                  // already gated by rankDelta below.
+                  key="rank"
                   className="font-heading font-bold text-sm leading-none tabular-nums"
                   initial={{ y: rankDelta != null ? (rankDelta < 0 ? 8 : -8) : 0, opacity: 0.4 }}
                   animate={{ y: 0, opacity: 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 22 }}
                 >
                   #{myRank ?? '—'}
-                  <span className="text-[10px] font-normal opacity-75 ms-0.5">/{totalMembers}</span>
+                  {totalMembers > 0 && (
+                    <span className="text-[10px] font-normal opacity-75 ms-0.5">/{totalMembers}</span>
+                  )}
                 </motion.span>
 
                 {/* Delta badge — fades in, slides, fades out */}
@@ -135,7 +145,7 @@ export default function LeagueCard({ onClick }) {
               <p className="text-[8px] uppercase tracking-wider opacity-80 leading-none">
                 {tFallback('league.daysLeft', 'Left')}
               </p>
-              <p className="font-heading font-bold text-sm leading-none mt-0.5 tabular-nums">{daysLeft}d</p>
+              <p className="font-heading font-bold text-sm leading-none mt-0.5 tabular-nums">{daysLeft}{tFallback('league.daySuffix', 'd')}</p>
             </div>
             <ChevronRight className="w-3 h-3 opacity-70 shrink-0 rtl:scale-x-[-1]" />
           </div>

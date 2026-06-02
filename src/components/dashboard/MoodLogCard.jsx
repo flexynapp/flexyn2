@@ -5,7 +5,7 @@
 // card shrinks to a "logged" pill showing today's choice — gives the
 // user closure without occupying full real estate after the action.
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -33,13 +33,16 @@ export default function MoodLogCard() {
 
   // Include today's local date in the query key so a PWA left open
   // across midnight doesn't keep showing yesterday's mood as already
-  // logged. Recomputed every render — getTodayMoodLog itself derives
-  // "today" server-side, so the cache key just needs to invalidate at
-  // the day boundary on the client.
-  const todayDateKey = (() => {
+  // logged. getTodayMoodLog itself derives "today" server-side, so the
+  // cache key just needs to invalidate at the day boundary on the
+  // client. Memoize so the IIFE doesn't burn a new string identity on
+  // every render — the deps array `[]` is fine because midnight
+  // rollover would require an external re-render anyway (the staleTime
+  // refetch will catch it then).
+  const todayDateKey = useMemo(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
+  }, []);
   const { data: today } = useQuery({
     queryKey: ['moodLogToday', user?.id, todayDateKey],
     queryFn: getTodayMoodLog,

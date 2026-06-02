@@ -621,8 +621,6 @@ export default function StoriesRow({ onViewProfile } = {}) {
   }, [ownGroup, queryClient]);
 
   const handleQuickAdd = useCallback(async (email) => {
-    // Remove from visible list immediately — the section stays mounted
-    setQaList(prev => prev.filter(p => p.email !== email));
     // Persist the addition so it survives page refresh
     const cache = qaLoad(user?.id);
     if (cache) {
@@ -630,13 +628,24 @@ export default function StoriesRow({ onViewProfile } = {}) {
       qaSave(user?.id, cache);
     }
     await hubFollows.follow(user.email, email);
+    // Defer removal so QuickAddAvatarItem has a frame to render the
+    // "Added" check state — yanking the item out of the list before
+    // its internal `setState('added')` runs meant the success feedback
+    // was never visible.
+    setTimeout(() => {
+      setQaList(prev => prev.filter(p => p.email !== email));
+    }, 900);
     queryClient.invalidateQueries({ queryKey: ['hubFollowing'] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
   }, [user, queryClient]);
 
   if (!user) return null;
 
-  const showAddButton = ownGroup?.stories.length > 0 && !uploadMutation.isPending;
+  // Show the Add button whenever uploads aren't in flight — the
+  // previous `ownGroup?.stories.length > 0` gate hid the only entry
+  // point for a brand-new user who hadn't posted yet, leaving them
+  // with no way to add their first story from this strip.
+  const showAddButton = !uploadMutation.isPending;
 
   return (
     <>
@@ -828,9 +837,9 @@ export default function StoriesRow({ onViewProfile } = {}) {
             </div>
             {crewStoryViewerOpen.stories.length > 1 && (
               <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2">
-                {crewStoryViewerOpen.stories.map((_, i) => (
+                {crewStoryViewerOpen.stories.map((s, i) => (
                   <button
-                    key={i}
+                    key={s?.id ?? `dot-${i}`}
                     onClick={e => { e.stopPropagation(); setCrewStoryViewerOpen(p => ({ ...p, idx: i })); }}
                     className={`w-1.5 h-1.5 rounded-full transition-colors ${i === crewStoryViewerOpen.idx ? 'bg-white' : 'bg-white/40'}`}
                   />

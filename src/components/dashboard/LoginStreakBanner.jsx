@@ -129,7 +129,11 @@ export default function LoginStreakBanner() {
       {freezes > 0 && (
         <div
           className="flex items-center gap-1 text-[11px] text-cyan-500"
-          title={(freezes === 1 ? t('dashboard.streakFreezeTooltip') : t('dashboard.streakFreezesTooltip')).replace('{n}', freezes)}
+          title={tFallback(
+            freezes === 1 ? 'dashboard.streakFreezeTooltip' : 'dashboard.streakFreezesTooltip',
+            freezes === 1 ? '{n} streak freeze available' : '{n} streak freezes available',
+            { n: freezes }
+          )}
         >
           <Snowflake className="w-3 h-3" />
           <span className="tabular-nums">×{freezes}</span>
