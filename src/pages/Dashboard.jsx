@@ -1030,7 +1030,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={toggleRecovery}
-              aria-label={recoveryOpen ? 'Collapse recovery' : 'Expand recovery'}
+              aria-label={recoveryOpen ? tFallback('dashboard.collapseRecovery', 'Collapse recovery') : tFallback('dashboard.expandRecovery', 'Expand recovery')}
               aria-expanded={recoveryOpen}
               className="w-full mt-2 -mb-1 flex items-center justify-center py-1 rounded-md text-muted-foreground/60 hover:text-foreground hover:bg-secondary/40 transition-colors"
             >
