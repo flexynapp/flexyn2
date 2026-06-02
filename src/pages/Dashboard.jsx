@@ -172,7 +172,14 @@ function HeroCard({
           }}
         />
 
-        <div className="relative p-4 md:p-6 md:pb-12">
+        {/* min-h locks the hero card's vertical size so different slides
+            (Step 2 has a long sub-line + progress bar, Step 3 has just a
+            number + one line) don't make the card visibly grow/shrink
+            between auto-rotations. The min-height matches the tallest
+            template slide's natural height — slides shorter than this
+            now sit at the top with empty space underneath rather than
+            collapsing the card. (Screenshot feedback, 2026-06.) */}
+        <div className="relative p-4 md:p-6 md:pb-12 min-h-[280px] md:min-h-[300px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -528,6 +535,10 @@ export default function Dashboard() {
     } catch { return defaultOpen; }
   };
   const [readinessOpen,    setReadinessOpen]    = useState(() => initOpen('readiness',    true));
+  // Modal that explains how the Readiness score is computed. Surfaced
+  // by tapping the Readiness card — screenshot feedback flagged that
+  // the bare number gave no hint about what feeds it.
+  const [readinessInfoOpen, setReadinessInfoOpen] = useState(false);
   const [recoveryOpen,     setRecoveryOpen]     = useState(() => initOpen('recovery',     true));
   const [challengesOpen,   setChallengesOpen]   = useState(() => initOpen('challenges',   true));
   const [chestOpen,        setChestOpen]        = useState(() => initOpen('chest',        true));
@@ -1062,7 +1073,7 @@ export default function Dashboard() {
           return (
             <React.Fragment key="readiness">
               <ErrorBoundary label="ReadinessCard">
-                <ReadinessCard logs={logs} compact />
+                <ReadinessCard logs={logs} compact onClick={() => setReadinessInfoOpen(true)} />
               </ErrorBoundary>
             </React.Fragment>
           );
@@ -1077,7 +1088,7 @@ export default function Dashboard() {
             />
             <Collapsible open={readinessOpen}>
               <div className="mb-3">
-                <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} /></ErrorBoundary>
+                <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} onClick={() => setReadinessInfoOpen(true)} /></ErrorBoundary>
               </div>
             </Collapsible>
           </React.Fragment>
@@ -1586,6 +1597,81 @@ export default function Dashboard() {
         open={leagueModalOpen}
         onClose={() => setLeagueModalOpen(false)}
       />
+
+      {/* Readiness algorithm explainer — opened by tapping the
+          Readiness card. Screenshot feedback ("either remove this
+          button or have it so you can tap it and there's a little
+          prompt that says what is the readiness algorithm"). */}
+      {readinessInfoOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          onClick={() => setReadinessInfoOpen(false)}
+        >
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div
+            className="relative z-10 w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="font-mono text-[10px] font-bold tracking-[0.18em] uppercase text-primary mb-1">How it's calculated</p>
+                <h3 className="font-heading font-bold text-lg leading-tight">Your Readiness score</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReadinessInfoOpen(false)}
+                aria-label="Close"
+                className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-secondary/60 transition-colors -mt-1 -me-2"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-4">
+              A single 0-100 number for "should I go hard today?" — blended from four signals we already track.
+            </p>
+            <ul className="space-y-3 mb-4">
+              <li className="flex gap-3">
+                <span className="text-xl leading-none">😴</span>
+                <div>
+                  <p className="text-sm font-semibold">Last night's sleep</p>
+                  <p className="text-xs text-muted-foreground leading-snug">Hours + quality from your sleep log.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-xl leading-none">🙂</span>
+                <div>
+                  <p className="text-sm font-semibold">Today's mood / soreness</p>
+                  <p className="text-xs text-muted-foreground leading-snug">From your mood check-in or sleep soreness slider.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-xl leading-none">🏋️</span>
+                <div>
+                  <p className="text-sm font-semibold">Days since last workout</p>
+                  <p className="text-xs text-muted-foreground leading-snug">Recent training raises strain; rest days raise recovery.</p>
+                </div>
+              </li>
+              <li className="flex gap-3">
+                <span className="text-xl leading-none">📊</span>
+                <div>
+                  <p className="text-sm font-semibold">Weekly volume trend</p>
+                  <p className="text-xs text-muted-foreground leading-snug">Hard weeks bank fatigue; the score factors that in.</p>
+                </div>
+              </li>
+            </ul>
+            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+              The more you log (sleep, mood, workouts), the more accurate the score gets. Skip a signal and we lean on what's left.
+            </p>
+            <button
+              type="button"
+              onClick={() => setReadinessInfoOpen(false)}
+              className="w-full mt-4 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Dashboard-level quick-action modals.
           LogWeightModal writes a body-metric row AND mirrors to

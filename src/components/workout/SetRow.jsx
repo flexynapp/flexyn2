@@ -180,6 +180,20 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
             if (e.key === 'Enter') { e.preventDefault(); repsRef.current?.focus(); }
           }}
+          onFocus={e => {
+            // Scroll the focused input into the visible viewport above the
+            // iOS soft keyboard. Without this, tapping a weight input
+            // mid-page pushes the field BEHIND the keyboard so the user
+            // can't see what they're typing — the exact "If you type,
+            // you cannot see what you're typing" bug from screenshot
+            // feedback. Two-pass with a 250ms delay catches iOS Safari's
+            // post-keyboard layout settle.
+            const el = e.currentTarget;
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* noop */ }
+            setTimeout(() => {
+              try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* noop */ }
+            }, 250);
+          }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
           className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
@@ -232,6 +246,14 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+          }}
+          onFocus={e => {
+            // Same iOS keyboard-coverage fix as the weight input above.
+            const el = e.currentTarget;
+            try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* noop */ }
+            setTimeout(() => {
+              try { el.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch { /* noop */ }
+            }, 250);
           }}
           ref={repsRef}
           enterKeyHint="done"

@@ -263,6 +263,19 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
             <span className="w-8"></span>
           </div>
         )}
+        {/* One-line legend for the per-set action icons. Screenshot
+            feedback flagged that the flame + X buttons inside each set
+            row had no visible label on mobile (titles only show on
+            desktop hover), so users couldn't tell what they did. This
+            sits once per exercise, beneath the column headers. */}
+        {sets.length > 0 && (
+          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70 px-1 -mt-1 mb-1">
+            <span className="inline-flex items-center gap-1">🔥<span>Warmup</span></span>
+            <span className="inline-flex items-center gap-1">✗<span>Failed</span></span>
+            <span className="inline-flex items-center gap-1">💬<span>Feel</span></span>
+            <span className="inline-flex items-center gap-1">⏱<span>RPE</span></span>
+          </div>
+        )}
         <AnimatePresence initial={false}>
           {sets.map((set, i) => (
             <motion.div

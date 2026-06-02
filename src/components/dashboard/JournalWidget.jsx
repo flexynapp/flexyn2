@@ -204,7 +204,7 @@ export default function JournalWidget({ userId, userEmail }) {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 onKeyDown={handleKeyDown}
-                placeholder={tFallback('journal.placeholder', 'How was your day? (⌘↩ to save & close)')}
+                placeholder={tFallback('journal.placeholder', 'How was your day?')}
                 rows={5}
                 className="w-full text-sm bg-background border border-border rounded-md px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-primary/50 placeholder:text-muted-foreground/40 mt-1"
               />

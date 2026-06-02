@@ -178,10 +178,23 @@ export const QUEST_CATALOG = {
  * Deterministic — same (userId, date) always returns the same set.
  *
  * Why deterministic? So the user can't reset by reloading, and so the same set
- * shows on different devices. The picker uses a cheap hash of (userId + date).
+ * shows on different devices. The picker uses per-difficulty independent hashes
+ * of (userId + date + difficulty) so adjacent dates don't produce neighboring
+ * indices (which, with small pools of 5, would surface the same quest day after
+ * day even though the date had changed — beta tester feedback: "quests have
+ * been consistent the whole time"). Mixing the day-of-year separately into
+ * the seed ensures even minor date deltas produce large hash shifts.
  */
 export function pickDailyQuests(userId, dateStr) {
-  const seed = hashString(`${userId}:${dateStr}`);
+  // Extract YMD numerically so the day-of-year acts as a strong, additive
+  // entropy term separate from the lexical date string. Without this, two
+  // adjacent dates ("2026-05-31" → "2026-06-01") differ in many characters
+  // but the djb2 hash can still produce nearby mod values for small pools.
+  const m = String(dateStr).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const dayMix = m
+    ? (Number(m[1]) * 366 + Number(m[2]) * 31 + Number(m[3])) * 2654435761 >>> 0
+    : 0;
+
   const eligible = (diff) =>
     Object.entries(QUEST_CATALOG)
       .filter(([, q]) => q.enabled && q.difficulty === diff)
@@ -191,16 +204,18 @@ export function pickDailyQuests(userId, dateStr) {
   const mediumPool = eligible('medium');
   const hardPool   = eligible('hard');
 
-  const pick = (pool, offset) => {
+  // Per-difficulty seed so easy/medium/hard pick INDEPENDENTLY rather than
+  // (seed, seed+1, seed+2) which clustered picks on small pools.
+  const pick = (pool, difficulty) => {
     if (pool.length === 0) return null;
-    const idx = Math.abs((seed + offset) % pool.length);
-    return pool[idx];
+    const seed = (hashString(`${userId}:${dateStr}:${difficulty}`) ^ dayMix) >>> 0;
+    return pool[seed % pool.length];
   };
 
   return [
-    pick(easyPool,   0),
-    pick(mediumPool, 1),
-    pick(hardPool,   2),
+    pick(easyPool,   'easy'),
+    pick(mediumPool, 'medium'),
+    pick(hardPool,   'hard'),
   ].filter(Boolean);
 }
 

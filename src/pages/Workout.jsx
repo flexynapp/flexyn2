@@ -24,7 +24,7 @@ import ErrorBoundary from '@/components/ErrorBoundary';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger from '@/components/workout/ExerciseLogger';
@@ -103,6 +103,43 @@ function isKnownExercise(name) {
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
+
+/**
+ * Reorder.Item wrapper that uses an EXPLICIT drag handle instead of
+ * letting the whole item catch pointer events. The default Reorder.Item
+ * grabs any vertical drag on the card — meaning users scrolling the
+ * page through an exercise card accidentally started reordering, and
+ * the workouts would shuffle when they were trying to scroll. (See
+ * screenshot feedback "you can't really scroll through the page up
+ * or down because it starts like moving the workouts.")
+ *
+ * Now the drag handle is the small grip pill at the top-center of each
+ * card. Touching anywhere else just scrolls / interacts with the
+ * normal logger UI.
+ */
+function ReorderItemWithHandle({ value, children, className }) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={value}
+      className={className}
+      whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.25)' }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      dragListener={false}
+      dragControls={controls}
+    >
+      <div
+        onPointerDown={(e) => controls.start(e)}
+        className="absolute top-1 start-1/2 -translate-x-1/2 z-10 w-10 h-5 flex items-center justify-center cursor-grab active:cursor-grabbing touch-none select-none"
+        aria-label="Drag to reorder"
+        role="button"
+      >
+        <span className="w-8 h-1 rounded-full bg-muted-foreground/30 hover:bg-muted-foreground/60 transition-colors" />
+      </div>
+      {children}
+    </Reorder.Item>
+  );
+}
 
 
 export default function Workout() {
@@ -1237,9 +1274,17 @@ export default function Workout() {
   // both mount points so they can't drift.
   const saveGeneratedAsRegimen = async (workout) => {
     try {
+      // Description previously had a mojibake "Â·" (UTF-8 byte-pair
+      // displayed as two chars) in place of the intended middle-dot ·.
+      // Cleaned up to a plain ASCII " — ". Also fall back the focus
+      // label so an undefined `workout.focus` doesn't read as
+      // "AI undefined session". (Screenshot feedback.)
+      const focusLabel = workout?.focus ? `${workout.focus} ` : '';
+      const mins = workout?.duration_minutes;
+      const description = `AI ${focusLabel}session${mins ? ` — ${mins} min` : ''}`.trim();
       await regimens.create({
         name: workout.title || 'AI-Generated Workout',
-        description: `AI ${workout.focus} session Â· ${workout.duration_minutes} min`,
+        description,
         exercises: (workout.exercises || []).map(ex => ({
           name: ex.name,
           target_sets: ex.sets?.length || 3,
@@ -1253,7 +1298,16 @@ export default function Workout() {
       toast.success('Saved to your Regimens!');
     } catch (err) {
       reportError(err, { feature: 'workout.save-regimen', userEmail: user?.email });
-      toast.error('Could not save regimen. Try again.');
+      // Surface the underlying error so beta testers can report something
+      // specific. Profanity-filter rejection is the most common false
+      // positive (AI titles occasionally trip the username profanity check
+      // even on benign words), so flag that case explicitly.
+      const reason = err?.code === 'PROFANITY'
+        ? 'The AI-generated title was rejected by our filter — try regenerating for a different name.'
+        : err?.message
+          ? `Could not save regimen: ${err.message}`
+          : 'Could not save regimen. Try again.';
+      toast.error(reason);
     }
   };
 
@@ -2683,12 +2737,10 @@ export default function Workout() {
             {items.map((item) => {
               if (item.type === 'group') {
                 return (
-                  <Reorder.Item
+                  <ReorderItemWithHandle
                     key={item.key}
                     value={item.key}
                     className="relative"
-                    whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.25)' }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                   >
                     <GroupBlock
                       groupId={item.groupId}
@@ -2699,17 +2751,15 @@ export default function Workout() {
                       }}
                       userProfile={userProfile}
                     />
-                  </Reorder.Item>
+                  </ReorderItemWithHandle>
                 );
               }
               const { exercise: ex, globalIdx: i } = item;
               return (
-                <Reorder.Item
+                <ReorderItemWithHandle
                   key={item.key}
                   value={item.key}
                   className="relative"
-                  whileDrag={{ scale: 1.02, boxShadow: '0 10px 25px rgba(0,0,0,0.25)' }}
-                  transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                 >
                   <ExerciseLogger
                     exercise={ex}
@@ -2781,7 +2831,7 @@ export default function Workout() {
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 </div>
-                </Reorder.Item>
+                </ReorderItemWithHandle>
               );
             })}
           </Reorder.Group>
