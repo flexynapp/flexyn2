@@ -42,6 +42,14 @@
     --sidebar-accent-foreground: 210 18% 15%;
     --sidebar-border: 210 15% 88%;
     --sidebar-ring: 26 90% 50%;
+    /* Hero "Start a workout" CTA — the signature gold gradient. Held
+       in CSS vars (rather than inline in Dashboard.jsx) so the same
+       brand gold can be referenced from share cards, achievement
+       pills, and capsule rarity accents without copy-paste drift.
+       Stays gold across themes because this IS the brand. */
+    --hero-cta-gradient: linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%);
+    --hero-cta-text: hsl(28 65% 22%);
+    --hero-cta-shadow: 0 14px 28px -8px rgba(245, 158, 11, 0.55), 0 6px 12px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   }
 
   .dark {
@@ -77,6 +85,13 @@
     --sidebar-accent-foreground: 30 20% 95%;
     --sidebar-border: 210 18% 20%;
     --sidebar-ring: 26 90% 52%;
+    /* Dark-mode hero CTA — same gold gradient (brand signature stays
+       constant) but a slightly stronger shadow because dark background
+       absorbs more of the warm cast and the button reads flatter
+       otherwise. */
+    --hero-cta-gradient: linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%);
+    --hero-cta-text: hsl(28 65% 22%);
+    --hero-cta-shadow: 0 16px 32px -10px rgba(245, 158, 11, 0.65), 0 8px 16px -4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.7);
   }
 }
 

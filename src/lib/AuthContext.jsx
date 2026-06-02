@@ -183,15 +183,28 @@ export function AuthProvider({ children }) {
   // avatar wouldn't pick up a freshly equipped frame until the next page
   // navigation. Mounting the listener here means every consumer of useAuth
   // gets the fresh row immediately after equip.
+  //
+  // The handler is parked in a ref + the listener registers ONCE for the
+  // life of the component. Reasoning: the effect's [checkUserAuth] dep
+  // means a future change in the useCallback chain (loadProfile or
+  // checkUserAuth dropping their memoization) would cause the effect to
+  // re-run on every render, registering a fresh listener and removing
+  // the prior one — under normal flow it's net-zero, but a hot-reload
+  // OR a fast-fire of the event between cleanup and re-registration
+  // could miss notifications OR (worse, in HMR) double-register if
+  // cleanup fails to fire. Pinning the handler reference + a one-shot
+  // mount removes that whole class of risk.
+  const checkUserAuthRef = useRef(checkUserAuth);
+  useEffect(() => { checkUserAuthRef.current = checkUserAuth; }, [checkUserAuth]);
   useEffect(() => {
-    const handler = () => { checkUserAuth().catch(() => {}); };
+    const handler = () => { checkUserAuthRef.current?.().catch(() => {}); };
     window.addEventListener('flexyn:loot-equipped', handler);
     window.addEventListener('flexyn:theme-changed', handler);
     return () => {
       window.removeEventListener('flexyn:loot-equipped', handler);
       window.removeEventListener('flexyn:theme-changed', handler);
     };
-  }, [checkUserAuth]);
+  }, []);
 
   const logout = useCallback(async (shouldRedirect = true) => {
     // Privacy: drop this device's push subscription BEFORE signOut so

@@ -29,12 +29,17 @@ const COLOR_BY_LABEL = {
   Depleted:  { bg: 'bg-rose-500/10',    border: 'border-rose-500/30',    text: 'text-rose-500',    ring: '#f43f5e' },
 };
 
+// Each label maps to its English fallback + an i18n key that the
+// render path looks up via tFallback. Stored at module scope (rather
+// than hardcoded inline at the render site) so translators only need
+// to mirror this one map — but the lookup happens inside the
+// component so the user's language always wins.
 const ACTION_BY_LABEL = {
-  Primed:   'Hit it hard. Take a PR shot.',
-  Ready:    'Train as planned.',
-  Moderate: 'Train, cap intensity. Leave 1-2 in reserve.',
-  Tired:    'Light cardio or mobility today.',
-  Depleted: 'Take a rest day. Sleep + protein.',
+  Primed:   { key: 'readiness.action.Primed',   fallback: 'Hit it hard. Take a PR shot.' },
+  Ready:    { key: 'readiness.action.Ready',    fallback: 'Train as planned.' },
+  Moderate: { key: 'readiness.action.Moderate', fallback: 'Train, cap intensity. Leave 1-2 in reserve.' },
+  Tired:    { key: 'readiness.action.Tired',    fallback: 'Light cardio or mobility today.' },
+  Depleted: { key: 'readiness.action.Depleted', fallback: 'Take a rest day. Sleep + protein.' },
 };
 
 export default function ReadinessCard({ logs = [], compact = false, onClick }) {
@@ -108,12 +113,14 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   // unmapped label keeps the card from rendering as a blank.
   const safeLabel = COLOR_BY_LABEL[label] ? label : 'Ready';
   const colors = COLOR_BY_LABEL[safeLabel];
-  const action = ACTION_BY_LABEL[safeLabel];
-  // Translate-safe key — only build the dynamic key off of a label we
-  // verified is in COLOR_BY_LABEL. Otherwise an unmapped label like
-  // " Ready " (whitespace from a future bug) would yield a malformed
-  // `readiness.action. Ready ` key that translators can't write copy for.
-  const actionKey = `readiness.action.${safeLabel}`;
+  // Pull key + fallback from the map (i18n at render time) rather than
+  // building the key inline. The map is the single source of truth
+  // for both the i18n key the translator needs to write and the
+  // English fallback the en-locale user sees.
+  const action = tFallback(
+    ACTION_BY_LABEL[safeLabel].key,
+    ACTION_BY_LABEL[safeLabel].fallback,
+  );
 
   // Ring geometry
   const SIZE = compact ? 28 : 64;
@@ -148,7 +155,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
           // Compact mode hides the action copy — surface it as a
           // tooltip + aria-label so screen readers + hover users still
           // get the context behind the bare score number.
-          title={`${tFallback('readiness.kicker', 'Readiness')} ${score} — ${tFallback(actionKey, action)}`}
+          title={`${tFallback('readiness.kicker', 'Readiness')} ${score} — ${action}`}
           {...(onClick ? { role: 'button', tabIndex: 0, onClick, onKeyDown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } } : {})}
         >
           <div className="relative" style={{ width: SIZE, height: SIZE }}>
@@ -228,7 +235,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
               <span className={`text-sm font-heading font-bold ${colors.text}`}>{safeLabel}</span>
             </div>
             <p className="text-xs text-foreground leading-snug mt-0.5">
-              {tFallback(actionKey, action)}
+              {action}
             </p>
           </div>
         </div>

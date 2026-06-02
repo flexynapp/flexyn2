@@ -228,12 +228,16 @@ function HeroCard({
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={onPrimary}
           className="group relative flex-1 overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
+          // Brand-gold CTA — single source of truth is in src/index.css
+          // (--hero-cta-gradient / --hero-cta-text / --hero-cta-shadow).
+          // The dark-mode variant has a stronger shadow to compensate
+          // for the warmer cast getting absorbed by the dark page bg.
+          // Centralizing here so a brand-color refresh changes ONE
+          // file instead of every surface that uses gold accents.
           style={{
-            background:
-              'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #fcd34d 50%, #fbbf24 75%, #f59e0b 100%)',
-            color: 'hsl(28 65% 22%)',
-            boxShadow:
-              '0 14px 28px -8px rgba(245, 158, 11, 0.55), 0 6px 12px -4px rgba(0, 0, 0, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6)',
+            background: 'var(--hero-cta-gradient)',
+            color: 'var(--hero-cta-text)',
+            boxShadow: 'var(--hero-cta-shadow)',
           }}
         >
           {/* Primary shine sweep */}
