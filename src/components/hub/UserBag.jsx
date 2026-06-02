@@ -508,6 +508,34 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
     }
   }, [open]);
 
+  // Preserve scroll position per tab so switching between Capsules
+  // and Stickers, then back to Capsules, doesn't snap to the top —
+  // a user browsing a long sticker list and tabbing away momentarily
+  // expects to return to where they were. Reset on close (same as
+  // tab + query) so account switch doesn't restore the prior user's
+  // scroll into the new user's content.
+  const scrollRef = useRef(null);
+  const tabScrollMemoryRef = useRef({});
+  useEffect(() => {
+    if (!open) {
+      tabScrollMemoryRef.current = {};
+      return;
+    }
+    const el = scrollRef.current;
+    if (!el) return;
+    const saved = tabScrollMemoryRef.current[activeTab];
+    if (typeof saved === 'number') {
+      el.scrollTop = saved;
+    } else {
+      el.scrollTop = 0;
+    }
+  }, [open, activeTab]);
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    tabScrollMemoryRef.current[activeTab] = el.scrollTop;
+  }, [activeTab]);
+
   const handleApplyTheme = useCallback((itemId) => {
     if (lootThemeId === itemId) {
       // Tap again to deactivate
@@ -526,6 +554,13 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
     queryFn:  () => capsules.listUnopenedCapsules(user.email),
     enabled:  !!user?.email && open,
     staleTime: 15_000,
+    // Surface fetch failures via reportError so a regression doesn't
+    // silently leave the bag stuck on an empty skeleton.
+    onError: (err) => {
+      import('@/lib/reportError').then(({ reportError }) => {
+        reportError(err, { feature: 'userBag.capsules', level: 'warning', userEmail: user?.email });
+      }).catch(() => {});
+    },
   });
 
   // Stickers and themes live in user_inventory
@@ -534,6 +569,11 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
     queryFn:  () => inventory.listItems(user.email),
     enabled:  !!user?.email && open,
     staleTime: 30_000,
+    onError: (err) => {
+      import('@/lib/reportError').then(({ reportError }) => {
+        reportError(err, { feature: 'userBag.inventory', level: 'warning', userEmail: user?.email });
+      }).catch(() => {});
+    },
   });
 
   // Group stickers by item_id so duplicates are visible. Skip rows
@@ -728,7 +768,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-y-auto p-5">
+          <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-5">
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
                 <div className="w-8 h-8 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />

@@ -101,7 +101,12 @@ export default function GoalsProgressStrip({ goals = [], logs = [], onOpen }) {
       >
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
-            <Target className="w-4.5 h-4.5 text-primary" />
+            {/* w-4.5/h-4.5 isn't a Tailwind class — was a silent no-op
+                that fell back to the icon's intrinsic 24px and made
+                this strip visually mismatch the other cards. Use w-5
+                (20px) to match the icon size of LeagueCard / Hydration
+                /Mood (the surrounding row). */}
+            <Target className="w-5 h-5 text-primary" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2 mb-1.5">

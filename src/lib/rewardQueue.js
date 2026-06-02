@@ -19,6 +19,7 @@
 
 const QUEUE = [];
 let draining = false;
+let drainTimerId = null;
 const SPACING_MS = 700;
 
 function drain() {
@@ -28,7 +29,14 @@ function drain() {
   try {
     Promise.resolve(fn()).catch(() => { /* non-critical */ });
   } catch { /* non-critical */ }
-  setTimeout(() => {
+  // Track the timer ID so a hard-reset can cancel pending spacing
+  // and stop the queue from firing more celebrations after the user
+  // has navigated away. Previous version started an untracked
+  // setTimeout per item, leaking the timer across SPA navigation —
+  // a delayed celebration toast would surface on the destination
+  // page mid-render.
+  drainTimerId = setTimeout(() => {
+    drainTimerId = null;
     draining = false;
     drain();
   }, SPACING_MS);
@@ -51,4 +59,8 @@ export function enqueueReveal(fn) {
 export function _clearRewardQueue() {
   QUEUE.length = 0;
   draining = false;
+  if (drainTimerId != null) {
+    clearTimeout(drainTimerId);
+    drainTimerId = null;
+  }
 }

@@ -1017,9 +1017,13 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       {/* Pagination dots */}
       {slides.length > 1 && (
         <div className="flex items-center gap-1.5">
-          {slides.map((_, i) => (
+          {slides.map((s, i) => (
             <button
-              key={i}
+              // Use slide.id (stable) instead of array index — when
+              // slides shift order (e.g. a PR slide demotes itself by
+              // age), index-keyed buttons retain stale DOM state and
+              // animations played for the wrong destination dot.
+              key={s?.id ?? `dot-${i}`}
               type="button"
               onClick={() => goTo(i)}
               aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}

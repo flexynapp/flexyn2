@@ -78,9 +78,12 @@ export default function DailyQuestsCard({ onNavigated }) {
     if (!questRow.completed_at) return;
     if (claimingRef.current.has(questRow.id)) return; // already claiming this row
     claimingRef.current.add(questRow.id);
-    triggerHaptic('primary');
     try {
       const result = await quests.claimQuest(user, questRow.id);
+      // Fire haptic AFTER the RPC succeeds, not before — the previous
+      // order vibrated the device on tap regardless of outcome, so a
+      // failed claim still buzzed and felt like a successful reward.
+      if (result?.success) triggerHaptic('primary');
       await handleClaimResult(result, questRow);
     } finally {
       claimingRef.current.delete(questRow.id);
@@ -124,10 +127,22 @@ export default function DailyQuestsCard({ onNavigated }) {
 
   if (!user?.id || rows.length === 0) return null;
 
-  const annotated = rows.map(quests.annotateQuest).filter(q => q.definition);
-  // Sort easy → medium → hard
+  // Drop rows missing a stable id too — the map(key={q.id}) below
+  // would collide on `undefined` keys if multiple corrupt rows slip
+  // through and we'd lose state on the duplicates.
+  const annotated = rows
+    .map(quests.annotateQuest)
+    .filter(q => q && q.definition && q.id);
+  // Sort easy → medium → hard. Default unknown difficulties to a high
+  // index so an unmapped value lands at the bottom rather than
+  // producing NaN comparisons (NaN-NaN=NaN, V8 sort surfaces quests
+  // in random order on each render).
   const sortOrder = { easy: 0, medium: 1, hard: 2 };
-  annotated.sort((a, b) => sortOrder[a.difficulty] - sortOrder[b.difficulty]);
+  annotated.sort((a, b) => {
+    const ai = sortOrder[a.difficulty] ?? 99;
+    const bi = sortOrder[b.difficulty] ?? 99;
+    return ai - bi;
+  });
 
   const completedCount = annotated.filter(q => q.completed_at).length;
   const claimedCount = annotated.filter(q => q.claimed_at).length;

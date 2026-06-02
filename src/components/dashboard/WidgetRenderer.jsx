@@ -173,7 +173,20 @@ function MuscleGroupsWidget({ logs, isLoading }) {
       .slice(0, 6);
   }, [logs]);
 
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--accent))', '#f97316', '#8b5cf6', '#06b6d4', '#10b981'];
+  // Recharts <Cell fill="..."/> doesn't resolve CSS custom properties
+  // at SVG paint time, so theme-tracking via `hsl(var(--primary))`
+  // worked but the remaining slots had hardcoded hex (#f97316 etc)
+  // that ignored the user's loot theme. Use chart-* CSS variables
+  // (defined in src/index.css with both light + dark variants) so
+  // dark mode also picks up the right palette.
+  const COLORS = [
+    'hsl(var(--primary))',
+    'hsl(var(--chart-1))',
+    'hsl(var(--chart-2))',
+    'hsl(var(--chart-3))',
+    'hsl(var(--chart-4))',
+    'hsl(var(--chart-5))',
+  ];
   // Stable color assignment by name hash so a muscle group keeps the
   // same wedge color across re-orderings (previously list order
   // determined color — adding a new group reshuffled the palette).

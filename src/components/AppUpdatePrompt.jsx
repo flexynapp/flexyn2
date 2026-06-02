@@ -20,10 +20,23 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { RotateCw, X } from 'lucide-react';
 
+const DISMISS_KEY = 'flexyn.appUpdateDismissed';
+
 export default function AppUpdatePrompt() {
   const [needRefresh, setNeedRefresh] = useState(false);
   const [updateFn, setUpdateFn] = useState(() => () => {});
-  const [dismissed, setDismissed] = useState(false);
+  // Persist dismissal in sessionStorage so a navigation within the same
+  // tab doesn't re-surface the prompt seconds after the user closed it.
+  // sessionStorage (not localStorage) so a NEW tab or a fresh open after
+  // the update lands still gets re-prompted — the dismissal was about
+  // this session, not about ignoring updates forever.
+  const [dismissed, setDismissed] = useState(() => {
+    try { return sessionStorage.getItem(DISMISS_KEY) === '1'; } catch { return false; }
+  });
+  const handleDismiss = () => {
+    try { sessionStorage.setItem(DISMISS_KEY, '1'); } catch { /* private mode */ }
+    setDismissed(true);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +98,7 @@ export default function AppUpdatePrompt() {
           Update
         </button>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={handleDismiss}
           className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary"
           aria-label="Dismiss"
         >

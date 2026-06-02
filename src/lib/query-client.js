@@ -6,10 +6,18 @@ import { QueryClient } from '@tanstack/react-query';
 // (notifications, push subscriptions) override per-query with a smaller
 // staleTime; queries with quasi-static data (profile, regimens,
 // achievements) inherit the default.
+//
+// refetchOnWindowFocus stays TRUE (default). Tanstack only refetches a
+// query on focus when it's past its staleTime, so the 60s default
+// above gates the cost — a tab refocus within 60s of the last fetch
+// is a no-op, while a return after backgrounding for the night
+// catches the user up on what they missed. The previous explicit
+// `refetchOnWindowFocus: false` left a Dashboard left open over a
+// dinner break showing hour-old workout counts until the user
+// manually pulled to refresh.
 export const queryClientInstance = new QueryClient({
 	defaultOptions: {
 		queries: {
-			refetchOnWindowFocus: false,
 			retry: 1,
 			staleTime: 60_000,
 		},

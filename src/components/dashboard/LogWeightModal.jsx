@@ -45,15 +45,17 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
 
   // Pre-fill from the user's most recent profile weight so the first
-  // logged entry doesn't ask them to type from zero.
+  // logged entry doesn't ask them to type from zero. Effect deps are
+  // ONLY `open` — a background profile refetch (which can land while
+  // the modal is open) was previously stomping the user's typed value
+  // back to the server number and re-stealing focus. The prefill
+  // captures `profile.weight_lbs` from the closure at open-time; a
+  // staleness window the size of one modal session is fine, since the
+  // user is here to write a new entry, not read the latest.
   useEffect(() => {
     if (!open) return;
     setDate(format(new Date(), 'yyyy-MM-dd'));
     if (profile?.weight_lbs) {
-      // formatWeightNumber rounds to a sensible decimal (1 for kg, 0
-      // for lbs, 2 for stone). The previous `String(fromLbs(...))`
-      // showed kg users a raw "74.84274..." which made the input look
-      // sloppy on open.
       setValue(formatWeightNumber(profile.weight_lbs, weightUnit));
     } else {
       setValue('');
@@ -62,7 +64,8 @@ export default function LogWeightModal({ open, onOpenChange, profile }) {
     // delay, Radix Dialog steals focus back to its content node.
     const handle = setTimeout(() => inputRef.current?.focus(), 60);
     return () => clearTimeout(handle);
-  }, [open, profile?.weight_lbs, weightUnit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {

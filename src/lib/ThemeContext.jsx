@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { db } from '@/api/db';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 
@@ -185,29 +185,29 @@ export const THEMES = [
 
 const ThemeContext = createContext(null);
 
-// Track which CSS custom-properties we've set so we can clear stale ones
-// when switching to a theme that doesn't define them. Without this, a theme
-// that lacks a key (e.g. a future legendary theme without --sidebar-ring)
-// would inherit the prior theme's value silently. Today all themes happen
-// to share the same key set so this is a forward-compat safety net.
-let _previouslySetThemeKeys = new Set();
-
-function applyVars(vars) {
+// Apply theme vars + track which keys we set so a future theme that
+// omits a key clears it cleanly instead of inheriting the previous
+// theme's value. The previous-keys set is owned by the Provider via
+// a ref — moving it out of module scope means a multi-Provider test
+// harness can't have one instance stomp another's tracked keys.
+function applyVars(vars, prevKeysRef) {
   if (!vars) return;
   const root = document.documentElement;
   const newKeys = new Set(Object.keys(vars));
   // Clear any keys we set on a prior theme that the new one doesn't define.
-  for (const oldKey of _previouslySetThemeKeys) {
+  for (const oldKey of prevKeysRef.current) {
     if (!newKeys.has(oldKey)) root.style.removeProperty(oldKey);
   }
   // Apply the new theme's vars.
   for (const [k, v] of Object.entries(vars)) {
     root.style.setProperty(k, v);
   }
-  _previouslySetThemeKeys = newKeys;
+  prevKeysRef.current = newKeys;
 }
 
 export function ThemeProvider({ children }) {
+  // Per-Provider set of previously-applied CSS custom-property keys.
+  const prevKeysRef = useRef(new Set());
   const [themeId, setThemeIdState] = useState(() => {
     try { return localStorage.getItem('fn-theme') || 'orange-slate'; } catch { return 'orange-slate'; }
   });
@@ -259,10 +259,10 @@ export function ThemeProvider({ children }) {
   // Apply theme vars — loot theme overrides base theme when active
   useEffect(() => {
     if (lootTheme) {
-      applyVars(lootTheme.vars);
+      applyVars(lootTheme.vars, prevKeysRef);
     } else {
       const theme = THEMES.find(t => t.id === themeId) || THEMES[0];
-      applyVars(theme.vars);
+      applyVars(theme.vars, prevKeysRef);
     }
     // Set [data-theme-tier] on <html> so CSS can target animated/legendary
     // themes (e.g. card accent stripe defined in src/index.css). The tier

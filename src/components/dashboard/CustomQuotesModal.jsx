@@ -77,12 +77,20 @@ export default function CustomQuotesModal({ open, onClose }) {
             onClick={(e) => e.stopPropagation()}
             className="w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col"
             style={{ paddingBottom: 'max(8px, env(safe-area-inset-bottom))' }}
+            // Tie the panel to its header via aria-labelledby so a screen
+            // reader announces the modal title on focus. This is a raw
+            // styled <motion.div> rather than a Radix Dialog, so without
+            // explicit role + label the panel was reading as 'group'
+            // with no name.
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="custom-quotes-title"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-border shrink-0">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-4 h-4 text-primary" />
-                <h2 className="font-heading font-bold text-base">{tFallback('quotes.title', 'Your custom quotes')}</h2>
+                <h2 id="custom-quotes-title" className="font-heading font-bold text-base">{tFallback('quotes.title', 'Your custom quotes')}</h2>
               </div>
               <button onClick={onClose} aria-label={tFallback('common.close', 'Close')} className="p-1.5 rounded-lg text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors">
                 <X className="w-4 h-4" />

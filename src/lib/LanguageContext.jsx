@@ -48,6 +48,13 @@ export function LanguageProvider({ children }) {
 
   // Track whether we have hydrated from the server yet to avoid race-condition writes.
   const hydratedFromServer = useRef(false);
+  // Mounted flag for setLanguage's async path — without this, calling
+  // setLanguage right before unmount (e.g. mid-sign-out) leaves the
+  // setLanguageState fire after the component has gone, generating a
+  // React 'unmounted update' warning AND the localStorage write under
+  // an old user context.
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // On mount, try to read the signed-in user's preferred_language and override local state if set.
   useEffect(() => {
@@ -78,6 +85,7 @@ export function LanguageProvider({ children }) {
     // has translations available. Without this, every t() call between
     // setState and the load resolving would return raw keys.
     await loadLanguage(code);
+    if (!mountedRef.current) return;
     setLanguageState(code);
     try { localStorage.setItem(LANG_STORAGE_KEY, code); } catch {}
     clearTranslationCache();

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
+import { toast } from 'sonner';
 import WidgetLibrary from './WidgetLibrary';
 import WidgetRenderer, { WIDGET_COMPONENTS } from './WidgetRenderer';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -16,26 +17,34 @@ const STORAGE_KEY = (userId) => `flexyn.dashboardWidgets.${userId || 'anon'}`;
 const LEGACY_KEY = 'dashboardWidgets';
 
 export default function DashboardWidgets({ logs, goals, isLoading }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [activeWidgets, setActiveWidgets] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // Guard against the save effect firing on initial mount before the
-  // load effect runs — would otherwise persist [] over a real saved
-  // value if React ever reordered hook execution.
-  const hydratedRef = useRef(false);
+  // hydratedFor pins the userId that the current activeWidgets state
+  // was loaded for. Save effect only writes when the loaded userId
+  // matches the current one. Without this, an account switch between
+  // load and save could write User A's state under User B's storage
+  // key — a real cross-account data leak risk that the prior
+  // hydratedRef boolean was not strict enough to prevent.
+  const hydratedFor = useRef(null);
 
   // Load saved widgets from localStorage when the user changes (or
   // appears for the first time). The outer try/catch covers Safari
   // private-mode + iOS quota-exceeded — both throw on the bare
   // `localStorage.getItem` call before any JSON parsing happens.
   useEffect(() => {
+    const uid = user?.id;
+    // Mark unhydrated until the load below settles for THIS uid. If
+    // user.id changes mid-flight, the save effect skips persisting
+    // while we re-load.
+    hydratedFor.current = null;
     // Filter out widget IDs that aren't in the current WIDGET_COMPONENTS
     // catalog — a deprecated/renamed widget left in saved state would
     // otherwise render as a row of "Unknown widget" cards forever.
     const dropStale = (arr) => (Array.isArray(arr) ? arr.filter(id => id in WIDGET_COMPONENTS) : []);
     try {
-      const saved = localStorage.getItem(STORAGE_KEY(user?.id));
+      const saved = localStorage.getItem(STORAGE_KEY(uid));
       if (saved) {
         setActiveWidgets(dropStale(JSON.parse(saved)));
       } else {
@@ -53,7 +62,7 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
     } catch {
       setActiveWidgets([]);
     }
-    hydratedRef.current = true;
+    hydratedFor.current = uid;
   }, [user?.id]);
 
   // Save widgets to localStorage whenever they change. Same Safari /
@@ -61,21 +70,39 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
   // as an uncaught error (would land in the parent ErrorBoundary and
   // crash the whole widget grid for a non-critical persistence issue).
   useEffect(() => {
-    if (!hydratedRef.current) return; // don't overwrite saved state with [] on first mount
+    // Only persist when the loaded user matches the current user —
+    // closes the account-switch window where save would otherwise
+    // write the prior user's state to the new user's storage key.
+    if (hydratedFor.current !== user?.id) return;
     try {
       localStorage.setItem(STORAGE_KEY(user?.id), JSON.stringify(activeWidgets));
     } catch { /* best-effort — quota / private mode */ }
   }, [activeWidgets, user?.id]);
 
+  // Functional setState here — two fast taps in the WidgetLibrary
+  // both read `activeWidgets` from this closure before the first
+  // setState applies, producing two no-op renders. The functional
+  // form sees the latest committed state on each invocation.
   const handleAddWidget = (widgetId) => {
-    if (!activeWidgets.includes(widgetId)) {
-      setActiveWidgets([...activeWidgets, widgetId]);
+    let alreadyAdded = false;
+    setActiveWidgets(prev => {
+      if (prev.includes(widgetId)) {
+        alreadyAdded = true;
+        return prev;
+      }
+      return [...prev, widgetId];
+    });
+    if (alreadyAdded) {
+      // Surface an explicit signal — previously this branch was a
+      // silent no-op and the user couldn't tell whether their tap
+      // had registered.
+      toast.info(tFallback('widgets.alreadyAdded', 'Widget already on your dashboard.'));
     }
     setLibraryOpen(false);
   };
 
   const handleRemoveWidget = (widgetId) => {
-    setActiveWidgets(activeWidgets.filter(id => id !== widgetId));
+    setActiveWidgets(prev => prev.filter(id => id !== widgetId));
   };
 
   // Empty state

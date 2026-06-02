@@ -163,7 +163,12 @@ export function AuthProvider({ children }) {
 
     return () => {
       clearTimeout(timeout);
-      subscription.unsubscribe();
+      // Optional-chained unsubscribe — onAuthStateChange has historically
+      // returned `{ data: { subscription } }` reliably, but a future
+      // supabase-js shape change or an HMR-induced partial init would
+      // crash unmount otherwise. The cleanup running on every dep
+      // change makes this matter more than a typical mount-only effect.
+      try { subscription?.unsubscribe?.(); } catch { /* tolerate */ }
     };
   }, [loadProfile]);
 

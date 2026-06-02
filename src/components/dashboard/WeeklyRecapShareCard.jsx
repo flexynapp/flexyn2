@@ -331,7 +331,14 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-2xl overflow-hidden border border-border shadow-md mb-4"
               >
-                <img src={imgUrl} alt="Weekly recap" className="w-full block" />
+                {/* aspect-square locks the image to the canvas's
+                    1080×1080 ratio so the loading-skeleton sibling
+                    (aspect-square below) doesn't make the modal jump
+                    in size when the img loads. Previously the img
+                    sized itself to its natural width while the
+                    skeleton was square — visible reflow on every
+                    open. */}
+                <img src={imgUrl} alt="Weekly recap" className="w-full block aspect-square object-cover" />
               </motion.div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">

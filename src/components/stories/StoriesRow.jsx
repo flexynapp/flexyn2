@@ -250,7 +250,7 @@ function StoryAvatarButton({
       <span
         className={`text-[10px] font-medium w-[68px] text-center truncate leading-tight ${faded ? 'text-muted-foreground/45' : 'text-muted-foreground'}`}
       >
-        {group.isOwn ? 'Your Story' : group.username}
+        {group.isOwn ? tFallback('stories.yourStory', 'Your Story') : group.username}
       </span>
     </motion.button>
   );
@@ -262,6 +262,7 @@ function StoryAvatarButton({
 // The "+ Add" pill occupies that top padding area, mirroring where notes appear.
 
 function QuickAddAvatarItem({ profile, onAdd }) {
+  const { tFallback } = useLanguage();
   const [state, setState] = useState('idle'); // idle | adding | added
 
   const handleTap = useCallback(async () => {
@@ -309,7 +310,9 @@ function QuickAddAvatarItem({ profile, onAdd }) {
             {state === 'added'  && <Check   className="w-2.5 h-2.5 text-muted-foreground" />}
             {state === 'idle'   && <Plus    className="w-2.5 h-2.5 text-orange-500 stroke-[3]" />}
             <span className={`text-[9px] font-bold select-none ${state === 'added' ? 'text-muted-foreground' : 'text-orange-500'}`}>
-              {state === 'added' ? 'Added' : 'Add'}
+              {state === 'added'
+                ? tFallback('stories.quickAdd.added', 'Added')
+                : tFallback('stories.quickAdd.add',   'Add')}
             </span>
           </div>
         </div>
@@ -502,7 +505,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
         cleanupPreview();
         return;
       }
-      if (!result?.ok) { toast.error('Could not post story — try again.'); return; }
+      if (!result?.ok) { toast.error(tFallback('stories.postFailed', 'Could not post story — try again.')); return; }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       cleanupPreview();
       toast.success("Story's up.");
@@ -512,7 +515,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
       // path left the URL dangling, so each retry on a flaky network would
       // leak another blob into memory.
       cleanupPreview();
-      toast.error('Upload failed — try again.');
+      toast.error(tFallback('stories.uploadFailed', 'Upload failed — try again.'));
     },
   });
 
@@ -538,11 +541,11 @@ export default function StoriesRow({ onViewProfile } = {}) {
     const isVideo = file.type.startsWith('video/');
 
     if (!isImage && !isVideo) {
-      toast.error('Please select a photo or video.');
+      toast.error(tFallback('stories.invalidFileType', 'Please select a photo or video.'));
       return;
     }
     if (file.size > 100 * 1024 * 1024) {
-      toast.error('File must be under 100 MB.');
+      toast.error(tFallback('stories.fileTooLarge', 'File must be under 100 MB.'));
       return;
     }
     if (isVideo) {

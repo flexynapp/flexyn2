@@ -577,8 +577,20 @@ export default function Dashboard() {
   // a celebration toast.
   useEffect(() => {
     if (!user?.id) return;
-    const t = setTimeout(() => { checkTrophies().catch(() => {}); }, 1500);
-    return () => clearTimeout(t);
+    // Cancelled flag so a checkTrophies call kicked off by the
+    // setTimeout doesn't continue side-effecting after the Dashboard
+    // unmounts (route change, sign-out). Without this, a trophy
+    // celebration could fire on a destination route the user already
+    // navigated to.
+    let cancelled = false;
+    const t = setTimeout(() => {
+      if (cancelled) return;
+      checkTrophies().catch(() => {});
+    }, 1500);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+    };
   }, [user?.id]);
   const handleDeclareRestDay = () => {
     try { localStorage.setItem(restDayKey, '1'); } catch {}
@@ -670,8 +682,20 @@ export default function Dashboard() {
   // write them to app_layout_defaults so new users (and Reset) read
   // from there. NOT a live sync — re-tap to push a new snapshot.
   const canSetAsDefault = isAppAdmin(user);
+  // Per-tap in-flight guard so an admin double-tapping "Set Default"
+  // can't fire two concurrent RPC writes and race the second toast
+  // against the first. Ref-based so a re-render between taps doesn't
+  // race a state-flag.
+  const settingDefaultRef = useRef(false);
   const handleSetAsDefault = async () => {
-    const res = await setLayoutDefault('dashboard', widgetOrder, sectionLayouts);
+    if (settingDefaultRef.current) return;
+    settingDefaultRef.current = true;
+    let res;
+    try {
+      res = await setLayoutDefault('dashboard', widgetOrder, sectionLayouts);
+    } finally {
+      settingDefaultRef.current = false;
+    }
     if (res.ok) {
       toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved — new users will see this dashboard layout.'));
     } else if (res.error === 'rpc_missing') {

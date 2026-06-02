@@ -203,7 +203,16 @@ export default function WorkoutStreakBanner() {
       <div className="flex items-center gap-2 min-w-0">
         <Dumbbell className={`w-4 h-4 shrink-0 ${atRisk ? 'text-amber-500' : 'text-emerald-500'}`} />
         <TapToCopy
-          value={tFallback('dashboard.workoutStreakCopy', `${streak}-day workout streak`).replace('{n}', String(streak))}
+          // tFallback handles the {n} substitution in BOTH the
+          // translated value and the English fallback. The old
+          // pattern (`tFallback(key, fallback).replace('{n}', n)`)
+          // failed two ways: (1) the fallback string interpolated
+          // `${streak}` directly so the {n} placeholder was already
+          // gone — .replace was a silent no-op — and (2) when a
+          // translator used a different placeholder name like {streak},
+          // the {n} replace missed it. Routing the var through
+          // tFallback's vars argument fixes both.
+          value={tFallback('dashboard.workoutStreakCopy', '{n}-day workout streak', { n: streak })}
           label="streak"
           className="text-sm inline"
         >

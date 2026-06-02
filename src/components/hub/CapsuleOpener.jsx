@@ -223,8 +223,27 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   // div isn't mounted when the effect runs (idle is still exiting). A callback
   // ref fires at the exact mount moment, guaranteeing the element is in DOM.
   const setReelRef = useCallback((el) => {
+    // On unmount the callback ref fires with `null`. Cancel any
+    // pending RAF + the transitionend listener so a queued
+    // `setPhase('revealing')` can't run on a torn-down component.
+    if (!el) {
+      const prev = reelRef.current;
+      if (prev) {
+        if (prev._raf1 != null) { cancelAnimationFrame(prev._raf1); prev._raf1 = null; }
+        if (prev._raf2 != null) { cancelAnimationFrame(prev._raf2); prev._raf2 = null; }
+        if (prev._onTransitionEnd) {
+          prev.removeEventListener('transitionend', prev._onTransitionEnd);
+          prev._onTransitionEnd = null;
+        }
+        if (prev._revealTimeoutId != null) {
+          clearTimeout(prev._revealTimeoutId);
+          prev._revealTimeoutId = null;
+        }
+      }
+      reelRef.current = null;
+      return;
+    }
     reelRef.current = el;
-    if (!el) return; // unmounting — nothing to do
 
     // Double-RAF so the browser paints the element at translateX=0 first.
     // If we skip this, the CSS transition has no "from" position and the reel
@@ -255,12 +274,20 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         // 3. Advance to revealing after the transition finishes.
         // Filter by propertyName so a CSS transition on a sibling
         // property (opacity, box-shadow on hover) doesn't fire the
-        // listener prematurely and short-circuit the reveal.
+        // listener prematurely and short-circuit the reveal. Store
+        // the listener + timeout on the element so the callback ref's
+        // unmount path (above) can tear them down cleanly.
         const onTransitionEnd = (ev) => {
           if (ev.propertyName && ev.propertyName !== 'transform') return;
           el.removeEventListener('transitionend', onTransitionEnd);
-          setTimeout(() => setPhase('revealing'), 200);
+          el._onTransitionEnd = null;
+          el._revealTimeoutId = setTimeout(() => {
+            el._revealTimeoutId = null;
+            if (!el.isConnected) return; // unmounted during the 200ms delay
+            setPhase('revealing');
+          }, 200);
         };
+        el._onTransitionEnd = onTransitionEnd;
         el.addEventListener('transitionend', onTransitionEnd);
       });
       // Store raf2 ID on the element so we can cancel it if the element

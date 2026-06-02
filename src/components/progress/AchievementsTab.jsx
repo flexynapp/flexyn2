@@ -38,19 +38,43 @@ export default function AchievementsTab({ achievements = [] }) {
   const handleShareAchievement = async (ach) => {
     if (sharingId) return;
     setSharingId(ach.achievement_id);
-    const res = await shareAchievementPost({
-      user,
-      achievement: {
-        ...ach,
-        name:        tFallback(ach.nameKey,        ach.name),
-        description: tFallback(ach.descriptionKey, ach.description),
-      },
-    });
-    setSharingId(null);
+    let res;
+    try {
+      res = await shareAchievementPost({
+        user,
+        achievement: {
+          ...ach,
+          name:        tFallback(ach.nameKey,        ach.name),
+          description: tFallback(ach.descriptionKey, ach.description),
+        },
+      });
+    } catch (err) {
+      // shareAchievementPost is expected to return { ok, error } but
+      // a network blip can still throw — without this catch the user
+      // saw nothing on failure and the sharingId state never cleared,
+      // permanently locking the share button. Report so observability
+      // catches a real regression.
+      try {
+        const { reportError } = await import('@/lib/reportError');
+        reportError(err, {
+          feature: 'achievements.share',
+          level: 'warning',
+          userEmail: user?.email,
+          achievementId: ach.achievement_id,
+        });
+      } catch { /* reportError unavailable */ }
+      res = { ok: false, error: err?.message || 'network' };
+    } finally {
+      setSharingId(null);
+    }
     if (res.ok) {
-      toast.success('Shared to Hub!');
+      toast.success(tFallback('achievements.shareSuccess', 'Shared to Hub!'));
     } else {
-      toast.error(`Couldn't share: ${res.error || 'try again'}`);
+      toast.error(tFallback(
+        'achievements.shareFailed',
+        "Couldn't share: {reason}",
+        { reason: res.error || 'try again' },
+      ));
     }
   };
 

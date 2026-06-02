@@ -59,7 +59,13 @@ self.addEventListener('push', (event) => {
     payload = event.data.json();
   } catch {
     // Plain-text fallback — should rarely happen with our own sender.
-    payload = { title: 'Flexyn', body: event.data.text() };
+    // text() itself can throw if data is opaque/binary; nest the
+    // try/catch so a malformed push never aborts the SW.
+    try {
+      payload = { title: 'Flexyn', body: event.data.text() };
+    } catch {
+      payload = { title: 'Flexyn', body: '' };
+    }
   }
 
   const title = payload.title || 'Flexyn';
@@ -82,7 +88,15 @@ self.addEventListener('push', (event) => {
     requireInteraction: false,
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  // Wrap showNotification in a Promise so a synchronous throw is
+  // caught + a rejection doesn't surface as an unhandled error in
+  // the service worker (which Chrome logs to the user's DevTools).
+  event.waitUntil(
+    Promise.resolve()
+      .then(() => self.registration.showNotification(title, options))
+      .catch(() => { /* non-critical — the push silently dropping is
+                         better than the SW aborting on a malformed row */ })
+  );
 });
 
 // ── Notification click ──────────────────────────────────────────────────────

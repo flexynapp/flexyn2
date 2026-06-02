@@ -72,11 +72,22 @@ export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets =
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-sm">{t(widget.nameKey)}</p>
                       <p className="text-xs text-muted-foreground mt-1">{t(widget.descriptionKey)}</p>
-                      <div className="mt-2">
-                        <Badge variant="secondary" className="text-xs">
-                          {t(WIDGET_CATEGORIES.find(c => c.id === widget.category)?.labelKey)}
-                        </Badge>
-                      </div>
+                      {/* Guard against a widget pointing at an
+                          unknown category (deprecation drift between
+                          WIDGET_DEFINITIONS and WIDGET_CATEGORIES) —
+                          rendering t(undefined) printed the literal
+                          string 'undefined' inside the badge. */}
+                      {(() => {
+                        const cat = WIDGET_CATEGORIES.find(c => c.id === widget.category);
+                        if (!cat?.labelKey) return null;
+                        return (
+                          <div className="mt-2">
+                            <Badge variant="secondary" className="text-xs">
+                              {t(cat.labelKey)}
+                            </Badge>
+                          </div>
+                        );
+                      })()}
                     </div>
                     {!isActive && (
                       <Button

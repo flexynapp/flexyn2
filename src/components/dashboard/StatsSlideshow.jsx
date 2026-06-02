@@ -33,6 +33,11 @@ function WeeklyVolumeChart({ logs = [] }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
+  // Map BCP-47 → app language code for toLocaleString. The previous
+  // bare `.toLocaleString()` used the browser's default locale, which
+  // means an English-locale browser displaying the German UI would
+  // still show '1,234' instead of '1.234' for the chart tooltip.
+  const bcp47 = language === 'zh' ? 'zh-CN' : language === 'ja' ? 'ja-JP' : language;
   const data = useMemo(() => {
     // parseLocalDate so 'YYYY-MM-DD' strings sort and format in local
     // TZ. Plain `new Date('YYYY-MM-DD')` is UTC midnight, which can
@@ -78,7 +83,7 @@ function WeeklyVolumeChart({ logs = [] }) {
               with the unit suffix directly. */}
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
-            formatter={v => [`${Math.round(Number(v) || 0).toLocaleString()} ${weightUnit}`, t('widgets.weeklyVolume')]}
+            formatter={v => [`${Math.round(Number(v) || 0).toLocaleString(bcp47)} ${weightUnit}`, t('widgets.weeklyVolume')]}
           />
           <Bar dataKey="volumeDisplay" fill="hsl(var(--primary))" radius={[3, 3, 0, 0]} isAnimationActive animationDuration={900} animationEasing="ease-out" />
         </BarChart>
@@ -91,6 +96,9 @@ function TopExerciseChart({ logs = [] }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
+  // Same locale mapping as WeeklyVolumeChart — toLocaleString needs an
+  // explicit BCP-47 tag to override the browser default.
+  const bcp47Top = language === 'zh' ? 'zh-CN' : language === 'ja' ? 'ja-JP' : language;
   // Find the most-logged exercise and chart its max weight over time
   const { exName, data } = useMemo(() => {
     const count = {};
@@ -140,7 +148,7 @@ function TopExerciseChart({ logs = [] }) {
               already the converted display-unit weight, not lbs. */}
           <Tooltip
             {...CHART_TOOLTIP_STYLE}
-            formatter={v => [`${(Math.round((Number(v) || 0) * 10) / 10).toLocaleString()} ${weightUnit}`, t('progress.maxWeightLbs')]}
+            formatter={v => [`${(Math.round((Number(v) || 0) * 10) / 10).toLocaleString(bcp47Top)} ${weightUnit}`, t('progress.maxWeightLbs')]}
           />
           <Line type="monotone" dataKey="Weight" stroke="hsl(var(--accent))" strokeWidth={2.5} dot={{ r: 3, strokeWidth: 0, fill: 'hsl(var(--accent))' }} activeDot={{ r: 6, strokeWidth: 0 }} isAnimationActive animationDuration={1000} animationEasing="ease-out" />
         </LineChart>
@@ -280,6 +288,13 @@ export default function StatsSlideshow({ logs = [], goals = [], isLoading }) {
     // for DailyQuestsCard / SyncStatus.
     let timer = null;
     const tick = () => {
+      // Guard slides.length === 0 — `% 0` is NaN, which sets index to
+      // NaN and breaks the render (slide becomes undefined past the
+      // length check below). The auto-advance effect already has a
+      // `< 2` early-return at start time, but a race where allSlides
+      // shrinks to 0 between tick scheduling and tick firing would
+      // hit this otherwise.
+      if (allSlides.length === 0) return;
       setDirection(1);
       setIndex(i => (i + 1) % allSlides.length);
     };
