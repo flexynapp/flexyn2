@@ -23,9 +23,12 @@ export async function getMyNemesis() {
 /** Get a nemesis's public profile (username, avatar, total_xp, current_level) */
 export async function getNemesisProfile(nemesisId) {
   if (!nemesisId) return null;
+  // email is included so the Nemesis card can deep-link to the
+  // person's Hub profile (?profile=<email>) — screenshot feedback
+  // asked for the avatar / @handle area to be tappable to navigate.
   const { data, error } = await supabase
     .from('user_profiles')
-    .select('id, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
+    .select('id, email, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
     .eq('id', nemesisId)
     .single();
   return error ? null : data;

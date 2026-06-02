@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Target, RefreshCw, Loader2, Swords } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemesis';
@@ -18,6 +19,7 @@ export default function NemesisCard({ currentUserId }) {
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
   const fmt = useNumberFormatter();
+  const navigate = useNavigate();
   const [showDuel, setShowDuel] = useState(false);
 
   const { data: assignment, isLoading } = useQuery({
@@ -152,25 +154,55 @@ export default function NemesisCard({ currentUserId }) {
           <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Your Nemesis</span>
         </div>
 
-        {/* Profile */}
-        <div className="flex items-center gap-4 px-4 pb-3 pt-2">
-          {avatar ? (
-            <img loading="lazy" src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
-          ) : (
-            <div className="w-14 h-14 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
-              <span className="text-xl font-black text-rose-500">{name[0]?.toUpperCase()}</span>
+        {/* Profile — tappable, navigates to the rival's Hub profile.
+            Screenshot feedback: "Make it so you can click this to go
+            to their profile." Falls back to a non-button div when we
+            don't have an email yet (pre-mig fetch, deleted account)
+            so the tap doesn't dead-end on /hub?profile=undefined. */}
+        {profile?.email ? (
+          <button
+            type="button"
+            onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.email)}`)}
+            aria-label={`View @${name}'s profile`}
+            className="w-full flex items-center gap-4 px-4 pb-3 pt-2 text-start hover:bg-rose-500/5 active:bg-rose-500/10 transition-colors"
+          >
+            {avatar ? (
+              <img loading="lazy" src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
+                <span className="text-xl font-black text-rose-500">{name[0]?.toUpperCase()}</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-black truncate">@{name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Level {level ?? '—'}
+                {profile?.total_xp > 0 && (
+                  <span className="ms-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
+                )}
+              </p>
             </div>
-          )}
-          <div className="flex-1 min-w-0">
-            <p className="text-base font-black truncate">@{name}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Level {level ?? '—'}
-              {profile?.total_xp > 0 && (
-                <span className="ms-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
-              )}
-            </p>
+          </button>
+        ) : (
+          <div className="flex items-center gap-4 px-4 pb-3 pt-2">
+            {avatar ? (
+              <img loading="lazy" src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
+                <span className="text-xl font-black text-rose-500">{name[0]?.toUpperCase()}</span>
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <p className="text-base font-black truncate">@{name}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Level {level ?? '—'}
+                {profile?.total_xp > 0 && (
+                  <span className="ms-1.5 text-rose-500/70">· {fmt(profile.total_xp)} XP</span>
+                )}
+              </p>
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Actions */}
         <div className="px-4 pb-4 space-y-2">

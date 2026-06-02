@@ -650,7 +650,16 @@ export default function Nutrition() {
         queryClient.setQueryData(['nutritionLogs', user?.email, date], context.previousLogs);
       }
       reportError(err, { feature: 'nutrition.save', userEmail: user?.email });
-      toast.error(t('nutrition.toast.saveError'));
+      // Surface the underlying error so beta testers can report
+      // something specific ("Cannot save any food item" in the
+      // screenshot was the catch-all message; the actual cause —
+      // profanity hit, schema drift, network timeout — was hidden).
+      const reason = err?.code === 'PROFANITY'
+        ? 'That name has a word our filter blocks — try rephrasing.'
+        : err?.message
+          ? `${t('nutrition.toast.saveError')} (${err.message})`
+          : t('nutrition.toast.saveError');
+      toast.error(reason);
     },
     onSettled: () => {
       // Clear the synchronous double-submit guard regardless of

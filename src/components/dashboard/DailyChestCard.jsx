@@ -47,16 +47,35 @@ export default function DailyChestCard() {
     if (loading) return;
     setLoading(true);
     try {
-      const { error } = await supabase.rpc('claim_daily_chest');
+      const { data, error } = await supabase.rpc('claim_daily_chest');
       if (error) throw error;
       try { localStorage.setItem(`daily_chest_claimed_${user.id}`, new Date().toISOString()); } catch { /* ignore */ }
       qc.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       qc.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
       setReady(false);
-      try { navigator.vibrate?.(20); } catch { /* ignore */ }
-      toast.success(tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'));
-      requestOpenBag(); // instant-open: jump straight to the Bag
+      // Inspect the RPC response so the "already claimed" path no
+      // longer fires the same success toast + auto-opens the bag —
+      // which the user reported as "the daily chest icon has popped
+      // up three times and it even says that it's claimed but when
+      // you go to your bag, it's not there." The RPC returns
+      // { already_claimed, coins_awarded, new_balance } so we can
+      // branch on actual server state instead of trusting any
+      // non-error response.
+      if (data?.already_claimed === true) {
+        toast.message(
+          tFallback('marketplace.dailyChest.alreadyClaimed', 'Already claimed today.'),
+          { description: tFallback('marketplace.dailyChest.comeBack', 'Come back tomorrow for another reward.') },
+        );
+      } else {
+        try { navigator.vibrate?.(20); } catch { /* ignore */ }
+        const coins = data?.coins_awarded ?? 75;
+        toast.success(
+          tFallback('marketplace.dailyChest.claimSuccess', '🎁 Daily chest claimed! Check your capsules.'),
+          { description: `+${coins} coins · 1 standard capsule` },
+        );
+        requestOpenBag(); // instant-open: jump straight to the Bag
+      }
     } catch (err) {
       // Report so a regression in the claim RPC isn't silent — the user
       // sees a toast, but observability needs the underlying error too.
