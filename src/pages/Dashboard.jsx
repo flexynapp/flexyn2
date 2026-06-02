@@ -201,13 +201,14 @@ function HeroCard({
 
       {/* Day/night switch + gold CTA — hang OFF the bottom of the
           rounded hero card. Negative top margin pulls them up so the
-          gold button visually overlaps the hero's bottom edge (the
-          "loot hanging off the chest" look the user mocked up). The
-          day/night toggle aligns to the BOTTOM of the row (via
-          self-end), so it sits about a centimeter lower than the
-          gold CTA's vertical midline — splits the empty space below
-          the carousel into two halves instead of crowding the top. */}
-      <div className="relative -mt-5 mx-4 md:mx-6 flex items-center gap-2">
+          gold button visually overlaps the hero's bottom edge.
+          Screenshot feedback: "push this button up a little bit
+          maybe make it a little thinner" + "give it like a solid
+          white border" → pulled the row up from -mt-5 to -mt-9,
+          slimmed vertical padding (p-3.5 → p-2.5) and added a
+          2px solid white border for clear separation against the
+          dark hero card behind it. */}
+      <div className="relative -mt-9 mx-4 md:mx-6 flex items-center gap-2">
         <button
           type="button"
           onClick={() => setDarkMode(!darkMode)}
@@ -215,7 +216,7 @@ function HeroCard({
             ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
             : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
           aria-pressed={darkMode}
-          className="relative self-end mb-2 shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
+          className="relative self-end mb-1 shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
         >
           <span className="absolute start-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
             <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-muted-foreground' : 'opacity-100 text-amber-500'}`} />
@@ -234,7 +235,7 @@ function HeroCard({
           whileTap={{ scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={onPrimary}
-          className="group relative flex-1 overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-start select-none-ui"
+          className="group relative flex-1 overflow-hidden rounded-2xl p-2.5 md:p-3 border-2 border-white flex items-center justify-between gap-3 text-start select-none-ui"
           // Brand-gold CTA — single source of truth is in src/index.css
           // (--hero-cta-gradient / --hero-cta-text / --hero-cta-shadow).
           // The dark-mode variant has a stronger shadow to compensate

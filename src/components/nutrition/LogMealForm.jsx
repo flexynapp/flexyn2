@@ -34,6 +34,43 @@ const VITAMIN_FIELDS = [
   { key: 'vitamin_b12_mcg', labelKey: 'nutrition.vitamins.b12',       placeholder: '0', unit: 'mcg', textColor: 'text-purple-600',  bgColor: 'bg-purple-50 dark:bg-purple-950/20' },
 ];
 
+// Sanity caps so a typo (or repeated tap on a stepper) can't produce
+// a nutrition entry like "2,555,555,555,555,553,005,300 kcal" — the
+// reported screenshot bug. The caps are deliberately generous (one
+// meal hitting these values is implausible) so they only catch garbage
+// input, not power users with high macros. Vitamins use IU/mcg with
+// orders-of-magnitude larger natural ranges than g/kcal, so they get
+// their own bucket.
+const NUTRIENT_MAX = {
+  calories:        10000,
+  protein_g:       1000,
+  carbs_g:         1000,
+  fat_g:           1000,
+  fiber_g:         500,
+  sugar_g:         500,
+  sodium_mg:       50000,
+  cholesterol_mg:  10000,
+  iron_mg:         500,
+  magnesium_mg:    5000,
+  calcium_mg:      10000,
+  potassium_mg:    20000,
+  vitamin_a_iu:    1000000,
+  vitamin_c_mg:    10000,
+  vitamin_d_iu:    100000,
+  vitamin_b12_mcg: 10000,
+};
+const DEFAULT_MAX = 99999;
+
+function clampNutrient(key, raw) {
+  if (raw === '' || raw == null) return '';
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return '';
+  if (n < 0) return '0';
+  const cap = NUTRIENT_MAX[key] ?? DEFAULT_MAX;
+  if (n > cap) return String(cap);
+  return raw;
+}
+
 function NutrientTile({ field, value, onChange, t }) {
   return (
     <div className={`${field.bgColor} rounded-lg p-3`}>
@@ -44,10 +81,11 @@ function NutrientTile({ field, value, onChange, t }) {
       <Input
         type="number" inputMode="decimal"
         min="0"
+        max={NUTRIENT_MAX[field.key] ?? DEFAULT_MAX}
         step="0.1"
         placeholder={field.placeholder}
         value={value}
-        onChange={(e) => onChange(field.key, e.target.value)}
+        onChange={(e) => onChange(field.key, clampNutrient(field.key, e.target.value))}
         className={`h-8 text-sm font-heading font-bold border-0 bg-white/60 dark:bg-black/20 ${field.textColor} placeholder:text-muted-foreground/40 focus-visible:ring-1`}
       />
     </div>

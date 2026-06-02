@@ -407,10 +407,32 @@ function FeatureCarousel() {
   const F = FEATURES[idx];
   const Visual = F.Visual;
 
+  // Swipe affordance — user feedback ("make this carousel people
+  // requested to scroll") flagged that the auto-rotating pips didn't
+  // signal the cards were interactive. Drag-to-swipe + a subtle
+  // bouncing chevron makes the gesture discoverable.
+  const handleDragEnd = (_e, info) => {
+    const dx = info.offset.x;
+    const vx = info.velocity.x;
+    if (dx < -40 || vx < -400) {
+      setIdx(i => (i + 1) % FEATURES.length);
+      setPaused(true);
+      setTimeout(() => setPaused(false), 4000);
+    } else if (dx > 40 || vx > 400) {
+      setIdx(i => (i - 1 + FEATURES.length) % FEATURES.length);
+      setPaused(true);
+      setTimeout(() => setPaused(false), 4000);
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.85, duration: 0.5 }}
       onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)}
-      className="relative rounded-[20px] border border-border overflow-hidden p-4"
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      dragElastic={0.22}
+      onDragEnd={handleDragEnd}
+      className="relative rounded-[20px] border border-border overflow-hidden p-4 touch-pan-y cursor-grab active:cursor-grabbing"
       style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))', backdropFilter: 'blur(18px)' }}>
       {/* accent glow */}
       <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
@@ -428,6 +450,13 @@ function FeatureCarousel() {
           <div className="font-heading font-bold text-[15px] leading-tight tracking-tight text-foreground mb-1.5">{F.title}</div>
           <div className="text-[11.5px] leading-[1.45] text-muted-foreground">{F.sub}</div>
         </div>
+        {/* Bouncing chevron — subtle hint that the card slides horizontally */}
+        <motion.span
+          aria-hidden="true"
+          animate={{ x: [0, 5, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+          className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground/40 text-lg pointer-events-none select-none"
+        >›</motion.span>
       </div>
       {/* pip indicators with progress fill */}
       <div className="flex gap-1.5 mt-3.5 items-center">

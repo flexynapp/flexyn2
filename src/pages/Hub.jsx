@@ -293,11 +293,17 @@ export default function Hub() {
           user feedback. */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
 
-      {/* Marketplace + New Post row — shown on feed tabs, not crews */}
+      {/* Marketplace + New Post row — shown on feed tabs, not crews.
+          Both buttons match in height via min-h-[68px] so the row stays
+          visually balanced regardless of internal content (Marketplace
+          has 2 lines of text, New Post had a stacked icon+label). Same
+          pill shape, same vertical rhythm. (Screenshot feedback —
+          "make the new post and marketplace button lineup on the same
+          horizontal button".) */}
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
-        <div className="flex gap-2.5 mb-4">
+        <div className="flex gap-2.5 mb-4 items-stretch">
           {/* Marketplace — 3/4 width, ember animation */}
-          <div className="flex-[3] relative overflow-hidden rounded-2xl">
+          <div className="flex-[3] relative overflow-hidden rounded-2xl min-h-[68px]">
             {/* Floating ember particles */}
             {EMBERS.map((e, i) => (
               <motion.div
@@ -318,7 +324,7 @@ export default function Hub() {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={() => navigate('/market')}
-              className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
+              className="w-full h-full flex items-center gap-3 px-4 py-3 rounded-2xl text-white"
               animate={{ filter: ['hue-rotate(0deg)', 'hue-rotate(-25deg)', 'hue-rotate(0deg)'] }}
               transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
               style={{ background: 'linear-gradient(135deg, #FB923C, #EA580C)' }}
@@ -331,11 +337,13 @@ export default function Hub() {
             </motion.button>
           </div>
 
-          {/* New Post — 1/4 width, orange outline + gray fill */}
+          {/* New Post — 1/4 width, orange outline + gray fill. Matches
+              Marketplace's height via min-h-[68px] and centers the
+              icon+label so both buttons read as the same shape. */}
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => setComposerOpen(true)}
-            className="flex-1 flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-2xl border-2 bg-secondary/60"
+            className="flex-1 min-h-[68px] flex flex-col items-center justify-center gap-1 px-2 py-3 rounded-2xl border-2 bg-secondary/60"
             style={{ borderColor: 'hsl(var(--primary))' }}
           >
             <Plus className="w-4 h-4 stroke-[2.5]" style={{ color: 'hsl(var(--primary))' }} />

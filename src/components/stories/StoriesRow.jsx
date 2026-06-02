@@ -485,36 +485,55 @@ export default function StoriesRow({ onViewProfile } = {}) {
     refetchInterval: 60_000,
   });
 
-  // Load / refresh the Quick Add list once per noon cycle.
-  // Guard with a `cancelled` flag so a slow getRecommendations() that
-  // resolves AFTER unmount doesn't call setState (warning + leak).
+  // Load / refresh the Quick Add list.
+  //
+  // The previous policy refreshed only "once per noon cycle" and only
+  // started new fetches when the user had ≤1 followee — so a user
+  // with a populated cache never saw newly-signed-up accounts during
+  // the same day, and active users with 2+ follows never refreshed
+  // their suggestions at all. ("We've had like 10 new users and none
+  // of them shown up.")
+  //
+  // New policy:
+  //   1. Show the cached list IMMEDIATELY (no flash on app open).
+  //   2. ALWAYS kick off a background refetch on every mount.
+  //   3. When the refetch resolves, merge: keep already-added emails
+  //      out, and prefer the fresh list (which surfaces new signups).
+  //
+  // Cache stale-check is now only a safety net for offline /
+  // RPC-down cases — we no longer gate fetches on it.
   useEffect(() => {
     if (!user?.email || qaFetchedRef.current) return;
+    qaFetchedRef.current = true;
     let cancelled = false;
     const cache = qaLoad(user?.id);
-    if (!qaIsStale(cache) && cache.list?.length > 0) {
-      // Cache is fresh — restore, filter out already-added items
-      const addedSet = new Set(cache.addedEmails ?? []);
+    const addedSet = new Set(cache?.addedEmails ?? []);
+    if (cache?.list?.length > 0) {
+      // Paint the cached list right away so the rail doesn't blink
+      // on every app open.
       const remaining = (cache.list ?? []).filter(p => !addedSet.has(p.email));
       setQaList(remaining);
-      setQaHadItems(true);
-      qaFetchedRef.current = true;
-      return () => { cancelled = true; };
+      if (remaining.length > 0) setQaHadItems(true);
     }
-    // Stale or empty — only fetch when the user has ≤1 friend (initial discovery)
-    // Once cached, the section persists regardless of followingEmails.
-    if ((followingEmails.length <= 1 || (cache?.list?.length > 0))) {
-      qaFetchedRef.current = true;
-      hubFollows.getRecommendations(user.email, followingEmails, 6).then(recs => {
-        if (cancelled) return;
-        if (recs.length === 0) return;
-        qaSave(user?.id, { refreshedAt: new Date().toISOString(), list: recs, addedEmails: [] });
-        setQaList(recs);
-        setQaHadItems(true);
-      }).catch(() => {});
-    }
+    // Always refetch — new users joining the platform should reach
+    // existing users without waiting for the noon roll. We pass a
+    // larger N (12 vs 6) so newly-arrived candidates have a slot
+    // even if a few "always-popular" rows would otherwise hog the
+    // top 6.
+    hubFollows.getRecommendations(user.email, followingEmails, 12).then(recs => {
+      if (cancelled) return;
+      if (!Array.isArray(recs) || recs.length === 0) return;
+      const fresh = recs.filter(p => !addedSet.has(p.email));
+      qaSave(user?.id, {
+        refreshedAt: new Date().toISOString(),
+        list: fresh,
+        addedEmails: Array.from(addedSet),
+      });
+      setQaList(fresh);
+      if (fresh.length > 0) setQaHadItems(true);
+    }).catch(() => {});
     return () => { cancelled = true; };
-  // followingEmails intentionally omitted — we only want this to run once per mount
+  // followingEmails intentionally omitted — we read the snapshot once at mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.email]);
 

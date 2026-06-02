@@ -162,18 +162,42 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
 
   const alreadyFollowing = new Set([userEmail, ...followingEmails]);
 
+  // Always include a slice of RECENT signups in addition to any
+  // friend-of-friend recommendations. Without this, new accounts that
+  // aren't in anyone's network are invisible to existing users with
+  // 2+ follows. ("We've had like 10 new users and none of them shown
+  // up.") We reserve up to half the slots for recent signups so the
+  // friend-of-friend signal still drives the main rail.
+  const recentSlots = Math.max(2, Math.ceil(limit / 2));
+  const fofSlots    = Math.max(0, limit - recentSlots);
+
+  const { data: recentData } = await safeSelect({
+    columns: ['email', 'username', 'avatar_url', 'created_at'],
+    build: (cols) => supabase
+      .from('user_profiles')
+      .select(cols)
+      .neq('email', userEmail)
+      .not('username', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(recentSlots * 4), // overfetch so we have room after filtering
+  });
+  const recentFiltered = (recentData ?? [])
+    .filter(p => !alreadyFollowing.has(p.email))
+    .slice(0, recentSlots);
+
+  // Track everyone we'll surface so friend-of-friend doesn't duplicate
+  // someone the recent-signups bucket already chose.
+  const picked = new Map();
+  for (const p of recentFiltered) picked.set(p.email, p);
+
   if (followingEmails.length === 0) {
-    // No friends yet — surface recent profiles as a starting point
-    const { data } = await safeSelect({
-      columns: ['email', 'username', 'avatar_url'],
-      build: (cols) => supabase
-        .from('user_profiles')
-        .select(cols)
-        .neq('email', userEmail)
-        .not('username', 'is', null)
-        .limit(limit),
-    });
-    return data ?? [];
+    // No friends yet — fill remaining slots with extra recent profiles.
+    // We already overfetched above so just take more from the same list.
+    const extra = (recentData ?? [])
+      .filter(p => !alreadyFollowing.has(p.email) && !picked.has(p.email))
+      .slice(0, fofSlots);
+    for (const p of extra) picked.set(p.email, p);
+    return Array.from(picked.values()).slice(0, limit);
   }
 
   // Friend-of-friend: sample up to 5 friends to keep queries light.
@@ -188,7 +212,7 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const seen = new Set();
   for (const list of friendLists) {
     for (const email of list) {
-      if (!alreadyFollowing.has(email) && !seen.has(email)) {
+      if (!alreadyFollowing.has(email) && !seen.has(email) && !picked.has(email)) {
         candidates.push(email);
         seen.add(email);
       }
@@ -201,17 +225,21 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
     [candidates[i], candidates[j]] = [candidates[j], candidates[i]];
   }
 
-  const selected = candidates.slice(0, limit);
-  if (selected.length === 0) return [];
+  const fofSelected = candidates.slice(0, fofSlots);
+  if (fofSelected.length > 0) {
+    const { data: fofData } = await safeSelect({
+      columns: ['email', 'username', 'avatar_url'],
+      build: (cols) => supabase
+        .from('user_profiles')
+        .select(cols)
+        .in('email', fofSelected),
+    });
+    for (const p of (fofData ?? [])) {
+      if (!picked.has(p.email)) picked.set(p.email, p);
+    }
+  }
 
-  const { data } = await safeSelect({
-    columns: ['email', 'username', 'avatar_url'],
-    build: (cols) => supabase
-      .from('user_profiles')
-      .select(cols)
-      .in('email', selected),
-  });
-  return data ?? [];
+  return Array.from(picked.values()).slice(0, limit);
 };
 
 /** Cascade-delete all follow rows involving a user (in either direction). */

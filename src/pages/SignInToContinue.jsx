@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LOGO_URL } from '@/lib/constants';
-import { LogIn, ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
@@ -83,39 +83,64 @@ export default function SignInToContinue({
   };
 
   return (
-    <div className="fixed inset-0 bg-background flex flex-col items-center justify-between p-6 pb-10 overflow-y-auto">
+    // Aurora-style backdrop mirroring the rest of the onboarding flow so
+    // this gate doesn't feel like a different app. Screenshot feedback:
+    // "Honestly, this page is really ugly. The rest of the on boarding
+    // process is nice but this sucks." Tightened spacing too — the
+    // justify-between layout was pushing the heading + auth buttons to
+    // opposite poles of the viewport, leaving a huge blank middle.
+    <div
+      className="fixed inset-0 bg-background flex flex-col items-center px-6 pb-10 pt-6 overflow-y-auto"
+      style={{ minHeight: '100dvh' }}
+    >
+      {/* Decorative gradient blobs — mirrors Aurora */}
+      <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+        <div
+          className="absolute rounded-full blur-[50px] opacity-50"
+          style={{
+            width: '70%', height: '55%', left: '-10%', top: '-10%',
+            background: 'radial-gradient(circle, hsl(var(--primary) / 0.50), transparent 70%)',
+          }}
+        />
+        <div
+          className="absolute rounded-full blur-[50px] opacity-35"
+          style={{
+            width: '60%', height: '50%', right: '-10%', top: '30%',
+            background: 'radial-gradient(circle, hsl(38 92% 60% / 0.45), transparent 70%)',
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 40%, hsl(var(--background) / 0.35) 100%)' }}
+        />
+      </div>
+
       {onBack && (
         <button
           type="button"
           onClick={onBack}
           aria-label="Back"
-          className="absolute top-5 start-5 z-20 w-9 h-9 rounded-xl border border-border bg-card flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
+          className="absolute top-5 start-5 z-20 w-9 h-9 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
       )}
+
+      {/* Hero block — logo + Flexyn wordmark + heading + subtext all
+          stack as one unit. Tighter rhythm + bigger logo, no orphaned
+          orange icon below it (the LogIn icon was redundant with the
+          word "sign in" everywhere already). */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="pt-10 flex flex-col items-center gap-2"
+        className="relative z-10 flex flex-col items-center text-center mt-8 mb-8"
       >
-        <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-primary/30">
+        <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-xl shadow-primary/40 ring-2 ring-white/10 mb-4">
           <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
         </div>
-        <p className="font-heading text-2xl font-bold tracking-tight">Flexyn</p>
-      </motion.div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.15, ease: 'easeOut' }}
-        className="flex flex-col items-center text-center px-4"
-      >
-        <div className="w-20 h-20 rounded-3xl bg-primary/10 flex items-center justify-center mb-6">
-          <LogIn className="w-10 h-10 text-primary" />
-        </div>
-        <h2 className="font-heading text-2xl font-bold tracking-tight mb-3">{heading}</h2>
+        <p className="font-heading text-3xl font-bold tracking-tight mb-4">Flexyn</p>
+        <h2 className="font-heading text-xl font-bold tracking-tight mb-2 max-w-xs">{heading}</h2>
         <p className="text-muted-foreground text-sm leading-relaxed max-w-xs">
           {subtext}
         </p>
@@ -124,8 +149,8 @@ export default function SignInToContinue({
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.3, ease: 'easeOut' }}
-        className="w-full max-w-sm space-y-3"
+        transition={{ duration: 0.5, delay: 0.2, ease: 'easeOut' }}
+        className="relative z-10 w-full max-w-sm space-y-3"
       >
         {/* OAuth providers — Google + Apple */}
         <Button

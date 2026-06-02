@@ -25,6 +25,19 @@ import { db } from '@/api/db';
 // makes resets independent. (Audit 11 #33.)
 const newEmptyIngredient = () => ({ name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '' });
 
+// Per-input cap so a stuck stepper / pasted phone number can't produce
+// totals like the screenshot's "2555555555555555300 C G". Returns the
+// CAP as a string when over-budget so the field visibly snaps to the
+// max (rather than silently dropping the keystroke).
+function clampRecipeNumber(raw, max) {
+  if (raw === '' || raw == null) return '';
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return '';
+  if (n < 0) return '0';
+  if (n > max) return String(max);
+  return raw;
+}
+
 export default function RecipeBuilderModal({ open, onClose, editingRecipe = null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -157,6 +170,22 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
           </div>
           <div className="flex-1 overflow-y-auto px-4">
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Ingredients</p>
+            {/* Column header row — without these, the placeholder text
+                ("g / kcal / P / C / F") was the only label and it
+                disappeared the moment the user typed. Screenshot
+                feedback: "There's all these buttons next to ingredient,
+                but there's no like space for them or like what they're
+                for." Matches the grid-cols-12 layout of the rows below
+                so the headers stay aligned over their inputs. */}
+            <div className="grid grid-cols-12 gap-1.5 items-center mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/70">
+              <span className="col-span-5">Name</span>
+              <span className="col-span-1 text-center">g</span>
+              <span className="col-span-2 text-center">kcal</span>
+              <span className="col-span-1 text-center" title="Protein (g)">P</span>
+              <span className="col-span-1 text-center" title="Carbs (g)">C</span>
+              <span className="col-span-1 text-center" title="Fat (g)">F</span>
+              <span className="col-span-1 text-center" aria-hidden="true">·</span>
+            </div>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (
                 <div key={i} className="grid grid-cols-12 gap-1.5 items-center">
@@ -169,11 +198,11 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
 // triggers the auto-zoom; the surrounding labels stay text-xs).
 className="h-8 text-[16px] col-span-5"
                   />
-                  <Input type="number" inputMode="decimal" value={ing.grams}   onChange={(e) => updateIngredient(i, { grams:   e.target.value })} placeholder="g"     className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.calories} onChange={(e) => updateIngredient(i, { calories: e.target.value })} placeholder="kcal"  className="h-8 text-[16px] col-span-2 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.protein_g} onChange={(e) => updateIngredient(i, { protein_g: e.target.value })} placeholder="P"   className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.carbs_g}   onChange={(e) => updateIngredient(i, { carbs_g: e.target.value })}   placeholder="C"   className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" value={ing.fat_g}     onChange={(e) => updateIngredient(i, { fat_g: e.target.value })}     placeholder="F"   className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" min="0" max="10000" value={ing.grams}   onChange={(e) => updateIngredient(i, { grams:   clampRecipeNumber(e.target.value, 10000) })} placeholder="g"     className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" min="0" max="10000" value={ing.calories} onChange={(e) => updateIngredient(i, { calories: clampRecipeNumber(e.target.value, 10000) })} placeholder="kcal"  className="h-8 text-[16px] col-span-2 text-center" />
+                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.protein_g} onChange={(e) => updateIngredient(i, { protein_g: clampRecipeNumber(e.target.value, 1000) })} placeholder="P"   className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.carbs_g}   onChange={(e) => updateIngredient(i, { carbs_g: clampRecipeNumber(e.target.value, 1000) })}   placeholder="C"   className="h-8 text-[16px] col-span-1 text-center" />
+                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.fat_g}     onChange={(e) => updateIngredient(i, { fat_g: clampRecipeNumber(e.target.value, 1000) })}     placeholder="F"   className="h-8 text-[16px] col-span-1 text-center" />
                   <button
                     onClick={() => removeIngredient(i)}
                     aria-label="Remove"
