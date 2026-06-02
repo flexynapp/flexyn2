@@ -176,7 +176,11 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
       accent: 'fuchsia',
       onAct: () => navigate('/hub/profile'),
     },
-  ], [hasWorkouts, push, followsCount, navigate, tFallback]);
+    // Destructure the push fields we actually read so this useMemo
+    // doesn't rebuild on every parent re-render. `push` is returned
+    // by usePushSubscription as a fresh object identity each render
+    // even when none of its fields have changed.
+  ], [hasWorkouts, push.isSupported, push.isSubscribed, push.permission, push.subscribe, followsCount, navigate, tFallback]);
 
   // Pick the first nudge that's both uncompleted AND applicable. If
   // any are already shown today, suppress so we never double-prompt.

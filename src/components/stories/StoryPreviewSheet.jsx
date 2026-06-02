@@ -459,17 +459,24 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
   const handleConfirm = () => {
     if (postingRef.current || uploading) return;
     postingRef.current = true;
-    const out = [];
-    overlays.forEach(o => {
-      if (o.kind === 'text' && o.text.trim()) {
-        out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase(), boxed: !!o.boxed, width: o.width != null ? o.width : 0.7 });
-      } else if (o.kind === 'emoji') {
-        out.push({ kind: 'emoji', emoji: o.emoji, x: o.x, y: o.y, scale: o.scale, rotation: o.rotate });
-      }
-    });
-    strokes.forEach(s => out.push({ kind: 'drawing', points: s.points, color: s.color, width: s.width, x: 0.5, y: 0.5, scale: 1, rotation: 0 }));
-    const filter = FILTERS[filterIdx].css !== 'none' ? FILTERS[filterIdx].css : null;
-    onConfirm(filter ? { filter } : null, out);
+    try {
+      const out = [];
+      overlays.forEach(o => {
+        if (o.kind === 'text' && o.text.trim()) {
+          out.push({ kind: 'text', text: o.text.trim(), x: o.x, y: o.y, scale: o.scale, rotation: o.rotate, color: o.color, font: FONTS[o.fontIdx || 0].label.toLowerCase(), boxed: !!o.boxed, width: o.width != null ? o.width : 0.7 });
+        } else if (o.kind === 'emoji') {
+          out.push({ kind: 'emoji', emoji: o.emoji, x: o.x, y: o.y, scale: o.scale, rotation: o.rotate });
+        }
+      });
+      strokes.forEach(s => out.push({ kind: 'drawing', points: s.points, color: s.color, width: s.width, x: 0.5, y: 0.5, scale: 1, rotation: 0 }));
+      const filter = FILTERS[filterIdx].css !== 'none' ? FILTERS[filterIdx].css : null;
+      onConfirm(filter ? { filter } : null, out);
+    } catch (err) {
+      // Reset the in-flight guard if onConfirm throws synchronously —
+      // otherwise the post button is stuck disabled until next mount.
+      postingRef.current = false;
+      throw err;
+    }
   };
 
   // Color change applies to the selected text overlay + future text/strokes.

@@ -26,9 +26,12 @@ export default function StoryCountdownOverlay({ overlay }) {
   const targetMs = overlay?.target_iso ? Date.parse(overlay.target_iso) : NaN;
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
+    // Once we're past the deadline the text is permanently "Now" —
+    // there's no need to keep firing setInterval every second forever.
+    if (!Number.isFinite(targetMs) || targetMs - Date.now() <= 0) return undefined;
     const id = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [targetMs]);
 
   if (!Number.isFinite(targetMs)) return null;
   const text = format(targetMs - now);

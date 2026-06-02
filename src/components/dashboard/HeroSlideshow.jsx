@@ -62,7 +62,8 @@ const prefersReducedMotion = () => {
 };
 
 function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix = '' }) {
-  const [val, setVal] = useState(from);
+  const safeFrom = Number.isFinite(from) ? from : 0;
+  const [val, setVal] = useState(safeFrom);
   const startRef = useRef(0);
   const rafRef = useRef(null);
 
@@ -73,22 +74,23 @@ function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix 
     // Also short-circuit no-op animations (from === to) so we don't
     // schedule ~84 frames of busywork for a 0 → 0 case (e.g. Path
     // Step 1 "0 logged" for a brand-new user).
-    if (from === to || prefersReducedMotion()) { setVal(to); return; }
+    if (safeFrom === to || prefersReducedMotion()) { setVal(to); return; }
     startRef.current = performance.now();
     const ease = (t) => 1 - Math.pow(1 - t, 3); // ease-out cubic
     const tick = (now) => {
       const elapsed = now - startRef.current;
       const t = Math.min(1, elapsed / durationMs);
-      const cur = from + (to - from) * ease(t);
+      const cur = safeFrom + (to - safeFrom) * ease(t);
       setVal(cur);
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [to, durationMs, from]);
+  }, [to, durationMs, safeFrom]);
 
-  return <>{val.toFixed(decimals)}{suffix}</>;
+  const safeVal = Number.isFinite(val) ? val : 0;
+  return <>{safeVal.toFixed(decimals)}{suffix}</>;
 }
 
 /**
@@ -180,8 +182,10 @@ function Sparkline({ values, color = '#fff', height = 32 }) {
  * the journey to target). The fill ramps from 0% to its computed
  * pct on mount.
  */
-function ProgressBar({ pct, startLabel, endLabel, currentLabel, targetLabel }) {
-  const safePct = Math.max(0, Math.min(100, pct || 0));
+function ProgressBar({ pct = 0, startLabel = '', endLabel = '', currentLabel, targetLabel }) {
+  // Number.isFinite filters NaN/Infinity that would otherwise slip
+  // through `pct || 0` (NaN is falsy → 0, but Infinity is truthy).
+  const safePct = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
   const reduce = prefersReducedMotion();
   return (
     <div className="mt-2">
@@ -234,7 +238,12 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
       }
     }
     for (const [name, entries] of byExercise) {
-      entries.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+      // Sort by parsed timestamp — `localeCompare` on the raw strings
+      // breaks when entries mix 'YYYY-MM-DD' (log.date) with full ISO
+      // datetimes (log.created_date), because '2026-06-02' sorts AFTER
+      // '2026-06-01T23:00:00Z' as text. Coercing to Date.getTime()
+      // makes the ordering format-agnostic.
+      entries.sort((a, b) => (new Date(a.date).getTime() || 0) - (new Date(b.date).getTime() || 0));
       let priorMax = 0;
       let recentPR = null;
       for (const e of entries) {
@@ -275,9 +284,12 @@ function buildAchievementSlides({ logs, cardioLogs, goals, profile }) {
           title: name,
           metricValue: recentPR.weight,
           metricUnit: 'lb',
+          metricUnitKey: 'hero.unit.lb',
           metricDelta: recentPR.weight - recentPR.prev,
           metricDeltaUnit: 'lb',
+          metricDeltaUnitKey: 'hero.unit.lb',
           metricDeltaSuffix: ' from last best',
+          metricDeltaSuffixKey: 'hero.deltaSuffix.fromLastBest',
           history: sparkSeries.length >= 2 ? sparkSeries : null,
           when: recentPR.when,
         });
@@ -453,9 +465,15 @@ function buildPathSlides({ profile, user, logs }) {
     metricUnit: ` / ${weekTarget}`,
     progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
     progressStartLabel: 'Mon',
+    progressStartLabelKey: 'hero.dayShort.mon',
     progressEndLabel: 'Sun',
+    progressEndLabelKey: 'hero.dayShort.sun',
     progressCurrentLabel: `${workoutsThisWeek} done`,
+    progressCurrentLabelKey: 'hero.progress.done',
+    progressCurrentLabelVars: { n: workoutsThisWeek },
     progressTargetLabel: `${weekTarget} target`,
+    progressTargetLabelKey: 'hero.progress.target',
+    progressTargetLabelVars: { n: weekTarget },
     sub: 'Three a week is the floor where strength builds. Six is the ceiling before recovery suffers.',
     cta: { label: 'Plan the week', to: '/workout' },
   });
@@ -500,7 +518,9 @@ function buildPathSlides({ profile, user, logs }) {
         metricUnit: ' lb',
         metricDelta: -delta,
         metricDeltaUnit: ' lb',
+        metricDeltaUnitKey: 'hero.unit.lbWithSpace',
         metricDeltaSuffix: ' to lose',
+        metricDeltaSuffixKey: 'hero.deltaSuffix.toLose',
         sub: `${startLbs} lb today → ${targetLbs} lb by week ${weeks} · ~1 lb/week (sustainable).`,
         cta: { label: 'Log a meal', to: '/nutrition' },
       });
@@ -922,9 +942,15 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             >
               {slide.metricDelta > 0 ? '+' : ''}
               {slide.metricDelta}
-              {slide.metricDeltaUnit || ''}
+              {slide.metricDeltaUnitKey
+                ? tFallback(slide.metricDeltaUnitKey, slide.metricDeltaUnit || '')
+                : (slide.metricDeltaUnit || '')}
               {slide.metricDeltaSuffix && (
-                <span className="font-medium text-white/70">{slide.metricDeltaSuffix}</span>
+                <span className="font-medium text-white/70">
+                  {slide.metricDeltaSuffixKey
+                    ? tFallback(slide.metricDeltaSuffixKey, slide.metricDeltaSuffix)
+                    : slide.metricDeltaSuffix}
+                </span>
               )}
             </motion.div>
           )}
@@ -944,10 +970,18 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           {slide.progressPct != null && (
             <ProgressBar
               pct={slide.progressPct}
-              startLabel={slide.progressStartLabel}
-              endLabel={slide.progressEndLabel}
-              currentLabel={slide.progressCurrentLabel}
-              targetLabel={slide.progressTargetLabel}
+              startLabel={slide.progressStartLabelKey
+                ? tFallback(slide.progressStartLabelKey, slide.progressStartLabel || '')
+                : slide.progressStartLabel}
+              endLabel={slide.progressEndLabelKey
+                ? tFallback(slide.progressEndLabelKey, slide.progressEndLabel || '')
+                : slide.progressEndLabel}
+              currentLabel={slide.progressCurrentLabelKey
+                ? tFallback(slide.progressCurrentLabelKey, slide.progressCurrentLabel || '', slide.progressCurrentLabelVars)
+                : slide.progressCurrentLabel}
+              targetLabel={slide.progressTargetLabelKey
+                ? tFallback(slide.progressTargetLabelKey, slide.progressTargetLabel || '', slide.progressTargetLabelVars)
+                : slide.progressTargetLabel}
             />
           )}
 

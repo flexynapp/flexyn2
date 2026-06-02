@@ -228,6 +228,10 @@ export default function StoryViewer({
   const mediaRef      = useRef(null);  // container for overlay text positioning
   const slideDir      = useRef(0);     // 0 = same group, 1 = forward, -1 = back
   const replyInputRef = useRef(null);  // focused on swipe-up gesture
+  // Local dedupe — `viewedIds` is a prop that only refreshes when the
+  // parent query is invalidated, so a user rapidly advancing through
+  // stories could double-call markStoryViewed for the same row.
+  const viewedLocalRef = useRef(new Set());
 
   useEffect(() => {
     if (open) {
@@ -266,9 +270,18 @@ export default function StoryViewer({
 
   useEffect(() => {
     if (!open || !currentStory || !user?.id) return;
-    if (!viewedIds.has(currentStory.id)) {
-      storiesData.markStoryViewed(currentStory.id, user.id);
-    }
+    if (viewedIds.has(currentStory.id) || viewedLocalRef.current.has(currentStory.id)) return;
+    viewedLocalRef.current.add(currentStory.id);
+    storiesData.markStoryViewed(currentStory.id, user.id)
+      .then(() => {
+        // Refresh the parent's viewedIds query so the local dedupe
+        // converges with server state once the row lands.
+        queryClient.invalidateQueries({ queryKey: ['storyViewedIds', user.id] });
+      })
+      .catch(() => {
+        // Drop from local set so a retry can fire on next mount.
+        viewedLocalRef.current.delete(currentStory.id);
+      });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, currentStory?.id, user?.id]);
 
