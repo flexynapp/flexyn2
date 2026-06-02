@@ -945,7 +945,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             // as "group" because of the count label below.
             <span className="text-xs">{(conversation?.title || 'Group').slice(0, 2).toUpperCase()}</span>
           ) : otherAvatarUrl
-            ? <img src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" />
+            ? <img loading="lazy" src={otherAvatarUrl} alt={`${otherHandle} avatar`} className="w-full h-full object-cover" />
             : otherInitials}
         </div>
         <div className="flex-1 min-w-0">
@@ -1058,7 +1058,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       <div
         ref={scrollerRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pe-1"
       >
         {searchOpen && searchQuery.trim() && (
           <p className="text-[11px] text-muted-foreground text-center mb-2 tabular-nums">
@@ -1189,7 +1189,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           <button
                             type="button"
                             onClick={() => m.replied_to_message_id && scrollToMessage(m.replied_to_message_id)}
-                            className={`max-w-[75%] mb-0.5 px-2.5 py-1.5 rounded-xl border-l-2 border-primary bg-secondary/40 text-left text-xs text-muted-foreground line-clamp-2 cursor-pointer hover:bg-secondary/60 transition-colors`}
+                            className={`max-w-[75%] mb-0.5 px-2.5 py-1.5 rounded-xl border-s-2 border-primary bg-secondary/40 text-start text-xs text-muted-foreground line-clamp-2 cursor-pointer hover:bg-secondary/60 transition-colors`}
                           >
                             {m.replied_to_snippet}
                           </button>
@@ -1273,7 +1273,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                               aria-label="Open GIF in new tab"
                               className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
                             >
-                              <img src={m.attachment_url} alt="GIF" className="rounded-lg max-h-64 object-cover max-w-full" />
+                              <img loading="lazy" src={m.attachment_url} alt="GIF" className="rounded-lg max-h-64 object-cover max-w-full" />
                             </button>
                           )}
                           {/* Fallback image attachment (text + photo) */}
@@ -1284,7 +1284,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                               aria-label="Open attachment in new tab"
                               className={`block rounded-lg overflow-hidden focus:outline-none ${(m.body || m.content) ? 'mt-1.5' : ''}`}
                             >
-                              <img src={m.attachment_url} alt="Message attachment" className="rounded-lg max-h-64 object-cover max-w-full" />
+                              <img loading="lazy" src={m.attachment_url} alt="Message attachment" className="rounded-lg max-h-64 object-cover max-w-full" />
                             </button>
                           )}
                         </div>
@@ -1313,7 +1313,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                         {msgIsPinned && (
                           <span
                             className={`absolute -top-2 text-xs leading-none pointer-events-none select-none ${
-                              isMine ? '-left-3' : '-right-3'
+                              isMine ? '-start-3' : '-end-3'
                             }`}
                             title="Pinned message"
                           >📌</span>
@@ -1326,7 +1326,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
 
                 {/* Read receipt — last sent message only */}
                 {isLastSent && !isOptimistic && (
-                  <div className="flex justify-end mb-2 pr-1">
+                  <div className="flex justify-end mb-2 pe-1">
                     {isRead && !readReceiptFaded ? (
                       <motion.span
                         initial={{ opacity: 1 }}
@@ -1350,7 +1350,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                   </div>
                 )}
                 {isLastSent && isOptimistic && (
-                  <div className="flex justify-end mb-2 pr-1">
+                  <div className="flex justify-end mb-2 pe-1">
                     <span className="text-[10px] text-muted-foreground">Sending…</span>
                   </div>
                 )}
@@ -1387,7 +1387,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 8, scale: 0.9 }}
             onClick={() => { scrollToBottom(true); setNewMsgCount(0); }}
-            className="absolute bottom-[76px] left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg"
+            className="absolute bottom-[76px] start-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-semibold shadow-lg"
           >
             ↓ {newMsgCount} new
           </motion.button>
@@ -1477,7 +1477,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.15 }}
-            className="flex items-center gap-2 px-3 py-2 border-t border-l-2 border-l-primary bg-primary/5 shrink-0"
+            className="flex items-center gap-2 px-3 py-2 border-t border-s-2 border-l-primary bg-primary/5 shrink-0"
           >
             <CornerUpLeft className="w-3.5 h-3.5 text-primary shrink-0" />
             <p className="flex-1 text-xs text-muted-foreground truncate">{replyTo.snippet}</p>
@@ -1492,11 +1492,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       {attachmentPreview && (
         <div className="flex items-center gap-2 px-1 py-1.5 border-t border-border shrink-0">
           <div className="relative w-14 h-14 shrink-0">
-            <img src={attachmentPreview} alt="Attachment preview" className="w-full h-full object-cover rounded-lg" />
+            <img loading="lazy" src={attachmentPreview} alt="Attachment preview" className="w-full h-full object-cover rounded-lg" />
             <button
               onClick={clearAttachment}
               aria-label="Remove attachment"
-              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
+              className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center shadow"
             >
               <X className="w-3 h-3" />
             </button>
@@ -1655,7 +1655,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute bottom-16 right-0 left-0 z-40 mx-2 p-3 rounded-xl bg-card border border-border shadow-lg"
+            className="absolute bottom-16 end-0 start-0 z-40 mx-2 p-3 rounded-xl bg-card border border-border shadow-lg"
           >
             <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
               <Clock className="w-3.5 h-3.5" /> Schedule send

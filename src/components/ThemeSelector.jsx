@@ -131,7 +131,7 @@ export default function ThemeSelector({ open, onClose }) {
                           whileTap={{ scale: 0.97 }}
                           onClick={() => handleSelectLoot(lootTheme)}
                           className={[
-                            'relative flex flex-col p-4 rounded-2xl border-2 text-left transition-all duration-200',
+                            'relative flex flex-col p-4 rounded-2xl border-2 text-start transition-all duration-200',
                             isCurrent
                               ? 'shadow-lg'
                               : 'border-border bg-card hover:border-primary/50 hover:shadow-md hover:bg-secondary/30',
@@ -140,7 +140,7 @@ export default function ThemeSelector({ open, onClose }) {
                         >
                           {/* Active check */}
                           {isCurrent && (
-                            <div className="absolute top-3 right-3 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+                            <div className="absolute top-3 end-3 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
                               style={{ background: rc.ring }}>
                               <Check className="w-3.5 h-3.5 text-white" />
                             </div>
@@ -216,7 +216,7 @@ export default function ThemeSelector({ open, onClose }) {
                         whileTap={{ scale: 0.97 }}
                         onClick={() => handleSelectBase(theme)}
                         className={[
-                          'relative flex flex-col p-4 rounded-2xl border-2 text-left transition-all duration-200 group',
+                          'relative flex flex-col p-4 rounded-2xl border-2 text-start transition-all duration-200 group',
                           isCurrent
                             ? 'border-primary bg-primary/5 shadow-lg shadow-primary/15'
                             : isLocked
@@ -226,7 +226,7 @@ export default function ThemeSelector({ open, onClose }) {
                       >
                         {/* Active check badge */}
                         {isCurrent && (
-                          <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-sm">
+                          <div className="absolute top-3 end-3 w-6 h-6 rounded-full bg-primary flex items-center justify-center shadow-sm">
                             <Check className="w-3.5 h-3.5 text-primary-foreground" />
                           </div>
                         )}
@@ -298,7 +298,7 @@ export default function ThemeSelector({ open, onClose }) {
                         onClose();
                       }}
                       className={[
-                        'relative w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-left transition-all duration-200',
+                        'relative w-full flex items-center gap-4 p-4 rounded-2xl border-2 text-start transition-all duration-200',
                         isSteelActive
                           ? 'border-slate-400 shadow-lg'
                           : 'border-border bg-card hover:border-slate-400/50 hover:shadow-md',
@@ -306,7 +306,7 @@ export default function ThemeSelector({ open, onClose }) {
                       style={isSteelActive ? { background: 'rgba(148,163,184,0.12)', borderColor: '#94a3b8' } : {}}
                     >
                       {isSteelActive && (
-                        <div className="absolute top-3 right-3 w-6 h-6 rounded-full bg-slate-500 flex items-center justify-center">
+                        <div className="absolute top-3 end-3 w-6 h-6 rounded-full bg-slate-500 flex items-center justify-center">
                           <Check className="w-3.5 h-3.5 text-white" />
                         </div>
                       )}

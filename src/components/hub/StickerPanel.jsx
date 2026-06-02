@@ -184,7 +184,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       aria-label={profileClickable ? `Open ${r.user_name}'s profile` : undefined}
                     >
                       {r.user_avatar_url ? (
-                        <img src={r.user_avatar_url} alt="" className="w-full h-full object-cover" />
+                        <img loading="lazy" src={r.user_avatar_url} alt="" className="w-full h-full object-cover" />
                       ) : (
                         (r.user_name?.[0] ?? '?').toUpperCase()
                       )}
@@ -193,7 +193,7 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                       <button
                         type="button"
                         onClick={handleProfileClick}
-                        className="text-xs text-muted-foreground hover:text-primary hover:underline flex-1 truncate text-left transition-colors"
+                        className="text-xs text-muted-foreground hover:text-primary hover:underline flex-1 truncate text-start transition-colors"
                       >
                         @{r.user_name ?? r.user_email?.split('@')[0]}
                       </button>

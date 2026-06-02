@@ -56,7 +56,7 @@ export default function Splash() {
         className="flex flex-col items-center gap-3"
       >
         <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-2xl">
-          <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+          <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 8 }}

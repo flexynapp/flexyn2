@@ -229,7 +229,18 @@ const AuthenticatedApp = () => {
     import('@/api/db').then(({ db }) => {
       db.auth.updateMe({ onboarding_complete: true, onboarding_completed: true })
         .then(() => checkUserAuth())
-        .catch(() => {}); // fail silently if columns not yet migrated
+        .catch((err) => {
+          // Tolerate pre-migration deploys where one of the
+          // onboarding_complete columns doesn't exist yet — but route
+          // through reportError so a real regression (RLS denial,
+          // auth blip) doesn't sit silent. The 42703 / PGRST204 codes
+          // are the "expected" schema-drift cases.
+          const code = err?.code || err?.error?.code;
+          if (code === '42703' || code === 'PGRST204') return;
+          import('@/lib/reportError').then(({ reportError }) => {
+            reportError(err, { feature: 'app.markOnboardingComplete', level: 'warning' });
+          }).catch(() => {});
+        });
     });
   }, [
     user?.username,

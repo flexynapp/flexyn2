@@ -139,14 +139,14 @@ export default function GymHub() {
       <div className="rounded-2xl overflow-hidden border border-border bg-card mb-4">
         {gym.cover_url && (
           <div className="h-32 bg-gradient-to-br from-primary/20 to-violet-500/20 relative">
-            <img src={gym.cover_url} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={gym.cover_url} alt="" className="w-full h-full object-cover" />
           </div>
         )}
         <div className="p-4">
           <div className="flex items-start gap-3">
             <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center shrink-0">
               {gym.logo_url
-                ? <img src={gym.logo_url} alt="" className="w-full h-full rounded-2xl object-cover" />
+                ? <img loading="lazy" src={gym.logo_url} alt="" className="w-full h-full rounded-2xl object-cover" />
                 : <Building2 className="w-6 h-6 text-primary" />}
             </div>
             <div className="flex-1 min-w-0">
@@ -630,7 +630,7 @@ function LeaderboardTab({ gymId, meUserId }) {
                   #{r.rank}
                 </span>
                 {r.avatar_url
-                  ? <img src={r.avatar_url} alt="" className="w-8 h-8 rounded-full" />
+                  ? <img loading="lazy" src={r.avatar_url} alt="" className="w-8 h-8 rounded-full" />
                   : <div className="w-8 h-8 rounded-full bg-secondary" />}
                 <span className="flex-1 text-sm font-medium truncate">
                   @{r.username || '—'}

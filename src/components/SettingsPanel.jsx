@@ -734,7 +734,7 @@ export default function SettingsPanel() {
           />
         </div>
         {typeof navigator !== 'undefined' && !('vibrate' in navigator) && (
-          <p className="pl-5 text-[10px] text-muted-foreground/80 leading-tight mt-0.5">
+          <p className="ps-5 text-[10px] text-muted-foreground/80 leading-tight mt-0.5">
             {tFallback(
               'settings.haptics.unsupported',
               'Vibration is not supported on this device.'
@@ -772,7 +772,7 @@ export default function SettingsPanel() {
         <div
           role="group"
           aria-label={tFallback('settings.pushCategories', 'Push notification categories')}
-          className="pl-5 -mt-1 space-y-1.5 border-l border-border/60 ml-1.5"
+          className="ps-5 -mt-1 space-y-1.5 border-s border-border/60 ms-1.5"
         >
           {[
             { key: 'streak',       icon: Flame,  label: tFallback('settings.push.streak',       'Streak reminders') },
@@ -817,7 +817,7 @@ export default function SettingsPanel() {
                   />
                 </div>
                 {snoozeOpen && (
-                  <div className="absolute right-12 top-6 z-30 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-card border border-border shadow-xl">
+                  <div className="absolute end-12 top-6 z-30 flex items-center gap-1 px-2 py-1.5 rounded-lg bg-card border border-border shadow-xl">
                     {[
                       { mins: 60,    label: '1h' },
                       { mins: 240,   label: '4h' },
@@ -854,7 +854,7 @@ export default function SettingsPanel() {
           inside the window; in-app rows still insert. Window wraps
           midnight (e.g. 22 → 7). */}
       {push.isSupported && (
-        <div className="pl-5 -mt-1 space-y-2 border-l border-border/60 ml-1.5">
+        <div className="ps-5 -mt-1 space-y-2 border-s border-border/60 ms-1.5">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2 flex-1 min-w-0">
               <Moon className="w-3 h-3 text-muted-foreground/70 shrink-0" aria-hidden="true" />
@@ -872,7 +872,7 @@ export default function SettingsPanel() {
           </div>
           {quietEnabled && (
             <>
-              <div className="flex items-center gap-2 pl-5">
+              <div className="flex items-center gap-2 ps-5">
                 <select
                   value={quietHours.start ?? 22}
                   onChange={(e) => updateQuietHours({ ...quietHours, start: Number(e.target.value) })}
@@ -900,7 +900,7 @@ export default function SettingsPanel() {
                 // "no quiet hours" — surface the degenerate state to
                 // the user so they don't think DND is active when it
                 // silently isn't. (Audit 14 #18.)
-                <p className="pl-5 text-[10px] text-amber-500/90 leading-tight">
+                <p className="ps-5 text-[10px] text-amber-500/90 leading-tight">
                   {tFallback(
                     'settings.quiet.equalWarn',
                     'Start and end are the same — quiet hours are effectively off. Pick different times.'
@@ -1132,7 +1132,7 @@ export default function SettingsPanel() {
           </button>
 
           {storyBlocksOpen && (
-            <div className="mt-2 space-y-2 pl-5">
+            <div className="mt-2 space-y-2 ps-5">
               {/* Add new block */}
               <div className="flex gap-1.5">
                 <input
@@ -1279,7 +1279,7 @@ export default function SettingsPanel() {
             toast.error('Could not copy — your browser blocked clipboard access.');
           }
         }}
-        className="block w-full text-left py-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
+        className="block w-full text-start py-2 text-[10px] text-muted-foreground/70 hover:text-muted-foreground transition-colors"
         aria-label="Copy build diagnostic info to clipboard"
       >
         {buildLabel()}

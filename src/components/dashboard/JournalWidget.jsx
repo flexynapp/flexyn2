@@ -49,9 +49,16 @@ export default function JournalWidget({ userId, userEmail }) {
     clearTimeout(saveTimerRef.current);
   }, []);
 
-  // Sync draft when entry loads / changes (e.g. invalidation from mood tap).
+  // Sync draft when entry loads / changes from the server (e.g. a
+  // background mood-tap invalidate). The effect runs whenever the
+  // collapsed→expanded transition fires too, but the conditional
+  // gating on `!expanded` means we only clobber the local draft
+  // when the textarea is hidden. While expanded, the user owns the
+  // text and we never overwrite their in-progress typing — even if
+  // the server value changes mid-edit.
   useEffect(() => {
-    if (!expanded) setDraft(entry?.body || '');
+    if (expanded) return;
+    setDraft(entry?.body || '');
   }, [entry?.body, expanded]);
 
   const handleSave = useCallback(async (body) => {

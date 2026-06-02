@@ -103,7 +103,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
               onClick={() => onDisconnect(item.id)}
               disabled={isConnecting || unavailable}
             >
-              <Link2Off className="w-3 h-3 mr-1" />
+              <Link2Off className="w-3 h-3 me-1" />
               Disconnect
             </Button>
           ) : (
@@ -116,7 +116,7 @@ function IntegrationCard({ item, connected, onConnect, onDisconnect, connecting 
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
                 <>
-                  <Link2 className="w-3 h-3 mr-1" />
+                  <Link2 className="w-3 h-3 me-1" />
                   Connect
                 </>
               )}

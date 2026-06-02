@@ -177,14 +177,14 @@ export default function TwoFactorSection() {
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <ol className="text-xs text-muted-foreground space-y-1 mb-3 list-decimal pl-4">
+              <ol className="text-xs text-muted-foreground space-y-1 mb-3 list-decimal ps-4">
                 <li>Open an authenticator app (Google Authenticator, Authy, 1Password).</li>
                 <li>Scan the QR code below — or enter the secret manually.</li>
                 <li>Type the 6-digit code the app shows.</li>
               </ol>
               {enrollment.qr && (
                 <div className="flex justify-center mb-3">
-                  <img src={enrollment.qr} alt="2FA QR code" className="w-40 h-40 rounded-md bg-white p-2" />
+                  <img loading="lazy" src={enrollment.qr} alt="2FA QR code" className="w-40 h-40 rounded-md bg-white p-2" />
                 </div>
               )}
               {enrollment.secret && (

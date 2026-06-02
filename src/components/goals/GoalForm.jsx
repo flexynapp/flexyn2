@@ -259,7 +259,7 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
                   onChange={e => setCardioDistanceInput(e.target.value)}
                   placeholder="0.0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                   {distanceUnit}
                 </span>
               </div>

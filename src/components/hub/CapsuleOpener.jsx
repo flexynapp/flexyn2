@@ -305,6 +305,16 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   // phase state machine, which is async). Without this a fast mobile
   // double-tap could fire two RPC calls before phase flips.
   const openGuardRef = useRef(false);
+  // Release the guard once the spin successfully transitions to
+  // revealing — the phase state is now driving the rest of the flow.
+  // Previously the guard stayed set until unmount, so any
+  // hot-reload / parent-state-shuffle that kept the component mounted
+  // could leave the Open button dead.
+  useEffect(() => {
+    if (phase === 'revealing' || phase === 'claimed') {
+      openGuardRef.current = false;
+    }
+  }, [phase]);
 
   // ── Trigger spin ────────────────────────────────────────────────────────────
   // Server-authoritative roll (migration 028). The RPC:
@@ -562,15 +572,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 style={{ height: 148 }}
               >
                 {/* Center indicator */}
-                <div className="absolute inset-y-0 left-1/2 -translate-x-px z-10 w-0.5 bg-purple-400/70 pointer-events-none" />
+                <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-purple-400/70 pointer-events-none" />
                 {/* Left fade */}
                 <div
-                  className="absolute inset-y-0 left-0 z-10 w-20 pointer-events-none"
+                  className="absolute inset-y-0 start-0 z-10 w-20 pointer-events-none"
                   style={{ background: 'linear-gradient(to right, #0a0a1a, transparent)' }}
                 />
                 {/* Right fade */}
                 <div
-                  className="absolute inset-y-0 right-0 z-10 w-20 pointer-events-none"
+                  className="absolute inset-y-0 end-0 z-10 w-20 pointer-events-none"
                   style={{ background: 'linear-gradient(to left, #0a0a1a, transparent)' }}
                 />
 

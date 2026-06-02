@@ -43,15 +43,15 @@ function PhotoPicker({ photos, selected, onSelect, label, language }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.96 }}
             transition={{ type: 'spring', stiffness: 400, damping: 28 }}
-            className="absolute z-30 top-full mt-1 left-0 right-0 bg-card border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto"
+            className="absolute z-30 top-full mt-1 start-0 end-0 bg-card border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto"
           >
             {photos.map(p => (
               <button
                 key={p.id}
                 onClick={() => { onSelect(p.id); setOpen(false); }}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-secondary/60 transition-colors ${p.id === selected ? 'bg-primary/10' : ''}`}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-start hover:bg-secondary/60 transition-colors ${p.id === selected ? 'bg-primary/10' : ''}`}
               >
-                <img src={p.dataUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
+                <img loading="lazy" src={p.dataUrl} alt="" className="w-10 h-10 rounded-lg object-cover shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-medium leading-tight">
                     {format(new Date(p.takenAt), 'MMM d, yyyy', { locale: dateLocale })}
@@ -158,8 +158,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
             onTouchStart={onTouchMove}
           >
             {/* After photo (full width, background) */}
-            <img
-              src={afterPhoto.dataUrl}
+            <img loading="lazy" src={afterPhoto.dataUrl}
               alt="After"
               className="w-full object-cover block"
               style={{ maxHeight: 420 }}
@@ -171,8 +170,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
               className="absolute inset-0 overflow-hidden"
               style={{ width: `${sliderPct}%` }}
             >
-              <img
-                src={beforePhoto.dataUrl}
+              <img loading="lazy" src={beforePhoto.dataUrl}
                 alt="Before"
                 className="object-cover block"
                 style={{ width: containerRef.current?.offsetWidth || '100%', maxHeight: 420 }}
@@ -195,12 +193,12 @@ export default function PhotoCompareSlider({ photos, onClose }) {
             </div>
 
             {/* Labels */}
-            <div className="absolute top-2 left-2 pointer-events-none">
+            <div className="absolute top-2 start-2 pointer-events-none">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
                 BEFORE · {format(new Date(beforePhoto.takenAt), 'MMM d, yyyy', { locale: dateLocale })}
               </span>
             </div>
-            <div className="absolute top-2 right-2 pointer-events-none">
+            <div className="absolute top-2 end-2 pointer-events-none">
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-black/60 text-white">
                 AFTER · {format(new Date(afterPhoto.takenAt), 'MMM d, yyyy', { locale: dateLocale })}
               </span>

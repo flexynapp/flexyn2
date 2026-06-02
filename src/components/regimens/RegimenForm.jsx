@@ -294,7 +294,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                   <Zap className="w-3.5 h-3.5" /> Group
                 </Button>
                 <Button type="button" variant="outline" size="sm" onClick={addExercise}>
-                  <Plus className="w-4 h-4 mr-1" /> {t('regimens.addExercise')}
+                  <Plus className="w-4 h-4 me-1" /> {t('regimens.addExercise')}
                 </Button>
               </>
             ) : (
@@ -344,7 +344,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ type: 'spring', stiffness: 300, damping: 24 }}
-                    className={`rounded-xl border-l-4 border overflow-hidden ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}
+                    className={`rounded-xl border-s-4 border overflow-hidden ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}
                   >
                     {/* Group header */}
                     <div className="flex items-center justify-between px-3 py-2 border-b border-border/60 bg-background/60">
@@ -474,7 +474,7 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
             exit={{ opacity: 0, y: 24 }}
             className="sticky bottom-4 z-10 flex items-center justify-center gap-3 px-4 py-3 rounded-2xl border border-primary/30 bg-background/95 backdrop-blur shadow-xl shadow-black/10 mx-auto max-w-sm"
           >
-            <span className="text-xs font-medium text-muted-foreground mr-1">{selectedIndices.size} selected</span>
+            <span className="text-xs font-medium text-muted-foreground me-1">{selectedIndices.size} selected</span>
             <Button
               type="button" size="sm"
               className="gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs"
@@ -501,12 +501,12 @@ export default function RegimenForm({ initial, onSubmit, onCancel, userProfile =
           isPublic ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/30'
         }`}
       >
-        <div className="text-left">
+        <div className="text-start">
           <p className="font-semibold text-sm">{t('regimens.isPublic')}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{t('regimens.isPublicDesc')}</p>
         </div>
         <div className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${isPublic ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isPublic ? 'left-5' : 'left-1'}`} />
+          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isPublic ? 'start-5' : 'start-1'}`} />
         </div>
       </button>
 

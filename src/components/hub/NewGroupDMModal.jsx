@@ -175,10 +175,10 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
                     >
                       <div className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center overflow-hidden">
                         {f.avatar
-                          ? <img src={f.avatar} alt="" className="w-full h-full object-cover" />
+                          ? <img loading="lazy" src={f.avatar} alt="" className="w-full h-full object-cover" />
                           : (f.username || f.email || '?').slice(0, 2).toUpperCase()}
                       </div>
-                      <div className="flex-1 min-w-0 text-left">
+                      <div className="flex-1 min-w-0 text-start">
                         <p className="text-sm font-semibold truncate">{f.username ? `@${f.username}` : f.email}</p>
                         {f.username && <p className="text-[10px] text-muted-foreground truncate">{f.email}</p>}
                       </div>

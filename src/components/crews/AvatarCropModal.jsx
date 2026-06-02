@@ -181,8 +181,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
             />
             {/* Hidden img tag drives the canvas draw */}
             {imgSrc && (
-              <img
-                ref={imgRef}
+              <img loading="lazy" ref={imgRef}
                 src={imgSrc}
                 alt=""
                 className="sr-only"

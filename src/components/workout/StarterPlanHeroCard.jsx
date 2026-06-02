@@ -74,7 +74,7 @@ export default function StarterPlanHeroCard({
       transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
       className="relative w-full mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-violet-500/12 to-fuchsia-500/10 border border-primary/30 p-5 md:p-6 shadow-lg shadow-primary/10"
     >
-      <div className="absolute -top-12 -right-12 w-48 h-48 rounded-full blur-3xl bg-primary/30 pointer-events-none" />
+      <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full blur-3xl bg-primary/30 pointer-events-none" />
 
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">

@@ -65,7 +65,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
               {handle.slice(0, 2).toUpperCase()}
             </span>
           </div>
-          <span className="absolute -bottom-0.5 -right-0.5 flex w-3.5 h-3.5">
+          <span className="absolute -bottom-0.5 -end-0.5 flex w-3.5 h-3.5">
             <span className="absolute inline-flex w-full h-full rounded-full bg-red-500 opacity-60 animate-ping" />
             <span className="relative inline-flex w-3.5 h-3.5 rounded-full bg-red-500" />
           </span>

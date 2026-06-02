@@ -62,12 +62,22 @@ export default function StepsLogCard() {
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
 
-  // Day-boundary cache key so a PWA left open across midnight stops
-  // showing yesterday's count as "today's" (same trick as MoodLogCard).
-  const todayDateKey = (() => {
+  // Day-boundary cache key so a PWA left open across midnight rolls
+  // forward (same pattern as MoodLogCard's state + minute tick). The
+  // bare IIFE pinned at mount left yesterday's count visible until a
+  // manual refresh.
+  const computeTodayKey = () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  })();
+  };
+  const [todayDateKey, setTodayDateKey] = useState(computeTodayKey);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = computeTodayKey();
+      setTodayDateKey(prev => (prev === next ? prev : next));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
   const { data: today } = useQuery({
     queryKey: ['stepLogToday', user?.id, todayDateKey],
     queryFn: getTodayStepLog,
@@ -123,7 +133,7 @@ export default function StepsLogCard() {
           <button
             type="button"
             onClick={() => setDraft(String(logged))}
-            className="text-left"
+            className="text-start"
             aria-label={tFallback('steps.edit', 'Edit step count')}
           >
             <span className="text-xl font-heading font-bold leading-none tabular-nums">

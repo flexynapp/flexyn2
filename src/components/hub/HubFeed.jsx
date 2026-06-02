@@ -466,7 +466,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           </button>
           <button type="button"
             onClick={() => { setSort('popular'); setVisibleCount(PAGE_SIZE); }}
-            className={`flex items-center gap-1 px-2.5 py-1.5 border-l border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+            className={`flex items-center gap-1 px-2.5 py-1.5 border-s border-border transition-colors ${sort === 'popular' ? 'bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
             <Flame className="w-3 h-3" />Hot
           </button>
         </div>
@@ -476,7 +476,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
             {[['today','Today'],['week','Week'],['all','All']].map(([val, label]) => (
               <button key={val} type="button"
                 onClick={() => { setTimeFilter(val); setVisibleCount(PAGE_SIZE); }}
-                className={`px-2.5 py-1.5 border-l first:border-l-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
+                className={`px-2.5 py-1.5 border-s first:border-s-0 border-border transition-colors ${timeFilter === val ? 'bg-secondary text-foreground' : 'bg-background text-muted-foreground hover:text-foreground'}`}>
                 {label}
               </button>
             ))}

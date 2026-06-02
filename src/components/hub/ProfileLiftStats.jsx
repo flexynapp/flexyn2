@@ -128,7 +128,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium truncate">
-                      <span className="text-muted-foreground tabular-nums mr-1.5">#{i + 1}</span>
+                      <span className="text-muted-foreground tabular-nums me-1.5">#{i + 1}</span>
                       {displayName}
                     </span>
                     <span className="text-xs font-bold tabular-nums">{rmDisplay}</span>

@@ -84,7 +84,7 @@ function InjuryCard({ injury, onClear, onExtend, onDelete }) {
             className="flex-1 text-xs h-8 text-emerald-600 border-emerald-600/30 hover:bg-emerald-600/10"
             onClick={() => onClear(injury.id)}
           >
-            <CheckCircle2 className="w-3 h-3 mr-1" /> Clear injury
+            <CheckCircle2 className="w-3 h-3 me-1" /> Clear injury
           </Button>
           <Button
             size="sm"
@@ -321,7 +321,7 @@ export default function InjuryForm({ onClose }) {
                     <button
                       key={opt.id}
                       onClick={() => setSeverity(opt.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors ${
+                      className={`w-full text-start px-3 py-2.5 rounded-xl border transition-colors ${
                         severity === opt.id ? opt.color : 'border-border hover:border-border/80 bg-card'
                       }`}
                     >

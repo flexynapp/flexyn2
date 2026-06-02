@@ -43,7 +43,7 @@ export default function BountyBanner({ claim }) {
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       onClick={() => navigate('/bounties')}
-      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-left transition-colors mb-3 ${
+      className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl border text-start transition-colors mb-3 ${
         isExpiring
           ? 'border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10'
           : 'border-amber-500/30 bg-amber-500/5 hover:bg-amber-500/10'

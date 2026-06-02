@@ -46,7 +46,7 @@ function AccordionPanel({ isOpen, children }) {
       }}
       style={{ overflow: 'hidden' }}
     >
-      <div ref={innerRef} className="space-y-3 mt-3 ml-1 pb-1">
+      <div ref={innerRef} className="space-y-3 mt-3 ms-1 pb-1">
         {children}
       </div>
     </motion.div>

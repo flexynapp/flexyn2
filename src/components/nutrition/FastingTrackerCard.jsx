@@ -168,7 +168,7 @@ export default function FastingTrackerCard() {
             onClick={handleEnd}
             className="mt-2 h-8 px-3 text-xs"
           >
-            <StopCircle className="w-3.5 h-3.5 mr-1" /> End fast
+            <StopCircle className="w-3.5 h-3.5 me-1" /> End fast
           </Button>
         </div>
       </div>

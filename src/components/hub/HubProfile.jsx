@@ -203,8 +203,7 @@ function QRModal({ url, username, onClose }) {
         </div>
         <div className="relative w-52 h-52 rounded-xl border border-border overflow-hidden bg-white">
           {!imgLoaded && <div className="absolute inset-0 bg-muted animate-pulse" />}
-          <img
-            src={qrImgUrl}
+          <img loading="lazy" src={qrImgUrl}
             alt="Profile QR code"
             className="w-full h-full object-contain"
             onLoad={() => setImgLoaded(true)}
@@ -1083,8 +1082,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 <MapPin className="w-3 h-3 shrink-0" />
                 {city && <span>{city}</span>}
                 {countryFlag && (
-                  <img
-                    src={flagUrl(codeToFlag(countryFlag))}
+                  <img loading="lazy" src={flagUrl(codeToFlag(countryFlag))}
                     alt="flag"
                     className="w-4 h-4 object-contain shrink-0"
                   />
@@ -1134,7 +1132,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 Math.abs(now.getDate() - since.getDate()) <= 7;
               return (
                 <p className="text-[11px] text-muted-foreground/80 italic mt-2">
-                  {isAnniversaryWeek && <span className="mr-1" aria-hidden="true">🎂</span>}
+                  {isAnniversaryWeek && <span className="me-1" aria-hidden="true">🎂</span>}
                   {tFallback('hub.profile.trainingSince', 'Training together since {month}').replace('{month}', monthYear)}
                 </p>
               );
@@ -1268,13 +1266,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                 </div>
                 <div className="flex items-center gap-2">
                   {countryFlag
-                    ? <img src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
+                    ? <img loading="lazy" src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
                     : <span className="text-sm shrink-0">🌍</span>
                   }
                   <button
                     type="button"
                     onClick={() => setFlagPickerOpen(true)}
-                    className="flex-1 text-left text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     {countryFlag ? 'Change flag' : 'Pick country flag →'}
                   </button>
@@ -1694,7 +1692,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             </button>
             <button type="button"
               onClick={() => setProfilePostSort('popular')}
-              className={`px-2.5 py-1 border-l border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+              className={`px-2.5 py-1 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
               Top
             </button>
           </div>
@@ -1880,7 +1878,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                         className="aspect-square flex flex-col items-center justify-center gap-0.5 rounded hover:bg-secondary transition-colors p-1"
                         title={name}
                       >
-                        <img src={imgSrc} alt={name} className="w-6 h-6 object-contain" />
+                        <img loading="lazy" src={imgSrc} alt={name} className="w-6 h-6 object-contain" />
                         <span className="text-[7px] text-muted-foreground leading-none">{code}</span>
                       </motion.button>
                     );
@@ -2073,7 +2071,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
                       username: u.username || u.email?.split('@')[0] || null,
                     });
                   }}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/60 transition-colors text-left"
+                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/60 transition-colors text-start"
                 >
                   <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
                     {u.avatar_url ? (

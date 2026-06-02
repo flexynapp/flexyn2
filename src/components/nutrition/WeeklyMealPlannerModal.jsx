@@ -74,7 +74,7 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
             <button
               key={r.id}
               onClick={() => onPick(r)}
-              className="w-full text-left px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-sm font-medium transition-colors"
+              className="w-full text-start px-3 py-2 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-sm font-medium transition-colors"
             >
               {r.name}
               <p className="text-[10px] text-muted-foreground mt-0.5">
@@ -365,7 +365,7 @@ export default function WeeklyMealPlannerModal({ open, onClose }) {
                                   setPickerSlot({ date: dateStr, mealType: slot.key });
                                 }
                               }}
-                              className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-left text-[10px] font-medium transition-colors flex flex-col ${
+                              className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-[10px] font-medium transition-colors flex flex-col ${
                                 plan
                                   ? 'bg-emerald-500/15 border border-emerald-500/30 text-foreground'
                                   : 'bg-secondary/40 border border-dashed border-border text-muted-foreground hover:bg-secondary/60'

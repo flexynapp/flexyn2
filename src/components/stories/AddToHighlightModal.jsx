@@ -101,7 +101,7 @@ export default function AddToHighlightModal({ open, onClose, storyId }) {
                 <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-lg shrink-0">
                   <span aria-hidden="true">✨</span>
                 </div>
-                <span className="flex-1 text-left text-sm font-medium truncate">{h.title}</span>
+                <span className="flex-1 text-start text-sm font-medium truncate">{h.title}</span>
                 {busy === h.id ? (
                   <Loader2 className="w-4 h-4 animate-spin text-primary" />
                 ) : (

@@ -107,7 +107,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     e.stopPropagation();
                     removeRecentlyViewed(userEmail, entry.id);
                   }}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-gray-900 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 flex items-center justify-center transition-colors"
+                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-gray-900 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 flex items-center justify-center transition-colors"
                   aria-label="Remove from recents"
                 >
                   <X className="w-3 h-3" />

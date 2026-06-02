@@ -234,7 +234,7 @@ export default function AdminGyms() {
                         disabled={acting}
                         className="flex-1 text-destructive border-destructive/30 hover:bg-destructive/10"
                       >
-                        <X className="w-4 h-4 mr-1" />
+                        <X className="w-4 h-4 me-1" />
                         Reject
                       </Button>
                       <Button
@@ -244,8 +244,8 @@ export default function AdminGyms() {
                         className="flex-1"
                       >
                         {acting
-                          ? <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                          : <Check className="w-4 h-4 mr-1" />}
+                          ? <Loader2 className="w-4 h-4 animate-spin me-1" />
+                          : <Check className="w-4 h-4 me-1" />}
                         Approve
                       </Button>
                     </>
@@ -266,7 +266,7 @@ export default function AdminGyms() {
                         disabled={acting}
                         className="flex-1"
                       >
-                        {acting && <Loader2 className="w-4 h-4 animate-spin mr-1" />}
+                        {acting && <Loader2 className="w-4 h-4 animate-spin me-1" />}
                         Confirm reject
                       </Button>
                     </>

@@ -267,7 +267,7 @@ class ErrorBoundaryClass extends React.Component {
           */}
           {this.state.error && (
             <details
-              className="mt-2 text-left max-w-full w-full max-w-2xl"
+              className="mt-2 text-start max-w-full w-full max-w-2xl"
               open={import.meta.env.DEV}
             >
               <summary className="text-xs text-muted-foreground cursor-pointer select-none mb-2">

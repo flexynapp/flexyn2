@@ -6,6 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp, Zap, Trophy, Target } from 'lucide-react';
 import { subDays } from 'date-fns';
 import StatsSlideshow from './StatsSlideshow';
+import ErrorBoundary from '@/components/ErrorBoundary';
 import { useLanguage } from '@/lib/LanguageContext';
 import { muscleKey, getExerciseDisplay } from '@/lib/exerciseTranslations';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
@@ -269,5 +270,13 @@ export default function WidgetRenderer({ widgetId, logs, goals, isLoading }) {
     );
   }
 
-  return <Component logs={logs} goals={goals} isLoading={isLoading} />;
+  // Wrap each widget so a render-time throw in one (a corrupt logs
+  // row, a Recharts edge case) doesn't take down the whole dashboard
+  // grid. Each widget gets its own ErrorBoundary with the widgetId in
+  // the label so observability can map it back to the failing one.
+  return (
+    <ErrorBoundary label={`widget:${widgetId}`}>
+      <Component logs={logs} goals={goals} isLoading={isLoading} />
+    </ErrorBoundary>
+  );
 }

@@ -150,12 +150,12 @@ function HeroCard({
             initial={{ opacity: 0.5 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
-            className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
+            className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
             style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.55), transparent 65%)` }}
           />
           <motion.div
             key={`mesh-bl-${slideColor || 'default'}`}
-            className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
+            className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
             style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.25), transparent 70%)` }}
             animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.85, 1, 0.85] }}
             transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
@@ -210,10 +210,10 @@ function HeroCard({
           aria-pressed={darkMode}
           className="relative self-end mb-2 shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
         >
-          <span className="absolute left-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+          <span className="absolute start-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
             <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-muted-foreground' : 'opacity-100 text-amber-500'}`} />
           </span>
-          <span className="absolute right-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
+          <span className="absolute end-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
             <Moon className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-100 text-indigo-400' : 'opacity-40 text-muted-foreground'}`} />
           </span>
           <span
@@ -227,7 +227,7 @@ function HeroCard({
           whileTap={{ scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={onPrimary}
-          className="group relative flex-1 overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-left select-none-ui"
+          className="group relative flex-1 overflow-hidden rounded-2xl p-3.5 md:p-4 flex items-center justify-between gap-3 text-start select-none-ui"
           // Brand-gold CTA — single source of truth is in src/index.css
           // (--hero-cta-gradient / --hero-cta-text / --hero-cta-shadow).
           // The dark-mode variant has a stronger shadow to compensate
@@ -392,7 +392,7 @@ function QuickAction({ to, icon: Icon, label, onClick, delay = 0, iconBg, iconCo
 
   if (to) return <Link to={to}>{inner}</Link>;
   return (
-    <button onClick={onClick} className="w-full text-left">
+    <button onClick={onClick} className="w-full text-start">
       {inner}
     </button>
   );
@@ -427,7 +427,7 @@ function SectionHeader({ label, open, onToggle, tFallback }) {
     <button
       type="button"
       onClick={onToggle}
-      className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-left group"
+      className="w-full mt-3 mb-1.5 px-1 flex items-center justify-between text-start group"
       aria-expanded={open}
     >
       <span className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground/70 group-hover:text-foreground transition-colors">
@@ -435,7 +435,7 @@ function SectionHeader({ label, open, onToggle, tFallback }) {
       </span>
       <span className="text-[10px] font-semibold text-muted-foreground/50 group-hover:text-foreground transition-colors">
         {open ? tFallback('dashboard.hide', 'Hide') : tFallback('dashboard.showAll', 'Show all')}
-        <span className="ml-1">{open ? '▾' : '▸'}</span>
+        <span className="ms-1">{open ? '▾' : '▸'}</span>
       </span>
     </button>
   );
@@ -1204,7 +1204,7 @@ export default function Dashboard() {
                     <ChevronDown className={`w-3.5 h-3.5 transition-transform ${actionsExpanded ? 'rotate-180' : ''}`} />
                     {actionsExpanded
                       ? tFallback('dashboard.actions.showLess', 'Show less')
-                      : tFallback('dashboard.actions.showMore', `Show ${hiddenCount} more`).replace('{n}', String(hiddenCount))}
+                      : tFallback('dashboard.actions.showMore', 'Show {n} more', { n: hiddenCount })}
                   </button>
                 )}
               </div>
@@ -1460,7 +1460,7 @@ export default function Dashboard() {
               >
                 <button
                   onClick={() => navigate('/workout', { state: { repeatLog: last } })}
-                  className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-left"
+                  className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-start"
                 >
                   <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                     <Repeat2 className="w-3.5 h-3.5 text-primary" />

@@ -60,8 +60,7 @@ function AvatarImage({ avatarUrl, username, faded }) {
   const initials = (username || '?').slice(0, 2).toUpperCase();
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
+      <img loading="lazy" src={avatarUrl}
         alt={username}
         className={`w-full h-full object-cover rounded-full transition-opacity ${faded ? 'opacity-40' : 'opacity-100'}`}
         draggable={false}
@@ -83,7 +82,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
   const { tFallback } = useLanguage();
   if (!note) return null;
   return (
-    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5">
+    <div className="absolute bottom-full start-1/2 -translate-x-1/2 mb-1.5 z-10 flex flex-col items-center gap-0.5">
       <div
         className="relative max-w-[84px] bg-white rounded-2xl px-2.5 py-1.5 shadow-sm cursor-pointer"
         onClick={e => { e.stopPropagation(); isOwn ? onEditOwn() : null; }}
@@ -93,7 +92,7 @@ function NoteBubble({ note, isOwn, isLiked, onLike, onEditOwn }) {
         </p>
         {/* Speech bubble tail */}
         <div
-          className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
+          className="absolute top-full start-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
           style={{
             borderLeft:  '4px solid transparent',
             borderRight: '4px solid transparent',
@@ -187,7 +186,7 @@ function StoryAvatarButton({
               {/* Chat bubble tail — only when note exists */}
               {group.note && (
                 <div
-                  className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
+                  className="absolute top-full start-1/2 -translate-x-1/2 w-0 h-0 pointer-events-none"
                   style={{
                     borderLeft:  '4px solid transparent',
                     borderRight: '4px solid transparent',
@@ -698,8 +697,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
                   <div className="w-full h-full rounded-full overflow-hidden bg-background p-[2px]">
                     <div className="w-full h-full rounded-full overflow-hidden">
                       {latest?.image_url ? (
-                        <img
-                          src={latest.image_url}
+                        <img loading="lazy" src={latest.image_url}
                           className="w-full h-full object-cover"
                           alt=""
                           draggable={false}
@@ -820,15 +818,14 @@ export default function StoriesRow({ onViewProfile } = {}) {
             className="fixed inset-0 z-50 bg-black flex items-center justify-center"
             onClick={() => setCrewStoryViewerOpen(null)}
           >
-            <img
-              src={crewStoryViewerOpen.stories[crewStoryViewerOpen.idx]?.image_url}
+            <img loading="lazy" src={crewStoryViewerOpen.stories[crewStoryViewerOpen.idx]?.image_url}
               className="max-w-full max-h-full object-contain"
               alt=""
               draggable={false}
               onClick={e => e.stopPropagation()}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
-            <div className="absolute top-4 left-0 right-0 px-4 flex items-center justify-between">
+            <div className="absolute top-4 start-0 end-0 px-4 flex items-center justify-between">
               <span className="text-white text-sm font-bold drop-shadow">{crewStoryViewerOpen.crew.name}</span>
               <button
                 onClick={() => setCrewStoryViewerOpen(null)}
@@ -839,7 +836,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
               </button>
             </div>
             {crewStoryViewerOpen.stories.length > 1 && (
-              <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-2">
+              <div className="absolute bottom-6 start-0 end-0 flex justify-center gap-2">
                 {crewStoryViewerOpen.stories.map((s, i) => (
                   <button
                     key={s?.id ?? `dot-${i}`}

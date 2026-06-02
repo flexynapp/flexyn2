@@ -6,6 +6,7 @@
 
 import React, { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -21,6 +22,17 @@ export default function LeagueStandingsModal({ open, onClose }) {
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
   const fmt = useNumberFormatter();
+  const navigate = useNavigate();
+
+  // Tapping a non-self row opens that user's Hub profile (uses the
+  // existing ?profile=<email> deep-link contract that Hub.jsx parses).
+  // Self row stays visual — there's no value in navigating to your
+  // own profile from your own league standings.
+  const openMemberProfile = (member) => {
+    if (!member?.email || member.user_id === user?.id) return;
+    onClose();
+    navigate(`/hub?profile=${encodeURIComponent(member.email)}`);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ['myLeague', user?.id],
@@ -48,14 +60,14 @@ export default function LeagueStandingsModal({ open, onClose }) {
             {[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : (
-          <Body data={data} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} />
+          <Body data={data} userId={user?.id} t={t} tFallback={tFallback} fmt={fmt} onOpenMember={openMemberProfile} />
         )}
       </DialogContent>
     </Dialog>
   );
 }
 
-function Body({ data, userId, t, tFallback, fmt }) {
+function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
   // Defensive: if anything's missing, render an empty-state instead of crashing
   if (!data || !data.league || !data.tier || !Array.isArray(data.members)) {
     return (
@@ -137,14 +149,23 @@ function Body({ data, userId, t, tFallback, fmt }) {
                 const isDemote  = demoteN > 0 && rank >= totalMembers - demoteN + 1;
                 const isFirst = rank === 1;
 
+                const interactive = !isMe && m.email;
                 return (
                   <motion.div
                     key={m.id}
                     initial={{ opacity: 0, x: -8 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(idx, 12) * 0.025 }}
+                    onClick={interactive ? () => onOpenMember?.(m) : undefined}
+                    role={interactive ? 'button' : undefined}
+                    tabIndex={interactive ? 0 : undefined}
+                    onKeyDown={interactive ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenMember?.(m); }
+                    } : undefined}
+                    aria-label={interactive ? tFallback('league.openMember', 'Open {name}', { name: m.username || m.full_name || 'member' }) : undefined}
                     className={[
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg border transition-colors',
+                      interactive ? 'cursor-pointer hover:bg-secondary/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40' : '',
                       isMe
                         ? 'bg-primary/10 border-primary/40 ring-1 ring-primary/30'
                         : isPromote

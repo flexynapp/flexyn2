@@ -91,14 +91,14 @@ export default function TabQuickActionMenu({ open, anchorRect, actions, onClose 
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-foreground hover:bg-secondary transition-colors border-b border-border last:border-b-0"
               >
                 {action.icon && <action.icon className="w-4 h-4 text-primary shrink-0" />}
-                <span className="text-left flex-1">{action.label}</span>
+                <span className="text-start flex-1">{action.label}</span>
               </button>
             ))}
             {/* Small downward-pointing tab connector so the menu looks
                 tethered to the originating tab, not floating randomly. */}
             <div
               aria-hidden="true"
-              className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-card border-r border-b border-border"
+              className="absolute -bottom-1.5 start-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-card border-e border-b border-border"
             />
           </motion.div>
         </>

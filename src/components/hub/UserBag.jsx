@@ -126,7 +126,7 @@ function StickerGroupCard({ group, onSell, selling }) {
     >
       {/* Duplicate count badge */}
       {count > 1 && (
-        <span className="absolute top-2 right-2 min-w-[20px] h-5 px-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
           ×{count}
         </span>
       )}
@@ -340,7 +340,7 @@ function TitleList({ items, userId }) {
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
-            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-left ${
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${
               isEquipped ? 'border-primary bg-primary/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
             }`}
           >
@@ -466,7 +466,7 @@ function FrameList({ items, userId }) {
               style={frameDef?.css || {}}
             >
               {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
               ) : (
                 <span className="font-heading font-bold text-foreground">
                   {(profile?.username?.[0] || '?').toUpperCase()}
@@ -687,7 +687,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
               >
                 <span className="text-base">🪙</span>
                 <span className="text-amber-300 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
-                <Store className="w-3.5 h-3.5 text-amber-300/80 ml-0.5" />
+                <Store className="w-3.5 h-3.5 text-amber-300/80 ms-0.5" />
               </button>
               <button
                 onClick={onClose}
@@ -727,7 +727,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                   </span>
                   {/* Duplicate indicator — corner badge, doesn't take row space */}
                   {tab.badge && (
-                    <span className="absolute top-0.5 right-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
+                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
                       {tab.badge}
                     </span>
                   )}

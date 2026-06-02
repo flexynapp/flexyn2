@@ -297,7 +297,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
         </div>
         {isAdmin && (
           <button onClick={copyCode} className="mt-3 w-full rounded-xl bg-primary/8 border border-primary/20 p-2.5 flex items-center justify-between hover:bg-primary/12 transition-colors">
-            <div className="text-left">
+            <div className="text-start">
               <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Team join code</p>
               <p className="font-mono text-lg tracking-[0.3em] font-bold">{org.join_code}</p>
             </div>

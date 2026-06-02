@@ -123,8 +123,7 @@ export default function GymSignageCard({ open, onClose, gym }) {
               <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
             </div>
           ) : pngUrl ? (
-            <img
-              src={pngUrl}
+            <img loading="lazy" src={pngUrl}
               alt="Flexyn Code QR"
               className="w-full aspect-square object-contain mb-4"
               ref={canvasRef}

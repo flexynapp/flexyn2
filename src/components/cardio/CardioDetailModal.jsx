@@ -31,7 +31,7 @@ function DetailRow({ label, value }) {
   return (
     <div className="flex justify-between items-start gap-4 py-1.5 border-b border-border/50 last:border-0">
       <span className="text-sm text-muted-foreground shrink-0">{label}</span>
-      <span className="text-sm font-medium text-right">{value}</span>
+      <span className="text-sm font-medium text-end">{value}</span>
     </div>
   );
 }
@@ -188,7 +188,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
                 <div className="flex text-xs text-muted-foreground px-2">
                   <span className="w-12">{t('cardio.detail.split')}</span>
                   <span className="flex-1">{t('cardio.detail.time')}</span>
-                  <span className="flex-1 text-right">{t('cardio.detail.pace')}</span>
+                  <span className="flex-1 text-end">{t('cardio.detail.pace')}</span>
                 </div>
                 {splits.map(s => {
                   const isFastest = !s.partial && s.seconds === fastest;
@@ -314,7 +314,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" size="sm" className="flex-1">
-                <Trash2 className="w-4 h-4 mr-1" /> {t('common.delete')}
+                <Trash2 className="w-4 h-4 me-1" /> {t('common.delete')}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
@@ -330,7 +330,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
           </AlertDialog>
 
           <Button variant="outline" size="sm" className="flex-1" onClick={() => onEdit(log)}>
-            <Pencil className="w-4 h-4 mr-1" /> {t('common.edit')}
+            <Pencil className="w-4 h-4 me-1" /> {t('common.edit')}
           </Button>
         </DialogFooter>
       </DialogContent>

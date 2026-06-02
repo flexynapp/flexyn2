@@ -81,7 +81,7 @@ function LeaderboardRow({ entry, maxScore, isAuthed, onGymPress, delay }) {
       {/* Logo */}
       <div className="w-10 h-10 rounded-xl overflow-hidden bg-muted shrink-0 flex items-center justify-center">
         {entry.logo_url ? (
-          <img src={entry.logo_url} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" src={entry.logo_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <Building2 className="w-5 h-5 text-muted-foreground" />
         )}

@@ -117,7 +117,7 @@ export default function OneShotTooltip({
             {children}
             <div
               aria-hidden="true"
-              className="absolute left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-primary"
+              className="absolute start-1/2 -translate-x-1/2 w-2 h-2 rotate-45 bg-primary"
               style={isTop ? { bottom: -3 } : { top: -3 }}
             />
           </div>

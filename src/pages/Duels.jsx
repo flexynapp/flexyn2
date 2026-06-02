@@ -41,7 +41,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors text-left"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card hover:bg-secondary/40 transition-colors text-start"
     >
       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
         {duel.status === 'completed'

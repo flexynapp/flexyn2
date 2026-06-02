@@ -45,7 +45,7 @@ function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
         <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
           <Users className="w-3 h-3" />
           {memberCount} / {max} members
-          {full && <span className="text-rose-500 font-medium ml-1">Full</span>}
+          {full && <span className="text-rose-500 font-medium ms-1">Full</span>}
         </p>
       </div>
 
@@ -111,16 +111,16 @@ export default function CrewDiscovery({ onBack, onJoined }) {
       {/* Search */}
       <div className="px-4 py-3 shrink-0">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Search by name or #tag…"
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border bg-secondary/50 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground"
+            className="w-full ps-9 pe-4 py-2.5 rounded-xl border border-border bg-secondary/50 text-sm focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground"
           />
           {isFetching && (
-            <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+            <Loader2 className="absolute end-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
           )}
         </div>
       </div>

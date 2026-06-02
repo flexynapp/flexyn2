@@ -216,7 +216,7 @@ export default function HeavyBirdModal({ onClose, userId, onUnlockCosmetic }) {
           <span className="text-zinc-500 text-xs block uppercase">Current Load</span>
           <span className="text-2xl font-black text-emerald-400">{currentWeight} <span className="text-sm text-zinc-400">lbs</span></span>
         </div>
-        <div className="text-right">
+        <div className="text-end">
           <span className="text-zinc-500 text-xs block uppercase">Personal Record</span>
           <span className="text-xl font-bold text-amber-400">{highScore} lbs</span>
         </div>

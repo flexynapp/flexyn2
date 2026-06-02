@@ -85,20 +85,20 @@ export default function StoryPollOverlay({ overlay, storyId, userId, isOwn }) {
                 key={o.id}
                 onClick={() => handleVote(o.id)}
                 disabled={busy || isOwn}
-                className={`relative w-full rounded-lg px-3 py-2 text-sm font-medium text-left overflow-hidden transition-colors ${
+                className={`relative w-full rounded-lg px-3 py-2 text-sm font-medium text-start overflow-hidden transition-colors ${
                   isMine ? 'border border-white/60 text-white' : 'border border-white/15 text-white/90 hover:bg-white/10'
                 } ${isOwn ? 'cursor-default' : 'cursor-pointer'}`}
               >
                 {hasVoted && (
                   <motion.div
-                    className="absolute inset-y-0 left-0 bg-white/15"
+                    className="absolute inset-y-0 start-0 bg-white/15"
                     initial={{ width: 0 }}
                     animate={{ width: `${pct}%` }}
                     transition={{ duration: 0.6, ease: 'easeOut' }}
                   />
                 )}
                 <span className="relative flex items-center justify-between">
-                  <span className="truncate pr-2">{o.label}</span>
+                  <span className="truncate pe-2">{o.label}</span>
                   {hasVoted && <span className="tabular-nums text-xs">{pct}%</span>}
                 </span>
               </button>

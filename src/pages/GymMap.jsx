@@ -666,7 +666,7 @@ export default function GymMap() {
               refreshRef.current?.();
             }}
             disabled={osmLoading || loading}
-            className="absolute top-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/30 hover:opacity-95 active:scale-[0.97] transition-all disabled:opacity-60 disabled:cursor-wait"
+            className="absolute top-3 start-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-lg shadow-primary/30 hover:opacity-95 active:scale-[0.97] transition-all disabled:opacity-60 disabled:cursor-wait"
             aria-label="Search this area for gyms"
           >
             {osmLoading || loading
@@ -678,7 +678,7 @@ export default function GymMap() {
 
         {/* Count pill */}
         {!mapError && (
-          <div className="absolute bottom-24 left-3 z-10 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur border border-border shadow-md text-xs font-medium flex items-center gap-1.5">
+          <div className="absolute bottom-24 start-3 z-10 px-3 py-1.5 rounded-full bg-card/90 backdrop-blur border border-border shadow-md text-xs font-medium flex items-center gap-1.5">
             {loading ? (
               <><Loader2 className="w-3 h-3 animate-spin text-muted-foreground" /><span className="text-muted-foreground">Loading…</span></>
             ) : visibleCount === 0 && osmGyms.length === 0 ? (
@@ -703,14 +703,14 @@ export default function GymMap() {
                 {visibleCount > 0 && <><span className="text-primary font-bold">{visibleCount}</span> on Flexyn</>}
                 {visibleCount > 0 && osmGyms.length > 0 && ' · '}
                 {osmGyms.length > 0 && <><span className="font-bold">{osmGyms.length}</span> nearby</>}
-                {osmLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground inline ml-1" />}
+                {osmLoading && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground inline ms-1" />}
               </span>
             )}
             {osmError && !osmLoading && (
               <button
                 type="button"
                 onClick={() => refreshRef.current?.()}
-                className="ml-2 text-primary font-semibold hover:underline"
+                className="ms-2 text-primary font-semibold hover:underline"
                 aria-label="Retry loading nearby gyms"
               >
                 Retry
@@ -725,13 +725,13 @@ export default function GymMap() {
             <motion.div key="fcard"
               initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
-              className="absolute bottom-20 left-3 right-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
+              className="absolute bottom-20 start-3 end-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
               <button type="button" onClick={() => setSelected(null)}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
+                className="absolute top-2 end-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
                 aria-label="Close">
                 <X className="w-3.5 h-3.5" />
               </button>
-              <div className="flex items-start gap-3 mb-3 pr-6">
+              <div className="flex items-start gap-3 mb-3 pe-6">
                 <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   <Building2 className="w-5 h-5 text-primary" />
                 </div>
@@ -758,13 +758,13 @@ export default function GymMap() {
             <motion.div key="osmcard"
               initial={{ y: 80, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
               exit={{ y: 80, opacity: 0 }}
-              className="absolute bottom-20 left-3 right-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
+              className="absolute bottom-20 start-3 end-3 z-10 rounded-2xl border border-border bg-card shadow-2xl p-4">
               <button type="button" onClick={() => setSelectedOsm(null)}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
+                className="absolute top-2 end-2 w-7 h-7 rounded-full bg-secondary text-muted-foreground flex items-center justify-center"
                 aria-label="Close">
                 <X className="w-3.5 h-3.5" />
               </button>
-              <div className="flex items-start gap-3 pr-6 mb-3">
+              <div className="flex items-start gap-3 pe-6 mb-3">
                 <div className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0 text-xl">🏋</div>
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-bold text-base truncate">{selectedOsm.name}</p>

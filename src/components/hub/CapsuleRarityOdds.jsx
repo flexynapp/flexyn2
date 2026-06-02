@@ -23,7 +23,7 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 text-start hover:bg-white/5 transition-colors"
         aria-expanded={open}
       >
         <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-white/80">

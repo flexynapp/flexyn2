@@ -97,7 +97,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
     >
       {/* Featured ribbon (mig 122) */}
       {isFeatured && (
-        <div className="absolute top-2 left-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-[9px] font-extrabold uppercase tracking-wider">
+        <div className="absolute top-2 start-2 z-20 flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-400 text-amber-950 text-[9px] font-extrabold uppercase tracking-wider">
           <Star className="w-2.5 h-2.5 fill-current" /> Featured
         </div>
       )}
@@ -107,7 +107,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
           type="button"
           onClick={(e) => { e.stopPropagation(); onToggleSave(listing.id); }}
           aria-label={isSaved ? 'Remove from saved' : 'Save for later'}
-          className="absolute top-2 right-2 z-20 w-7 h-7 rounded-full bg-black/55 flex items-center justify-center hover:bg-black/75 transition-colors"
+          className="absolute top-2 end-2 z-20 w-7 h-7 rounded-full bg-black/55 flex items-center justify-center hover:bg-black/75 transition-colors"
         >
           <Heart className={`w-3.5 h-3.5 ${isSaved ? 'fill-red-500 text-red-500' : 'text-white/80'}`} />
         </button>
@@ -245,12 +245,12 @@ function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
       className="col-span-full rounded-xl border-2 border-amber-400/50 bg-[#0f0f2a] p-4 gap-3 flex flex-col relative overflow-hidden"
     >
       {/* Bundle badge */}
-      <div className="absolute top-3 right-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-wide">
+      <div className="absolute top-3 end-3 flex items-center gap-1 px-2 py-1 rounded-lg bg-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-wide">
         <Package className="w-3 h-3" /> Bundle · {bundle.discount_pct}% off
       </div>
 
       <div>
-        <p className="font-bold text-white text-sm pr-24">{bundle.title}</p>
+        <p className="font-bold text-white text-sm pe-24">{bundle.title}</p>
         <p className="text-gray-400 text-[11px] mt-0.5">
           by {bundle.seller_email?.split('@')[0]} · {listings.length} items
         </p>
@@ -365,7 +365,7 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-white/10">
           <div className="flex items-center gap-2">
             {step === 'configure' && (
-              <button onClick={() => setStep('pick')} className="text-gray-400 hover:text-white mr-1">
+              <button onClick={() => setStep('pick')} className="text-gray-400 hover:text-white me-1">
                 <ChevronLeft className="w-5 h-5" />
               </button>
             )}
@@ -793,7 +793,7 @@ function MarketplaceHeader({ flexCoins, onRefresh, onList, listableCount = 0, so
             // tick-up when a capsule opens and inventory grows.
             className={`px-4 py-2 rounded-full bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-sm shadow-lg hover:opacity-90 transition-opacity ${listableCount === 0 ? 'opacity-60' : ''}`}
           >
-            List Item{listableCount > 0 && <span className="ml-1 text-purple-200 font-semibold tabular-nums">· {listableCount > 99 ? '99+' : listableCount}</span>}
+            List Item{listableCount > 0 && <span className="ms-1 text-purple-200 font-semibold tabular-nums">· {listableCount > 99 ? '99+' : listableCount}</span>}
           </button>
         </div>
       </div>
@@ -1270,7 +1270,7 @@ export default function MarketplaceFeed() {
         <div className="w-10 h-10 rounded-xl bg-purple-800 border border-purple-600 flex items-center justify-center shrink-0">
           <Package className="w-5 h-5 text-purple-300" />
         </div>
-        <div className="flex-1 text-left">
+        <div className="flex-1 text-start">
           <p className="text-sm font-bold text-white leading-tight">Buy More Capsules</p>
           <p className="text-[11px] text-purple-200/60 leading-tight">Standard · Premium · Elite</p>
         </div>

@@ -66,7 +66,7 @@ function ActivityRow({ item, index, onTap }) {
         type="button"
         onClick={() => onTap?.(item)}
         disabled={!hasTarget}
-        className={`flex-1 min-w-0 text-left rounded-md ${hasTarget ? 'cursor-pointer hover:bg-secondary/40 -mx-1 px-1 py-0.5 transition-colors' : 'cursor-default'}`}
+        className={`flex-1 min-w-0 text-start rounded-md ${hasTarget ? 'cursor-pointer hover:bg-secondary/40 -mx-1 px-1 py-0.5 transition-colors' : 'cursor-default'}`}
       >
         <p className="text-sm leading-snug">
           <span className="font-semibold">{item.title || 'Someone'}</span>{' '}

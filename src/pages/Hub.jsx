@@ -121,7 +121,7 @@ export default function Hub() {
     <ErrorBoundary label="Hub">
     <div className="px-4 md:px-6 pt-[120px] lg:pb-6 max-w-3xl mx-auto">
       {/* Fixed Hub sub-header */}
-      <div className="fixed left-0 right-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:left-64">
+      <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3">
 
           {/* Title row */}
@@ -307,7 +307,7 @@ export default function Hub() {
               style={{ background: 'linear-gradient(135deg, #FB923C, #EA580C)' }}
             >
               <Store className="w-5 h-5 shrink-0" />
-              <div className="flex-1 text-left min-w-0">
+              <div className="flex-1 text-start min-w-0">
                 <p className="text-sm font-bold leading-tight">Marketplace</p>
                 <p className="text-[11px] opacity-80 leading-tight truncate">Trade gear &amp; regimens</p>
               </div>

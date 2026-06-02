@@ -94,7 +94,7 @@ function NewTemplateForm({ onSave, onCancel }) {
             <span className="text-xs text-muted-foreground">{ex.target_sets}×{ex.target_reps}</span>
             <button
               onClick={() => setExercises(prev => prev.filter((_, idx) => idx !== i))}
-              className="text-muted-foreground hover:text-destructive transition-colors ml-1"
+              className="text-muted-foreground hover:text-destructive transition-colors ms-1"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
@@ -140,7 +140,7 @@ function NewTemplateForm({ onSave, onCancel }) {
           isPublic ? 'border-primary/40 bg-primary/5' : 'border-border bg-muted/30'
         }`}
       >
-        <div className="flex items-center gap-2 text-left">
+        <div className="flex items-center gap-2 text-start">
           {isPublic
             ? <Globe className="w-4 h-4 text-primary shrink-0" />
             : <Lock className="w-4 h-4 text-muted-foreground shrink-0" />}
@@ -154,7 +154,7 @@ function NewTemplateForm({ onSave, onCancel }) {
           </div>
         </div>
         <div className={`relative w-10 h-6 rounded-full transition-colors shrink-0 ${isPublic ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isPublic ? 'left-5' : 'left-1'}`} />
+          <span className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${isPublic ? 'start-5' : 'start-1'}`} />
         </div>
       </button>
 
@@ -165,7 +165,7 @@ function NewTemplateForm({ onSave, onCancel }) {
           disabled={!name.trim() || exercises.length === 0}
           onClick={handleSave}
         >
-          <Save className="w-4 h-4 mr-1.5" />
+          <Save className="w-4 h-4 me-1.5" />
           {t('workout.templates.saveBtn')}
         </Button>
       </div>
@@ -375,7 +375,7 @@ function CommunityTemplateCard({ template, user, queryClient, onCopied }) {
         <div className="flex-1 min-w-0">
           <p className="font-heading font-bold">{template.name}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{authorHandle}
-            {isMine && <span className="ml-1 text-primary">(yours)</span>}
+            {isMine && <span className="ms-1 text-primary">(yours)</span>}
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {template.exercises?.length || 0} exercises
@@ -604,9 +604,9 @@ export default function TemplatesModal({ open, onClose, onLoadTemplate }) {
                 <div className="space-y-3">
                   {/* Search */}
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      className="pl-9"
+                      className="ps-9"
                       placeholder="Search templates or exercises…"
                       value={search}
                       onChange={e => setSearch(e.target.value)}

@@ -86,7 +86,7 @@ async function getFriends(userEmail, currentUserId) {
 function Avatar({ profile, size = 'md' }) {
   const dim = size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
   return profile.avatar_url ? (
-    <img src={profile.avatar_url} className={`${dim} rounded-full object-cover shrink-0`} alt={profile.username} />
+    <img loading="lazy" src={profile.avatar_url} className={`${dim} rounded-full object-cover shrink-0`} alt={profile.username} />
   ) : (
     <div className={`${dim} rounded-full bg-primary/15 flex items-center justify-center shrink-0`}>
       <span className={`font-black text-primary`}>{profile.username?.[0]?.toUpperCase()}</span>

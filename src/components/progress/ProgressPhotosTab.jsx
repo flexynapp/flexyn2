@@ -116,8 +116,7 @@ export default function ProgressPhotosTab() {
                   className="group cursor-pointer relative"
                   onClick={() => setLightbox(photo)}
                 >
-                  <img
-                    src={photo.dataUrl}
+                  <img loading="lazy" src={photo.dataUrl}
                     alt={t('photos.progressPhoto')}
                     className="w-full object-cover"
                     style={{ maxHeight: 340 }}
@@ -138,7 +137,7 @@ export default function ProgressPhotosTab() {
                         {format(new Date(photo.takenAt), 'EEEE, MMMM d, yyyy', { locale: dateLocale })}
                       </p>
                     </div>
-                    <p className="text-xs text-muted-foreground pl-5 mt-1">
+                    <p className="text-xs text-muted-foreground ps-5 mt-1">
                       {format(new Date(photo.takenAt), 'h:mm a', { locale: dateLocale })}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
@@ -210,8 +209,7 @@ export default function ProgressPhotosTab() {
               className="max-w-2xl w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <img
-                src={lightbox.dataUrl}
+              <img loading="lazy" src={lightbox.dataUrl}
                 alt={t('photos.progressPhoto')}
                 className="w-full rounded-2xl object-contain"
                 style={{ maxHeight: '80vh' }}

@@ -68,7 +68,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
         className="shrink-0"
       >
         {profile?.avatar_url ? (
-          <img src={profile.avatar_url} className="w-9 h-9 rounded-full object-cover ring-1 ring-border" alt="" draggable={false} />
+          <img loading="lazy" src={profile.avatar_url} className="w-9 h-9 rounded-full object-cover ring-1 ring-border" alt="" draggable={false} />
         ) : (
           <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground ring-1 ring-border">
             {username.slice(0, 2).toUpperCase()}
@@ -102,13 +102,13 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                   <Shield className="w-3.5 h-3.5" />
                 </button>
                 {roleOpen && (
-                  <div className="absolute right-0 top-8 z-30 w-36 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
+                  <div className="absolute end-0 top-8 z-30 w-36 bg-card border border-border rounded-xl shadow-lg overflow-hidden">
                     {(['moderator', 'member']).map(r => (
                       <button
                         key={r}
                         onClick={() => setRole(r)}
                         disabled={memberRole === r}
-                        className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors hover:bg-secondary ${memberRole === r ? 'opacity-40' : ''}`}
+                        className={`w-full text-start px-3 py-2 text-xs font-semibold transition-colors hover:bg-secondary ${memberRole === r ? 'opacity-40' : ''}`}
                       >
                         {r === 'moderator' ? '⚡ Make Moderator' : '👤 Make Member'}
                       </button>

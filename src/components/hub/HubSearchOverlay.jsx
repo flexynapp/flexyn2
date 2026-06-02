@@ -171,7 +171,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
         >
           {/* Decorative gradient blob */}
           <div
-            className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-full h-96"
+            className="pointer-events-none absolute top-0 start-1/2 -translate-x-1/2 w-full h-96"
             style={{
               background: `radial-gradient(ellipse 800px 400px at 50% 0%, hsl(var(--primary) / 0.08), transparent)`,
             }}
@@ -191,7 +191,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
               {/* Search bar */}
               <div className="flex items-center gap-2">
                 <div className="flex-1 relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                  <div className="absolute start-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                     <Search className="w-6 h-6" />
                   </div>
                   <input
@@ -200,14 +200,14 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                     placeholder={activeTab === 'posts' ? 'Search posts or #hashtag…' : t('hub.search.placeholder')}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-14 pl-12 pr-12 rounded-2xl border-2 border-border bg-card focus:border-primary/30 focus:outline-none transition-colors text-sm"
+                    className="w-full h-14 ps-12 pe-12 rounded-2xl border-2 border-border bg-card focus:border-primary/30 focus:outline-none transition-colors text-sm"
                   />
                   {searchQuery && (
                     <motion.button
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       onClick={() => setSearchQuery('')}
-                      className="absolute right-3 top-1/3 text-muted-foreground hover:text-foreground transition-colors"
+                      className="absolute end-3 top-1/3 text-muted-foreground hover:text-foreground transition-colors"
                     >
                       <X className="w-5 h-5" />
                     </motion.button>
@@ -283,7 +283,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                             onSelectPost?.(post);
                             onClose();
                           }}
-                          className="w-full text-left p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 transition-colors"
+                          className="w-full text-start p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 transition-colors"
                         >
                           <p className="text-xs text-muted-foreground font-medium mb-1">
                             {post.author_name || post.author_email?.split('@')[0] || 'Athlete'}
@@ -323,7 +323,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   {recentSearches.length > 0 && (
                     <div className="w-full mb-8">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 text-left">Recent Searches</h3>
+                      <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 text-start">Recent Searches</h3>
                       <div className="space-y-1.5">
                         {recentSearches.map((user, idx) => (
                           <RecentSearchCard
@@ -455,7 +455,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/40 transition-colors text-left group"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/40 transition-colors text-start group"
     >
       {/* Avatar */}
       <div
@@ -464,7 +464,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
         }`}
       >
         {user.avatar_url ? (
-          <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" src={user.avatar_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="font-heading font-bold text-xs text-primary">{initials}</span>
         )}
@@ -520,7 +520,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
       whileHover={{ y: -1 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/60 transition-colors text-left group"
+      className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/40 hover:border-border/80 hover:bg-secondary/60 transition-colors text-start group"
     >
       {/* Avatar */}
       <div
@@ -529,7 +529,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
         }`}
       >
         {user.avatar_url ? (
-          <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" src={user.avatar_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="font-heading font-bold text-sm text-primary">{initials}</span>
         )}

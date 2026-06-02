@@ -290,7 +290,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
 
                 {/* Replies toggle + list */}
                 {replies.length > 0 && (
-                  <div className="ml-9 mt-1 space-y-2">
+                  <div className="ms-9 mt-1 space-y-2">
                     <button
                       onClick={() =>
                         setExpandedThreads(prev => {
@@ -378,7 +378,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                   key={a.email}
                   type="button"
                   onMouseDown={(e) => { e.preventDefault(); insertMention(a.handle); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-left"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-start"
                 >
                   <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {a.handle.slice(0, 2).toUpperCase()}
@@ -488,7 +488,7 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
         {/* Avatar */}
         <div className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0 text-xs font-bold overflow-hidden">
           {author.avatarUrl ? (
-            <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
           ) : (
             author.initials
           )}
@@ -497,7 +497,7 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
         {/* Bubble + actions */}
         <div className="flex-1 min-w-0">
           {c._orphan && (
-            <p className="text-[10px] text-muted-foreground italic mb-0.5 ml-2">
+            <p className="text-[10px] text-muted-foreground italic mb-0.5 ms-2">
               ↳ Reply to a deleted comment
             </p>
           )}
@@ -516,7 +516,7 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
           </div>
 
           {/* Action row */}
-          <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-3 mt-1 ms-2 text-[11px] text-muted-foreground flex-wrap">
             <span>{timeLabel}</span>
 
             {/* Like */}

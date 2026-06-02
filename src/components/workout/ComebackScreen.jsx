@@ -197,7 +197,7 @@ export default function ComebackScreen({ daysSince, workoutLogs = [], userProfil
           className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
         >
           Skip — take me to my normal workout
-          <ArrowRight className="inline w-3.5 h-3.5 ml-1" />
+          <ArrowRight className="inline w-3.5 h-3.5 ms-1" />
         </button>
       </motion.div>
     </motion.div>

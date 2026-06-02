@@ -173,7 +173,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 </motion.div>
               </div>
               {pb.sessionCount > 0 && (
-                <p className="text-[10px] text-muted-foreground mt-2 pl-0.5">
+                <p className="text-[10px] text-muted-foreground mt-2 ps-0.5">
                   Logged {pb.sessionCount} {pb.sessionCount === 1 ? 'time' : 'times'}
                 </p>
               )}
@@ -406,12 +406,12 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
           initial={{ opacity: 0.5 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
+          className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
           style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
         />
         <motion.div
           key={`mesh-bl-${slide.id}`}
-          className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
+          className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
           style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
           animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
@@ -837,7 +837,7 @@ export default function Progress() {
           >
             <Card className="p-5 border-none shadow-sm overflow-hidden relative">
               {/* Background gradient accent */}
-              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
+              <div className="absolute top-0 end-0 w-32 h-32 rounded-full blur-3xl opacity-30 pointer-events-none" style={{ background: 'radial-gradient(circle, hsl(var(--primary) / 0.4), transparent 70%)', transform: 'translate(30%, -30%)' }} />
 
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-heading font-black text-base">{FRAME_LABELS[statsFrame]}</h2>
@@ -942,7 +942,7 @@ export default function Progress() {
                       </p>
                     </div>
                   </div>
-                  <span className="text-xs text-muted-foreground shrink-0 ml-2">Last workout</span>
+                  <span className="text-xs text-muted-foreground shrink-0 ms-2">Last workout</span>
                 </div>
               </Card>
             </motion.div>
@@ -976,10 +976,10 @@ export default function Progress() {
                     className="shrink-0 w-36 md:w-auto"
                   >
                     <Card className="p-3 border-none shadow-sm bg-gradient-to-br from-yellow-500/8 via-amber-500/5 to-transparent overflow-hidden relative">
-                      <div className="absolute top-1.5 right-1.5">
+                      <div className="absolute top-1.5 end-1.5">
                         <Trophy className="w-3.5 h-3.5 text-yellow-500/60" />
                       </div>
-                      <p className="text-[11px] text-muted-foreground font-medium leading-tight mb-1 pr-4 line-clamp-1">{pr.name}</p>
+                      <p className="text-[11px] text-muted-foreground font-medium leading-tight mb-1 pe-4 line-clamp-1">{pr.name}</p>
                       <p className="font-heading font-black text-xl text-amber-500 leading-none">
                         {formatWeight(pr.weight, weightUnit)}
                       </p>
@@ -1111,7 +1111,7 @@ export default function Progress() {
                                     <span className="text-xs text-white/40">Volume</span>
                                     <span className="text-base font-black text-white tabular-nums">
                                       {Number(vol) >= 1000 ? `${Math.round(vol/1000)}K` : Math.round(vol)}
-                                      <span className="text-[10px] font-normal text-white/40 ml-0.5">lbs</span>
+                                      <span className="text-[10px] font-normal text-white/40 ms-0.5">lbs</span>
                                     </span>
                                     {chg != null && (
                                       <span className={`text-[10px] font-semibold ${Number(chg) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
@@ -1183,7 +1183,7 @@ export default function Progress() {
                           <TrendingUp className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
                           <p className="font-heading font-semibold">{t('progress.noExerciseData')}</p>
                           <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">{t('progress.noExerciseDataDesc')}</p>
-                          <div className="mt-4 p-4 bg-secondary rounded-xl text-left text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
+                          <div className="mt-4 p-4 bg-secondary rounded-xl text-start text-sm text-muted-foreground max-w-xs mx-auto space-y-1.5">
                             <p className="font-medium text-foreground mb-2">{t('progress.howToLog')}</p>
                             <p>1. {t('progress.howToLog.step1').split('{workout}')[0]}<span className="text-primary font-medium">{t('nav.workout')}</span>{t('progress.howToLog.step1').split('{workout}')[1]}</p>
                             <p>2. {t('progress.howToLog.step2')}</p>

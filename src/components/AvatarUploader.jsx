@@ -144,7 +144,7 @@ export default function AvatarUploader({ src, initials = '?', seed = '', editabl
           }}
         >
           {src ? (
-            <img src={src} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={src} alt="" className="w-full h-full object-cover" />
           ) : (
             initials || '?'
           )}
@@ -167,7 +167,7 @@ export default function AvatarUploader({ src, initials = '?', seed = '', editabl
             onClick={() => fileRef.current?.click()}
             disabled={uploading}
             aria-label={t('avatar.edit')}
-            className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-card disabled:opacity-50"
+            className="absolute bottom-0 end-0 w-7 h-7 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md ring-2 ring-card disabled:opacity-50"
           >
             {uploading ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

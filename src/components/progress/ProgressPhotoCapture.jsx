@@ -260,7 +260,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
           onClick={() => setPromptOpen(true)}
           className="w-full h-12 font-heading font-semibold mb-2"
         >
-          <Camera className="w-4 h-4 mr-2" />
+          <Camera className="w-4 h-4 me-2" />
           <span>{t('photos.logPrompt')}</span>
         </Button>
       )}
@@ -298,7 +298,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
           <Dialog open={cameraOpen} onOpenChange={closeCamera}>
             <DialogContent className="w-full h-[100dvh] max-w-none p-0 border-0 rounded-0 bg-black min-h-[420px]">
               {/* Top Bar */}
-              <div className="absolute top-0 left-0 right-0 z-10 p-4 bg-gradient-to-b from-black/70 to-transparent flex items-center justify-between">
+              <div className="absolute top-0 start-0 end-0 z-10 p-4 bg-gradient-to-b from-black/70 to-transparent flex items-center justify-between">
                 <p className="font-heading font-bold text-white">
                   {capturedImage ? t('photos.preview') : t('photos.progressPhoto')}
                 </p>
@@ -348,7 +348,7 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
               </div>
 
               {/* Bottom Controls */}
-              <div className="absolute bottom-0 left-0 right-0 z-10 p-6 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between">
+              <div className="absolute bottom-0 start-0 end-0 z-10 p-6 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between">
                 {!capturedImage ? (
                   <>
                     {/* Flip button */}

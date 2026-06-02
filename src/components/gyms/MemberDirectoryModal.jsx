@@ -92,11 +92,11 @@ export default function MemberDirectoryModal({ open, onClose, gymId, gymOwnerId 
                           onClose();
                           navigate(`/@${m.username}`);
                         }}
-                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left transition-colors ${hasUsername ? 'hover:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-start transition-colors ${hasUsername ? 'hover:bg-secondary/40 cursor-pointer' : 'cursor-default opacity-70'}`}
                         title={hasUsername ? `Open @${m.username}` : 'This member hasn’t set a username yet'}
                       >
                         {m.avatar_url
-                          ? <img src={m.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+                          ? <img loading="lazy" src={m.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
                           : <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
                               {handle[0]?.toUpperCase() || '?'}
                             </div>}

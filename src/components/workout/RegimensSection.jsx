@@ -238,17 +238,17 @@ export default function RegimensSection({ onStartRegimen }) {
       <div className="flex gap-2 flex-wrap">
         <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
           <Button variant="outline" onClick={() => setTemplatesOpen(true)}>
-            <LayoutTemplate className="w-4 h-4 mr-2" /> {t('workout.templates')}
+            <LayoutTemplate className="w-4 h-4 me-2" /> {t('workout.templates')}
           </Button>
         </motion.div>
         <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
           <Button variant="outline" onClick={() => setStoreOpen(true)}>
-            <Globe className="w-4 h-4 mr-2" /> {t('regimens.browseTemplates')}
+            <Globe className="w-4 h-4 me-2" /> {t('regimens.browseTemplates')}
           </Button>
         </motion.div>
         <motion.div whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.95 }} transition={{ type: 'spring', stiffness: 400, damping: 18 }}>
           <Button onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-2" /> {t('regimens.create')}
+            <Plus className="w-4 h-4 me-2" /> {t('regimens.create')}
           </Button>
         </motion.div>
       </div>
@@ -302,7 +302,7 @@ export default function RegimensSection({ onStartRegimen }) {
                 )}
                 {r.description && <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1 break-words">{r.description}</p>}
               </div>
-                <div className="flex gap-1 ml-2">
+                <div className="flex gap-1 ms-2">
                   <motion.div whileHover={{ scale: 1.07 }} whileTap={{ scale: 0.93 }} transition={{ type: 'spring', stiffness: 420, damping: 18 }}>
                     <Button size="sm" onClick={() => onStartRegimen(r)} className="text-xs">{t('regimens.start')}</Button>
                   </motion.div>

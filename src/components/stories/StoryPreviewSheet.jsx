@@ -506,7 +506,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
     >
       {/* Top controls */}
-      <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-4"
+      <div className="absolute top-0 start-0 end-0 z-30 flex items-center justify-between px-4"
         style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
         <button onClick={onCancel} className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm text-white" aria-label="Cancel">
           <XIcon className="w-4 h-4" />
@@ -548,7 +548,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             <video ref={mediaElRef} src={dataUrl} autoPlay loop muted playsInline
               className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
           ) : (
-            <img ref={mediaElRef} src={dataUrl} alt="Story preview" draggable={false}
+            <img loading="lazy" ref={mediaElRef} src={dataUrl} alt="Story preview" draggable={false}
               className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
           )}
 
@@ -566,14 +566,14 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
           <AnimatePresence>
             {filterLabelVis && (
               <motion.div key={filterIdx} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="absolute top-1/2 left-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
+                className="absolute top-1/2 start-1/2 pointer-events-none" style={{ transform: 'translate(-50%, -50%)' }}>
                 <div className="px-4 py-2 rounded-full bg-black/55 backdrop-blur-sm border border-white/20">
                   <span className="text-white text-sm font-semibold">{FILTERS[filterIdx].label}</span>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          <div className="absolute bottom-3 start-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
             {FILTERS.map((_, i) => (
               <div key={i} className="rounded-full" style={{ width: i === filterIdx ? 16 : 5, height: 5, backgroundColor: i === filterIdx ? '#fff' : 'rgba(255,255,255,0.45)' }} />
             ))}
@@ -674,7 +674,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                       onPointerDown={(e) => onWidthHandleDown(e, o, 'left')}
                       onPointerMove={onWidthHandleMove}
                       onPointerUp={onWidthHandleUp}
-                      className="absolute top-1/2 -left-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
+                      className="absolute top-1/2 -start-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
                       style={{ cursor: 'ew-resize', touchAction: 'none' }}
                       aria-label="Adjust text width (left)"
                     />
@@ -682,7 +682,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                       onPointerDown={(e) => onWidthHandleDown(e, o, 'right')}
                       onPointerMove={onWidthHandleMove}
                       onPointerUp={onWidthHandleUp}
-                      className="absolute top-1/2 -right-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
+                      className="absolute top-1/2 -end-2 -translate-y-1/2 w-2.5 h-10 rounded-full bg-white/85 shadow-md"
                       style={{ cursor: 'ew-resize', touchAction: 'none' }}
                       aria-label="Adjust text width (right)"
                     />
@@ -694,7 +694,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
                     onPointerDown={(e) => onHandleDown(e, o)}
                     onPointerMove={onHandleMove}
                     onPointerUp={onHandleUp}
-                    className="absolute -bottom-3 -right-3 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-md"
+                    className="absolute -bottom-3 -end-3 w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-md"
                     style={{ cursor: 'nwse-resize', touchAction: 'none' }}
                     aria-label="Resize and rotate"
                   >
@@ -720,7 +720,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
           <AnimatePresence>
             {dragging && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
-                className="absolute bottom-6 left-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center gap-1">
+                className="absolute bottom-6 start-1/2 -translate-x-1/2 z-30 pointer-events-none flex flex-col items-center gap-1">
                 <div className={`w-14 h-14 rounded-full flex items-center justify-center border-2 transition-colors ${overTrash ? 'bg-red-500 border-red-300 scale-110' : 'bg-black/60 border-white/30'}`}>
                   <Trash2 className={`w-6 h-6 ${overTrash ? 'text-white' : 'text-white/80'}`} />
                 </div>
@@ -745,7 +745,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             the photo never reflows / "zooms out" when text or draw mode
             toggles. Backdrop-blur keeps it legible over any image. */}
         {showColorBar && (
-          <div className="absolute bottom-0 left-0 right-0 z-30 px-5 pt-3 pb-2 bg-black/85 backdrop-blur-sm space-y-3">
+          <div className="absolute bottom-0 start-0 end-0 z-30 px-5 pt-3 pb-2 bg-black/85 backdrop-blur-sm space-y-3">
             {selected?.kind === 'text' && (
               <div className="flex justify-center items-center gap-5 flex-wrap">
                 {FONTS.map((f, i) => {
@@ -810,7 +810,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
         {emojiPickerOpen && (
           <motion.div key="emoji-picker" initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 30, stiffness: 320 }}
-            className="absolute left-0 right-0 bottom-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
+            className="absolute start-0 end-0 bottom-0 z-40 bg-black/90 backdrop-blur-md border-t border-white/15 rounded-t-2xl"
             style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}>
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
               <span className="text-white/80 text-xs font-bold uppercase tracking-wide">Emoji</span>

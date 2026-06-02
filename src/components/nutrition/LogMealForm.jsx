@@ -229,7 +229,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
                           {/* Image */}
                           {meal.image_url && (
                             <div className="relative">
-                              <img src={meal.image_url} alt={meal.food_name} className="w-full max-h-36 object-cover" />
+                              <img loading="lazy" src={meal.image_url} alt={meal.food_name} className="w-full max-h-36 object-cover" />
                             </div>
                           )}
                           {/* Header row */}

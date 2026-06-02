@@ -227,7 +227,7 @@ className="h-8 text-[16px] col-span-5"
           </div>
           <div className="px-4 py-3 border-t border-border">
             <Button onClick={handleSave} disabled={saving} className="w-full">
-              {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              {saving ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Save className="w-4 h-4 me-2" />}
               {editingRecipe ? 'Update recipe' : 'Save recipe'}
             </Button>
           </div>

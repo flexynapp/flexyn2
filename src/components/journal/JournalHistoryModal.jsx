@@ -73,7 +73,7 @@ export default function JournalHistoryModal({ userId, activeDate, onClose, onPic
                   <li key={e.id}>
                     <button
                       onClick={() => onPick(e.entry_date)}
-                      className={`w-full text-left px-4 py-3 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/40'}`}
+                      className={`w-full text-start px-4 py-3 transition-colors ${isActive ? 'bg-primary/10' : 'hover:bg-secondary/40'}`}
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</span>

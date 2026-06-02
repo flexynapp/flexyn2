@@ -117,7 +117,7 @@ export default function PublicGymLanding() {
       {/* ── Cover photo ───────────────────────────────────────────── */}
       <div className="relative h-48 bg-gradient-to-br from-primary/20 to-primary/5 overflow-hidden">
         {gym.cover_url ? (
-          <img src={gym.cover_url} alt={gym.name} className="w-full h-full object-cover" />
+          <img loading="lazy" src={gym.cover_url} alt={gym.name} className="w-full h-full object-cover" />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center opacity-20">
             <Dumbbell className="w-24 h-24 text-primary" />
@@ -125,9 +125,9 @@ export default function PublicGymLanding() {
         )}
         {/* Logo overlay */}
         {gym.logo_url && (
-          <div className="absolute bottom-0 left-4 translate-y-1/2">
+          <div className="absolute bottom-0 start-4 translate-y-1/2">
             <div className="w-16 h-16 rounded-2xl border-4 border-background shadow-lg overflow-hidden bg-card">
-              <img src={gym.logo_url} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" src={gym.logo_url} alt="" className="w-full h-full object-cover" />
             </div>
           </div>
         )}
@@ -192,7 +192,7 @@ export default function PublicGymLanding() {
           <div className={`grid gap-2 ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
             {photos.map((url, i) => (
               <div key={i} className="aspect-video rounded-xl overflow-hidden bg-muted">
-                <img src={url} alt="" className="w-full h-full object-cover" />
+                <img loading="lazy" src={url} alt="" className="w-full h-full object-cover" />
               </div>
             ))}
           </div>
@@ -212,7 +212,7 @@ export default function PublicGymLanding() {
             className="w-full"
             size="lg"
           >
-            Enter Hub <ChevronRight className="w-4 h-4 ml-1" />
+            Enter Hub <ChevronRight className="w-4 h-4 ms-1" />
           </Button>
         ) : (
           <>

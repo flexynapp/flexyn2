@@ -41,7 +41,13 @@ export default function WorkoutMemoryCard({ logs = [] }) {
 
   const memory = useMemo(() => findWorkoutMemory(logs), [logs]);
 
-  if (!user?.id || !memory || dismissed) return null;
+  // Validate the memory has the minimum shape we need (a log with at
+  // least one exercise). A corrupt row that survives findWorkoutMemory
+  // would otherwise render an empty card with a dead-end CTA.
+  const isValid = memory?.log
+    && Array.isArray(memory.log.exercises)
+    && memory.log.exercises.length > 0;
+  if (!user?.id || !isValid || dismissed) return null;
 
   const summary = summarizeMemoryLog(memory.log, language);
   const dateLocale = getDateLocale(language);

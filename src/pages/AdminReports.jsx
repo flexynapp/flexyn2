@@ -200,7 +200,7 @@ export default function AdminReports() {
             {activeTab === tab.id && (
               <motion.span
                 layoutId="admin-tab-underline"
-                className="absolute -bottom-px left-0 right-0 h-0.5 bg-primary"
+                className="absolute -bottom-px start-0 end-0 h-0.5 bg-primary"
               />
             )}
           </button>

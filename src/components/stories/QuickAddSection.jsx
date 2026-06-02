@@ -15,8 +15,7 @@ function AvatarImage({ avatarUrl, username }) {
   const initials = (username || '?').slice(0, 2).toUpperCase();
   if (avatarUrl) {
     return (
-      <img
-        src={avatarUrl}
+      <img loading="lazy" src={avatarUrl}
         alt={username}
         className="w-full h-full object-cover rounded-full"
         draggable={false}

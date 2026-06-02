@@ -10,7 +10,7 @@ export default function DemoSection() {
     <div className="mb-6 border border-border rounded-xl overflow-hidden bg-card">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center justify-between p-4 hover:bg-secondary transition-colors text-left"
+        className="w-full flex items-center justify-between p-4 hover:bg-secondary transition-colors text-start"
       >
         <div>
           <p className="font-medium text-sm">{t('formcoach.howItWorks')}</p>

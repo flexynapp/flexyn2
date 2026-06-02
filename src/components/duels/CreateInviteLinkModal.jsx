@@ -118,7 +118,7 @@ export default function CreateInviteLinkModal({ open, onOpenChange }) {
                         key={opt.id}
                         type="button"
                         onClick={() => setDuelType(opt.id)}
-                        className={`w-full text-left p-3 rounded-xl border-2 transition-colors ${
+                        className={`w-full text-start p-3 rounded-xl border-2 transition-colors ${
                           active
                             ? 'border-rose-500 bg-rose-500/8'
                             : 'border-border hover:border-border/80'

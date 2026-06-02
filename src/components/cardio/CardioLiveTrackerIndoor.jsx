@@ -370,14 +370,14 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
     return (
       <Card className="p-8 text-center">
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-          <Play className="w-10 h-10 text-primary ml-1" />
+          <Play className="w-10 h-10 text-primary ms-1" />
         </div>
         <h2 className="font-heading text-2xl font-bold mb-2">{activityLabel}</h2>
         <p className="text-sm text-muted-foreground mb-8">
           {env === 'treadmill' ? t('cardio.env.treadmill') : t('cardio.env.stationary')}
         </p>
         <Button className="w-full h-14 font-heading font-bold text-base" onClick={start}>
-          <Play className="w-5 h-5 mr-2" />
+          <Play className="w-5 h-5 me-2" />
           {t('cardio.live.start')}
         </Button>
       </Card>
@@ -407,11 +407,11 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         )}
         <div className="flex gap-3">
           <Button className="flex-1 h-12 font-heading font-bold" onClick={save} disabled={saving}>
-            <Save className="w-5 h-5 mr-2" />
+            <Save className="w-5 h-5 me-2" />
             {saving ? t('cardio.saving') : t('cardio.save')}
           </Button>
           <Button variant="outline" className="flex-1 h-12" onClick={onCancel} disabled={saving}>
-            <X className="w-4 h-4 mr-2" />
+            <X className="w-4 h-4 me-2" />
             {t('cardio.live.discard')}
           </Button>
         </div>
@@ -425,7 +425,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
       <Card className="p-5 relative">
         {/* Discard button */}
         <button
-          className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="absolute top-3 end-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           onClick={() => setConfirmDiscardOpen(true)}
         >
           <X className="w-4 h-4" />
@@ -486,17 +486,17 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         <div className="flex gap-3">
           {status === 'tracking' ? (
             <Button variant="outline" className="flex-1 h-12 font-heading font-bold" onClick={pause}>
-              <Pause className="w-5 h-5 mr-2" />
+              <Pause className="w-5 h-5 me-2" />
               {t('cardio.live.pause')}
             </Button>
           ) : (
             <Button className="flex-1 h-12 font-heading font-bold" onClick={resume}>
-              <Play className="w-5 h-5 mr-2" />
+              <Play className="w-5 h-5 me-2" />
               {t('cardio.live.resume')}
             </Button>
           )}
           <Button variant="destructive" className="flex-1 h-12 font-heading font-bold" onClick={finish}>
-            <Square className="w-5 h-5 mr-2" />
+            <Square className="w-5 h-5 me-2" />
             {t('cardio.live.finish')}
           </Button>
         </div>

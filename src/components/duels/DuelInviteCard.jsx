@@ -106,7 +106,7 @@ export default function DuelInviteCard({ payload, isMine }) {
           {/* Challenger */}
           <div className="flex items-center gap-2.5">
             {challengerAvatar ? (
-              <img src={challengerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt={challengerUsername} />
+              <img loading="lazy" src={challengerAvatar} className="w-9 h-9 rounded-full object-cover shrink-0" alt={challengerUsername} />
             ) : (
               <div className="w-9 h-9 rounded-full bg-rose-500/15 flex items-center justify-center shrink-0">
                 <span className="text-sm font-black text-rose-500">

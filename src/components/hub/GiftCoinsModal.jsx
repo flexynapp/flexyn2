@@ -160,7 +160,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
               placeholder={tFallback('gift.messagePlaceholder', 'Crushed that PR!')}
               className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
             />
-            <p className="text-[10px] text-muted-foreground mt-1 tabular-nums text-right">
+            <p className="text-[10px] text-muted-foreground mt-1 tabular-nums text-end">
               {message.length}/{MAX_MESSAGE_LEN}
             </p>
           </div>

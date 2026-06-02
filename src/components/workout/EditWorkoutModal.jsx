@@ -92,7 +92,7 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
         disabled={atSetLimit}
         title={atSetLimit ? t('workout.maxSetsTitle').replace('{count}', maxSetsPerExercise) : undefined}
       >
-        <Plus className="w-3 h-3 mr-1" />
+        <Plus className="w-3 h-3 me-1" />
         {atSetLimit
           ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise)
           : t('workout.addSet')}
@@ -327,7 +327,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
           ) : (
             <>
               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive sm:mr-auto" onClick={() => setConfirmDelete(true)}>
-                <Trash2 className="w-4 h-4 mr-1" /> {t('workout.deleteWorkout')}
+                <Trash2 className="w-4 h-4 me-1" /> {t('workout.deleteWorkout')}
               </Button>
               <Button variant="outline" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
               <Button size="sm" onClick={handleSave} disabled={saving}>

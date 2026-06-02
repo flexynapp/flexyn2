@@ -146,7 +146,7 @@ export default function EmojiReactionButton({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.95 }}
             transition={{ duration: 0.12 }}
-            className="absolute bottom-full left-0 mb-2 z-30 flex items-center gap-1 px-2 py-1.5 rounded-full bg-card border border-border shadow-xl"
+            className="absolute bottom-full start-0 mb-2 z-30 flex items-center gap-1 px-2 py-1.5 rounded-full bg-card border border-border shadow-xl"
           >
             {QUICK_EMOJIS.map(e => (
               <button

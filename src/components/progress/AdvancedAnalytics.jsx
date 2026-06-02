@@ -91,7 +91,7 @@ export default function AdvancedAnalytics({ open, onClose, logs }) {
             <p className="text-muted-foreground">{t('progress.noDataDesc')}</p>
           </div>
         ) : (
-          <div className="space-y-3 pr-4">
+          <div className="space-y-3 pe-4">
             {stats.map((stat, idx) => {
               const Icon = stat.icon;
               return (

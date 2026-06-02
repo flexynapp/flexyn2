@@ -209,7 +209,7 @@ export default function MyGyms() {
                     key={g.id}
                     type="button"
                     onClick={() => navigate(`/gym/${g.id}`)}
-                    className="w-full text-left rounded-2xl border border-border bg-card p-3 hover:border-primary/30 transition-colors flex items-center gap-3"
+                    className="w-full text-start rounded-2xl border border-border bg-card p-3 hover:border-primary/30 transition-colors flex items-center gap-3"
                   >
                     <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                       <Building2 className="w-4 h-4 text-primary" />
@@ -236,12 +236,12 @@ export default function MyGyms() {
               onClick={() => navigate(`/gym/${g.id}`)}
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.99 }}
-              className="w-full text-left rounded-2xl border border-border bg-card p-4 hover:border-primary/30 hover:bg-secondary/30 transition-colors"
+              className="w-full text-start rounded-2xl border border-border bg-card p-4 hover:border-primary/30 hover:bg-secondary/30 transition-colors"
             >
               <div className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
                   {g.logo_url
-                    ? <img src={g.logo_url} alt="" className="w-full h-full rounded-xl object-cover" />
+                    ? <img loading="lazy" src={g.logo_url} alt="" className="w-full h-full rounded-xl object-cover" />
                     : <Building2 className="w-5 h-5 text-primary" />}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -250,7 +250,7 @@ export default function MyGyms() {
                     {[g.city, g.state_code].filter(Boolean).join(', ') || '—'}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-end">
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Users className="w-3 h-3" />
                     <span className="tabular-nums">{g.member_count ?? 0}</span>
@@ -270,7 +270,7 @@ export default function MyGyms() {
       <button
         type="button"
         onClick={() => navigate('/register-gym')}
-        className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 transition-colors p-4 text-left"
+        className="mt-6 w-full rounded-2xl border border-dashed border-border bg-card hover:bg-secondary/30 transition-colors p-4 text-start"
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">

@@ -120,7 +120,7 @@ export default function FollowerActivityBanner() {
   if (banners.length === 0) return null;
 
   return (
-    <div className="fixed left-0 right-0 z-30 flex flex-col items-center gap-2 pointer-events-none px-3"
+    <div className="fixed start-0 end-0 z-30 flex flex-col items-center gap-2 pointer-events-none px-3"
          style={{ top: 'calc(56px + env(safe-area-inset-top) + 8px)' }}
     >
       <AnimatePresence initial={false}>
@@ -171,7 +171,7 @@ function BannerCard({ post, onDismiss }) {
       <button
         type="button"
         onClick={handleTap}
-        className="flex-1 min-w-0 text-left"
+        className="flex-1 min-w-0 text-start"
       >
         <p className="text-xs font-semibold truncate">
           <span className="text-foreground">{name}</span>

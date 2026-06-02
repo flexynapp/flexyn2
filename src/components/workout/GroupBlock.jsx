@@ -63,7 +63,7 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
   }, [activeIdx, exercises.length, currentRound, round_count, intra_rest_seconds, inter_rest_seconds, startRestTimer]);
 
   return (
-    <div className={`rounded-xl border-l-4 border border-border overflow-hidden mb-3 ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}>
+    <div className={`rounded-xl border-s-4 border border-border overflow-hidden mb-3 ${TYPE_COLOR[type] || TYPE_COLOR.superset}`}>
       {/* Group header */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border/60">
         <div className="flex items-center gap-2">
@@ -102,10 +102,10 @@ export default function GroupBlock({ groupId, groupMeta = {}, exercises = [], on
             >
               {/* Active indicator */}
               {isActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
+                <div className="absolute start-0 top-0 bottom-0 w-0.5 bg-primary rounded-full" />
               )}
 
-              <div className={isActive ? 'pl-2' : ''}>
+              <div className={isActive ? 'ps-2' : ''}>
                 <ExerciseLogger
                   exercise={exercise}
                   onChange={updated => onChange(i, updated)}

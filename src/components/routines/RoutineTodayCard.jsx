@@ -34,7 +34,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
       <motion.button
         initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
         onClick={onOpenRoutines}
-        className="w-full mb-4 rounded-3xl border border-dashed border-primary/40 bg-primary/[0.05] p-4 text-left flex items-center gap-3"
+        className="w-full mb-4 rounded-3xl border border-dashed border-primary/40 bg-primary/[0.05] p-4 text-start flex items-center gap-3"
       >
         <div className="w-11 h-11 rounded-2xl bg-primary/15 flex items-center justify-center shrink-0">
           <CalendarDays className="w-5 h-5 text-primary" />
@@ -92,7 +92,7 @@ export default function RoutineTodayCard({ onStart, onOpenRoutines, onChallenge 
             </div>
           </div>
         ) : (
-          <button onClick={onOpenRoutines} className="w-full px-4 pb-4 pt-2 text-left flex items-center gap-3">
+          <button onClick={onOpenRoutines} className="w-full px-4 pb-4 pt-2 text-start flex items-center gap-3">
             <Dumbbell className="w-5 h-5 text-muted-foreground" />
             <div className="flex-1">
               <p className="font-heading font-bold">{day?.label || `${dayName} — not set up`}</p>

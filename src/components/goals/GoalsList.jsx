@@ -199,7 +199,7 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                   <DropdownMenuContent align="end">
                     {!isViewingCompleted && onEdit && (
                       <DropdownMenuItem onClick={() => onEdit(goal)}>
-                        <Pencil className="w-4 h-4 mr-2" /> {t('common.edit')}
+                        <Pencil className="w-4 h-4 me-2" /> {t('common.edit')}
                       </DropdownMenuItem>
                     )}
                     {!isViewingCompleted && onEdit && <DropdownMenuSeparator />}
@@ -211,7 +211,7 @@ export default function GoalsList({ goals, logs, cardioLogs = [], onEdit, onDele
                       disabled={pendingIds.delete.has(goal.id)}
                       onClick={() => guardedAction('delete', goal.id, onDelete)}
                     >
-                      <Trash2 className="w-4 h-4 mr-2" /> {t('common.delete')}
+                      <Trash2 className="w-4 h-4 me-2" /> {t('common.delete')}
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>

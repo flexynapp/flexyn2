@@ -53,7 +53,7 @@ function HypeBurst({ hype }) {
         {hype && Array.from({ length: 12 }).map((_, i) => (
           <motion.span
             key={`${hype.id}-${i}`}
-            className="absolute left-1/2 bottom-24"
+            className="absolute start-1/2 bottom-24"
             style={{ fontSize: 22 + Math.random() * 16 }}
             initial={{ opacity: 0, y: 0, x: 0, scale: 0.4 }}
             animate={{
@@ -160,11 +160,11 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
             <button
               key={r.id}
               onClick={() => tab === 'assign' ? onAssign?.(r) : onShare(r)}
-              className="w-full text-left px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors"
+              className="w-full text-start px-3 py-2.5 rounded-xl hover:bg-secondary transition-colors"
             >
               <p className="text-sm font-semibold text-foreground truncate">{r.name}</p>
               <p className="text-xs text-muted-foreground">{(r.exercises || []).length} exercises
-                {tab === 'assign' && <span className="ml-1 text-primary font-medium">· assign to crew</span>}
+                {tab === 'assign' && <span className="ms-1 text-primary font-medium">· assign to crew</span>}
               </p>
             </button>
           ))}
@@ -606,7 +606,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           {/* Crew avatar — tap to upload if admin */}
           <div className="relative shrink-0">
             {crew.avatar_url ? (
-              <img src={crew.avatar_url} alt={crew.name}
+              <img loading="lazy" src={crew.avatar_url} alt={crew.name}
                 className="w-8 h-8 rounded-full object-cover border border-border" />
             ) : (
               <div className="w-8 h-8 rounded-full bg-primary/10 border border-border flex items-center justify-center">
@@ -618,7 +618,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
                 <button type="button"
                   onClick={() => avatarInputRef.current?.click()}
                   disabled={avatarUploading}
-                  className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
+                  className="absolute -bottom-0.5 -end-0.5 w-4 h-4 rounded-full bg-primary flex items-center justify-center"
                   title="Change crew photo">
                   {avatarUploading
                     ? <Loader2 className="w-2.5 h-2.5 text-white animate-spin" />
@@ -641,7 +641,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
                 className="rounded-full overflow-hidden shrink-0"
                 style={{ width: 30, height: 30, border: '2.5px solid hsl(var(--primary))' }}
               >
-                <img src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
+                <img loading="lazy" src={crewStories[0].image_url} className="w-full h-full object-cover" alt="" draggable={false} />
               </button>
               <button
                 onClick={() => storyFileRef.current?.click()}
@@ -707,8 +707,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             className="absolute inset-0 z-40 bg-black flex items-center justify-center"
             onClick={() => setStoryViewIdx(null)}
           >
-            <img
-              src={crewStories[storyViewIdx].image_url}
+            <img loading="lazy" src={crewStories[storyViewIdx].image_url}
               className="max-w-full max-h-full object-contain"
               alt=""
               draggable={false}
@@ -716,12 +715,12 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             />
             <button
               onClick={() => setStoryViewIdx(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center"
+              className="absolute top-4 end-4 w-9 h-9 rounded-full bg-black/60 flex items-center justify-center"
             >
               <X className="w-5 h-5 text-white" />
             </button>
             {crewStories.length > 1 && (
-              <div className="absolute bottom-6 left-0 right-0 flex justify-center gap-1.5">
+              <div className="absolute bottom-6 start-0 end-0 flex justify-center gap-1.5">
                 {crewStories.map((_, i) => (
                   <button
                     key={i}
@@ -777,10 +776,10 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
         <div className="px-4 pb-2 shrink-0 border-t border-border pt-2">
           <div className="flex items-start gap-3">
             <div className="relative w-16 h-16 rounded-xl overflow-hidden shrink-0">
-              <img src={attachment.preview} className="w-full h-full object-cover" alt="" />
+              <img loading="lazy" src={attachment.preview} className="w-full h-full object-cover" alt="" />
               <button
                 onClick={clearAttachment}
-                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"
+                className="absolute top-0.5 end-0.5 w-5 h-5 rounded-full bg-black/60 flex items-center justify-center"
               >
                 <X className="w-3 h-3 text-white" />
               </button>

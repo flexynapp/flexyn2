@@ -31,12 +31,12 @@ export default function MuscleGroupSelector({ selected = [], availableGroups = A
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map(muscle => (
-            <Badge key={muscle} variant="secondary" className="text-xs gap-1 pr-1">
+            <Badge key={muscle} variant="secondary" className="text-xs gap-1 pe-1">
               {t(`muscleGroups.${muscleKey(muscle)}`)}
               <button
                 type="button"
                 onClick={() => onRemove(muscle)}
-                className="ml-0.5 hover:text-destructive transition-colors"
+                className="ms-0.5 hover:text-destructive transition-colors"
               >
                 <X className="w-3 h-3" />
               </button>
@@ -52,7 +52,7 @@ export default function MuscleGroupSelector({ selected = [], availableGroups = A
               key={muscle}
               type="button"
               onClick={() => onAdd(muscle)}
-              className="w-full text-left px-3 py-2 text-sm rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+              className="w-full text-start px-3 py-2 text-sm rounded text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
             >
               {t(`muscleGroups.${muscleKey(muscle)}`)}
             </button>

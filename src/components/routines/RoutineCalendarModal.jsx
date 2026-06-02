@@ -63,7 +63,7 @@ export default function RoutineCalendarModal({ open, onClose }) {
 
         <div className="overflow-y-auto p-3 space-y-2">
           {!routine ? (
-            <button onClick={() => setEditOpen(true)} className="w-full rounded-2xl border border-dashed border-primary/40 bg-primary/[0.05] p-4 text-left">
+            <button onClick={() => setEditOpen(true)} className="w-full rounded-2xl border border-dashed border-primary/40 bg-primary/[0.05] p-4 text-start">
               <p className="font-heading font-bold text-sm">No active routine yet</p>
               <p className="text-xs text-muted-foreground mt-0.5">Tap to build your week — label your days and add your lifts.</p>
             </button>

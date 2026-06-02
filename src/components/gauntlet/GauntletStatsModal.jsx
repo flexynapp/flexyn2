@@ -91,7 +91,7 @@ export default function GauntletStatsModal({
             <button
               type="button"
               onClick={onClose}
-              className="absolute -top-3 -right-3 z-20 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
+              className="absolute -top-3 -end-3 z-20 w-8 h-8 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground"
             >
               <X className="w-4 h-4" />
             </button>

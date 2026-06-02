@@ -37,7 +37,14 @@ export default function DailyQuestsCard({ onNavigated }) {
   // the modal stays mounted and intercepts the new page's UI.
   const goToQuest = (questRow) => {
     const route = questDestinationRoute(questRow.quest_id);
-    if (!route) return;
+    if (!route) {
+      // Surface a toast when we have no destination — previously the
+      // tap was a silent no-op and the user couldn't tell whether the
+      // row was tappable. Catalog drift (new quest_id in DB but no
+      // route in questCatalog.js) is the common cause.
+      toast.info(tFallback('dashboard.questNoRoute', "Open the app's main pages to make progress on this quest."));
+      return;
+    }
     onNavigated?.();
     navigate(route);
   };
@@ -103,6 +110,13 @@ export default function DailyQuestsCard({ onNavigated }) {
       );
       queryClient.invalidateQueries({ queryKey: ['dailyQuests'] });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+      // Also invalidate the coin-balance queries that surface in the
+      // Coin Shop modal + Stats Hub hero — the previous list only
+      // refreshed userProfile (which a few surfaces read) but missed
+      // coinShopProfile + statsHubProfile, leaving stale balances
+      // visible right after claim.
+      queryClient.invalidateQueries({ queryKey: ['coinShopProfile', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['statsHubProfile', user?.id] });
       // In-app notification — non-blocking
       const def = getQuestDefinition(questRow.quest_id);
       const labelKey = `quest.${questRow.quest_id}.label`;

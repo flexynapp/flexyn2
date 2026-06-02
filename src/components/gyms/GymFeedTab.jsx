@@ -167,14 +167,14 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
         />
         {pendingMedia && (
           <div className="relative rounded-xl overflow-hidden mb-2 max-h-64">
-            <img src={pendingMedia.previewUrl} alt="" className="w-full h-full object-cover" />
+            <img loading="lazy" src={pendingMedia.previewUrl} alt="" className="w-full h-full object-cover" />
             <button
               type="button"
               onClick={() => {
                 URL.revokeObjectURL(pendingMedia.previewUrl);
                 setPendingMedia(null);
               }}
-              className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center"
+              className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/70 text-white flex items-center justify-center"
               aria-label="Remove image"
             >
               <X className="w-3.5 h-3.5" />
@@ -254,7 +254,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
                   key={p.id}
                   type="button"
                   onClick={() => navigate(`/hub?profile=${encodeURIComponent(p.author_email || '')}`)}
-                  className="w-full text-left flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 transition-colors"
+                  className="w-full text-start flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
                     {handle.slice(0, 2).toUpperCase()}
@@ -356,12 +356,12 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
               <MoreHorizontal className="w-3.5 h-3.5" />
             </button>
             {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-40 rounded-lg bg-card border border-border shadow-lg z-20 py-1">
+              <div className="absolute end-0 top-full mt-1 w-40 rounded-lg bg-card border border-border shadow-lg z-20 py-1">
                 {isOwner && (
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); onTogglePin(post.id); }}
-                    className="w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-secondary"
+                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-secondary"
                   >
                     <Pin className="w-3 h-3" />
                     {post.is_pinned ? 'Unpin' : 'Pin to top'}
@@ -371,7 +371,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                   <button
                     type="button"
                     onClick={() => { setMenuOpen(false); onDelete(post.id); }}
-                    className="w-full text-left flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
+                    className="w-full text-start flex items-center gap-2 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/10"
                   >
                     <Trash2 className="w-3 h-3" />
                     Delete
@@ -417,7 +417,7 @@ function FeedPostCard({ post, rxn, meId, isOwner, onDelete, onTogglePin, onReact
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 4, scale: 0.95 }}
                 transition={{ duration: 0.12 }}
-                className="absolute bottom-full left-0 mb-2 z-30 flex items-center gap-1 px-2 py-1.5 rounded-full bg-card border border-border shadow-xl"
+                className="absolute bottom-full start-0 mb-2 z-30 flex items-center gap-1 px-2 py-1.5 rounded-full bg-card border border-border shadow-xl"
               >
                 {QUICK_EMOJIS.map(e => (
                   <button

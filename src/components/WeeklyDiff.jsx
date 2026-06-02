@@ -78,7 +78,7 @@ export default function WeeklyDiff({
       <Arrow className="w-2.5 h-2.5" strokeWidth={3} />
       <span>{Math.abs(Math.round(pctChange))}%</span>
       {revealing && (
-        <span className="text-muted-foreground ml-1 font-normal">
+        <span className="text-muted-foreground ms-1 font-normal">
           (was {previous})
         </span>
       )}

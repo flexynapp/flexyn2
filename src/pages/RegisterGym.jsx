@@ -337,7 +337,7 @@ export default function RegisterGym() {
         </div>
 
         <Button type="submit" disabled={submitting} className="w-full h-11 font-bold">
-          {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+          {submitting ? <Loader2 className="w-4 h-4 animate-spin me-2" /> : null}
           {submitting ? 'Submitting…' : 'Submit for review'}
         </Button>
         <p className="text-[10px] text-muted-foreground text-center">

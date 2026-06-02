@@ -249,7 +249,7 @@ function PollCard({ post, userEmail }) {
                 key={i}
                 onClick={() => handleVote(i)}
                 disabled={voted || voting}
-                className={`w-full text-left rounded-lg overflow-hidden border transition-colors ${
+                className={`w-full text-start rounded-lg overflow-hidden border transition-colors ${
                   isMyChoice ? 'border-primary' : 'border-border'
                 } ${!voted ? 'hover:border-primary/50 active:bg-secondary/60' : ''}`}
               >
@@ -289,9 +289,9 @@ function PollCard({ post, userEmail }) {
         {showTimeline && timelineVotes.length > 0 && (
           <div className="mt-3 border-t border-border pt-2">
             <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Vote history</p>
-            <div className="relative pl-3">
+            <div className="relative ps-3">
               {/* Vertical line */}
-              <div className="absolute left-1 top-0 bottom-0 w-px bg-border" />
+              <div className="absolute start-1 top-0 bottom-0 w-px bg-border" />
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {timelineVotes.map((v, i) => {
                   const optLabel = options?.[v.option_index] || `Option ${v.option_index + 1}`;
@@ -340,7 +340,7 @@ function ImagePreview({ src }) {
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); setExpanded(false); }}
-            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
+            className="absolute top-2 end-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white hover:bg-black/70 transition-colors"
             aria-label="Collapse image"
           >
             <ChevronDown className="w-4 h-4" />
@@ -805,7 +805,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             )}
           </div>
           {isVerified(author.username) && (
-            <div className="absolute -top-1.5 -left-1.5 flex items-center justify-center" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
+            <div className="absolute -top-1.5 -start-1.5 flex items-center justify-center" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
               <CrownBadge size={15} />
             </div>
           )}
@@ -882,7 +882,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             onTouchEnd={cancelAvatarLongPress}
             onTouchMove={cancelAvatarLongPress}
             aria-label={`Open ${author.handle}'s profile`}
-            className={`absolute inset-0 ${isMine ? 'right-16' : 'right-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
+            className={`absolute inset-0 ${isMine ? 'end-16' : 'end-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
         )}
         {isMine ? (
@@ -1120,7 +1120,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); setVideoMuted(m => !m); }}
-              className="absolute bottom-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white"
+              className="absolute bottom-2 end-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center text-white"
               aria-label={videoMuted ? 'Unmute' : 'Mute'}
             >
               {videoMuted
@@ -1128,7 +1128,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
                 : <Volume2 className="w-3.5 h-3.5" />}
             </button>
             {/* Video type badge */}
-            <div className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
+            <div className="absolute top-2 start-2 flex items-center gap-1 px-1.5 py-0.5 rounded bg-black/60 text-white text-[10px] font-bold">
               <Film className="w-3 h-3" />
               VIDEO
             </div>
@@ -1235,7 +1235,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
       {stickerRxns.length > 0 && (
         <button
           onClick={() => setStickerPanelOpen(o => !o)}
-          className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary transition-colors w-full text-left"
+          className="flex items-center gap-1 px-3 py-1.5 hover:bg-secondary transition-colors w-full text-start"
         >
           {/* Overlapping sticker circles — waterfall effect */}
           <div className="flex items-center" style={{ marginRight: 6 }}>

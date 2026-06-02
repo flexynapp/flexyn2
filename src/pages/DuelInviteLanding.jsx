@@ -281,8 +281,7 @@ function ChallengerHeader({ invite }) {
       <div className="relative">
         <div className="w-20 h-20 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-2xl">
           {invite.challenger_avatar_url ? (
-            <img
-              src={invite.challenger_avatar_url}
+            <img loading="lazy" src={invite.challenger_avatar_url}
               alt=""
               width="80"
               height="80"
@@ -290,7 +289,7 @@ function ChallengerHeader({ invite }) {
             />
           ) : initials}
         </div>
-        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md ring-2 ring-background">
+        <div className="absolute -bottom-1 -end-1 w-8 h-8 rounded-full bg-rose-500 text-white flex items-center justify-center shadow-md ring-2 ring-background">
           <Swords className="w-4 h-4" />
         </div>
       </div>

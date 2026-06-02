@@ -75,7 +75,7 @@ export default function DailyChestCard() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-left border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-amber-500/5 hover:from-amber-500/20 transition-colors touch-manipulation disabled:opacity-60"
+      className="w-full mb-3 flex items-center gap-3 rounded-2xl p-3.5 text-start border border-amber-500/30 bg-gradient-to-br from-amber-500/15 to-amber-500/5 hover:from-amber-500/20 transition-colors touch-manipulation disabled:opacity-60"
     >
       <div className="w-10 h-10 rounded-xl bg-amber-500/20 flex items-center justify-center shrink-0">
         <Gift className="w-5 h-5 text-amber-500" />

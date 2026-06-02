@@ -60,7 +60,7 @@ export default function GifPicker({ open, onPick, onClose }) {
       animate={{ y: 0 }}
       exit={{ y: '100%' }}
       transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-      className="absolute bottom-0 left-0 right-0 z-30 bg-card border-t border-border rounded-t-2xl shadow-lg"
+      className="absolute bottom-0 start-0 end-0 z-30 bg-card border-t border-border rounded-t-2xl shadow-lg"
       style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex items-center justify-between px-4 pt-3 pb-2">

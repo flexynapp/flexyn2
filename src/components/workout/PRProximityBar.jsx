@@ -70,7 +70,7 @@ export default function PRProximityBar({ exerciseName, weight, reps, prIndex = {
   }[tier];
 
   return (
-    <div className="flex items-center gap-2 pl-8 pr-2 pt-0.5">
+    <div className="flex items-center gap-2 ps-8 pe-2 pt-0.5">
       <div className="flex-1 h-1 rounded-full bg-secondary overflow-hidden">
         <motion.div
           className={`h-full rounded-full ${styles.bar}`}

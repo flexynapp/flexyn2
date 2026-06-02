@@ -125,7 +125,7 @@ export default function CameraView({ onCapture, isAnalyzing, exerciseSelected })
 
           {/* Overlay controls on top of video */}
           {cameraOn && (
-            <div className="absolute top-3 right-3 flex gap-2">
+            <div className="absolute top-3 end-3 flex gap-2">
               <button
                 onClick={flipCamera}
                 className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center text-white hover:bg-black/60 transition-colors"
@@ -148,12 +148,12 @@ export default function CameraView({ onCapture, isAnalyzing, exerciseSelected })
         <div className="flex gap-3 mt-3 w-full">
           {!cameraOn ? (
             <Button className="flex-1" onClick={() => startCamera()} disabled={!exerciseSelected}>
-              <Camera className="w-4 h-4 mr-2" />
+              <Camera className="w-4 h-4 me-2" />
               {t('formcoach.startCamera')}
             </Button>
           ) : countdown === null ? (
             <Button className="flex-1 h-12 font-heading font-bold text-base" onClick={startAnalysis}>
-              <Zap className="w-5 h-5 mr-2" />
+              <Zap className="w-5 h-5 me-2" />
               {t('formcoach.analyze')}
             </Button>
           ) : (
@@ -162,7 +162,7 @@ export default function CameraView({ onCapture, isAnalyzing, exerciseSelected })
               onClick={captureAndAnalyze}
               disabled={isAnalyzing}
             >
-              <Zap className="w-5 h-5 mr-2" />
+              <Zap className="w-5 h-5 me-2" />
               {isAnalyzing ? t('formcoach.analyzing') : t('formcoach.analyzeMyForm')}
             </Button>
           )}

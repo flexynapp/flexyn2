@@ -36,7 +36,7 @@ export function PollBubble({ poll, results, onVote, disabled, tFallback }) {
               type="button"
               onClick={(e) => { e.stopPropagation(); if (!disabled) onVote(idx); }}
               disabled={disabled}
-              className={`relative w-full text-left rounded-lg overflow-hidden border transition-colors ${
+              className={`relative w-full text-start rounded-lg overflow-hidden border transition-colors ${
                 mine ? 'border-white/60' : 'border-white/20 hover:border-white/40'
               } ${disabled ? 'cursor-default' : ''}`}
             >

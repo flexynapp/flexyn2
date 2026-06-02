@@ -153,7 +153,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
           >
             {/* Handle + close */}
             <div className="flex items-center justify-between px-4 pt-3 pb-2">
-              <div className="w-10 h-1 rounded-full bg-border mx-auto absolute left-0 right-0 top-2" />
+              <div className="w-10 h-1 rounded-full bg-border mx-auto absolute start-0 end-0 top-2" />
               <p className="text-sm font-bold">{tFallback('hub.share.title', 'Share post')}</p>
               <button onClick={onClose} className="p-1 rounded-full hover:bg-secondary">
                 <X className="w-4 h-4 text-muted-foreground" />
@@ -201,7 +201,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                         <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center font-bold text-sm text-primary shrink-0">
                           {handle.slice(0, 2).toUpperCase()}
                         </div>
-                        <span className="flex-1 text-sm font-medium text-left truncate">@{handle}</span>
+                        <span className="flex-1 text-sm font-medium text-start truncate">@{handle}</span>
                         {dmSending === conv.id ? (
                           <span className="text-xs text-muted-foreground">Sending…</span>
                         ) : (
@@ -232,7 +232,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                       <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
                         <Shield className="w-4 h-4" />
                       </div>
-                      <span className="flex-1 text-sm font-medium text-left truncate">{crew.name}</span>
+                      <span className="flex-1 text-sm font-medium text-start truncate">{crew.name}</span>
                       {crewSending === crew.id ? (
                         <span className="text-xs text-muted-foreground">Sending…</span>
                       ) : (

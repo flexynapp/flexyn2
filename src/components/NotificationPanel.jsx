@@ -219,7 +219,7 @@ export default function NotificationPanel({ open, onClose }) {
           exit={{ x: '100%' }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
           onClick={(e) => e.stopPropagation()}
-          className="absolute right-0 top-0 bottom-0 w-full sm:w-96 bg-card border-l border-border shadow-2xl flex flex-col"
+          className="absolute end-0 top-0 bottom-0 w-full sm:w-96 bg-card border-s border-border shadow-2xl flex flex-col"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
@@ -461,7 +461,7 @@ function NotificationRow({ n, onClick, onDelete, deleting, deleteLabel }) {
         {/* Swipe-reveal panel (sits behind the row) */}
         <div
           aria-hidden="true"
-          className="absolute inset-y-0 right-0 flex items-center justify-end pr-6 bg-destructive/90 text-destructive-foreground -z-10"
+          className="absolute inset-y-0 end-0 flex items-center justify-end pe-6 bg-destructive/90 text-destructive-foreground -z-10"
           style={{ width: '120px' }}
         >
           <Trash2 className="w-5 h-5" />

@@ -135,12 +135,12 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
             <button
               onClick={handleClose}
               aria-label="Close"
-              className="absolute top-3 right-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
+              className="absolute top-3 end-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
             >
               <X className="w-4 h-4" />
             </button>
             <div className="p-4 sm:p-6 pb-4 sm:pb-5">
-              <div className="mb-4 pr-8">
+              <div className="mb-4 pe-8">
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center shrink-0">
                     <Sparkles className="w-4 h-4 text-white" />

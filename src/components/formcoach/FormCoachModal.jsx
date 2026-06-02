@@ -123,12 +123,12 @@ export default function FormCoachModal({ open, onClose }) {
             <button
               onClick={onClose}
               aria-label={tFallback('common.close', 'Close')}
-              className="absolute top-3 right-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
+              className="absolute top-3 end-3 z-10 p-1.5 rounded-md hover:bg-secondary transition-colors text-muted-foreground"
             >
               <X className="w-4 h-4" />
             </button>
             <div className="p-5 sm:p-6">
-              <div className="mb-4 pr-8">
+              <div className="mb-4 pe-8">
                 <h2 className="font-heading font-bold text-lg flex items-center gap-2">
                   {t('formcoach.title')}
                   <span className="px-1.5 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider bg-primary/15 text-primary border border-primary/25">

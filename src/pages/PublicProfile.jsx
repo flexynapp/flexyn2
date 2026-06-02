@@ -162,8 +162,7 @@ export default function PublicProfile() {
         {/* Avatar */}
         <div className="relative">
           {profile.avatar_url ? (
-            <img
-              src={profile.avatar_url}
+            <img loading="lazy" src={profile.avatar_url}
               alt={profile.username}
               className="w-24 h-24 rounded-full object-cover border-4 border-background shadow-xl"
             />
@@ -175,7 +174,7 @@ export default function PublicProfile() {
             </div>
           )}
           {/* Level badge */}
-          <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
+          <div className="absolute -bottom-1 -end-1 w-7 h-7 rounded-full bg-primary flex items-center justify-center border-2 border-background">
             <span className="text-[10px] font-bold text-primary-foreground">
               {profile.current_level ?? 1}
             </span>
@@ -239,9 +238,9 @@ export default function PublicProfile() {
           >
             <div className="grid grid-cols-4 gap-2 divide-x divide-border">
               <StatPill icon={Star}     value={profile.current_level ?? 1}                     label="Level"        />
-              <StatPill icon={Flame}    value={profile.workout_streak ?? 0}                    label="Streak"       className="pl-2" />
-              <StatPill icon={Trophy}   value={profile.achievements_unlocked_count ?? 0}       label="Badges"       className="pl-2" />
-              <StatPill icon={Dumbbell} value={profile.longest_workout_streak ?? 0}            label="Best streak"  className="pl-2" />
+              <StatPill icon={Flame}    value={profile.workout_streak ?? 0}                    label="Streak"       className="ps-2" />
+              <StatPill icon={Trophy}   value={profile.achievements_unlocked_count ?? 0}       label="Badges"       className="ps-2" />
+              <StatPill icon={Dumbbell} value={profile.longest_workout_streak ?? 0}            label="Best streak"  className="ps-2" />
             </div>
           </motion.div>
 
@@ -273,7 +272,7 @@ export default function PublicProfile() {
                 onClick={() => navigate('/hub')}
                 className="w-full"
               >
-                Go to my Hub <ChevronRight className="w-4 h-4 ml-1" />
+                Go to my Hub <ChevronRight className="w-4 h-4 ms-1" />
               </Button>
             ) : isAuthed ? (
               // Authenticated visitor viewing someone else
@@ -282,7 +281,7 @@ export default function PublicProfile() {
                   onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.email || profile.username)}`)}
                   className="w-full"
                 >
-                  <ExternalLink className="w-4 h-4 mr-2" />
+                  <ExternalLink className="w-4 h-4 me-2" />
                   View full profile
                 </Button>
                 <Button
@@ -290,7 +289,7 @@ export default function PublicProfile() {
                   onClick={() => navigate('/messages')}
                   className="w-full"
                 >
-                  <MessageCircle className="w-4 h-4 mr-2" />
+                  <MessageCircle className="w-4 h-4 me-2" />
                   Send message
                 </Button>
               </>

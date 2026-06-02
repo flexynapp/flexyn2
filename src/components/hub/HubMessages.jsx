@@ -521,11 +521,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         setActiveConv(c);
                         setOpenOtherUser(profile || { email: otherEmail, username });
                       }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-left"
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
                     >
                       <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-base overflow-hidden">
                         {profile?.avatar_url ? (
-                          <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+                          <img loading="lazy" src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
                         ) : initials}
                       </div>
                       <div className="flex-1 min-w-0">
@@ -546,7 +546,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                       </div>
                     </button>
                     {/* Desktop three-dot menu — lg only */}
-                    <div className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -562,11 +562,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -4 }}
                             transition={{ duration: 0.12 }}
-                            className="absolute right-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
+                            className="absolute end-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
                           >
                             <button
                               onClick={(e) => { e.stopPropagation(); togglePinConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                             >
                               <Pin className="w-4 h-4 text-muted-foreground" />
                               {pinnedConvIds.has(c.id)
@@ -575,7 +575,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             </button>
                             <button
                               onClick={(e) => { e.stopPropagation(); toggleMuteConv(c.id); }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                             >
                               <BellOff className="w-4 h-4 text-muted-foreground" />
                               {mutedConvIds.has(c.id)
@@ -595,7 +595,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                                 setOpenMenuId(null);
                                 queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                             >
                               {isArchived(c.id)
                                 ? <><ArchiveRestore className="w-4 h-4 text-muted-foreground" /> Unarchive</>
@@ -654,7 +654,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 >
                   <button
                     onClick={() => setActiveCrew(crew)}
-                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
+                    className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-start hover:bg-secondary/30 active:bg-secondary/50 transition-colors"
                   >
                     <div
                       className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -669,7 +669,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         {crew.max_capacity ? `up to ${crew.max_capacity} members` : 'Group Chat'}
                         {crew.is_admin && (
                           <span
-                            className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+                            className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
                             style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}
                           >
                             Admin
@@ -680,7 +680,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
                   {/* Desktop three-dot menu — lg only */}
-                  <div className="hidden lg:flex absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === crew.id ? null : crew.id); }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -696,18 +696,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           animate={{ opacity: 1, scale: 1, y: 0 }}
                           exit={{ opacity: 0, scale: 0.95, y: -4 }}
                           transition={{ duration: 0.12 }}
-                          className="absolute right-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
+                          className="absolute end-0 top-10 w-44 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden"
                         >
                           <button
                             onClick={(e) => { e.stopPropagation(); togglePinCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                           >
                             <Pin className="w-4 h-4 text-muted-foreground" />
                             {pinnedCrewIds.has(crew.id) ? 'Unpin Chat' : 'Pin Chat'}
                           </button>
                           <button
                             onClick={(e) => { e.stopPropagation(); toggleMuteCrew(crew.id); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                           >
                             <BellOff className="w-4 h-4 text-muted-foreground" />
                             {mutedCrewIds.has(crew.id) ? 'Unmute Crew' : 'Mute Crew'}
@@ -715,7 +715,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <div className="border-t border-border/50 mx-2" />
                           <button
                             onClick={(e) => { e.stopPropagation(); handleLeaveCrew(crew); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-red-500/10 text-red-500 transition-colors text-left"
+                            className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-red-500/10 text-red-500 transition-colors text-start"
                           >
                             <LogOut className="w-4 h-4" />
                             Leave Chat

@@ -182,7 +182,7 @@ export default function StatsHubModal({ open, onClose }) {
                 </div>
               </div>
               {/* Coins */}
-              <div className="text-right shrink-0">
+              <div className="text-end shrink-0">
                 <div className="flex items-center gap-1.5 justify-end">
                   <Coins className="w-4 h-4" />
                   <span className="font-heading font-bold text-2xl tabular-nums">{fmtNum(coins)}</span>
@@ -285,7 +285,7 @@ function NavTile({ icon: Icon, label, onClick }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-left min-w-0"
+      className="flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-start min-w-0"
     >
       <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
         <Icon className="w-4 h-4 text-primary" />

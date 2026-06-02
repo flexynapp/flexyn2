@@ -211,7 +211,7 @@ export default function AchievementsTab({ achievements = [] }) {
                             </span>
                             {/* Small lock badge pinned to bottom-right corner */}
                             {!ach.unlocked && (
-                              <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-muted border border-border flex items-center justify-center shadow-sm">
+                              <span className="absolute -bottom-1 -end-1 w-4 h-4 rounded-full bg-muted border border-border flex items-center justify-center shadow-sm">
                                 <LockKeyhole className="w-2.5 h-2.5 text-muted-foreground" />
                               </span>
                             )}
@@ -228,7 +228,7 @@ export default function AchievementsTab({ achievements = [] }) {
                               </div>
                               {ach.unlocked && (
                                 <Badge className="text-xs bg-green-600 text-white shrink-0">
-                                  <Star className="w-2.5 h-2.5 mr-1" /> +{ach.xp_reward} XP
+                                  <Star className="w-2.5 h-2.5 me-1" /> +{ach.xp_reward} XP
                                 </Badge>
                               )}
                             </div>

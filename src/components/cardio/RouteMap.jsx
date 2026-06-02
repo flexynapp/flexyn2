@@ -292,7 +292,7 @@ export default function RouteMap({ track, height = 240, interactive = true }) {
           unobtrusive). The exact links shown depend on which tile
           provider is active: MapTiler swaps in their credit, OFM
           falls back to OSM-only. Default state shows only the icon. */}
-      <div className="absolute bottom-1.5 right-1.5 flex items-end gap-1 pointer-events-none">
+      <div className="absolute bottom-1.5 end-1.5 flex items-end gap-1 pointer-events-none">
         {attribOpen && (
           <div
             className="pointer-events-auto bg-white/85 dark:bg-black/70 backdrop-blur-sm text-[9px] leading-tight px-1.5 py-0.5 rounded text-gray-700 dark:text-gray-200"

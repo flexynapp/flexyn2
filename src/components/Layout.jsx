@@ -258,7 +258,7 @@ export default function Layout() {
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+              <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>
@@ -379,7 +379,7 @@ export default function Layout() {
           layout thrash. Transition is deliberately fast (220 ms) to feel
           native, not sluggish. */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui transition-transform duration-[220ms] ease-in-out"
+        className="lg:hidden fixed bottom-0 start-0 end-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-2 select-none-ui transition-transform duration-[220ms] ease-in-out"
         style={{
           paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
           transform: navHidden ? 'translateY(100%)' : 'translateY(0)',

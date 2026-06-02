@@ -265,7 +265,7 @@ export default function Gauntlet() {
   return (
     <div className="px-0 pt-[120px] pb-24 max-w-3xl mx-auto">
       {/* ── Fixed sub-header ─────────────────────────────────────────────── */}
-      <div className="fixed left-0 right-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:left-64">
+      <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3 flex items-center gap-3">
           <button
             type="button"

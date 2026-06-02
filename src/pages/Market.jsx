@@ -41,7 +41,7 @@ export default function Market() {
 
       {/* Trainer Programs — Coming Soon */}
       <motion.div
-        className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-violet-500/8 to-primary/8 p-4 flex items-center gap-3 text-left relative overflow-hidden select-none opacity-75"
+        className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-violet-500/8 to-primary/8 p-4 flex items-center gap-3 text-start relative overflow-hidden select-none opacity-75"
         animate={{ boxShadow: ['0 0 0px rgba(139,92,246,0)', '0 0 18px rgba(139,92,246,0.25)', '0 0 0px rgba(139,92,246,0)'] }}
         transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
       >

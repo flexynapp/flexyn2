@@ -79,7 +79,7 @@ export default function AppUpdatePrompt() {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: 'spring', damping: 28, stiffness: 280 }}
-        className="fixed left-3 right-3 z-[70] bg-card border border-border rounded-xl shadow-lg flex items-center gap-3 p-3"
+        className="fixed start-3 end-3 z-[70] bg-card border border-border rounded-xl shadow-lg flex items-center gap-3 p-3"
         style={{ bottom: 'calc(80px + env(safe-area-inset-bottom))' }}
         role="status"
         aria-live="polite"

@@ -42,7 +42,7 @@ export default function RestTimerOverlay() {
 
   return (
     <div
-      className="fixed left-0 right-0 z-40 pointer-events-none px-3 lg:left-64"
+      className="fixed start-0 end-0 z-40 pointer-events-none px-3 lg:start-64"
       style={{
         bottom: 'calc(4rem + env(safe-area-inset-bottom) + 0.5rem)',
       }}
@@ -102,7 +102,7 @@ function CollapsedPill({ secondsLeft, progress, isFinishing, isDone, fmtTime, on
       {/* Background progress fill */}
       {!isDone && (
         <div
-          className="absolute inset-y-0 left-0 bg-primary/85 transition-[width] duration-200 ease-linear"
+          className="absolute inset-y-0 start-0 bg-primary/85 transition-[width] duration-200 ease-linear"
           style={{ width: `${(1 - progress) * 100}%` }}
           aria-hidden="true"
         />

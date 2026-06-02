@@ -473,10 +473,10 @@ export default function CardioManualForm({
                       setPoolLength(String(Math.min(50, Math.max(10, n))));
                     }}
                     onKeyDown={blockSpecialKeys}
-                    className="pr-8"
+                    className="pe-8"
                     placeholder="25"
                   />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
+                  <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">m</span>
                 </div>
               </div>
               {/* Laps */}
@@ -541,12 +541,12 @@ export default function CardioManualForm({
               value={distance}
               onChange={e => setDistance(e.target.value)}
               onKeyDown={blockSpecialKeys}
-              className="pr-12"
+              className="pe-12"
               placeholder={isSwim && swimDistMeters > 0
                 ? metersTo(distanceUnit, swimDistMeters).toFixed(2)
                 : '0.00'}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
+            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-medium">
               {distanceUnit}
             </span>
           </div>
@@ -566,10 +566,10 @@ export default function CardioManualForm({
                 value={incline}
                 onChange={e => setIncline(e.target.value)}
                 onKeyDown={blockSpecialKeys}
-                className="pr-8"
+                className="pe-8"
                 placeholder="0"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
+              <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">%</span>
             </div>
           </div>
         )}
@@ -587,10 +587,10 @@ export default function CardioManualForm({
                 value={elevation}
                 onChange={e => setElevation(e.target.value)}
                 onKeyDown={blockSpecialKeys}
-                className="pr-10"
+                className="pe-10"
                 placeholder="0"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              <span className="absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
                 {elevationSuffix}
               </span>
             </div>
@@ -601,7 +601,7 @@ export default function CardioManualForm({
         <div>
           <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
             <Heart className="w-3.5 h-3.5 text-rose-500" />
-            Avg Heart Rate <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+            Avg Heart Rate <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
           </label>
           <div className="relative">
             <Input
@@ -612,10 +612,10 @@ export default function CardioManualForm({
               value={avgHr}
               onChange={e => setAvgHr(e.target.value)}
               onKeyDown={blockSpecialKeys}
-              className="pr-12"
+              className="pe-12"
               placeholder="—"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">bpm</span>
+            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">bpm</span>
           </div>
         </div>
 
@@ -624,7 +624,7 @@ export default function CardioManualForm({
           <div>
             <label className="text-sm font-medium mb-1.5 block">
               {isSwim ? 'Strokes / Min' : 'Cadence'}{' '}
-              <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+              <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
             </label>
             <div className="relative">
               <Input
@@ -635,10 +635,10 @@ export default function CardioManualForm({
                 value={cadence}
                 onChange={e => setCadence(e.target.value)}
                 onKeyDown={blockSpecialKeys}
-                className="pr-12"
+                className="pe-12"
                 placeholder="—"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                 {isSwim ? 'spm' : 'spm'}
               </span>
             </div>
@@ -650,7 +650,7 @@ export default function CardioManualForm({
           <div>
             <label className="text-sm font-medium mb-1.5 flex items-center gap-1.5 block">
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              Avg Power <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+              Avg Power <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
             </label>
             <div className="relative">
               <Input
@@ -661,10 +661,10 @@ export default function CardioManualForm({
                 value={powerWatts}
                 onChange={e => setPowerWatts(e.target.value)}
                 onKeyDown={blockSpecialKeys}
-                className="pr-10"
+                className="pe-10"
                 placeholder="—"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">W</span>
+              <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">W</span>
             </div>
           </div>
         )}
@@ -673,7 +673,7 @@ export default function CardioManualForm({
         {showRouteName && (
           <div>
             <label className="text-sm font-medium mb-1.5 block">
-              Route / Label <span className="text-xs text-muted-foreground font-normal ml-1">(optional)</span>
+              Route / Label <span className="text-xs text-muted-foreground font-normal ms-1">(optional)</span>
             </label>
             <Input
               type="text"
@@ -698,14 +698,14 @@ export default function CardioManualForm({
                   value={calories}
                   onChange={e => setCalories(e.target.value)}
                   onKeyDown={blockSpecialKeys}
-                  className="pr-14"
+                  className="pe-14"
                   placeholder="0"
                 />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kcal</span>
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kcal</span>
               </div>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={handleEstimate} className="shrink-0">
-              <Calculator className="w-3.5 h-3.5 mr-1" /> {t('cardio.field.estimate')}
+              <Calculator className="w-3.5 h-3.5 me-1" /> {t('cardio.field.estimate')}
             </Button>
           </div>
         </div>
@@ -739,7 +739,7 @@ export default function CardioManualForm({
             onClick={handleSave}
             disabled={!canSave || saving}
           >
-            <Save className="w-5 h-5 mr-2" />
+            <Save className="w-5 h-5 me-2" />
             {saving ? t('cardio.saving') : t('cardio.save')}
           </Button>
         </motion.div>
@@ -753,7 +753,7 @@ export default function CardioManualForm({
           onClick={handleSaveAsTemplate}
           disabled={savingTemplate || durationSeconds <= 0}
         >
-          <BookmarkPlus className="w-3.5 h-3.5 mr-1.5" />
+          <BookmarkPlus className="w-3.5 h-3.5 me-1.5" />
           {savingTemplate ? 'Saving…' : 'Save as Template'}
         </Button>
       </Card>

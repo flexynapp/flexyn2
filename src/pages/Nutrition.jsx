@@ -185,12 +185,12 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           initial={{ opacity: 0.5 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
-          className="absolute -top-1/3 -right-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
+          className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
           style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
         />
         <motion.div
           key={`mesh-bl-${slide.id}`}
-          className="absolute -bottom-1/3 -left-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
+          className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
           style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
           animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
@@ -1195,10 +1195,10 @@ export default function Nutrition() {
               <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-3/4 h-1/3 relative">
-                  <div className="absolute top-0 left-0 w-6 h-6 border-t-2 border-l-2 border-primary" />
-                  <div className="absolute top-0 right-0 w-6 h-6 border-t-2 border-r-2 border-primary" />
-                  <div className="absolute bottom-0 left-0 w-6 h-6 border-b-2 border-l-2 border-primary" />
-                  <div className="absolute bottom-0 right-0 w-6 h-6 border-b-2 border-r-2 border-primary" />
+                  <div className="absolute top-0 start-0 w-6 h-6 border-t-2 border-s-2 border-primary" />
+                  <div className="absolute top-0 end-0 w-6 h-6 border-t-2 border-e-2 border-primary" />
+                  <div className="absolute bottom-0 start-0 w-6 h-6 border-b-2 border-s-2 border-primary" />
+                  <div className="absolute bottom-0 end-0 w-6 h-6 border-b-2 border-e-2 border-primary" />
                 </div>
               </div>
               {(scannerStatus === 'initializing' || scannerStatus === 'looking-up') && (
@@ -1433,7 +1433,7 @@ export default function Nutrition() {
                 })}
                 disabled={saveMutation.isPending || waterOz + 8 > WATER_DAILY_CAP_OZ}
               >
-                <Droplet className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{getGlassLabel()}</span><span className="sm:hidden">Glass (8 oz)</span>
+                <Droplet className="w-4 h-4 me-1" /> <span className="hidden sm:inline">{getGlassLabel()}</span><span className="sm:hidden">Glass (8 oz)</span>
               </Button>
 
               {/* Custom Bottle Buttons */}
@@ -1455,13 +1455,13 @@ export default function Nutrition() {
                       saveMutation.mutate({ date, food_name: waterFoodName(bottle.oz), calories: 0, created_by: user?.email, user_id: user?.id });
                     })}
                     disabled={saveMutation.isPending || waterOz + bottle.oz > WATER_DAILY_CAP_OZ}
-                    className="pr-8 text-xs"
+                    className="pe-8 text-xs"
                   >
                     🍶 {bottle.label}
                   </Button>
                   <button
                     onClick={() => handleDeleteBottle(bottle.id)}
-                    className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:bg-destructive/90"
+                    className="absolute -top-2 -end-2 w-5 h-5 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs hover:bg-destructive/90"
                   >
                     ×
                   </button>
@@ -1474,7 +1474,7 @@ export default function Nutrition() {
                 className="border-dashed text-xs md:text-sm"
                 onClick={() => setShowBottleModal(true)}
               >
-                <Beaker className="w-4 h-4 mr-1" /> <span className="hidden sm:inline">{t('nutrition.customBottle')}</span><span className="sm:hidden">Bottle</span>
+                <Beaker className="w-4 h-4 me-1" /> <span className="hidden sm:inline">{t('nutrition.customBottle')}</span><span className="sm:hidden">Bottle</span>
               </Button>
             </div>
 
@@ -1698,7 +1698,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.85 }}
-          className="flex items-center gap-1.5 pl-2.5 pr-1.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs"
+          className="flex items-center gap-1.5 ps-2.5 pe-1.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-xs"
         >
           <Droplet className="w-3 h-3 text-blue-500 shrink-0" />
           <span className="font-medium text-blue-700 dark:text-blue-300">{g.label}</span>
@@ -1709,7 +1709,7 @@ function WaterEntryGroups({ entries, ozToDisplay, waterUnit, onDelete }) {
           )}
           <button
             onClick={() => onDelete(g.latestId)}
-            className="ml-0.5 p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            className="ms-0.5 p-1 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             title="Remove one"
             aria-label={`Remove one ${g.label}`}
           >

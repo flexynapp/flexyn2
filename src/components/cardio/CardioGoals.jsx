@@ -343,7 +343,7 @@ export default function CardioGoals() {
     <div className="space-y-4">
       {!adding && (
         <Button className="w-full" variant="outline" onClick={() => setAdding(true)}>
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4 me-2" />
           New Cardio Goal
         </Button>
       )}

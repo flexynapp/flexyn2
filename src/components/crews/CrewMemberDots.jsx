@@ -60,8 +60,7 @@ export default function CrewMemberDots({ members = [], max = 5, size = 24, total
           }}
         >
           {member.avatar_url ? (
-            <img
-              src={member.avatar_url}
+            <img loading="lazy" src={member.avatar_url}
               alt=""
               className="w-full h-full object-cover"
               onError={(e) => { e.currentTarget.style.display = 'none'; }}

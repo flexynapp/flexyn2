@@ -157,7 +157,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
           />
           <DialogHeader className="relative z-10">
-            <DialogTitle className="font-heading text-xl sm:text-2xl md:text-3xl flex items-center gap-2 text-white drop-shadow pr-8">
+            <DialogTitle className="font-heading text-xl sm:text-2xl md:text-3xl flex items-center gap-2 text-white drop-shadow pe-8">
               <Map className="w-6 h-6" />
               {t('leaderboards.regional.title')}
             </DialogTitle>
@@ -170,7 +170,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
           </DialogHeader>
 
           {/* Metric pills */}
-          <div className="relative z-10 mt-5 flex flex-wrap gap-1.5 sm:gap-2 pr-8">
+          <div className="relative z-10 mt-5 flex flex-wrap gap-1.5 sm:gap-2 pe-8">
             {BOARDS.map(b => {
               const Icon = b.icon;
               const active = b.id === activeBoard;
@@ -209,7 +209,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                     setActiveCountry(code);
                     if (code !== 'US') setActiveState(null);
                   }}
-                  className="w-full h-11 pl-10 pr-9 rounded-xl border border-border bg-card text-sm font-medium appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="w-full h-11 ps-10 pe-9 rounded-xl border border-border bg-card text-sm font-medium appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
                   <option value="">{t('leaderboards.region.pickCountry')}</option>
                   {COUNTRIES.map(c => (
@@ -219,11 +219,11 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                   ))}
                 </select>
                 {activeCountry && (
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg">
+                  <span className="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-lg">
                     {getCountry(activeCountry)?.flag}
                   </span>
                 )}
-                <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                   ▼
                 </span>
               </div>
@@ -247,14 +247,14 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                     <select
                       value={activeState || ''}
                       onChange={(e) => setActiveState(e.target.value || null)}
-                      className="w-full h-11 px-3 pr-9 rounded-xl border border-border bg-card text-sm font-medium appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/40"
+                      className="w-full h-11 px-3 pe-9 rounded-xl border border-border bg-card text-sm font-medium appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-accent/40"
                     >
                       <option value="">{t('leaderboards.region.pickState')}</option>
                       {US_STATES.map(s => (
                         <option key={s.code} value={s.code}>{s.name}</option>
                       ))}
                     </select>
-                    <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
+                    <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">
                       ▼
                     </span>
                   </div>
@@ -290,7 +290,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                     <p className="font-heading font-bold text-sm">{t('progress.you')}</p>
                     <p className="text-xs text-muted-foreground truncate">{myRow.full_name}</p>
                   </div>
-                  <div className="text-right">
+                  <div className="text-end">
                     <p className="font-heading font-bold text-base text-primary">{myRow._display}</p>
                   </div>
                 </div>
@@ -349,7 +349,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
                           <div className="flex-1 min-w-0">
                             <p className="font-heading font-bold text-sm truncate">{row.full_name}</p>
                           </div>
-                          <div className="flex-shrink-0 text-right">
+                          <div className="flex-shrink-0 text-end">
                             <p className="font-heading font-bold text-sm">{row._display}</p>
                           </div>
                         </div>

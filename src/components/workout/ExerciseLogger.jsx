@@ -220,7 +220,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
                 return (
                   <div key={idx} className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     {idx === 0 && <History className="w-3 h-3 shrink-0" aria-hidden="true" />}
-                    <span className={idx === 0 ? 'font-semibold' : 'pl-4'}>{line}</span>
+                    <span className={idx === 0 ? 'font-semibold' : 'ps-4'}>{line}</span>
                   </div>
                 );
               })}
@@ -293,7 +293,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
           disabled={atSetLimit}
           title={atSetLimit ? t('workout.maxSetsTitle').replace('{count}', maxSetsPerExercise) : undefined}
         >
-          <Plus className="w-3.5 h-3.5 mr-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise) : t('workout.addSet')}
+          <Plus className="w-3.5 h-3.5 me-1" /> {atSetLimit ? t('workout.maxSetsReachedLabel').replace('{count}', maxSetsPerExercise) : t('workout.addSet')}
         </Button>
       </motion.div>
 

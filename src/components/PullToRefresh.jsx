@@ -89,7 +89,7 @@ export default function PullToRefresh({ children }) {
     >
       {/* Indicator — only visible on mobile */}
       <div
-        className="md:hidden absolute left-0 right-0 flex items-center justify-center pointer-events-none z-10 overflow-hidden transition-[height] duration-150"
+        className="md:hidden absolute start-0 end-0 flex items-center justify-center pointer-events-none z-10 overflow-hidden transition-[height] duration-150"
         style={{ height: pullY > 0 || refreshing ? Math.max(pullY, refreshing ? THRESHOLD : 0) : 0 }}
       >
         <RefreshCw

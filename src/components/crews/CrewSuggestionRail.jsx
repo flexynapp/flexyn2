@@ -153,7 +153,7 @@ export default function CrewSuggestionRail() {
           </div>
           <button
             onClick={handleDismiss}
-            className="p-1 -mr-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
+            className="p-1 -me-1 rounded-md text-muted-foreground/70 hover:text-foreground hover:bg-foreground/5 transition-colors"
             aria-label={tFallback('crewSuggestion.dismiss', 'Hide suggestions')}
           >
             <X className="w-3.5 h-3.5" />

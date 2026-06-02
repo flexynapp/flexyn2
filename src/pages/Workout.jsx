@@ -358,19 +358,26 @@ export default function Workout() {
     // numbers in place. We treat the past log as a TEMPLATE, not a
     // copy — keeping the weight/reps would invite accidentally
     // saving the old workout twice.
-    if (repeatLog && Array.isArray(repeatLog.exercises)) {
-      const clonedExercises = repeatLog.exercises.map(ex => ({
-        name:           ex.name,
-        displayName:    ex.displayName || ex.name,
-        muscle_group:   ex.muscle_group  || '',
-        muscle_groups:  Array.isArray(ex.muscle_groups) ? [...ex.muscle_groups] : [],
-        sets: (Array.isArray(ex.sets) && ex.sets.length > 0 ? ex.sets : [{}])
-          .map(() => ({ weight: null, reps: null })),
-      }));
-      setExercises(clonedExercises);
-      setStarted(true);
-      // Notes carry forward as a hint of what they were trying to do.
-      if (typeof repeatLog.notes === 'string') setNotes(repeatLog.notes);
+    if (repeatLog) {
+      if (Array.isArray(repeatLog.exercises)) {
+        const clonedExercises = repeatLog.exercises.map(ex => ({
+          name:           ex.name,
+          displayName:    ex.displayName || ex.name,
+          muscle_group:   ex.muscle_group  || '',
+          muscle_groups:  Array.isArray(ex.muscle_groups) ? [...ex.muscle_groups] : [],
+          sets: (Array.isArray(ex.sets) && ex.sets.length > 0 ? ex.sets : [{}])
+            .map(() => ({ weight: null, reps: null })),
+        }));
+        setExercises(clonedExercises);
+        setStarted(true);
+        // Notes carry forward as a hint of what they were trying to do.
+        if (typeof repeatLog.notes === 'string') setNotes(repeatLog.notes);
+      }
+      // ALWAYS clear the state — even when repeatLog.exercises was
+      // malformed and we couldn't seed the workout. Previously the
+      // clear lived inside the Array.isArray branch, so a corrupt log
+      // left the state in place forever and a single back-nav re-fired
+      // this effect with the same broken payload.
       navigate(location.pathname, { replace: true, state: null });
     }
     // Dep on location.state (not []) so the effect re-fires when the
@@ -1556,7 +1563,7 @@ export default function Workout() {
     const InfoBtn = ({ bid }) => (
       <button type="button"
         onClick={(e) => { e.stopPropagation(); setActiveInfo(activeInfo === bid ? null : bid); }}
-        className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
+        className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-10">
         <span className="text-[8px] font-bold leading-none italic">i</span>
       </button>
     );
@@ -1727,11 +1734,11 @@ export default function Workout() {
         <div className="relative">
           <button type="button"
             onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
-            className="absolute top-2 right-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
+            className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
             <span className="text-[8px] font-bold leading-none italic">i</span>
           </button>
           {activeInfo==='nemesis' && (
-            <p className="absolute top-7 right-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
+            <p className="absolute top-7 end-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
               Your auto-assigned rival — beat their stats to dethrone them.
             </p>
           )}
@@ -1876,10 +1883,16 @@ export default function Workout() {
       consumed = true;
     }
     if (consumed) {
+      // Route through react-router's navigate so its internal
+      // location state stays in sync. Direct
+      // window.history.replaceState bypasses the router and left
+      // location.search holding a stale value until the next
+      // navigation, which could re-trigger the same panel-open on a
+      // route change that re-reads location.search.
       const search = params.toString();
-      window.history.replaceState({}, document.title, '/workout' + (search ? '?' + search : ''));
+      navigate({ pathname: '/workout', search: search ? `?${search}` : '' }, { replace: true });
     }
-  }, [location.search]);
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (!started) return undefined;
@@ -1973,7 +1986,7 @@ export default function Workout() {
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/25 text-rose-400 text-[10px] font-semibold hover:bg-rose-500/18 transition-colors">
                 <Swords className="w-3 h-3" />
                 <span>Duel</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse ml-0.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse ms-0.5" />
               </button>
             )}
             {activeBountyClaim && (
@@ -1981,7 +1994,7 @@ export default function Workout() {
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/25 text-amber-400 text-[10px] font-semibold hover:bg-amber-500/18 transition-colors">
                 <Zap className="w-3 h-3" />
                 <span>Bounty</span>
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ml-0.5" />
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse ms-0.5" />
               </button>
             )}
             {/* Subtle grid-customize button — active state when editing */}
@@ -2081,7 +2094,7 @@ export default function Workout() {
                   >
                     {heroSlide === 0 && (
                       <button type="button" onClick={() => { if (!heroDragging.current) startFreestyle(); }}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #0d0d14 0%, #111827 40%, #0a0f1e 100%)', boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.06) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
                           <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
@@ -2092,7 +2105,7 @@ export default function Workout() {
                             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.06) 50%, transparent 100%)' }}
                             animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut' }} />
                         </div>
-                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
@@ -2114,7 +2127,7 @@ export default function Workout() {
                     )}
                     {heroSlide === 1 && (
                       <button type="button" onClick={() => { if (!heroDragging.current) navigate('/gauntlet'); }}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #1e0a3c 0%, #2d1257 40%, #1a0a2e 100%)', boxShadow: '0 20px 60px -12px rgba(88,28,135,0.5), 0 0 0 1px rgba(167,139,250,0.1) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
                           <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-60"
@@ -2125,7 +2138,7 @@ export default function Workout() {
                             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(167,139,250,0.08) 50%, transparent 100%)' }}
                             animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 1.2 }} />
                         </div>
-                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-violet-300/30 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
@@ -2147,7 +2160,7 @@ export default function Workout() {
                     )}
                     {heroSlide === 2 && (
                       <button type="button" onClick={() => { if (!heroDragging.current) navigate('/hub', { state: { openCrewWars: true } }); }}
-                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-left"
+                        className="group w-full h-full relative overflow-hidden rounded-3xl text-white text-start"
                         style={{ background: 'linear-gradient(135deg, #0c1a10 0%, #14281c 40%, #091510 100%)', boxShadow: '0 20px 60px -12px rgba(16,185,129,0.3), 0 0 0 1px rgba(52,211,153,0.08) inset' }}>
                         <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-3xl">
                           <div className="absolute -top-[40%] -right-[15%] w-[70%] h-[200%] rounded-full blur-[80px] opacity-55"
@@ -2158,7 +2171,7 @@ export default function Workout() {
                             style={{ background: 'linear-gradient(90deg, transparent 0%, rgba(52,211,153,0.07) 50%, transparent 100%)' }}
                             animate={{ x: ['-60%', '220%'] }} transition={{ duration: 3.5, repeat: Infinity, repeatDelay: 2.5, ease: 'easeInOut', delay: 0.6 }} />
                         </div>
-                        <div className="absolute top-0 left-8 right-8 h-px bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent pointer-events-none" />
+                        <div className="absolute top-0 start-8 end-8 h-px bg-gradient-to-r from-transparent via-emerald-300/25 to-transparent pointer-events-none" />
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-emerald-400/80 mb-2">CREW BATTLES</span>
@@ -2189,7 +2202,7 @@ export default function Workout() {
                 </div>
                 {/* Arrow */}
                 <button type="button" onClick={() => paginateHero(1)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/25 border border-white/15 flex items-center justify-center text-white backdrop-blur-sm hover:bg-black/40 transition-colors"
+                  className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/25 border border-white/15 flex items-center justify-center text-white backdrop-blur-sm hover:bg-black/40 transition-colors"
                   aria-label="Next slide">
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -2245,9 +2258,9 @@ export default function Workout() {
                   whileHover={{ y: -1 }}
                   whileTap={{ scale: 0.99 }}
                   onClick={startFromLastWorkout}
-                  className={`group relative w-full mb-4 rounded-2xl border bg-gradient-to-r p-4 md:p-5 text-left transition-colors ${
+                  className={`group relative w-full mb-4 rounded-2xl border bg-gradient-to-r p-4 md:p-5 text-start transition-colors ${
                     isToday
-                      ? 'border-l-4 border-primary border-primary/40 from-primary/12 via-primary/6 to-transparent hover:border-primary/60'
+                      ? 'border-s-4 border-primary border-primary/40 from-primary/12 via-primary/6 to-transparent hover:border-primary/60'
                       : 'border-primary/25 from-primary/8 via-primary/5 to-transparent hover:border-primary/45'
                   }`}
                   aria-label={tFallback('workout.repeatLast', 'Repeat last workout')}
@@ -2256,7 +2269,7 @@ export default function Workout() {
                       when scanning a session list, even on a card with
                       just one item. */}
                   {isToday && (
-                    <span className="absolute top-2 right-2 text-[9px] font-bold uppercase tracking-[0.18em] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
+                    <span className="absolute top-2 end-2 text-[9px] font-bold uppercase tracking-[0.18em] bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
                       {tFallback('common.today', 'Today')}
                     </span>
                   )}
@@ -2705,7 +2718,7 @@ export default function Workout() {
                     prIndex={prIndex}
                     workoutLogs={rawLogs}
                   />
-                <div className="absolute top-3 right-3 flex items-center gap-1">
+                <div className="absolute top-3 end-3 flex items-center gap-1">
                   {/* Group with previous as a superset — one-tap pairing
                       that fills in group_id on both exercises so the
                       GroupBlock renderer picks them up on next render.
@@ -2791,7 +2804,7 @@ export default function Workout() {
           onClick={() => saveWorkout()}
           disabled={exercises.length === 0 || saveMutation.isPending}
         >
-          <Save className="w-5 h-5 mr-2" />
+          <Save className="w-5 h-5 me-2" />
           {saveMutation.isPending ? t('workout.saving') : t('workout.saveWorkout')}
         </Button>
       </motion.div>
@@ -2885,7 +2898,7 @@ export default function Workout() {
             <AlertDialogDescription asChild>
               <div className="space-y-2">
                 <p>This workout has empty sets or missing weights/reps:</p>
-                <ul className="list-disc pl-5 text-sm space-y-0.5 max-h-40 overflow-y-auto">
+                <ul className="list-disc ps-5 text-sm space-y-0.5 max-h-40 overflow-y-auto">
                   {(missingDataWarning || []).slice(0, 8).map((m, i) => (
                     <li key={i}>
                       <span className="font-medium">{m.exName}</span>

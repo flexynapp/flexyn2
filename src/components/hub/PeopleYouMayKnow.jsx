@@ -134,7 +134,7 @@ function PYMKCard({ candidate, isFollowed, delay, onFollow, onSelect }) {
         style={{ ringColor: tier.text.replace('text-', '') }}
       >
         {candidate.avatar_url ? (
-          <img src={candidate.avatar_url} alt="" className="w-full h-full object-cover" />
+          <img loading="lazy" src={candidate.avatar_url} alt="" className="w-full h-full object-cover" />
         ) : (
           <span className="font-heading font-bold text-sm text-primary">{initials}</span>
         )}

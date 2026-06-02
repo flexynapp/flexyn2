@@ -39,7 +39,7 @@ function CrewCard({ crew, onClick, currentUserId }) {
     <motion.button
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-left"
+      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-start"
     >
       <div
         className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -54,13 +54,13 @@ function CrewCard({ crew, onClick, currentUserId }) {
           <Users className="w-3 h-3" />
           {members.length} / {crew.max_capacity ?? 16} members
           {crew.is_admin && (
-            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
               style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}>
               Leader
             </span>
           )}
           {!crew.is_admin && myRole === 'moderator' && (
-            <span className="ml-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
               style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
               Mod
             </span>

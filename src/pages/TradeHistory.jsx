@@ -72,7 +72,7 @@ export default function TradeHistory() {
           >
             {f.label}
             {f.id !== 'all' && (
-              <span className="opacity-70 ml-1">
+              <span className="opacity-70 ms-1">
                 ({trades.filter(t => t.status === f.id).length})
               </span>
             )}

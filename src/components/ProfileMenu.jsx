@@ -286,7 +286,7 @@ export default function ProfileMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(v => !v); setView('main'); }}
-        className="relative flex items-center justify-center gap-2 w-full h-10 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ml-2"
+        className="relative flex items-center justify-center gap-2 w-full h-10 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2"
         aria-label={
           capsuleCount > 0
             ? `Profile — ${capsuleCount} unopened ${capsuleCount === 1 ? 'capsule' : 'capsules'}`
@@ -296,7 +296,7 @@ export default function ProfileMenu() {
         <div className="relative w-9 h-9 shrink-0">
           <div className="w-9 h-9 rounded-full bg-primary/10 border border-border flex items-center justify-center text-sm font-bold text-primary overflow-hidden">
             {user?.avatar_url ? (
-              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+              <img loading="lazy" src={user.avatar_url} alt="" className="w-full h-full object-cover" />
             ) : user?.full_name ? (
               initials
             ) : (
@@ -330,7 +330,7 @@ export default function ProfileMenu() {
             initial={{ scale: 0.6, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             aria-hidden="true"
-            className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
+            className="absolute -top-0.5 -end-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-purple-500 text-white text-[10px] font-bold flex items-center justify-center border-2 border-card shadow-sm"
           >
             {capsuleCount > 9 ? '9+' : capsuleCount}
           </motion.span>
@@ -347,7 +347,7 @@ export default function ProfileMenu() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: -10 }}
             transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            className="fixed left-4 right-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:left-0 lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
+            className="fixed start-4 end-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:start-0 lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
           >
             {user ? (
               <AnimatePresence mode="wait">
@@ -389,7 +389,7 @@ export default function ProfileMenu() {
                       <div className="flex items-center gap-2">
                         <div className="w-5 h-5 rounded-full bg-primary/10 border border-border flex items-center justify-center overflow-hidden shrink-0">
                           {user?.avatar_url
-                            ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ? <img loading="lazy" src={user.avatar_url} alt="" className="w-full h-full object-cover" />
                             : <UserCircle className="w-3.5 h-3.5 text-primary" />}
                         </div>
                         {tFallback('profile.account', 'Profile')}

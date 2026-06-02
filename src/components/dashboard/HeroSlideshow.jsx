@@ -191,7 +191,7 @@ function ProgressBar({ pct = 0, startLabel = '', endLabel = '', currentLabel, ta
     <div className="mt-2">
       <div className="relative h-1.5 rounded-full bg-white/15 overflow-hidden">
         <motion.div
-          className="absolute inset-y-0 left-0 rounded-full bg-white"
+          className="absolute inset-y-0 start-0 rounded-full bg-white"
           initial={reduce ? { width: `${safePct}%` } : { width: '0%' }}
           animate={{ width: `${safePct}%` }}
           transition={reduce ? { duration: 0 } : { duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
@@ -564,7 +564,11 @@ function buildPathSlides({ profile, user, logs }) {
       metricValue: 5,
       metricUnit: 'K',
       sub: 'Run/walk intervals for 3 weeks → continuous 30-min jog by week 6.',
-      cta: { label: 'Log cardio', to: '/cardio' },
+      // /cardio is not a real route — cardio is a section inside the
+      // Workout page. Use the existing ?openCardio=1 deep-link handler
+      // (src/pages/Workout.jsx) which opens the cardio panel and
+      // strips the param so a reload doesn't re-fire.
+      cta: { label: 'Log cardio', to: '/workout?openCardio=1' },
     });
   } else {
     slides.push({
@@ -890,7 +894,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         </div>
         <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
           {slide.kicker}
-          {subKicker && <span className="text-white/40 normal-case tracking-normal font-normal ml-2">· {subKicker}</span>}
+          {subKicker && <span className="text-white/40 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
         </span>
       </div>
 

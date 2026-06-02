@@ -242,7 +242,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
               <div className="mt-3 pt-3 border-t border-border/50 space-y-1.5">
                 {(regimen.exercises || []).map((ex, i) => (
                   <div key={i} className="flex items-center justify-between text-sm py-0.5">
-                    <span className="font-medium truncate mr-2">{ex.name || ex.exercise_name}</span>
+                    <span className="font-medium truncate me-2">{ex.name || ex.exercise_name}</span>
                     <span className="text-muted-foreground text-xs shrink-0">
                       {ex.target_sets && ex.target_reps
                         ? `${ex.target_sets} × ${ex.target_reps}`
@@ -363,7 +363,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             <p className="text-xs text-muted-foreground mt-0.5">
               {templates.length} public programs
               {totalDownloads > 0 && (
-                <span className="ml-1.5">
+                <span className="ms-1.5">
                   · <Users className="inline w-3 h-3 mb-0.5" /> {totalDownloads} total downloads
                 </span>
               )}
@@ -374,18 +374,18 @@ export default function RegimenStorePage({ onBack, onPublish }) {
 
       {/* ── Search bar ───────────────────────────────────────────────────── */}
       <div className="relative mb-3">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
         <Input
           ref={searchRef}
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search regimens, exercises…"
-          className="pl-9 h-11 text-sm"
+          className="ps-9 h-11 text-sm"
         />
         {search && (
           <button
             onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-xs"
+            className="absolute end-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors text-xs"
             aria-label="Clear search"
           >
             ✕
@@ -475,7 +475,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-left"
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
               <Plus className="w-5 h-5 text-primary" />
@@ -518,7 +518,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
             whileTap={{ scale: 0.97 }}
             transition={{ type: 'spring', stiffness: 380, damping: 22 }}
             onClick={onPublish}
-            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-left"
+            className="group w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 bg-card hover:bg-primary/5 transition-colors p-5 flex items-center gap-4 text-start"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/10 group-hover:bg-primary/20 border border-primary/20 flex items-center justify-center shrink-0 transition-colors">
               <Plus className="w-5 h-5 text-primary" />

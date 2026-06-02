@@ -118,14 +118,14 @@ function Avatar({ profile }) {
   return (
     <div className="relative shrink-0">
       {profile?.avatar_url ? (
-        <img src={profile.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" draggable={false} />
+        <img loading="lazy" src={profile.avatar_url} className="w-8 h-8 rounded-full object-cover" alt="" draggable={false} />
       ) : (
         <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
           {initials}
         </div>
       )}
       {verified && (
-        <div className="absolute -top-1.5 -left-1.5" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
+        <div className="absolute -top-1.5 -start-1.5" style={{ lineHeight: 0, transform: 'rotate(-25deg)' }}>
           <CrownBadge size={13} />
         </div>
       )}
@@ -284,7 +284,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
         {!isOwn && <Avatar profile={senderProfile} />}
         <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
           {!isOwn && (
-            <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1">
+            <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1">
               {senderProfile?.username || 'member'}
             </span>
           )}
@@ -314,7 +314,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
                   animate={{ opacity: 1, scale: 1.5, y: -20 }}
                   exit={{ opacity: 0, scale: 0.8, y: -36 }}
                   transition={{ duration: 0.45 }}
-                  className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+                  className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'start-0' : 'end-0'}`}
                 >
                   🔥
                 </motion.span>
@@ -326,7 +326,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
               <motion.div
                 initial={{ scale: 0, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+                className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
                 onClick={() => setReactedPersisted(false)}
                 title="Tap to remove"
               >
@@ -540,7 +540,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
                   transition={{ duration: 0.4 }}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground w-8 text-right">{results?.yes ?? 0}</span>
+              <span className="text-[11px] text-muted-foreground w-8 text-end">{results?.yes ?? 0}</span>
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[11px] text-muted-foreground w-16">👎 No</span>
@@ -552,7 +552,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
                   transition={{ duration: 0.4 }}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground w-8 text-right">{results?.no ?? 0}</span>
+              <span className="text-[11px] text-muted-foreground w-8 text-end">{results?.no ?? 0}</span>
             </div>
           </div>
         )}
@@ -714,7 +714,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
       {!isOwn && <Avatar profile={senderProfile} />}
       <div className={`${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1 block">
+          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
@@ -730,7 +730,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
               </div>
             ) : open ? (
               <>
-                <img src={msg.media_url} className="w-full h-full object-cover" alt="one-time" draggable={false} />
+                <img loading="lazy" src={msg.media_url} className="w-full h-full object-cover" alt="one-time" draggable={false} />
                 <button
                   onClick={handleClose}
                   className="absolute inset-0 bg-transparent"
@@ -751,7 +751,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
                 animate={{ opacity: 1, scale: 1.5, y: -20 }}
                 exit={{ opacity: 0, scale: 0.8, y: -36 }}
                 transition={{ duration: 0.45 }}
-                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'start-0' : 'end-0'}`}
               >
                 🔥
               </motion.span>
@@ -761,7 +761,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+              className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
               onClick={() => setReactedPersisted(false)}
               title="Tap to remove"
             >
@@ -797,13 +797,13 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
       {!isOwn && <Avatar profile={senderProfile} />}
       <div className={`max-w-[200px] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ml-1 block">
+          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
         <div className="relative" onClick={handleTap}>
-          <img src={msg.media_url} className="rounded-2xl w-full" alt="" draggable={false} />
-          <div className="absolute top-2 right-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white font-semibold">
+          <img loading="lazy" src={msg.media_url} className="rounded-2xl w-full" alt="" draggable={false} />
+          <div className="absolute top-2 end-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white font-semibold">
             1h
           </div>
           <AnimatePresence>
@@ -814,7 +814,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
                 animate={{ opacity: 1, scale: 1.5, y: -20 }}
                 exit={{ opacity: 0, scale: 0.8, y: -36 }}
                 transition={{ duration: 0.45 }}
-                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'left-0' : 'right-0'}`}
+                className={`absolute -bottom-1 text-base pointer-events-none ${isOwn ? 'start-0' : 'end-0'}`}
               >
                 🔥
               </motion.span>
@@ -824,7 +824,7 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
             <motion.div
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className={`absolute -bottom-2.5 ${isOwn ? '-left-1' : '-right-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
+              className={`absolute -bottom-2.5 ${isOwn ? '-start-1' : '-end-1'} bg-card border border-border rounded-full px-1.5 py-0.5 text-xs shadow-sm flex items-center gap-0.5 cursor-pointer`}
               onClick={() => setReactedPersisted(false)}
               title="Tap to remove"
             >

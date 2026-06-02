@@ -67,7 +67,7 @@ export default function CrewDMInviteCard({ payload, userId, isMine }) {
           {/* Inviter */}
           <div className="flex items-center gap-2 mb-3">
             {inviterAvatar ? (
-              <img src={inviterAvatar} className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
+              <img loading="lazy" src={inviterAvatar} className="w-8 h-8 rounded-full object-cover shrink-0" alt="" />
             ) : (
               <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
                 {(inviterName || '?').slice(0, 2).toUpperCase()}

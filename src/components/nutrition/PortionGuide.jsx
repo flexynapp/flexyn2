@@ -31,7 +31,7 @@ export default function PortionGuide() {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-4 py-2.5 text-left hover:bg-secondary/30 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 text-start hover:bg-secondary/30 transition-colors"
         aria-expanded={open}
       >
         <div className="flex items-center gap-2">

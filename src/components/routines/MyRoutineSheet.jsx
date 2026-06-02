@@ -163,7 +163,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                       const dayCount = (r.days || []).filter(d => !d.isRest && (d.label || d.exercises?.length)).length;
                       return (
                         <div key={r.id} className="flex items-center gap-2 rounded-2xl border border-border bg-card p-3">
-                          <button onClick={() => openEditor(r)} className="flex-1 min-w-0 text-left">
+                          <button onClick={() => openEditor(r)} className="flex-1 min-w-0 text-start">
                             <div className="flex items-center gap-2">
                               <span className="font-heading font-bold text-sm truncate">{r.name}</span>
                               {r.is_active && (
@@ -195,7 +195,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 <div className="grid grid-cols-2 gap-2">
                   {TEMPLATES.map(t => (
                     <button key={t.name} onClick={() => createNew(t.name, t.days)} disabled={saving || routines.length >= MAX_ROUTINES}
-                      className="rounded-2xl border border-border bg-card p-3 text-left hover:border-primary/50 transition-colors disabled:opacity-40">
+                      className="rounded-2xl border border-border bg-card p-3 text-start hover:border-primary/50 transition-colors disabled:opacity-40">
                       <p className="font-heading font-bold text-sm">{t.name}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
                         {t.days.filter(d => !d.isRest).length} days · add your lifts
@@ -223,7 +223,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                 const isOpen = expandedDay === idx;
                 return (
                   <div key={idx} className={`rounded-2xl border bg-card ${isOpen ? '' : 'overflow-hidden'} ${isToday ? 'border-primary/60' : 'border-border'}`}>
-                    <button onClick={() => setExpandedDay(isOpen ? null : idx)} className="w-full flex items-center gap-3 p-3 text-left">
+                    <button onClick={() => setExpandedDay(isOpen ? null : idx)} className="w-full flex items-center gap-3 p-3 text-start">
                       <div className="w-12 shrink-0">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{DAY_NAMES_FULL[idx].slice(0, 3)}</p>
                         {isToday && <p className="text-[9px] font-bold text-primary">TODAY</p>}

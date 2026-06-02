@@ -255,7 +255,7 @@ export default function Notifications() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: Math.min(idx, 8) * 0.025 }}
             className={[
-              'w-full text-left flex items-start gap-3 p-3 rounded-lg border transition-colors',
+              'w-full text-start flex items-start gap-3 p-3 rounded-lg border transition-colors',
               n.is_read
                 ? 'border-border bg-card hover:bg-secondary/40'
                 : 'border-primary/30 bg-primary/5 hover:bg-primary/8',

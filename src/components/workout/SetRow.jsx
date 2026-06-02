@@ -250,7 +250,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           animate={{ x: 0, opacity: 1, scale: 1 }}
           exit={{ opacity: 0 }}
           transition={{ type: 'spring', stiffness: 380, damping: 18 }}
-          className="absolute -top-3 right-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-amber-500/30 pointer-events-none"
+          className="absolute -top-3 end-0 z-10 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-amber-950 text-[10px] font-extrabold uppercase tracking-[0.15em] shadow-lg shadow-amber-500/30 pointer-events-none"
           aria-live="polite"
         >
           🎉 New PR
@@ -349,7 +349,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         ("how many more reps could you have done"). Standard in
         evidence-based programming (Renaissance Periodization, etc.). */}
     {effortOpen && (
-      <div className="mt-1.5 pl-8 pr-2 space-y-1.5">
+      <div className="mt-1.5 ps-8 pe-2 space-y-1.5">
         {/* RIR — one-tap chips (reps in reserve). Tap to tag, tap the
             active chip again to clear. Feeds intensity into the Nemesis
             / auto-pilot engines, not just raw volume. */}
@@ -407,7 +407,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         signal (RPE captures effort; this captures the more-subjective
         "how did that go" the user can scan back through later). */}
     {feelOpen && (
-      <div className="flex items-center gap-2 mt-1.5 pl-8 pr-2">
+      <div className="flex items-center gap-2 mt-1.5 ps-8 pe-2">
         <div className="flex items-center gap-0.5 shrink-0">
           {FEEL_EMOJI_SET.map(em => (
             <button

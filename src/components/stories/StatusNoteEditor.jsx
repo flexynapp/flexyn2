@@ -110,7 +110,7 @@ export default function StatusNoteEditor({ existingNote, origin, onPost, onDelet
               rows={3}
               className="w-full h-full resize-none rounded-xl border border-border bg-secondary/50 px-3 py-2.5 text-sm text-foreground placeholder-muted-foreground/55 focus:outline-none focus:border-primary/50 leading-relaxed"
             />
-            <span className={`absolute bottom-2.5 right-3 text-[10px] font-medium pointer-events-none ${
+            <span className={`absolute bottom-2.5 end-3 text-[10px] font-medium pointer-events-none ${
               text.length >= 55 ? 'text-destructive' : 'text-muted-foreground/60'
             }`}>
               {text.length}/60

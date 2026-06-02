@@ -290,7 +290,7 @@ export default function GymEdit() {
           <label className="block text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Cover image</label>
           <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-primary/15 to-violet-500/15 aspect-[3/1] mb-2">
             {form.cover_url
-              ? <img src={form.cover_url} alt="" className="w-full h-full object-cover" />
+              ? <img loading="lazy" src={form.cover_url} alt="" className="w-full h-full object-cover" />
               : <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No cover yet</div>}
           </div>
           <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
@@ -306,7 +306,7 @@ export default function GymEdit() {
           <div className="flex items-center gap-3">
             <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center overflow-hidden shrink-0">
               {form.logo_url
-                ? <img src={form.logo_url} alt="" className="w-full h-full object-cover" />
+                ? <img loading="lazy" src={form.logo_url} alt="" className="w-full h-full object-cover" />
                 : <Building2 className="w-6 h-6 text-primary" />}
             </div>
             <label className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-secondary/40 hover:bg-secondary text-xs font-bold uppercase tracking-wide cursor-pointer transition-colors">
@@ -336,7 +336,7 @@ export default function GymEdit() {
             placeholder="Tell members what makes your gym special…"
             rows={3}
           />
-          <p className="text-[10px] text-muted-foreground tabular-nums text-right mt-1">
+          <p className="text-[10px] text-muted-foreground tabular-nums text-end mt-1">
             {form.description.length}/500
           </p>
         </div>
@@ -458,7 +458,7 @@ function HoursEditor({ value, onChange }) {
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          <Clock className="w-3 h-3 inline-block mr-1" /> Hours
+          <Clock className="w-3 h-3 inline-block me-1" /> Hours
         </p>
         <button
           type="button"
@@ -563,7 +563,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
     <div className="rounded-xl border border-dashed border-border p-3">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-          <ImageIcon className="w-3 h-3 inline-block mr-1" /> Photo gallery
+          <ImageIcon className="w-3 h-3 inline-block me-1" /> Photo gallery
         </p>
         <label className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-primary hover:bg-primary/10 px-2 py-1 rounded cursor-pointer">
           {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
@@ -583,7 +583,7 @@ function PhotoGalleryEditor({ gymId, value, onChange, uploading, setUploading, u
               <button
                 type="button"
                 onClick={() => handleRemove(url)}
-                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/65 text-white flex items-center justify-center"
+                className="absolute top-1 end-1 w-6 h-6 rounded-full bg-black/65 text-white flex items-center justify-center"
                 aria-label="Remove photo"
               >
                 <X className="w-3 h-3" />

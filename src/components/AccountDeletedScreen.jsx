@@ -56,7 +56,7 @@ export default function AccountDeletedScreen() {
               variant="outline"
               onClick={() => { try { window.close(); } catch {} }}
             >
-              <X className="w-4 h-4 mr-2" />
+              <X className="w-4 h-4 me-2" />
               {t('accountDeleted.closeTabBtn')}
             </Button>
           </motion.div>

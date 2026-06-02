@@ -275,7 +275,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
                     transition={{ type: 'spring', stiffness: 500, damping: 35 }}
                   >
                     <Button onClick={() => setShowForm(true)} className="w-full mb-4">
-                      <Plus className="w-4 h-4 mr-2" /> {t('goals.addNew')}
+                      <Plus className="w-4 h-4 me-2" /> {t('goals.addNew')}
                     </Button>
                     {activeGoals.length === 0 ? (
                       <div className="text-center py-12">

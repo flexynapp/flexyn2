@@ -367,7 +367,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
                   Training since {format(trainingAge.firstDate, 'MMMM d, yyyy', { locale: dateLocale })}
                 </p>
               </div>
-              <div className="ml-auto text-right pb-1">
+              <div className="ml-auto text-end pb-1">
                 <p className="font-heading font-bold text-xl text-foreground">{trainingAge.consistencyPct}%</p>
                 <p className="text-xs text-muted-foreground">consistent</p>
               </div>
@@ -659,7 +659,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             }}
           >
             <Dumbbell className="w-4 h-4 text-primary shrink-0" />
-            <div className="text-left">
+            <div className="text-start">
               <p className="text-sm font-semibold">Workout Logs</p>
               <p className="text-xs text-muted-foreground">{logs?.length || 0} sessions · all exercises & sets</p>
             </div>
@@ -676,7 +676,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             }}
           >
             <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
-            <div className="text-left">
+            <div className="text-start">
               <p className="text-sm font-semibold">Body Metrics</p>
               <p className="text-xs text-muted-foreground">{bodyMetrics?.length || 0} entries · weight, measurements</p>
             </div>
@@ -697,7 +697,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             }}
           >
             <Activity className="w-4 h-4 text-red-500 shrink-0" />
-            <div className="text-left">
+            <div className="text-start">
               <p className="text-sm font-semibold">Cardio Logs</p>
               <p className="text-xs text-muted-foreground">{cardioLogs?.length || 0} sessions · runs, cycling, etc.</p>
             </div>

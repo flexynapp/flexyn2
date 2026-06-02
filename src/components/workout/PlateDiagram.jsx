@@ -55,7 +55,7 @@ export default function PlateDiagram({ plates = [], barLbs = 45 }) {
   const totalWidth = (sideWidth * 2) + SLEEVE_W * 2 + 60; // 60 = collar/grip
 
   return (
-    <div className="mt-1 pl-8 flex items-center gap-2">
+    <div className="mt-1 ps-8 flex items-center gap-2">
       <svg width={totalWidth} height={SVG_H} viewBox={`0 0 ${totalWidth} ${SVG_H}`} role="img" aria-label={`Bar loaded with ${flat.map(p => p + ' lb').join(', ')} per side`}>
         {/* Bar (horizontal line through center) */}
         <rect x="0" y={SVG_H / 2 - BAR_H / 2} width={totalWidth} height={BAR_H} fill="#9ca3af" rx="1" />

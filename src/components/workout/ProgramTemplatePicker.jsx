@@ -103,7 +103,7 @@ export default function ProgramTemplatePicker({ onCreated }) {
               whileTap={{ scale: 0.98 }}
               onClick={() => handlePick(t)}
               disabled={!!creating}
-              className="text-left p-3 rounded-2xl border border-border bg-card hover:bg-secondary/40 transition-colors disabled:opacity-60 disabled:cursor-wait"
+              className="text-start p-3 rounded-2xl border border-border bg-card hover:bg-secondary/40 transition-colors disabled:opacity-60 disabled:cursor-wait"
             >
               <div className="flex items-center justify-between gap-2 mb-1">
                 <h4 className="font-heading font-bold text-sm">{t.name}</h4>

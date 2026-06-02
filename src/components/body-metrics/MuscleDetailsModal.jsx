@@ -91,7 +91,7 @@ export default function MuscleDetailsModal({ open, onClose, muscleId, category, 
             <Dumbbell className="w-5 h-5 text-primary" />
             {label}
             {categoryLabel && categoryLabel !== label && (
-              <span className="text-xs font-normal text-muted-foreground ml-1">({categoryLabel})</span>
+              <span className="text-xs font-normal text-muted-foreground ms-1">({categoryLabel})</span>
             )}
           </DialogTitle>
         </DialogHeader>
@@ -130,7 +130,7 @@ export default function MuscleDetailsModal({ open, onClose, muscleId, category, 
                     {format(new Date(ex.date), 'MMM d, yyyy', { locale: dateLocale })}
                   </p>
                 </div>
-                <div className="text-right text-xs text-muted-foreground shrink-0">
+                <div className="text-end text-xs text-muted-foreground shrink-0">
                   <p>{ex.sets} sets × {ex.reps} reps</p>
                   {ex.weight ? <p className="font-medium text-foreground">{formatWeight(ex.weight, weightUnit)}</p> : null}
                 </div>

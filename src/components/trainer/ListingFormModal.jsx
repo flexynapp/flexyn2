@@ -124,13 +124,13 @@ export default function ListingFormModal({ open, onClose, listing, trainerId, us
           <div>
             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Price (USD)</label>
             <div className="relative mt-1">
-              <DollarSign className="w-4 h-4 text-muted-foreground absolute left-2.5 top-1/2 -translate-y-1/2" />
+              <DollarSign className="w-4 h-4 text-muted-foreground absolute start-2.5 top-1/2 -translate-y-1/2" />
               <Input
                 value={priceInput}
                 onChange={(e) => setPriceInput(e.target.value)}
                 inputMode="decimal"
                 placeholder="19.99"
-                className="pl-8"
+                className="ps-8"
               />
             </div>
             {priceInput && (

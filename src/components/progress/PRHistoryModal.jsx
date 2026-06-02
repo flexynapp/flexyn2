@@ -111,7 +111,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                   </p>
                 </TapToCopy>
               </div>
-              <div className="ml-auto text-right">
+              <div className="ml-auto text-end">
                 <p className="text-xs text-muted-foreground">{prTimeline.length} PRs set</p>
                 <p className="text-xs text-muted-foreground">{sessionHistory.length} sessions</p>
               </div>

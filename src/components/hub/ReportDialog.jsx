@@ -154,7 +154,7 @@ export default function ReportDialog({ open, onClose, reportedType, reportedId, 
                       <button
                         key={r.value}
                         onClick={() => setReason(r.value)}
-                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm text-left transition-colors ${
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg border text-sm text-start transition-colors ${
                           reason === r.value
                             ? 'border-primary bg-primary/8 text-foreground font-medium'
                             : 'border-border text-muted-foreground hover:bg-secondary hover:text-foreground'

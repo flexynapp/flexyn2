@@ -362,7 +362,7 @@ function KineticHeading({ text, kicker, accentWord }) {
         {words.map((w, i) => (
           <motion.span key={i} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.08 + i * 0.06, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-            className="inline-block mr-2"
+            className="inline-block me-2"
             style={{ color: w.replace(/[.,!?]/g, '') === accentWord ? 'hsl(var(--primary))' : undefined }}>
             {w}
           </motion.span>
@@ -413,7 +413,7 @@ function FeatureCarousel() {
       className="relative rounded-[20px] border border-border overflow-hidden p-4"
       style={{ background: 'linear-gradient(180deg, hsl(var(--card) / 0.88), hsl(var(--card) / 0.65))', backdropFilter: 'blur(18px)' }}>
       {/* accent glow */}
-      <div className="absolute -top-10 -right-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
+      <div className="absolute -top-10 -end-10 w-44 h-44 rounded-full blur-[40px] transition-all duration-700 pointer-events-none"
         style={{ background: F.accent, opacity: 0.18 }} />
       {/* card body — keyed so it remounts + plays entry animation on each slide */}
       <div key={F.id} className="flex items-center gap-3"
@@ -479,13 +479,13 @@ function WelcomeStep({ onNext, onSignIn }) {
           {[{w:'Train',d:0.15},{w:'like',d:0.25},{w:'you',d:0.35}].map(({w,d}) => (
             <motion.span key={w} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: d, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className="inline-block mr-3">{w}</motion.span>
+              className="inline-block me-3">{w}</motion.span>
           ))}
           <br />
           {[{w:'actually',d:0.45,c:false},{w:'mean',d:0.55,c:true},{w:'it.',d:0.65,c:false}].map(({w,d,c}) => (
             <motion.span key={w} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ delay: d, duration: 0.55, ease: [0.16,1,0.3,1] }}
-              className={`inline-block mr-3 ${c ? 'text-primary' : ''}`}>{w}</motion.span>
+              className={`inline-block me-3 ${c ? 'text-primary' : ''}`}>{w}</motion.span>
           ))}
         </h1>
       </div>
@@ -538,7 +538,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
         <KineticHeading kicker="Goal · 01" text="What are you here for?" accentWord="for?" />
         <p className="text-sm text-muted-foreground mt-1.5 mb-4 min-h-[40px] transition-all">{helper}</p>
 
@@ -565,7 +565,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
               <motion.button key={g.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.05 + i * 0.07, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => toggle(g.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-left cursor-pointer transition-all"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border text-start cursor-pointer transition-all"
                 style={{
                   borderColor: selected ? g.accent : 'hsl(var(--border))',
                   background: selected ? g.accent.replace(')', ' / 0.07)') : 'hsl(var(--card))',
@@ -605,7 +605,7 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
           {tailors.length > 0 && (
             <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden mt-4 p-3.5 rounded-2xl border bg-card/70 backdrop-blur-sm relative">
-              <div className="absolute -top-8 -right-8 w-28 h-28 rounded-full blur-[30px] pointer-events-none transition-all duration-500"
+              <div className="absolute -top-8 -end-8 w-28 h-28 rounded-full blur-[30px] pointer-events-none transition-all duration-500"
                 style={{ background: primaryAccent, opacity: 0.12 }} />
               <div className="font-mono text-[9.5px] font-bold text-muted-foreground tracking-[0.18em] uppercase mb-2.5 flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: primaryAccent, boxShadow: `0 0 8px ${primaryAccent}` }} />
@@ -650,7 +650,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading kicker="Experience · 02" text="How long have you been training?" accentWord="training?" />
         <p className="text-sm text-muted-foreground mt-2 mb-6">Honest answers get you a better program.</p>
 
@@ -692,7 +692,7 @@ function ExperienceStep({ value, onChange, onNext, onBack, step, total }) {
               <motion.button key={l.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15 + i * 0.05, duration: 0.4 }}
                 onClick={() => onChange(l.id)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border cursor-pointer transition-all text-left"
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border cursor-pointer transition-all text-start"
                 style={{
                   borderColor: selected ? 'hsl(var(--primary))' : 'hsl(var(--border))',
                   background: selected ? 'hsl(var(--primary) / 0.06)' : 'hsl(var(--card))',
@@ -754,7 +754,7 @@ function AssessmentStep({ value, onChange, onNext, onBack, onSkip, step, total }
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
           kicker={`Assessment · ${String(step).padStart(2, '0')}`}
           text="Quick lift check"
@@ -875,10 +875,10 @@ function Scrubber({ min, max, value, onChange, majorEvery = 5 }) {
     <div ref={trackRef} className="relative h-16 overflow-hidden cursor-grab select-none touch-none"
       onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}>
       {/* fade edges */}
-      <div className="absolute inset-y-0 left-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(90deg, hsl(var(--card)), transparent)' }} />
-      <div className="absolute inset-y-0 right-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(270deg, hsl(var(--card)), transparent)' }} />
+      <div className="absolute inset-y-0 start-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(90deg, hsl(var(--card)), transparent)' }} />
+      <div className="absolute inset-y-0 end-0 w-12 z-10 pointer-events-none" style={{ background: 'linear-gradient(270deg, hsl(var(--card)), transparent)' }} />
       {/* cursor line */}
-      <div className="absolute left-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 z-10 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
+      <div className="absolute start-1/2 top-0 bottom-0 w-0.5 -translate-x-1/2 z-10 rounded-full bg-primary shadow-[0_0_8px_hsl(var(--primary))]" />
       {/* ticks */}
       <div className="absolute inset-0" style={{ transform: `translateX(${offset}px)`, transition: dragRef.current.down ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
         {ticks.map(t => {
@@ -947,7 +947,7 @@ function StatCard({ icon, label, value, unit, min, max, majorEvery = 5, onChange
           {value}
         </motion.span>
         <span className="font-heading font-semibold text-xl text-muted-foreground">{unit}</span>
-        {suffix && <span className="font-mono text-[11px] text-muted-foreground ml-1">{suffix}</span>}
+        {suffix && <span className="font-mono text-[11px] text-muted-foreground ms-1">{suffix}</span>}
       </div>
       <Scrubber min={min} max={max} value={value} onChange={onChange} majorEvery={majorEvery} />
     </motion.div>
@@ -1161,7 +1161,7 @@ function AgeStep({ stats, onChange, username, onUsernameChange, usernameError, o
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading kicker={`About You · 0${step}`} text="Tell us about yourself." accentWord="yourself." />
         <p className="text-sm text-muted-foreground mt-2 mb-5">We use this to calibrate your plan. Encrypted, never sold.</p>
 
@@ -1875,7 +1875,7 @@ function StatsStep({ username, onUsernameChange, stats, onChange, onNext, onBack
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto space-y-3 pb-4 pe-2">
         <KineticHeading kicker="Stats · 03" text="A few numbers, then we're done." accentWord="numbers," />
         <p className="text-sm text-muted-foreground mt-2 mb-4">Drag to set. Encrypted, never sold.</p>
 
@@ -1957,7 +1957,7 @@ function DaysStep({ days, preferredTime, onDaysChange, onTimeChange, onNext, onB
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2 space-y-5">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2 space-y-5">
         <KineticHeading kicker={`Schedule · ${String(step).padStart(2, '0')}`} text="Which days can you train?" accentWord="train?" />
         <p className="text-sm text-muted-foreground mt-2">Plan around real life — we'll keep recovery in check.</p>
 
@@ -2088,7 +2088,7 @@ function BodyBaselineStep({ step, total, value, onChange, onNext, onBack, onSkip
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
           kicker="Body baseline · optional"
           text="Starting numbers for your progress graphs."
@@ -2180,7 +2180,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
   return (
     <div className="flex flex-col h-full">
       <StepHeader step={step} total={total} onBack={onBack} />
-      <div className="flex-1 overflow-y-auto pb-4 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pe-2">
         <KineticHeading
           kicker="Any injuries? · optional"
           text="We'll work around them from day one."
@@ -2387,15 +2387,15 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
   return (
     <div className="flex flex-col h-full">
       <Confetti pieces={28} />
-      <div className="flex-1 overflow-y-auto pb-4 pt-2 pr-2">
+      <div className="flex-1 overflow-y-auto pb-4 pt-2 pe-2">
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="font-mono text-[11px] font-bold tracking-[0.18em] text-primary uppercase mb-4">
           Plan ready · 100%
         </motion.div>
 
         <h1 className="font-heading font-bold text-[38px] leading-[1.0] tracking-tight text-foreground m-0 mb-4">
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block mr-3">Welcome</motion.span>
-          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block mr-3">in,</motion.span>
+          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block me-3">Welcome</motion.span>
+          <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block me-3">in,</motion.span>
           <br />
           <motion.span initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.55, ease: [0.16,1,0.3,1] }} className="inline-block text-primary">{data.username || 'lifter'}.</motion.span>
         </h1>
@@ -2418,7 +2418,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
               className="rounded-2xl border bg-card p-4">
               <div className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground mb-2">{label}</div>
               <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
-                {value}<span className="text-muted-foreground text-[13px] font-semibold ml-1">{unit}</span>
+                {value}<span className="text-muted-foreground text-[13px] font-semibold ms-1">{unit}</span>
               </div>
             </motion.div>
           ))}
@@ -2447,7 +2447,7 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
                   transition={{ delay: 0.9 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
                   className="flex items-center justify-between text-[13px]"
                 >
-                  <span className="font-medium text-foreground truncate pr-2">{ex.name}</span>
+                  <span className="font-medium text-foreground truncate pe-2">{ex.name}</span>
                   <span className="font-mono text-[11px] text-muted-foreground shrink-0">{ex.target_sets} × {ex.target_reps}</span>
                 </motion.li>
               ))}

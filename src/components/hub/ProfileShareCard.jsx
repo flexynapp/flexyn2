@@ -249,7 +249,7 @@ export default function ProfileShareCard({ open, onClose, profile }) {
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-2xl overflow-hidden border border-border shadow-md mb-4"
               >
-                <img src={imgUrl} alt="Profile card" className="w-full block" />
+                <img loading="lazy" src={imgUrl} alt="Profile card" className="w-full block" />
               </motion.div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">

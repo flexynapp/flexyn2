@@ -144,13 +144,13 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 Invite up to 15 friends. You can add more later.
               </p>
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                   type="text"
                   placeholder="Search friends…"
                   value={query}
                   onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-secondary rounded-xl pl-9 pr-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
+                  className="w-full bg-secondary rounded-xl ps-9 pe-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
                 />
               </div>
             </div>
@@ -186,11 +186,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                     <button
                       key={p.email}
                       onClick={() => toggle(p)}
-                      className="w-full flex items-center gap-3 py-2.5 text-left"
+                      className="w-full flex items-center gap-3 py-2.5 text-start"
                     >
                       <div className="relative shrink-0">
                         {p.avatar_url ? (
-                          <img src={p.avatar_url} className="w-9 h-9 rounded-full object-cover" alt="" draggable={false} />
+                          <img loading="lazy" src={p.avatar_url} className="w-9 h-9 rounded-full object-cover" alt="" draggable={false} />
                         ) : (
                           <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground">
                             {username.slice(0, 2).toUpperCase()}
@@ -282,7 +282,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 Please choose a different name.
               </p>
             )}
-            <p className="text-right text-[10px] text-muted-foreground mt-1 pr-1">
+            <p className="text-end text-[10px] text-muted-foreground mt-1 pe-1">
               {crewName.length}/40
             </p>
 

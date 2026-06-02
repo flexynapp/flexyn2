@@ -87,7 +87,7 @@ export default function PlateCalculatorModal({ open, onClose, initialWeightLbs =
                   autoFocus
                   className="w-full h-14 rounded-xl bg-secondary/50 border border-border text-center text-3xl font-heading font-black tabular-nums focus:outline-none focus:border-primary/50"
                 />
-                <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">{weightUnit}</span>
+                <span className="absolute end-4 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">{weightUnit}</span>
               </div>
             </div>
 

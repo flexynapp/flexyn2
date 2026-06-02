@@ -537,7 +537,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
           dumbbells today" without typing the equipment into the
           search box. */}
       {(open || equipmentFilter !== 'all') && (
-        <div className="absolute z-50 top-full mt-1 left-0 right-0 flex gap-1 overflow-x-auto px-1 pb-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+        <div className="absolute z-50 top-full mt-1 start-0 end-0 flex gap-1 overflow-x-auto px-1 pb-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
           {EQUIPMENT_FILTERS.map(f => (
             <button
               key={f.id}
@@ -555,13 +555,13 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
         </div>
       )}
       {open && suggestions.length > 0 && (
-        <div className="absolute z-40 left-0 right-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto" style={{ top: 'calc(100% + 28px)' }}>
+        <div className="absolute z-40 start-0 end-0 bg-card border border-border rounded-lg shadow-lg overflow-hidden max-h-64 overflow-y-auto" style={{ top: 'calc(100% + 28px)' }}>
           {suggestions.map((ex) => (
             <button
               key={ex.name}
               type="button"
               onMouseDown={() => handleSelect(ex)}
-              className="w-full text-left px-3 py-2.5 text-sm hover:bg-secondary transition-colors flex items-center justify-between gap-3"
+              className="w-full text-start px-3 py-2.5 text-sm hover:bg-secondary transition-colors flex items-center justify-between gap-3"
             >
               <span className="font-medium">{ex.displayName}</span>
               <span className="text-xs text-muted-foreground truncate">{ex.muscles.map(m => t(`muscleGroups.${muscleKey(m)}`)).join(', ')}</span>

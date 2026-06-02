@@ -79,7 +79,7 @@ export default function BountyCard({ bounty, hasActiveClaim = false, compact = f
         {/* Header row: avatar + name + difficulty badge */}
         <div className="flex items-center gap-2.5">
           {bounty.target_avatar_url ? (
-            <img src={bounty.target_avatar_url} className="w-9 h-9 rounded-full object-cover shrink-0" alt={bounty.target_username} />
+            <img loading="lazy" src={bounty.target_avatar_url} className="w-9 h-9 rounded-full object-cover shrink-0" alt={bounty.target_username} />
           ) : (
             <div className="w-9 h-9 rounded-full bg-amber-500/15 flex items-center justify-center shrink-0">
               <span className="text-sm font-black text-amber-600">{bounty.target_username?.[0]?.toUpperCase()}</span>

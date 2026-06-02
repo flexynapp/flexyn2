@@ -162,8 +162,8 @@ function EntryForm({ initial, onSave, onCancel, t, weightUnit }) {
         <Input placeholder={t('bodyMetrics.notesPlaceholder')} value={form.notes} onChange={e => set('notes', e.target.value)} />
       </div>
       <div className="flex gap-2 justify-end">
-        <Button variant="outline" size="sm" onClick={onCancel}><X className="w-3.5 h-3.5 mr-1" /> {t('common.cancel')}</Button>
-        <Button size="sm" onClick={handleSave} disabled={!form.date}><Check className="w-3.5 h-3.5 mr-1" /> {t('common.save')}</Button>
+        <Button variant="outline" size="sm" onClick={onCancel}><X className="w-3.5 h-3.5 me-1" /> {t('common.cancel')}</Button>
+        <Button size="sm" onClick={handleSave} disabled={!form.date}><Check className="w-3.5 h-3.5 me-1" /> {t('common.save')}</Button>
       </div>
     </Card>
   );
@@ -389,7 +389,7 @@ export default function BodyMetricsTab() {
               <p className="font-heading font-bold text-2xl">{formatHeight(profile.height_inches)}</p>
               <p className="text-xs text-muted-foreground mt-1">{Math.round(profile.height_inches * 2.54)} cm</p>
               <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('height_inches'); setEditValue(profile?.height_inches?.toString() || ''); }}>
-                <Pencil className="w-3 h-3 mr-1" /> Edit
+                <Pencil className="w-3 h-3 me-1" /> Edit
               </Button>
             </Card>
           )}
@@ -401,7 +401,7 @@ export default function BodyMetricsTab() {
               <p className="text-xs text-muted-foreground mb-1">{t('progress.bodyMetrics.weight')}</p>
               <p className="font-heading font-bold text-2xl">{formatWeight(profile.weight_lbs, weightUnit)}</p>
               <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('weight_lbs'); setEditValue(formatWeightNumber(profile?.weight_lbs, weightUnit)); }}>
-                <Pencil className="w-3 h-3 mr-1" /> Edit
+                <Pencil className="w-3 h-3 me-1" /> Edit
               </Button>
             </Card>
           )}
@@ -416,7 +416,7 @@ export default function BodyMetricsTab() {
                 <p className="text-xs text-muted-foreground mt-0.5">{safeDateFormat(profile.birthday, 'MMM d')}</p>
               )}
               <Button size="sm" variant="ghost" className="h-6 text-xs mt-3" onClick={() => { setEditingProfile('birthday'); setEditValue(profile.birthday?.slice(0, 10) || ''); }}>
-                <Pencil className="w-3 h-3 mr-1" /> Edit
+                <Pencil className="w-3 h-3 me-1" /> Edit
               </Button>
             </Card>
           )}
@@ -495,7 +495,7 @@ export default function BodyMetricsTab() {
         <EntryForm initial={initialForm ? { ...empty(), ...initialForm } : undefined} onSave={d => createMutation.mutate(d)} onCancel={() => setShowForm(false)} t={t} weightUnit={weightUnit} />
         ) : (
           <Button variant="outline" className="w-full" onClick={() => setShowForm(true)}>
-            <Plus className="w-4 h-4 mr-2" /> {t('progress.bodyMetrics.addEntry')}
+            <Plus className="w-4 h-4 me-2" /> {t('progress.bodyMetrics.addEntry')}
           </Button>
         )}
 

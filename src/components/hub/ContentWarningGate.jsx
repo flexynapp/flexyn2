@@ -8,7 +8,7 @@
 // USAGE
 //
 //   <ContentWarningGate warning="graphic_injury">
-//     <img src={post.image_url} />
+//     <img loading="lazy" src={post.image_url} />
 //     <p>{post.content}</p>
 //   </ContentWarningGate>
 //

@@ -71,14 +71,14 @@ export default function FirstWorkoutTutorial({ userId, onClose }) {
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
           transition={{ type: 'spring', stiffness: 280, damping: 28 }}
-          className="fixed left-2 right-2 sm:left-4 sm:right-4 z-40 pointer-events-none"
+          className="fixed start-2 end-2 sm:start-4 sm:end-4 z-40 pointer-events-none"
           style={{ bottom: 'calc(env(safe-area-inset-bottom, 0) + 72px)' }}
         >
           <div className="max-w-md mx-auto pointer-events-auto">
             <div className="relative rounded-2xl bg-card border border-primary/35 shadow-2xl shadow-primary/15 overflow-hidden">
               {/* Subtle radial accent so the card pops over the workout
                   view without being visually noisy. */}
-              <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full blur-3xl bg-primary/25 pointer-events-none" />
+              <div className="absolute -top-10 -end-10 w-40 h-40 rounded-full blur-3xl bg-primary/25 pointer-events-none" />
 
               <div className="relative p-4">
                 <div className="flex items-start gap-3">

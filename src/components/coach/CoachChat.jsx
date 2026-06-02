@@ -229,7 +229,7 @@ export default function CoachChat() {
       <div
         ref={scrollerRef}
         onScroll={handleScroll}
-        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-1"
+        className="flex-1 min-h-0 overflow-y-auto overscroll-contain pe-1"
       >
         {isEmpty ? (
           <CoachWelcome onPick={handleSend} tFallback={tFallback} />
@@ -430,7 +430,7 @@ function CoachWelcome({ onPick, tFallback }) {
           <button
             key={p.id}
             onClick={() => onPick(p.text)}
-            className="w-full text-left px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary border border-border/50 text-sm transition-colors"
+            className="w-full text-start px-3 py-2.5 rounded-lg bg-secondary/50 hover:bg-secondary border border-border/50 text-sm transition-colors"
           >
             {p.text}
           </button>

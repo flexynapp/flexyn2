@@ -140,10 +140,10 @@ function PlanForm({ onSave, onCancel, distanceUnit }) {
               inputMode="decimal"
               value={distance}
               onChange={e => setDistance(e.target.value)}
-              className="pr-10"
+              className="pe-10"
               placeholder="0.00"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{distanceUnit}</span>
+            <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{distanceUnit}</span>
           </div>
         </div>
 
@@ -242,7 +242,7 @@ export default function CardioPlanned() {
           variant="outline"
           onClick={() => setAdding(true)}
         >
-          <Plus className="w-4 h-4 mr-2" />
+          <Plus className="w-4 h-4 me-2" />
           Schedule a Session
         </Button>
       )}

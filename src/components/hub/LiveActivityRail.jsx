@@ -55,7 +55,7 @@ function ActiveAvatar({ user, onClick }) {
             unambiguous "online" signal at small sizes. */}
         <span
           aria-hidden="true"
-          className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background"
+          className="absolute bottom-0 end-0 w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-background"
         />
       </div>
       <span className="text-[10px] font-medium text-foreground truncate w-full text-center group-hover:text-primary transition-colors">

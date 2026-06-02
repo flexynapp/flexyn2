@@ -90,11 +90,11 @@ export default function ExerciseProgressCard({ exerciseName, logs, timeRange }) 
           </motion.div>
           <span className="font-heading font-bold text-sm">{displayName}</span>
           {latest && (
-            <div className="flex gap-3 ml-2">
+            <div className="flex gap-3 ms-2">
               <span className="text-xs text-muted-foreground">
                 {formatWeight(latest['Max Weight (lbs)'], weightUnit)}
                 {weightDelta !== null && (
-                  <span className={`ml-1 font-medium ${weightDelta > 0 ? 'text-accent' : weightDelta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  <span className={`ms-1 font-medium ${weightDelta > 0 ? 'text-accent' : weightDelta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                     ({weightDelta > 0 ? '+' : ''}{formatWeight(Math.abs(weightDelta), weightUnit)})
                   </span>
                 )}
@@ -102,7 +102,7 @@ export default function ExerciseProgressCard({ exerciseName, logs, timeRange }) 
               <span className="text-xs text-muted-foreground">
                 {latest['Max Reps']} {t('common.reps')}
                 {repsDelta !== null && (
-                  <span className={`ml-1 font-medium ${repsDelta > 0 ? 'text-accent' : repsDelta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
+                  <span className={`ms-1 font-medium ${repsDelta > 0 ? 'text-accent' : repsDelta < 0 ? 'text-destructive' : 'text-muted-foreground'}`}>
                     ({repsDelta > 0 ? '+' : ''}{repsDelta})
                   </span>
                 )}

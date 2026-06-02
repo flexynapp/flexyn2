@@ -332,9 +332,9 @@ export default function RegimenTemplateStore({ open, onClose }) {
         {/* Search + filter bar */}
         <div className="px-5 pb-3 space-y-2 shrink-0">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              className="pl-9"
+              className="ps-9"
               placeholder={t('regimens.searchTemplates')}
               value={search}
               onChange={e => setSearch(e.target.value)}

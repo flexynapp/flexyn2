@@ -155,7 +155,7 @@ export default function NemesisCard({ currentUserId }) {
         {/* Profile */}
         <div className="flex items-center gap-4 px-4 pb-3 pt-2">
           {avatar ? (
-            <img src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
+            <img loading="lazy" src={avatar} className="w-14 h-14 rounded-full object-cover shrink-0 ring-2 ring-rose-500/30" alt={name} />
           ) : (
             <div className="w-14 h-14 rounded-full bg-rose-500/20 ring-2 ring-rose-500/30 flex items-center justify-center shrink-0">
               <span className="text-xl font-black text-rose-500">{name[0]?.toUpperCase()}</span>

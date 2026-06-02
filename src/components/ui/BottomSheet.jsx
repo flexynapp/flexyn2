@@ -78,7 +78,7 @@ export default function BottomSheet({
           {/* Sheet panel */}
           <motion.div
             key="bs-panel"
-            className={`fixed bottom-0 left-0 right-0 z-[201] bg-background rounded-t-2xl flex flex-col overflow-hidden ${className}`}
+            className={`fixed bottom-0 start-0 end-0 z-[201] bg-background rounded-t-2xl flex flex-col overflow-hidden ${className}`}
             style={{
               maxHeight,
               y,

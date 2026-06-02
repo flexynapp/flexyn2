@@ -328,7 +328,7 @@ export default function WorkoutShareCard({ open, onClose, workout, username, inc
                 animate={{ opacity: 1, scale: 1 }}
                 className="rounded-2xl overflow-hidden border border-border shadow-md mb-4"
               >
-                <img src={imgUrl} alt="Workout summary" className="w-full block" />
+                <img loading="lazy" src={imgUrl} alt="Workout summary" className="w-full block" />
               </motion.div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">

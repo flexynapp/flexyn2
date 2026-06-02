@@ -169,7 +169,7 @@ export default function AchievementsModal({ open, onClose, achievements = [], us
                                 </div>
                                 {ach.unlocked && (
                                   <Badge className="text-xs bg-green-600 text-white shrink-0">
-                                    <Star className="w-2.5 h-2.5 mr-1" /> +{ach.xp_reward} XP
+                                    <Star className="w-2.5 h-2.5 me-1" /> +{ach.xp_reward} XP
                                   </Badge>
                                 )}
                               </div>

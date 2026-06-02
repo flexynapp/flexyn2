@@ -85,7 +85,7 @@ function StoryOverlayText({ style, containerRef }) {
 function MiniAvatar({ profile }) {
   const initials = (profile?.username || '?').slice(0, 2).toUpperCase();
   return profile?.avatar_url ? (
-    <img src={profile.avatar_url} alt={profile.username}
+    <img loading="lazy" src={profile.avatar_url} alt={profile.username}
       className="w-9 h-9 rounded-full object-cover shrink-0" draggable={false} />
   ) : (
     <div className="w-9 h-9 rounded-full bg-secondary flex items-center justify-center text-xs font-bold text-muted-foreground shrink-0">
@@ -115,7 +115,7 @@ function InsightsPanel({ storyId, onClose }) {
       dragElastic={{ top: 0.05, bottom: 0.3 }}
       onDragEnd={(_, info) => { if (info.offset.y > 70) onClose(); }}
       onClick={e => e.stopPropagation()}
-      className="absolute bottom-0 left-0 right-0 bg-card rounded-t-3xl z-20 max-h-[72vh] flex flex-col"
+      className="absolute bottom-0 start-0 end-0 bg-card rounded-t-3xl z-20 max-h-[72vh] flex flex-col"
       style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}
     >
       <div className="flex justify-center pt-3 pb-1 shrink-0">
@@ -483,11 +483,11 @@ export default function StoryViewer({
             )}
 
             {/* ── Top gradient ─────────────────────────────────────────── */}
-            <div className="absolute top-0 left-0 right-0 h-36 pointer-events-none"
+            <div className="absolute top-0 start-0 end-0 h-36 pointer-events-none"
               style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.6) 0%, transparent 100%)' }} />
 
             {/* ── Progress bars ────────────────────────────────────────── */}
-            <div className="absolute top-0 left-0 right-0 flex gap-1 px-3"
+            <div className="absolute top-0 start-0 end-0 flex gap-1 px-3"
               style={{ paddingTop: 'max(14px, env(safe-area-inset-top))' }}>
               {currentGroup.stories.map((s, i) => (
                 <div key={s.id} className="flex-1 h-0.5 rounded-full bg-white/30 overflow-hidden">
@@ -503,12 +503,12 @@ export default function StoryViewer({
             </div>
 
             {/* ── User info + controls ─────────────────────────────────── */}
-            <div className="absolute left-0 right-0 flex items-center justify-between px-3 mt-2"
+            <div className="absolute start-0 end-0 flex items-center justify-between px-3 mt-2"
               style={{ top: 'max(30px, calc(env(safe-area-inset-top) + 16px))' }}>
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full overflow-hidden ring-1 ring-white/40 shrink-0">
                   {currentGroup.avatarUrl
-                    ? <img src={currentGroup.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
+                    ? <img loading="lazy" src={currentGroup.avatarUrl} alt="" className="w-full h-full object-cover" draggable={false} />
                     : <div className="w-full h-full bg-white/20 flex items-center justify-center text-[10px] font-bold text-white">
                         {currentGroup.username.slice(0, 2).toUpperCase()}
                       </div>
@@ -555,12 +555,12 @@ export default function StoryViewer({
             </div>
 
             {/* ── Bottom gradient ──────────────────────────────────────── */}
-            <div className="absolute bottom-0 left-0 right-0 h-40 pointer-events-none"
+            <div className="absolute bottom-0 start-0 end-0 h-40 pointer-events-none"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)' }} />
 
             {/* ── Bottom bar — own stories ─────────────────────────────── */}
             {currentGroup.isOwn && (
-              <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between px-4"
+              <div className="absolute bottom-0 start-0 end-0 flex items-end justify-between px-4"
                 style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
                 {/* Like (own — for testing) */}
                 <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
@@ -620,18 +620,17 @@ export default function StoryViewer({
 
             {/* ── Bottom bar — non-own stories ─────────────────────────── */}
             {!currentGroup.isOwn && (
-              <div className="absolute bottom-0 left-0 right-0 px-3"
+              <div className="absolute bottom-0 start-0 end-0 px-3"
                 style={{ paddingBottom: 'max(20px, env(safe-area-inset-bottom))' }}>
 
                 {/* Story context thumbnail — always shown above reply bar */}
                 {currentStory?.image_url && !currentGroup.storyDmsDisabled && (
-                  <div className="flex items-center gap-2 mb-2.5 ml-1" onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center gap-2 mb-2.5 ms-1" onClick={e => e.stopPropagation()}>
                     <div
                       className="rounded-xl overflow-hidden shrink-0"
                       style={{ width: 52, height: 52, opacity: 0.75, boxShadow: '0 0 0 1.5px rgba(255,255,255,0.25)' }}
                     >
-                      <img
-                        src={currentStory.image_url}
+                      <img loading="lazy" src={currentStory.image_url}
                         className="w-full h-full object-cover"
                         alt=""
                         draggable={false}
@@ -687,9 +686,9 @@ export default function StoryViewer({
             )}
 
             {/* ── Tap zones (stop 90px from bottom) ───────────────────── */}
-            <div className="absolute left-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
+            <div className="absolute start-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
               onClick={goBack} aria-label="Previous story" />
-            <div className="absolute right-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
+            <div className="absolute end-0 top-0 w-[35%] cursor-pointer" style={{ bottom: '90px' }}
               onClick={goNext} aria-label="Next story" />
             {/* Center 30% — tap to toggle pause, hold to pause for as
                 long as the press is held. Matches Instagram /

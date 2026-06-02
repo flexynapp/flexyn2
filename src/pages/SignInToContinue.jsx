@@ -101,7 +101,7 @@ export default function SignInToContinue({
         className="pt-10 flex flex-col items-center gap-2"
       >
         <div className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg shadow-primary/30">
-          <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+          <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
         </div>
         <p className="font-heading text-2xl font-bold tracking-tight">Flexyn</p>
       </motion.div>

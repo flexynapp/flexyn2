@@ -130,7 +130,7 @@ export default function VoiceMemoRecorder({ onComplete, onError }) {
         ? (cancelling ? <Trash2 className="w-4 h-4" /> : <Mic className="w-4 h-4" />)
         : <Mic className="w-4 h-4" />}
       {recording && (
-        <span className="absolute -top-7 left-1/2 -translate-x-1/2 text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-md bg-card border border-border text-foreground whitespace-nowrap">
+        <span className="absolute -top-7 start-1/2 -translate-x-1/2 text-[11px] font-bold tabular-nums px-2 py-0.5 rounded-md bg-card border border-border text-foreground whitespace-nowrap">
           {cancelling ? 'Release to cancel' : formatDuration(elapsedMs)}
         </span>
       )}

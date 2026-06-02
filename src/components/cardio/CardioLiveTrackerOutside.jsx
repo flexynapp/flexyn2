@@ -742,7 +742,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
     return (
       <Card className="p-8 text-center">
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
-          <Play className="w-10 h-10 text-primary ml-1" />
+          <Play className="w-10 h-10 text-primary ms-1" />
         </div>
         <h2 className="font-heading text-2xl font-bold mb-2">
           {mode === 'running' ? t('cardio.modes.running') :
@@ -753,11 +753,11 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
           <Card className="p-4 mb-4 border-border/60">
             <div className="flex items-start gap-3">
               <span className="text-3xl mt-0.5">{weatherEmoji(weather.code)}</span>
-              <div className="flex-1 text-left space-y-1.5">
+              <div className="flex-1 text-start space-y-1.5">
                 <div className="flex items-center flex-wrap gap-x-3 gap-y-0.5">
                   <p className="text-sm font-semibold">
                     {weather.temp}{weather.unit}
-                    <span className="text-muted-foreground text-xs font-normal ml-1.5">
+                    <span className="text-muted-foreground text-xs font-normal ms-1.5">
                       ({t('cardio.weather.feelsLike')} {weather.feels}{weather.unit})
                     </span>
                   </p>
@@ -789,7 +789,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
           </Card>
         )}
         <Button className="w-full h-14 font-heading font-bold text-base" onClick={start}>
-          <Play className="w-5 h-5 mr-2" />
+          <Play className="w-5 h-5 me-2" />
           {t('cardio.live.start')}
         </Button>
       </Card>
@@ -834,7 +834,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
             onClick={save}
             disabled={saving}
           >
-            <Save className="w-5 h-5 mr-2" />
+            <Save className="w-5 h-5 me-2" />
             {saving ? t('cardio.saving') : t('cardio.save')}
           </Button>
           <Button
@@ -843,7 +843,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
             onClick={onCancel}
             disabled={saving}
           >
-            <X className="w-4 h-4 mr-2" />
+            <X className="w-4 h-4 me-2" />
             {t('cardio.live.discard')}
           </Button>
         </div>
@@ -857,7 +857,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
       <Card className="p-5 relative">
         {/* Discard button */}
         <button
-          className="absolute top-3 right-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+          className="absolute top-3 end-3 p-1.5 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
           onClick={() => setConfirmDiscardOpen(true)}
         >
           <X className="w-4 h-4" />
@@ -895,12 +895,12 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         <div className="flex gap-3">
           {status === 'tracking' ? (
             <Button variant="outline" className="flex-1 h-12 font-heading font-bold" onClick={pause}>
-              <Pause className="w-5 h-5 mr-2" />
+              <Pause className="w-5 h-5 me-2" />
               {t('cardio.live.pause')}
             </Button>
           ) : (
             <Button className="flex-1 h-12 font-heading font-bold" onClick={resume}>
-              <Play className="w-5 h-5 mr-2" />
+              <Play className="w-5 h-5 me-2" />
               {t('cardio.live.resume')}
             </Button>
           )}
@@ -909,7 +909,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
             className="flex-1 h-12 font-heading font-bold"
             onClick={finish}
           >
-            <Square className="w-5 h-5 mr-2" />
+            <Square className="w-5 h-5 me-2" />
             {t('cardio.live.finish')}
           </Button>
         </div>

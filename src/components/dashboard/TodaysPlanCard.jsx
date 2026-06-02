@@ -108,10 +108,15 @@ export default function TodaysPlanCard({ regimens = [], logs = [], hasWorkedOutT
     // The regimen due next = the one used least recently
     // (or never used, which means it's definitely due)
     scored.sort((a, b) => a.last - b.last);
-    const due = scored[0].regimen;
-
-    // If it was used today, it's actually done
-    const dueLastTs = scored[0].last;
+    // Defensive — early returns above ensure `active.length >= 2`, so
+    // `scored[0]` is always defined under normal flow. Guard anyway
+    // for the corrupt-data case where `active.map(...)` returns rows
+    // without a `regimen` field (e.g. a future schema change). Bailing
+    // here is better than rendering undefined.regimen down the tree.
+    const top = scored[0];
+    if (!top || !top.regimen) return null;
+    const due = top.regimen;
+    const dueLastTs = Number.isFinite(top.last) ? top.last : 0;
     const doneToday = dueLastTs >= today;
 
     return { regimen: due, doneToday, info: inferDayLabel(due) };

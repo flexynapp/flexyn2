@@ -100,7 +100,7 @@ export default function GymAboutCard({ gym }) {
             <button
               type="button"
               onClick={() => setExpandedDay(v => !v)}
-              className="w-full flex items-center justify-between gap-2 text-left"
+              className="w-full flex items-center justify-between gap-2 text-start"
               aria-expanded={expandedDay}
             >
               <span className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -165,13 +165,12 @@ export default function GymAboutCard({ gym }) {
             <button
               type="button"
               onClick={() => setLightbox(null)}
-              className="absolute top-4 right-4 w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center"
+              className="absolute top-4 end-4 w-9 h-9 rounded-full bg-white/15 text-white flex items-center justify-center"
               aria-label="Close"
             >
               <X className="w-5 h-5" />
             </button>
-            <img
-              src={lightbox.url}
+            <img loading="lazy" src={lightbox.url}
               alt=""
               className="max-w-full max-h-full object-contain rounded-xl"
               onClick={(e) => e.stopPropagation()}

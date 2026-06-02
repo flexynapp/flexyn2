@@ -81,7 +81,7 @@ export default function FriendLeaderboardPanel() {
         type="button"
         onClick={() => setExpanded(v => !v)}
         aria-expanded={expanded}
-        className={`w-full px-4 py-2 flex items-center justify-between text-left ${expanded ? 'border-b border-border' : ''}`}
+        className={`w-full px-4 py-2 flex items-center justify-between text-start ${expanded ? 'border-b border-border' : ''}`}
       >
         <div className="flex items-center gap-2">
           <Users className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
@@ -162,7 +162,7 @@ export default function FriendLeaderboardPanel() {
                         {row.is_self ? (
                           <>
                             {row.username}
-                            <span className="ml-1.5 text-[9px] font-bold uppercase tracking-wider text-primary/80">
+                            <span className="ms-1.5 text-[9px] font-bold uppercase tracking-wider text-primary/80">
                               {tFallback('friendLeaderboard.you', 'You')}
                             </span>
                           </>
