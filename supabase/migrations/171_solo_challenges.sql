@@ -159,8 +159,12 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  -- Paste-safety: kegan's clipboard pipeline mangles short
+  -- `<alias>.id` tokens in JOIN clauses (`sc.id` → `<sc.id>`,
+  -- 42601). Rewrote the JOIN into two sequential scalar lookups so
+  -- there are zero dotted `.id` references anywhere. Same semantics,
+  -- one extra round-trip in the function (negligible for an admin RPC).
   v_uid           UUID := auth.uid();
-  v_email         TEXT;
   v_progress      NUMERIC;
   v_target        NUMERIC;
   v_reward        INT;
@@ -172,16 +176,21 @@ BEGIN
     RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '42501';
   END IF;
 
-  SELECT c.challenge_id, c.progress, c.status, sc.target_value, sc.reward_coins
-    INTO v_challenge_id, v_progress, v_status, v_target, v_reward
-    FROM public.solo_challenge_claims c
-    JOIN public.solo_challenges sc ON sc.id = c.challenge_id
-   WHERE c.id = p_claim_id
-     AND c.user_id = v_uid
-   FOR UPDATE OF c;
+  SELECT challenge_id, progress, status
+    INTO v_challenge_id, v_progress, v_status
+    FROM public.solo_challenge_claims
+   WHERE id = p_claim_id
+     AND user_id = v_uid
+   FOR UPDATE;
   IF NOT FOUND THEN
     RAISE EXCEPTION 'claim not found' USING ERRCODE = '22023';
   END IF;
+
+  SELECT target_value, reward_coins
+    INTO v_target, v_reward
+    FROM public.solo_challenges
+   WHERE id = v_challenge_id;
+
   IF v_status = 'completed' THEN
     -- Already paid — return idempotently rather than double-credit.
     SELECT flex_coins INTO v_new_balance FROM public.user_profiles WHERE id = v_uid;
@@ -237,43 +246,53 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 DECLARE
+  -- Paste-safety: same `<alias>.id` mangling as complete_solo_challenge
+  -- above. Rewrote the loop body to iterate over scalar claim/challenge
+  -- ids and do a separate scalar lookup for the challenge metadata —
+  -- no JOIN, no `.id` dotted references, no record-field access in
+  -- the body (RECORD type replaced with explicit scalars).
   v_uid       UUID := auth.uid();
-  v_row       RECORD;
+  v_claim_id  UUID;
+  v_chall_id  UUID;
+  v_current   NUMERIC;
+  v_kind      TEXT;
+  v_target    NUMERIC;
+  v_increment NUMERIC;
   v_bumped    INT := 0;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'unauthenticated' USING ERRCODE = '42501';
   END IF;
 
-  FOR v_row IN
-    SELECT c.id AS claim_id, sc.kind, sc.target_value, c.progress
-      FROM public.solo_challenge_claims c
-      JOIN public.solo_challenges sc ON sc.id = c.challenge_id
-     WHERE c.user_id = v_uid
-       AND c.status  = 'active'
-       AND sc.is_active = TRUE
-       AND sc.expires_at > NOW()
+  FOR v_claim_id, v_chall_id, v_current IN
+    SELECT id, challenge_id, progress
+      FROM public.solo_challenge_claims
+     WHERE user_id = v_uid
+       AND status  = 'active'
   LOOP
-    -- Add the relevant signal to existing progress (cumulative across
-    -- the week). For "any PR" the signal is 0/1 so addition mirrors
-    -- "hit at least once."
-    DECLARE
-      v_increment NUMERIC := 0;
-    BEGIN
-      v_increment := CASE v_row.kind
-        WHEN 'weekly_volume'   THEN p_volume_lbs
-        WHEN 'workout_count'   THEN p_session_count
-        WHEN 'cardio_minutes'  THEN p_cardio_min
-        WHEN 'beat_any_pr'     THEN p_prs_hit
-        ELSE 0
-      END;
-      IF v_increment > 0 THEN
-        UPDATE public.solo_challenge_claims
-           SET progress = LEAST(v_row.target_value, v_row.progress + v_increment)
-         WHERE id = v_row.claim_id;
-        v_bumped := v_bumped + 1;
-      END IF;
+    SELECT kind, target_value
+      INTO v_kind, v_target
+      FROM public.solo_challenges
+     WHERE id = v_chall_id
+       AND is_active = TRUE
+       AND expires_at > NOW();
+
+    IF NOT FOUND THEN CONTINUE; END IF;
+
+    v_increment := CASE v_kind
+      WHEN 'weekly_volume'   THEN p_volume_lbs
+      WHEN 'workout_count'   THEN p_session_count
+      WHEN 'cardio_minutes'  THEN p_cardio_min
+      WHEN 'beat_any_pr'     THEN p_prs_hit
+      ELSE 0
     END;
+
+    IF v_increment > 0 THEN
+      UPDATE public.solo_challenge_claims
+         SET progress = LEAST(v_target, v_current + v_increment)
+       WHERE id = v_claim_id;
+      v_bumped := v_bumped + 1;
+    END IF;
   END LOOP;
 
   RETURN jsonb_build_object('claims_updated', v_bumped);
