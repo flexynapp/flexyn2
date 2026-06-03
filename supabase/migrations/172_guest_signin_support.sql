@@ -39,32 +39,32 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
-  -- Pulled into scalars up front so the SQL stays paste-safe — the
-  -- chat → Supabase SQL Editor clipboard pipeline mangles
-  -- record-field `.<field>` tokens inside string concatenation
-  -- (`'guest_' || NEW.id || '@flexyn.guest'` came back as
-  -- `<NEW.id>`, 42601). Each NEW.<field> read sits on its own
-  -- assignment line and the placeholder is built with format(),
-  -- not the `||` operator the pipeline also chokes on.
+  -- Paste-safety: kegan's chat → Supabase SQL Editor pipeline
+  -- wraps every `NEW.<field>` token as `<NEW.field>`, breaking
+  -- assignment AND concatenation. Even rewriting each access
+  -- onto its own line didn't help (`v_id := NEW.id;` became
+  -- `v_id := <NEW.id>;`). Fix: convert NEW to JSONB once via the
+  -- function call form (no dotted reference), then pull every
+  -- field through ->> by name. Only NEW tokens left are
+  -- `to_jsonb(NEW)` and `RETURN NEW;` — both standalone, no dot.
+  v_row    JSONB;
   v_id     UUID;
   v_email  TEXT;
-  v_meta   JSONB;
+  v_name   TEXT;
+  v_avatar TEXT;
 BEGIN
-  v_id    := NEW.id;
-  v_email := NEW.email;
-  v_meta  := NEW.raw_user_meta_data;
+  v_row    := to_jsonb(NEW);
+  v_id     := (v_row->>'id')::uuid;
+  v_email  := v_row->>'email';
+  v_name   := v_row->'raw_user_meta_data'->>'full_name';
+  v_avatar := v_row->'raw_user_meta_data'->>'avatar_url';
 
   IF v_email IS NULL THEN
     v_email := format('guest_%s@flexyn.guest', v_id);
   END IF;
 
   INSERT INTO public.user_profiles (id, email, full_name, avatar_url)
-  VALUES (
-    v_id,
-    v_email,
-    v_meta->>'full_name',
-    v_meta->>'avatar_url'
-  )
+  VALUES (v_id, v_email, v_name, v_avatar)
   ON CONFLICT (id) DO NOTHING;
 
   RETURN NEW;
