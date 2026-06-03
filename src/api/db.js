@@ -99,10 +99,19 @@ function makeEntity(entityName) {
       // RPC, not the entity wrapper.
       const { data: { session } } = await supabase.auth.getSession().catch(() => ({ data: { session: null } }));
       const authUser = session?.user ?? null;
+      // Guest / anonymous users have authUser.email = null. Most
+      // tables in this app have `created_by text not null`, so a
+      // null email would 23502 every write the moment a guest tries
+      // to log anything. Synthesize the same placeholder the
+      // handle_new_user trigger writes to user_profiles.email
+      // (migration 172) so the value is consistent across the
+      // identity layer.
+      const effectiveEmail = authUser?.email
+        || (authUser?.id ? `guest_${authUser.id}@flexyn.guest` : null);
       const enriched = {
         ...data, // caller values for non-identity fields
-        ...(authUser?.email ? { created_by: authUser.email } : {}),
-        ...(authUser?.id    ? { user_id:    authUser.id    } : {}),
+        ...(effectiveEmail   ? { created_by: effectiveEmail } : {}),
+        ...(authUser?.id     ? { user_id:    authUser.id    } : {}),
       };
 
       let payload = { ...enriched };
@@ -377,6 +386,36 @@ const auth = {
     });
     if (error) throw error;
     return { ok: true };
+  },
+
+  /**
+   * Anonymous / guest sign-in for beta testers who can't (or don't
+   * want to) deal with email magic-link / OAuth friction. Creates a
+   * real auth.users row with email = NULL; migration 172's
+   * handle_new_user trigger writes a placeholder
+   * `guest_<uuid>@flexyn.guest` to user_profiles.email so the rest
+   * of the app's email-keyed identity model keeps working.
+   *
+   * Requires Supabase Dashboard → Authentication → Providers →
+   * Email → "Enable anonymous sign-ins" turned ON. Without it,
+   * Supabase returns a 422 which we surface as a recognizable
+   * 'anonymous_disabled' reason so the caller can show a useful
+   * error message.
+   */
+  async signInAsGuest() {
+    const { data, error } = await supabase.auth.signInAnonymously();
+    if (error) {
+      const msg = (error.message || '').toLowerCase();
+      const code = error.code || error.status;
+      if (msg.includes('anonymous') && (msg.includes('disabled') || msg.includes('not allowed'))) {
+        return { ok: false, reason: 'anonymous_disabled' };
+      }
+      if (code === 422) {
+        return { ok: false, reason: 'anonymous_disabled' };
+      }
+      return { ok: false, reason: error.message || 'sign_in_failed' };
+    }
+    return { ok: true, user: data?.user ?? null };
   },
 
   /**

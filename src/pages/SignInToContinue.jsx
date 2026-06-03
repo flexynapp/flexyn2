@@ -38,6 +38,36 @@ export default function SignInToContinue({
   const [sendingMagicLink, setSendingMagicLink] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [appleLoading, setAppleLoading] = useState(false);
+  const [guestLoading, setGuestLoading] = useState(false);
+
+  // Guest / anonymous sign-in — for beta testers hitting OAuth or
+  // SMTP rate-limit walls. Creates a real auth.users row with no
+  // email; migration 172's trigger writes a placeholder
+  // user_profiles.email so the rest of the app's identity layer
+  // doesn't blow up. On release, all guest accounts are expected
+  // to be reset (kegan's call).
+  const handleGuestSignIn = async () => {
+    if (guestLoading) return;
+    setGuestLoading(true);
+    try {
+      const res = await db.auth.signInAsGuest();
+      if (!res.ok) {
+        if (res.reason === 'anonymous_disabled') {
+          toast.error('Guest sign-in isn\'t enabled on this server yet.');
+        } else {
+          toast.error(`Could not start a guest session: ${res.reason}`);
+        }
+        return;
+      }
+      // The onAuthStateChange listener in AuthContext picks up the
+      // SIGNED_IN event and routes the user into the app. No
+      // navigation needed here.
+    } catch (err) {
+      toast.error('Could not start a guest session. Try again.');
+    } finally {
+      setGuestLoading(false);
+    }
+  };
 
   const handleProvider = async (provider, setter) => {
     setter(true);
@@ -223,6 +253,34 @@ export default function SignInToContinue({
               {!sendingMagicLink && <ArrowRight className="w-4 h-4 ms-auto" />}
             </Button>
           </form>
+        )}
+
+        {/* Guest sign-in — for beta testers hitting OAuth or
+            SMTP-rate-limit walls. Visually de-emphasized so it
+            reads as the "just let me in for now" escape hatch,
+            not the primary action. Hidden once the magic-link
+            success state is showing so we don't push a second CTA
+            against the "check your inbox" message. */}
+        {!emailSent && (
+          <>
+            <div className="flex items-center gap-3 py-1">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">or</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+            <Button
+              variant="ghost"
+              onClick={handleGuestSignIn}
+              disabled={guestLoading || googleLoading || appleLoading || sendingMagicLink}
+              className="w-full h-12 font-medium text-sm gap-2 text-muted-foreground hover:text-foreground"
+            >
+              {guestLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Continue as guest
+            </Button>
+            <p className="text-[10px] text-muted-foreground/70 text-center leading-relaxed">
+              Beta access — your data lives on this device until you link an email. Accounts may be reset at launch.
+            </p>
+          </>
         )}
       </motion.div>
     </div>
