@@ -6,6 +6,7 @@ import { Zap, ArrowLeft, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import BountyBoard from '@/components/bounties/BountyBoard';
+import SoloChallengesSection from '@/components/bounties/SoloChallengesSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useLanguage } from '@/lib/LanguageContext';
 
@@ -55,6 +56,14 @@ export default function Bounties() {
           {tFallback('bounties.post', 'Post')}
         </button>
       </div>
+
+      {/* Solo Challenges — non-targeted, anyone-can-claim bounties.
+          Lives above the targeted bounty board so users encounter
+          the "lift X this week" challenges before scrolling into
+          social ones. (See migration 171 + soloChallenges.js.) */}
+      <ErrorBoundary label="SoloChallengesSection">
+        <SoloChallengesSection />
+      </ErrorBoundary>
 
       <ErrorBoundary label="BountyBoard">
         <BountyBoard />

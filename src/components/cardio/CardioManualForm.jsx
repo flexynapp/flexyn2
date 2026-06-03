@@ -363,6 +363,21 @@ export default function CardioManualForm({
         .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
         .catch(err => reportError(err, { feature: 'cardio.quest-progress', level: 'warning', userEmail: user?.email }));
 
+      // Bump active Solo Challenge claims (migration 171). Cardio
+      // minutes go to the cardio_minutes-kind challenge; we also
+      // count this as a session for the "Train N days" challenge.
+      // Fire-and-forget — non-blocking.
+      (async () => {
+        try {
+          const { recordWorkoutProgress } = await import('@/lib/data/soloChallenges');
+          await recordWorkoutProgress({
+            cardioMin:    Math.round(durSec / 60),
+            sessionCount: 1,
+            prsHit:       prCount > 0 ? prCount : 0,
+          });
+        } catch (e) { /* non-blocking */ }
+      })();
+
       const cardioXp = calculateCardioXp({
         duration_seconds: payload.duration_seconds,
         distance_meters:  payload.distance_meters,

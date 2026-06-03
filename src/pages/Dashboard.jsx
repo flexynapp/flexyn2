@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon, Save } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon, Save, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -501,6 +501,45 @@ export default function Dashboard() {
   ];
   const [widgetOrder, setWidgetOrder] = useState(defaultWidgetOrder);
 
+  // Per-user hidden sections — users can tap the × on any main
+  // dashboard section in edit mode to hide it; restored via the
+  // "Hidden" chip rail also shown in edit mode. Persisted to
+  // localStorage so the choice survives reloads. Stored as a Set
+  // for O(1) hide lookup during render; serialized as array.
+  // (Screenshot feedback: "if someone doesn't like a feature, just
+  // make it so they can remove it and then if they wanna add it
+  // back, it's in the widgets.")
+  const hiddenSectionsKey = `flexyn.dashHiddenSections.${user?.id || 'anon'}`;
+  const [hiddenSections, setHiddenSections] = useState(() => new Set());
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const raw = localStorage.getItem(hiddenSectionsKey);
+      if (raw) setHiddenSections(new Set(JSON.parse(raw)));
+    } catch { /* corrupt JSON / quota — start with empty */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
+  const persistHidden = (next) => {
+    try { localStorage.setItem(hiddenSectionsKey, JSON.stringify(Array.from(next))); }
+    catch { /* quota / private mode */ }
+  };
+  const hideSection = (id) => {
+    setHiddenSections(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      persistHidden(next);
+      return next;
+    });
+  };
+  const restoreSection = (id) => {
+    setHiddenSections(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      persistHidden(next);
+      return next;
+    });
+  };
+
   // Per-section layout — hamburger (full-width, default) or hotdog
   // (half-width, pairs with adjacent half neighbor). Persisted per-user
   // to localStorage alongside widgetOrder. Two consecutive half
@@ -671,13 +710,18 @@ export default function Dashboard() {
   // Compute rows from widgetOrder + sectionLayouts. Two consecutive
   // 'half' sections share a row; everything else stands alone. A lone
   // 'half' is rendered full-width (degraded — no orphan).
+  // Hidden sections (per-user opt-out) are filtered FIRST so the
+  // hotdog/hamburger pairing logic sees them as if they were never
+  // in the order. Otherwise a hidden half-width section between two
+  // visible halves would split the pair across rows.
   const dashboardRows = useMemo(() => {
     const result = [];
+    const visibleOrder = widgetOrder.filter(id => !hiddenSections.has(id));
     let i = 0;
-    while (i < widgetOrder.length) {
-      const id = widgetOrder[i];
+    while (i < visibleOrder.length) {
+      const id = visibleOrder[i];
       const layout = sectionLayouts[id] || 'full';
-      const nextId = widgetOrder[i + 1];
+      const nextId = visibleOrder[i + 1];
       const nextLayout = nextId ? (sectionLayouts[nextId] || 'full') : null;
       if (layout === 'half' && nextLayout === 'half') {
         result.push({ rowKey: `${id}+${nextId}`, sections: [id, nextId] });
@@ -688,7 +732,7 @@ export default function Dashboard() {
       }
     }
     return result;
-  }, [widgetOrder, sectionLayouts]);
+  }, [widgetOrder, sectionLayouts, hiddenSections]);
 
   // Reset the customize state — clears widgetOrder + sectionLayouts
   // back to factory defaults. Used by the "Reset" button in edit mode
@@ -1522,6 +1566,30 @@ export default function Dashboard() {
 
       </div>
 
+      {/* Hidden-sections chip rail — only renders in edit mode and
+          only when the user has actually hidden something. Tapping a
+          chip restores that section to the end of the visible list. */}
+      {editMode && hiddenSections.size > 0 && (
+        <div className="mt-4 mb-3 p-3 rounded-xl border border-dashed border-border bg-secondary/30">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">
+            {tFallback('dashboard.hiddenSections', 'Hidden — tap to restore')}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {Array.from(hiddenSections).map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => restoreSection(id)}
+                className="flex items-center gap-1 px-2 py-1 rounded-full border border-primary/40 bg-primary/5 text-primary text-[11px] font-semibold hover:bg-primary/10 transition-colors"
+              >
+                <Plus className="w-3 h-3" />
+                {SECTION_LABELS[id]?.(tFallback, t) || id}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* ═══ Reorderable rows — each row holds 1 section (hamburger /
               full-width) or 2 sections side-by-side (hotdog / half).
               Edit mode: long-press the drag handle to move a row, tap
@@ -1555,6 +1623,25 @@ export default function Dashboard() {
                           {SECTION_LABELS[id]?.(tFallback, t) || id}
                         </span>
                       </button>
+                      {/* Per-section hide button — tapping this removes
+                          the section from the user's dashboard. The
+                          section is restorable from the "Hidden" chip
+                          rail (rendered above the first row in edit
+                          mode). 'customize' is intentionally NOT
+                          hideable since it's how users re-add widgets
+                          back from the library. */}
+                      {id !== 'customize' && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); hideSection(id); }}
+                          onPointerDown={(e) => e.stopPropagation()}
+                          title={tFallback('dashboard.hideSection', 'Hide this section')}
+                          aria-label={tFallback('dashboard.hideSection', 'Hide this section')}
+                          className="flex items-center justify-center w-5 h-5 rounded-md hover:bg-destructive/15 text-destructive/60 hover:text-destructive transition-colors"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      )}
                     </React.Fragment>
                   );
                 })}

@@ -631,6 +631,24 @@ export default function Workout() {
         } catch (xpErr) {
           reportError(xpErr, { feature: 'workout.xp-update', level: 'warning', userEmail: user?.email, xpGained, workoutDate: data.date });
         }
+
+        // Bump progress on any active Solo Challenge claims the user
+        // holds. Fire-and-forget — the workout save is the source of
+        // truth, this is purely additive. The server caps progress at
+        // each challenge's target so a retry can't double-count.
+        // (See migration 171 + soloChallenges.js.)
+        try {
+          const { recordWorkoutProgress } = await import('@/lib/data/soloChallenges');
+          await recordWorkoutProgress({
+            volumeLbs:    sessionVolume,
+            sessionCount: 1,
+            cardioMin:    0,        // workout flow — cardio counted separately
+            prsHit:       0,        // PR detection runs server-side via achievements
+          });
+        } catch (soloErr) {
+          // Non-blocking — challenges just don't get bumped for this save.
+          reportError(soloErr, { feature: 'workout.solo-challenge-bump', level: 'warning' });
+        }
       }
 
       // Atomic volume accumulation via RPC (migration 023). The previous
