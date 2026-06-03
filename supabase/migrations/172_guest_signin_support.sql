@@ -38,19 +38,35 @@
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  -- Pulled into scalars up front so the SQL stays paste-safe — the
+  -- chat → Supabase SQL Editor clipboard pipeline mangles
+  -- record-field `.<field>` tokens inside string concatenation
+  -- (`'guest_' || NEW.id || '@flexyn.guest'` came back as
+  -- `<NEW.id>`, 42601). Each NEW.<field> read sits on its own
+  -- assignment line and the placeholder is built with format(),
+  -- not the `||` operator the pipeline also chokes on.
+  v_id     UUID;
+  v_email  TEXT;
+  v_meta   JSONB;
 BEGIN
+  v_id    := NEW.id;
+  v_email := NEW.email;
+  v_meta  := NEW.raw_user_meta_data;
+
+  IF v_email IS NULL THEN
+    v_email := format('guest_%s@flexyn.guest', v_id);
+  END IF;
+
   INSERT INTO public.user_profiles (id, email, full_name, avatar_url)
   VALUES (
-    NEW.id,
-    -- Placeholder for anonymous sign-ins so created_by /
-    -- user_email columns downstream never see NULL. Format kept
-    -- predictable so an admin querying "find all guests" is a
-    -- simple `LIKE 'guest_%@flexyn.guest'`.
-    COALESCE(NEW.email, 'guest_' || NEW.id || '@flexyn.guest'),
-    NEW.raw_user_meta_data->>'full_name',
-    NEW.raw_user_meta_data->>'avatar_url'
+    v_id,
+    v_email,
+    v_meta->>'full_name',
+    v_meta->>'avatar_url'
   )
   ON CONFLICT (id) DO NOTHING;
+
   RETURN NEW;
 END;
 $$;
@@ -59,7 +75,7 @@ $$;
 -- email IS NULL (created before this migration on a host that
 -- already had anonymous auth on) gets a placeholder.
 UPDATE public.user_profiles
-   SET email = 'guest_' || id || '@flexyn.guest'
+   SET email = format('guest_%s@flexyn.guest', id)
  WHERE email IS NULL;
 
 NOTIFY pgrst, 'reload schema';
