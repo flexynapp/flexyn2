@@ -92,15 +92,45 @@ export function AuthProvider({ children }) {
     // Safety net: never block UI longer than 10 seconds
     const timeout = setTimeout(() => setIsLoadingAuth(false), 10000);
 
-    // 1. Bootstrap immediately from stored session (localStorage, no network)
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // 0. PKCE fallback — if we landed on a URL with `?code=…`, an
+    //    in-flight PKCE magic link is waiting to be exchanged for a
+    //    session. The client config now defaults to implicit flow
+    //    (token in URL hash) so new links no longer use this path,
+    //    but existing links sent before this fix still need to work.
+    //    We call exchangeCodeForSession synchronously before
+    //    getSession() so the SIGNED_IN event fires from the exchange
+    //    instead of getSession() seeing nothing and routing to the
+    //    sign-in screen prematurely (the bounce-loop symptom).
+    const bootstrapAuth = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        if (code) {
+          await supabase.auth.exchangeCodeForSession(code).catch(() => {
+            // Silent — most failures here mean the code's already been
+            // exchanged on a prior load or the verifier isn't on this
+            // device. Either way, fall through to getSession() so the
+            // user lands somewhere coherent instead of stuck.
+          });
+          // Strip the code from the URL so a back-button + reload
+          // doesn't try to re-exchange a single-use code.
+          try {
+            const clean = window.location.pathname + window.location.hash;
+            window.history.replaceState({}, document.title, clean);
+          } catch { /* non-fatal */ }
+        }
+      } catch { /* SSR / no window — getSession() still runs below */ }
+
+      // 1. Bootstrap from stored session (localStorage, no network)
+      const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
         loadProfile(session.user).finally(() => clearTimeout(timeout));
       } else {
         clearTimeout(timeout);
         setIsLoadingAuth(false);
       }
-    });
+    };
+    bootstrapAuth();
 
     // 2. Keep in sync with auth events (OAuth redirect, sign-out, token refresh).
     //    IMPORTANT: callback must be synchronous — defer async work with setTimeout.
