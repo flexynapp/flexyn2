@@ -38,6 +38,13 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
     <motion.div
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
+      // Wave 71→74: the Hub tab gets a modest elevation — center "FAB"
+      // of the bottom nav. -mt-3 (12 px) clipped the ring above the nav
+      // border once Wave 73 tightened the nav padding to pt-1; -mt-2 +
+      // a w-9 ring (vs w-10) keeps Hub aligned with the other icons
+      // without the ring breaking through the top border line. Color +
+      // ring are still the dominant visual cue.
+      className={isHubItem ? '-mt-2' : ''}
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
@@ -57,7 +64,9 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
           onTap();
         }}
         {...longPress.bind}
-        className={`flex flex-col items-center text-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-colors
+        // Wave 73: gap-1 → gap-0.5, py-1.5 → py-0.5 to tighten each tab's
+        // vertical footprint (icon ↕ label ↕ dots). Saves ~12 px overall.
+        className={`flex flex-col items-center text-center gap-0.5 px-2 py-0.5 rounded-lg text-xs font-medium transition-colors
           ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
       >
         <motion.div
@@ -66,7 +75,10 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
           className={[
             'relative',
             isHubItem
-              ? `flex items-center justify-center w-10 h-10 rounded-full transition-colors ${
+              // Wave 74: ring 40 → 36 px (w-10 → w-9) so the elevated
+              // FAB doesn't punch through the nav's top border now
+              // that the nav is tighter.
+              ? `flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
                   hubBlue
                     ? (isActive
                         ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
@@ -96,7 +108,9 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
           // Subtle dots under the label so users know the long-press
           // affordance exists. iOS uses this convention on Dock
           // shortcuts. Invisible to anyone who'd find them noisy.
-          <span aria-hidden="true" className="text-[6px] tracking-[0.3em] -mt-0.5 opacity-50">···</span>
+          // Wave 73: text-[6px] → text-[5px], -mt-0.5 → -mt-1 so the
+          // dots tuck up under the label rather than adding a row.
+          <span aria-hidden="true" className="text-[5px] tracking-[0.3em] -mt-1 opacity-50">···</span>
         )}
       </Link>
     </motion.div>
@@ -258,7 +272,7 @@ export default function Layout() {
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+              <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
             </div>
             <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
           </Link>
@@ -378,14 +392,13 @@ export default function Layout() {
           snaps back on scroll-up. CSS transform is GPU-composited so no
           layout thrash. Transition is deliberately fast (220 ms) to feel
           native, not sluggish. */}
-      {/* pt-3 (not pt-2) leaves enough headroom for the active Hub
-          tab's scale-1.2 + y:-2 transform — at pt-2 the top of the Hub
-          circle was getting clipped by the nav's top border line.
-          (Screenshot feedback, 2026-06.) */}
       <nav
-        className="lg:hidden fixed bottom-0 start-0 end-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-3 select-none-ui transition-transform duration-[220ms] ease-in-out"
+        // Wave 73: nav bar shrunk to a tighter pill. pt-2 → pt-1 and
+        // paddingBottom 0.5rem → 0.25rem (safe-area inset still
+        // respected so it clears the iOS home indicator).
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card/90 backdrop-blur-md border-t border-border z-30 px-4 pt-1 select-none-ui transition-transform duration-[220ms] ease-in-out"
         style={{
-          paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))',
+          paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom))',
           transform: navHidden ? 'translateY(100%)' : 'translateY(0)',
           willChange: 'transform',
         }}

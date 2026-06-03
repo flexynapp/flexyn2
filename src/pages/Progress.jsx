@@ -653,15 +653,21 @@ export default function Progress() {
   const streak = userProfile?.workout_streak ?? 0;
   const level  = userProfile?.current_level  ?? 1;
 
+  // Hero stat tiles. These use the standard themed <Card> (bg-card /
+  // text-card-foreground / theme-card-accent) so they pick up the
+  // user's equipped loot theme automatically — same as every other
+  // card across the app. Each tile keeps its own color identity via
+  // an accent applied to the icon + value only (not a solid fill),
+  // mirroring the Dashboard StatTile pattern.
   const heroStats = [
-    { id: 'streak',   icon: Flame,    value: streak ? `${streak}d` : '—', label: 'Streak',    color: 'text-white', bg: 'bg-white/20',
-      cardBg: 'bg-orange-500 border-orange-600 shadow-orange-500/25'   },
-    { id: 'workouts', icon: Dumbbell, value: logs.length,                  label: 'Workouts',  color: 'text-white', bg: 'bg-white/20',
-      cardBg: 'bg-primary border-primary/80 shadow-primary/25'             },
-    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`, color: 'text-white', bg: 'bg-white/20',
-      cardBg: 'bg-emerald-500 border-emerald-600 shadow-emerald-500/25' },
-    { id: 'level',    icon: Zap,      value: `Lv ${level}`,                label: 'Level',     color: 'text-white', bg: 'bg-white/20',
-      cardBg: 'bg-violet-500 border-violet-600 shadow-violet-500/25'    },
+    { id: 'streak',   icon: Flame,      value: streak ? `${streak}d` : '—', label: 'Streak',
+      accent: 'text-orange-500',  iconBg: 'bg-orange-500/15'  },
+    { id: 'workouts', icon: Dumbbell,   value: logs.length,                  label: 'Workouts',
+      accent: 'text-primary',     iconBg: 'bg-primary/15'     },
+    { id: 'volume',   icon: TrendingUp, value: totalVolume > 0 ? `${formatBigNumber(fromLbs(totalVolume, weightUnit))}` : '—', label: `Volume (${weightUnit})`,
+      accent: 'text-emerald-500', iconBg: 'bg-emerald-500/15' },
+    { id: 'level',    icon: Zap,        value: `Lv ${level}`,                label: 'Level',
+      accent: 'text-violet-500',  iconBg: 'bg-violet-500/15'  },
   ];
 
   // Carousel slides — one per heroStat. Each has a motivational tip
@@ -796,12 +802,12 @@ export default function Progress() {
                 whileTap={{ scale: 0.97 }}
                 aria-label={`Show ${stat.label} in carousel`}
               >
-                <Card className={`p-3 border shadow-sm text-center h-full cursor-pointer ${stat.cardBg}`}>
-                  <div className={`w-8 h-8 rounded-xl ${stat.bg} flex items-center justify-center mx-auto mb-2`}>
-                    <stat.icon className={`w-4 h-4 ${stat.color}`} />
+                <Card className="p-3 border-border/60 shadow-sm text-center h-full cursor-pointer">
+                  <div className={`w-8 h-8 rounded-xl ${stat.iconBg} flex items-center justify-center mx-auto mb-2`}>
+                    <stat.icon className={`w-4 h-4 ${stat.accent}`} />
                   </div>
-                  <p className={`font-heading font-black text-lg leading-none ${stat.color}`}>{stat.value}</p>
-                  <p className="text-[10px] text-white/75 mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
+                  <p className={`font-heading font-black text-lg leading-none ${stat.accent}`}>{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
                 </Card>
               </motion.button>
             ))}
