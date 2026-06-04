@@ -1447,21 +1447,10 @@ export default function Dashboard() {
                 </span>
               </button>
             )}
-            {editMode && canSetAsDefault && (
-              <button
-                onClick={() => {
-                  try {
-                    localStorage.setItem('flexyn.dashWidgetOrder.default', JSON.stringify(widgetOrder));
-                    localStorage.setItem('flexyn.dashSectionLayouts.default', JSON.stringify(sectionLayouts));
-                  } catch {}
-                  toast.success(tFallback('dashboard.setDefaultSuccess', 'Saved — new users will see this dashboard layout.'));
-                }}
-                title="Set this layout as the default for all new users"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /><span>{tFallback('dashboard.setDefault', 'Set Default')}</span>
-              </button>
-            )}
+            {/* Dropped the duplicate "Set Default" button that was here —
+                it only wrote to localStorage which is per-device. The
+                first "Set default" above (handleSetAsDefault) uses the
+                proper server-side RPC and is the canonical action. */}
             <button
               onClick={() => setEditMode(e => !e)}
               title={editMode ? tFallback('dashboard.doneEditing', 'Done editing') : tFallback('dashboard.customizeHome', 'Customize home')}

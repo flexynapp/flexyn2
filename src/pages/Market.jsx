@@ -36,9 +36,6 @@ export default function Market() {
         </button>
       </div>
 
-      {/* Daily Flexyn Drop — branded items, rotates every 24h */}
-      <DailyFlexynDrop />
-
       {/* Trainer Programs — Coming Soon */}
       <motion.div
         className="w-full mb-4 rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/8 via-violet-500/8 to-primary/8 p-4 flex items-center gap-3 text-start relative overflow-hidden select-none opacity-75"
@@ -70,6 +67,16 @@ export default function Market() {
       <ErrorBoundary label="Market">
         <MarketplaceFeed onStartConversation={startConversation} />
       </ErrorBoundary>
+
+      {/* Daily Flexyn Drop — branded items, rotates every 24h.
+          Moved BELOW the main marketplace feed per user feedback:
+          the drop was eating prime real-estate at the top of the page
+          where users expect to see browse/feed/listings. It still
+          rotates daily and counts as "today's drop" — just lives
+          underneath the main marketplace UI now. */}
+      <div className="mt-4">
+        <DailyFlexynDrop />
+      </div>
 
       <ItemIndexModal open={indexOpen} onClose={() => setIndexOpen(false)} />
     </div>
