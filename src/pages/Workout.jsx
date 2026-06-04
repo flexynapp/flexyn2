@@ -280,7 +280,7 @@ export default function Workout() {
   // are now per-user (see useWorkoutSessions.js header). Without this,
   // an unmount that happens between sign-in transitions would write to
   // the 'anon' bucket or the wrong user's namespace.
-  const workoutStateRef = React.useRef({});
+  const workoutStateRef = useRef({});
   workoutStateRef.current = { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId: user?.id };
   // Ref-based synchronous in-flight guard for saveWorkout. The
   // existing `saveMutation.isPending` check at line 1181 catches the
@@ -289,7 +289,7 @@ export default function Workout() {
   // two rapid taps can enter saveWorkout() twice BEFORE React's
   // pending-state propagates, producing two WorkoutLog rows + two XP
   // grants. The ref flips synchronously on first call.
-  const saveInFlightRef = React.useRef(false);
+  const saveInFlightRef = useRef(false);
 
   useEffect(() => {
     return () => {
