@@ -1,5 +1,5 @@
 // src/lib/AuthContext.jsx — Supabase auth
-import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '@/api/supabaseClient';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
