@@ -823,10 +823,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const showBirdEgg =
     ownerUsername === 'keganbergeron' || ownerUsername === 'kegan' || displayHandle === '@keganbergeron';
 
-  // Third hidden egg — "Sweat Jetpack", only on the @calason44 profile.
+  // Third hidden egg — "Sweat Jetpack", on @calason44 and @jaxf profiles.
   // Fat sweating dude with sweat as the thrust, pixelated retro style.
   const showSweatEgg =
-    ownerUsername === 'calason44' || displayHandle === '@calason44';
+    ownerUsername === 'calason44' || displayHandle === '@calason44'
+    || ownerUsername === 'jaxf'   || displayHandle === '@jaxf';
 
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
