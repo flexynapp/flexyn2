@@ -53,6 +53,9 @@ const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'))
 const SnakeGameModal = lazy(() => import('./SnakeGameModal'));
 // Hidden easter-egg "Heavy Bird" — only on the @keganbergeron profile.
 const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
+// Hidden easter-egg "Sweat Jetpack" — only on the @calason44 profile.
+// Fat sweating dude propelled by his own sweat. Pixelated retro look.
+const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -310,6 +313,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [duelOpen, setDuelOpen] = useState(false);
   const [snakeOpen, setSnakeOpen] = useState(false);
   const [birdOpen, setBirdOpen] = useState(false);
+  const [sweatOpen, setSweatOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const storyFileRef = useRef(null);
@@ -819,6 +823,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const showBirdEgg =
     ownerUsername === 'keganbergeron' || ownerUsername === 'kegan' || displayHandle === '@keganbergeron';
 
+  // Third hidden egg — "Sweat Jetpack", only on the @calason44 profile.
+  // Fat sweating dude with sweat as the thrust, pixelated retro style.
+  const showSweatEgg =
+    ownerUsername === 'calason44' || displayHandle === '@calason44';
+
   // Level and XP
   const ownerXp = isSelf ? Number(user?.total_xp) || 0 : Number(targetProfile?.total_xp) || 0;
   const levelData = calculateLevelFromXp(ownerXp);
@@ -1166,6 +1175,20 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             <button
               type="button"
               onClick={() => setBirdOpen(true)}
+              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+              title="???"
+              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <span aria-hidden="true">👾</span>
+            </button>
+          )}
+
+          {/* 👾 Hidden easter-egg trigger — only on the @calason44 profile.
+              Opens Sweat Jetpack. */}
+          {showSweatEgg && (
+            <button
+              type="button"
+              onClick={() => setSweatOpen(true)}
               aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
               title="???"
               className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
@@ -2019,6 +2042,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             onClose={() => setBirdOpen(false)}
             userId={user?.id}
             onUnlockCosmetic={() => toast.success('🏆 315 lb Club unlocked!')}
+          />
+        </Suspense>
+      )}
+
+      {/* 👾 Sweat Jetpack — easter egg, only on the @calason44 profile.
+          Mounted on open so the canvas engine isn't burning cycles on
+          every other profile's render path. */}
+      {showSweatEgg && sweatOpen && (
+        <Suspense fallback={null}>
+          <SweatJetpackModal
+            onClose={() => setSweatOpen(false)}
+            userId={user?.id}
           />
         </Suspense>
       )}
