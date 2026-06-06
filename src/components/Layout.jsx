@@ -30,7 +30,7 @@ import { TOOLTIP } from '@/lib/tooltipRegistry';
 //   • Long-press detection (consumed via onLongPress with the DOM ref
 //     so the menu popover can anchor above this exact tab)
 //   • Hub-tab special-case styling + the unread dot
-function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
+function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollowingPost, hasQuickActions, onLongPress, onTap, showLongPressHint }) {
   const ref = useRef(null);
   const longPress = useLongPress(() => onLongPress(ref.current), { ms: 400 });
 
@@ -79,13 +79,19 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubHasNewFollowingPost, ha
               // FAB doesn't punch through the nav's top border now
               // that the nav is tighter.
               ? `flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-                  hubBlue
+                  hubPurple
+                    // Kegan's purple tier — sits alongside sean's blue
+                    // tier as a per-user nav-color override.
                     ? (isActive
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
-                        : 'border-2 border-blue-600 text-blue-600 bg-blue-600/10')
-                    : (isActive
-                        ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
-                        : 'border-2 border-primary text-primary bg-primary/5')
+                        ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/40'
+                        : 'border-2 border-purple-600 text-purple-600 bg-purple-600/10')
+                    : hubBlue
+                      ? (isActive
+                          ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/40'
+                          : 'border-2 border-blue-600 text-blue-600 bg-blue-600/10')
+                      : (isActive
+                          ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
+                          : 'border-2 border-primary text-primary bg-primary/5')
                 }`
               : '',
           ].join(' ')}
@@ -416,6 +422,7 @@ export default function Layout() {
                 isActive={isActive}
                 isHubItem={isHubItem}
                 hubBlue={isHubItem && user?.username === 'sean'}
+                hubPurple={isHubItem && (user?.username === 'keganbergeron' || user?.username === 'kegan')}
                 hubHasNewFollowingPost={hubHasNewFollowingPost}
                 hasQuickActions={hasQuickActions}
                 showLongPressHint={idx === 0}
