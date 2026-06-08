@@ -14,7 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, ChevronRight, LayoutGrid, Shield } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, LayoutGrid, Shield } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -2272,12 +2272,6 @@ export default function Workout() {
                     <div className="w-16 h-16 rounded-2xl shrink-0" />
                   </div>
                 </div>
-                {/* Arrow */}
-                <button type="button" onClick={() => paginateHero(1)}
-                  className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/25 border border-white/15 flex items-center justify-center text-white backdrop-blur-sm hover:bg-black/40 transition-colors"
-                  aria-label="Next slide">
-                  <ChevronRight className="w-4 h-4" />
-                </button>
               </div>
               {/* Dots */}
               <div className="flex justify-center gap-2 mt-2.5">
