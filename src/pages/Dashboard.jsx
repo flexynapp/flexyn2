@@ -7,7 +7,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
 import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useReducedMotion } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
 import GoalsAlmostComplete from '@/components/goals/GoalsAlmostComplete';
 import GoalsProgressStrip from '@/components/dashboard/GoalsProgressStrip';
@@ -72,6 +72,9 @@ function HeroCard({
   // HeroSlideshow handles the LEFT-column content (achievement
   // carousel / new-user calculated path / streak fallback) and uses
   // these same booleans to pick its mode.
+  // Honor prefers-reduced-motion: drop the decorative shine sweep
+  // entirely and hold the glow static for motion-sensitive users.
+  const reduceMotion = useReducedMotion();
   const isFresh = streak === 0 && daysSinceLast == null;
   const isOnStreak = streak > 0;
   const isLapsed = !isOnStreak && !isFresh && daysSinceLast >= 2;
@@ -218,54 +221,40 @@ function HeroCard({
               '0 12px 24px -8px hsl(var(--primary) / 0.5), 0 5px 12px -4px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)',
           }}
         >
-          {/* Primary shine sweep */}
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-y-0 -inset-x-4 pointer-events-none"
-            style={{
-              background:
-                'linear-gradient(105deg, transparent 28%, rgba(255,255,255,0.65) 46%, rgba(255,255,255,1) 50%, rgba(255,255,255,0.65) 54%, transparent 72%)',
-              mixBlendMode: 'screen',
-            }}
-            initial={{ x: '-110%' }}
-            animate={{ x: '110%' }}
-            transition={{
-              duration: 0.7,
-              ease: 'easeInOut',
-              repeat: Infinity,
-              repeatDelay: 1.4,
-            }}
-          />
-          {/* Secondary echo */}
-          <motion.div
-            aria-hidden="true"
-            className="absolute inset-y-0 -inset-x-4 pointer-events-none"
-            style={{
-              background:
-                'linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.4) 49%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0.4) 51%, transparent 62%)',
-              mixBlendMode: 'screen',
-            }}
-            initial={{ x: '-110%' }}
-            animate={{ x: '110%' }}
-            transition={{
-              duration: 0.5,
-              ease: 'easeInOut',
-              repeat: Infinity,
-              repeatDelay: 1.6,
-              delay: 0.25,
-            }}
-          />
-          {/* Theme-glow pulse */}
+          {/* Subtle shine sweep — a single slow, dim sheen that passes
+              every few seconds (was a bright double-sweep every ~2s, which
+              read as fast/distracting). Skipped under reduced-motion. */}
+          {!reduceMotion && (
+            <motion.div
+              aria-hidden="true"
+              className="absolute inset-y-0 -inset-x-4 pointer-events-none"
+              style={{
+                background:
+                  'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.2) 47%, rgba(255,255,255,0.45) 50%, rgba(255,255,255,0.2) 53%, transparent 70%)',
+                mixBlendMode: 'screen',
+              }}
+              initial={{ x: '-110%' }}
+              animate={{ x: '110%' }}
+              transition={{
+                duration: 1.2,
+                ease: 'easeInOut',
+                repeat: Infinity,
+                repeatDelay: 6,
+              }}
+            />
+          )}
+          {/* Theme-glow pulse — slow, low-amplitude breathe; held static
+              under reduced-motion. */}
           <motion.div
             aria-hidden="true"
             className="absolute -inset-2 rounded-2xl pointer-events-none"
             style={{
-              background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.4), transparent 70%)',
+              background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.35), transparent 70%)',
               filter: 'blur(6px)',
               zIndex: -1,
             }}
-            animate={{ opacity: [0.5, 0.9, 0.5] }}
-            transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+            animate={reduceMotion ? { opacity: 0.6 } : { opacity: [0.5, 0.72, 0.5] }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="relative min-w-0">
             <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
