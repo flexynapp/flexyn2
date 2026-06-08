@@ -900,9 +900,17 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
 
   return (
     <div className="relative flex flex-col justify-between gap-5 min-w-0">
-      {/* Contextual icon — right-centre, translucent symbol not emoji */}
+      {/* Contextual watermark — right-centre normally, but pinned to the
+          top-right on slides that render a full-width ProgressBar so the
+          bar doesn't visually slice through the icon (e.g. "This week").
+          progressPct can be 0 (falsy) so the guard is an explicit != null. */}
       {SlideIcon && <SlideIcon aria-hidden="true" className="absolute pointer-events-none select-none"
-        style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />}
+        style={{
+          width: 110, height: 110, opacity: 0.11, color: 'white', right: 8,
+          ...(slide.progressPct != null
+            ? { top: 14 }
+            : { top: '50%', transform: 'translateY(-50%)' }),
+        }} />}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
           <SlideIcon className="w-4 h-4 text-white" />
