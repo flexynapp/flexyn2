@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Sun, Moon, Save, Plus, X } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -50,7 +50,6 @@ import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { useTheme } from '@/lib/ThemeContext';
 import { fromLbs } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
 import { parseLocalDate } from '@/lib/dateUtils';
@@ -69,11 +68,6 @@ function HeroCard({
   onPrimary, navigate,
   t, tFallback,
 }) {
-  // Day/night toggle pinned to the CTA column. On mobile (grid-cols-1),
-  // the CTA stacks below the slideshow — toggle sits to the LEFT of
-  // the gold button on a single row. On md+ the gold button has its
-  // own column; toggle stacks above it.
-  const { darkMode, setDarkMode } = useTheme();
   // Pick the right CTA copy based on the user's recent activity.
   // HeroSlideshow handles the LEFT-column content (achievement
   // carousel / new-user calculated path / streak fallback) and uses
@@ -199,8 +193,8 @@ function HeroCard({
         </div>
       </motion.div>
 
-      {/* Day/night switch + gold CTA — hang OFF the bottom of the
-          rounded hero card. Negative top margin pulls them up so the
+      {/* Gold CTA — hangs OFF the bottom of the
+          rounded hero card. The negative top margin pulls it up so the
           gold button visually overlaps the hero's bottom edge.
           Screenshot feedback: "push this button up a little bit
           maybe make it a little thinner" + "give it like a solid
@@ -209,27 +203,6 @@ function HeroCard({
           2px solid white border for clear separation against the
           dark hero card behind it. */}
       <div className="relative -mt-9 mx-4 md:mx-6 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setDarkMode(!darkMode)}
-          aria-label={darkMode
-            ? tFallback('dashboard.theme.toLight', 'Switch to light mode')
-            : tFallback('dashboard.theme.toDark',  'Switch to dark mode')}
-          aria-pressed={darkMode}
-          className="relative self-end mb-1 shrink-0 inline-flex items-center w-14 h-7 rounded-full bg-card border border-border shadow-md hover:shadow-lg transition-all"
-        >
-          <span className="absolute start-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
-            <Sun className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-40 text-muted-foreground' : 'opacity-100 text-amber-500'}`} />
-          </span>
-          <span className="absolute end-1.5 inline-flex items-center justify-center w-4 h-4 pointer-events-none">
-            <Moon className={`w-3 h-3 transition-opacity ${darkMode ? 'opacity-100 text-indigo-400' : 'opacity-40 text-muted-foreground'}`} />
-          </span>
-          <span
-            className={`absolute top-0.5 inline-block w-6 h-6 rounded-full bg-gradient-to-br from-white to-white/90 shadow-md transition-transform ${
-              darkMode ? 'translate-x-7' : 'translate-x-0.5'
-            }`}
-          />
-        </button>
         <motion.button
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
