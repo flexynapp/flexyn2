@@ -193,32 +193,29 @@ function HeroCard({
         </div>
       </motion.div>
 
-      {/* Gold CTA — hangs OFF the bottom of the
-          rounded hero card. The negative top margin pulls it up so the
-          gold button visually overlaps the hero's bottom edge.
-          Screenshot feedback: "push this button up a little bit
-          maybe make it a little thinner" + "give it like a solid
-          white border" → pulled the row up from -mt-5 to -mt-9,
-          slimmed vertical padding (p-3.5 → p-2.5) and added a
-          2px solid white border for clear separation against the
-          dark hero card behind it. */}
-      <div className="relative -mt-9 mx-4 md:mx-6 flex items-center gap-2">
+      {/* Primary CTA — sits BELOW the hero card (no overlap) and follows
+          the user's selected theme. Background, text, shadow, glow and
+          the arrow chip all key off --primary / --primary-foreground
+          (set per-theme in ThemeContext), so the button recolors
+          automatically when the user changes their theme. */}
+      <div className="relative mt-3 mx-4 md:mx-6 flex items-center gap-2">
         <motion.button
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={onPrimary}
           className="group relative flex-1 overflow-hidden rounded-2xl p-2.5 md:p-3 border-2 border-white flex items-center justify-between gap-3 text-start select-none-ui"
-          // Brand-gold CTA — single source of truth is in src/index.css
-          // (--hero-cta-gradient / --hero-cta-text / --hero-cta-shadow).
-          // The dark-mode variant has a stronger shadow to compensate
-          // for the warmer cast getting absorbed by the dark page bg.
-          // Centralizing here so a brand-color refresh changes ONE
-          // file instead of every surface that uses gold accents.
+          // Theme-following CTA — keys off the user's selected theme via
+          // --primary / --primary-foreground (ThemeContext sets these per
+          // theme). A subtle white→dark sheen over the solid primary adds
+          // depth without per-theme color math, so this one block recolors
+          // for every theme (orange, blue, violet, neon, …).
           style={{
-            background: 'var(--hero-cta-gradient)',
-            color: 'var(--hero-cta-text)',
-            boxShadow: 'var(--hero-cta-shadow)',
+            background:
+              'linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 42%, rgba(0,0,0,0.16)), hsl(var(--primary))',
+            color: 'hsl(var(--primary-foreground))',
+            boxShadow:
+              '0 12px 24px -8px hsl(var(--primary) / 0.5), 0 5px 12px -4px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)',
           }}
         >
           {/* Primary shine sweep */}
@@ -258,12 +255,12 @@ function HeroCard({
               delay: 0.25,
             }}
           />
-          {/* Amber-glow pulse */}
+          {/* Theme-glow pulse */}
           <motion.div
             aria-hidden="true"
             className="absolute -inset-2 rounded-2xl pointer-events-none"
             style={{
-              background: 'radial-gradient(ellipse at center, rgba(251,191,36,0.4), transparent 70%)',
+              background: 'radial-gradient(ellipse at center, hsl(var(--primary) / 0.4), transparent 70%)',
               filter: 'blur(6px)',
               zIndex: -1,
             }}
@@ -271,7 +268,7 @@ function HeroCard({
             transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
           />
           <div className="relative min-w-0">
-            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(28 70% 32%)' }}>
+            <span className="block text-[10px] font-semibold tracking-[0.2em] uppercase mb-1" style={{ color: 'hsl(var(--primary-foreground) / 0.85)' }}>
               {hasWorkedOutToday
                 ? t('dashboard.hero.label.again')
                 : t('dashboard.hero.label.today')}
@@ -283,9 +280,9 @@ function HeroCard({
           <motion.div
             className="relative shrink-0 w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, #fff7d6 0%, #fcd34d 100%)',
-              color: 'hsl(28 70% 28%)',
-              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.55), inset 0 1px 1px rgba(255,255,255,0.7)',
+              background: 'rgba(255,255,255,0.92)',
+              color: 'hsl(var(--primary))',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.22), inset 0 1px 1px rgba(255,255,255,0.7)',
             }}
             whileHover={{ rotate: 5 }}
           >
