@@ -774,6 +774,29 @@ async function _invokeDeleteAccount() {
   //    fresh. Username goes to null to release the handle (it's nullable
   //    in the schema; the App.jsx re-onboarding gate handles null too).
   //
+  // Privileged columns (XP / coins / streaks / leaderboard totals /
+  // league tier — everything the mig 142/173 trigger rejects from direct
+  // client writes with 42501) are zeroed via the reset_my_profile_stats
+  // RPC. On pre-173 hosts the RPC is missing (42883) — there the trigger
+  // doesn't exist either, so we fall back to carrying those fields in
+  // the updateMe payload like before.
+  let privilegedStatsHandled = false;
+  try {
+    const { error: resetErr } = await supabase.rpc('reset_my_profile_stats');
+    if (!resetErr) {
+      privilegedStatsHandled = true;
+    } else if (resetErr.code !== '42883' && resetErr.code !== '42P01') {
+      // 173+ host but the reset genuinely failed — report it like any
+      // other partial-deletion failure. Don't retry via updateMe: the
+      // trigger would reject those fields with 42501 anyway.
+      failures.push({ table: 'user_profiles.reset_my_profile_stats', error: resetErr.message, code: resetErr.code });
+      privilegedStatsHandled = true;
+    }
+  } catch (err) {
+    failures.push({ table: 'user_profiles.reset_my_profile_stats', error: err?.message || String(err) });
+    privilegedStatsHandled = true;
+  }
+
   // Use auth.updateMe (NOT direct supabase.update) so the column-stripping
   // retry handles fields that might not exist on the schema yet — older
   // environments missing some of the newer columns (e.g. loot_theme_id
@@ -783,19 +806,20 @@ async function _invokeDeleteAccount() {
     username:               null,
     bio:                    '',
     avatar_url:             null,
-    // Cumulative counters / leaderboards
-    total_xp:               0,
-    flex_coins:             0,
+    // Open cumulative counters (not in the 142/173 privileged blocklist)
     achievements_unlocked_count: 0,
-    milestone_capsules_awarded:  0,
-    total_volume_lbs:       0,
-    total_distance_meters:  0,
-    // Streaks
-    login_streak:           0,
-    workout_streak:         0,
-    longest_workout_streak: 0,
-    // League position
-    league_tier:            'bronze',
+    // Privileged counters — pre-173 hosts only (see above)
+    ...(privilegedStatsHandled ? {} : {
+      total_xp:               0,
+      flex_coins:             0,
+      milestone_capsules_awarded:  0,
+      total_volume_lbs:       0,
+      total_distance_meters:  0,
+      login_streak:           0,
+      workout_streak:         0,
+      longest_workout_streak: 0,
+      league_tier:            'bronze',
+    }),
     // Equipped cosmetics (loot — clear so the next account starts blank)
     loot_theme_id:          null,
     equipped_title_id:      null,

@@ -87,6 +87,10 @@ export default function CoinShopModal({ open, onClose }) {
             if (error) throw error;
             result = { success: true, granted: { type: 'capsule', capsuleType: item.grants.capsuleType } };
           } else if (item.grants.type === 'streak_freeze') {
+            // NOTE: mig 173 blocks direct streak_freezes_available
+            // writes (42501) — on 173+ hosts this admin sandbox grant
+            // fails gracefully into the catch below. Real freeze grants
+            // need the coin-shop purchase RPC (031) or service role.
             // Read current count first, then increment
             const { data: prof } = await supabase
               .from('user_profiles')

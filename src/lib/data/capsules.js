@@ -39,15 +39,21 @@ async function _addFlexCoins(userId, amount) {
     const { error } = await supabase.rpc('increment_flex_coins', { p_delta: amount });
     if (!error) return;
     if (error.code !== '42883' && error.code !== '42P01') {
-      console.warn('[capsules] flex_coins RPC failed, falling back:', error);
+      // Transient / real failure on a host that HAS the RPC. Don't fall
+      // back to read-modify-write: mig 142/173 rejects direct flex_coins
+      // writes with 42501, and the RMW raced concurrent grants anyway.
+      console.warn('[capsules] increment_flex_coins failed (coins not granted):', error);
+      return;
     }
   } catch (err) {
     if (err?.code !== '42883' && err?.code !== '42P01') {
-      console.warn('[capsules] flex_coins RPC threw, falling back:', err);
+      console.warn('[capsules] increment_flex_coins threw (coins not granted):', err);
+      return;
     }
   }
 
-  // Legacy non-atomic fallback for pre-migration-030 hosts.
+  // Legacy non-atomic fallback for pre-migration-030 hosts (those also
+  // predate the 142/173 trigger, so the direct write is allowed there).
   const { data: profile, error: readErr } = await supabase
     .from('user_profiles')
     .select('flex_coins')

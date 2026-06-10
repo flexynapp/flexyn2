@@ -11,10 +11,18 @@ import { grantForAchievementMilestone } from '@/lib/data/capsules';
 const BACKFILL_FLAG = 'fn-leaderboard-stats-backfilled-v3';
 
 /**
- * One-time client-side backfill: aggregate the current user's WorkoutLog
- * volume and CardioLog distance, plus their unlocked achievement count,
- * and write them onto the User record. Safe to call on every modal open
- * because of the localStorage flag.
+ * One-time client-side backfill: sync the unlocked achievement count
+ * onto the User record and back-pay any owed achievement-milestone
+ * capsules. Safe to call on every modal open because of the
+ * localStorage flag.
+ *
+ * total_volume_lbs / total_distance_meters are NOT touched here
+ * anymore: they're RPC-maintained (increment_user_volume /
+ * increment_user_distance since mig 023, reconcile_my_workout_volume
+ * since 142) and the 142/173 trigger rejects direct client writes with
+ * 42501. The old absolute-set was also lossy — it recomputed from the
+ * most recent 1000 logs, so heavy users could have a correct server
+ * total clobbered by a lower client recompute.
  */
 export async function backfillLeaderboardStatsOnce(userEmail) {
   if (!userEmail) return;
@@ -26,34 +34,12 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
   } catch { /* ignore */ }
 
   try {
-    const [logs, cardioLogs, achievements] = await Promise.all([
-      db.entities.WorkoutLog.filter({ created_by: userEmail }, '-date', 1000),
-      db.entities.CardioLog.filter({ created_by: userEmail }, '-date', 1000),
-      db.entities.Achievement.filter({ created_by: userEmail }),
-    ]);
-
-    const volume = logs.reduce((sum, log) =>
-      sum + (log.exercises || []).reduce((s, ex) =>
-        s + (ex.sets || []).reduce((t, set) =>
-          t + (Number(set.weight) || 0) * (Number(set.reps) || 0), 0), 0), 0);
-
-    const distance = cardioLogs.reduce((sum, c) =>
-      sum + (Number(c.distance_meters) || 0), 0);
+    const achievements = await db.entities.Achievement.filter({ created_by: userEmail });
 
     const unlockedCount = achievements.filter(a => a.unlocked).length;
 
-    const update = {};
-    if (Math.abs((Number(me?.total_volume_lbs) || 0) - volume) > 0.01) {
-      update.total_volume_lbs = volume;
-    }
-    if (Math.abs((Number(me?.total_distance_meters) || 0) - distance) > 0.01) {
-      update.total_distance_meters = distance;
-    }
     if ((Number(me?.achievements_unlocked_count) || 0) !== unlockedCount) {
-      update.achievements_unlocked_count = unlockedCount;
-    }
-    if (Object.keys(update).length > 0) {
-      await db.auth.updateMe(update);
+      await db.auth.updateMe({ achievements_unlocked_count: unlockedCount });
     }
 
     // Back-pay achievement milestone capsules for existing users. The grant

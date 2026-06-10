@@ -109,12 +109,14 @@ export async function sellItem(inventoryId, userId, coinsToEarn) {
     return after?.flex_coins ?? null;
   }
 
-  // 3. Pre-030 host or transient RPC failure — fall back to legacy RMW
-  // so the user still gets their coins on hosts without migration 030
-  // applied. Race window is the bug we're closing; only deployments
-  // missing the RPC retain it.
+  // 3. Pre-030 host — fall back to legacy RMW so the user still gets
+  // their coins on hosts without migration 030 applied (those also
+  // predate the 142/173 trigger, so the direct write is allowed there).
+  // Any other failure surfaces to the caller instead: mig 142/173
+  // rejects direct flex_coins writes with 42501, and silently RMW-ing
+  // on transient errors raced concurrent grants anyway.
   if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
-    console.warn('[inventory] increment_flex_coins failed, falling back to RMW:', rpcErr);
+    throw rpcErr;
   }
   const { data: profile, error: pe } = await supabase
     .from('user_profiles')

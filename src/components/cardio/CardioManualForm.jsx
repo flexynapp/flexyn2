@@ -318,9 +318,19 @@ export default function CardioManualForm({
               p_delta: Number(payload.distance_meters),
             });
             if (rpcErr) {
-              const me = await db.auth.me();
-              const prev = Number(me?.total_distance_meters) || 0;
-              await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+              // RMW fallback only when the RPC is confirmed-missing
+              // (pre-023 host — those also predate the 142/173 trigger,
+              // so the direct write is still allowed there). Mig 173
+              // rejects direct total_distance_meters writes with 42501,
+              // and falling back on transient errors re-introduced the
+              // lost-update race anyway (audit A-12 reasoning).
+              if (rpcErr.code === '42883' || rpcErr.code === '42P01') {
+                const me = await db.auth.me();
+                const prev = Number(me?.total_distance_meters) || 0;
+                await db.auth.updateMe({ total_distance_meters: prev + Number(payload.distance_meters) });
+              } else {
+                console.warn('[Cardio] increment_user_distance failed:', rpcErr);
+              }
             }
           } catch (err) { console.warn('[Cardio] distance accumulate failed:', err); }
         }

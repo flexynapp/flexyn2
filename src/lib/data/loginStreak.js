@@ -97,29 +97,51 @@ export async function recordLogin(user) {
     }
   }
 
-  const coinsAwarded = coinsForStreakDay(newStreak);
-  const eliteCapsule = eliteCapsuleOnStreakDay(newStreak);
-  const newLongest = Math.max(longest, newStreak);
-  const newFreezes = freezeUsed ? Math.max(freezes - 1, 0) : freezes;
+  let newLongest = Math.max(longest, newStreak);
+  let newFreezes = freezeUsed ? Math.max(freezes - 1, 0) : freezes;
 
-  // Streak counters first — single-writer columns, so the direct UPDATE
-  // is race-free for these fields. flex_coins is intentionally NOT in
-  // this update; see the increment_flex_coins call below.
-  const updates = {
-    login_streak: newStreak,
-    last_login_date: today,
-    longest_login_streak: newLongest,
-    streak_freezes_available: newFreezes,
-  };
-
-  const { error: writeErr } = await supabase
-    .from('user_profiles')
-    .update(updates)
-    .eq('id', user.id);
-  if (writeErr) {
-    console.warn('[loginStreak] update failed:', writeErr);
+  // Streak counters via advance_login_streak (migration 173). The
+  // 142/173 privileged-column trigger blocks direct client writes of
+  // login_streak / last_login_date / longest_login_streak /
+  // streak_freezes_available, so the server re-runs the streak math and
+  // returns the authoritative post-state — which overrides the local
+  // computation above (kept for the pre-173 fallback below).
+  // flex_coins is intentionally NOT part of this write; see the
+  // increment_flex_coins call below.
+  const { data: advanced, error: advanceErr } = await supabase
+    .rpc('advance_login_streak', { p_today: today });
+  if (!advanceErr && advanced) {
+    if (advanced.is_new_day !== true) {
+      // Another tab/device already recorded today's login.
+      return { isNewDay: false, streak: advanced.streak ?? currentStreak, coinsAwarded: 0, eliteCapsuleAwarded: false, freezeUsed: false };
+    }
+    newStreak  = advanced.streak ?? newStreak;
+    newLongest = advanced.longest ?? newLongest;
+    freezeUsed = advanced.freeze_used === true;
+    newFreezes = advanced.freezes_remaining ?? newFreezes;
+  } else if (advanceErr && (advanceErr.code === '42883' || advanceErr.code === '42P01')) {
+    // Pre-173 host: the RPC doesn't exist, but neither does the
+    // write-blocking trigger — the legacy direct UPDATE still works.
+    const { error: writeErr } = await supabase
+      .from('user_profiles')
+      .update({
+        login_streak: newStreak,
+        last_login_date: today,
+        longest_login_streak: newLongest,
+        streak_freezes_available: newFreezes,
+      })
+      .eq('id', user.id);
+    if (writeErr) {
+      console.warn('[loginStreak] update failed:', writeErr);
+      return { isNewDay: false, streak: currentStreak, coinsAwarded: 0, eliteCapsuleAwarded: false, freezeUsed: false };
+    }
+  } else {
+    console.warn('[loginStreak] advance_login_streak failed:', advanceErr);
     return { isNewDay: false, streak: currentStreak, coinsAwarded: 0, eliteCapsuleAwarded: false, freezeUsed: false };
   }
+
+  const coinsAwarded = coinsForStreakDay(newStreak);
+  const eliteCapsule = eliteCapsuleOnStreakDay(newStreak);
 
   // Credit coins via the atomic delta RPC (migration 030) so a concurrent
   // grant from another path (capsule open, quest claim, marketplace credit)
@@ -136,21 +158,23 @@ export async function recordLogin(user) {
     if (!coinsErr) {
       coinsLanded = true;
     } else {
-      // Pre-030 host or other RPC failure. Fall back to the legacy
-      // read-modify-write — keeps the streak coin grant landing on
-      // pre-migration deployments, at the cost of the documented race
-      // window. The race window only matters on hosts that DO have the
-      // RPC and just had it return an error, which is vanishingly rare.
-      if (coinsErr.code !== '42883' && coinsErr.code !== '42P01') {
-        console.warn('[loginStreak] increment_flex_coins failed, falling back to RMW:', coinsErr);
+      // Pre-030 host — fall back to the legacy read-modify-write so the
+      // streak coin grant still lands there (pre-030 also predates the
+      // 142/173 trigger, so the direct write is allowed). On any other
+      // failure, don't RMW: mig 142/173 rejects direct flex_coins
+      // writes with 42501, and the race window was the documented bug
+      // anyway. coinsLanded stays false so the caller's toast doesn't lie.
+      if (coinsErr.code === '42883' || coinsErr.code === '42P01') {
+        const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
+        const { error: fallbackErr } = await supabase
+          .from('user_profiles')
+          .update({ flex_coins: fallbackCoins })
+          .eq('id', user.id);
+        if (fallbackErr) console.warn('[loginStreak] fallback flex_coins write failed:', fallbackErr);
+        else coinsLanded = true;
+      } else {
+        console.warn('[loginStreak] increment_flex_coins failed (coins not granted):', coinsErr);
       }
-      const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
-      const { error: fallbackErr } = await supabase
-        .from('user_profiles')
-        .update({ flex_coins: fallbackCoins })
-        .eq('id', user.id);
-      if (fallbackErr) console.warn('[loginStreak] fallback flex_coins write failed:', fallbackErr);
-      else coinsLanded = true;
     }
   }
 

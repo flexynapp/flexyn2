@@ -78,29 +78,47 @@ export async function recordWorkoutDay(user) {
     }
   }
 
-  const coinsAwarded = coinsForWorkoutStreakDay(newStreak);
-  const eliteCapsule = eliteCapsuleOnWorkoutStreakDay(newStreak);
-  const newLongest = Math.max(longest, newStreak);
+  let newLongest = Math.max(longest, newStreak);
 
-  // Streak counters first — single-writer columns, race-free as a direct
-  // UPDATE. flex_coins is intentionally NOT in this update; the coin
-  // grant goes through increment_flex_coins below so a concurrent grant
-  // from another path (capsule open, quest claim, marketplace credit)
-  // can't be overwritten. Previously the read-flex_coins → add → write
-  // pattern lost any grant that landed between the read at line ~50
-  // and the write here.
-  const { error: writeErr } = await supabase
-    .from('user_profiles')
-    .update({
-      workout_streak:           newStreak,
-      last_workout_date:        today,
-      longest_workout_streak:   newLongest,
-    })
-    .eq('id', user.id);
-  if (writeErr) {
-    console.warn('[workoutStreak] update failed:', writeErr);
+  // Streak counters via advance_workout_streak (migration 173). The
+  // 142/173 privileged-column trigger blocks direct client writes of
+  // workout_streak / last_workout_date / longest_workout_streak, so the
+  // server re-runs the streak math and returns the authoritative
+  // post-state. flex_coins is intentionally NOT part of this write; the
+  // coin grant goes through increment_flex_coins below so a concurrent
+  // grant from another path (capsule open, quest claim, marketplace
+  // credit) can't be overwritten.
+  const { data: advanced, error: advanceErr } = await supabase
+    .rpc('advance_workout_streak', { p_today: today });
+  if (!advanceErr && advanced) {
+    if (advanced.is_new_day !== true) {
+      // Another tab/device already recorded today's workout.
+      return { isNewDay: false, streak: advanced.streak ?? currentStreak, coinsAwarded: 0, eliteCapsuleAwarded: false };
+    }
+    newStreak  = advanced.streak ?? newStreak;
+    newLongest = advanced.longest ?? newLongest;
+  } else if (advanceErr && (advanceErr.code === '42883' || advanceErr.code === '42P01')) {
+    // Pre-173 host: the RPC doesn't exist, but neither does the
+    // write-blocking trigger — the legacy direct UPDATE still works.
+    const { error: writeErr } = await supabase
+      .from('user_profiles')
+      .update({
+        workout_streak:           newStreak,
+        last_workout_date:        today,
+        longest_workout_streak:   newLongest,
+      })
+      .eq('id', user.id);
+    if (writeErr) {
+      console.warn('[workoutStreak] update failed:', writeErr);
+      return null;
+    }
+  } else {
+    console.warn('[workoutStreak] advance_workout_streak failed:', advanceErr);
     return null;
   }
+
+  const coinsAwarded = coinsForWorkoutStreakDay(newStreak);
+  const eliteCapsule = eliteCapsuleOnWorkoutStreakDay(newStreak);
 
   // Track whether the coins actually landed so the return value
   // doesn't lie to the caller — Workout.jsx pops a "+N coins" toast
@@ -112,20 +130,23 @@ export async function recordWorkoutDay(user) {
     if (!coinsErr) {
       coinsLanded = true;
     } else {
-      // Pre-030 host or transient RPC failure — fall back to the
-      // legacy RMW path so the streak grant still lands. Race window
-      // is the documented bug we're trying to close; the fallback is
-      // strictly for pre-migration deployments.
-      if (coinsErr.code !== '42883' && coinsErr.code !== '42P01') {
-        console.warn('[workoutStreak] increment_flex_coins failed, falling back to RMW:', coinsErr);
+      // Pre-030 host — fall back to the legacy RMW path so the streak
+      // grant still lands there (pre-030 also predates the 142/173
+      // trigger, so the direct write is allowed). On any other failure,
+      // don't RMW: mig 142/173 rejects direct flex_coins writes with
+      // 42501, and the race window was the documented bug anyway.
+      // coinsLanded stays false so the caller's toast doesn't lie.
+      if (coinsErr.code === '42883' || coinsErr.code === '42P01') {
+        const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
+        const { error: fallbackErr } = await supabase
+          .from('user_profiles')
+          .update({ flex_coins: fallbackCoins })
+          .eq('id', user.id);
+        if (fallbackErr) console.warn('[workoutStreak] fallback flex_coins write failed:', fallbackErr);
+        else coinsLanded = true;
+      } else {
+        console.warn('[workoutStreak] increment_flex_coins failed (coins not granted):', coinsErr);
       }
-      const fallbackCoins = (profile.flex_coins ?? 0) + coinsAwarded;
-      const { error: fallbackErr } = await supabase
-        .from('user_profiles')
-        .update({ flex_coins: fallbackCoins })
-        .eq('id', user.id);
-      if (fallbackErr) console.warn('[workoutStreak] fallback flex_coins write failed:', fallbackErr);
-      else coinsLanded = true;
     }
   }
 
