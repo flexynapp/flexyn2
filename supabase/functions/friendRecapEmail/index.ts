@@ -121,6 +121,20 @@ async function sendEmail(
  * Keep this self-contained and inline-styled — many email clients
  * strip <style> blocks and external CSS.
  */
+// HTML-escape every user-controlled string before it lands in the email
+// body. username, followee names, and PR lift labels all originate from
+// user_profiles/workout data and are fully attacker-controllable (e.g. a
+// username of `<img src=x onerror=...>`), so without escaping a malicious
+// display name injects markup into every follower's inbox (2026-06 audit).
+function esc(s: unknown): string {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function renderHtml(opts: {
   username: string;
   followeesActive: number;
@@ -129,14 +143,14 @@ function renderHtml(opts: {
 }): string {
   const { username, followeesActive, topFollowees, prs } = opts;
   const topList = topFollowees
-    .map(f => `<li style="margin: 4px 0;"><strong>${f.name}</strong> — ${f.sessions} session${f.sessions === 1 ? '' : 's'}</li>`)
+    .map(f => `<li style="margin: 4px 0;"><strong>${esc(f.name)}</strong> — ${f.sessions} session${f.sessions === 1 ? '' : 's'}</li>`)
     .join('');
   const prList = prs
-    .map(p => `<li style="margin: 4px 0;"><strong>${p.name}</strong> — ${p.lift}</li>`)
+    .map(p => `<li style="margin: 4px 0;"><strong>${esc(p.name)}</strong> — ${esc(p.lift)}</li>`)
     .join('');
   return `<!doctype html>
 <html><body style="font-family: -apple-system, system-ui, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; background: #f8fafc; color: #0f172a;">
-  <h1 style="font-size: 22px; margin: 0 0 12px;">Hey ${username || 'Athlete'},</h1>
+  <h1 style="font-size: 22px; margin: 0 0 12px;">Hey ${esc(username) || 'Athlete'},</h1>
   <p style="font-size: 15px; line-height: 1.55; margin: 0 0 16px;">
     Here's what your crew did this week. ${followeesActive} friend${followeesActive === 1 ? '' : 's'} trained.
   </p>

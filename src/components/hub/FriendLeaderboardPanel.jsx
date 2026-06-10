@@ -142,7 +142,7 @@ export default function FriendLeaderboardPanel() {
                       rankAccent(rank, row.is_self),
                     ].join(' ')}
                   >
-                    <span className={`text-xs font-black w-5 text-center tabular-nums ${rankColor(rank)}`}>
+                    <span className={`text-xs font-black min-w-5 px-0.5 text-center tabular-nums ${rankColor(rank)}`}>
                       {rank === 1 ? <Crown className="w-3.5 h-3.5 inline" /> : rank}
                     </span>
                     {row.avatar_url ? (

@@ -169,14 +169,38 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), { status: 405 });
   }
 
-  // Auth: accept Bearer JWT or shared cron secret
+  // Auth: shared cron secret, or a SERVICE-ROLE Bearer only.
+  //
+  // SECURITY (2026-06 audit): previously this accepted ANY non-empty Bearer
+  // (`/^Bearer\s+\S+/`), so the public anon key — shipped in the client
+  // bundle — satisfied it, letting anyone trigger the full debrief-generation
+  // loop + push fan-out to every active user. This is a privileged batch job:
+  // it must require the cron secret or a real service-role token, never a
+  // mere "looks like a Bearer" check (mirrors send-push's binding).
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
   const cronSecret = Deno.env.get('DEBRIEF_CRON_SECRET') || '';
   const incoming  = req.headers.get('x-cron-secret') || '';
   const auth      = req.headers.get('authorization') || '';
-  const hasBearer = /^Bearer\s+\S+/i.test(auth);
+  const bearer    = (auth.match(/^Bearer\s+(\S+)/i) || [])[1] || '';
   const hasCron   = cronSecret.length > 0 && incoming === cronSecret;
 
-  if (!hasBearer && !hasCron) {
+  // Constant-time compare against the service key; also accept a token whose
+  // role claim is service_role (Supabase mints these for trusted callers).
+  const safeEqual = (a: string, b: string) => {
+    if (a.length !== b.length || a.length === 0) return false;
+    let d = 0; for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return d === 0;
+  };
+  const roleClaim = (() => {
+    try {
+      const p = bearer.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+      return JSON.parse(atob(p + '='.repeat((4 - (p.length % 4)) % 4)))?.role || null;
+    } catch { return null; }
+  })();
+  const hasServiceRole = (serviceRoleKey.length > 0 && safeEqual(bearer, serviceRoleKey))
+                       || roleClaim === 'service_role';
+
+  if (!hasCron && !hasServiceRole) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), { status: 401 });
   }
 
