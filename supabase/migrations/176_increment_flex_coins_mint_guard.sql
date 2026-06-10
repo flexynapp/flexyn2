@@ -13,14 +13,19 @@
 --
 -- Instead we keep the grant and make the function itself safe:
 --   1. Per-call clamp — a single positive grant is capped at a ceiling
---      well above any legitimate grant (streak ~10-100, referral 200,
---      sell-back a few hundred). Kills the one-shot 999999999 mint.
+--      above the largest legitimate grant. Verified against prod code:
+--      the biggest single increment_flex_coins call is the day-100
+--      workout-streak milestone (2000); login-streak tops at 1500,
+--      capsule/loot at 1000, referral 200. Ceiling 2500 leaves headroom.
+--      Kills the one-shot 999999999 mint.
 --   2. Per-user/day positive-grant cap (ledger) — bounds a scripted loop
---      of ceiling-sized calls to a daily total no legitimate user reaches.
---      Negative deltas (purchases/refunds) are unaffected and still clamp
---      the final balance at 0.
+--      to a daily total well above any realistic legitimate day (even
+--      day-100 of BOTH streaks plus inventory liquidation lands ~6000).
+--      Ceiling 25000 never clips a real user while still throttling an
+--      automated mint. Negative deltas (purchases/refunds) are unaffected
+--      and still clamp the final balance at 0.
 --
--- Ceilings are conservative and centralized here as tunable constants.
+-- Ceilings are centralized here as tunable constants.
 -- The durable fix is event-sourced server-side grants (amount derived
 -- from the triggering event, never passed by the client) — a larger
 -- economy refactor tracked as a follow-up. This migration removes the
@@ -54,8 +59,8 @@ SET search_path = public
 AS $$
 DECLARE
   v_uid          UUID := auth.uid();
-  v_max_per_call CONSTANT INTEGER := 2000;   -- ceiling on a single positive grant
-  v_max_per_day  CONSTANT INTEGER := 8000;   -- ceiling on positive grants per UTC day
+  v_max_per_call CONSTANT INTEGER := 2500;    -- > largest legit grant (2000); kills one-shot mint
+  v_max_per_day  CONSTANT INTEGER := 25000;   -- >> realistic max legit day (~6000); throttles loops
   v_requested    INTEGER;
   v_before       INTEGER;
   v_after        INTEGER;
