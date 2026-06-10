@@ -223,7 +223,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'pump'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
                 }`}
               >
                 <Flame className="w-3.5 h-3.5" />
@@ -235,7 +235,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'squad'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
                 }`}
               >
                 <UsersIcon className="w-3.5 h-3.5" />
@@ -247,7 +247,7 @@ export default function Hub() {
                 className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium rounded-md transition-colors ${
                   feedTab === 'crews'
                     ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
+                    : 'text-secondary-foreground/70 hover:text-secondary-foreground'
                 }`}
               >
                 <Shield className="w-3.5 h-3.5" />
