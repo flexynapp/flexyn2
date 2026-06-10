@@ -23,6 +23,7 @@ import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import UnitPill from '@/components/UnitPill';
 import { fromLbs, toLbs, formatWeight, formatWeightNumber } from '@/lib/weightUnit';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 
 const CHART_STYLE = {
@@ -255,18 +256,17 @@ export default function BodyMetricsTab() {
   const sorted = useMemo(() => {
     // Filter out entries with bad/missing dates BEFORE chart rendering — date-fns
     // format() throws on Invalid Date which used to crash the whole tab.
-    const valid = (entries || []).filter(e => {
-      if (!e?.date) return false;
-      const d = new Date(e.date);
-      return !isNaN(d.getTime());
-    });
-    return valid.sort((a, b) => new Date(a.date) - new Date(b.date));
+    // parseLocalDate so a 'yyyy-MM-dd' DATE string is interpreted in the
+    // user's timezone — `new Date(str)` parses it as UTC midnight, which
+    // is the previous local day for anyone west of UTC.
+    const valid = (entries || []).filter(e => e?.date && parseLocalDate(e.date));
+    return valid.sort((a, b) => parseLocalDate(a.date) - parseLocalDate(b.date));
   }, [entries]);
 
   const chartData = useMemo(() => sorted.map(e => {
     let dateLabel = '—';
     try {
-      dateLabel = format(new Date(e.date), 'MMM d', { locale: dateLocale });
+      dateLabel = format(parseLocalDate(e.date), 'MMM d', { locale: dateLocale });
     } catch { /* keep fallback */ }
     return {
       date: dateLabel,
@@ -630,7 +630,7 @@ export default function BodyMetricsTab() {
                     <Scale className="w-4 h-4 text-primary" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">{format(new Date(entry.date), 'MMM d, yyyy', { locale: dateLocale })}</p>
+                    <p className="text-sm font-semibold">{format(parseLocalDate(entry.date), 'MMM d, yyyy', { locale: dateLocale })}</p>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1">
                       {entry.weight_lbs != null && <span className="text-xs text-muted-foreground">{formatWeight(entry.weight_lbs, weightUnit)}</span>}
                       {entry.body_fat_pct != null && <span className="text-xs text-muted-foreground">{entry.body_fat_pct}% BF</span>}

@@ -3,6 +3,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { selectProfiles } from '@/lib/data/users';
 
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -113,13 +114,12 @@ export async function performPrestige() {
 
 /** All-time prestige leaderboard: ranked by prestige_level desc, then lifetime_xp desc */
 export async function getPrestigeLeaderboard(limit = 50) {
-  const { data, error } = await supabase
-    .from('user_profiles')
+  const { data, error } = await selectProfiles((from) => from
     .select('id, username, avatar_url, prestige_level, lifetime_xp, current_level')
     .gt('prestige_level', 0)
     .order('prestige_level', { ascending: false })
     .order('lifetime_xp',   { ascending: false })
-    .limit(limit);
+    .limit(limit));
   return error ? [] : (data ?? []);
 }
 

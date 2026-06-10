@@ -22,6 +22,7 @@ import { safeSelect } from '@/api/safeSelect';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as me from '@/lib/data/me';
+import { selectProfiles } from '@/lib/data/users';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import { hasAnyProfanity } from '@/lib/useProfanityGuard';
 import HubPostCard from './HubPostCard';
@@ -344,11 +345,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // maybeSingle so a missing row returns null cleanly instead of
       // throwing PGRST116, which the surrounding try-less code path
       // would surface to the user as a broken activity pill.
-      const { data } = await supabase
-        .from('user_profiles')
+      // Cross-user read → public_profiles view (falls back to
+      // user_profiles while the view migration is pending).
+      const { data } = await selectProfiles((from) => from
         .select('last_active_at')
         .eq('email', email)
-        .maybeSingle();
+        .maybeSingle());
       return data?.last_active_at || null;
     },
     enabled: !isSelf && !!email,
@@ -386,11 +388,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           'trophy_case', 'trophy_case_visible',
           'website_url', 'signature_trophy',
         ],
-        build: (cols) => supabase
-          .from('user_profiles')
+        build: (cols) => selectProfiles((from) => from
           .select(cols)
           .eq('email', email)
-          .single(),
+          .single()),
       });
       if (!data) return targetUser || null;
       return { ...data, username: data.username || targetUser?.username || null };

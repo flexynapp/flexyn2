@@ -3,6 +3,8 @@ import {
   getMaxRealisticWeight,
   getMaxRealisticReps,
   getMaxRealisticDuration,
+  shouldKeepSet,
+  looksLikeBodyweight,
 } from '../realisticLimits';
 
 const MALE_180   = { weight_lbs: 180, gender: 'male' };
@@ -137,5 +139,78 @@ describe('getMaxRealisticReps — bodyweight exercises', () => {
 describe('getMaxRealisticDuration', () => {
   it('returns 180 minutes (3 hours)', () => {
     expect(getMaxRealisticDuration()).toBe(180);
+  });
+});
+
+// ─── Weighted-plank ordering (Audit task 5) ───────────────────────────────────
+
+describe('getMaxRealisticWeight — weighted variants beat generic zero entries', () => {
+  it('"weighted plank" gets a non-zero cap (not swallowed by generic "plank")', () => {
+    expect(getMaxRealisticWeight('weighted plank', MALE_180)).toBeGreaterThan(0);
+  });
+  it('plain "plank" still caps at 0 (bodyweight)', () => {
+    expect(getMaxRealisticWeight('plank', MALE_180)).toBe(0);
+  });
+  it('"weighted ab wheel" gets a non-zero cap', () => {
+    expect(getMaxRealisticWeight('weighted ab wheel', MALE_180)).toBeGreaterThan(0);
+  });
+});
+
+// ─── shouldKeepSet (Audit task 4 — bodyweight sets not erased) ─────────────────
+
+describe('shouldKeepSet', () => {
+  it('keeps a normal weighted set (reps>0, weight>0)', () => {
+    expect(shouldKeepSet({ weight: 100, reps: 8 })).toBe(true);
+  });
+
+  it('drops a set with no reps regardless of weight', () => {
+    expect(shouldKeepSet({ weight: 100, reps: 0 })).toBe(false);
+    expect(shouldKeepSet({ weight: 100, reps: null })).toBe(false);
+    expect(shouldKeepSet({ weight: 100, reps: '' })).toBe(false);
+  });
+
+  it('drops a fully blank set', () => {
+    expect(shouldKeepSet({ weight: null, reps: null })).toBe(false);
+    expect(shouldKeepSet({})).toBe(false);
+  });
+
+  it('REGRESSION: drops a 0-weight reps-only set when NOT bodyweight/cardio', () => {
+    // Old behavior for all 0-weight sets — still correct for a plain
+    // barbell exercise the user forgot to weight.
+    expect(shouldKeepSet({ weight: 0, reps: 12 })).toBe(false);
+    expect(shouldKeepSet({ weight: null, reps: 12 })).toBe(false);
+  });
+
+  it('KEEPS a 0-weight reps-only set when the exercise is bodyweight', () => {
+    // The core bug: pull-ups / push-ups / planks logged with reps and no
+    // added weight must survive the save filter, not get erased.
+    expect(shouldKeepSet({ weight: 0, reps: 12 }, { isBodyweight: true })).toBe(true);
+    expect(shouldKeepSet({ weight: null, reps: 20 }, { isBodyweight: true })).toBe(true);
+  });
+
+  it('KEEPS a 0-weight set when the exercise is cardio (duration-based)', () => {
+    expect(shouldKeepSet({ weight: 0, reps: 1 }, { isCardio: true })).toBe(true);
+  });
+
+  it('still drops a no-reps set even on a bodyweight exercise', () => {
+    expect(shouldKeepSet({ weight: 0, reps: 0 }, { isBodyweight: true })).toBe(false);
+  });
+
+  it('handles string-typed numeric inputs (Supabase numeric-as-string)', () => {
+    expect(shouldKeepSet({ weight: '135', reps: '5' })).toBe(true);
+    expect(shouldKeepSet({ weight: '0', reps: '10' }, { isBodyweight: true })).toBe(true);
+  });
+});
+
+describe('looksLikeBodyweight (exported for the save filter)', () => {
+  it('recognizes common calisthenics names', () => {
+    expect(looksLikeBodyweight('Push-up')).toBe(true);
+    expect(looksLikeBodyweight('Pull-up')).toBe(true);
+    expect(looksLikeBodyweight('Plank')).toBe(true);
+    expect(looksLikeBodyweight('Tricep Dip')).toBe(true);
+  });
+  it('returns false for loaded barbell lifts', () => {
+    expect(looksLikeBodyweight('Back Squat')).toBe(false);
+    expect(looksLikeBodyweight('Bench Press')).toBe(false);
   });
 });

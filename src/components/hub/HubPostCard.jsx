@@ -241,7 +241,9 @@ function PollCard({ post, userEmail }) {
   };
 
   return (
-    <div className="px-3 pb-3">
+    // stopPropagation on pointerup so tapping a poll option doesn't also
+    // bubble to the article's double-tap-to-like detector.
+    <div className="px-3 pb-3" onPointerUp={(e) => e.stopPropagation()}>
       <div className="rounded-xl border border-border bg-secondary/20 p-3">
         <div className="flex items-center gap-1.5 mb-2">
           <BarChart3 className="w-3.5 h-3.5 text-primary" />
@@ -332,6 +334,10 @@ function ImagePreview({ src }) {
     <div
       className="border-y border-border bg-black cursor-pointer select-none"
       onClick={() => setExpanded(v => !v)}
+      // stopPropagation on pointerup so tapping the image preview to
+      // expand/collapse doesn't also bubble to the article's double-tap
+      // detector and toggle a like.
+      onPointerUp={(e) => e.stopPropagation()}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setExpanded(v => !v); }}
@@ -621,25 +627,46 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     if (!inFlightRef.current) runWorker();
   };
 
-  // ── Double-tap callback (defined after displayedReaction + handleReact) ────
-  const handleDoubleTap = useCallback((e) => {
+  // ── Double-tap-to-like (pointer-event driven) ──────────────────────────────
+  // Previously this was wired to BOTH onClick and onTouchStart on the article.
+  // On a touch device a single physical tap fires `touchstart` and then a
+  // compatibility `click` ~100-200ms later — inside the 300ms double-tap
+  // window — so EVERY single tap registered as a double-tap "like". Child
+  // controls (Like/Dislike, poll options, image preview) also bubbled up to
+  // the article detector, so e.g. tapping Dislike toggled a dislike and then
+  // the bubbled fake double-tap toggled a like → the post ended LIKED.
+  //
+  // Fix: drive the gesture from a SINGLE `onPointerUp` on the article. Pointer
+  // events fire exactly once per physical interaction (no compat-click twin),
+  // and `e.pointerType` tells us mouse vs touch vs pen. We measure the gap
+  // between consecutive pointer-ups; two within 300ms = a double-tap. Child
+  // interactive regions call stopPropagation so their taps never reach here.
+  const handlePointerUp = useCallback((e) => {
+    // Only the primary button / a real tap should count. Ignore synthetic
+    // or right/middle clicks.
+    if (e.button != null && e.button !== 0) return;
     const now = Date.now();
     const last = lastTapRef.current;
     if (now - last.time < 300) {
       doubleTapGuardRef.current = true;
+      // Toggle-safe: only ADD a like; never unlike on a double-tap so a
+      // rapid string of taps can't produce a like/unlike storm.
       if (displayedReaction !== 'like') handleReact('like');
       const rect = e.currentTarget.getBoundingClientRect();
-      const x = (e.touches?.[0]?.clientX ?? e.clientX) - rect.left;
-      const y = (e.touches?.[0]?.clientY ?? e.clientY) - rect.top;
+      const x = (e.clientX ?? rect.left + rect.width / 2) - rect.left;
+      const y = (e.clientY ?? rect.top + rect.height / 2) - rect.top;
       const id = Date.now();
       setHeartAnim({ x, y, id });
       setTimeout(() => setHeartAnim(a => a?.id === id ? null : a), 700);
+      // Reset so a third tap doesn't chain into another "double".
       lastTapRef.current = { time: 0, x: 0, y: 0 };
-      return true;
+      // Clear the guard shortly after so subsequent single taps (e.g. on the
+      // avatar overlay) work normally.
+      setTimeout(() => { doubleTapGuardRef.current = false; }, 350);
+      return;
     }
-    lastTapRef.current = { time: now, x: e.touches?.[0]?.clientX ?? e.clientX, y: e.touches?.[0]?.clientY ?? e.clientY };
+    lastTapRef.current = { time: now, x: e.clientX ?? 0, y: e.clientY ?? 0 };
     doubleTapGuardRef.current = false;
-    return false;
   }, [displayedReaction, handleReact]);
 
   const handleDelete = async () => {
@@ -771,8 +798,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
         background: 'rgba(244,250,255,0.04)',
         boxShadow: '0 0 28px rgba(103,232,249,0.55), 0 0 8px rgba(103,232,249,0.35), 0 0 0 1px rgba(103,232,249,0.30)',
       } : undefined}
-      onClick={(e) => handleDoubleTap(e)}
-      onTouchStart={(e) => handleDoubleTap(e)}
+      onPointerUp={handlePointerUp}
     >
       {/* Double-tap heart animation */}
       <AnimatePresence>
@@ -890,6 +916,9 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             onTouchStart={(e) => { e.stopPropagation(); startAvatarLongPress(); }}
             onTouchEnd={cancelAvatarLongPress}
             onTouchMove={cancelAvatarLongPress}
+            // stopPropagation on pointerup so a tap to open the profile
+            // doesn't also feed the article's double-tap-to-like detector.
+            onPointerUp={(e) => e.stopPropagation()}
             aria-label={`Open ${author.handle}'s profile`}
             className={`absolute inset-0 ${isMine ? 'end-16' : 'end-0'} rounded-tl-xl rounded-tr-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:ring-inset`}
           />
@@ -1113,7 +1142,12 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
       {/* Video — TikTok-style: autoplay muted, tap to mute/unmute */}
       {post.video_url && (
         <ContentWarningGate warning={post.content_warning} customLabel={post.content_warning_label}>
-          <div className="relative border-y border-border bg-black">
+          <div
+            className="relative border-y border-border bg-black"
+            // stopPropagation on pointerup so tapping the video (mute toggle)
+            // doesn't bubble to the article's double-tap-to-like detector.
+            onPointerUp={(e) => e.stopPropagation()}
+          >
             <video
               ref={videoRef}
               src={post.video_url}
@@ -1146,7 +1180,14 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
       )}
 
       {/* Actions */}
-      <div className="flex items-center gap-1 px-2 py-2 border-t border-border">
+      {/* stopPropagation on pointerup so taps on Like/Dislike/comment/share
+          don't bubble to the article's double-tap-to-like detector. Without
+          this, tapping Dislike would toggle a dislike AND register as a fake
+          double-tap "like", leaving the post liked. */}
+      <div
+        className="flex items-center gap-1 px-2 py-2 border-t border-border"
+        onPointerUp={(e) => e.stopPropagation()}
+      >
         <ActionButton
           icon={ThumbsUp}
           count={likeCount}

@@ -12,6 +12,7 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { createDuel, getFrequentOpponents, sendDuelDM } from '@/lib/data/duels';
 import { supabase } from '@/api/supabaseClient';
+import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { toast } from 'sonner';
 
@@ -51,13 +52,12 @@ const DUEL_TYPES = [
 
 async function searchUsers(query, currentUserId) {
   if (!query || query.length < 2) return [];
-  const { data } = await supabase
-    .from('user_profiles')
+  const { data } = await selectProfiles((from) => from
     .select('id, username, avatar_url, current_level')
     .ilike('username', `%${query}%`)
     .neq('id', currentUserId)
     .not('username', 'is', null)
-    .limit(8);
+    .limit(8));
   return data ?? [];
 }
 
@@ -71,13 +71,12 @@ async function getFriends(userEmail, currentUserId) {
   if (!follows?.length) return [];
   const emails = follows.map(f => f.followee_email).filter(Boolean);
   if (!emails.length) return [];
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, username, avatar_url, current_level')
     .in('email', emails)
     .neq('id', currentUserId)
     .not('username', 'is', null)
-    .limit(20);
+    .limit(20));
   return profiles ?? [];
 }
 

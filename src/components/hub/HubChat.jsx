@@ -232,14 +232,84 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const otherInitials   = (otherUsername || '?').slice(0, 2).toUpperCase();
   const otherAvatarUrl  = otherProfile?.avatar_url || null;
 
+  const INITIAL_WINDOW = 200;
+  const MAX_WINDOW = 2000;
+  // How many rows are currently in the cache — used so the 5s poll / any
+  // invalidate refetches AT LEAST the rows already on screen. Without this,
+  // a poll re-running `listMessages(id, 200)` after the user paged older
+  // history in would collapse the window back to the newest 200 and yank
+  // the history out from under them. The ref keeps the queryFn stable.
+  const loadedCountRef = useRef(INITIAL_WINDOW);
   const { data: rawMessages = [] } = useQuery({
     queryKey: ['hubChat', conversation?.id],
-    queryFn: () => hubMessages.listMessages(conversation.id),
+    queryFn: () => hubMessages.listMessages(
+      conversation.id,
+      Math.min(Math.max(loadedCountRef.current, INITIAL_WINDOW), MAX_WINDOW),
+    ),
     enabled: !!conversation?.id,
     refetchInterval: 5000,
   });
 
   const messages = dedupeMessages(rawMessages);
+  // Keep the poll window in sync with what's loaded (persisted rows only —
+  // temps don't exist server-side). Reset to the initial window on switch.
+  loadedCountRef.current = Math.max(rawMessages.length, INITIAL_WINDOW);
+
+  // ── Older-history pagination ───────────────────────────────────────────────
+  // The initial query loads the NEWEST `INITIAL_WINDOW` messages (oldest-first
+  // for render). If that came back full, there may be older history; show a
+  // "Load earlier" affordance that prepends a cursor page while preserving the
+  // visual scroll position (anchored to the row that was at the top).
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [reachedStart, setReachedStart] = useState(false);
+  // The 5s poll only ever appends newer rows, so once the first full window
+  // arrives we keep the "maybe older exists" signal until a cursor page comes
+  // back short. rawMessages length can exceed INITIAL_WINDOW after prepends,
+  // so gate on whether we've hit the start rather than the current length.
+  const initialWindowWasFull = rawMessages.length >= INITIAL_WINDOW;
+  const canLoadOlder = initialWindowWasFull && !reachedStart;
+
+  // Reset pagination signals whenever the conversation changes.
+  useEffect(() => { setReachedStart(false); setLoadingOlder(false); }, [conversation?.id]);
+
+  const handleLoadOlder = useCallback(async () => {
+    if (loadingOlder || reachedStart || !conversation?.id) return;
+    // Oldest currently-loaded row is the cursor (messages are ascending).
+    const oldest = messages[0];
+    const cursor = oldest && (oldest.created_date || oldest.created_at);
+    if (!cursor) return;
+    setLoadingOlder(true);
+    // Anchor scroll: remember the scroll distance from the BOTTOM so that
+    // after we prepend older rows (which grow scrollHeight at the top) we can
+    // restore the same visual position the user was looking at.
+    const el = scrollerRef.current;
+    const prevDistanceFromBottom = el ? el.scrollHeight - el.scrollTop : 0;
+    try {
+      const older = await hubMessages.listOlderMessages(conversation.id, cursor, 100);
+      if (!older || older.length === 0) {
+        setReachedStart(true);
+        return;
+      }
+      if (older.length < 100) setReachedStart(true);
+      const queryKey = ['hubChat', conversation.id];
+      queryClient.setQueryData(queryKey, (rows) => {
+        const existing = rows || [];
+        const existingIds = new Set(existing.map(r => r.id));
+        const fresh = older.filter(r => !existingIds.has(r.id));
+        return [...fresh, ...existing];
+      });
+      // Restore visual position after the DOM grows. Two rAFs so layout has
+      // flushed the prepended rows before we read the new scrollHeight.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const node = scrollerRef.current;
+        if (node) node.scrollTop = node.scrollHeight - prevDistanceFromBottom;
+      }));
+    } catch {
+      // Soft failure — leave the affordance up so the user can retry.
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [loadingOlder, reachedStart, conversation?.id, messages, queryClient]);
 
   // Poll vote tally — votes are control messages ([POLL_VOTE_V1]) that
   // reference a poll's message id. Built from the full (unfiltered) list so
@@ -370,9 +440,20 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   }, [conversation?.id, user?.email, messages.length, queryClient]);
 
   // ── Read receipt fade (4 s after read_at appears) ─────────────────────────
-  const lastSentIndex = messages.reduce((acc, m, i) =>
-    m.sender_email?.toLowerCase() === myEmailLc ? i : acc, -1);
-  const lastSentMsg = lastSentIndex >= 0 ? messages[lastSentIndex] : null;
+  // Identify the last OWN message by id (not by index). The render maps over
+  // `visibleMessages` (control/poll-vote rows filtered out, plus search), so
+  // an index computed over the full `messages` array pointed at the wrong row
+  // whenever the two lists diverged — the "Read" receipt could attach to a
+  // hidden control row or shift onto the wrong bubble. Comparing ids in the
+  // render is mismatch-proof. We derive the receipt target from the rendered
+  // list so it always lands on a bubble the user can actually see.
+  const lastSentMsg = (() => {
+    for (let i = visibleMessages.length - 1; i >= 0; i--) {
+      if (visibleMessages[i].sender_email?.toLowerCase() === myEmailLc) return visibleMessages[i];
+    }
+    return null;
+  })();
+  const lastSentMsgId = lastSentMsg?.id ?? null;
 
   useEffect(() => {
     if (lastSentMsg?.read_at && !readReceiptFaded) {
@@ -413,14 +494,29 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     stickToBottomRef.current = true;
   }, [conversation?.id]);
 
+  // Drive auto-scroll / new-message pill off the LAST message's identity, not
+  // the list length. Prepending older history grows the length but does NOT
+  // change the bottom row — keying on length would fire the "N new" pill (and
+  // a scroll-to-bottom when stuck) for messages the user deliberately paged
+  // UP to see. The last id only changes when a genuinely new row appends.
+  const lastMsgId = messages.length ? messages[messages.length - 1].id : null;
+  const prevLastMsgIdRef = useRef(null);
   useEffect(() => {
+    if (lastMsgId === prevLastMsgIdRef.current) return; // prepend or no-op
+    const isFirstPaint = prevLastMsgIdRef.current === null;
+    prevLastMsgIdRef.current = lastMsgId;
+    if (isFirstPaint) return; // initial load handled by the layout effect
     if (stickToBottomRef.current) {
       scrollToBottom(true);
       setNewMsgCount(0);
     } else {
       setNewMsgCount(c => c + 1);
     }
-  }, [messages.length, scrollToBottom]);
+  }, [lastMsgId, scrollToBottom]);
+
+  // Reset the bottom-row tracker on conversation switch so the first paint of
+  // the next thread doesn't read as a new-message append.
+  useEffect(() => { prevLastMsgIdRef.current = null; }, [conversation?.id]);
 
   // ── Textarea auto-resize ──────────────────────────────────────────────────
   const resizeTextarea = useCallback(() => {
@@ -1067,6 +1163,23 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               : `${totalMatches} match${totalMatches === 1 ? '' : 'es'} in ${visibleMessages.length} message${visibleMessages.length === 1 ? '' : 's'}`}
           </p>
         )}
+        {/* Load earlier history — only when the initial window came back full
+            (older messages likely exist) and we're not filtering a search.
+            Prepends a cursor page while preserving the scroll anchor. */}
+        {canLoadOlder && !(searchOpen && searchQuery.trim()) && visibleMessages.length > 0 && (
+          <div className="flex justify-center my-2">
+            <button
+              type="button"
+              onClick={handleLoadOlder}
+              disabled={loadingOlder}
+              className="px-3 py-1.5 rounded-full bg-secondary/60 border border-border text-[11px] font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors disabled:opacity-60"
+            >
+              {loadingOlder
+                ? tFallback('hub.chat.loadingEarlier', 'Loading…')
+                : tFallback('hub.chat.loadEarlier', 'Load earlier messages')}
+            </button>
+          </div>
+        )}
         {visibleMessages.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <p className="text-center text-sm text-muted-foreground">
@@ -1078,7 +1191,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         ) : (
           visibleMessages.map((m, i) => {
             const isMine = m.sender_email?.toLowerCase() === myEmailLc;
-            const isLastSent = isMine && i === lastSentIndex;
+            const isLastSent = isMine && m.id === lastSentMsgId;
             const showDivider = shouldShowDivider(visibleMessages, i);
             const isOptimistic = !!m._optimistic;
             const ts = msgTime(m);
@@ -1664,7 +1777,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               type="datetime-local"
               value={scheduleAt}
               onChange={(e) => setScheduleAt(e.target.value)}
-              min={new Date(Date.now() + 60_000).toISOString().slice(0, 16)}
+              min={format(new Date(Date.now() + 60_000), "yyyy-MM-dd'T'HH:mm")}
               className="w-full px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:border-primary/50"
             />
             <div className="flex items-center justify-end gap-2 mt-2">

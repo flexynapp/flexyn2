@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabaseClient';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
+import { selectProfiles } from '@/lib/data/users';
 
 /* ── Entity name → Postgres table name ─────────────────────────────────── */
 const TABLE = {
@@ -44,36 +45,53 @@ function makeEntity(entityName) {
   const table = TABLE[entityName];
   if (!table) throw new Error(`[Supabase shim] Unknown entity: "${entityName}"`);
 
+  // Privacy (June 2026 audit): the User entity is read-only in practice
+  // (only .list() is called anywhere) and every caller is a CROSS-USER
+  // surface (leaderboards, search, PYMK, author resolution). Those reads
+  // go through the `public_profiles` view via selectProfiles(), which
+  // falls back to user_profiles while the view migration is pending.
+  // Writes (create/update/delete below) intentionally stay on the base
+  // table — but note own-profile writes flow through db.auth.updateMe,
+  // not this entity.
+  const readQuery = (build) =>
+    table === 'user_profiles'
+      ? selectProfiles(build)
+      : build(supabase.from(table));
+
   return {
     /** filter(conditions, sort, limit) — conditions is a plain equality map */
     async filter(conditions = {}, sort, limit = 1000) {
-      let q = supabase.from(table).select('*');
-      Object.entries(conditions).forEach(([k, v]) => {
-        if (v === undefined || v === null) return;
-        Array.isArray(v) ? (q = q.in(k, v)) : (q = q.eq(k, v));
+      const { data, error } = await readQuery((from) => {
+        let q = from.select('*');
+        Object.entries(conditions).forEach(([k, v]) => {
+          if (v === undefined || v === null) return;
+          Array.isArray(v) ? (q = q.in(k, v)) : (q = q.eq(k, v));
+        });
+        const s = parseSort(sort);
+        if (s) q = q.order(s.column, { ascending: s.ascending });
+        return q.limit(limit);
       });
-      const s = parseSort(sort);
-      if (s) q = q.order(s.column, { ascending: s.ascending });
-      q = q.limit(limit);
-      const { data, error } = await q;
       if (error) throw error;
       return data ?? [];
     },
 
     /** list(sort, limit) — equivalent to filter({}, ...) */
     async list(sort, limit = 1000) {
-      let q = supabase.from(table).select('*');
-      const s = parseSort(sort);
-      if (s) q = q.order(s.column, { ascending: s.ascending });
-      q = q.limit(limit);
-      const { data, error } = await q;
+      const { data, error } = await readQuery((from) => {
+        let q = from.select('*');
+        const s = parseSort(sort);
+        if (s) q = q.order(s.column, { ascending: s.ascending });
+        return q.limit(limit);
+      });
       if (error) throw error;
       return data ?? [];
     },
 
     /** get(id) — fetch single record by primary key */
     async get(id) {
-      const { data, error } = await supabase.from(table).select('*').eq('id', id).maybeSingle();
+      const { data, error } = await readQuery((from) =>
+        from.select('*').eq('id', id).maybeSingle()
+      );
       if (error) throw error;
       return data;
     },
@@ -919,6 +937,17 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
     png: 'image/png', webp: 'image/webp', gif: 'image/gif',
     heic: 'image/heic', heif: 'image/heif', avif: 'image/avif',
   };
+  // Video uploads (HubComposer video posts) flow through this same
+  // function. Same pinning rule as images: contentType derives from the
+  // extension, never from client-supplied file.type. No script-execution
+  // risk in these container formats; SVG remains refused.
+  const VIDEO_EXTS = ['mp4', 'mov', 'webm', 'm4v'];
+  const VIDEO_MIMES = { mp4: 'video/mp4', mov: 'video/quicktime', webm: 'video/webm', m4v: 'video/mp4' };
+  const VIDEO_MIME_TO_EXT = {
+    'video/mp4': 'mp4', 'video/quicktime': 'mov',
+    'video/webm': 'webm', 'video/x-m4v': 'm4v',
+  };
+  const VIDEO_MAX_BYTES = 100 * 1024 * 1024; // matches HubComposer's "up to 100 MB" copy
   // Derive extension from filename first, then fall back to MIME type so
   // files with no extension (camera captures on some Android PWA contexts,
   // canvas-exported blobs, etc.) still upload instead of throwing.
@@ -928,12 +957,23 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
   const ext = (rawExt && SAFE_EXTS.includes(rawExt))
     ? rawExt
     : (MIME_TO_EXT[file.type?.toLowerCase()] || '');
-  if (!ext) {
-    const err = new Error('Image type not supported — use JPG, PNG, WebP, GIF, or HEIC.');
+  // Only consider the video branch when the file isn't a recognized image.
+  const videoExt = ext
+    ? ''
+    : ((rawExt && VIDEO_EXTS.includes(rawExt))
+        ? rawExt
+        : (VIDEO_MIME_TO_EXT[file.type?.toLowerCase()] || ''));
+  if (!ext && !videoExt) {
+    const err = new Error('File type not supported — use JPG, PNG, WebP, GIF, or HEIC images, or MP4, MOV, WebM video.');
     err.code = 'UNSUPPORTED_FILE_TYPE';
     throw err;
   }
-  const path = `${user.id}/${Date.now()}.${ext}`;
+  if (videoExt && file.size > VIDEO_MAX_BYTES) {
+    const err = new Error('Video is too large — max 100 MB.');
+    err.code = 'FILE_TOO_LARGE';
+    throw err;
+  }
+  const path = `${user.id}/${Date.now()}.${ext || videoExt}`;
 
   const { error: uploadError } = await supabase.storage
     .from(bucket)

@@ -35,17 +35,28 @@ export function parseLocalDate(value) {
 }
 
 /**
- * Today's date as a LOCAL 'YYYY-MM-DD' string.
+ * Format a Date as a LOCAL 'YYYY-MM-DD' string.
  *
- * DO NOT use `new Date().toISOString().slice(0, 10)` for this — that
- * returns UTC and silently flips to tomorrow's date for users east of
- * UTC during their evening (and to yesterday's for users west of UTC
- * during their early morning).
+ * DO NOT use `d.toISOString().slice(0, 10)` for this — that returns the
+ * UTC calendar day, which is off by one for part of every day in any
+ * non-UTC timezone (tomorrow for users east of UTC in their evening,
+ * yesterday for users west of UTC in their early morning).
+ *
+ * @param {Date} d
+ * @returns {string|null}  'YYYY-MM-DD' in the local timezone, or null
+ *                         for a missing / Invalid Date input.
  */
-export function todayLocalDateString() {
-  const d = new Date();
+export function toLocalDateString(d) {
+  if (!(d instanceof Date) || Number.isNaN(d.getTime())) return null;
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');
   const day = String(d.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+/**
+ * Today's date as a LOCAL 'YYYY-MM-DD' string.
+ */
+export function todayLocalDateString() {
+  return toLocalDateString(new Date());
 }

@@ -29,7 +29,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
-import { supabase } from '@/api/supabaseClient';
+import { selectProfiles } from '@/lib/data/users';
 
 // Tier → accent colour for the league badge
 const TIER_COLORS = {
@@ -82,11 +82,12 @@ export default function PublicProfile() {
 
   const cleanUsername = (username || '').replace(/^@/, '');
 
-  // Fetch profile by username — anon-safe (policy: using(true))
+  // Fetch profile by username — anon-safe via the public_profiles view
+  // (readable by anon + authenticated; falls back to user_profiles while
+  // the view migration is pending).
   useEffect(() => {
     if (!cleanUsername) { setNotFound(true); return; }
-    supabase
-      .from('user_profiles')
+    selectProfiles((from) => from
       .select([
         'id', 'username', 'full_name', 'bio', 'avatar_url',
         'current_level', 'total_xp', 'prestige_level',
@@ -95,7 +96,7 @@ export default function PublicProfile() {
         'is_private', 'email',
       ].join(', '))
       .eq('username', cleanUsername)
-      .maybeSingle()
+      .maybeSingle())
       .then(({ data, error }) => {
         if (error || !data) { setNotFound(true); return; }
         setProfile(data);

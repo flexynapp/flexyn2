@@ -27,7 +27,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
-import ExerciseLogger from '@/components/workout/ExerciseLogger';
+import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
 import LiveVolumePill from '@/components/workout/LiveVolumePill';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
@@ -73,9 +73,10 @@ import * as leagues from '@/lib/data/leagues';
 import * as workoutStreak from '@/lib/data/workoutStreak';
 import * as notifications from '@/lib/data/notifications';
 import { speakWorkoutComplete } from '@/lib/audioCues';
-import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration } from '@/lib/realisticLimits';
+import { getMaxRealisticWeight, getMaxRealisticReps, getMaxRealisticDuration, shouldKeepSet, looksLikeBodyweight } from '@/lib/realisticLimits';
 import { detectImplausibleWorkout, getMaxSetsPerExercise, getMuscleGroupCap } from '@/lib/workoutFatigue';
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
+import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 
 // Lazy-loaded modals — all consolidated AFTER imports so Vite's bundle
 // init doesn't hit a TDZ when consts sit between import statements
@@ -103,6 +104,42 @@ function isKnownExercise(name) {
 }
 
 const MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
+
+// Classify an exercise's muscle groups for the save-time set filter so a
+// 0-weight set isn't silently discarded. (Audit task 4.)
+//   - bodyweight: name matches a calisthenics pattern (push-up, plank,
+//     dip, pull-up, …) → reps-only sets are legit work.
+//   - cardio: a Cardio group → duration/0-weight sets are legit.
+function exerciseGroups(ex) {
+  return ex?.muscle_groups?.length
+    ? ex.muscle_groups
+    : (ex?.muscle_group ? [ex.muscle_group] : []);
+}
+function exerciseIsCardio(ex) {
+  return exerciseGroups(ex).some(
+    (g) => typeof g === 'string' && g.toLowerCase() === 'cardio'
+  );
+}
+function exerciseIsBodyweight(ex) {
+  const name = ex?.name || ex?.displayName || '';
+  return isBodyweightExercise(name) || looksLikeBodyweight(name);
+}
+
+// Whitelist-spread per-set metadata the lifter tagged (warmup, failed,
+// RPE, RIR, feel emoji/note) through the normalize maps on save. The
+// maps used to reduce each set to {weight,reps}, silently dropping all
+// of it — same data-loss concern already fixed for repeat-from-log and
+// the edit modal. (Audit task 6.)
+function pickSetMeta(s) {
+  const out = {};
+  if (s.is_warmup  !== undefined) out.is_warmup  = s.is_warmup;
+  if (s.is_failed  !== undefined) out.is_failed  = s.is_failed;
+  if (s.rpe        !== undefined) out.rpe        = s.rpe;
+  if (s.rir        !== undefined) out.rir        = s.rir;
+  if (s.feel_emoji !== undefined) out.feel_emoji = s.feel_emoji;
+  if (s.feel_note  !== undefined) out.feel_note  = s.feel_note;
+  return out;
+}
 
 /**
  * Reorder.Item wrapper that uses an EXPLICIT drag handle instead of
@@ -226,8 +263,8 @@ export default function Workout() {
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
-  const [activeInfo, setActiveInfo] = useState(null); // which card's â"˜ tooltip is open
-  const [todayExpanded, setTodayExpanded] = useState(false); // Today chip â†' expands RoutineTodayCard
+  const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
+  const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
   const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis','gauntlet','formcoach','crew'];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
@@ -253,6 +290,11 @@ export default function Workout() {
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [plateCalcOpen, setPlateCalcOpen] = useState(false);
+  // Discard-confirmation gate for the "Cancel" button — destroying an
+  // in-flight workout is irreversible, so we route it through a Radix
+  // AlertDialog instead of firing resetWorkout() on the first tap.
+  // (Audit task 2.)
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
 
   const guard = useMultiProfanityGuard();
   const { sessions, resumeWorkout, removeSession } = useWorkoutSessions(user?.id);
@@ -291,26 +333,63 @@ export default function Workout() {
   // grants. The ref flips synchronously on first call.
   const saveInFlightRef = useRef(false);
 
-  useEffect(() => {
-    return () => {
-      const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId } = workoutStateRef.current;
-      if (started && activeSessionId) {
-        pauseWorkoutSync(userId, {
-          id: activeSessionId,
-          selectedRegimen,
-          exercises,
-          date,
-          duration,
-          notes,
-          startedAt,
-          // Timestamp powers the "Resume Chest Day Â· 14 min ago" banner
-          // on the Dashboard. Without it the banner can't show relative
-          // age and can't auto-evict stale (>24h) drafts.
-          pausedAt: new Date().toISOString(),
-        });
-      }
-    };
+  // Single source of truth for writing the active session draft to
+  // localStorage. Reads from workoutStateRef (kept current every render)
+  // so it works from unmount cleanup, debounced ticks, AND raw DOM event
+  // listeners that fire outside React's render cycle. Writes into the
+  // SAME `paused_workouts.<userId>` shape useWorkoutSessions reads on
+  // mount, so the Dashboard resume banner + the in-page resume path both
+  // pick the draft up after a refresh / PWA kill / crash. (Audit task 1.)
+  const persistActiveSession = useRef(() => {});
+  persistActiveSession.current = () => {
+    const { started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt, userId } = workoutStateRef.current;
+    if (!started || !activeSessionId) return;
+    pauseWorkoutSync(userId, {
+      id: activeSessionId,
+      selectedRegimen,
+      exercises,
+      date,
+      duration,
+      notes,
+      startedAt,
+      // Timestamp powers the "Resume Chest Day · 14 min ago" banner
+      // on the Dashboard. Without it the banner can't show relative
+      // age and can't auto-evict stale (>24h) drafts.
+      pausedAt: new Date().toISOString(),
+    });
+  };
 
+  // Unmount flush — covers bottom-nav tab switches and the back-arrow
+  // pause path (both navigate away → component unmounts).
+  useEffect(() => {
+    return () => { persistActiveSession.current(); };
+  }, []);
+
+  // Continuous debounced persistence (~1s) of the active session. Before
+  // this, the ONLY write was the unmount cleanup above — a hard refresh,
+  // PWA kill, or crash mid-session lost everything (no unmount fires).
+  // Now every edit to exercises/notes/duration/etc. schedules a write,
+  // so a recovery draft is always at most ~1s stale. (Audit task 1.)
+  useEffect(() => {
+    if (!started || !activeSessionId) return undefined;
+    const id = setTimeout(() => { persistActiveSession.current(); }, 1000);
+    return () => clearTimeout(id);
+  }, [started, activeSessionId, selectedRegimen, exercises, date, duration, notes, startedAt]);
+
+  // Immediate flush on the events that fire when the tab/app is about to
+  // be discarded WITHOUT a React unmount: 'pagehide' (bfcache / PWA
+  // background / tab close) and visibilitychange→hidden (app switch on
+  // mobile, where pagehide is unreliable). These are the windows where
+  // the debounce timer would never get to fire. (Audit task 1.)
+  useEffect(() => {
+    const flush = () => { persistActiveSession.current(); };
+    const onVisibility = () => { if (document.visibilityState === 'hidden') flush(); };
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
   }, []);
 
   // Resume hook: when navigated here with `resumeSessionId` in router
@@ -534,26 +613,19 @@ export default function Workout() {
       // any real value. The missing-data dialog warns the user but allows
       // "Save anyway"; without this filter, those empty sets persisted and
       // counted toward set-count gates (Gauntlet 1, achievements) while
-      // contributing 0 XP. Cardio sets are duration-based so we keep them
-      // even when weight is null. A "meaningful" set must have reps > 0
-      // (real work) AND either weight > 0 OR be in a cardio-style group.
+      // contributing 0 XP. A "meaningful" set must have reps > 0 (real
+      // work) AND either weight > 0, OR be bodyweight/calisthenics, OR be
+      // a cardio-style group. The bodyweight branch is critical — without
+      // it pull-ups / push-ups / dips / planks logged with reps and 0
+      // weight were ERASED and a calisthenics workout saved as
+      // exercises:[] behind a success toast. Their XP (0.5/rep, see
+      // xpSystem.js) now actually runs because the sets survive. (Audit
+      // task 4.)
       data = {
         ...data,
         exercises: (data.exercises || []).map((ex) => {
-          const groups = ex.muscle_groups?.length
-            ? ex.muscle_groups
-            : (ex.muscle_group ? [ex.muscle_group] : []);
-          const isCardioStyle = groups.some(
-            (g) => typeof g === 'string' && g.toLowerCase() === 'cardio'
-          );
-          const cleanedSets = (ex.sets || []).filter((s) => {
-            const reps = Number(s.reps);
-            const weight = Number(s.weight);
-            const hasReps = Number.isFinite(reps) && reps > 0;
-            const hasWeight = Number.isFinite(weight) && weight > 0;
-            if (!hasReps) return false;
-            return hasWeight || isCardioStyle;
-          });
+          const ctx = { isBodyweight: exerciseIsBodyweight(ex), isCardio: exerciseIsCardio(ex) };
+          const cleanedSets = (ex.sets || []).filter((s) => shouldKeepSet(s, ctx));
           return { ...ex, sets: cleanedSets };
         // After filtering, drop exercises that lost all their sets — they
         // were noise that the missing-data dialog already flagged.
@@ -840,7 +912,7 @@ export default function Workout() {
         const sessionSnapshot = clampedData;
         toast.success(t('workout.saved'), {
           description: checkInBonus
-            ? `${t('workout.savedXp').replace('{xp}', xpGained)} Â· âš¡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
+            ? `${t('workout.savedXp').replace('{xp}', xpGained)} · ⚡ ${GYM_CHECKIN_XP_MULTIPLIER}x gym check-in`
             : t('workout.savedXp').replace('{xp}', xpGained),
           duration: 6000,
           action: {
@@ -865,7 +937,7 @@ export default function Workout() {
         });
       }
 
-      // PR detection — fires the 6th-family ðŸ‹ï¸ celebration when this
+      // PR detection — fires the 6th-family 🏋️ celebration when this
       // workout beat the user's historical best 1RM on any exercise.
       // Runs ONLY on non-first workouts; the first ever workout already
       // has its own louder celebration and "first attempt" of an
@@ -980,7 +1052,7 @@ export default function Workout() {
               const war = await getActiveWarForCrew(crew.id).catch(() => null);
               if (!war || war.status !== 'active') continue;
               await contributeWarXp(war.id, crew.id, xpGained).catch(() => {});
-              toast.success(`âš"ï¸ +${xpGained} XP â†' ${crew.name}'s war score!`, {
+              toast.success(`⚔️ +${xpGained} XP → ${crew.name}'s war score!`, {
                 description: 'Your workout contributed to the Crew War.',
                 duration: 4000,
               });
@@ -996,9 +1068,9 @@ export default function Workout() {
         .then((res) => {
           if (res?.isNewDay && res.coinsAwarded > 0) {
             toast.success(t('dashboard.workoutStreakMilestone') === 'dashboard.workoutStreakMilestone'
-              ? `ðŸ"¥ ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
+              ? `🔥 ${res.streak}-day workout streak! +${res.coinsAwarded} coins`
               : t('dashboard.workoutStreakMilestone').replace('{day}', res.streak).replace('{coins}', res.coinsAwarded));
-            // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30â€¦)
+            // Confetti burst for every workout streak milestone (3, 5, 7, 14, 21, 30…)
             import('canvas-confetti').then(({ default: confetti }) => {
               const fire = (opts) => confetti({
                 particleCount: 100,
@@ -1083,28 +1155,17 @@ export default function Workout() {
     setActiveSessionId(id);
     setSelectedRegimen(regimen);
     const exList = (regimen.exercises || []).map(ex => {
-      const targetSets = ex.target_sets || 3;
-      const targetReps = ex.target_reps != null && ex.target_reps !== '' ? Number(ex.target_reps) : null;
+      // Seed the set rows for this exercise. seedSetsForExercise honors an
+      // explicit sets[] array (built-in programs / cloned templates) so
+      // programs don't collapse to 3 blank sets, and falls back to the
+      // scalar target_sets/target_reps shape for hand-built regimens.
+      // History (getLastSetsForExercise) seeds weight where prescribed
+      // weight is absent so progressive-overload tracking continues.
+      // (Audit task 8 — extracted to src/lib/seedRegimenSets.js + tested.)
+      const hasSetsArray = Array.isArray(ex.sets) && ex.sets.length > 0;
+      const targetSets = hasSetsArray ? ex.sets.length : (ex.target_sets || 3);
       const seeded = getLastSetsForExercise(ex.name, targetSets);
-
-      // Build the final sets:
-      //   - reps come from the regimen's target_reps when prescribed (the user
-      //     explicitly set this for this regimen — it must win over history).
-      //   - weight comes from history when available, so progressive-overload
-      //     tracking still works without forcing re-entry every session.
-      //   - if no target_reps and no history, both fields are blank.
-      let sets;
-      if (seeded) {
-        sets = seeded.map(s => ({
-          weight: s.weight ?? null,
-          reps: targetReps != null ? targetReps : (s.reps ?? null),
-        }));
-      } else {
-        sets = Array.from({ length: targetSets }, () => ({
-          weight: null,
-          reps: targetReps,
-        }));
-      }
+      const sets = seedSetsForExercise(ex, seeded || []);
 
       return {
         name: ex.name,
@@ -1176,7 +1237,7 @@ export default function Workout() {
     setSelectedRegimen(label ? { name: label } : null);
     setExercises([...base, ...bonus]);
     setStarted(true);
-    toast.success(`ðŸ"¥ Bonus added: ${picks.map(e => e.name).join(' + ')} — finish it for extra XP + coins!`);
+    toast.success(`🔥 Bonus added: ${picks.map(e => e.name).join(' + ')} — finish it for extra XP + coins!`);
   };
 
   const startFreestyle = () => {
@@ -1292,7 +1353,7 @@ export default function Workout() {
   // both mount points so they can't drift.
   const saveGeneratedAsRegimen = async (workout) => {
     try {
-      // Description previously had a mojibake "Â·" (UTF-8 byte-pair
+      // Description previously had a mojibake "·" (UTF-8 byte-pair
       // displayed as two chars) in place of the intended middle-dot ·.
       // Cleaned up to a plain ASCII " — ". Also fall back the focus
       // label so an undefined `workout.focus` doesn't read as
@@ -1332,43 +1393,19 @@ export default function Workout() {
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
     if (!session) return;
-    removeSession(sessionId);
+    // Do NOT removeSession here. The draft must survive a refresh that
+    // happens AFTER resume but before save — the save path (onSuccess /
+    // resetWorkout) already calls removeSession(activeSessionId) once the
+    // workout is actually persisted. Removing it on resume meant a
+    // reload mid-resumed-session lost the draft entirely. (Audit task 3.)
     setActiveSessionId(session.id);
     setSelectedRegimen(session.selectedRegimen || null);
     setExercises(session.exercises || []);
-    setDuration(session.duration || '');
+    setDuration(session.duration != null ? String(session.duration) : '');
     setNotes(session.notes || '');
-    setStarted(true);
-  };
-
-  const loadTemplate = (template) => {
-    setSelectedRegimen(null);
-    const exList = (template.exercises || []).map(ex => {
-      const targetSets = ex.target_sets || 3;
-      const targetReps = ex.target_reps != null && ex.target_reps !== '' ? Number(ex.target_reps) : null;
-      const seeded = getLastSetsForExercise(ex.name, targetSets);
-
-      let sets;
-      if (seeded) {
-        sets = seeded.map(s => ({
-          weight: s.weight ?? null,
-          reps: targetReps != null ? targetReps : (s.reps ?? null),
-        }));
-      } else {
-        sets = Array.from({ length: targetSets }, () => ({
-          weight: null,
-          reps: targetReps,
-        }));
-      }
-
-      return {
-        name: ex.name,
-        muscle_group: ex.muscle_group || '',
-        muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
-        sets,
-      };
-    });
-    setExercises(exList);
+    // Restore the original start time so the elapsed-time clock stays
+    // continuous instead of resetting to 0 on resume. (Audit task 3.)
+    if (typeof session.startedAt === 'string') setStartedAt(session.startedAt);
     setStarted(true);
   };
 
@@ -1422,13 +1459,13 @@ export default function Workout() {
           missing.push({ exName: ex.name || 'Unnamed exercise', reason: 'no sets' });
           return;
         }
-        const groups = ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []);
-        const isBodyweight = groups.some(g =>
-          typeof g === 'string' && g.toLowerCase() === 'cardio'
-        );
+        // Bodyweight/calisthenics + cardio exercises legitimately carry
+        // 0 weight, so a reps-only set on them is NOT "missing data" and
+        // must not be flagged as discardable. (Audit task 4.)
+        const zeroWeightOk = exerciseIsCardio(ex) || exerciseIsBodyweight(ex);
         sets.forEach((s, i) => {
           const isBlank = (v) => v === null || v === undefined || v === '';
-          const wMissing = isBlank(s.weight) || (!isBodyweight && Number(s.weight) === 0);
+          const wMissing = isBlank(s.weight) || (!zeroWeightOk && Number(s.weight) === 0);
           const rMissing = isBlank(s.reps) || Number(s.reps) === 0;
           if (wMissing && rMissing) {
             missing.push({ exName: ex.name || 'Unnamed exercise', setIndex: i + 1, reason: 'empty set' });
@@ -1469,11 +1506,12 @@ export default function Workout() {
       sets: (ex.sets || []).map(s => ({
         weight: Number(s.weight) || 0,
         reps: Number(s.reps) || 0,
+        ...pickSetMeta(s),
       })),
       duration_minutes: ex.duration_minutes != null ? (Number(ex.duration_minutes) || null) : null,
     }));
 
-    // â"€â"€ Anti-cheat: flag weight AND rep violations visibly â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+    // ── Anti-cheat: flag weight AND rep violations visibly ───────────────────
     // Previously, reps were silently clamped. Now both are flagged so the user
     // is aware their input was outside realistic bounds and must correct it.
     const flaggedSets = [];
@@ -1502,6 +1540,7 @@ export default function Workout() {
       sets: ex.sets.map(s => ({
         weight: s.weight,
         reps: s.reps,
+        ...pickSetMeta(s),
       })),
       duration_minutes: ex.duration_minutes != null
         ? Math.min(ex.duration_minutes, getMaxRealisticDuration())
@@ -1968,9 +2007,15 @@ export default function Workout() {
 
   useEffect(() => {
     if (!started) return undefined;
-    const handler = (e) => {
-      e.preventDefault();
-      resetWorkout(activeSessionId);
+    const handler = () => {
+      // Back-arrow should PAUSE the session and navigate away — the same
+      // behavior as switching bottom-nav tabs — NOT destroy the workout.
+      // We do NOT preventDefault: letting the Header's default fire
+      // navigates to /dashboard, which unmounts this page and triggers
+      // the unmount-flush above, persisting the draft. Previously this
+      // called resetWorkout() and silently nuked the in-flight session
+      // with no confirmation. (Audit task 2.)
+      persistActiveSession.current();
     };
     window.addEventListener('flexyn-back', handler);
     return () => window.removeEventListener('flexyn-back', handler);
@@ -2097,8 +2142,8 @@ export default function Workout() {
         ) : !regimensOpen ? (
           <>
             {/* First-visit AI Coach starter-plan hero card. Renders when:
-                  â€¢ zero workout logs (truly first session), AND
-                  â€¢ a regimen with the canonical starter name exists.
+                  • zero workout logs (truly first session), AND
+                  • a regimen with the canonical starter name exists.
                 Goes above the freestyle CTA so the personalized plan is
                 the first thing the user sees, but freestyle stays
                 available right below for users who want to wing it. */}
@@ -2286,8 +2331,8 @@ export default function Workout() {
 
             {/* Repeat last workout — fastest path to logging for returning
                 users. Pre-fills the most recent session's exercises with the
-                same weights/reps as suggestions; identical numbers â†' one-tap
-                save, harder numbers â†' bump one cell. Hidden when there's no
+                same weights/reps as suggestions; identical numbers → one-tap
+                save, harder numbers → bump one cell. Hidden when there's no
                 history (new users get the freestyle CTA only). */}
             {logs.length > 0 && (() => {
               const last = logs[0];
@@ -2354,7 +2399,7 @@ export default function Workout() {
                       </p>
                       {subtitleParts.length > 0 && (
                         <p className="text-xs text-muted-foreground truncate mt-0.5">
-                          {subtitleParts.join(' â€¢ ')}
+                          {subtitleParts.join(' • ')}
                         </p>
                       )}
                     </div>
@@ -2471,7 +2516,7 @@ export default function Workout() {
                             <p className="font-heading font-bold text-sm">
                               {t('workout.resume')} {session.selectedRegimen ? session.selectedRegimen.name : t('workout.freestyle')}
                             </p>
-                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} Â· {t('workout.paused')}</p>
+                            <p className="text-xs text-muted-foreground">{session.exercises?.length || 0} {t('workout.exercises').toLowerCase()} · {t('workout.paused')}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -2645,8 +2690,31 @@ export default function Workout() {
           </div>
           <p className="text-muted-foreground text-sm mt-0.5">{t('workout.logSetsReps')}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => resetWorkout(activeSessionId)}>{t('common.cancel')}</Button>
+        <Button variant="outline" size="sm" onClick={() => setConfirmDiscard(true)}>{t('common.cancel')}</Button>
       </div>
+
+      {/* Discard-workout confirmation. Cancel destroys the active session
+          (no resume draft), so gate it behind an explicit confirm.
+          (Audit task 2.) */}
+      <AlertDialog open={confirmDiscard} onOpenChange={setConfirmDiscard}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tFallback('workout.discardConfirm', 'Discard workout?')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tFallback('workout.discardWarn', 'Your logged sets will be lost. This can’t be undone.')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tFallback('workout.keepGoing', 'Keep going')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { setConfirmDiscard(false); resetWorkout(activeSessionId); }}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {tFallback('workout.discard', 'Discard')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Live volume pill — ticks up as the user types each set.
           Cheap dopamine — every great fitness app has a live number
@@ -2968,7 +3036,7 @@ export default function Workout() {
                     </li>
                   ))}
                   {(missingDataWarning || []).length > 8 && (
-                    <li className="text-muted-foreground">â€¦and {missingDataWarning.length - 8} more</li>
+                    <li className="text-muted-foreground">…and {missingDataWarning.length - 8} more</li>
                   )}
                 </ul>
                 <p className="pt-2">Save the workout anyway?</p>

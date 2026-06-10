@@ -15,25 +15,30 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { PROGRAM_TEMPLATES } from '@/lib/programTemplates';
 
-// Cloning shape: a regimens row's `exercises` JSONB holds an array of
-// session-objects. We mirror the template's shape but blank set values
-// (weight/reps) so the user enters fresh numbers session-by-session.
-function cloneTemplateExercises(template) {
-  const out = [];
-  for (const session of template.sessions || []) {
-    for (const ex of session.exercises || []) {
-      out.push({
-        name:         ex.name,
-        displayName:  ex.name,
-        sets: Array.from({ length: ex.sets || 3 }, () => ({
-          weight: null,
-          reps:   null,
-          reps_target: ex.reps_target ?? null,
-        })),
-      });
-    }
-  }
-  return out;
+// Clone ONE session/day of a program into a regimens-row `exercises`
+// JSONB array. Each exercise carries BOTH:
+//   - sets[]: an array with the prescribed set count, blank weight/reps,
+//     and a per-set reps_target — startFromRegimen reads this to seed the
+//     workout with the right number of sets + rep targets (Audit task 8).
+//   - target_sets / target_reps: scalar mirrors so RegimenDetailView /
+//     RegimenStorePage (which read the scalar fields) render "3 × 5".
+// Multi-day programs previously flattened EVERY day into a single
+// regimen; we now create one regimen per day instead (see handlePick).
+function cloneSessionExercises(session) {
+  return (session.exercises || []).map((ex) => {
+    const setCount = ex.sets || 3;
+    return {
+      name:         ex.name,
+      displayName:  ex.name,
+      target_sets:  setCount,
+      target_reps:  ex.reps_target ?? null,
+      sets: Array.from({ length: setCount }, () => ({
+        weight: null,
+        reps:   null,
+        reps_target: ex.reps_target ?? null,
+      })),
+    };
+  });
 }
 
 function LevelBadge({ level }) {
@@ -59,23 +64,33 @@ export default function ProgramTemplatePicker({ onCreated }) {
     if (creating || !user?.id || !user?.email) return;
     setCreating(template.id);
     try {
+      // One regimen row PER session/day. Programs are multi-day by nature
+      // (Push/Pull/Legs, Workout A/B, …); flattening every day into a
+      // single regimen produced an unusable mega-session. A single-session
+      // template stays one regimen named after the program. (Audit task 8.)
+      const sessions = Array.isArray(template.sessions) && template.sessions.length > 0
+        ? template.sessions
+        : [{ name: '', exercises: [] }];
+      const rows = sessions.map((session) => ({
+        created_by:  user.email,
+        user_id:     user.id,
+        name:        sessions.length > 1 && session.name
+          ? `${template.name} — ${session.name}`
+          : template.name,
+        description: template.summary,
+        exercises:   cloneSessionExercises(session),
+        is_template: true,
+        template_id: template.id,
+      }));
       const { data, error } = await supabase
         .from('regimens')
-        .insert({
-          created_by:  user.email,
-          user_id:     user.id,
-          name:        template.name,
-          description: template.summary,
-          exercises:   cloneTemplateExercises(template),
-          is_template: true,
-          template_id: template.id,
-        })
-        .select('id')
-        .single();
+        .insert(rows)
+        .select('id');
       if (error) throw error;
       qc.invalidateQueries({ queryKey: ['regimens', user.email] });
       toast.success(tFallback('programs.cloned', `${template.name} added — start training!`));
-      onCreated?.(data?.id);
+      // Navigate to the first created day so the user lands somewhere useful.
+      onCreated?.(data?.[0]?.id);
     } catch (err) {
       console.warn('[ProgramTemplatePicker] insert failed:', err);
       toast.error(tFallback('programs.cloneFailed', 'Could not create program — try again.'));

@@ -42,6 +42,32 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   const maxWeight = getMaxRealisticWeight(exerciseName, userProfile);
   const maxReps = getMaxRealisticReps(exerciseName, set.weight || 0, userProfile);
 
+  // Weight input — local raw-string state WHILE FOCUSED so the user's
+  // keystrokes aren't re-formatted mid-typing. The stored value is
+  // canonical lbs; the display value is formatted into the user's unit
+  // (kg / stone) with a fixed decimal count. Re-running formatWeightNumber
+  // on every keystroke meant typing "82" in kg mode round-tripped through
+  // lbs and back to "8.0" (one decimal place), so the field fought the
+  // user. We now show the raw string verbatim while editing and only
+  // parse → convert → clamp → format on blur. (Audit task 7.)
+  const [weightFocused, setWeightFocused] = useState(false);
+  const [weightDraft, setWeightDraft] = useState('');
+  const commitWeight = (raw) => {
+    if (raw === '' || raw == null) { onChange({ ...set, weight: null }); return; }
+    const val = parseFloat(raw);
+    if (Number.isNaN(val)) { onChange({ ...set, weight: null }); return; }
+    const lbs = toLbs(Math.max(0, val), weightUnit);
+    const clamped = Math.min(maxWeight, lbs);
+    if (lbs > maxWeight + 0.5) {
+      const capDisplay = formatWeightNumber(maxWeight, weightUnit);
+      toast.message(`Capped at ${capDisplay} ${weightUnit}`, {
+        description: 'Anti-cheat: weight exceeds realistic limit for your profile.',
+        duration: 2200,
+      });
+    }
+    onChange({ ...set, weight: clamped });
+  };
+
   // Effort-tracking fields (RPE / RIR) are stored on the set object
   // alongside weight + reps. Hidden by default behind a small chevron
   // so the row stays compact for users who don't track effort. The
@@ -133,28 +159,15 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
         <Input
           type="number"
           inputMode="decimal"
-          value={set.weight != null ? formatWeightNumber(set.weight, weightUnit) : ''}
+          value={weightFocused ? weightDraft : (set.weight != null ? formatWeightNumber(set.weight, weightUnit) : '')}
           onChange={e => {
-            const raw = e.target.value;
-            if (raw === '') {
-              onChange({ ...set, weight: null });
-            } else {
-              const val = parseFloat(raw);
-              if (isNaN(val)) { onChange({ ...set, weight: null }); return; }
-              const lbs = toLbs(Math.max(0, val), weightUnit);
-              const clamped = Math.min(maxWeight, lbs);
-              // Audit B-1 — silent clamp was opaque ("I typed 5000 and
-              // it shows 500"). Surface a one-shot toast naming the cap
-              // so the user knows the system corrected them on purpose.
-              if (lbs > maxWeight + 0.5) {
-                const capDisplay = formatWeightNumber(maxWeight, weightUnit);
-                toast.message(`Capped at ${capDisplay} ${weightUnit}`, {
-                  description: 'Anti-cheat: weight exceeds realistic limit for your profile.',
-                  duration: 2200,
-                });
-              }
-              onChange({ ...set, weight: clamped });
-            }
+            // While focused, hold the raw keystrokes verbatim — no
+            // parse/format round-trip until blur (commitWeight). (Task 7.)
+            setWeightDraft(e.target.value);
+          }}
+          onBlur={() => {
+            commitWeight(weightDraft);
+            setWeightFocused(false);
           }}
           onPaste={e => {
             // Smart-paste: if the user pastes a "225 x 8" / "100kg 12 reps"
@@ -173,14 +186,24 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
             const clampedWeight = Math.min(maxWeight, Math.max(0, lbs));
             const clampedReps = Math.min(maxReps, Math.max(0, parsed.reps));
             onChange({ ...set, weight: clampedWeight, reps: clampedReps });
+            // Keep the focused-draft in sync so the just-pasted weight
+            // isn't clobbered by the stale draft on the next render. (Task 7.)
+            setWeightDraft(formatWeightNumber(clampedWeight, weightUnit));
             triggerHaptic?.('light'); // respects per-device haptics toggle (audit B-5)
             toast.success(`Set parsed — ${formatWeightNumber(clampedWeight, weightUnit)} ${weightUnit} × ${clampedReps}`, { duration: 1500 });
           }}
           onKeyDown={e => {
             if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
-            if (e.key === 'Enter') { e.preventDefault(); repsRef.current?.focus(); }
+            // Enter commits the draft (so the canonical value is parsed)
+            // before advancing focus to reps. (Task 7.)
+            if (e.key === 'Enter') { e.preventDefault(); commitWeight(weightDraft); setWeightFocused(false); repsRef.current?.focus(); }
           }}
           onFocus={e => {
+            // Seed the raw draft from the current canonical value (formatted
+            // into the user's unit) and switch to draft mode so keystrokes
+            // are held verbatim. (Task 7.)
+            setWeightDraft(set.weight != null ? formatWeightNumber(set.weight, weightUnit) : '');
+            setWeightFocused(true);
             // Scroll the focused input into the visible viewport above the
             // iOS soft keyboard. Without this, tapping a weight input
             // mid-page pushes the field BEHIND the keyboard so the user

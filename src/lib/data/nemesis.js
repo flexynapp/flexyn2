@@ -2,6 +2,7 @@
 // Nemesis System — auto-assigned rival slightly above the user's level.
 
 import { supabase } from '@/api/supabaseClient';
+import { selectProfiles } from '@/lib/data/users';
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
@@ -26,11 +27,10 @@ export async function getNemesisProfile(nemesisId) {
   // email is included so the Nemesis card can deep-link to the
   // person's Hub profile (?profile=<email>) — screenshot feedback
   // asked for the avatar / @handle area to be tappable to navigate.
-  const { data, error } = await supabase
-    .from('user_profiles')
+  const { data, error } = await selectProfiles((from) => from
     .select('id, email, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
     .eq('id', nemesisId)
-    .single();
+    .single());
   return error ? null : data;
 }
 
@@ -67,26 +67,24 @@ export async function assignNemesis({ sendNotification = false } = {}) {
   // Candidates: not opted out, XP in range, not the current user.
   // We intentionally omit a last_active_at filter — that column doesn't
   // exist on user_profiles yet. XP range is sufficient to narrow the pool.
-  const { data: candidates } = await supabase
-    .from('user_profiles')
+  const { data: candidates } = await selectProfiles((from) => from
     .select('id, total_xp, username, avatar_url, current_level')
     .gte('total_xp', effectiveLow)
     .lte('total_xp', effectiveHigh)
     .eq('nemesis_opt_out', false)
     .neq('id', user.id)
-    .limit(20);
+    .limit(20));
 
   // If no XP-range candidates (thin user base / brand new user), fall back
   // to any random user so the card always shows someone during beta.
   let pool = candidates ?? [];
   if (!pool.length) {
-    const { data: fallback } = await supabase
-      .from('user_profiles')
+    const { data: fallback } = await selectProfiles((from) => from
       .select('id, total_xp, username, avatar_url, current_level')
       .eq('nemesis_opt_out', false)
       .neq('id', user.id)
       .not('username', 'is', null)
-      .limit(20);
+      .limit(20));
     pool = fallback ?? [];
   }
   if (!pool.length) return null;
@@ -219,11 +217,11 @@ export async function checkOverthrow(userId, nemesisId) {
   let wins = 0;
   if (user.volume   > nemesis.volume)   wins++;
   if (user.sessions > nemesis.sessions) wins++;
-  // XP comparison via user_profiles
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  // XP comparison — includes the nemesis (cross-user) so it goes
+  // through the public_profiles view.
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, total_xp')
-    .in('id', [userId, nemesisId]);
+    .in('id', [userId, nemesisId]));
 
   const userXp    = profiles?.find(p => p.id === userId)?.total_xp    || 0;
   const nemesisXp = profiles?.find(p => p.id === nemesisId)?.total_xp || 0;

@@ -207,7 +207,7 @@ const ICONS = {
 };
 
 export default function HubComposer({ onClose }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fmt = useNumberFormatter();
@@ -586,7 +586,21 @@ export default function HubComposer({ onClose }) {
         onClose();
       } catch (err) {
         reportError(err, { feature: 'hub.composer.video', level: 'warning' });
-        toast.error(t('hub.composer.postError'));
+        // _uploadFile throws distinct codes for bad input so we can give the
+        // user an actionable reason instead of a generic "couldn't post".
+        if (err?.code === 'UNSUPPORTED_FILE_TYPE') {
+          toast.error(tFallback(
+            'hub.composer.videoTypeError',
+            'That file type isn’t supported. Use an MP4, MOV, WebM, or M4V video.'
+          ));
+        } else if (err?.code === 'FILE_TOO_LARGE') {
+          toast.error(tFallback(
+            'hub.composer.videoTooLarge',
+            'That video is too large — the limit is 100 MB.'
+          ));
+        } else {
+          toast.error(t('hub.composer.postError'));
+        }
       } finally {
         setPosting(false);
       }

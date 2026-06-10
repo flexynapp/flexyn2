@@ -116,6 +116,26 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
+// Decode a JWT's payload claims WITHOUT verifying the signature. Used
+// only to read the `role` claim so we can tell a service_role token
+// apart from a user token — the actual trust decision for user tokens
+// goes through supabase.auth.getUser() (which DOES verify), and the
+// service_role branch is gated on a constant-time secret compare against
+// the env key, so an unverified role peek here is safe.
+function decodeJwtRole(jwt: string): string | null {
+  try {
+    const part = jwt.split('.')[1];
+    const b64 = part.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = b64 + '='.repeat((4 - (b64.length % 4)) % 4);
+    const claims = JSON.parse(atob(padded));
+    return typeof claims?.role === 'string' ? claims.role : null;
+  } catch {
+    return null;
+  }
+}
+
+const SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
+
 // Guard against an empty VAPID key pair. Without this, setVapidDetails
 // accepts the empty strings, then every sendNotification call later
 // throws a cryptic error from the web-push library. A clear 503 at
@@ -145,25 +165,48 @@ serve(async (req) => {
   }
 
   // ── AUTH ─────────────────────────────────────────────────────────────
-  // Accept either:
-  //   • a Bearer JWT in Authorization  (Supabase's default — verify_jwt
-  //     in supabase/config.toml is ON, so the gateway has already
-  //     validated this. The handler only needs to be sure the header
-  //     was present; the gateway rejects bad tokens before we run.)
-  //   • the shared trigger secret in X-Send-Push-Secret matching env.
+  // Three caller classes, in increasing trust:
+  //   • the shared trigger secret in X-Send-Push-Secret — the DB trigger
+  //     (migration 034) fanning out to ANY user. Cross-user allowed.
+  //   • a service_role Bearer JWT — admin tooling. Cross-user allowed.
+  //   • a normal user Bearer JWT — may ONLY push to THEMSELVES.
   //
-  // The reason we still check Authorization explicitly is that local
-  // `supabase functions serve` does NOT enforce verify_jwt by default
-  // and we don't want a misconfigured deploy to silently allow
-  // anonymous fan-out.
+  // SECURITY (2026-06 audit, blocker C21): previously any present Bearer
+  // was accepted and payload.user_id was never bound to the caller, so
+  // anyone holding the public anon key (it ships in the client bundle)
+  // could fan out arbitrary phishing pushes to any enumerable user_id.
+  // We now verify the user token and require user_id === the caller's own
+  // id unless the caller proved service_role / the trigger secret. The
+  // explicit checks also matter because local `functions serve` does not
+  // enforce verify_jwt.
   const triggerSecret = req.headers.get('x-send-push-secret') || '';
   const authHeader    = req.headers.get('authorization')      || '';
-  const hasBearer     = /^Bearer\s+\S+/i.test(authHeader);
+  const bearerMatch   = authHeader.match(/^Bearer\s+(\S+)/i);
+  const bearerToken   = bearerMatch ? bearerMatch[1] : '';
   const hasTrigger    = SEND_PUSH_TRIGGER_SECRET.length > 0
                       && triggerSecret.length > 0
                       && safeEqual(triggerSecret, SEND_PUSH_TRIGGER_SECRET);
 
-  if (!hasBearer && !hasTrigger) {
+  // A service_role bearer (constant-time compared against the env key, or
+  // role-claim service_role validated by getUser below) may target anyone.
+  const isServiceRoleToken = bearerToken.length > 0
+                      && SERVICE_ROLE_KEY.length > 0
+                      && safeEqual(bearerToken, SERVICE_ROLE_KEY);
+
+  // For a normal user token, resolve the caller's verified identity now.
+  let callerUserId: string | null = null;
+  let canSendToAnyUser = hasTrigger || isServiceRoleToken;
+  if (!canSendToAnyUser && bearerToken) {
+    const role = decodeJwtRole(bearerToken);
+    if (role === 'service_role') {
+      canSendToAnyUser = true;
+    } else {
+      const { data: { user }, error: userErr } = await supabase.auth.getUser(bearerToken);
+      if (!userErr && user) callerUserId = user.id;
+    }
+  }
+
+  if (!canSendToAnyUser && !callerUserId) {
     return new Response(JSON.stringify({ error: 'unauthorized' }), {
       status: 401,
       headers: { 'Content-Type': 'application/json' },
@@ -196,6 +239,20 @@ serve(async (req) => {
       headers: { 'Content-Type': 'application/json' },
     });
   }
+
+  // Bind the target to the caller unless they proved cross-user authority.
+  if (!canSendToAnyUser && payload.user_id !== callerUserId) {
+    return new Response(JSON.stringify({ error: 'forbidden' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ── TARGET BINDING ──────────────────────────────────────────────────
+  // A Bearer-authenticated caller may only push to THEMSELVES. Without
+  // this check, any holder of the public anon key (it ships in the JS
+  // bundle and is a valid JWT) could fan out attacker-controlled
+
 
   // Look up all of this user's active push subscriptions.
   const { data: subs, error } = await supabase

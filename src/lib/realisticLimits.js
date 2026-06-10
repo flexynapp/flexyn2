@@ -82,6 +82,12 @@ const EXERCISE_MULTIPLIERS = [
   { match: 'snatch',             bwMult: 1.8 },
 
   // ── Core ─────────────────────────────────────────────────────────────────
+  // Weighted variants MUST come before the generic zero-weight entries —
+  // matches are first-wins substring, so 'plank' would otherwise swallow
+  // 'weighted plank' and cap it at 0, making the weight input unloggable
+  // (SetRow clamps every keystroke to maxWeight=0). (Audit task 5.)
+  { match: 'weighted plank',     bwMult: 0.5 },
+  { match: 'weighted ab wheel',  bwMult: 0.3 },
   { match: 'cable crunch',       bwMult: 0.7 },
   { match: 'ab wheel',           bwMult: 0 },    // bodyweight
   { match: 'plank',              bwMult: 0 },
@@ -139,7 +145,7 @@ const BODYWEIGHT_NAME_PATTERNS = [
   'hindu push', 'pike push', 'diamond push', 'decline push', 'incline push',
 ];
 
-function looksLikeBodyweight(name) {
+export function looksLikeBodyweight(name) {
   const lower = String(name || '').toLowerCase();
   if (!lower) return false;
   for (const p of BODYWEIGHT_NAME_PATTERNS) {
@@ -203,4 +209,33 @@ export function getMaxRealisticReps(exerciseName = '', weightUsed = 0, userProfi
  */
 export function getMaxRealisticDuration() {
   return 180;
+}
+
+/**
+ * Decide whether a logged set should be KEPT when saving a workout.
+ *
+ * The historical save filter required reps>0 AND (weight>0 OR cardio),
+ * which silently erased every bodyweight set (pull-ups, push-ups, dips,
+ * planks logged with reps but 0 added weight) — a calisthenics workout
+ * saved as exercises:[] behind a "saved!" toast. (Audit task 4.)
+ *
+ * The corrected rule: a set is meaningful when it has reps>0 AND any of
+ *   - real added weight (weight>0), OR
+ *   - the exercise is bodyweight / calisthenics (0 weight is the norm), OR
+ *   - the exercise is a cardio-style group (duration-based).
+ *
+ * Pure + dependency-free so it's unit-testable and reusable from both
+ * the save mutation and the missing-data warning.
+ *
+ * @param {{weight?: number|string|null, reps?: number|string|null}} set
+ * @param {{ isBodyweight?: boolean, isCardio?: boolean }} [ctx]
+ * @returns {boolean}
+ */
+export function shouldKeepSet(set, ctx = {}) {
+  const reps = Number(set?.reps);
+  const weight = Number(set?.weight);
+  const hasReps = Number.isFinite(reps) && reps > 0;
+  const hasWeight = Number.isFinite(weight) && weight > 0;
+  if (!hasReps) return false;
+  return hasWeight || !!ctx.isBodyweight || !!ctx.isCardio;
 }

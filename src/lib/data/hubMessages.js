@@ -206,10 +206,58 @@ export const listMyConversations = async (myEmail, limit = 50) => {
   return deduped.slice(0, limit);
 };
 
-/** List messages in a conversation, oldest first (chat reading order). */
+/**
+ * List the most-recent `limit` messages in a conversation, returned in
+ * chronological (oldest-first) reading order.
+ *
+ * The DB query fetches NEWEST-first (`-created_date`) so a busy thread
+ * shows its latest activity — the previous `created_date` ascending +
+ * limit fetched the oldest 200 rows ever, so past message #200 new
+ * messages never loaded, and a post-send refetch returned a window that
+ * didn't contain the just-sent row (it visibly vanished). We reverse the
+ * newest-first window back to ascending for render so divider logic,
+ * run-grouping, and scroll-to-bottom all see chat order.
+ *
+ * Callers that need the older history page in via `listOlderMessages`.
+ */
 export const listMessages = async (conversationId, limit = 200) => {
   if (!conversationId) return [];
-  return msg().filter({ conversation_id: conversationId }, 'created_date', limit).catch(() => []);
+  const newestFirst = await msg()
+    .filter({ conversation_id: conversationId }, '-created_date', limit)
+    .catch(() => []);
+  // Reverse a shallow copy → ascending (oldest-first) for chat render.
+  return newestFirst.slice().reverse();
+};
+
+/**
+ * Cursor pager for older history. Fetches up to `limit` messages STRICTLY
+ * older than `beforeCreatedDate` (an ISO timestamp — typically the
+ * created_date of the currently-oldest row on screen), newest-first from
+ * the DB, then reversed to ascending so the page can be prepended to the
+ * existing list without re-sorting.
+ *
+ * Returns [] when there's no cursor or no older rows — the caller treats
+ * an empty result as "reached the start of history" and hides the
+ * "Load earlier" affordance.
+ *
+ * Uses the supabase client directly (not the entity `filter`, which only
+ * supports equality maps) so we can express the `<` cursor bound. RLS
+ * still scopes the read to conversation participants.
+ */
+export const listOlderMessages = async (conversationId, beforeCreatedDate, limit = 100) => {
+  if (!conversationId || !beforeCreatedDate) return [];
+  const { data, error } = await supabase
+    .from('hub_messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .lt('created_date', beforeCreatedDate)
+    .order('created_date', { ascending: false })
+    .limit(limit);
+  if (error) {
+    reportError(error, { feature: 'dm.listOlder', level: 'warning' });
+    return [];
+  }
+  return (data || []).slice().reverse();
 };
 
 /**

@@ -4,6 +4,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { selectProfiles } from '@/lib/data/users';
 
 import { reportError } from '@/lib/reportError';
 import { formatNumber } from '@/lib/intl';
@@ -314,23 +315,21 @@ export async function generateDemoBounties() {
 
   if (follows?.length) {
     const emails = follows.map(f => f.followee_email);
-    const { data: profiles } = await supabase
-      .from('user_profiles')
+    const { data: profiles } = await selectProfiles((from) => from
       .select('id, username, avatar_url, total_xp')
       .in('email', emails)
       .not('username', 'is', null)
-      .limit(5);
+      .limit(5));
     targetProfiles = profiles ?? [];
   }
 
   // Fallback: random users if not following anyone
   if (!targetProfiles.length) {
-    const { data: randoms } = await supabase
-      .from('user_profiles')
+    const { data: randoms } = await selectProfiles((from) => from
       .select('id, username, avatar_url, total_xp')
       .neq('id', user.id)
       .not('username', 'is', null)
-      .limit(5);
+      .limit(5));
     targetProfiles = randoms ?? [];
   }
 

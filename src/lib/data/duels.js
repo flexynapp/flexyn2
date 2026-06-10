@@ -2,6 +2,7 @@
 // Workout Duels — challenge, accept, submit results, score.
 
 import { supabase } from '@/api/supabaseClient';
+import { selectProfiles } from '@/lib/data/users';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { reportError } from '@/lib/reportError';
 
@@ -40,10 +41,9 @@ export async function getFrequentOpponents(userId, limit = 8) {
   if (!sorted.length) return [];
 
   const ids = sorted.map(([id]) => id);
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, username, avatar_url, current_level')
-    .in('id', ids);
+    .in('id', ids));
 
   return sorted
     .map(([id, s]) => ({ id, ...s, ...(profiles?.find(p => p.id === id) || {}) }))
@@ -92,12 +92,12 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
       .eq('id', user.id)
       .single();
 
-    // Fetch opponent's email
-    const { data: opProfile } = await supabase
-      .from('user_profiles')
+    // Fetch opponent's email — cross-user read via public_profiles
+    // (email is whitelisted on the view; it's the app's join key).
+    const { data: opProfile } = await selectProfiles((from) => from
       .select('email')
       .eq('id', opponentId)
-      .single();
+      .single());
 
     if (!myProfile?.email || !opProfile?.email) return;
 
@@ -263,10 +263,9 @@ export async function listMyDuels() {
 
   // Collect unique user IDs to look up
   const ids = [...new Set(data.flatMap(d => [d.challenger_id, d.opponent_id]).filter(Boolean))];
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, username, avatar_url')
-    .in('id', ids);
+    .in('id', ids));
 
   const profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
 

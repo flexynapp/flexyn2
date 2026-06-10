@@ -14,6 +14,45 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { getExerciseDisplay } from '@/lib/exerciseTranslations';
 
+// Weight cell with focused-draft state. While focused it holds the raw
+// keystrokes verbatim; on blur it parses → converts to canonical lbs →
+// clamps. Re-formatting on every keystroke broke kg/stone typing (e.g.
+// "82" in kg snapped to "8.0"). (Audit task 7.)
+function WeightCell({ valueLbs, onCommit, maxWeight, weightUnit }) {
+  const [focused, setFocused] = useState(false);
+  const [draft, setDraft] = useState('');
+  return (
+    <Input
+      type="number" min="0" step="0.5"
+      inputMode="decimal"
+      value={focused ? draft : (valueLbs != null ? formatWeightNumber(valueLbs, weightUnit) : '')}
+      onFocus={() => {
+        setDraft(valueLbs != null ? formatWeightNumber(valueLbs, weightUnit) : '');
+        setFocused(true);
+      }}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={() => {
+        const raw = draft;
+        if (raw === '') {
+          onCommit(null);
+        } else {
+          const displayVal = parseFloat(raw);
+          if (Number.isNaN(displayVal)) {
+            onCommit(null);
+          } else {
+            const lbsVal = toLbs(Math.max(0, displayVal), weightUnit);
+            onCommit(Math.min(maxWeight, lbsVal));
+          }
+        }
+        setFocused(false);
+      }}
+      onKeyDown={e => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
+      placeholder={weightUnit}
+      className="h-8 text-center text-sm"
+    />
+  );
+}
+
 function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -42,24 +81,11 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
       {sets.map((s, i) => (
         <div key={s._key || `s-${i}`} className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground w-5 text-center">{i + 1}</span>
-          <Input
-            type="number" min="0" step="0.5"
-            inputMode="decimal"
-            value={s.weight != null ? formatWeightNumber(s.weight, weightUnit) : ''}
-            onChange={e => {
-              const raw = e.target.value;
-              if (raw === '') {
-                updateSet(i, 'weight', null);
-              } else {
-                const displayVal = parseFloat(raw);
-                if (isNaN(displayVal)) { updateSet(i, 'weight', null); return; }
-                const lbsVal = toLbs(displayVal, weightUnit);
-                updateSet(i, 'weight', Math.min(getMaxRealisticWeight(exerciseName, userProfile), Math.max(0, lbsVal)));
-              }
-            }}
-            onKeyDown={e => { if (['-', '+', 'e', 'E'].includes(e.key)) e.preventDefault(); }}
-            placeholder={weightUnit}
-            className="h-8 text-center text-sm"
+          <WeightCell
+            valueLbs={s.weight}
+            maxWeight={getMaxRealisticWeight(exerciseName, userProfile)}
+            weightUnit={weightUnit}
+            onCommit={(lbs) => updateSet(i, 'weight', lbs)}
           />
           <span className="text-muted-foreground text-xs">×</span>
           <Input
@@ -229,7 +255,11 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
       ...ex,
       sets: ex.sets.map(s => {
         const clampedReps = Math.min(s.reps, getMaxRealisticReps(ex.name, s.weight, userProfile));
-        return { weight: s.weight, reps: clampedReps };
+        // Preserve the set metadata that normalizedExercises already
+        // whitelisted above (warmup/failed/rpe/rir/feel_*) instead of
+        // reducing back to {weight,reps} and dropping it. (Audit task 6.)
+        const { weight: _w, reps: _r, ...meta } = s;
+        return { ...meta, weight: s.weight, reps: clampedReps };
       }),
       duration_minutes: ex.duration_minutes != null
         ? Math.min(ex.duration_minutes, getMaxRealisticDuration())

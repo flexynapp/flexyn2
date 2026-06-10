@@ -18,6 +18,7 @@ import { getDateLocale } from '@/lib/dateLocales';
 import { useNumberFormatter } from '@/lib/intl';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs } from '@/lib/weightUnit';
+import { parseLocalDate } from '@/lib/dateUtils';
 
 const WEEKS = 26;            // ~6 months
 const DAYS_PER_WEEK = 7;
@@ -60,6 +61,25 @@ function dayKey(d) {
 }
 
 /**
+ * Local day key for a raw log date value.
+ *
+ * `log.date` is a LOCAL 'yyyy-MM-dd' DATE string — round-tripping it
+ * through `new Date(str)` parses it as UTC midnight, which is the
+ * PREVIOUS local day for anyone west of UTC (heatmap squares lit one
+ * day early, taps repeating the wrong day's workout). Date-only strings
+ * are therefore keyed by the raw string; full timestamps (created_at
+ * fallbacks) carry an explicit time and are converted to the local day
+ * via parseLocalDate.
+ */
+function localDayKey(raw) {
+  if (!raw) return null;
+  const s = String(raw);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const d = parseLocalDate(s);
+  return d ? format(d, 'yyyy-MM-dd') : null;
+}
+
+/**
  * Compute the daily-volume map from raw workout logs.
  * Returns { 'yyyy-MM-dd': totalVolumeLbs }.
  */
@@ -68,10 +88,8 @@ function buildVolumeMap(logs) {
   if (!Array.isArray(logs)) return map;
   for (const log of logs) {
     const raw = log?.date || log?.created_at || log?.created_date;
-    if (!raw) continue;
-    const d = new Date(raw);
-    if (Number.isNaN(d.getTime())) continue;
-    const key = dayKey(d);
+    const key = localDayKey(raw);
+    if (!key) continue;
     let vol = 0;
     for (const ex of log.exercises || []) {
       for (const s of ex.sets || []) {
@@ -98,10 +116,8 @@ export default function WorkoutCalendarGrid({ logs = [], onSelectDay }) {
     const map = {};
     for (const log of logs || []) {
       const raw = log?.date || log?.created_at || log?.created_date;
-      if (!raw) continue;
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) continue;
-      const k = format(d, 'yyyy-MM-dd');
+      const k = localDayKey(raw);
+      if (!k) continue;
       if (!map[k]) map[k] = log;
     }
     return map;

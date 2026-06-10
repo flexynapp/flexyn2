@@ -173,13 +173,12 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
 
   const { data: recentData } = await safeSelect({
     columns: ['email', 'username', 'avatar_url', 'created_at'],
-    build: (cols) => supabase
-      .from('user_profiles')
+    build: (cols) => users.selectProfiles((from) => from
       .select(cols)
       .neq('email', userEmail)
       .not('username', 'is', null)
       .order('created_at', { ascending: false })
-      .limit(recentSlots * 4), // overfetch so we have room after filtering
+      .limit(recentSlots * 4)), // overfetch so we have room after filtering
   });
   const recentFiltered = (recentData ?? [])
     .filter(p => !alreadyFollowing.has(p.email))
@@ -229,10 +228,9 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   if (fofSelected.length > 0) {
     const { data: fofData } = await safeSelect({
       columns: ['email', 'username', 'avatar_url'],
-      build: (cols) => supabase
-        .from('user_profiles')
+      build: (cols) => users.selectProfiles((from) => from
         .select(cols)
-        .in('email', fofSelected),
+        .in('email', fofSelected)),
     });
     for (const p of (fofData ?? [])) {
       if (!picked.has(p.email)) picked.set(p.email, p);

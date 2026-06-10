@@ -29,7 +29,7 @@ const epley1RM = (weight, reps) => {
 // for these is "added load on top of bodyweight" (e.g. +25 on a
 // weighted pull-up); 0 / blank means "just bodyweight."
 const BW_REGEX = /\b(pull[- ]?up|chin[- ]?up|push[- ]?up|dip|muscle[- ]?up|pistol squat|handstand|burpee|air squat|bodyweight)\b/i;
-function isBodyweightExercise(name) {
+export function isBodyweightExercise(name) {
   return BW_REGEX.test(String(name || ''));
 }
 

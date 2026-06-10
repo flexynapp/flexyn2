@@ -11,6 +11,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { format, subDays, eachDayOfInterval, startOfDay, differenceInDays } from 'date-fns';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -162,14 +163,14 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                   <motion.p className="font-heading font-bold text-xl text-primary" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.1 }}>
                     {pb.weight > 0 ? formatWeight(pb.weight, weightUnit) : '—'}
                   </motion.p>
-                  {pb.weightDate && <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(pb.weightDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
+                  {pb.weightDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.weightDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
                 <motion.div className="bg-accent/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestReps')}</p>
                   <motion.p className="font-heading font-bold text-xl text-accent" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}>
                     {pb.reps > 0 ? `${pb.reps} reps` : '—'}
                   </motion.p>
-                  {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(new Date(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
+                  {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
               </div>
               {pb.sessionCount > 0 && (
@@ -192,6 +193,13 @@ function AnalyticsTab({ logs }) {
   const { weightUnit } = useWeightUnit();
   const dateLocale = getDateLocale(language);
 
+  // Sort by the RAW 'yyyy-MM-dd' date BEFORE mapping to display labels.
+  // The previous version formatted the localized label first and then
+  // sorted by `new Date(label)` — 'MMM d' labels are Invalid Date in 14
+  // of 15 locales, so the sort was a no-op, the chart rendered in
+  // whatever order logs arrived (newest-first), and slice(-20) kept the
+  // OLDEST 20 sessions. Cardio-only logs (max weight 0) are filtered out
+  // so they don't drag the line to zero.
   const weightOverTime = useMemo(() => logs
     .filter(l => l.date)
     .map(log => {
@@ -199,10 +207,16 @@ function AnalyticsTab({ logs }) {
         const exMax = (ex.sets || []).reduce((m, s) => Math.max(m, s.weight || 0), 0);
         return Math.max(max, exMax);
       }, 0);
-      return { date: format(new Date(log.date), 'MMM d', { locale: dateLocale }), 'Max Weight (lbs)': maxWeightLbs, weightDisplay: fromLbs(maxWeightLbs, weightUnit) };
+      return { rawDate: String(log.date).slice(0, 10), maxWeightLbs };
     })
-    .sort((a, b) => new Date(a.date) - new Date(b.date))
-    .slice(-20),
+    .filter(e => e.maxWeightLbs > 0)
+    .sort((a, b) => a.rawDate.localeCompare(b.rawDate))
+    .slice(-20)
+    .map(e => ({
+      date: format(parseLocalDate(e.rawDate), 'MMM d', { locale: dateLocale }),
+      'Max Weight (lbs)': e.maxWeightLbs,
+      weightDisplay: fromLbs(e.maxWeightLbs, weightUnit),
+    })),
   [logs, dateLocale, weightUnit]);
 
   const volumeByMuscle = useMemo(() => {
@@ -221,7 +235,19 @@ function AnalyticsTab({ logs }) {
 
   const workoutFrequency = useMemo(() => {
     const last30 = eachDayOfInterval({ start: subDays(new Date(), 29), end: new Date() });
-    const loggedDays = new Set(logs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), 29)).map(l => format(startOfDay(new Date(l.date)), 'yyyy-MM-dd')));
+    // log.date is a LOCAL 'yyyy-MM-dd' string — key by the raw string and
+    // compare via parseLocalDate so the frequency bars don't shift a day
+    // for users west of UTC.
+    const cutoff = startOfDay(subDays(new Date(), 29));
+    const loggedDays = new Set(
+      logs
+        .filter(l => {
+          if (!l.date) return false;
+          const d = parseLocalDate(l.date);
+          return d && d >= cutoff;
+        })
+        .map(l => String(l.date).slice(0, 10))
+    );
     return last30.map(day => ({ date: format(day, 'MMM d', { locale: dateLocale }), Workouts: loggedDays.has(format(day, 'yyyy-MM-dd')) ? 1 : 0 }));
   }, [logs, dateLocale]);
 
@@ -573,7 +599,7 @@ export default function Progress() {
     const days = FRAME_DAYS[statsFrame];
     if (!isFinite(days)) return logs;
     const cutoff = subDays(new Date(), days);
-    return logs.filter(l => l.date && new Date(l.date) >= cutoff);
+    return logs.filter(l => l.date && parseLocalDate(l.date) >= cutoff);
   }, [logs, statsFrame]);
 
   const prevFrameLogs = useMemo(() => {
@@ -581,18 +607,18 @@ export default function Progress() {
     if (!days) return [];
     const end   = subDays(new Date(), days);
     const start = subDays(new Date(), days * 2);
-    return logs.filter(l => l.date && new Date(l.date) >= start && new Date(l.date) < end);
+    return logs.filter(l => l.date && parseLocalDate(l.date) >= start && parseLocalDate(l.date) < end);
   }, [logs, statsFrame]);
 
   const thisWeekLogs = useMemo(() => {
     const cutoff = subDays(new Date(), 7);
-    return logs.filter(l => l.date && new Date(l.date) >= cutoff);
+    return logs.filter(l => l.date && parseLocalDate(l.date) >= cutoff);
   }, [logs]);
 
   const lastWeekLogs = useMemo(() => {
     const end   = subDays(new Date(), 7);
     const start = subDays(new Date(), 14);
-    return logs.filter(l => l.date && new Date(l.date) >= start && new Date(l.date) < end);
+    return logs.filter(l => l.date && parseLocalDate(l.date) >= start && parseLocalDate(l.date) < end);
   }, [logs]);
 
   const frameVolume    = useMemo(() => calcVolume(frameLogs),    [frameLogs]);
@@ -604,7 +630,7 @@ export default function Progress() {
   const frameCardio = useMemo(() => {
     const days = FRAME_DAYS[statsFrame];
     const inWindow = isFinite(days)
-      ? cardioLogs.filter(l => l.date && new Date(l.date) >= subDays(new Date(), days))
+      ? cardioLogs.filter(l => l.date && parseLocalDate(l.date) >= subDays(new Date(), days))
       : cardioLogs;
     return {
       sessions:        inWindow.length,
@@ -645,7 +671,7 @@ export default function Progress() {
   }, [logs]);
 
   const lastWorkout     = logs[0] || null;
-  const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), new Date(lastWorkout.date)) : null;
+  const daysSinceLast   = lastWorkout?.date ? differenceInDays(new Date(), parseLocalDate(lastWorkout.date)) : null;
   const regimenNames    = useMemo(() => regimens.map(r => r.name).sort(), [regimens]);
   const regimenLogs     = useMemo(() => selectedRegimen === 'all' ? logs : logs.filter(l => l.regimen_name === selectedRegimen), [logs, selectedRegimen]);
   const exerciseNames   = useMemo(() => { const n = new Set(); regimenLogs.forEach(log => log.exercises?.forEach(ex => { if (ex.name) n.add(ex.name); })); return [...n].sort(); }, [regimenLogs]);

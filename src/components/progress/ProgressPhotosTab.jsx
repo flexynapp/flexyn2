@@ -3,39 +3,120 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Camera, Trash2, Calendar, Dumbbell, ZoomIn, X, ArrowLeftRight } from 'lucide-react';
+import { Camera, Trash2, Calendar, ZoomIn, X, ArrowLeftRight, AlertTriangle, Loader2 } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
-import { loadProgressPhotos, deleteProgressPhoto } from './ProgressPhotoCapture';
-import { displayWorkoutName } from '@/lib/workoutDisplay';
+import {
+  listProgressPhotos,
+  deleteProgressPhoto,
+  migrateLocalProgressPhotos,
+} from '@/lib/data/progressPhotos';
+import { reportError } from '@/lib/reportError';
 import PhotoCompareSlider from './PhotoCompareSlider';
 
 export default function ProgressPhotosTab() {
-  const { t, language } = useLanguage();
+  const { t, tFallback, language } = useLanguage();
   const dateLocale = getDateLocale(language);
   const { user } = useAuth();
-  const [photos, setPhotos] = useState([]);
+  const queryClient = useQueryClient();
   const [lightbox, setLightbox] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [compareMode, setCompareMode] = useState(false);
 
+  // One-time localStorage → Storage migration. Runs once per user
+  // (guarded inside the helper). On partial failure it surfaces a toast
+  // and keeps the un-uploaded entries for a later retry. We invalidate
+  // the list afterward so freshly-migrated photos appear.
   useEffect(() => {
-    // Per-user load — pass user.id explicitly per the Wave 57 fix in
-    // ProgressPhotoCapture.jsx so two users on the same device don't
-    // see each other's photos.
     if (!user?.id) return;
-    setPhotos(loadProgressPhotos(user.id));
-  }, [user?.id]);
+    let cancelled = false;
+    migrateLocalProgressPhotos(user.id)
+      .then((res) => {
+        if (cancelled || !res?.ran) return;
+        if (res.migrated > 0) {
+          queryClient.invalidateQueries({ queryKey: ['progressPhotos', user.id] });
+        }
+        if (res.failed > 0) {
+          toast.error(
+            tFallback(
+              'photos.migratePartial',
+              "Some progress photos couldn't be moved to secure storage. We'll retry next time."
+            )
+          );
+        }
+      })
+      .catch((err) => reportError(err, {
+        feature: 'progressPhoto.migrate',
+        level: 'warning',
+        userEmail: user?.email,
+      }));
+    return () => { cancelled = true; };
+  }, [user?.id, queryClient, tFallback, user?.email]);
 
-  const handleDelete = (id) => {
-    const updated = deleteProgressPhoto(id, user?.id);
-    setPhotos(updated);
+  const {
+    data: photos = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['progressPhotos', user?.id],
+    queryFn: () => listProgressPhotos(user.id),
+    enabled: !!user?.id,
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (path) => deleteProgressPhoto(path),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['progressPhotos', user?.id] });
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'progressPhoto.delete', userEmail: user?.email });
+      toast.error(tFallback('photos.deleteError', "Couldn't delete that photo. Please try again."));
+    },
+  });
+
+  const handleDelete = (path) => {
     setConfirmId(null);
-    if (lightbox?.id === id) {
+    if (lightbox?.path === path) {
       setLightbox(null);
     }
+    deleteMutation.mutate(path);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card className="border-dashed p-12 text-center">
+        <Loader2 className="w-7 h-7 text-primary animate-spin mx-auto" />
+        <p className="text-sm text-muted-foreground mt-3">
+          {tFallback('photos.loading', 'Loading your photos…')}
+        </p>
+      </Card>
+    );
+  }
+
+  // Error state
+  if (isError) {
+    return (
+      <Card className="border-dashed p-12 text-center">
+        <div className="w-14 h-14 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+          <AlertTriangle className="w-7 h-7 text-destructive" />
+        </div>
+        <h2 className="font-heading font-bold text-lg">
+          {tFallback('photos.errorTitle', "Couldn't load your photos")}
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-2">
+          {tFallback('photos.errorDesc', 'Something went wrong fetching your progress photos.')}
+        </p>
+        <Button variant="outline" onClick={() => refetch()} className="mt-4">
+          {tFallback('photos.tryAgain', 'Try again')}
+        </Button>
+      </Card>
+    );
+  }
 
   // Empty state
   if (photos.length === 0) {
@@ -93,7 +174,13 @@ export default function ProgressPhotosTab() {
             transition={{ duration: 0.3 }}
             className="overflow-hidden mb-6"
           >
-            <PhotoCompareSlider photos={photos} onClose={() => setCompareMode(false)} />
+            {/* PhotoCompareSlider consumes { id, dataUrl, takenAt, workoutName }.
+                Map the signed-URL list onto that shape so the slider needs no
+                edits: path → id, signed url → dataUrl. */}
+            <PhotoCompareSlider
+              photos={photos.map(p => ({ id: p.path, dataUrl: p.url, takenAt: p.takenAt, workoutName: undefined }))}
+              onClose={() => setCompareMode(false)}
+            />
           </motion.div>
         )}
       </AnimatePresence>
@@ -103,7 +190,7 @@ export default function ProgressPhotosTab() {
         <AnimatePresence mode="popLayout">
           {photos.map((photo, idx) => (
             <motion.div
-              key={photo.id}
+              key={photo.path}
               layout
               initial={{ opacity: 0, y: 24, scale: 0.96 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -116,7 +203,7 @@ export default function ProgressPhotosTab() {
                   className="group cursor-pointer relative"
                   onClick={() => setLightbox(photo)}
                 >
-                  <img loading="lazy" src={photo.dataUrl}
+                  <img loading="lazy" src={photo.url}
                     alt={t('photos.progressPhoto')}
                     className="w-full object-cover"
                     style={{ maxHeight: 340 }}
@@ -140,15 +227,11 @@ export default function ProgressPhotosTab() {
                     <p className="text-xs text-muted-foreground ps-5 mt-1">
                       {format(new Date(photo.takenAt), 'h:mm a', { locale: dateLocale })}
                     </p>
-                    <div className="flex items-center gap-2 mt-1.5">
-                      <Dumbbell className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                      <p className="text-xs text-muted-foreground truncate">{displayWorkoutName(photo.workoutName, t)}</p>
-                    </div>
                   </div>
 
                   {/* Delete button area */}
                   <div className="shrink-0">
-                    {confirmId === photo.id ? (
+                    {confirmId === photo.path ? (
                       <motion.div
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
@@ -160,7 +243,7 @@ export default function ProgressPhotosTab() {
                           variant="destructive"
                           size="sm"
                           className="h-7 px-2 text-xs"
-                          onClick={() => handleDelete(photo.id)}
+                          onClick={() => handleDelete(photo.path)}
                         >
                           {t('common.delete')}
                         </Button>
@@ -177,7 +260,7 @@ export default function ProgressPhotosTab() {
                       <motion.button
                         whileHover={{ scale: 1.1 }}
                         whileTap={{ scale: 0.9 }}
-                        onClick={() => setConfirmId(photo.id)}
+                        onClick={() => setConfirmId(photo.path)}
                         className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -209,7 +292,7 @@ export default function ProgressPhotosTab() {
               className="max-w-2xl w-full"
               onClick={(e) => e.stopPropagation()}
             >
-              <img loading="lazy" src={lightbox.dataUrl}
+              <img loading="lazy" src={lightbox.url}
                 alt={t('photos.progressPhoto')}
                 className="w-full rounded-2xl object-contain"
                 style={{ maxHeight: '80vh' }}
@@ -219,7 +302,6 @@ export default function ProgressPhotosTab() {
                    <p className="text-white font-heading font-semibold text-sm">
                       {format(new Date(lightbox.takenAt), 'MMMM d, yyyy · h:mm a', { locale: dateLocale })}
                     </p>
-                   <p className="text-white/50 text-xs mt-0.5">{displayWorkoutName(lightbox.workoutName, t)}</p>
                  </div>
                 <motion.button
                   whileHover={{ scale: 1.1 }}

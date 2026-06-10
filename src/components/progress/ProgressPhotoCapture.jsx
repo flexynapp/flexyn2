@@ -10,25 +10,25 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as quests from '@/lib/data/quests';
 import { ACTION_TYPES } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
+import { uploadProgressPhoto } from '@/lib/data/progressPhotos';
 
+// ⚠️ DEPRECATED localStorage helpers (read-only path retained for back-compat).
+//
+// As of the 2026-06 ship-readiness audit (C17) progress photos live in a
+// PRIVATE Supabase Storage bucket (`progress-photos`, migration 174),
+// read via short-lived signed URLs — see `src/lib/data/progressPhotos.js`.
+// The capture flow below uploads there; the per-user localStorage cache is
+// no longer written by capture. These read helpers stay only because
+// `HubComposer.jsx` still reads recent photos synchronously from
+// localStorage to offer them as Hub-post attachments; a one-time migration
+// (`migrateLocalProgressPhotos`) drains those entries into Storage, after
+// which this localStorage list is empty. Do not add new writers here.
+//
 // Per-user localStorage namespace per CLAUDE.md convention. The previous
 // bare `flexyn_progress_photos` key meant two users on the same device
 // (family iPad, shared phone) saw each other's progress photos — a real
 // privacy leak (progress photos are intimate, often shirtless). Wave 57
 // caught this.
-//
-// All public helpers (saveProgressPhoto / loadProgressPhotos /
-// deleteProgressPhoto) now require a `userId`. To avoid a breaking change
-// at every call site, the helpers fall back to reading the current
-// supabase session synchronously via `getCurrentUserId()` when userId
-// isn't passed. The fallback is best-effort; explicit userId is preferred.
-//
-// A one-time migration on load moves any legacy un-namespaced entries
-// into the user-keyed slot for the current signed-in user, then deletes
-// the legacy key. Two users on the same device first-load order matters:
-// whichever loads first claims the legacy bucket. Acceptable — the
-// alternative (throw away the legacy data) would lose progress photos
-// for the upgrading user.
 const LEGACY_KEY = 'flexyn_progress_photos';
 const storageKey = (userId) => `flexyn.progressPhotos.${userId || 'anon'}`;
 
@@ -64,30 +64,11 @@ function migrateLegacyIfNeeded(userId) {
   } catch { /* ignore */ }
 }
 
-// Storage helpers. localStorage writes are wrapped because Safari private
-// mode + iOS storage quota both throw on setItem — without the guard, a
-// failed save would crash the whole save flow and lose the photo dataURL.
-export function saveProgressPhoto(dataUrl, workoutName, userId) {
-  const uid = userId || getCurrentUserId();
-  migrateLegacyIfNeeded(uid);
-  const photos = loadProgressPhotos(uid);
-  const newEntry = {
-    id: `photo_${Date.now()}`,
-    dataUrl,
-    takenAt: new Date().toISOString(),
-    workoutName,
-  };
-  photos.unshift(newEntry);
-  try {
-    localStorage.setItem(storageKey(uid), JSON.stringify(photos));
-  } catch {
-    // Quota exceeded or storage unavailable. Caller can detect by re-reading
-    // and not finding the entry; we still return the in-memory entry so the
-    // current session can show it.
-  }
-  return newEntry;
-}
-
+// DEPRECATED read helper — retained because HubComposer.jsx reads recent
+// progress photos synchronously from localStorage to offer them as
+// Hub-post attachments. After `migrateLocalProgressPhotos` drains the
+// cache into Storage this returns []. No writer remains in this module;
+// capture uploads to the `progress-photos` bucket via the data layer.
 export function loadProgressPhotos(userId) {
   const uid = userId || getCurrentUserId();
   migrateLegacyIfNeeded(uid);
@@ -97,19 +78,6 @@ export function loadProgressPhotos(userId) {
   } catch {
     return [];
   }
-}
-
-export function deleteProgressPhoto(id, userId) {
-  const uid = userId || getCurrentUserId();
-  const photos = loadProgressPhotos(uid);
-  const updated = photos.filter(p => p.id !== id);
-  try {
-    localStorage.setItem(storageKey(uid), JSON.stringify(updated));
-  } catch {
-    // Same as save — best-effort; the returned `updated` reflects intent
-    // even if persistence failed.
-  }
-  return updated;
 }
 
 // Main component
@@ -125,7 +93,12 @@ export function deleteProgressPhoto(id, userId) {
 //   state and is notified of closes via `onOpenChange`. This lets the
 //   Dashboard "Add photo" CTA jump straight into the prompt dialog
 //   without rendering a redundant button on its own surface.
-export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }) {
+// Note: callers may still pass a `workoutName` prop (Workout post-session
+// card). It's intentionally ignored now — progress photos move to the
+// private `progress-photos` Storage bucket (mig 174) whose object names
+// only encode capture time, so there's no place to persist a free-text
+// workout label. The grid no longer shows it.
+export default function ProgressPhotoCapture({ open, onOpenChange }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -142,10 +115,14 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
   const [cameraOpen, setCameraOpen] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [capturedImage, setCapturedImage] = useState(null);
+  const [saving, setSaving] = useState(false);
   const [facingMode, setFacingMode] = useState('environment');
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
+  // Holds the captured frame as a JPEG Blob (q0.88) so save can upload
+  // the exact pixels without re-encoding the preview dataURL.
+  const capturedBlobRef = useRef(null);
 
   const startCamera = async (mode) => {
     try {
@@ -204,25 +181,69 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
       ctx.scale(-1, 1);
     }
     ctx.drawImage(video, 0, 0);
-    
+
+    // Keep the dataURL for the in-dialog preview, and a matching JPEG
+    // Blob (same q0.88) for the actual upload.
     const dataUrl = canvas.toDataURL('image/jpeg', 0.88);
     setCapturedImage(dataUrl);
+    capturedBlobRef.current = null;
+    canvas.toBlob(
+      (blob) => { capturedBlobRef.current = blob; },
+      'image/jpeg',
+      0.88
+    );
     stopCamera();
   };
 
   const closeCamera = () => {
     stopCamera();
     setCapturedImage(null);
+    capturedBlobRef.current = null;
+    setSaving(false);
     setCameraError(null);
     setCameraOpen(false);
   };
 
-  const savePhoto = () => {
-    if (!capturedImage) return;
-    saveProgressPhoto(capturedImage, workoutName, user?.id);
+  // Upload the captured frame to the private `progress-photos` bucket.
+  // The success toast fires ONLY after the upload resolves — the old
+  // localStorage path toasted "Saved" even when a QuotaExceededError
+  // silently dropped the photo (C17). On failure we surface an error
+  // toast and keep the preview so the user can retry.
+  const savePhoto = async () => {
+    if (!capturedImage || saving) return;
+    if (!user?.id) {
+      toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
+      return;
+    }
+
+    // canvas.toBlob is async; if it hasn't landed yet, fall back to
+    // converting the preview dataURL so save never silently no-ops.
+    let blob = capturedBlobRef.current;
+    if (!blob) {
+      try {
+        blob = await (await fetch(capturedImage)).blob();
+      } catch { /* handled by the !blob guard below */ }
+    }
+    if (!blob) {
+      toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await uploadProgressPhoto(user.id, blob, Date.now());
+    } catch (err) {
+      setSaving(false);
+      reportError(err, { feature: 'progressPhoto.upload', userEmail: user?.email });
+      toast.error(tFallback('photos.saveError', "Couldn't save your photo. Please try again."));
+      return;
+    }
+
     toast.success(t('photos.savedToast'), {
       description: t('photos.savedToastDesc'),
     });
+    // Refresh the photo grid (signed-URL list) immediately.
+    queryClient.invalidateQueries({ queryKey: ['progressPhotos', user.id] });
     // Quest progress — non-blocking. Was silently swallowed via
     // .catch(() => {}); now reportError so quest-progress breakage
     // (e.g. user's "log a progress photo" quest never advances) is
@@ -377,15 +398,17 @@ export default function ProgressPhotoCapture({ workoutName, open, onOpenChange }
                     <Button
                       variant="outline"
                       onClick={() => setCapturedImage(null)}
+                      disabled={saving}
                       className="flex-1 border-white/30 bg-transparent text-white hover:bg-white/10"
                     >
                       {t('photos.retake')}
                     </Button>
                     <Button
                       onClick={savePhoto}
+                      disabled={saving}
                       className="flex-1"
                     >
-                      {t('photos.savePhoto')}
+                      {saving ? tFallback('photos.saving', 'Saving…') : t('photos.savePhoto')}
                     </Button>
                   </div>
                 )}

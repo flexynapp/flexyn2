@@ -1,6 +1,7 @@
 // src/lib/data/crews.js
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { selectProfiles } from '@/lib/data/users';
 import { db } from '@/api/db';
 import { compressImage } from '@/lib/imageCompress';
 import { containsProfanity } from '@/lib/profanityFilter';
@@ -97,10 +98,9 @@ export async function getCrewMembers(crewId) {
   // always expose, and the user list per crew is bounded at 16.
   const userIds = data.map(m => m.user_id).filter(Boolean);
   if (userIds.length === 0) return data;
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, email, username, avatar_url')
-    .in('id', userIds);
+    .in('id', userIds));
   const byId = new Map((profiles ?? []).map(p => [p.id, p]));
   return data.map(m => {
     const p = byId.get(m.user_id);
@@ -652,10 +652,9 @@ export async function getCrewStats(crewId) {
 
   // 2. Get user profiles to resolve emails
   const userIds = members.map(m => m.user_id);
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, email, username, avatar_url')
-    .in('id', userIds);
+    .in('id', userIds));
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
 
@@ -732,10 +731,9 @@ export async function getCrewFirstAchievers(crewId) {
   if (!members.length) return [];
 
   const userIds = members.map(m => m.user_id);
-  const { data: profiles } = await supabase
-    .from('user_profiles')
+  const { data: profiles } = await selectProfiles((from) => from
     .select('id, email, username, avatar_url')
-    .in('id', userIds);
+    .in('id', userIds));
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
 

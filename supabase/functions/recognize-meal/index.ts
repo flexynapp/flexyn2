@@ -109,6 +109,27 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
   }
 
+  // Per-user rate limit (2026-06 audit, blocker C22). Each call sends a
+  // multi-MB image to Claude Vision (real money); without a cap one
+  // authenticated account — including a zero-friction guest — can loop
+  // this endpoint and drain the Anthropic budget for everyone. The
+  // counter lives in a SECURITY DEFINER RPC (migration 174) that atomically
+  // increments a per-user/day row and returns false once the cap is hit.
+  // Fails OPEN only on an unexpected RPC error so a counter outage doesn't
+  // take the feature down — but a clean "limit reached" returns 429.
+  try {
+    const { data: allowed, error: rlErr } = await client.rpc('consume_recognize_meal_quota');
+    if (!rlErr && allowed === false) {
+      return json({ ok: false, error: 'RATE_LIMIT' }, 429);
+    }
+  } catch (_e) {
+    // fall through — never hard-fail the feature on a limiter outage
+  }
+
+  // Restrict to formats Claude Vision actually accepts; HEIC/other inputs
+  // are downscaled+re-encoded to JPEG client-side before upload.
+  const ACCEPTED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
   // Parse body.
   let body: { image_base64?: string; media_type?: string } | null = null;
   try {
@@ -124,6 +145,9 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'IMAGE_TOO_LARGE' }, 413);
   }
   const mediaType = (body.media_type || 'image/jpeg').replace(/^data:/, '').split(';')[0];
+  if (!ACCEPTED_MEDIA.includes(mediaType)) {
+    return json({ ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
+  }
 
   // Call Anthropic.
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');

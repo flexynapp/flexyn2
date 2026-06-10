@@ -54,6 +54,12 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
   const [exerciseCanonical, setExerciseCanonical] = useState(initial?.exercise_canonical || initial?.exercise_name || '');
   const [targetWeightLbs, setTargetWeightLbs] = useState(initial?.target_weight || '');
   const [targetReps, setTargetReps] = useState(initial?.target_reps || '');
+  // Focused-draft state for the target-weight input. While focused we
+  // hold the user's raw keystrokes; on blur we parse → convert to
+  // canonical lbs → clamp. Reformatting every keystroke broke kg/stone
+  // typing (e.g. "82" in kg round-tripped to "8.0"). (Audit task 7.)
+  const [targetWeightFocused, setTargetWeightFocused] = useState(false);
+  const [targetWeightDraft, setTargetWeightDraft] = useState('');
   
   // Cardio common fields
   const [cardioActivity, setCardioActivity] = useState(initial?.cardio_activity || 'running');
@@ -205,11 +211,19 @@ export default function GoalForm({ initial, onSubmit, onCancel, userProfile = {}
                 type="number" inputMode="decimal"
                 min={fromLbs(10, weightUnit)}
                 max={maxTargetWeightDisplay}
-                value={targetWeightLbs ? formatWeightNumber(parseFloat(targetWeightLbs), weightUnit) : ''}
-                onChange={(e) => {
-                  const displayVal = parseFloat(e.target.value) || 0;
+                value={targetWeightFocused
+                  ? targetWeightDraft
+                  : (targetWeightLbs ? formatWeightNumber(parseFloat(targetWeightLbs), weightUnit) : '')}
+                onFocus={() => {
+                  setTargetWeightDraft(targetWeightLbs ? formatWeightNumber(parseFloat(targetWeightLbs), weightUnit) : '');
+                  setTargetWeightFocused(true);
+                }}
+                onChange={(e) => setTargetWeightDraft(e.target.value)}
+                onBlur={() => {
+                  const displayVal = parseFloat(targetWeightDraft) || 0;
                   const lbsVal = toLbs(Math.min(displayVal, maxTargetWeightDisplay), weightUnit);
                   setTargetWeightLbs(lbsVal > 0 ? lbsVal.toString() : '');
+                  setTargetWeightFocused(false);
                 }}
                 placeholder={t('common.optional')}
               />

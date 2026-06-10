@@ -14,6 +14,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { getDateLocale } from '@/lib/dateLocales';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
+import { parseLocalDate } from '@/lib/dateUtils';
 import { Card } from '@/components/ui/card';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -78,8 +79,10 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
     return { sessionHistory, prTimeline, allTimeBest: runningBest };
   }, [exerciseName, logs]);
 
+  // e.date is a LOCAL 'yyyy-MM-dd' key — parseLocalDate keeps the label
+  // on the right calendar day for users west of UTC.
   const chartData = useMemo(() => sessionHistory.map(e => ({
-    date: format(new Date(e.date), 'MMM d'),
+    date: format(parseLocalDate(e.date), 'MMM d'),
     weight: Math.round(fromLbs(e.weightLbs, weightUnit) * 10) / 10,
     isPR: e.isPR,
   })), [sessionHistory, weightUnit]);
@@ -168,7 +171,7 @@ export default function PRHistoryModal({ open, onClose, exerciseName, logs }) {
                           {formatWeight(pr.weightLbs, weightUnit)}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          {format(new Date(pr.date), 'MMMM d, yyyy', { locale: dateLocale })}
+                          {format(parseLocalDate(pr.date), 'MMMM d, yyyy', { locale: dateLocale })}
                         </p>
                       </div>
                       {pr.prevBest > 0 && (

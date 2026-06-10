@@ -137,16 +137,56 @@ async function lookupOpenFoodFacts(barcode) {
 }
 
 // ── Community FoodItem lookup ─────────────────────────────────────────────────
+
+// Coerce a flat numeric column to number|null. PostgREST serializes
+// `numeric` as a JSON number, but be tolerant of string payloads too.
+function flatNum(v) {
+  if (v == null || v === '') return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
 async function lookupCommunity(barcode) {
-  const record = await findByBarcode(barcode);
-  if (!record) return null;
+  // Fetch a handful of candidates and pick the newest CLIENT-side.
+  // Multiple users can submit the same barcode, and relying on a bare
+  // '-created_date' order risks NULL-created_date legacy rows sorting
+  // first (Postgres DESC puts NULLs first by default).
+  let records = [];
+  try {
+    records = await db.entities.FoodItem.filter({ barcode }, '-created_date', 10);
+  } catch {
+    // Fall back to the single-row helper (it swallows its own errors).
+    const one = await findByBarcode(barcode);
+    records = one ? [one] : [];
+  }
+  if (!records.length) return null;
+  const ts = (r) => Date.parse(r.created_date || r.created_at || '') || 0;
+  const record = [...records].sort((a, b) => ts(b) - ts(a))[0];
+
+  // Prefer the rich `nutrition` jsonb (community-barcode migration);
+  // fall back per-field to the flat legacy columns from
+  // 001_initial_schema (calories/protein/carbs/fat/fiber/sodium).
+  // Rows written before the dual-shape fix may only have one or the
+  // other populated — reading both ends the 0-calorie re-scan bug.
+  const json = (record.nutrition && typeof record.nutrition === 'object') ? record.nutrition : {};
+  const pick = (key) => json[key] ?? flatNum(record[key]);
+
   return {
     barcode: record.barcode,
     name: record.name,
     servingLabel: record.serving_label || '1 serving',
     source: 'community',
-    nutrition: record.nutrition || {},
-    vitamins:  record.vitamins  || {},
+    nutrition: {
+      calories:    pick('calories'),
+      protein:     pick('protein'),
+      carbs:       pick('carbs'),
+      fat:         pick('fat'),
+      fiber:       pick('fiber'),
+      sodium:      pick('sodium'),
+      sugar:       json.sugar       ?? null, // no flat column for these two
+      cholesterol: json.cholesterol ?? null,
+    },
+    vitamins: (record.vitamins && typeof record.vitamins === 'object') ? record.vitamins : {},
     communityId: record.id,  // preserve so we can show attribution
   };
 }

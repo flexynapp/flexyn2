@@ -13,6 +13,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { selectProfiles } from '@/lib/data/users';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
@@ -2917,13 +2918,15 @@ export default function Onboarding() {
     const seq = ++usernameCheckSeqRef.current;
     const timer = setTimeout(async () => {
       try {
+        // Cross-user read (other accounts' usernames) — goes through the
+        // public_profiles view so it keeps working after the base table's
+        // public SELECT policy is dropped.
         const { data: rows } = await safeSelect({
           columns: ['id'],
-          build: (cols) => supabase
-            .from('user_profiles')
+          build: (cols) => selectProfiles((from) => from
             .select(cols)
             .ilike('username', u)
-            .limit(1),
+            .limit(1)),
         });
         if (seq !== usernameCheckSeqRef.current) return; // a newer keystroke superseded us
         if (!rows || rows.length === 0) return;

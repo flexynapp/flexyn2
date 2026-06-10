@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { listMyDuels, cancelDuel } from '@/lib/data/duels';
-import { supabase } from '@/api/supabaseClient';
+import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
@@ -145,10 +145,9 @@ export default function Duels() {
     enabled: otherIds.length > 0,
     staleTime: 60_000,
     queryFn: async () => {
-      const { data } = await supabase
-        .from('user_profiles')
+      const { data } = await selectProfiles((from) => from
         .select('id, username, avatar_url')
-        .in('id', otherIds);
+        .in('id', otherIds));
       const map = {};
       (data || []).forEach((p) => { map[p.id] = p; });
       return map;

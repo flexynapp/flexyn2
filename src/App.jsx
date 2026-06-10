@@ -78,12 +78,24 @@ function ProfileRedirect() {
   const [target, setTarget] = React.useState(null); // null=loading, false=not found
   useEffect(() => {
     if (!username) { setTarget(false); return; }
+    const handle = username.replace(/^@/, '');
+    // Read via the whitelisted public_profiles view (migration 175).
+    // Fallback to the base table covers the deploy window where the
+    // frontend ships before the view's SQL has been pasted into prod.
     supabase
-      .from('user_profiles')
+      .from('public_profiles')
       .select('email')
-      .eq('username', username.replace(/^@/, ''))
+      .eq('username', handle)
       .maybeSingle()
-      .then(({ data }) => setTarget(data?.email || false));
+      .then(({ data, error }) => {
+        if (!error) { setTarget(data?.email || false); return; }
+        supabase
+          .from('user_profiles')
+          .select('email')
+          .eq('username', handle)
+          .maybeSingle()
+          .then(({ data: fallback }) => setTarget(fallback?.email || false));
+      });
   }, [username]);
   if (target === null) {
     return <div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" /></div>;
@@ -141,18 +153,18 @@ const AuthenticatedApp = () => {
   // we ask them to sign up, or conversion craters.
   //
   // We read window.location.pathname directly (rather than via
-  // useLocation) because <Router> isn't above us in the tree — we're
-  // still in the auth-bootstrap region. The pathname is stable for
-  // the lifetime of this component instance (any in-app nav would
-  // re-mount through the Router which lives below).
+  // useLocation) for a stable check during auth bootstrap. NOTE: the
+  // top-level <Router> in App() is ABOVE this component — these
+  // branches must return bare <Routes>, never a second <Router>.
+  // Nesting a second BrowserRouter throws react-router's
+  // "cannot render a <Router> inside another <Router>" invariant and
+  // blanked all four public surfaces (2026-06 audit, blocker C6).
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/duel-invite/')) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/duel-invite/:token" element={<DuelInviteLanding />} />
-          <Route path="*" element={<DuelInviteLanding />} />
-        </Routes>
-      </Router>
+      <Routes>
+        <Route path="/duel-invite/:token" element={<DuelInviteLanding />} />
+        <Route path="*" element={<DuelInviteLanding />} />
+      </Routes>
     );
   }
 
@@ -161,12 +173,10 @@ const AuthenticatedApp = () => {
   // check internally and shows social buttons vs. "Join Flexyn" CTA.
   if (typeof window !== 'undefined' && /^\/@[^/]/.test(window.location.pathname)) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/@:username" element={<PublicProfile />} />
-          <Route path="*" element={<PublicProfile />} />
-        </Routes>
-      </Router>
+      <Routes>
+        <Route path="/@:username" element={<PublicProfile />} />
+        <Route path="*" element={<PublicProfile />} />
+      </Routes>
     );
   }
 
@@ -175,12 +185,10 @@ const AuthenticatedApp = () => {
   // Authenticated visitors see "Enter Hub" button (→ /gym/:id).
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/p/gym/')) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/p/gym/:id" element={<PublicGymLanding />} />
-          <Route path="*" element={<PublicGymLanding />} />
-        </Routes>
-      </Router>
+      <Routes>
+        <Route path="/p/gym/:id" element={<PublicGymLanding />} />
+        <Route path="*" element={<PublicGymLanding />} />
+      </Routes>
     );
   }
 
@@ -189,12 +197,10 @@ const AuthenticatedApp = () => {
   // (prompts sign-in), so this bypass works for a fresh camera scan too.
   if (typeof window !== 'undefined' && window.location.pathname.startsWith('/checkin/')) {
     return (
-      <Router>
-        <Routes>
-          <Route path="/checkin/:code" element={<CheckInPage />} />
-          <Route path="*" element={<CheckInPage />} />
-        </Routes>
-      </Router>
+      <Routes>
+        <Route path="/checkin/:code" element={<CheckInPage />} />
+        <Route path="*" element={<CheckInPage />} />
+      </Routes>
     );
   }
 

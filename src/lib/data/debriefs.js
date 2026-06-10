@@ -10,6 +10,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { toLocalDateString } from '@/lib/dateUtils';
 
 const DEBRIEF_COLUMNS = [
   'id', 'week_number', 'year', 'week_label',
@@ -83,10 +84,12 @@ export async function getDebrief(id) {
  */
 export async function generateWeeklyDebrief(weekStart = null) {
   // Format as YYYY-MM-DD for the RPC, or omit for current week default
+  // toLocalDateString (NOT toISOString) — the user's local calendar day,
+  // not the UTC one, defines which week they're asking about.
   const param = weekStart
     ? { p_week_start: typeof weekStart === 'string'
           ? weekStart
-          : weekStart.toISOString().slice(0, 10) }
+          : toLocalDateString(weekStart) }
     : {};
 
   const { data, error } = await supabase.rpc('generate_my_weekly_debrief', param);
@@ -105,14 +108,19 @@ export function currentWeekStart(date = new Date()) {
   const day = d.getDay(); // 0=Sun
   const diff = (day === 0 ? -6 : 1 - day); // shift to Monday
   d.setDate(d.getDate() + diff);
-  return d.toISOString().slice(0, 10);
+  // Serialize from LOCAL date parts. The old toISOString().slice(0, 10)
+  // returned the UTC calendar day, which is off by one for part of every
+  // day outside UTC — e.g. a user at UTC-7 opening the vault after 5pm
+  // on Monday got TUESDAY's date as the "Monday" week start (and a user
+  // east of UTC before local 'UTC midnight' got Sunday's).
+  return toLocalDateString(d);
 }
 
 /**
  * Previous week's Monday (YYYY-MM-DD).
  */
 export function prevWeekStart(date = new Date()) {
-  const d = new Date(currentWeekStart(date));
+  const d = new Date(date);
   d.setDate(d.getDate() - 7);
-  return d.toISOString().slice(0, 10);
+  return currentWeekStart(d);
 }

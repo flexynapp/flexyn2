@@ -35,7 +35,7 @@ const EMPTY_NUTRIENTS = Object.fromEntries(NUTRIENT_FIELDS.map(f => [f.key, ''])
 const EMPTY_VITAMINS  = Object.fromEntries(VITAMIN_FIELDS.map(f => [f.key, '']));
 
 export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
-  const { t } = useLanguage();
+  const { tFallback } = useLanguage();
   const [tab, setTab] = useState('nutrients');
   const [name, setName] = useState('');
   const [servingLabel, setServingLabel] = useState('1 serving');
@@ -78,17 +78,42 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
         VITAMIN_FIELDS.map(f => [f.key, num(vitamins[f.key])])
       );
 
-      // Save to the shared community FoodItem entity
-      await createFoodItem({
+      // Save to the shared community FoodItem entity.
+      //
+      // Write BOTH shapes: the rich jsonb payload (`nutrition` /
+      // `vitamins` / `source` — added by the food_items jsonb
+      // migration) AND the flat legacy columns from 001_initial_schema
+      // (calories / protein / carbs / fat / fiber / sodium) so readers
+      // on either side of the migration get real numbers. On a host
+      // without the jsonb columns, the entity layer's 42703
+      // strip-and-retry drops those keys but the flat columns still
+      // land — previously the WHOLE nutrition payload was silently
+      // dropped and re-scans logged 0-calorie meals.
+      const saved = await createFoodItem({
         barcode,
         name: name.trim(),
         serving_label: servingLabel.trim() || '1 serving',
+        // Flat legacy columns (001_initial_schema.sql food_items)
+        calories: num(nutrients.calories)  ?? 0,
+        protein:  num(nutrients.protein_g) ?? 0,
+        carbs:    num(nutrients.carbs_g)   ?? 0,
+        fat:      num(nutrients.fat_g)     ?? 0,
+        fiber:    num(nutrients.fiber_g)   ?? 0,
+        sodium:   num(nutrients.sodium_mg) ?? 0,
+        // Rich jsonb columns (community-barcode migration)
         nutrition:  nutritionRecord,
         vitamins:   vitaminsRecord,
         source:     'user_submitted',
       });
 
-      toast.success('Food item saved! It\'s now available for all users who scan this barcode.');
+      // Only claim "available for everyone" when the jsonb payload
+      // actually landed — strip-and-retry means a pre-migration host
+      // returns a row WITHOUT the `nutrition` key, and community-wide
+      // read access ships with the same migration.
+      const richSaved = !!(saved && saved.nutrition);
+      toast.success(richSaved
+        ? tFallback('nutrition.barcode.savedForEveryone', "Food item saved! It's now available for all users who scan this barcode.")
+        : tFallback('nutrition.barcode.savedToLog', 'Food item saved — you can log it now.'));
 
       // Return the product in the same shape as lookupBarcode() so the caller
       // can immediately show BarcodeResultModal without a second lookup.

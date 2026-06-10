@@ -293,8 +293,22 @@ export default function Nutrition() {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
   }, [location?.state?.openLogMeal, location.search]);
-  // Date is always today's local date — Nutrition no longer supports past-day viewing.
-  const date = format(new Date(), 'yyyy-MM-dd');
+  // Date is always today's local date — Nutrition no longer supports
+  // past-day viewing. Held in state with a minute tick (same pattern
+  // as MoodLogCard) instead of a per-mount const: a PWA left open
+  // across midnight previously kept yesterday's date, so every query
+  // key, meal save, and water log landed on the wrong day. The tick
+  // advances `date` on the first render after midnight, which also
+  // re-keys the nutritionLogs query automatically.
+  const computeTodayKey = () => format(new Date(), 'yyyy-MM-dd');
+  const [date, setDate] = useState(computeTodayKey);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const next = computeTodayKey();
+      setDate(prev => (prev === next ? prev : next));
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Reorderable sections — same mechanism as Dashboard customize.
   // Defaults to the order shown when the user opens a fresh Nutrition
@@ -374,6 +388,11 @@ export default function Nutrition() {
   const readerRef = useRef(null);
   const controlsRef = useRef(null);
   const lastBarcodeRef = useRef(null);
+  // Set by stopScanner/unmount so an in-flight startScanner (which has
+  // several awaits before controlsRef is assigned) can tell the user
+  // already closed and tear down the just-created camera stream
+  // instead of leaving it running with no owner (camera light stuck on).
+  const scanCancelledRef = useRef(false);
   const queryClient = useQueryClient();
   const { user } = useAuth();
 
@@ -698,11 +717,16 @@ export default function Nutrition() {
     setPhotoRecognizing(false);
     if (!res?.ok) {
       const err = res?.error;
-      if (err === 'NOT_FOOD') toast.error("That doesn't look like food — try another photo.");
-      else if (err === 'PIPELINE_MISSING') toast.error('Photo recognition isn\'t enabled yet.');
-      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit — try again in a moment.');
-      else if (err === 'TOO_LARGE') toast.error('Photo is too large — try a smaller image.');
-      else toast.error('Could not recognize meal. Try again.');
+      if (err === 'NOT_FOOD') toast.error(tFallback('nutrition.photoAi.notFood', "That doesn't look like food — try another photo."));
+      else if (err === 'PIPELINE_MISSING') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
+      else if (err === 'RATE_LIMIT') toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit — try again in a moment.'));
+      // 'TOO_LARGE' was the old client-side code; the server has always
+      // sent 'IMAGE_TOO_LARGE'. Accept both so neither path falls
+      // through to the generic toast.
+      else if (err === 'IMAGE_TOO_LARGE' || err === 'TOO_LARGE') toast.error(tFallback('nutrition.photoAi.tooLarge', 'Photo is too large even after compression — try a smaller image.'));
+      else if (err === 'UNSUPPORTED_FORMAT') toast.error(tFallback('nutrition.photoAi.unsupportedFormat', "This photo format isn't supported here — try a JPEG or PNG."));
+      else if (err === 'TIMEOUT') toast.error(tFallback('nutrition.photoAi.timeout', 'Recognition timed out — check your connection and try again.'));
+      else toast.error(tFallback('nutrition.photoAi.failed', 'Could not recognize meal. Try again.'));
       return;
     }
     const r = res.result || {};
@@ -734,6 +758,7 @@ export default function Nutrition() {
   };
 
   const startScanner = async () => {
+    scanCancelledRef.current = false;
     setShowScanner(true);
     setScannerError(null);
     setScannerStatus('initializing');
@@ -747,28 +772,60 @@ export default function Nutrition() {
       // cached by the browser after the initial fetch, so subsequent
       // scans don't re-download. Keeps ~80 KB out of the entry chunk.
       const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      if (scanCancelledRef.current) return;
       const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (devices.length === 0) throw new Error('No camera found on this device.');
-      const rearCamera = devices.find((d) => /back|rear|environment/i.test(d.label));
-      const deviceId = rearCamera?.deviceId || devices[0].deviceId;
+      if (scanCancelledRef.current) return;
 
       readerRef.current = new BrowserMultiFormatReader();
       setScannerStatus('scanning');
 
-      controlsRef.current = await readerRef.current.decodeFromVideoDevice(
-        deviceId,
-        videoRef.current,
-        async (result) => {
-          if (!result) return;
-          const barcode = result.getText();
-          if (barcode === lastBarcodeRef.current) return;
-          lastBarcodeRef.current = barcode;
-          setScannerStatus('looking-up');
-          controlsRef.current?.stop();
-          await lookupAndShow(barcode);
-        }
-      );
+      const onDecode = async (result) => {
+        if (!result || scanCancelledRef.current) return;
+        const barcode = result.getText();
+        if (barcode === lastBarcodeRef.current) return;
+        lastBarcodeRef.current = barcode;
+        setScannerStatus('looking-up');
+        controlsRef.current?.stop();
+        await lookupAndShow(barcode);
+      };
+
+      // Before camera permission is granted, enumerateDevices returns
+      // devices with EMPTY labels (or, on some browsers, an empty
+      // list), so the back/rear/environment label test can never match
+      // and devices[0] — often the FRONT camera — won. In that case
+      // let the browser pick the rear camera via the facingMode
+      // constraint instead of a deviceId. If there's genuinely no
+      // camera, getUserMedia inside decodeFromConstraints throws and
+      // parseCameraError surfaces it.
+      const labeled = devices.filter((d) => d.label);
+      let controls;
+      if (labeled.length === 0) {
+        controls = await readerRef.current.decodeFromConstraints(
+          { video: { facingMode: 'environment' } },
+          videoRef.current,
+          onDecode,
+        );
+      } else {
+        const rearCamera = labeled.find((d) => /back|rear|environment/i.test(d.label));
+        const deviceId = rearCamera?.deviceId || devices[0].deviceId;
+        controls = await readerRef.current.decodeFromVideoDevice(
+          deviceId,
+          videoRef.current,
+          onDecode,
+        );
+      }
+      // Close/unmount can land while decodeFrom* was still awaiting —
+      // controlsRef.current was null then, so stopScanner had nothing
+      // to stop. Kill the just-created stream here instead of leaving
+      // the camera running with no owner.
+      if (scanCancelledRef.current) {
+        try { controls?.stop(); } catch { /* already stopped */ }
+        return;
+      }
+      controlsRef.current = controls;
     } catch (e) {
+      // User closed the scanner mid-init — don't resurrect the error UI.
+      if (scanCancelledRef.current) return;
       setScannerError(parseCameraError(e, t));
       setScannerStatus('error');
     }
@@ -793,6 +850,7 @@ export default function Nutrition() {
   };
 
   const stopScanner = () => {
+    scanCancelledRef.current = true;
     try { controlsRef.current?.stop(); } catch {}
     controlsRef.current = null;
     readerRef.current = null;
@@ -809,7 +867,10 @@ export default function Nutrition() {
   };
 
   useEffect(() => {
-    return () => { try { controlsRef.current?.stop(); } catch {} };
+    return () => {
+      scanCancelledRef.current = true;
+      try { controlsRef.current?.stop(); } catch {}
+    };
   }, []);
 
   /* ========================================================= */
@@ -1049,12 +1110,13 @@ export default function Nutrition() {
 
           {/* Photo-AI recognition trigger — hidden file input behind
               a styled button so iOS surfaces "Take photo" + "Choose
-              from library" naturally. */}
+              from library" naturally. No `capture` attr: capture
+              forces the camera directly and suppresses the
+              photo-library chooser this comment promises. */}
           <input
             ref={photoInputRef}
             type="file"
             accept="image/*"
-            capture="environment"
             style={{ display: 'none' }}
             onChange={handlePhotoMealPick}
           />

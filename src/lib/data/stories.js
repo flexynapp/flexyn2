@@ -4,6 +4,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { selectProfiles } from './users';
 import { findOrCreateConversation, sendMessage } from './hubMessages';
 
 /**
@@ -37,7 +38,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     // the Hub when one of those migrations is pending.
     safeSelect({
       columns: ['email', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
-      build: (cols) => supabase.from('user_profiles').select(cols).in('email', allEmails),
+      build: (cols) => selectProfiles((from) => from.select(cols).in('email', allEmails)),
     }),
 
     supabase
@@ -258,11 +259,13 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
 async function _recipientAllowsDmReplies(recipientEmail) {
   if (!recipientEmail) return false;
   try {
-    const { data } = await supabase
-      .from('user_profiles')
+    // Cross-user read of the recipient's story_dms_disabled flag — the
+    // server-enforced reply gate needs it, so the column must stay
+    // exposed on the public_profiles view.
+    const { data } = await selectProfiles((from) => from
       .select('story_dms_disabled')
       .ilike('email', recipientEmail.toLowerCase())
-      .maybeSingle();
+      .maybeSingle());
     // If the column doesn't exist on this host yet, default to allowing
     // replies (matches the legacy behavior).
     if (!data) return true;
@@ -391,10 +394,9 @@ export async function getStoryInsights(storyId) {
   if (allIds.length > 0) {
     const { data: profiles } = await safeSelect({
       columns: ['id', 'username', 'avatar_url'],
-      build: (cols) => supabase
-        .from('user_profiles')
+      build: (cols) => selectProfiles((from) => from
         .select(cols)
-        .in('id', allIds),
+        .in('id', allIds)),
     });
     profileMap = Object.fromEntries((profiles ?? []).map(p => [p.id, p]));
   }
