@@ -174,7 +174,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
       cta:   tFallback('onboarding.invite_friend.cta',   'Open'),
       icon:  Gift,
       accent: 'fuchsia',
-      onAct: () => navigate('/hub/profile'),
+      onAct: () => navigate('/profile'),
     },
     // Destructure the push fields we actually read so this useMemo
     // doesn't rebuild on every parent re-render. `push` is returned

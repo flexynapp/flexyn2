@@ -917,7 +917,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         </div>
         <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
           {slide.kicker}
-          {subKicker && <span className="text-white/40 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
+          {subKicker && <span className="text-white/70 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
         </span>
       </div>
 

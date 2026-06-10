@@ -20,7 +20,11 @@
     --secondary: 210 15% 92%;
     --secondary-foreground: 210 20% 15%;
     --muted: 210 15% 94%;
-    --muted-foreground: 210 10% 46%;
+    /* 42% (was 46%) so muted-foreground clears WCAG AA 4.5:1 on every
+       light surface — bg/card/secondary/muted. At 46% it failed on
+       bg (4.39), secondary (3.90) and muted (4.09); 42% lifts the worst
+       case (secondary) to 4.52. */
+    --muted-foreground: 210 10% 42%;
     --accent: 210 18% 30%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;

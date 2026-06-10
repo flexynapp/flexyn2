@@ -113,7 +113,7 @@ export default function Header() {
             icons stay fully visible. */}
         <button
           onClick={handleLogoTap}
-          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-left hover:opacity-80 transition-opacity px-2 touch-manipulation"
+          className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-start hover:opacity-80 transition-opacity px-2 touch-manipulation"
         >
           {isChildRoute ? title : t('app.name')}
         </button>

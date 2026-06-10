@@ -12,35 +12,40 @@ import { Skeleton } from '@/components/ui/skeleton';
 import * as hubFollows from '@/lib/data/hubFollows';
 import * as hubPosts from '@/lib/data/hubPosts';
 
-const RECENT_SEARCHES_KEY = 'hubRecentSearches';
+// Per-user key (recent searches store other users' email/username/avatar —
+// a global key bled that PII to the next account on a shared device).
+const LEGACY_RECENT_SEARCHES_KEY = 'hubRecentSearches';
+const recentSearchesKey = (userId) => `flexyn.hubRecentSearches.${userId || 'anon'}`;
 const MAX_RECENT_SEARCHES = 5;
 
-function getRecentSearches() {
+function getRecentSearches(userId) {
   try {
-    const stored = localStorage.getItem(RECENT_SEARCHES_KEY);
+    // One-time eviction of the legacy un-scoped key so old PII doesn't linger.
+    localStorage.removeItem(LEGACY_RECENT_SEARCHES_KEY);
+    const stored = localStorage.getItem(recentSearchesKey(userId));
     return stored ? JSON.parse(stored) : [];
   } catch {
     return [];
   }
 }
 
-function saveRecentSearch(user) {
+function saveRecentSearch(userId, user) {
   try {
-    let recent = getRecentSearches();
+    let recent = getRecentSearches(userId);
     recent = recent.filter(u => u.email !== user.email);
     recent.unshift(user);
     recent = recent.slice(0, MAX_RECENT_SEARCHES);
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent));
+    localStorage.setItem(recentSearchesKey(userId), JSON.stringify(recent));
   } catch {
     // Silently fail if localStorage is unavailable
   }
 }
 
-function removeRecentSearch(email) {
+function removeRecentSearch(userId, email) {
   try {
-    let recent = getRecentSearches();
+    let recent = getRecentSearches(userId);
     recent = recent.filter(u => u.email !== email);
-    localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(recent));
+    localStorage.setItem(recentSearchesKey(userId), JSON.stringify(recent));
   } catch {
     // Silently fail if localStorage is unavailable
   }
@@ -63,7 +68,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
   // Load recent searches + following list on open
   useEffect(() => {
     if (open) {
-      setRecentSearches(getRecentSearches());
+      setRecentSearches(getRecentSearches(currentUser?.id));
       setLocalAdded(new Set());
       if (currentUser?.email) {
         hubFollows.listFollowing(currentUser.email)
@@ -71,7 +76,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
           .catch(() => {});
       }
     }
-  }, [open, currentUser?.email]);
+  }, [open, currentUser?.email, currentUser?.id]);
 
   // Search effect
   useEffect(() => {
@@ -145,7 +150,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
   }, [searchQuery, activeTab]);
 
   const handleSelectUser = (user) => {
-    saveRecentSearch(user);
+    saveRecentSearch(currentUser?.id, user);
     onSelectUser(user);
     setSearchQuery('');
     onClose();
@@ -153,8 +158,8 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
 
   const handleRemoveRecent = (e, email) => {
     e.stopPropagation();
-    removeRecentSearch(email);
-    setRecentSearches(getRecentSearches());
+    removeRecentSearch(currentUser?.id, email);
+    setRecentSearches(getRecentSearches(currentUser?.id));
   };
 
   return (

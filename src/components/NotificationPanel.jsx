@@ -52,7 +52,11 @@ const FRIEND_TYPES = new Set([
 
 export default function NotificationPanel({ open, onClose }) {
   const { user } = useAuth();
-  const { tFallback } = useLanguage();
+  const { tFallback, language } = useLanguage();
+  // The panel is pinned to the inline-end edge (end-0). In RTL that edge
+  // is on the LEFT, so the slide-in must come from -100% (off the left)
+  // rather than the LTR default of +100% (off the right).
+  const offEdge = language === 'ar' ? '-100%' : '100%';
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [deletingIds, setDeletingIds] = useState(() => new Set());
@@ -245,9 +249,9 @@ export default function NotificationPanel({ open, onClose }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="notifications-panel-title"
-          initial={{ x: '100%' }}
+          initial={{ x: offEdge }}
           animate={{ x: 0 }}
-          exit={{ x: '100%' }}
+          exit={{ x: offEdge }}
           transition={{ type: 'spring', damping: 28, stiffness: 280 }}
           onClick={(e) => e.stopPropagation()}
           className="absolute end-0 top-0 bottom-0 w-full sm:w-96 bg-card border-s border-border shadow-2xl flex flex-col"
