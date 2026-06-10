@@ -60,9 +60,6 @@ SELECT
   preferred_theme,
   trophy_case,
   trophy_case_visible,
-  -- region
-  country_code,
-  state_code,
   -- feature-gating preferences (read cross-user by stories/nemesis logic)
   nemesis_opt_out,
   story_dms_disabled,

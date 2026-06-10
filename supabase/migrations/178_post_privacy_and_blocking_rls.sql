@@ -20,9 +20,11 @@
 -- non-blocked posts only — preserving the public-profile acquisition
 -- surface without leaking private content.
 --
--- Column facts (verified): hub_posts(author_email, user_id, privacy
--- default 'public', crew_id, publish_at); hub_follows(follower_email,
--- followee_email); hub_comments(author_email, user_id, post_id).
+-- Column facts (verified against PROD 2026-06-10): hub_posts(author_email,
+-- user_id, privacy default 'public', publish_at). NOTE: hub_posts.crew_id
+-- (migration 065) is NOT deployed to prod — crew-scoped posts aren't a live
+-- feature here — so this policy does NOT reference crew_id. hub_follows
+-- (follower_email, followee_email); hub_comments(author_email, user_id).
 --
 -- Paste-safe per repo convention: full table-name-qualified columns
 -- (hub_posts.author_email — a real table name, not a short alias),
@@ -30,7 +32,7 @@
 -- record .id tokens.
 
 -- ── hub_posts ────────────────────────────────────────────────────────────────
--- Drop the open reads (001's public read + 065's permissive crew read).
+-- Drop the open reads (001's public read + 065's permissive crew read if present).
 DROP POLICY IF EXISTS "hub_posts: public read"                    ON public.hub_posts;
 DROP POLICY IF EXISTS "Crew posts visible to crew members only"   ON public.hub_posts;
 DROP POLICY IF EXISTS "hub_posts: privacy and blocking read"      ON public.hub_posts;
@@ -44,18 +46,16 @@ CREATE POLICY "hub_posts: privacy and blocking read"
     OR hub_posts.user_id = auth.uid()
     OR (
       -- Everyone else: only published rows, and never from someone in a
-      -- block relationship with the viewer.
+      -- block relationship with the viewer. Anything not public/followers
+      -- (e.g. a stray privacy='crew' row) stays hidden — safe default.
       (hub_posts.publish_at IS NULL OR hub_posts.publish_at <= now())
       AND NOT public.is_blocked(auth.uid(), hub_posts.author_email)
       AND (
-        -- Crew-scoped posts: members only (regardless of privacy field).
-        (hub_posts.crew_id IS NOT NULL AND public.is_crew_member(hub_posts.crew_id))
-        -- Non-crew public posts: visible to all (incl. anon).
-        OR (hub_posts.crew_id IS NULL AND hub_posts.privacy = 'public')
-        -- Non-crew followers-only posts: visible to confirmed followers.
+        -- Public posts: visible to all (incl. anon).
+        hub_posts.privacy = 'public'
+        -- Followers-only posts: visible to confirmed followers.
         OR (
-          hub_posts.crew_id IS NULL
-          AND hub_posts.privacy = 'followers'
+          hub_posts.privacy = 'followers'
           AND auth.email() IS NOT NULL
           AND EXISTS (
             SELECT 1 FROM public.hub_follows
