@@ -1770,3 +1770,506 @@ html[data-theme-tier] .bg-card\/95 {
   background-color: hsl(var(--card)) !important;
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Wave-2 loot theme scenes — Zen Garden, Deep Ocean Abyss, Storm Chaser,
+   Underwater Kingdom, Dragon's Lair. Recreated from the Claude Design
+   handoff. Scene-specific classes are uniquely prefixed (zen-/aby-/stm-/
+   ukg-/drg-); they render inside the .theme-scene wrapper so the
+   reduced-motion rule above covers them automatically.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Mythic rarity badge (shimmering rose→orange→violet) */
+/* ─── Mythic rarity badge ─── */
+.rarity-mythic {
+  background: linear-gradient(100deg, rgba(244,63,94,0.25), rgba(251,146,60,0.25), rgba(168,85,247,0.25));
+  background-size: 200% 100%;
+  color: #fda4af;
+  border: 1px solid rgba(244,63,94,0.5);
+  animation: mythic-shimmer 4s linear infinite;
+}
+@keyframes mythic-shimmer {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+
+/* ═══ Zen Garden (common) — raked sand, stones, falling maple leaves ═══ */
+.zen-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 30%, rgba(255,250,240,0.7), transparent 70%),
+    linear-gradient(to bottom, hsl(42, 35%, 93%) 0%, hsl(40, 32%, 87%) 100%);
+}
+.zen-rake {
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(to bottom,
+    transparent 0, transparent 22px,
+    rgba(160,140,110,0.16) 22px, rgba(160,140,110,0.16) 24px);
+}
+.zen-stone {
+  position: absolute;
+  background: radial-gradient(ellipse at 38% 30%, hsl(220, 8%, 52%), hsl(220, 10%, 32%) 75%);
+  border-radius: 48% 52% 45% 55% / 60% 55% 45% 40%;
+  box-shadow: 0 6px 14px rgba(80,70,55,0.3);
+}
+.zen-ring {
+  position: absolute;
+  border: 2px solid rgba(160,140,110,0.35);
+  border-radius: 50%;
+}
+.zen-trunk {
+  position: absolute; right: 10%; top: -2%;
+  width: 10px; height: 200px;
+  background: linear-gradient(to bottom, hsl(20, 35%, 26%), transparent);
+  border-radius: 999px;
+  transform: rotate(14deg);
+  transform-origin: 50% 0;
+  opacity: 0.7;
+}
+.zen-canopy {
+  position: absolute; right: -6%; top: -8%;
+  width: 480px; height: 260px;
+  background:
+    radial-gradient(circle at 25% 45%, rgba(225,72,55,0.55) 0%, transparent 14%),
+    radial-gradient(circle at 38% 30%, rgba(240,100,70,0.5) 0%, transparent 13%),
+    radial-gradient(circle at 52% 45%, rgba(225,72,55,0.55) 0%, transparent 15%),
+    radial-gradient(circle at 65% 28%, rgba(240,100,70,0.5) 0%, transparent 13%),
+    radial-gradient(circle at 78% 42%, rgba(225,72,55,0.55) 0%, transparent 14%),
+    radial-gradient(circle at 35% 62%, rgba(210,60,50,0.45) 0%, transparent 12%),
+    radial-gradient(circle at 58% 65%, rgba(225,72,55,0.45) 0%, transparent 13%),
+    radial-gradient(circle at 75% 60%, rgba(210,60,50,0.4) 0%, transparent 11%);
+}
+.zen-leaf {
+  position: absolute;
+  width: 9px; height: 9px;
+  background: hsl(8, 75%, 55%);
+  border-radius: 80% 20% 80% 20%;
+  opacity: 0;
+  animation: petal-fall var(--dur, 16s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+.zen-lantern {
+  position: absolute; left: 8%; bottom: 16%;
+  width: 44px; height: 70px;
+}
+.zen-lantern::before {
+  /* roof */
+  content: ''; position: absolute; top: 0; left: -8px; right: -8px; height: 18px;
+  background: hsl(220, 10%, 38%);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.zen-lantern::after {
+  /* body + base */
+  content: ''; position: absolute; top: 18px; left: 6px; right: 6px; bottom: 0;
+  background: linear-gradient(to bottom, hsl(220, 9%, 46%) 0 40%, hsl(220, 10%, 36%) 40%);
+  border-radius: 4px 4px 2px 2px;
+}
+.zen-lantern-glow {
+  position: absolute; top: 24px; left: 50%;
+  width: 14px; height: 12px;
+  transform: translateX(-50%);
+  background: radial-gradient(circle, rgba(255,210,130,0.95), rgba(255,180,90,0.3) 80%);
+  border-radius: 3px;
+  box-shadow: 0 0 14px rgba(255,190,100,0.7);
+}
+
+/* ═══ Deep Ocean Abyss (rare) — marine snow, jellies, anglerfish ═══ */
+.aby-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 90% 30% at 50% 0%, rgba(20,70,110,0.45), transparent 65%),
+    linear-gradient(to bottom, hsl(212, 70%, 7%) 0%, hsl(220, 80%, 3%) 100%);
+}
+.aby-shaft {
+  position: absolute; top: -5%;
+  width: 130px; height: 55%;
+  background: linear-gradient(to bottom, rgba(110,180,230,0.14), transparent 85%);
+  filter: blur(10px);
+  animation: ray-pulse var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.aby-jelly {
+  position: absolute;
+  animation: aby-rise var(--dur, 30s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes aby-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { transform: translateY(-115vh); opacity: 0; }
+}
+.aby-bell {
+  position: relative;
+  width: var(--jw, 44px); height: calc(var(--jw, 44px) * 0.78);
+  border-radius: 50% 50% 42% 42%;
+  background: radial-gradient(ellipse at 50% 30%,
+    rgba(125,211,252,0.55), rgba(56,189,248,0.25) 60%, rgba(56,189,248,0.08));
+  box-shadow: 0 0 22px rgba(56,189,248,0.45);
+  transform-origin: 50% 100%;
+  animation: aby-pulse 2.8s ease-in-out infinite;
+}
+@keyframes aby-pulse {
+  0%, 100% { transform: scale(1, 1); }
+  50% { transform: scale(0.88, 1.12); }
+}
+.aby-bell::after {
+  content: ''; position: absolute; top: 92%; left: 14%; right: 14%;
+  height: calc(var(--jw, 44px) * 1.2);
+  background: repeating-linear-gradient(to right,
+    rgba(125,211,252,0.4) 0 2px, transparent 2px 8px);
+  mask-image: linear-gradient(to bottom, black 10%, transparent 95%);
+  -webkit-mask-image: linear-gradient(to bottom, black 10%, transparent 95%);
+}
+.aby-fish {
+  position: absolute;
+  width: 90px; height: 40px;
+  animation: aby-prowl var(--dur, 26s) ease-in-out infinite;
+}
+@keyframes aby-prowl {
+  0%, 100% { transform: translate(0, 0); }
+  25% { transform: translate(60px, -22px); }
+  50% { transform: translate(120px, 8px); }
+  75% { transform: translate(50px, 26px); }
+}
+.aby-fish-body {
+  position: absolute; left: 0; top: 8px;
+  width: 74px; height: 30px;
+  border-radius: 60% 45% 50% 55%;
+  background: radial-gradient(ellipse at 35% 40%, hsl(218, 45%, 12%), hsl(222, 60%, 6%));
+  opacity: 0.85;
+}
+.aby-lure {
+  position: absolute; right: 0; top: 0;
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #a5f3fc;
+  box-shadow: 0 0 12px #67e8f9, 0 0 26px rgba(103,232,249,0.7);
+  animation: aby-lure 2s ease-in-out infinite;
+}
+@keyframes aby-lure {
+  0%, 100% { opacity: 0.65; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(3px); }
+}
+.aby-tooth {
+  position: absolute; left: 12px; top: 26px;
+  width: 30px; height: 6px;
+  background: repeating-linear-gradient(to right,
+    rgba(186,230,253,0.5) 0 2px, transparent 2px 6px);
+}
+
+/* ═══ Storm Chaser (epic) — supercell, rain, lightning strikes ═══ */
+.stm-sky {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, hsl(222, 30%, 7%) 0%, hsl(218, 26%, 13%) 55%, hsl(214, 22%, 19%) 100%);
+}
+.stm-cloud {
+  position: absolute;
+  border-radius: 999px;
+  background: radial-gradient(ellipse at 45% 40%, hsl(220, 22%, 16%), hsl(222, 26%, 9%) 80%);
+  filter: blur(14px);
+  animation: stm-churn var(--dur, 16s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes stm-churn {
+  0%, 100% { transform: translateX(0) scale(1); }
+  50% { transform: translateX(var(--dx, 40px)) scale(1.08); }
+}
+.stm-horizon {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 14%;
+  background: linear-gradient(to top, hsl(220, 20%, 5%), hsl(218, 18%, 9%));
+  clip-path: polygon(0 100%, 0 40%, 20% 52%, 45% 38%, 70% 50%, 100% 42%, 100% 100%);
+}
+.stm-rain {
+  position: absolute; top: -6%;
+  width: 1.5px; height: 20px;
+  background: linear-gradient(to bottom, transparent, rgba(165,195,225,0.55));
+  transform: rotate(10deg);
+  opacity: 0;
+  animation: stm-fall var(--dur, 0.9s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes stm-fall {
+  0% { transform: translate(0, 0) rotate(10deg); opacity: 0; }
+  10% { opacity: 0.8; }
+  100% { transform: translate(-12vh, 115vh) rotate(10deg); opacity: 0.25; }
+}
+.stm-flash {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 55% at var(--fx, 50%) 0%,
+    rgba(215,228,255,0.9), rgba(190,210,255,0.28) 50%, transparent 78%);
+  opacity: 0;
+  animation: stm-flash var(--dur, 9s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes stm-flash {
+  0%, 84.5%, 87.4%, 89.2%, 100% { opacity: 0; }
+  85.2% { opacity: 1; }
+  86.4% { opacity: 0.25; }
+  88.3% { opacity: 0.7; }
+}
+.stm-bolt {
+  position: absolute; top: 4%;
+  width: 90px; height: 44vh;
+  left: var(--fx, 50%);
+  background: linear-gradient(to bottom, #ffffff, #cfe0ff 70%, #9db8e8);
+  clip-path: polygon(40% 0, 62% 0, 50% 34%, 68% 34%, 46% 72%, 58% 72%, 26% 100%, 40% 68%, 28% 68%, 48% 32%, 36% 32%);
+  filter: drop-shadow(0 0 16px rgba(190,215,255,0.95));
+  opacity: 0;
+  animation: stm-bolt var(--dur, 9s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes stm-bolt {
+  0%, 84.5%, 86.6%, 88%, 89.4%, 100% { opacity: 0; }
+  85%, 86.2% { opacity: 1; }
+  88.4%, 89% { opacity: 0.85; }
+}
+
+/* ═══ Underwater Kingdom (legendary) — sunken palace, fish, god rays ═══ */
+.ukg-water {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 35% at 50% 0%, rgba(94,200,220,0.28), transparent 65%),
+    linear-gradient(to bottom, hsl(192, 65%, 22%) 0%, hsl(198, 70%, 11%) 55%, hsl(205, 80%, 6%) 100%);
+}
+.ukg-ray {
+  position: absolute; top: -10%;
+  width: 130px; height: 75%;
+  background: linear-gradient(to bottom, rgba(165,235,250,0.20), transparent 85%);
+  transform: rotate(13deg);
+  filter: blur(10px);
+  animation: ray-pulse var(--dur, 8s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.ukg-palace {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  height: 56%;
+  display: flex; align-items: flex-end; justify-content: center;
+  gap: 14px;
+}
+.ukg-tower {
+  position: relative;
+  background: linear-gradient(to bottom, hsl(196, 45%, 16%), hsl(202, 55%, 8%));
+  border-top: none;
+  display: grid;
+  gap: 8px 9px;
+  padding: 26px 9px 12px;
+  align-content: start;
+  justify-content: center;
+  box-shadow: 0 0 22px rgba(60,160,190,0.16);
+}
+.ukg-dome {
+  position: absolute; left: 50%; top: 0;
+  transform: translate(-50%, -86%);
+  border-radius: 50% 50% 12% 12% / 88% 88% 12% 12%;
+  background: linear-gradient(to bottom, hsl(188, 50%, 26%), hsl(196, 50%, 13%));
+  box-shadow: inset 0 4px 10px rgba(165,235,250,0.22);
+}
+.ukg-dome::after {
+  /* spire */
+  content: ''; position: absolute; left: 50%; top: -12px;
+  width: 3px; height: 14px;
+  transform: translateX(-50%);
+  background: hsl(45, 70%, 55%);
+  box-shadow: 0 0 8px rgba(250,204,21,0.7);
+}
+.ukg-win {
+  width: 6px; height: 9px;
+  border-radius: 3px 3px 0 0;
+  box-shadow: 0 0 7px currentColor;
+  animation: win-blink var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.ukg-gate {
+  position: absolute; left: 50%; bottom: 0;
+  width: 44px; height: 64px;
+  transform: translateX(-50%);
+  border-radius: 22px 22px 0 0;
+  background: radial-gradient(ellipse at 50% 90%, rgba(253,224,71,0.85), rgba(250,204,21,0.35) 60%, transparent 90%);
+  box-shadow: 0 0 30px rgba(250,204,21,0.45);
+  animation: lava-pulse 4s ease-in-out infinite;
+}
+.ukg-kelp {
+  position: absolute; bottom: 0;
+  width: 10px; height: var(--kh, 160px);
+  background: linear-gradient(to top, hsl(162, 55%, 14%), hsl(158, 50%, 26%));
+  border-radius: 999px;
+  transform-origin: 50% 100%;
+  animation: palm-sway var(--dur, 6s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.ukg-school {
+  position: absolute;
+  width: 120px; height: 50px;
+  animation: ukg-swim var(--dur, 30s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes ukg-swim {
+  0% { left: -16%; transform: translateY(0); }
+  25% { transform: translateY(-22px); }
+  50% { transform: translateY(10px); }
+  75% { transform: translateY(-14px); }
+  100% { left: 112%; transform: translateY(0); }
+}
+.ukg-school.rev { animation-name: ukg-swim-rev; }
+@keyframes ukg-swim-rev {
+  0% { left: 112%; transform: translateY(0); }
+  25% { transform: translateY(14px); }
+  50% { transform: translateY(-12px); }
+  75% { transform: translateY(8px); }
+  100% { left: -16%; transform: translateY(0); }
+}
+.ukg-fish {
+  position: absolute;
+  width: 15px; height: 7px;
+  border-radius: 45% 60% 60% 45%;
+  background: rgba(140,225,245,0.6);
+}
+.ukg-fish::before {
+  content: ''; position: absolute; left: -5px; top: 0.5px;
+  width: 6px; height: 6px;
+  background: rgba(140,225,245,0.55);
+  clip-path: polygon(100% 0, 100% 100%, 0 50%);
+}
+.ukg-school.rev .ukg-fish { transform: scaleX(-1); }
+.theme-scene .sparkle.gold {
+  background: radial-gradient(circle, rgba(253,224,71,0.95) 0%, transparent 18%);
+}
+.theme-scene .sparkle.gold::before, .sparkle.gold::after {
+  background: linear-gradient(to right, transparent, rgba(253,224,71,0.95), transparent);
+}
+
+/* ═══ Dragon's Lair (mythic) — gold hoard, dragon eyes, fire breath ═══ */
+.drg-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 95%, rgba(217,119,6,0.30), transparent 65%),
+    radial-gradient(ellipse 120% 90% at 50% 40%, rgba(60,15,8,0.5), transparent 80%),
+    linear-gradient(to bottom, hsl(10, 45%, 4%) 0%, hsl(14, 50%, 7%) 100%);
+}
+.drg-rocks {
+  position: absolute; top: 0; left: 0; right: 0; height: 120px;
+  background: linear-gradient(to bottom, hsl(12, 30%, 9%) 0%, hsl(12, 32%, 13%) 100%);
+  clip-path: polygon(
+    0 0, 100% 0, 100% 24%,
+    95% 70%, 91% 26%, 86% 88%, 81% 28%, 76% 58%, 71% 24%,
+    66% 96%, 61% 26%, 56% 72%, 51% 22%, 46% 86%, 41% 26%,
+    36% 64%, 31% 24%, 26% 92%, 21% 28%, 16% 58%, 11% 24%,
+    6% 76%, 0 26%
+  );
+}
+.drg-rocks::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, transparent 40%, rgba(217,119,6,0.20));
+  clip-path: inherit;
+}
+.drg-wall {
+  position: absolute; top: 0; bottom: 0; width: 26%;
+  background: linear-gradient(to right, hsl(10, 40%, 3%), transparent);
+}
+.drg-wall.l { left: 0; }
+.drg-wall.r { right: 0; transform: scaleX(-1); }
+.drg-hoard {
+  position: absolute; left: -5%; right: -5%; bottom: 0; height: 30%;
+  background:
+    radial-gradient(ellipse 34% 90% at 22% 100%, hsl(42, 85%, 48%), hsl(36, 75%, 30%) 70%, transparent 100%),
+    radial-gradient(ellipse 44% 110% at 55% 100%, hsl(44, 90%, 52%), hsl(38, 80%, 32%) 70%, transparent 100%),
+    radial-gradient(ellipse 32% 80% at 86% 100%, hsl(42, 85%, 46%), hsl(36, 75%, 28%) 70%, transparent 100%);
+  filter: blur(1.5px);
+  animation: drg-hoard-glow 5s ease-in-out infinite;
+}
+@keyframes drg-hoard-glow {
+  0%, 100% { filter: blur(1.5px) brightness(0.92); }
+  50% { filter: blur(1.5px) brightness(1.12); }
+}
+.drg-coin {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, hsl(48, 95%, 68%), hsl(40, 85%, 45%));
+  box-shadow: 0 0 6px rgba(253,224,71,0.6);
+}
+.drg-eyes {
+  position: absolute; left: 50%; top: 26%;
+  transform: translateX(-50%);
+  display: flex; gap: 56px;
+}
+.drg-eye {
+  position: relative;
+  width: 64px; height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 50%, hsl(44, 95%, 58%) 0%, hsl(30, 90%, 42%) 55%, hsl(12, 75%, 22%) 90%);
+  box-shadow: 0 0 26px rgba(251,146,36,0.75), 0 0 60px rgba(251,100,30,0.35);
+  overflow: hidden;
+  transform: rotate(var(--tilt, 4deg));
+  animation: drg-eye-glow 4s ease-in-out infinite;
+}
+@keyframes drg-eye-glow {
+  0%, 100% { box-shadow: 0 0 22px rgba(251,146,36,0.6), 0 0 50px rgba(251,100,30,0.3); }
+  50% { box-shadow: 0 0 34px rgba(251,146,36,0.95), 0 0 80px rgba(251,100,30,0.5); }
+}
+.drg-eye::before {
+  /* slit pupil */
+  content: ''; position: absolute; left: 50%; top: -10%;
+  width: 9px; height: 120%;
+  transform: translateX(-50%);
+  background: hsl(15, 70%, 6%);
+  border-radius: 50%;
+}
+.drg-eye::after {
+  /* blinking lid */
+  content: ''; position: absolute; inset: -2px;
+  background: hsl(12, 48%, 6%);
+  transform: scaleY(0);
+  transform-origin: 50% 0;
+  animation: drg-blink 6.5s ease-in-out infinite;
+}
+@keyframes drg-blink {
+  0%, 91%, 100% { transform: scaleY(0); }
+  93.5%, 96% { transform: scaleY(1); }
+}
+.drg-nostril-smoke {
+  position: absolute;
+  width: 50px; height: 90px;
+  background: radial-gradient(ellipse 50% 60% at 50% 90%, rgba(70,45,40,0.5), transparent 75%);
+  filter: blur(10px);
+  transform-origin: 50% 100%;
+  animation: drg-smoke var(--dur, 7s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes drg-smoke {
+  0%, 100% { transform: translateY(0) scale(0.8); opacity: 0.4; }
+  50% { transform: translateY(-26px) scale(1.25); opacity: 0.75; }
+}
+.drg-firewash {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 75% 55% at 50% 78%, rgba(249,115,22,0.55), rgba(220,60,10,0.22) 55%, transparent 80%);
+  opacity: 0;
+  animation: drg-fire 11s linear infinite;
+}
+@keyframes drg-fire {
+  0%, 36%, 50%, 100% { opacity: 0; }
+  39%, 41% { opacity: 1; }
+  43% { opacity: 0.45; }
+  46% { opacity: 0.85; }
+}
+.drg-breath {
+  position: absolute; left: 50%; top: 34%;
+  width: 260px; height: 200px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 45% 70% at 50% 0%,
+    rgba(254,240,138,0.9) 0%, rgba(251,146,60,0.65) 40%, rgba(220,38,38,0.3) 70%, transparent 88%);
+  filter: blur(6px);
+  transform-origin: 50% 0;
+  opacity: 0;
+  animation: drg-breath 11s linear infinite;
+}
+@keyframes drg-breath {
+  0%, 36.5%, 49%, 100% { opacity: 0; transform: translateX(-50%) scaleY(0.3); }
+  39% { opacity: 1; transform: translateX(-50%) scaleY(1.05); }
+  44% { opacity: 0.85; transform: translateX(-50%) scaleY(1.2); }
+  47% { opacity: 0.3; transform: translateX(-50%) scaleY(1); }
+}
+

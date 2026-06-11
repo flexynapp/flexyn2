@@ -21,6 +21,7 @@ const RARITY_COLORS = {
   rare:      { ring: '#3b82f6', label: 'text-blue-500',         bg: 'bg-blue-500/10'  },
   epic:      { ring: '#a855f7', label: 'text-purple-500',       bg: 'bg-purple-500/10' },
   legendary: { ring: '#f59e0b', label: 'text-amber-400',        bg: 'bg-amber-400/10' },
+  mythic:    { ring: '#fb7185', label: 'text-rose-400',         bg: 'bg-rose-400/10' },
 };
 
 export default function ThemeSelector({ open, onClose }) {

@@ -131,6 +131,16 @@ export const RARITY = {
     glowClass: 'shadow-amber-400/60',
     baseCoins: 250,
   },
+  mythic: {
+    label: 'Mythic',
+    color: '#fb7185',
+    gradient: 'from-rose-400 to-rose-600',
+    bgClass: 'bg-rose-950',
+    borderClass: 'border-rose-400',
+    textClass: 'text-rose-300',
+    glowClass: 'shadow-rose-400/60',
+    baseCoins: 500,
+  },
   animated: {
     label: 'Animated',
     color: '#f472b6',

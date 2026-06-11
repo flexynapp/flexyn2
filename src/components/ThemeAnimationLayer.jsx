@@ -26,7 +26,7 @@
 // CSS-keyframe approach lets the compositor handle it — measurably
 // smoother on mid-range Android.
 
-import { useMemo, useEffect, useRef } from 'react';
+import { useMemo, useEffect, useRef, Fragment } from 'react';
 import { motion } from 'framer-motion';
 import { useTheme } from '@/lib/ThemeContext';
 
@@ -993,6 +993,330 @@ function SteelUsaLayer() {
   );
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// WAVE 2 — collectible scene drop (Claude Design handoff)
+// Zen Garden (common), Deep Ocean Abyss (rare), Storm Chaser (epic),
+// Underwater Kingdom (legendary), Dragon's Lair (mythic).
+// CSS + @keyframes live in src/index.css (Wave-2 loot theme scenes block).
+// ════════════════════════════════════════════════════════════════════════
+
+// ─── Zen Garden (common) — raked sand, stones, drifting maple leaves ───────
+function ZenGardenLayer() {
+  const stones = useMemo(() => [
+    { x: 24, y: 58, w: 70, h: 44 },
+    { x: 33, y: 66, w: 40, h: 26 },
+    { x: 58, y: 74, w: 54, h: 34 },
+  ], []);
+  const leaves = useMemo(() => Array.from({ length: 14 }, () => ({
+    x: rand(40, 100), dur: rand(13, 24), delay: rand(0, 18), dx: rand(-90, 30),
+  })), []);
+  return (
+    <>
+      <div className="zen-bg" />
+      <div className="zen-rake" />
+      {stones.map((s, i) => (
+        <Fragment key={i}>
+          <div className="zen-ring" style={{
+            left: `calc(${s.x}% - ${s.w * 0.45}px)`, top: `calc(${s.y}% - ${s.h * 0.55}px)`,
+            width: s.w * 1.9, height: s.h * 2.1,
+          }} />
+          <div className="zen-ring" style={{
+            left: `calc(${s.x}% - ${s.w * 0.9}px)`, top: `calc(${s.y}% - ${s.h * 1.05}px)`,
+            width: s.w * 2.8, height: s.h * 3.1, opacity: 0.55,
+          }} />
+          <div className="zen-stone" style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.w, height: s.h }} />
+        </Fragment>
+      ))}
+      <div className="zen-trunk" />
+      <div className="zen-canopy" />
+      <div className="zen-lantern"><div className="zen-lantern-glow" /></div>
+      {leaves.map((l, i) => (
+        <div key={`lf${i}`} className="zen-leaf" style={{
+          left: `${l.x}%`,
+          '--dur': `${l.dur}s`, '--delay': `${l.delay}s`, '--dx': `${l.dx}px`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Deep Ocean Abyss (rare) — marine snow, jellies, anglerfish ────────────
+function AbyssLayer() {
+  const snowFlakes = useMemo(() => Array.from({ length: 36 }, () => ({
+    x: rand(0, 100), size: rand(1, 2.5),
+    dur: rand(16, 30), delay: -rand(0, 28), dx: rand(-20, 20),
+  })), []);
+  const jellies = useMemo(() => Array.from({ length: 6 }, (_, i) => ({
+    x: rand(8, 88), bottom: rand(-18, -4), jw: rand(30, 58),
+    dur: rand(34, 55),
+    // negative delays pre-warm the scene — half the jellies are already
+    // mid-rise the moment the theme is equipped.
+    delay: i < 3 ? -rand(8, 22) : rand(4, 18),
+  })), []);
+  const shafts = useMemo(() => [
+    { x: 22, dur: 11, delay: 0 }, { x: 48, dur: 13, delay: 4 }, { x: 70, dur: 10, delay: 7 },
+  ], []);
+  return (
+    <>
+      <div className="aby-bg" />
+      {shafts.map((s, i) => (
+        <div key={`sh${i}`} className="aby-shaft" style={{
+          left: `${s.x}%`, '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+        }} />
+      ))}
+      {snowFlakes.map((f, i) => (
+        <div key={`ms${i}`} className="snow" style={{
+          left: `${f.x}%`, width: f.size, height: f.size,
+          boxShadow: '0 0 3px rgba(125,211,252,0.5)', opacity: 0,
+          '--dur': `${f.dur}s`, '--delay': `${f.delay}s`, '--dx': `${f.dx}px`,
+        }} />
+      ))}
+      {jellies.map((j, i) => (
+        <div key={`j${i}`} className="aby-jelly" style={{
+          left: `${j.x}%`, bottom: `${j.bottom}%`,
+          '--jw': `${j.jw}px`, '--dur': `${j.dur}s`, '--delay': `${j.delay}s`,
+        }}>
+          <div className="aby-bell" style={{ '--jw': `${j.jw}px` }} />
+        </div>
+      ))}
+      <div className="aby-fish" style={{ left: '58%', top: '62%', '--dur': '28s' }}>
+        <div className="aby-fish-body" />
+        <div className="aby-tooth" />
+        <div className="aby-lure" />
+      </div>
+    </>
+  );
+}
+
+// ─── Storm Chaser (epic) — supercell, rain, lightning strikes ──────────────
+function StormChaserLayer() {
+  const clouds = useMemo(() => Array.from({ length: 8 }, (_, i) => ({
+    x: (i * 14) - 8 + rand(-4, 4), y: rand(-8, 18),
+    w: rand(280, 480), h: rand(90, 150),
+    dur: rand(13, 22), delay: rand(0, 8), dx: rand(-60, 60),
+  })), []);
+  const rain = useMemo(() => Array.from({ length: 44 }, () => ({
+    x: rand(0, 110), dur: rand(0.7, 1.3), delay: rand(0, 1.4),
+  })), []);
+  const strikes = useMemo(() => [
+    { fx: 28, dur: 9, delay: 0 },
+    { fx: 72, dur: 12.5, delay: 4.2 },
+  ], []);
+  return (
+    <>
+      <div className="stm-sky" />
+      <div className="stm-horizon" />
+      {clouds.map((c, i) => (
+        <div key={`c${i}`} className="stm-cloud" style={{
+          left: `${c.x}%`, top: `${c.y}%`, width: c.w, height: c.h,
+          '--dur': `${c.dur}s`, '--delay': `${c.delay}s`, '--dx': `${c.dx}px`,
+        }} />
+      ))}
+      {rain.map((r, i) => (
+        <div key={`r${i}`} className="stm-rain" style={{
+          left: `${r.x}%`, '--dur': `${r.dur}s`, '--delay': `${r.delay}s`,
+        }} />
+      ))}
+      {strikes.map((s, i) => (
+        <Fragment key={`s${i}`}>
+          <div className="stm-flash" style={{
+            '--fx': `${s.fx}%`, '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+          }} />
+          <div className="stm-bolt" style={{
+            '--fx': `${s.fx}%`, '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+          }} />
+        </Fragment>
+      ))}
+    </>
+  );
+}
+
+// ─── Underwater Kingdom (legendary) — sunken palace, fish, god rays ────────
+function UnderwaterKingdomLayer() {
+  const GOLD = '#fcd34d';
+  const towers = useMemo(() => [
+    { cols: 2, rows: 4, domeW: 46 }, { cols: 3, rows: 7, domeW: 64 },
+    { cols: 4, rows: 9, domeW: 86, gate: true }, { cols: 3, rows: 6, domeW: 64 },
+    { cols: 2, rows: 5, domeW: 46 },
+  ].map(t => {
+    const winW = 6, gapX = 9, padX = 9;
+    const width = t.cols * winW + (t.cols - 1) * gapX + padX * 2;
+    return {
+      ...t, width,
+      height: t.rows * 17 + 38,
+      wins: Array.from({ length: t.cols * t.rows }, () => ({
+        on: Math.random() > 0.3,
+        dur: rand(3, 8), delay: rand(0, 6),
+      })),
+    };
+  }), []);
+  const bubbles = useMemo(() => Array.from({ length: 16 }, () => ({
+    x: rand(5, 95), size: rand(4, 11),
+    dur: rand(8, 16), delay: rand(0, 12), dx: rand(-30, 30),
+  })), []);
+  const glints = useMemo(() => Array.from({ length: 14 }, () => ({
+    x: rand(20, 80), y: rand(58, 92), s: rand(8, 16),
+    dur: rand(2.2, 4.5), delay: rand(0, 5),
+  })), []);
+  const kelp = useMemo(() => [
+    { x: 4, kh: 200, dur: 6 }, { x: 8, kh: 140, dur: 7.2 }, { x: 13, kh: 170, dur: 5.4 },
+    { x: 87, kh: 180, dur: 6.6 }, { x: 92, kh: 220, dur: 5.8 }, { x: 96, kh: 150, dur: 7 },
+  ], []);
+  const rays = useMemo(() => [
+    { x: 16, dur: 8, delay: 0 }, { x: 38, dur: 11, delay: 3 },
+    { x: 60, dur: 9, delay: 5 }, { x: 80, dur: 12, delay: 1.5 },
+  ], []);
+  const schools = useMemo(() => [
+    { top: 26, dur: 34, delay: 0, rev: false },
+    { top: 44, dur: 42, delay: 8, rev: true },
+  ], []);
+  const fishOffsets = useMemo(() => Array.from({ length: 8 }, () => ({
+    x: rand(0, 100), y: rand(0, 100),
+  })), []);
+  return (
+    <>
+      <div className="ukg-water" />
+      <div className="caustic" />
+      {rays.map((r, i) => (
+        <div key={`r${i}`} className="ukg-ray" style={{
+          left: `${r.x}%`, '--dur': `${r.dur}s`, '--delay': `${r.delay}s`,
+        }} />
+      ))}
+      <div className="ukg-palace">
+        {towers.map((t, i) => (
+          <div key={i} className="ukg-tower" style={{
+            width: t.width, height: t.height,
+            gridTemplateColumns: `repeat(${t.cols}, 6px)`,
+          }}>
+            <div className="ukg-dome" style={{ width: t.domeW, height: t.domeW * 0.62 }} />
+            {t.wins.map((w, j) => (
+              <div key={j} className="ukg-win" style={{
+                background: w.on ? GOLD : 'rgba(255,255,255,0.05)',
+                color: GOLD,
+                boxShadow: w.on ? `0 0 7px ${GOLD}` : 'none',
+                '--dur': `${w.dur}s`, '--delay': `${w.delay}s`,
+                animationPlayState: w.on ? 'running' : 'paused',
+              }} />
+            ))}
+            {t.gate && <div className="ukg-gate" />}
+          </div>
+        ))}
+      </div>
+      {kelp.map((k, i) => (
+        <div key={`k${i}`} className="ukg-kelp" style={{
+          left: `${k.x}%`, '--kh': `${k.kh}px`, '--dur': `${k.dur}s`,
+        }} />
+      ))}
+      {schools.map((s, i) => (
+        <div key={`sc${i}`} className={`ukg-school ${s.rev ? 'rev' : ''}`} style={{
+          top: `${s.top}%`, '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+        }}>
+          {fishOffsets.map((f, j) => (
+            <div key={j} className="ukg-fish" style={{ left: `${f.x}%`, top: `${f.y}%` }} />
+          ))}
+        </div>
+      ))}
+      {glints.map((g, i) => (
+        <div key={`g${i}`} className="sparkle gold" style={{
+          left: `${g.x}%`, top: `${g.y}%`,
+          '--s': `${g.s}px`, '--dur': `${g.dur}s`, '--delay': `${g.delay}s`,
+        }} />
+      ))}
+      {bubbles.map((b, i) => (
+        <div key={`b${i}`} className="bubble" style={{
+          left: `${b.x}%`, bottom: '4%', width: b.size, height: b.size,
+          '--dur': `${b.dur}s`, '--delay': `${b.delay}s`, '--dx': `${b.dx}px`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Dragon's Lair (mythic) — gold hoard, dragon eyes, fire breath ─────────
+function DragonsLairLayer() {
+  // Mythic = reactive chrome: the accent system breathes gold↔ember.
+  // Improved over Prismatic per the 2026-06 perf audit — the interval
+  // pauses while the tab is hidden and is skipped entirely under
+  // prefers-reduced-motion (a JS interval isn't stopped by the CSS
+  // reduced-motion rule), settling on a static molten-gold accent.
+  useEffect(() => {
+    const root = document.documentElement;
+    const reduce = typeof window !== 'undefined'
+      && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) {
+      root.style.setProperty('--primary', '32 95% 55%');
+      root.style.setProperty('--ring', '32 95% 55%');
+      return;
+    }
+    let t = 0;
+    let id = null;
+    const tick = () => {
+      t += 0.05;
+      const hue = Math.round(30 + 10 * Math.sin(t));
+      const lit = Math.round(54 + 5 * Math.sin(t * 1.6));
+      root.style.setProperty('--primary', `${hue} 95% ${lit}%`);
+      root.style.setProperty('--ring', `${hue} 95% ${lit}%`);
+    };
+    const start = () => { if (id == null) id = setInterval(tick, 50); };
+    const stop = () => { if (id != null) { clearInterval(id); id = null; } };
+    const onVis = () => (document.hidden ? stop() : start());
+    document.addEventListener('visibilitychange', onVis);
+    start();
+    return () => { stop(); document.removeEventListener('visibilitychange', onVis); };
+  }, []);
+  const embers = useMemo(() => Array.from({ length: 26 }, () => ({
+    x: rand(20, 80), size: rand(2, 5),
+    dur: rand(3, 6.5), delay: rand(0, 6),
+    dx: rand(-60, 60), travel: rand(0.3, 0.6),
+    color: ['#fbbf24', '#f97316', '#fde047'][Math.floor(rand(0, 3))],
+  })), []);
+  const coins = useMemo(() => Array.from({ length: 18 }, () => ({
+    x: rand(8, 92), y: rand(76, 94), size: rand(5, 11),
+  })), []);
+  const glints = useMemo(() => Array.from({ length: 16 }, () => ({
+    x: rand(8, 92), y: rand(72, 95), s: rand(8, 18),
+    dur: rand(2, 4), delay: rand(0, 4),
+  })), []);
+  return (
+    <>
+      <div className="drg-bg" />
+      <div className="drg-wall l" />
+      <div className="drg-wall r" />
+      <div className="drg-rocks" />
+      <div className="drg-firewash" />
+      <div className="drg-breath" />
+      <div className="drg-eyes">
+        <div className="drg-eye" style={{ '--tilt': '5deg' }} />
+        <div className="drg-eye" style={{ '--tilt': '-5deg' }} />
+      </div>
+      <div className="drg-nostril-smoke" style={{ left: '38%', top: '32%', '--dur': '6s' }} />
+      <div className="drg-nostril-smoke" style={{ left: '54%', top: '32%', '--dur': '7.5s', '--delay': '1.4s' }} />
+      <div className="drg-hoard" />
+      {coins.map((c, i) => (
+        <div key={`c${i}`} className="drg-coin" style={{
+          left: `${c.x}%`, top: `${c.y}%`, width: c.size, height: c.size * 0.8,
+        }} />
+      ))}
+      {glints.map((g, i) => (
+        <div key={`g${i}`} className="sparkle gold" style={{
+          left: `${g.x}%`, top: `${g.y}%`,
+          '--s': `${g.s}px`, '--dur': `${g.dur}s`, '--delay': `${g.delay}s`,
+        }} />
+      ))}
+      {embers.map((e, i) => (
+        <div key={`e${i}`} className="magma-spark" style={{
+          left: `${e.x}%`, bottom: '20%', width: e.size, height: e.size,
+          background: e.color,
+          boxShadow: `0 0 7px ${e.color}, 0 0 14px rgba(249,115,22,0.5)`,
+          '--dur': `${e.dur}s`, '--delay': `${e.delay}s`,
+          '--dx': `${e.dx}px`, '--travel': `${e.travel * 60}vh`,
+        }} />
+      ))}
+    </>
+  );
+}
+
 // ─── Map animation id → component ────────────────────────────────────────
 const ANIMATION_MAP = {
   // Common
@@ -1016,6 +1340,12 @@ const ANIMATION_MAP = {
   galaxy:     GalaxyLayer,
   // Legendary
   prism:      PrismLayer,
+  // ── Wave 2 collectible drop ──
+  zenGarden:         ZenGardenLayer,        // common
+  abyss:             AbyssLayer,            // rare
+  stormChaser:       StormChaserLayer,      // epic
+  underwaterKingdom: UnderwaterKingdomLayer, // legendary
+  dragonsLair:       DragonsLairLayer,      // mythic
   // Legacy
   steel_usa:  SteelUsaLayer,
 };

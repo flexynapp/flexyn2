@@ -440,6 +440,146 @@ export const LOOT_THEMES = [
       '--border': '243 30% 20%',
     },
   },
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // WAVE 2 — collectible scene drop (Claude Design handoff). One showpiece per
+  // rarity tier, including Flexyn's first MYTHIC. Scenes live in
+  // ThemeAnimationLayer.jsx (ANIMATION_MAP) + the Wave-2 block in index.css.
+  // ══════════════════════════════════════════════════════════════════════════
+  {
+    id: 'loot_zen',
+    name: 'Zen Garden',
+    description: 'Raked sand, stones, drifting maple leaves',
+    rarity: 'common',
+    emoji: '🪨',
+    animated: true,
+    animation: 'zenGarden',
+    preview: ['#e0584a', '#5d5a52'],
+    vars: {
+      '--primary': '6 70% 52%',
+      '--primary-foreground': '0 0% 100%',
+      '--accent': '25 25% 25%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '6 70% 52%',
+      '--sidebar-primary': '6 70% 52%',
+      '--sidebar-ring': '6 70% 52%',
+      // Raked-sand daylight — warm paper chrome.
+      '--background': '42 32% 92%',
+      '--foreground': '25 25% 14%',
+      '--card': '40 40% 98%',
+      '--card-foreground': '25 25% 14%',
+      '--muted': '42 24% 86%',
+      '--muted-foreground': '25 14% 40%',
+      '--border': '42 24% 80%',
+    },
+  },
+  {
+    id: 'loot_abyss',
+    name: 'Deep Ocean Abyss',
+    description: 'Marine snow, drifting jellies, a glowing anglerfish lure',
+    rarity: 'rare',
+    emoji: '🦑',
+    animated: true,
+    animation: 'abyss',
+    preview: ['#22d3ee', '#082f49'],
+    vars: {
+      '--primary': '190 90% 52%',
+      '--primary-foreground': '215 60% 8%',
+      '--accent': '215 50% 18%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '190 90% 52%',
+      '--sidebar-primary': '190 90% 52%',
+      '--sidebar-ring': '190 90% 52%',
+      // Hadal dark — bioluminescent cyan is the only light down here.
+      '--background': '216 60% 4%',
+      '--foreground': '195 30% 95%',
+      '--card': '216 50% 7%',
+      '--card-foreground': '195 30% 95%',
+      '--muted': '216 40% 11%',
+      '--muted-foreground': '195 18% 64%',
+      '--border': '216 40% 17%',
+    },
+  },
+  {
+    id: 'loot_storm',
+    name: 'Storm Chaser',
+    description: 'Supercell sky, sweeping rain, periodic lightning strikes',
+    rarity: 'epic',
+    emoji: '⛈️',
+    animated: true,
+    animation: 'stormChaser',
+    preview: ['#facc15', '#1e293b'],
+    vars: {
+      '--primary': '48 95% 54%',
+      '--primary-foreground': '222 40% 10%',
+      '--accent': '220 26% 24%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '48 95% 54%',
+      '--sidebar-primary': '48 95% 54%',
+      '--sidebar-ring': '48 95% 54%',
+      '--background': '221 26% 6%',
+      '--foreground': '212 16% 95%',
+      '--card': '221 21% 10%',
+      '--card-foreground': '212 16% 95%',
+      '--muted': '221 16% 14%',
+      '--muted-foreground': '212 11% 66%',
+      '--border': '221 16% 20%',
+    },
+  },
+  {
+    id: 'loot_kingdom',
+    name: 'Underwater Kingdom',
+    description: 'Sunken golden-windowed palace, fish schools, god rays',
+    rarity: 'legendary',
+    emoji: '🔱',
+    animated: true,
+    animation: 'underwaterKingdom',
+    preview: ['#22d3ee', '#fcd34d'],
+    vars: {
+      '--primary': '186 85% 45%',
+      '--primary-foreground': '0 0% 100%',
+      '--accent': '45 80% 40%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '186 85% 45%',
+      '--sidebar-primary': '186 85% 45%',
+      '--sidebar-ring': '45 80% 40%',
+      // Sunken-palace teal with treasure-gold accents.
+      '--background': '198 65% 5%',
+      '--foreground': '186 32% 95%',
+      '--card': '198 55% 9%',
+      '--card-foreground': '186 32% 95%',
+      '--muted': '198 40% 13%',
+      '--muted-foreground': '186 18% 66%',
+      '--border': '198 40% 19%',
+    },
+  },
+  {
+    id: 'loot_dragon',
+    name: "Dragon's Lair",
+    description: 'Gold hoard, blinking dragon eyes, fire-breath washes — the accent breathes gold↔ember',
+    rarity: 'mythic',
+    emoji: '🐉',
+    animated: true,
+    animation: 'dragonsLair',
+    preview: ['#f59e0b', '#7f1d1d'],
+    vars: {
+      // --primary/--ring pulse live (gold↔ember) from the scene layer.
+      '--primary': '32 95% 55%',
+      '--primary-foreground': '15 60% 8%',
+      '--accent': '0 60% 24%',
+      '--accent-foreground': '0 0% 100%',
+      '--ring': '32 95% 55%',
+      '--sidebar-primary': '32 95% 55%',
+      '--sidebar-ring': '32 95% 55%',
+      '--background': '12 45% 4%',
+      '--foreground': '30 30% 95%',
+      '--card': '12 38% 8%',
+      '--card-foreground': '30 30% 95%',
+      '--muted': '12 30% 12%',
+      '--muted-foreground': '30 18% 68%',
+      '--border': '12 30% 18%',
+    },
+  },
 ];
 
 // Odds that a capsule drop is a theme (vs. a sticker)
@@ -449,11 +589,13 @@ export const LOOT_THEME_CAPSULE_ODDS = {
   elite:    0.08,
 };
 
-// Within a theme drop, these are the rarity weights
+// Within a theme drop, these are the rarity weights.
+// Mythic (Wave 2 — Dragon's Lair) sits above legendary at the rarest
+// weight; the elite tier is the only crate that can roll it.
 export const LOOT_THEME_RARITY_ODDS = {
   standard: {},
   premium:  { common: 1.0 },
-  elite:    { common: 0.50, uncommon: 0.28, rare: 0.16, epic: 0.05, legendary: 0.01 },
+  elite:    { common: 0.50, uncommon: 0.27, rare: 0.16, epic: 0.05, legendary: 0.015, mythic: 0.005 },
 };
 
 /**

@@ -24,6 +24,7 @@ const RARITY_TINT = {
   rare:      { bg: 'from-sky-400/15 to-transparent',     ring: 'ring-sky-400/45',     text: 'text-sky-600 dark:text-sky-300' },
   epic:      { bg: 'from-violet-400/18 to-transparent',  ring: 'ring-violet-400/50',  text: 'text-violet-600 dark:text-violet-300' },
   legendary: { bg: 'from-amber-400/22 to-transparent',   ring: 'ring-amber-400/55',   text: 'text-amber-600 dark:text-amber-300' },
+  mythic:    { bg: 'from-rose-400/24 to-transparent',    ring: 'ring-rose-400/55',    text: 'text-rose-600 dark:text-rose-300' },
 };
 
 function msUntilLocalMidnight() {

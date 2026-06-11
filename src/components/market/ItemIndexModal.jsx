@@ -26,6 +26,7 @@ const RARITY_STYLE = {
   rare:      { ring: 'ring-sky-400/40',     bg: 'bg-sky-400/8',     text: 'text-sky-500' },
   epic:      { ring: 'ring-violet-400/45',  bg: 'bg-violet-400/8',  text: 'text-violet-500' },
   legendary: { ring: 'ring-amber-400/55',   bg: 'bg-amber-400/12',  text: 'text-amber-500' },
+  mythic:    { ring: 'ring-rose-400/60',    bg: 'bg-rose-400/12',   text: 'text-rose-500' },
   animated:  { ring: 'ring-fuchsia-400/60', bg: 'bg-fuchsia-400/12', text: 'text-fuchsia-500' },
 };
 

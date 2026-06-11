@@ -76,6 +76,7 @@ const RARITY_CARD = {
   rare:      { border: 'border-blue-400',   glow: 'shadow-blue-400/60',   ring: '#60a5fa' },
   epic:      { border: 'border-purple-400', glow: 'shadow-purple-400/60', ring: '#c084fc' },
   legendary: { border: 'border-amber-400',  glow: 'shadow-amber-400/60',  ring: '#fbbf24' },
+  mythic:    { border: 'border-rose-400',   glow: 'shadow-rose-400/60',   ring: '#fb7185' },
   animated:  { border: 'border-pink-400',   glow: 'shadow-pink-400/60',   ring: '#f472b6' },
 };
 
