@@ -2727,3 +2727,140 @@ html[data-theme-tier] .bg-card\/95 {
   animation-delay: var(--delay, 0s);
 }
 
+
+/* ─── Loot-crate unlock burst (Claude Design handoff). A premium reveal
+   flourish that plays over the CapsuleOpener reveal for any Rare+ item
+   (sticker/title/frame/theme). Rarity colour comes from --rar/--rar-glow
+   set inline. The design's own item card is omitted — Flexyn's existing
+   reveal card sits underneath and is revealed as the scrim fades. ─── */
+/* ═══ Unlock animation overlay ═══ */
+.unlock-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  display: grid; place-items: center;
+  background: rgba(6, 6, 14, 0);
+  cursor: pointer;
+  animation: unlock-scrim 0.35s ease forwards, unlock-fade 0.45s ease 3.1s forwards;
+}
+@keyframes unlock-scrim { to { background: rgba(6, 6, 14, 0.82); } }
+@keyframes unlock-fade { to { opacity: 0; } }
+.unlock-stage {
+  position: relative;
+  width: 340px; height: 380px;
+  display: grid; place-items: center;
+}
+.unlock-kicker {
+  position: absolute; top: 16px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.65);
+  opacity: 0;
+  animation: unlock-kicker 0.5s ease 0.25s forwards;
+}
+@keyframes unlock-kicker { to { opacity: 1; } }
+.unlock-crate {
+  position: absolute;
+  width: 116px; height: 96px;
+  animation: crate-shake 1.15s ease-in-out, crate-gone 0.3s ease 1.18s forwards;
+}
+@keyframes crate-shake {
+  0%, 100% { transform: rotate(0); }
+  12% { transform: rotate(-4deg) translateX(-3px); }
+  24% { transform: rotate(4deg) translateX(3px); }
+  38% { transform: rotate(-5deg) translateX(-4px); }
+  52% { transform: rotate(5deg) translateX(4px); }
+  66% { transform: rotate(-6deg) translateX(-4px) scale(1.02); }
+  80% { transform: rotate(6deg) translateX(4px) scale(1.04); }
+  92% { transform: rotate(-3deg) scale(1.06); }
+}
+@keyframes crate-gone { to { opacity: 0; transform: scale(1.3); } }
+.unlock-crate-box {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 66px;
+  background: linear-gradient(160deg, #2c303c, #15181f);
+  border: 2px solid var(--rar, #3b82f6);
+  border-radius: 12px;
+  box-shadow: 0 0 30px var(--rar-glow, rgba(59,130,246,0.45)), inset 0 0 18px rgba(0,0,0,0.5);
+}
+.unlock-crate-box::before {
+  /* metal band */
+  content: ''; position: absolute; left: 50%; top: -2px; bottom: -2px;
+  width: 22px;
+  transform: translateX(-50%);
+  background: linear-gradient(160deg, #3a4050, #20242e);
+  border-left: 2px solid var(--rar, #3b82f6);
+  border-right: 2px solid var(--rar, #3b82f6);
+}
+.unlock-crate-box::after {
+  /* lock plate */
+  content: ''; position: absolute; left: 50%; top: 50%;
+  width: 14px; height: 14px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--rar, #3b82f6);
+  box-shadow: 0 0 14px var(--rar-glow, rgba(59,130,246,0.6));
+  border-radius: 3px;
+}
+.unlock-crate-lid {
+  position: absolute; top: 0; left: -7px; right: -7px; height: 32px;
+  background: linear-gradient(160deg, #353b49, #1c2029);
+  border: 2px solid var(--rar, #3b82f6);
+  border-radius: 9px;
+  box-shadow: 0 0 22px var(--rar-glow, rgba(59,130,246,0.4));
+  animation: lid-pop 0.55s cubic-bezier(0.2, 0.7, 0.3, 1) 1.12s forwards;
+}
+@keyframes lid-pop {
+  to { transform: translateY(-150px) rotate(-26deg); opacity: 0; }
+}
+.unlock-ray {
+  position: absolute; left: 50%; top: 50%;
+  width: 4px; height: 160px;
+  margin-left: -2px;
+  transform-origin: 50% 0;
+  background: linear-gradient(to bottom, var(--rar, #3b82f6), transparent);
+  opacity: 0;
+  animation: ray-burst 1.4s ease-out 1.18s forwards;
+}
+@keyframes ray-burst {
+  0% { opacity: 0; transform: rotate(var(--a, 0deg)) scaleY(0.15); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--a, 0deg)) scaleY(1.7); }
+}
+.unlock-particle {
+  position: absolute; left: 50%; top: 50%;
+  border-radius: 50%;
+  background: var(--rar, #3b82f6);
+  box-shadow: 0 0 8px var(--rar-glow, rgba(59,130,246,0.7));
+  opacity: 0;
+  animation: part-burst 1.35s cubic-bezier(0.1, 0.8, 0.3, 1) 1.18s forwards;
+}
+@keyframes part-burst {
+  0% { opacity: 1; transform: translate(0, 0) scale(1); }
+  100% { opacity: 0; transform: translate(var(--px, 80px), var(--py, -80px)) scale(0.25); }
+}
+.unlock-glow {
+  position: absolute; left: 50%; top: 50%;
+  width: 240px; height: 240px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--rar-glow, rgba(59,130,246,0.5)), transparent 70%);
+  opacity: 0;
+  animation: unlock-glow 1.6s ease-out 1.15s forwards;
+}
+@keyframes unlock-glow {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+  25% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(2.1); }
+}
+.unlock-hint {
+  position: absolute; bottom: 14px; left: 0; right: 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  opacity: 0;
+  animation: unlock-kicker 0.5s ease 2.2s forwards;
+}
+

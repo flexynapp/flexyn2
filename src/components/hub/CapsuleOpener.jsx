@@ -198,6 +198,60 @@ function StarField() {
   );
 }
 
+// ─── Crate-unlock burst (Claude Design handoff) ───────────────────────────────
+// A premium reveal flourish for ANY Rare+ loot item (sticker / title / frame /
+// theme): scrim → crate shakes → lid pops → ray + particle burst, in the item's
+// rarity colour. The design's own card is omitted — the existing reveal card
+// below sits underneath and is revealed as the scrim fades. Tap to skip.
+const UNLOCK_RARITY_COLORS = {
+  rare:      { col: '#3b82f6', glow: 'rgba(59,130,246,0.55)' },
+  epic:      { col: '#a855f7', glow: 'rgba(168,85,247,0.55)' },
+  legendary: { col: '#eab308', glow: 'rgba(234,179,8,0.55)' },
+  mythic:    { col: '#f43f5e', glow: 'rgba(244,63,94,0.55)' },
+  animated:  { col: '#f472b6', glow: 'rgba(244,114,182,0.55)' },
+};
+
+function CrateBurst({ item, onDone }) {
+  useEffect(() => {
+    // Matches the CSS sequence (scrim 0.35s → shake 1.15s → lid/burst →
+    // scrim fade at 3.1s + 0.45s). Hand off to the reveal card just after.
+    const id = setTimeout(onDone, 3650);
+    return () => clearTimeout(id);
+  }, [onDone]);
+
+  const { col, glow } = UNLOCK_RARITY_COLORS[item?.rarity] || UNLOCK_RARITY_COLORS.rare;
+  const rays = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
+    a: i * (360 / 14) + (Math.random() * 12 - 6),
+  })), []);
+  const particles = useMemo(() => Array.from({ length: 26 }, () => {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = Math.random() * 120 + 70;
+    return { px: Math.cos(angle) * dist, py: Math.sin(angle) * dist - 30, size: Math.random() * 5 + 4 };
+  }), []);
+
+  return (
+    <div className="unlock-overlay" style={{ '--rar': col, '--rar-glow': glow }} onClick={onDone}>
+      <div className="unlock-stage">
+        <div className="unlock-kicker">{item?.type === 'theme' ? 'New theme unlocked' : 'Item unlocked'}</div>
+        <div className="unlock-glow" />
+        {rays.map((r, i) => (
+          <div key={`r${i}`} className="unlock-ray" style={{ '--a': `${r.a}deg` }} />
+        ))}
+        {particles.map((p, i) => (
+          <div key={`p${i}`} className="unlock-particle" style={{
+            width: p.size, height: p.size, '--px': `${p.px}px`, '--py': `${p.py}px`,
+          }} />
+        ))}
+        <div className="unlock-crate">
+          <div className="unlock-crate-box" />
+          <div className="unlock-crate-lid" />
+        </div>
+        <div className="unlock-hint">Tap to skip</div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 // Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
 export default function CapsuleOpener({ capsule, onClaim, onClose }) {
@@ -206,6 +260,8 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
   const [wonItem, setWonItem] = useState(null);
   const [reel,    setReel]    = useState([]);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  // Crate-unlock burst flourish — plays over the reveal for any Rare+ item.
+  const [showBurst, setShowBurst] = useState(false);
   // Per-spin animation persona — duration, easing, kicker text.
   // Picked once when the user hits Open so a single spin doesn't
   // mid-flight switch curves. Initialized to a placeholder so the
@@ -322,6 +378,17 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
       openGuardRef.current = false;
     }
   }, [phase]);
+
+  // Fire the crate-unlock burst once when a Rare+ item enters the reveal.
+  // Skipped under reduced-motion (the static reveal card shows immediately).
+  useEffect(() => {
+    const RARE_PLUS = new Set(['rare', 'epic', 'legendary', 'mythic', 'animated']);
+    if (phase === 'revealing' && wonItem && RARE_PLUS.has(wonItem.rarity) && !reduce) {
+      setShowBurst(true);
+    } else {
+      setShowBurst(false);
+    }
+  }, [phase, wonItem, reduce]);
 
   // ── Trigger spin ────────────────────────────────────────────────────────────
   // Server-authoritative roll (migration 028). The RPC:
@@ -784,6 +851,12 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
         <Suspense fallback={null}>
           <LootCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
         </Suspense>
+      )}
+
+      {/* Crate-unlock burst — premium reveal flourish for any Rare+ item.
+          Fixed at z-9999, fades to reveal the card underneath. */}
+      {showBurst && wonItem && (
+        <CrateBurst item={wonItem} onDone={() => setShowBurst(false)} />
       )}
     </div>
   );
