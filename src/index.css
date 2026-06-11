@@ -2273,3 +2273,457 @@ html[data-theme-tier] .bg-card\/95 {
   47% { opacity: 0.3; transform: translateX(-50%) scaleY(1); }
 }
 
+
+/* ─── Wave-2 loot themes, part 2: Desert Mirage, Mountain Summit, Ancient
+   Temple, Waterfall Sanctuary, Lunar Colony, Enchanted Forest. Same
+   conventions as part 1 (unique prefixes, reuse shared .palm/.gull/
+   .firefly/.star vocabulary, covered by the reduced-motion rule). ─── */
+
+/* ═══ Desert Mirage (uncommon) — day desert, pyramids, heat haze, oasis ═══ */
+.mir-sky {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom,
+    hsl(200, 75%, 70%) 0%, hsl(190, 60%, 80%) 45%,
+    hsl(45, 80%, 84%) 62%, hsl(42, 75%, 78%) 100%);
+}
+.mir-sun {
+  position: absolute; left: 68%; top: 14%;
+  width: 90px; height: 90px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,1) 30%, rgba(255,244,200,0.9) 60%, transparent 100%);
+  box-shadow: 0 0 70px rgba(255,236,170,0.9);
+}
+.mir-pyramid {
+  position: absolute; bottom: 34%;
+  background: linear-gradient(105deg, hsl(38, 50%, 62%) 0 49.8%, hsl(34, 45%, 46%) 50.2%);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.mir-dunes-far {
+  position: absolute; left: 0; right: 0; bottom: 16%; height: 22%;
+  background: linear-gradient(to top, hsl(38, 55%, 66%), hsl(40, 60%, 74%));
+  clip-path: polygon(0 100%, 0 55%, 16% 38%, 38% 60%, 60% 30%, 80% 55%, 100% 40%, 100% 100%);
+}
+.mir-dunes-near {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 26%;
+  background: linear-gradient(to top, hsl(34, 60%, 56%), hsl(38, 60%, 68%));
+  clip-path: polygon(0 100%, 0 50%, 22% 28%, 45% 55%, 68% 25%, 88% 50%, 100% 38%, 100% 100%);
+}
+.mir-haze {
+  position: absolute; left: 0; right: 0; bottom: 24%; height: 16%;
+  background: linear-gradient(to top, rgba(255,255,255,0.45), transparent);
+  filter: blur(7px);
+  transform-origin: 50% 100%;
+  animation: mir-haze 4s ease-in-out infinite;
+}
+@keyframes mir-haze {
+  0%, 100% { transform: scaleY(1); opacity: 0.55; }
+  50% { transform: scaleY(1.35); opacity: 0.9; }
+}
+.mir-oasis {
+  position: absolute; left: 12%; bottom: 8%;
+  width: 220px; height: 150px;
+  animation: mir-oasis 16s ease-in-out infinite;
+}
+@keyframes mir-oasis {
+  0%, 12%, 88%, 100% { opacity: 0; filter: blur(6px); }
+  35%, 65% { opacity: 0.9; filter: blur(0.5px); }
+}
+.mir-pool {
+  position: absolute; left: 10%; bottom: 0;
+  width: 80%; height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 35%, hsl(190, 80%, 70%), hsl(200, 75%, 50%) 80%);
+  box-shadow: 0 4px 16px rgba(80,170,200,0.45);
+}
+.mir-sandwisp {
+  position: absolute;
+  width: 30%; height: 2px;
+  background: linear-gradient(to right, transparent, rgba(250,225,180,0.8), transparent);
+  filter: blur(1px);
+  opacity: 0;
+  animation: gust var(--dur, 6s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+
+/* ═══ Mountain Summit (uncommon) — peak above a sea of clouds ═══ */
+.smt-sky {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 60% 40% at 72% 16%, rgba(255,250,230,0.6), transparent 60%),
+    linear-gradient(to bottom, hsl(212, 70%, 52%) 0%, hsl(205, 70%, 68%) 60%, hsl(200, 60%, 82%) 100%);
+}
+.smt-peak {
+  position: absolute; left: 50%; bottom: 0;
+  width: 110vw; height: 78%;
+  transform: translateX(-50%);
+  background: linear-gradient(105deg, hsl(215, 28%, 38%) 0 49.8%, hsl(218, 32%, 26%) 50.2%);
+  clip-path: polygon(0 100%, 26% 62%, 36% 34%, 42% 42%, 50% 6%, 57% 32%, 63% 26%, 72% 56%, 84% 44%, 100% 100%);
+}
+.smt-peak::after {
+  /* snowcap */
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(to bottom, rgba(255,255,255,0.96) 6%, rgba(240,248,255,0.85) 22%, transparent 42%);
+  clip-path: inherit;
+}
+.smt-cloud {
+  position: absolute;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.85);
+  filter: blur(16px);
+  animation: smt-drift var(--dur, 18s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes smt-drift {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(var(--dx, 60px)); }
+}
+.smt-flag {
+  position: absolute; left: 50%; bottom: 71%;
+  width: 2px; height: 26px;
+  background: hsl(218, 30%, 18%);
+}
+.smt-flag::after {
+  content: ''; position: absolute; top: 0; left: 2px;
+  width: 16px; height: 10px;
+  background: hsl(8, 80%, 55%);
+  clip-path: polygon(0 0, 100% 35%, 0 70%);
+  transform-origin: 0 50%;
+  animation: flag-wave 1.4s ease-in-out infinite;
+}
+
+/* ═══ Ancient Temple (rare) — torchlit stone hall, glowing glyphs ═══ */
+.tpl-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 70%, rgba(180,120,40,0.22), transparent 65%),
+    linear-gradient(to bottom, hsl(28, 30%, 5%) 0%, hsl(28, 32%, 10%) 100%);
+}
+.tpl-roof {
+  position: absolute; left: 50%; bottom: 64%;
+  width: 78%; height: 12%;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, hsl(32, 22%, 22%), hsl(30, 22%, 15%));
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.tpl-beam {
+  position: absolute; left: 50%; bottom: 62%;
+  width: 84%; height: 2.5%;
+  transform: translateX(-50%);
+  background: linear-gradient(to bottom, hsl(32, 24%, 26%), hsl(30, 22%, 17%));
+}
+.tpl-col {
+  position: absolute; bottom: 10%;
+  width: 36px; height: 52%;
+  background:
+    repeating-linear-gradient(to right,
+      rgba(0,0,0,0.28) 0 3px, transparent 3px 9px),
+    linear-gradient(to right, hsl(32, 20%, 14%), hsl(34, 26%, 30%) 50%, hsl(32, 20%, 14%));
+}
+.tpl-col::before {
+  content: ''; position: absolute; top: -12px; left: -7px; right: -7px; height: 12px;
+  background: linear-gradient(to bottom, hsl(34, 26%, 32%), hsl(32, 22%, 22%));
+  border-radius: 2px;
+}
+.tpl-col::after {
+  content: ''; position: absolute; bottom: -10px; left: -5px; right: -5px; height: 10px;
+  background: hsl(32, 22%, 24%);
+  border-radius: 2px;
+}
+.tpl-steps {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 10%;
+  background: linear-gradient(to top,
+    hsl(30, 22%, 11%) 0 34%, hsl(31, 23%, 14%) 34% 37%,
+    hsl(31, 23%, 16%) 37% 67%, hsl(32, 24%, 19%) 67% 70%,
+    hsl(32, 24%, 21%) 70% 100%);
+}
+.tpl-torch {
+  position: absolute; bottom: 28%;
+  width: 7px; height: 64px;
+  background: linear-gradient(to bottom, hsl(28, 35%, 28%), hsl(26, 30%, 16%));
+  border-radius: 3px;
+}
+.tpl-torch-flame {
+  position: absolute; left: 50%; top: -34px;
+  width: 26px; height: 40px;
+  background: radial-gradient(ellipse 50% 70% at 50% 85%,
+    rgba(254,240,138,0.95) 0%, rgba(251,146,60,0.75) 45%, rgba(220,38,38,0.4) 75%, transparent 90%);
+  filter: blur(1.5px);
+  transform-origin: 50% 100%;
+  animation: flame-flicker 0.45s ease-in-out infinite;
+}
+.tpl-torch-glow {
+  position: absolute; left: 50%; top: -40px;
+  width: 130px; height: 130px;
+  transform: translate(-50%, -20%);
+  background: radial-gradient(circle, rgba(251,170,60,0.30), transparent 70%);
+  animation: lava-pulse 2.6s ease-in-out infinite;
+}
+.tpl-glyph {
+  position: absolute;
+  color: hsl(42, 90%, 60%);
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  animation: win-blink var(--dur, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.tpl-glyph.diamond { width: 8px; height: 8px; transform: rotate(45deg); }
+.tpl-glyph.bar { width: 14px; height: 4px; border-radius: 2px; }
+.tpl-glyph.dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ═══ Waterfall Sanctuary (rare) — falls, mist, rainbow, lush cliffs ═══ */
+.wfs-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 45% at 50% 8%, rgba(186,240,220,0.30), transparent 65%),
+    linear-gradient(to bottom, hsl(172, 45%, 14%) 0%, hsl(180, 50%, 8%) 100%);
+}
+.wfs-cliff {
+  position: absolute; top: 0; bottom: 0; width: 40%;
+  background: linear-gradient(to bottom, hsl(165, 35%, 10%), hsl(168, 40%, 14%));
+}
+.wfs-cliff.l { left: 0; clip-path: polygon(0 0, 78% 0, 58% 28%, 70% 52%, 52% 78%, 64% 100%, 0 100%); }
+.wfs-cliff.r { right: 0; clip-path: polygon(22% 0, 100% 0, 100% 100%, 36% 100%, 48% 76%, 30% 50%, 44% 26%); }
+.wfs-foliage {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 35%, hsl(152, 50%, 30%), hsl(158, 55%, 16%) 80%);
+  box-shadow: 0 0 18px rgba(20,60,40,0.5);
+}
+.wfs-fall {
+  position: absolute; top: 0;
+  width: var(--fw, 70px); height: 76%;
+  left: 50%;
+  /* vertical streaks give the water body; a soft low-contrast band layer
+     scrolls downward so it reads as falling water, not a ladder */
+  background:
+    repeating-linear-gradient(to right,
+      rgba(255,255,255,0.50) 0px, rgba(190,235,250,0.18) 4px,
+      rgba(255,255,255,0.36) 8px, rgba(170,225,245,0.14) 12px,
+      rgba(255,255,255,0.50) 16px),
+    repeating-linear-gradient(to bottom,
+      rgba(255,255,255,0.12) 0px, rgba(255,255,255,0.02) 28px,
+      rgba(255,255,255,0.12) 56px);
+  background-size: 100% 100%, 100% 56px;
+  filter: blur(1.2px);
+  border-radius: 0 0 14px 14px;
+  box-shadow: 0 0 24px rgba(160,225,245,0.35);
+  animation: wfs-flow var(--dur, 1.1s) linear infinite;
+}
+@keyframes wfs-flow {
+  0% { background-position: 0 0; }
+  100% { background-position: 0 56px; }
+}
+.wfs-pool {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 22%;
+  background: linear-gradient(to bottom, hsl(186, 60%, 28%), hsl(195, 65%, 14%));
+}
+.wfs-pool::before {
+  content: ''; position: absolute; left: 0; right: 0; top: 0; height: 2px;
+  background: rgba(220,250,255,0.5);
+}
+.wfs-mist {
+  position: absolute; left: 50%; bottom: 16%;
+  width: 320px; height: 110px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse 60% 60% at 50% 70%, rgba(230,250,255,0.65), transparent 75%);
+  filter: blur(14px);
+  transform-origin: 50% 100%;
+  animation: wfs-mist 5s ease-in-out infinite;
+}
+@keyframes wfs-mist {
+  0%, 100% { transform: translateX(-50%) scale(1, 0.8); opacity: 0.6; }
+  50% { transform: translateX(-50%) scale(1.25, 1.15); opacity: 0.95; }
+}
+.wfs-rainbow {
+  position: absolute; left: 50%; bottom: 18%;
+  width: 360px; height: 180px;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse 50% 100% at 50% 100%,
+      transparent 0 56%,
+      rgba(244,63,94,0.30) 58%, rgba(251,146,60,0.30) 62%,
+      rgba(250,204,21,0.30) 66%, rgba(34,197,94,0.30) 70%,
+      rgba(59,130,246,0.30) 74%, rgba(168,85,247,0.30) 78%,
+      transparent 81%);
+  filter: blur(2px);
+  animation: wfs-rainbow 8s ease-in-out infinite;
+}
+@keyframes wfs-rainbow {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 0.95; }
+}
+.wfs-spray {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.85), rgba(255,255,255,0.15));
+  animation: bubble-rise var(--dur, 8s) linear infinite;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+
+/* ═══ Lunar Colony (epic) — regolith, habitat domes, Earthrise ═══ */
+.lun-sky {
+  position: absolute; inset: 0;
+  background: linear-gradient(to bottom, hsl(230, 25%, 3%) 0%, hsl(228, 18%, 6%) 100%);
+}
+.lun-earth {
+  position: absolute; left: 14%; top: 10%;
+  width: 92px; height: 92px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255,255,255,0.5) 0%, transparent 28%),
+    radial-gradient(circle at 60% 55%, rgba(52,211,153,0.55) 0%, transparent 32%),
+    radial-gradient(circle at 38% 68%, rgba(52,211,153,0.4) 0%, transparent 24%),
+    radial-gradient(circle, hsl(210, 85%, 55%) 0%, hsl(218, 80%, 38%) 70%);
+  box-shadow:
+    inset -16px -12px 30px rgba(5,10,30,0.85),
+    0 0 36px rgba(96,165,250,0.5);
+}
+.lun-earth::before {
+  content: ''; position: absolute; inset: 0;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse 40% 12% at 50% 30%, rgba(255,255,255,0.55), transparent 70%),
+    radial-gradient(ellipse 36% 10% at 40% 62%, rgba(255,255,255,0.45), transparent 70%);
+}
+.lun-ground {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 30%;
+  background: linear-gradient(to top, hsl(228, 8%, 16%) 0%, hsl(228, 10%, 26%) 90%, hsl(228, 12%, 32%) 100%);
+}
+.lun-ground::before {
+  content: ''; position: absolute; left: 0; right: 0; top: -2px; height: 3px;
+  background: rgba(200,210,230,0.25);
+}
+.lun-crater {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 42% 32%, hsl(228, 8%, 12%), hsl(228, 9%, 21%) 75%);
+  box-shadow: inset 2px 3px 6px rgba(0,0,0,0.6), 0 -1px 2px rgba(200,210,230,0.18);
+}
+.lun-dome {
+  position: absolute;
+  border-radius: 999px 999px 0 0;
+  background: linear-gradient(to bottom, rgba(140,190,255,0.16), rgba(140,190,255,0.05));
+  border: 1.5px solid rgba(160,200,255,0.4);
+  border-bottom: none;
+  overflow: hidden;
+  box-shadow: 0 0 24px rgba(120,180,255,0.18), inset 0 0 30px rgba(140,190,255,0.12);
+}
+.lun-dome::before {
+  content: ''; position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(to right, rgba(160,200,255,0.22) 0 1px, transparent 1px 26px),
+    repeating-linear-gradient(to bottom, rgba(160,200,255,0.22) 0 1px, transparent 1px 20px);
+  border-radius: inherit;
+}
+.lun-light {
+  position: absolute;
+  width: 5px; height: 6px;
+  border-radius: 1px;
+  box-shadow: 0 0 6px currentColor;
+  animation: win-blink var(--dur, 5s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.lun-tunnel {
+  position: absolute;
+  height: 16px;
+  background: linear-gradient(to bottom, rgba(150,195,255,0.28), rgba(150,195,255,0.10));
+  border: 1px solid rgba(160,200,255,0.35);
+  border-bottom: none;
+  border-radius: 8px 8px 0 0;
+}
+.lun-mast {
+  position: absolute;
+  width: 2.5px;
+  background: linear-gradient(to top, hsl(228, 10%, 35%), hsl(228, 12%, 48%));
+}
+.lun-beacon {
+  position: absolute; left: 50%; top: -4px;
+  width: 7px; height: 7px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #f87171;
+  box-shadow: 0 0 10px #ef4444;
+  animation: lun-beacon 2.2s ease-in-out infinite;
+}
+@keyframes lun-beacon {
+  0%, 100% { opacity: 0.25; }
+  50% { opacity: 1; }
+}
+
+/* ═══ Enchanted Forest (epic) — glowing mushrooms, wisps, god rays ═══ */
+.enf-bg {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% 55%, rgba(94,60,180,0.25), transparent 70%),
+    linear-gradient(to bottom, hsl(252, 40%, 7%) 0%, hsl(160, 35%, 7%) 100%);
+}
+.enf-trunk {
+  position: absolute; bottom: 0;
+  width: var(--tw, 30px); height: var(--th, 70%);
+  background: linear-gradient(to right, hsl(255, 25%, 7%), hsl(258, 22%, 16%) 50%, hsl(255, 25%, 7%));
+  border-radius: 12px 12px 0 0;
+  opacity: var(--op, 0.9);
+}
+.enf-canopy {
+  position: absolute; left: 0; right: 0; top: 0; height: 26%;
+  background: linear-gradient(to bottom, rgba(8,5,20,0.92), transparent);
+}
+.enf-ray {
+  position: absolute; top: -8%;
+  width: 90px; height: 72%;
+  background: linear-gradient(to bottom, rgba(167,243,208,0.16), transparent 85%);
+  transform: rotate(16deg);
+  filter: blur(9px);
+  animation: ray-pulse var(--dur, 7s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+.enf-shroom {
+  position: absolute;
+}
+.enf-cap {
+  position: relative;
+  width: var(--cw, 38px); height: calc(var(--cw, 38px) * 0.55);
+  border-radius: 50% 50% 12% 12% / 95% 95% 12% 12%;
+  background: radial-gradient(ellipse at 50% 20%, var(--col, #67e8f9), color-mix(in oklab, var(--col, #67e8f9) 45%, #0a0a20) 85%);
+  box-shadow: 0 0 18px var(--col, #67e8f9), 0 0 38px color-mix(in oklab, var(--col, #67e8f9) 50%, transparent);
+  animation: enf-glow var(--dur, 4s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes enf-glow {
+  0%, 100% { filter: brightness(0.8); }
+  50% { filter: brightness(1.25); }
+}
+.enf-stem {
+  margin: 0 auto;
+  width: 28%; height: calc(var(--cw, 38px) * 0.5);
+  background: linear-gradient(to bottom, rgba(230,240,255,0.5), rgba(180,200,230,0.18));
+  border-radius: 0 0 4px 4px;
+}
+.enf-wisp {
+  position: absolute;
+  width: var(--ws, 7px); height: var(--ws, 7px);
+  border-radius: 50%;
+  background: var(--col, #99f6e4);
+  box-shadow: 0 0 12px var(--col, #99f6e4), 0 0 26px color-mix(in oklab, var(--col, #99f6e4) 55%, transparent);
+  opacity: 0;
+  animation: enf-wander var(--dur, 9s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes enf-wander {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 0.95; }
+  35% { transform: translate(var(--dx1, 30px), var(--dy1, -24px)); }
+  60% { transform: translate(var(--dx2, -16px), var(--dy2, -52px)); opacity: 0.8; }
+  85% { opacity: 0.9; }
+}
+.enf-spore {
+  position: absolute; bottom: 4%;
+  border-radius: 50%;
+  background: rgba(216,180,254,0.85);
+  box-shadow: 0 0 6px rgba(216,180,254,0.8);
+  opacity: 0;
+  animation: magma-rise var(--dur, 9s) ease-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+

@@ -1317,6 +1317,300 @@ function DragonsLairLayer() {
   );
 }
 
+// ─── Desert Mirage (uncommon) — pyramids, dunes, a dissolving oasis ────────
+function DesertMirageLayer() {
+  const wisps = useMemo(() => Array.from({ length: 5 }, (_, i) => ({
+    top: 62 + i * 6, dur: rand(5, 9), delay: i * 1.7,
+  })), []);
+  return (
+    <>
+      <div className="mir-sky" />
+      <div className="mir-sun" />
+      <div className="mir-pyramid" style={{ left: '56%', width: 200, height: 120 }} />
+      <div className="mir-pyramid" style={{ left: '74%', width: 130, height: 80, opacity: 0.85 }} />
+      <div className="mir-dunes-far" />
+      <div className="mir-dunes-near" />
+      <div className="mir-haze" />
+      <div className="mir-oasis">
+        <div className="mir-pool" />
+        <div className="palm" style={{ left: '14%', '--base': '20px', '--ph': '86px', '--dur': '5s' }}>
+          <div className="palm-trunk" />
+          <div className="palm-frond f1" /><div className="palm-frond f2" />
+          <div className="palm-frond f3" /><div className="palm-frond f4" />
+          <div className="palm-frond f5" /><div className="palm-frond f6" />
+        </div>
+        <div className="palm" style={{ left: '66%', '--base': '18px', '--ph': '64px', '--dur': '6s', '--delay': '1s' }}>
+          <div className="palm-trunk" />
+          <div className="palm-frond f1" /><div className="palm-frond f2" />
+          <div className="palm-frond f3" /><div className="palm-frond f4" />
+        </div>
+      </div>
+      {wisps.map((w, i) => (
+        <div key={i} className="mir-sandwisp" style={{
+          top: `${w.top}%`, '--dur': `${w.dur}s`, '--delay': `${w.delay}s`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Mountain Summit (uncommon) — peak above a sea of clouds ───────────────
+function MountainSummitLayer() {
+  const clouds = useMemo(() => Array.from({ length: 9 }, (_, i) => ({
+    x: (i * 12) - 6 + rand(-4, 4), y: 68 + rand(0, 18),
+    w: rand(180, 360), h: rand(48, 90),
+    dur: rand(14, 26), delay: rand(0, 8), dx: rand(-80, 80),
+    op: rand(0.65, 0.95),
+  })), []);
+  const birds = useMemo(() => Array.from({ length: 3 }, (_, i) => ({
+    top: 14 + i * 9, dur: rand(22, 34), delay: i * 9,
+  })), []);
+  return (
+    <>
+      <div className="smt-sky" />
+      {birds.map((b, i) => (
+        <div key={`bd${i}`} className="gull" style={{
+          top: `${b.top}%`, '--dur': `${b.dur}s`, '--delay': `${b.delay}s`,
+        }} />
+      ))}
+      <div className="smt-peak" />
+      <div className="smt-flag" />
+      {clouds.map((c, i) => (
+        <div key={i} className="smt-cloud" style={{
+          left: `${c.x}%`, top: `${c.y}%`, width: c.w, height: c.h, opacity: c.op,
+          '--dur': `${c.dur}s`, '--delay': `${c.delay}s`, '--dx': `${c.dx}px`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Ancient Temple (rare) — torchlit stone hall, glowing glyphs ───────────
+function AncientTempleLayer() {
+  const cols = useMemo(() => [12, 28, 44, 60, 76].map(x => ({ x: x + 4 })), []);
+  const glyphs = useMemo(() => Array.from({ length: 16 }, () => ({
+    x: rand(6, 94), y: rand(20, 56),
+    kind: ['diamond', 'bar', 'dot'][Math.floor(rand(0, 3))],
+    dur: rand(3, 7), delay: rand(0, 6),
+  })), []);
+  const motes = useMemo(() => Array.from({ length: 10 }, () => ({
+    x: rand(10, 90), y: rand(30, 80),
+    dx: rand(-24, 24), dy: rand(-30, 6),
+    dur: rand(6, 11), delay: rand(0, 7),
+  })), []);
+  return (
+    <>
+      <div className="tpl-bg" />
+      <div className="tpl-roof" />
+      <div className="tpl-beam" />
+      {cols.map((c, i) => (
+        <div key={i} className="tpl-col" style={{ left: `${c.x}%` }} />
+      ))}
+      <div className="tpl-steps" />
+      {glyphs.map((g, i) => (
+        <div key={`gl${i}`} className={`tpl-glyph ${g.kind}`} style={{
+          left: `${g.x}%`, top: `${g.y}%`,
+          '--dur': `${g.dur}s`, '--delay': `${g.delay}s`,
+        }} />
+      ))}
+      <div className="tpl-torch" style={{ left: '16%' }}>
+        <div className="tpl-torch-glow" /><div className="tpl-torch-flame" style={{ marginLeft: -13 }} />
+      </div>
+      <div className="tpl-torch" style={{ right: '16%' }}>
+        <div className="tpl-torch-glow" /><div className="tpl-torch-flame" style={{ marginLeft: -13 }} />
+      </div>
+      {motes.map((m, i) => (
+        <div key={`mt${i}`} className="firefly" style={{
+          left: `${m.x}%`, top: `${m.y}%`, width: 3, height: 3,
+          '--dx': `${m.dx}px`, '--dy': `${m.dy}px`,
+          '--dur': `${m.dur}s`, '--delay': `${m.delay}s`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Waterfall Sanctuary (rare) — falls, mist, rainbow, lush cliffs ────────
+function WaterfallLayer() {
+  const foliage = useMemo(() => [
+    { x: -2, y: 2, s: 120 }, { x: 8, y: 14, s: 85 }, { x: -1, y: 32, s: 100 },
+    { x: 9, y: 48, s: 72 }, { x: 3, y: 64, s: 88 },
+    { x: 90, y: 3, s: 110 }, { x: 84, y: 20, s: 80 },
+    { x: 92, y: 38, s: 95 }, { x: 86, y: 56, s: 70 }, { x: 93, y: 70, s: 84 },
+  ], []);
+  const spray = useMemo(() => Array.from({ length: 12 }, () => ({
+    x: rand(36, 64), size: rand(3, 7),
+    dur: rand(5, 10), delay: rand(0, 8), dx: rand(-40, 40),
+  })), []);
+  return (
+    <>
+      <div className="wfs-bg" />
+      <div className="wfs-fall" style={{ marginLeft: -35, '--fw': '70px', '--dur': '1.1s' }} />
+      <div className="wfs-fall" style={{ marginLeft: -62, '--fw': '22px', '--dur': '1.5s', opacity: 0.7 }} />
+      <div className="wfs-fall" style={{ marginLeft: 42, '--fw': '18px', '--dur': '1.3s', opacity: 0.7 }} />
+      <div className="wfs-cliff l" />
+      <div className="wfs-cliff r" />
+      {foliage.map((f, i) => (
+        <div key={i} className="wfs-foliage" style={{
+          left: `${f.x}%`, top: `${f.y}%`, width: f.s, height: f.s * 0.8,
+        }} />
+      ))}
+      <div className="wfs-pool" />
+      <div className="wfs-mist" />
+      <div className="wfs-rainbow" />
+      {spray.map((s, i) => (
+        <div key={`sp${i}`} className="wfs-spray" style={{
+          left: `${s.x}%`, bottom: '16%', width: s.size, height: s.size,
+          '--dur': `${s.dur}s`, '--delay': `${s.delay}s`, '--dx': `${s.dx}px`,
+        }} />
+      ))}
+    </>
+  );
+}
+
+// ─── Lunar Colony (epic) — regolith, habitat domes, Earthrise ──────────────
+function LunarColonyLayer() {
+  const stars = useMemo(() => Array.from({ length: 130 }, () => ({
+    x: rand(0, 100), y: rand(0, 68),
+    size: rand(0.5, 2), op: rand(0.2, 0.55), opHigh: rand(0.7, 1),
+    dur: rand(3, 7),
+  })), []);
+  const craters = useMemo(() => [
+    { x: 8, y: 80, w: 90, h: 26 }, { x: 30, y: 90, w: 50, h: 14 },
+    { x: 62, y: 84, w: 70, h: 20 }, { x: 84, y: 92, w: 44, h: 12 },
+    { x: 46, y: 78, w: 36, h: 10 },
+  ], []);
+  const domeLights = useMemo(() => Array.from({ length: 14 }, () => ({
+    x: rand(12, 84), y: rand(35, 80),
+    color: ['#fbbf24', '#a5f3fc', '#fef9c3'][Math.floor(rand(0, 3))],
+    dur: rand(3, 8), delay: rand(0, 6),
+  })), []);
+  const shooting = useMemo(() => Array.from({ length: 2 }, (_, i) => ({
+    x: rand(15, 60), y: rand(6, 26), angle: rand(28, 42),
+    delay: i * 9 + rand(0, 4), dur: rand(1.6, 2.2),
+  })), []);
+  return (
+    <>
+      <div className="lun-sky" />
+      {stars.map((s, i) => (
+        <div key={i} className="star twinkle" style={{
+          left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size,
+          '--opacity-low': s.op, '--opacity-high': s.opHigh, '--dur': `${s.dur}s`,
+        }} />
+      ))}
+      {shooting.map((s, i) => (
+        <div key={`st${i}`} className="shooting-star" style={{
+          left: `${s.x}%`, top: `${s.y}%`,
+          '--angle': `${s.angle}deg`, '--delay': `${s.delay}s`, '--dur': `${s.dur}s`,
+          animationIterationCount: 'infinite',
+        }} />
+      ))}
+      <div className="lun-earth" />
+      <div className="lun-ground" />
+      {craters.map((c, i) => (
+        <div key={`cr${i}`} className="lun-crater" style={{
+          left: `${c.x}%`, top: `${c.y}%`, width: c.w, height: c.h,
+        }} />
+      ))}
+      <div className="lun-dome" style={{ left: '54%', bottom: '24%', width: 190, height: 95 }}>
+        {domeLights.slice(0, 8).map((l, i) => (
+          <div key={i} className="lun-light" style={{
+            left: `${l.x}%`, top: `${l.y}%`, background: l.color, color: l.color,
+            '--dur': `${l.dur}s`, '--delay': `${l.delay}s`,
+          }} />
+        ))}
+      </div>
+      <div className="lun-dome" style={{ left: '76%', bottom: '24%', width: 110, height: 58 }}>
+        {domeLights.slice(8).map((l, i) => (
+          <div key={i} className="lun-light" style={{
+            left: `${l.x}%`, top: `${l.y}%`, background: l.color, color: l.color,
+            '--dur': `${l.dur}s`, '--delay': `${l.delay}s`,
+          }} />
+        ))}
+      </div>
+      <div className="lun-tunnel" style={{ left: '70.5%', bottom: '24%', width: 70 }} />
+      <div className="lun-mast" style={{ left: '50%', bottom: '24%', height: 90 }}>
+        <div className="lun-beacon" />
+      </div>
+    </>
+  );
+}
+
+// ─── Enchanted Forest (epic) — glowing mushrooms, wisps, god rays ──────────
+function EnchantedForestLayer() {
+  const trunks = useMemo(() => [
+    { x: 4, tw: 36, th: 76, op: 0.95 }, { x: 13, tw: 22, th: 60, op: 0.7 },
+    { x: 24, tw: 28, th: 70, op: 0.85 }, { x: 70, tw: 26, th: 66, op: 0.8 },
+    { x: 82, tw: 38, th: 78, op: 0.95 }, { x: 93, tw: 24, th: 62, op: 0.75 },
+  ], []);
+  const shroomCols = ['#67e8f9', '#c084fc', '#5eead4', '#f0abfc'];
+  const shrooms = useMemo(() => [
+    { x: 9, b: 2, cw: 44 }, { x: 14, b: 1, cw: 26 },
+    { x: 30, b: 3, cw: 34 }, { x: 34, b: 1, cw: 20 },
+    { x: 56, b: 2, cw: 40 }, { x: 61, b: 1, cw: 22 },
+    { x: 78, b: 2, cw: 30 }, { x: 90, b: 3, cw: 38 },
+  ].map((s, i) => ({
+    ...s, col: shroomCols[i % shroomCols.length],
+    dur: rand(3, 6), delay: rand(0, 4),
+  })), []);
+  const wisps = useMemo(() => Array.from({ length: 8 }, (_, i) => ({
+    x: rand(8, 92), y: rand(25, 75), ws: rand(5, 11),
+    col: ['#99f6e4', '#d8b4fe', '#a5f3fc'][i % 3],
+    dx1: rand(-50, 50), dy1: rand(-40, -10),
+    dx2: rand(-40, 40), dy2: rand(-90, -40),
+    dur: rand(8, 14), delay: rand(0, 9),
+  })), []);
+  const spores = useMemo(() => Array.from({ length: 16 }, () => ({
+    x: rand(5, 95), size: rand(2, 4),
+    dur: rand(7, 13), delay: rand(0, 10),
+    dx: rand(-50, 50), travel: rand(0.3, 0.6),
+  })), []);
+  const rays = useMemo(() => [
+    { x: 18, dur: 8, delay: 0 }, { x: 44, dur: 10, delay: 3 }, { x: 68, dur: 9, delay: 6 },
+  ], []);
+  return (
+    <>
+      <div className="enf-bg" />
+      {rays.map((r, i) => (
+        <div key={`r${i}`} className="enf-ray" style={{
+          left: `${r.x}%`, '--dur': `${r.dur}s`, '--delay': `${r.delay}s`,
+        }} />
+      ))}
+      {trunks.map((t, i) => (
+        <div key={`t${i}`} className="enf-trunk" style={{
+          left: `${t.x}%`, '--tw': `${t.tw}px`, '--th': `${t.th}%`, '--op': t.op,
+        }} />
+      ))}
+      <div className="enf-canopy" />
+      {shrooms.map((s, i) => (
+        <div key={`s${i}`} className="enf-shroom" style={{ left: `${s.x}%`, bottom: `${s.b}%` }}>
+          <div className="enf-cap" style={{
+            '--cw': `${s.cw}px`, '--col': s.col,
+            '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+          }} />
+          <div className="enf-stem" style={{ '--cw': `${s.cw}px` }} />
+        </div>
+      ))}
+      {wisps.map((w, i) => (
+        <div key={`w${i}`} className="enf-wisp" style={{
+          left: `${w.x}%`, top: `${w.y}%`,
+          '--ws': `${w.ws}px`, '--col': w.col,
+          '--dx1': `${w.dx1}px`, '--dy1': `${w.dy1}px`,
+          '--dx2': `${w.dx2}px`, '--dy2': `${w.dy2}px`,
+          '--dur': `${w.dur}s`, '--delay': `${w.delay}s`,
+        }} />
+      ))}
+      {spores.map((s, i) => (
+        <div key={`sp${i}`} className="enf-spore" style={{
+          left: `${s.x}%`, width: s.size, height: s.size,
+          '--dur': `${s.dur}s`, '--delay': `${s.delay}s`,
+          '--dx': `${s.dx}px`, '--travel': `${s.travel * 60}vh`,
+        }} />
+      ))}
+    </>
+  );
+}
+
 // ─── Map animation id → component ────────────────────────────────────────
 const ANIMATION_MAP = {
   // Common
@@ -1342,8 +1636,14 @@ const ANIMATION_MAP = {
   prism:      PrismLayer,
   // ── Wave 2 collectible drop ──
   zenGarden:         ZenGardenLayer,        // common
+  desertMirage:      DesertMirageLayer,     // uncommon
+  mountainSummit:    MountainSummitLayer,   // uncommon
   abyss:             AbyssLayer,            // rare
+  ancientTemple:     AncientTempleLayer,    // rare
+  waterfall:         WaterfallLayer,        // rare
   stormChaser:       StormChaserLayer,      // epic
+  lunarColony:       LunarColonyLayer,      // epic
+  enchantedForest:   EnchantedForestLayer,  // epic
   underwaterKingdom: UnderwaterKingdomLayer, // legendary
   dragonsLair:       DragonsLairLayer,      // mythic
   // Legacy
