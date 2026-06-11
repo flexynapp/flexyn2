@@ -1770,6 +1770,19 @@ html[data-theme-tier] .bg-card\/95 {
   background-color: hsl(var(--card)) !important;
 }
 
+/* Loot themes set --background / --card / --muted / --foreground but NOT
+   --secondary / --secondary-foreground, so every `hover:bg-secondary`
+   button (profile pill, nav items, dropdown rows …) fell back to the
+   DEFAULT LIGHT secondary — a near-white hover that's illegible against
+   the theme's light foreground/muted text on a dark theme. Derive the
+   pair from the theme's own muted/foreground so the hover surface always
+   matches the theme and stays readable. Scoped to data-theme-tier, so
+   the default (non-loot) light/dark themes are untouched. */
+html[data-theme-tier] {
+  --secondary: var(--muted);
+  --secondary-foreground: var(--foreground);
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════
    Wave-2 loot theme scenes — Zen Garden, Deep Ocean Abyss, Storm Chaser,
