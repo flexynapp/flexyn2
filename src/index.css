@@ -2739,10 +2739,47 @@ html[data-theme-tier] .bg-card\/95 {
   display: grid; place-items: center;
   background: rgba(6, 6, 14, 0);
   cursor: pointer;
-  animation: unlock-scrim 0.35s ease forwards, unlock-fade 0.45s ease 3.1s forwards;
+  /* Tightened tail (was 3.1s) so it stays premium without dragging after the
+     reel spin — the burst peaks ~1.8s, fade overlaps it from 2.3s. */
+  animation: unlock-scrim 0.32s ease forwards, unlock-fade 0.5s ease 2.3s forwards;
 }
 @keyframes unlock-scrim { to { background: rgba(6, 6, 14, 0.82); } }
 @keyframes unlock-fade { to { opacity: 0; } }
+
+/* ── Rarity-scaled escalation (epic+ ring, legendary+ flash, mythic shimmer) ── */
+/* Expanding shockwave ring, fired at the lid-pop beat. */
+.unlock-ring {
+  position: absolute; left: 50%; top: 50%;
+  width: 90px; height: 90px; margin: -45px 0 0 -45px;
+  border: 2.5px solid var(--rar, #3b82f6);
+  border-radius: 50%;
+  opacity: 0;
+  box-shadow: 0 0 22px var(--rar-glow, rgba(59,130,246,0.5));
+  animation: unlock-ring 1.25s cubic-bezier(0.15, 0.7, 0.25, 1) 1.16s forwards;
+}
+.unlock-ring.b { animation-delay: 1.34s; animation-duration: 1.4s; }
+@keyframes unlock-ring {
+  0%   { opacity: 0.9; transform: scale(0.25); }
+  100% { opacity: 0; transform: scale(3.1); }
+}
+/* Full-screen rarity flash at the moment the lid pops (legendary/mythic). */
+.unlock-flash {
+  position: absolute; inset: 0;
+  background: radial-gradient(circle at 50% 46%, var(--rar-glow, rgba(255,255,255,0.6)), transparent 55%);
+  opacity: 0;
+  animation: unlock-flash 0.5s ease-out 1.14s forwards;
+}
+@keyframes unlock-flash {
+  0% { opacity: 0; }
+  18% { opacity: 0.9; }
+  100% { opacity: 0; }
+}
+/* Mythic-only: the crate metal breathes a shimmer before it pops. */
+.tier-mythic .unlock-crate-box,
+.tier-mythic .unlock-crate-lid {
+  background-size: 200% 100%;
+  animation: mythic-shimmer 1.1s linear infinite;
+}
 .unlock-stage {
   position: relative;
   width: 340px; height: 380px;

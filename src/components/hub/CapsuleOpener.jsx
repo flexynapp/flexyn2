@@ -11,6 +11,7 @@ import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
 import { LOOT_TITLES } from '@/lib/lootTitles';
 import { supabase } from '@/api/supabaseClient';
+import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
 import CapsuleRarityOdds from './CapsuleRarityOdds';
 
@@ -211,29 +212,57 @@ const UNLOCK_RARITY_COLORS = {
   animated:  { col: '#f472b6', glow: 'rgba(244,114,182,0.55)' },
 };
 
-function CrateBurst({ item, onDone }) {
-  useEffect(() => {
-    // Matches the CSS sequence (scrim 0.35s → shake 1.15s → lid/burst →
-    // scrim fade at 3.1s + 0.45s). Hand off to the reveal card just after.
-    const id = setTimeout(onDone, 3650);
-    return () => clearTimeout(id);
-  }, [onDone]);
+// Rarity ladder — higher tiers get denser bursts + escalating extras
+// (ring shockwave, screen flash, mythic shimmer) per the design brief's
+// "higher-value achievements feel more impressive" principle. `dist`
+// scales the particle spread so denser tiers also throw wider.
+const BURST_TIERS = {
+  rare:      { particles: 18, rays: 12, spread: 110, haptic: 'primary', ring: false, flash: false },
+  epic:      { particles: 28, rays: 14, spread: 130, haptic: 'success', ring: true,  flash: false },
+  legendary: { particles: 40, rays: 16, spread: 155, haptic: 'success', ring: true,  flash: true  },
+  mythic:    { particles: 54, rays: 18, spread: 185, haptic: 'buzz',    ring: true,  flash: true  },
+  animated:  { particles: 28, rays: 14, spread: 130, haptic: 'success', ring: true,  flash: false },
+};
 
-  const { col, glow } = UNLOCK_RARITY_COLORS[item?.rarity] || UNLOCK_RARITY_COLORS.rare;
-  const rays = useMemo(() => Array.from({ length: 14 }, (_, i) => ({
-    a: i * (360 / 14) + (Math.random() * 12 - 6),
-  })), []);
-  const particles = useMemo(() => Array.from({ length: 26 }, () => {
+function CrateBurst({ item, onDone }) {
+  const rarity = item?.rarity || 'rare';
+  const tier = BURST_TIERS[rarity] || BURST_TIERS.rare;
+  const { col, glow } = UNLOCK_RARITY_COLORS[rarity] || UNLOCK_RARITY_COLORS.rare;
+
+  useEffect(() => {
+    // Tightened to match the retuned CSS (scrim fade now starts at 2.3s).
+    const done = setTimeout(onDone, 2800);
+    // Rarity-scaled haptic on the lid-pop beat (~1.15s). haptic.js already
+    // no-ops under reduced-motion / the settings toggle / no-vibrate devices.
+    const buzz = setTimeout(() => {
+      triggerHaptic(tier.haptic);
+      // Mythic gets a satisfying second pulse as the burst peaks.
+      if (rarity === 'mythic') setTimeout(() => triggerHaptic('success'), 220);
+    }, 1150);
+    return () => { clearTimeout(done); clearTimeout(buzz); };
+  }, [onDone, tier.haptic, rarity]);
+
+  const rays = useMemo(() => Array.from({ length: tier.rays }, (_, i) => ({
+    a: i * (360 / tier.rays) + (Math.random() * 12 - 6),
+  })), [tier.rays]);
+  const particles = useMemo(() => Array.from({ length: tier.particles }, () => {
     const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * 120 + 70;
+    const dist = Math.random() * tier.spread + 60;
     return { px: Math.cos(angle) * dist, py: Math.sin(angle) * dist - 30, size: Math.random() * 5 + 4 };
-  }), []);
+  }), [tier.particles, tier.spread]);
 
   return (
-    <div className="unlock-overlay" style={{ '--rar': col, '--rar-glow': glow }} onClick={onDone}>
+    <div
+      className={`unlock-overlay tier-${rarity}`}
+      style={{ '--rar': col, '--rar-glow': glow }}
+      onClick={onDone}
+    >
       <div className="unlock-stage">
         <div className="unlock-kicker">{item?.type === 'theme' ? 'New theme unlocked' : 'Item unlocked'}</div>
+        {tier.flash && <div className="unlock-flash" />}
         <div className="unlock-glow" />
+        {tier.ring && <div className="unlock-ring" />}
+        {tier.ring && rarity === 'mythic' && <div className="unlock-ring b" />}
         {rays.map((r, i) => (
           <div key={`r${i}`} className="unlock-ray" style={{ '--a': `${r.a}deg` }} />
         ))}
