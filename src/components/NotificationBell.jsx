@@ -80,7 +80,7 @@ export default function NotificationBell() {
         type="button"
         onClick={handleOpen}
         aria-label={ariaLabel}
-        className="relative p-1.5 rounded-md hover:bg-secondary transition-colors"
+        className="relative h-11 w-11 inline-flex items-center justify-center rounded-md hover:bg-secondary transition-colors"
       >
         <Bell className="w-5 h-5 text-foreground" aria-hidden="true" />
         {/*

@@ -98,9 +98,9 @@ export default function Header() {
           <button
             onClick={handleLogoTap}
             aria-label="Go to dashboard"
-            className="w-9 h-9 rounded-xl overflow-hidden shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
+            className="w-11 h-11 -ms-1 flex items-center justify-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
-            <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+            <img src={LOGO_URL} alt="Flexyn" className="w-9 h-9 object-contain" />
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't
@@ -130,7 +130,7 @@ export default function Header() {
             type="button"
             onClick={() => navigate('/messages')}
             aria-label={tFallback('hub.messages.title', 'Messages')}
-            className={`relative p-2 rounded-lg transition-colors ${
+            className={`relative h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
               onMessages
                 ? 'bg-primary/10 text-primary'
                 : 'text-muted-foreground hover:bg-secondary'
