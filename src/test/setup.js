@@ -60,6 +60,37 @@ global.IntersectionObserver = vi.fn().mockImplementation(() => ({
   disconnect: vi.fn(),
 }));
 
+// localStorage / sessionStorage — Node 22+ ships an experimental *native*
+// `localStorage` global that is `undefined` unless the process is started with
+// `--localstorage-file`. Under the jsdom test environment that native global
+// shadows jsdom's working implementation, so `localStorage.clear()` throws
+// "Cannot read properties of undefined" on newer Node (seen on Node 26).
+// Install a deterministic in-memory Storage when the existing one is missing
+// or broken — a no-op on older Node where jsdom's localStorage already works.
+function createMemoryStorage() {
+  const store = new Map();
+  return {
+    get length() { return store.size; },
+    key(i) { return Array.from(store.keys())[i] ?? null; },
+    getItem(k) { return store.has(String(k)) ? store.get(String(k)) : null; },
+    setItem(k, v) { store.set(String(k), String(v)); },
+    removeItem(k) { store.delete(String(k)); },
+    clear() { store.clear(); },
+  };
+}
+for (const target of [globalThis, typeof window !== 'undefined' ? window : null]) {
+  if (!target) continue;
+  for (const name of ['localStorage', 'sessionStorage']) {
+    if (!target[name] || typeof target[name].clear !== 'function') {
+      Object.defineProperty(target, name, {
+        value: createMemoryStorage(),
+        writable: true,
+        configurable: true,
+      });
+    }
+  }
+}
+
 // ── Console noise reduction ────────────────────────────────────────────────
 // ErrorBoundary calls console.error on caught errors — this is expected in
 // those tests, so we silence it to keep output readable.
