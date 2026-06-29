@@ -259,6 +259,15 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
   );
 }
 
+// Stable empty defaults. React Query returns `data: undefined` while a
+// query is disabled or loading; a `= []` / `= {}` literal default would
+// hand back a fresh reference every render, churning the identity of the
+// `logs` useMemo and firing the `setEntries(logs)` effect on every render
+// ("Maximum update depth exceeded" on the Nutrition tab). Sharing one
+// frozen constant keeps the reference stable until real data arrives.
+const EMPTY_LOGS = Object.freeze([]);
+const EMPTY_PROFILE = Object.freeze({});
+
 export default function Nutrition() {
   const { t, tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -461,7 +470,7 @@ export default function Nutrition() {
     }
   };
 
-  const { data: userProfile = {} } = useQuery({
+  const { data: userProfile = EMPTY_PROFILE } = useQuery({
     queryKey: ['userProfile', user?.email],
     queryFn: () => db.auth.me(),
     enabled: !!user?.email
@@ -539,7 +548,7 @@ export default function Nutrition() {
     setShowGoalsOnboarding(true);
   };
 
-  const { data: rawLogs = [], isLoading: logsLoading } = useQuery({
+  const { data: rawLogs = EMPTY_LOGS, isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
     queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email, date }),
     enabled: !!user?.email
