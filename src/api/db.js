@@ -482,15 +482,10 @@ const functions = {
   },
 };
 
-// XP milestone achievements — inserted client-side since Base44's server
-// function no longer runs. Each entry: { id, name, description, xp_awarded, threshold }
-const XP_ACHIEVEMENTS = [
-  { id: 'xp_250',    name: 'First Steps',      description: 'Earned your first 250 XP',   xp_awarded: 10,  threshold: 250   },
-  { id: 'xp_1000',   name: 'Getting Serious',  description: 'Earned 1,000 XP total',      xp_awarded: 25,  threshold: 1000  },
-  { id: 'xp_5000',   name: 'Dedicated',        description: 'Earned 5,000 XP total',      xp_awarded: 50,  threshold: 5000  },
-  { id: 'xp_10000',  name: 'Elite Athlete',    description: 'Earned 10,000 XP total',     xp_awarded: 100, threshold: 10000 },
-  { id: 'xp_25000',  name: 'Legend',           description: 'Earned 25,000 XP total',     xp_awarded: 200, threshold: 25000 },
-];
+// XP milestone achievements are now granted SERVER-SIDE by the
+// grant_xp_milestone_achievements RPC (migration 189) — the thresholds,
+// names, and bonus XP live in that migration. Keep any client display copy
+// in sync with it.
 
 async function _invokeXp({ xp_gained = 0, action_type } = {}) {
   try {
@@ -504,114 +499,38 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
     });
     if (error) console.warn('[XP] rpc failed:', error.message);
 
-    // 2. Read back new total_xp to check achievement milestones
-    const { data: profile } = await supabase
-      .from('user_profiles')
-      .select('total_xp, achievements_unlocked_count')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (profile) {
-      const newTotal = profile.total_xp || 0;
-      const prevTotal = newTotal - Math.round(xp_gained);
-
-      // 3. Check each milestone — insert if crossed in this grant.
-      //
-      // Double-milestone safety: when an achievement awards bonus XP, that
-      // bonus can push the user across the NEXT threshold inside the same
-      // call. Previously the comparison used the static `newTotal` snapshot,
-      // so the second milestone was missed entirely. We now track a running
-      // `projectedTotal` that adds each successful bonus grant to the
-      // comparison value — so a user at 240 XP gaining 800 (newTotal=1040)
-      // crosses 250 → +10 bonus → projected 1050, which still trivially
-      // crosses 1000 BUT only if the threshold was below the original
-      // newTotal. The real win is when prevTotal was just below 1000 and
-      // newTotal lands just above it AND the 250-milestone bonus pushes
-      // past 1000 — that previously had a chance of being missed because
-      // the loop iterated milestones in order and only consulted the
-      // static snapshot. Now every milestone uses the running projection.
-      //
-      // Counter integrity (from prior fix): newAchievementsCount only
-      // advances after BOTH the achievement insert AND the user_profiles
-      // counter update succeed.
-      let newAchievementsCount = profile.achievements_unlocked_count || 0;
-      let projectedTotal = newTotal;
-      for (const ach of XP_ACHIEVEMENTS) {
-        // Use projectedTotal (includes bonus XP from earlier iterations)
-        // for the upper bound, so a missed milestone surfaces here.
-        if (prevTotal < ach.threshold && projectedTotal >= ach.threshold) {
-          const { data: existing } = await supabase
-            .from('achievements')
-            .select('id')
-            .eq('created_by', user.email)
-            .eq('achievement_id', ach.id)
-            .maybeSingle();
-          if (!existing) {
-            const { error: insertErr } = await supabase
-              .from('achievements')
-              .insert({
-                created_by: user.email,
-                user_id: user.id,
-                achievement_id: ach.id,
-                name: ach.name,
-                description: ach.description,
-                xp_awarded: ach.xp_awarded,
-                unlocked_at: new Date().toISOString(),
-              });
-            if (insertErr) {
-              console.warn('[XP] achievement insert failed — skipping counter bump:', insertErr);
-              continue; // do NOT increment counter for an insert that failed
-            }
-            // Bonus XP for achievement itself (capped to avoid recursion).
-            // Failure here is non-fatal — the achievement row still exists.
-            // Track whether the grant succeeded so we don't credit projected
-            // total with XP that didn't actually land.
-            let bonusApplied = false;
-            if (ach.xp_awarded > 0) {
-              const { error: bonusErr } = await supabase.rpc('increment_user_xp', {
-                p_user_id: user.id,
-                p_xp: ach.xp_awarded,
-              });
-              if (bonusErr) {
-                console.warn('[XP] bonus grant failed:', bonusErr);
-              } else {
-                bonusApplied = true;
-              }
-            }
-            if (bonusApplied) {
-              projectedTotal += ach.xp_awarded;
-            }
-            // Counter update — only advance the in-memory count if the DB
-            // update actually succeeded. If it fails, the inserted achievement
-            // row is still there and the next leaderboardStats reconcile will
-            // resync the counter from the source of truth.
-            const tentative = newAchievementsCount + 1;
-            const { error: updErr } = await supabase
-              .from('user_profiles')
-              .update({ achievements_unlocked_count: tentative })
-              .eq('id', user.id);
-            if (updErr) {
-              console.warn('[XP] achievement counter update failed:', updErr);
-              // Don't advance newAchievementsCount — the milestone capsule
-              // check at step 4 will see the un-updated count and skip
-              // grants until the reconcile fixes the underlying counter.
-              continue;
-            }
-            newAchievementsCount = tentative;
-          }
-        }
+    // 2. Grant any crossed XP-milestone achievements SERVER-SIDE. The
+    //    grant_xp_milestone_achievements RPC (migration 189) reads the
+    //    caller's now-updated total_xp, atomically inserts newly-crossed
+    //    milestones, grants their bonus XP through the capped
+    //    increment_user_xp, self-heals achievements_unlocked_count, and
+    //    returns the newly-unlocked list + authoritative count. Moving this
+    //    off the client makes it forge-proof — mig 189 also drops the client
+    //    INSERT policy on `achievements`, so the only way a row is created is
+    //    through this (and the trophy/capsule) SECURITY DEFINER RPC.
+    let newlyUnlocked = [];
+    let unlockedCount = 0;
+    try {
+      const { data: result, error: grantErr } = await supabase.rpc('grant_xp_milestone_achievements');
+      if (grantErr) {
+        console.warn('[XP] milestone grant rpc failed:', grantErr.message);
+      } else {
+        newlyUnlocked = result?.new_achievements || [];
+        unlockedCount = result?.unlocked_count || 0;
       }
+    } catch (achErr) {
+      console.warn('[XP] milestone grant rpc threw:', achErr);
+    }
 
-      // 4. After all achievement inserts, check if any milestone capsule
-      //    rewards are owed. Idempotent via user_profiles.milestone_capsules_awarded
-      //    so we won't re-grant on subsequent unlocks/reconciliations.
-      if (newAchievementsCount > 0) {
-        try {
-          const { grantForAchievementMilestone } = await import('@/lib/data/capsules');
-          await grantForAchievementMilestone(user.id, user.email, newAchievementsCount);
-        } catch (err) {
-          console.warn('[XP] milestone capsule check failed:', err);
-        }
+    // 3. Only when a NEW milestone unlocked this call, check whether any
+    //    milestone capsule rewards are owed. Idempotent server-side via
+    //    user_profiles.milestone_capsules_awarded.
+    if (newlyUnlocked.length > 0 && unlockedCount > 0) {
+      try {
+        const { grantForAchievementMilestone } = await import('@/lib/data/capsules');
+        await grantForAchievementMilestone(user.id, user.email, unlockedCount);
+      } catch (err) {
+        console.warn('[XP] milestone capsule check failed:', err);
       }
     }
 

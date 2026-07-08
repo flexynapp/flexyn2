@@ -171,7 +171,7 @@ export default function Hub() {
                 type="button"
                 onClick={() => setSearchOpen(true)}
                 aria-label={tFallback('hub.search.label', 'Search')}
-                className="p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+                className="h-11 w-11 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
               >
                 <Search className="w-5 h-5" />
               </button>
@@ -182,7 +182,7 @@ export default function Hub() {
                 type="button"
                 onClick={() => { setSection('feed'); setProfileTarget(null); setFeedTab('activity'); }}
                 aria-label={tFallback('hub.feed.activity', 'Activity')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
                   section === 'feed' && feedTab === 'activity'
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-secondary'
@@ -203,7 +203,7 @@ export default function Hub() {
                   }
                 }}
                 aria-label={t('hub.myProfile')}
-                className={`p-2 rounded-lg transition-colors ${
+                className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
                   section === 'profile' && (!profileTarget || profileTarget?.email === user?.email)
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-secondary'

@@ -150,7 +150,7 @@ export default function SignInToContinue({
           type="button"
           onClick={onBack}
           aria-label="Back"
-          className="absolute top-5 start-5 z-20 w-9 h-9 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
+          className="absolute top-5 start-5 z-20 w-11 h-11 rounded-xl border border-border bg-card/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-secondary transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
         </button>
@@ -195,14 +195,18 @@ export default function SignInToContinue({
           Continue with Google
         </Button>
 
+        {/* Per Apple's "Sign in with Apple" button guidelines the control
+            must invert in dark mode (black-on-light → white-on-dark) so it
+            keeps contrast against the background. Leaving it bg-black in
+            dark mode both fails contrast and is technically off-guideline. */}
         <Button
-          className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900"
+          className="w-full h-12 font-medium text-sm gap-2 bg-black text-white hover:bg-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-200"
           onClick={() => handleProvider('apple', setAppleLoading)}
           disabled={googleLoading || appleLoading || sendingMagicLink}
         >
           {appleLoading
             ? <Loader2 className="w-4 h-4 animate-spin" />
-            : <AppleGlyph className="w-4 h-4 text-white" />}
+            : <AppleGlyph className="w-4 h-4 text-white dark:text-black" />}
           Continue with Apple
         </Button>
 

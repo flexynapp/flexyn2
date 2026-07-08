@@ -324,13 +324,13 @@ function StepHeader({ step, total, onBack }) {
     <div className="flex items-center gap-3 mb-7">
       {canBack ? (
         <button onClick={onBack} aria-label="Back"
-          className="w-9 h-9 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card transition-colors shrink-0">
+          className="w-11 h-11 rounded-xl border border-border/70 bg-card/70 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-card transition-colors shrink-0">
           <Icon name="arrow-left" size={17} strokeWidth={2.5} />
         </button>
       ) : (
         // Spacer keeps the progress bar in the same position even when
         // the button is hidden — no layout jump between steps.
-        <div className="w-9 h-9 shrink-0" aria-hidden="true" />
+        <div className="w-11 h-11 shrink-0" aria-hidden="true" />
       )}
       <div className="flex-1 h-1.5 rounded-full bg-border/50 overflow-hidden">
         <motion.div className="h-full rounded-full bg-primary"
@@ -465,10 +465,10 @@ function FeatureCarousel() {
           const active = i === idx;
           return (
             <button key={f.id} onClick={() => setIdx(i)} aria-label={`Show ${f.eyebrow}`}
-              className="relative h-1 rounded-full cursor-pointer border-none p-0 overflow-hidden transition-all duration-500"
+              className="relative h-1 rounded-full cursor-pointer border-none p-0 transition-all duration-500 before:absolute before:content-[''] before:-inset-y-5 before:-inset-x-1"
               style={{ width: active ? 28 : 6, background: active ? 'hsl(var(--muted) / 0.7)' : 'hsl(var(--muted-foreground) / 0.3)' }}>
               {active && (
-                <span key={idx} className="absolute inset-0 rounded-full"
+                <span key={idx} className="absolute inset-0 rounded-full overflow-hidden"
                   style={{ background: F.accent, transformOrigin: 'left center', animation: paused ? 'none' : `ob-pip-progress ${DURATION}ms linear forwards` }} />
               )}
             </button>
@@ -533,7 +533,7 @@ function WelcomeStep({ onNext, onSignIn }) {
           Free to start · no card needed
         </p>
         <button onClick={onSignIn}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors py-2 text-center">
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors min-h-[44px] py-2 text-center">
           I already have an account
         </button>
       </motion.div>

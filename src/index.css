@@ -8,6 +8,7 @@
   :root {
     --font-heading: 'Space Grotesk', sans-serif;
     --font-body: 'Inter', sans-serif;
+    --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', 'Space Grotesk', monospace;
 
     --background: 30 20% 97%;
     --foreground: 210 20% 12%;
@@ -2913,4 +2914,8 @@ html[data-theme-tier] {
   opacity: 0;
   animation: unlock-kicker 0.5s ease 2.2s forwards;
 }
+
+/* Muscle heat-map detail sheet (MuscleGroupHeatmap.jsx) */
+@keyframes bh-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes bh-fade { from { opacity: 0; } to { opacity: 1; } }
 

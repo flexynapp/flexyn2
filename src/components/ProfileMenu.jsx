@@ -286,7 +286,7 @@ export default function ProfileMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(v => !v); setView('main'); }}
-        className="relative flex items-center justify-center gap-2 w-full h-10 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2"
+        className="relative flex items-center justify-center gap-2 w-full h-11 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2"
         aria-label={
           capsuleCount > 0
             ? `Profile — ${capsuleCount} unopened ${capsuleCount === 1 ? 'capsule' : 'capsules'}`
