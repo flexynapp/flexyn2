@@ -1065,19 +1065,31 @@ export default function Dashboard() {
   };
 
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
-  const renderDashboardSection = (id) => {
+  const renderDashboardSection = (id, paired = false) => {
     switch (id) {
       case 'readiness': {
         // In half/hotdog mode the readiness card collapses to a small
-        // labeled square that sits next to weekly rank under the hero.
-        // We drop the section header so the row can be as compact as
-        // possible (the card has its own internal "Readiness" label).
+        // labeled square that sits next to its half-width partner. We drop
+        // the section header so the row can be as compact as possible (the
+        // card has its own internal "Readiness" label).
         const isHalf = (sectionLayouts.readiness || 'full') === 'half';
-        if (isHalf) {
+        if (isHalf && paired) {
           return (
             <React.Fragment key="readiness">
               <ErrorBoundary label="ReadinessCard">
                 <ReadinessCard logs={logs} compact onClick={() => setReadinessInfoOpen(true)} />
+              </ErrorBoundary>
+            </React.Fragment>
+          );
+        }
+        if (isHalf && !paired) {
+          // Lone half — no adjacent half to pair with. Render the full,
+          // self-explanatory card (score + tier + recommendation), full
+          // width, so it never renders as a small orphan on the left.
+          return (
+            <React.Fragment key="readiness">
+              <ErrorBoundary label="ReadinessCard">
+                <ReadinessCard logs={logs} onClick={() => setReadinessInfoOpen(true)} />
               </ErrorBoundary>
             </React.Fragment>
           );
@@ -1605,7 +1617,7 @@ export default function Dashboard() {
                   : '';
                 return (
                   <div key={id} className={widthClass}>
-                    {renderDashboardSection(id)}
+                    {renderDashboardSection(id, row.sections.length === 2)}
                   </div>
                 );
               })}
