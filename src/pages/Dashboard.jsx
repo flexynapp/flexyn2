@@ -509,9 +509,15 @@ export default function Dashboard() {
   //   readiness + league   — small square + wide rank under hero
   //   challenges + actions — daily quests next to quick actions
   // User can flip any of these via the layout icon in edit mode.
+  // Default both to full-width. The old 'half' default paired Readiness
+  // (a compact square) with League — but LeagueCard renders null for anyone
+  // not yet in a league (every new user), leaving the Readiness square
+  // stranded next to an empty half and a big gap. Full-width Readiness also
+  // shows its tier + recommendation, so it reads as more than a bare number.
+  // Users can still flip either to 'half' via the layout icon in edit mode.
   const [sectionLayouts, setSectionLayouts] = useState({
-    readiness:  'half',
-    league:     'half',
+    readiness:  'full',
+    league:     'full',
   });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
@@ -729,8 +735,8 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      readiness: 'half',
-      league:    'half',
+      readiness: 'full',
+      league:    'full',
     });
     try {
       localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);
