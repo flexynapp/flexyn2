@@ -509,9 +509,15 @@ export default function Dashboard() {
   //   readiness + league   — small square + wide rank under hero
   //   challenges + actions — daily quests next to quick actions
   // User can flip any of these via the layout icon in edit mode.
+  // Default both to full-width. The old 'half' default paired Readiness
+  // (a compact square) with League — but LeagueCard renders null for anyone
+  // not yet in a league (every new user), leaving the Readiness square
+  // stranded next to an empty half and a big gap. Full-width Readiness also
+  // shows its tier + recommendation, so it reads as more than a bare number.
+  // Users can still flip either to 'half' via the layout icon in edit mode.
   const [sectionLayouts, setSectionLayouts] = useState({
-    readiness:  'half',
-    league:     'half',
+    readiness:  'full',
+    league:     'full',
   });
   const toggleSectionLayout = (id) => {
     setSectionLayouts(prev => {
@@ -729,8 +735,8 @@ export default function Dashboard() {
   const handleResetCustomize = () => {
     setWidgetOrder(defaultWidgetOrder);
     setSectionLayouts({
-      readiness: 'half',
-      league:    'half',
+      readiness: 'full',
+      league:    'full',
     });
     try {
       localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);
@@ -1065,19 +1071,31 @@ export default function Dashboard() {
   };
 
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
-  const renderDashboardSection = (id) => {
+  const renderDashboardSection = (id, paired = false) => {
     switch (id) {
       case 'readiness': {
         // In half/hotdog mode the readiness card collapses to a small
-        // labeled square that sits next to weekly rank under the hero.
-        // We drop the section header so the row can be as compact as
-        // possible (the card has its own internal "Readiness" label).
+        // labeled square that sits next to its half-width partner. We drop
+        // the section header so the row can be as compact as possible (the
+        // card has its own internal "Readiness" label).
         const isHalf = (sectionLayouts.readiness || 'full') === 'half';
-        if (isHalf) {
+        if (isHalf && paired) {
           return (
             <React.Fragment key="readiness">
               <ErrorBoundary label="ReadinessCard">
                 <ReadinessCard logs={logs} compact onClick={() => setReadinessInfoOpen(true)} />
+              </ErrorBoundary>
+            </React.Fragment>
+          );
+        }
+        if (isHalf && !paired) {
+          // Lone half — no adjacent half to pair with. Render the full,
+          // self-explanatory card (score + tier + recommendation), full
+          // width, so it never renders as a small orphan on the left.
+          return (
+            <React.Fragment key="readiness">
+              <ErrorBoundary label="ReadinessCard">
+                <ReadinessCard logs={logs} onClick={() => setReadinessInfoOpen(true)} />
               </ErrorBoundary>
             </React.Fragment>
           );
@@ -1605,7 +1623,7 @@ export default function Dashboard() {
                   : '';
                 return (
                   <div key={id} className={widthClass}>
-                    {renderDashboardSection(id)}
+                    {renderDashboardSection(id, row.sections.length === 2)}
                   </div>
                 );
               })}
