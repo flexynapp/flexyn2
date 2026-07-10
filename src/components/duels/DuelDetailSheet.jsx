@@ -1,10 +1,26 @@
 // src/components/duels/DuelDetailSheet.jsx
 // Bottom sheet showing duel details, session template (mirror), and result card when complete.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Swords, Dumbbell, Timer, Trophy, Crown } from 'lucide-react';
+import { X, Swords, Dumbbell, Timer, Trophy, Crown, Check, Loader2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useNumberFormatter } from '@/lib/intl';
+import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
+import { submitDuelResult } from '@/lib/data/duels';
+
+// Sum weight × reps across a workout log — the volume the duel compares.
+// The server (submit_duel_result_atomic, mig 159) recomputes this from the
+// workout_log_id, so this is only the optimistic/preview value.
+function logVolume(log) {
+  let v = 0;
+  for (const ex of log?.exercises || []) {
+    for (const s of ex.sets || []) v += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+  }
+  return v;
+}
 
 const TYPE_ICON  = { mirror: Dumbbell, open: Timer, exercise: Trophy };
 const TYPE_LABEL = { mirror: 'Mirror Duel', open: 'Open Duel', exercise: 'Exercise Duel' };
@@ -20,6 +36,21 @@ function StatPill({ label, value, highlight }) {
 
 export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, onCancel, onClose }) {
   const fmt = useNumberFormatter();
+  const { user } = useAuth();
+  const qc = useQueryClient();
+  const [submitting, setSubmitting] = useState(false);
+  // The user's most-recent real workout log — submitted as this duel's result.
+  const { data: latestLog } = useQuery({
+    queryKey: ['latestWorkoutLog', user?.id],
+    queryFn: async () => {
+      const rows = await db.entities.WorkoutLog.filter({ created_by: user?.email });
+      const withEx = (rows || []).filter((r) => (r.exercises || []).some((e) => (e.sets || []).length));
+      withEx.sort((a, b) => new Date(b.date) - new Date(a.date));
+      return withEx[0] || null;
+    },
+    enabled: !!user?.id && !!duel && duel.status === 'active',
+    staleTime: 60_000,
+  });
   if (!duel) return null;
 
   const Icon         = TYPE_ICON[duel.type] || Swords;
@@ -36,6 +67,26 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
   const opponentName = opponentProfile?.username || null;
 
   const fmtVol = (v) => v != null ? `${fmt(Number(v))} lbs` : '—';
+
+  const canSubmit = duel.status === 'active' && !myResult;
+  const handleSubmit = async () => {
+    if (submitting || !latestLog) return;
+    setSubmitting(true);
+    try {
+      // Server recomputes volume from the workout_log_id (mig 159); the
+      // result object is the optimistic value + the shape the RPC expects.
+      await submitDuelResult(duel.id, { volume: logVolume(latestLog) }, duel, latestLog.id);
+      qc.invalidateQueries({ queryKey: ['duels'] });
+      qc.invalidateQueries({ queryKey: ['activeDuel'] });
+      qc.invalidateQueries({ queryKey: ['myDuels'] });
+      toast.success('Result submitted!');
+      onClose?.();
+    } catch (err) {
+      toast.error(err?.message || 'Could not submit result — try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -148,6 +199,21 @@ export default function DuelDetailSheet({ duel, currentUserId, opponentProfile, 
                 <span className="font-semibold">{theirResult ? fmtVol(theirResult.volume) : 'Waiting…'}</span>
               </div>
             </div>
+          )}
+
+          {/* Submit result — the duel loop's missing completion step. Sends the
+              user's most recent workout as their entry; the server recomputes
+              volume + resolves the winner atomically once both sides are in. */}
+          {canSubmit && (
+            <button
+              type="button"
+              onClick={handleSubmit}
+              disabled={submitting || !latestLog}
+              className="w-full py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-50 hover:opacity-90 transition-opacity"
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" />}
+              {submitting ? 'Submitting…' : latestLog ? 'Submit my latest workout' : 'Log a workout to submit'}
+            </button>
           )}
 
           {/* Cancel — challenger can withdraw a still-pending challenge */}
