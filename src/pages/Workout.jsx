@@ -721,6 +721,19 @@ export default function Workout() {
           // Non-blocking — challenges just don't get bumped for this save.
           reportError(soloErr, { feature: 'workout.solo-challenge-bump', level: 'warning' });
         }
+
+        // Complete any active Bounty claim this workout satisfies.
+        // checkAndCompleteBounty compares the log's volume/lift against the
+        // claim's target and, if met, calls the server-validated (claimant-
+        // checked, idempotent) complete_bounty_claim RPC. bounties.js documents
+        // this as "call after every workout save" — it was defined but never
+        // wired, so claimed bounties could never be credited. Fire-and-forget.
+        try {
+          const { checkAndCompleteBounty } = await import('@/lib/data/bounties');
+          await checkAndCompleteBounty({ exercises: data.exercises, id: workoutLog?.id });
+        } catch (bountyErr) {
+          reportError(bountyErr, { feature: 'workout.bounty-check', level: 'warning' });
+        }
       }
 
       // Atomic volume accumulation via RPC (migration 023). The previous
