@@ -31,6 +31,7 @@ import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import JournalWidget from '@/components/dashboard/JournalWidget';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
+import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
@@ -1140,6 +1141,7 @@ export default function Dashboard() {
                   <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
                   <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
                 </div>
+                <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
                 <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
               </div>
             )}
