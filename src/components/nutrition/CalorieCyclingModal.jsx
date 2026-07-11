@@ -155,7 +155,7 @@ export default function CalorieCyclingModal({ open, onClose }) {
           </div>
         ) : (
           <>
-            <div className="flex gap-2.5">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <DayColumn
                 icon={Dumbbell}
                 title={tFallback('nutrition.cycling.training', 'Training day')}
