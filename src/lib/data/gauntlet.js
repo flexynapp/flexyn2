@@ -1,6 +1,8 @@
 // src/lib/data/gauntlet.js
 // Gauntlet Path + Weekly Community Gauntlet data layer.
 import { supabase } from '@/api/supabaseClient';
+import { format, differenceInCalendarDays, startOfWeek } from 'date-fns';
+import { detectPRsInWorkout } from '@/lib/data/personalRecords';
 
 // ── Challenge catalogue ───────────────────────────────────────────────────────
 
@@ -253,67 +255,213 @@ export async function getWeeklyGauntletStats(gauntletId, userScore) {
   return { attempt_count: attempts, completion_count: completions, completion_pct: pct, user_rank: rank };
 }
 
-// ── Challenge 1 detection helper ─────────────────────────────────────────────
+// ── Path challenge detection (all 10) ────────────────────────────────────────
+//
+// The completion RPC (complete_gauntlet_challenge, 060_gauntlet.sql) is
+// client-authoritative: it guards auth + sequence-order + already-completed,
+// but TRUSTS that the challenge's metric/target were actually met. So
+// detection lives here on the client. Rewards are one-time (UNIQUE
+// constraint), bounded (150–1500 XP), and the XP rate-limit ledger (mig
+// 188, 50k/24h) caps abuse — an acceptable trade-off that mirrors the
+// original First-Blood-only detector. A follow-up could push criteria
+// validation into the RPC to make it server-authoritative.
+//
+// Originally only Challenge 1 ("First Blood") had a detector, which stranded
+// every user on Challenge 2 forever. evaluateChallengeCriteria below covers
+// all six metric types the seed uses.
+
+// Total lb-volume of one session: Σ reps × weight across every set.
+function sessionVolume(log) {
+  let v = 0;
+  for (const ex of log?.exercises ?? []) {
+    for (const s of ex?.sets ?? []) v += (Number(s.reps) || 0) * (Number(s.weight) || 0);
+  }
+  return v;
+}
+
+// Parse a log's 'yyyy-MM-dd' date to a LOCAL Date (midnight). Falls back to
+// created_at, then today — parsed component-wise to avoid the UTC-midnight
+// off-by-one that `new Date('yyyy-MM-dd')` introduces in negative offsets.
+function logLocalDate(log, todayStr) {
+  const raw = (log?.date || log?.created_at || todayStr || '').slice(0, 10);
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (m) return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  const d = new Date(log?.created_at ?? NaN);
+  return Number.isNaN(d.getTime()) ? new Date() : d;
+}
+
+// Distinct calendar DAYS with a workout in the trailing `days`-day window
+// ending today (inclusive). Counting days (not raw entries) stops a user
+// trivially clearing a "N sessions" gate by logging N junk sessions in one
+// day, and matches the streak spirit of these challenges.
+function distinctDaysInTrailingWindow(logs, days, todayStr) {
+  const today = logLocalDate({ date: todayStr }, todayStr);
+  const seen = new Set();
+  for (const log of logs ?? []) {
+    const d = logLocalDate(log, todayStr);
+    const diff = differenceInCalendarDays(today, d);
+    if (diff >= 0 && diff < days) seen.add(format(d, 'yyyy-MM-dd'));
+  }
+  return seen.size;
+}
+
+// Cumulative volume across every session in the current Monday-start
+// calendar week — matches the server's date_trunc('week') convention.
+function currentWeekVolume(logs, todayStr) {
+  const weekStart = startOfWeek(logLocalDate({ date: todayStr }, todayStr), { weekStartsOn: 1 });
+  let v = 0;
+  for (const log of logs ?? []) {
+    if (logLocalDate(log, todayStr) >= weekStart) v += sessionVolume(log);
+  }
+  return v;
+}
+
+// Movement-name substrings that count as a "compound lift" for the PR
+// challenge (challenge 9). Deliberately broad so "Barbell Back Squat",
+// "Romanian Deadlift", "Overhead Press" all match.
+const COMPOUND_PATTERNS = [
+  'squat', 'deadlift', 'bench', 'overhead press', 'ohp', 'military press',
+  'shoulder press', 'push press', 'row', 'pull up', 'pull-up', 'pullup',
+  'chin up', 'chin-up', 'chinup', 'dip', 'clean', 'snatch', 'jerk',
+  'thruster', 'hip thrust', 'leg press', 'lunge',
+];
+function isCompoundName(name) {
+  const n = (name || '').toLowerCase();
+  return COMPOUND_PATTERNS.some((p) => n.includes(p));
+}
+
+// "N exercises, zero skipped sets" — a skipped set is one with no reps, or
+// (for non-cardio) no real weight. Cardio is exempt from the weight check:
+// cardio sets are duration-based, so weight 0 is legitimately "complete".
+// Prevents clearing the gate with N air-squat sets (weight 0 × reps).
+function minExercisesNoSkip(workoutLog, target) {
+  const exercises = workoutLog?.exercises ?? [];
+  if (exercises.length < target) return false;
+  const isCardioGroup = (g) => typeof g === 'string' && g.toLowerCase() === 'cardio';
+  const exerciseIsCardio = (ex) => {
+    const groups = ex?.muscle_groups?.length
+      ? ex.muscle_groups
+      : (ex?.muscle_group ? [ex.muscle_group] : []);
+    return groups.some(isCardioGroup);
+  };
+  const anySkipped = exercises.some((ex) => {
+    const allowZeroWeight = exerciseIsCardio(ex);
+    return (ex.sets ?? []).some((s) => {
+      if (!s.reps || s.reps <= 0) return true;
+      if (allowZeroWeight) return false;
+      return !s.weight || Number(s.weight) <= 0;
+    });
+  });
+  return !anySkipped;
+}
 
 /**
- * Called after every workout save. Checks if the user qualifies for
- * Challenge 1 ("First Blood" — 4+ exercises, zero skipped sets).
- * Returns the RPC result if awarded, or null if not eligible.
- * Never throws — swallow all errors so the workout save never breaks.
+ * Pure predicate: does the just-saved workout (+ context) satisfy this
+ * challenge's criteria? No I/O — fully unit-testable.
+ *
+ * @param challenge  a row from gauntlet_challenges ({ metric, target_value })
+ * @param ctx {
+ *   workoutLog,         the just-saved session
+ *   historicalLogs,     prior sessions (EXCLUDES the just-saved one)
+ *   workoutStreakDays,  server-authoritative consecutive-day streak
+ *   todayStr,           'yyyy-MM-dd' (defaults to today)
+ * }
+ * @returns { met: boolean, score: number|null }
  */
-export async function checkChallenge1(workoutLog, workoutLogId) {
+export function evaluateChallengeCriteria(challenge, ctx = {}) {
+  const metric = challenge?.metric;
+  const target = challenge?.target_value;
+  const { workoutLog, historicalLogs = [], workoutStreakDays = 0, todayStr } = ctx;
+  const day = todayStr || format(new Date(), 'yyyy-MM-dd');
+  const allLogs = [workoutLog, ...historicalLogs].filter(Boolean);
+
+  switch (metric) {
+    case 'min_exercises_no_skip':
+      return { met: minExercisesNoSkip(workoutLog, target ?? 0), score: (workoutLog?.exercises ?? []).length };
+    case 'session_volume': {
+      const vol = sessionVolume(workoutLog);
+      return { met: vol >= (target ?? Infinity), score: vol };
+    }
+    case 'sessions_in_5_days':
+    case 'sessions_in_7_days': {
+      const windowDays = metric === 'sessions_in_5_days' ? 5 : 7;
+      const count = distinctDaysInTrailingWindow(allLogs, windowDays, day);
+      return { met: count >= (target ?? Infinity), score: count };
+    }
+    case 'weekly_lbs': {
+      const vol = currentWeekVolume(allLogs, day);
+      return { met: vol >= (target ?? Infinity), score: vol };
+    }
+    case 'consecutive_days':
+      return { met: (workoutStreakDays ?? 0) >= (target ?? Infinity), score: workoutStreakDays ?? 0 };
+    case 'any_compound_pr': {
+      const compoundPRs = detectPRsInWorkout(workoutLog, historicalLogs)
+        .filter((p) => isCompoundName(p.displayName || p.name));
+      const best = compoundPRs.reduce((m, p) => Math.max(m, p.delta || 0), 0);
+      return { met: compoundPRs.length > 0, score: compoundPRs.length ? best : null };
+    }
+    default:
+      return { met: false, score: null };
+  }
+}
+
+// Fetch the signed-in user's server-authoritative consecutive-day workout
+// streak (written by advance_workout_streak). Used only for the streak
+// challenge so its value reflects the just-recorded day, not a stale prop.
+async function fetchWorkoutStreakDays() {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 0;
+  const { data } = await supabase
+    .from('user_profiles')
+    .select('workout_streak')
+    .eq('id', user.id)
+    .maybeSingle();
+  return data?.workout_streak ?? 0;
+}
+
+/**
+ * Called after every workout save. Advances the Gauntlet path by checking
+ * the user's CURRENT challenge against the just-saved workout (+ history),
+ * awarding it server-side when the criteria are met. Covers all 10
+ * challenges (First Blood → The Final Gauntlet).
+ *
+ * Never throws — a failed check must never break the workout save.
+ *
+ * @param ctx { workoutLog, workoutLogId, historicalLogs, workoutStreakDays, todayStr }
+ * @returns the RPC award object (+ sequence_number) or null.
+ */
+export async function checkGauntletProgress(ctx = {}) {
   try {
-    // Must be on challenge 1
     const progress = await getMyProgress();
+    if (progress?.path_completed) return null;
     const seq = progress?.current_challenge_sequence ?? 1;
-    if (seq !== 1) return null;
 
-    // Already completed?
+    // Already completed this rung? (Idempotent — the RPC also guards this.)
     const completions = await getMyCompletions();
-    if (completions.some(c => c.sequence_number === 1)) return null;
+    if (completions.some((c) => c.sequence_number === seq)) return null;
 
-    // Validate the workout
-    const exercises = workoutLog?.exercises ?? [];
-    if (exercises.length < 4) return null;
+    const challenges = await getGauntletChallenges();
+    const challenge = (challenges ?? []).find((c) => c.sequence_number === seq);
+    if (!challenge) return null;
 
-    // "Zero skipped sets" = every set must have reps > 0 AND
-    // either a real weight > 0 OR the exercise is cardio-style.
-    // The previous version only checked reps and accepted weight=0,
-    // letting a user clear the gauntlet with 4 air-squat sets (weight
-    // 0 × N reps). Cardio remains exempt to match the convention in
-    // src/pages/Workout.jsx — cardio sets are duration-based, not
-    // weight-based, so they're already "complete" without a weight.
-    const isCardioGroup = (g) =>
-      typeof g === 'string' && g.toLowerCase() === 'cardio';
-    const exerciseIsCardio = (ex) => {
-      const groups = ex?.muscle_groups?.length
-        ? ex.muscle_groups
-        : (ex?.muscle_group ? [ex.muscle_group] : []);
-      return groups.some(isCardioGroup);
-    };
-    const anySkipped = exercises.some((ex) => {
-      const allowZeroWeight = exerciseIsCardio(ex);
-      return (ex.sets ?? []).some((s) => {
-        if (!s.reps || s.reps <= 0) return true;
-        if (allowZeroWeight) return false;
-        return !s.weight || Number(s.weight) <= 0;
-      });
-    });
-    if (anySkipped) return null;
+    // The streak metric needs the post-save authoritative value; fetch it
+    // only for that challenge so the common path stays a no-extra-query.
+    let evalCtx = ctx;
+    if (challenge.metric === 'consecutive_days' && ctx.workoutStreakDays == null) {
+      evalCtx = { ...ctx, workoutStreakDays: await fetchWorkoutStreakDays() };
+    }
 
-    // All clear — award it
-    const totalVolume = exercises.reduce((acc, ex) =>
-      acc + (ex.sets ?? []).reduce((s, set) =>
-        s + (set.reps ?? 0) * (set.weight ?? 0), 0), 0);
+    const { met, score } = evaluateChallengeCriteria(challenge, evalCtx);
+    if (!met) return null;
 
-    return await completeGauntletChallenge(1, workoutLogId, totalVolume);
+    const award = await completeGauntletChallenge(seq, ctx.workoutLogId ?? null, score);
+    return { ...award, sequence_number: seq };
   } catch (err) {
-    // Surface the silent swallow via reportError so a network blip
-    // that costs the user their First Blood completion shows up in
-    // Sentry rather than vanishing. (Audit 17 #F15.) Lazy import to
-    // avoid a circular dep with the reportError pipeline.
+    // Surface the silent swallow via reportError so a network blip that
+    // costs the user a completion shows up in Sentry. Lazy import avoids a
+    // circular dep with the reportError pipeline.
     import('@/lib/reportError').then(({ reportError }) => {
-      reportError(err, { feature: 'gauntlet.check-challenge1', level: 'warning' });
+      reportError(err, { feature: 'gauntlet.check-progress', level: 'warning' });
     }).catch(() => {});
     return null;
   }

@@ -43,7 +43,7 @@ import { getMyCrews } from '@/lib/data/crews';
 import { getActiveWarForCrew, contributeWarXp } from '@/lib/data/crewWars';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
 import NemesisCard from '@/components/nemesis/NemesisCard';
-import { getMyProgress as getGauntletProgress, checkChallenge1 } from '@/lib/data/gauntlet';
+import { getMyProgress as getGauntletProgress, checkGauntletProgress } from '@/lib/data/gauntlet';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
 import { errorToast } from '@/lib/errorToast';
@@ -1113,21 +1113,23 @@ export default function Workout() {
         })
         .catch(() => {});
 
-      // Gauntlet Challenge 1 check — "First Blood" (4+ exercises, zero skipped sets)
-      // Non-blocking. Shows stats modal on success, never throws.
-      checkChallenge1(clampedData, null)
+      // Gauntlet path check — advances whichever challenge the user is on
+      // (First Blood → The Final Gauntlet), using the just-saved workout +
+      // history (realPrev is the pre-save cache = the right comparison
+      // window for streak/weekly/PR metrics). Non-blocking, never throws.
+      checkGauntletProgress({ workoutLog: clampedData, workoutLogId: null, historicalLogs: realPrev })
         .then((award) => {
           if (!award) return;
           queryClient.invalidateQueries({ queryKey: ['gauntlet-progress'] });
           queryClient.invalidateQueries({ queryKey: ['gauntlet-completions'] });
           queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-          // Show completion stats modal
+          // Show completion stats modal for the challenge that was cleared.
           import('@/lib/data/gauntlet').then(({ getGauntletStats }) =>
-            getGauntletStats(1)
+            getGauntletStats(award.sequence_number)
           ).then((stats) => {
             setGauntletStatsModal({
               type: 'path',
-              challengeTitle: award.challenge_title ?? 'First Blood',
+              challengeTitle: award.challenge_title ?? 'Challenge complete',
               xpAwarded: award.xp_awarded ?? 150,
               coinsAwarded: award.coins_awarded ?? 50,
               stats,
