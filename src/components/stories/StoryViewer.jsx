@@ -24,7 +24,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star, Download, Clock } from 'lucide-react';
+import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star, StarOff, Download, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
 import StoryReactionPicker from './StoryReactionPicker';
@@ -202,6 +202,10 @@ function DeletePrompt({ onConfirm, onCancel }) {
 export default function StoryViewer({
   open, groups, startIndex, viewedIds, likedIds, user,
   onClose, onStoriesChange, onAddStory,
+  // Album mode only: when provided, an owner viewing a highlight album
+  // gets a "remove from this album" control per story. Receives the
+  // story id, returns { ok } (or a promise of it).
+  onRemoveFromHighlight,
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -354,6 +358,18 @@ export default function StoryViewer({
     const { ok } = await storiesData.deleteStory(currentStory.id);
     if (!ok) { toast.error('Could not delete story.'); return; }
     onStoriesChange();
+    if (currentGroup.stories.length > 1) { setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0); setTick(t => t + 1); }
+    else onClose();
+  };
+
+  // Album mode: unpin the current story from this highlight (doesn't
+  // delete the underlying story). The parent trims its item list, so the
+  // group shrinks; step back / close mirroring the delete flow.
+  const handleRemoveFromHighlight = async () => {
+    if (!currentStory || !onRemoveFromHighlight) return;
+    const res = await onRemoveFromHighlight(currentStory.id);
+    if (res && res.ok === false) { toast.error('Could not remove from album.'); return; }
+    toast.success('Removed from album.');
     if (currentGroup.stories.length > 1) { setStoryIdx(storyIdx > 0 ? storyIdx - 1 : 0); setTick(t => t + 1); }
     else onClose();
   };
@@ -591,11 +607,20 @@ export default function StoryViewer({
 
                 {/* Add to highlight (mig 099). Tap → modal to pick
                     an existing album or create a new one. Pinned
-                    stories survive the 24-hour TTL. */}
-                <button onClick={(e) => { e.stopPropagation(); setHighlightPickerOpen(true); }}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add to highlight">
-                  <Star className="w-4 h-4" />
-                </button>
+                    stories survive the 24-hour TTL. In album-viewing
+                    mode this becomes "remove from THIS album" instead —
+                    the context-appropriate star action. */}
+                {onRemoveFromHighlight ? (
+                  <button onClick={(e) => { e.stopPropagation(); handleRemoveFromHighlight(); }}
+                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Remove from this album">
+                    <StarOff className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button onClick={(e) => { e.stopPropagation(); setHighlightPickerOpen(true); }}
+                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add to highlight">
+                    <Star className="w-4 h-4" />
+                  </button>
+                )}
 
                 {/* Download — save my own story to the device. iOS
                     Safari opens the URL in a new tab so the user can

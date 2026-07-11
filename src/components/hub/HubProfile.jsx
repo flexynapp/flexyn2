@@ -1815,6 +1815,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           onClose={() => { setActiveHighlight(null); setActiveHighlightItems([]); }}
           onStoriesChange={() => {}}
           onAddStory={() => {}}
+          onRemoveFromHighlight={isSelf ? async (storyId) => {
+            const { removeStoryFromHighlight } = await import('@/lib/data/storyHighlights');
+            const res = await removeStoryFromHighlight(activeHighlight.id, storyId);
+            if (res?.ok) {
+              // Trim locally so the open viewer reflects the removal; the
+              // parent guard unmounts the viewer when the last item goes.
+              setActiveHighlightItems((prev) => prev.filter((s) => s.id !== storyId));
+            }
+            return res;
+          } : undefined}
         />
       )}
 
