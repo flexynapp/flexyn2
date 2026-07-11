@@ -15,7 +15,7 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -26,6 +26,7 @@ import LogMealForm from '@/components/nutrition/LogMealForm';
 import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboardingModal';
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
+import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import PortionGuide from '@/components/nutrition/PortionGuide';
@@ -992,6 +993,7 @@ export default function Nutrition() {
 
   const [showBottleModal, setShowBottleModal] = useState(false);
   const [bottleInput, setBottleInput] = useState('');
+  const [showCalorieCycling, setShowCalorieCycling] = useState(false);
   const [bottleInputUnit, setBottleInputUnit] = useState('oz');
   const [bottleNickname, setBottleNickname] = useState('');
 
@@ -1363,6 +1365,21 @@ export default function Nutrition() {
       {/* Calorie counter — just below the shortcut row */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
+      {/* Calorie cycling — set training-vs-rest-day targets. A small,
+          low-emphasis affordance right under the target it controls. */}
+      <div className="flex justify-end -mt-1 mb-1">
+        <button
+          type="button"
+          onClick={() => setShowCalorieCycling(true)}
+          className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <Repeat className="w-3 h-3" />
+          {userProfile?.calorie_cycling
+            ? tFallback('nutrition.cycling.editCta', 'Calorie cycling: on')
+            : tFallback('nutrition.cycling.setCta', 'Set calorie cycling')}
+        </button>
+      </div>
+
       {/* ═══ Reorderable sections — drag in edit mode to reorder.
               Each Reorder.Item iteration matches widgetOrder; inside,
               a chain of `{id === 'X' && (...)}` conditionals filters
@@ -1716,6 +1733,13 @@ export default function Nutrition() {
           open={showMealHistory}
           onClose={() => setShowMealHistory(false)}
           userProfile={userProfile}
+        />
+      </ErrorBoundary>
+
+      <ErrorBoundary label="CalorieCyclingModal">
+        <CalorieCyclingModal
+          open={showCalorieCycling}
+          onClose={() => setShowCalorieCycling(false)}
         />
       </ErrorBoundary>
 

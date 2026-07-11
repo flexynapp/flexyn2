@@ -59,6 +59,41 @@ function clampWeeklyRate(rate, currentLbs) {
   return Math.min(rate, 1.5);
 }
 
+// Local calendar date as 'yyyy-MM-dd' — matches how last_workout_date is
+// stored (advance_workout_streak writes format(new Date(), 'yyyy-MM-dd')).
+function localTodayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Apply per-day-type calorie cycling on top of the computed base targets.
+// Config lives on user_profiles.calorie_cycling as
+//   { training: { calories, protein_g, carbs_g, fat_g }, rest: {…} }
+// A "training day" = the user logged a workout today. last_workout_date is
+// maintained by advance_workout_streak on every workout save, so we read it
+// straight off the profile — no extra query, no prop threading, so every
+// consumer of calculateDailyValues (CalorieTopBar, MacroNutrientBox,
+// MineralsVitaminsBox) reflects the cycled target automatically. Only the
+// macro/calorie keys the user actually set override; micros and unset
+// macros keep their computed value. Mirrors resolveToday() in
+// src/lib/data/calorieCycling.js (kept inline to keep this module
+// dependency-free — it's imported widely).
+const CYCLE_KEYS = ['calories', 'protein_g', 'carbs_g', 'fat_g'];
+function applyCalorieCycling(base, userProfile) {
+  const cycling = userProfile.calorie_cycling;
+  if (!cycling || (cycling.training == null && cycling.rest == null)) return base;
+  const hadWorkoutToday = !!userProfile.last_workout_date &&
+    userProfile.last_workout_date === localTodayStr();
+  const branch = hadWorkoutToday ? cycling.training : cycling.rest;
+  if (!branch) return base;
+  const out = { ...base };
+  for (const k of CYCLE_KEYS) {
+    const v = branch[k];
+    if (v != null && v !== '' && Number.isFinite(Number(v))) out[k] = Number(v);
+  }
+  return out;
+}
+
 // ---------- main export ----------
 export function calculateDailyValues(userProfile = {}) {
   const age = ageFromProfile(userProfile);
@@ -90,9 +125,10 @@ export function calculateDailyValues(userProfile = {}) {
     vitamin_b12_mcg: 2.4,
   };
 
-  // No goal set → return unchanged standard values (preserves prior behavior).
+  // No goal set → standard values (preserves prior behavior), but still
+  // honor an explicit calorie-cycling override if the user configured one.
   if (!userProfile.nutrition_goal) {
-    return standard;
+    return applyCalorieCycling(standard, userProfile);
   }
 
   // ---------- goal-driven calorie & macro calculation ----------
@@ -145,11 +181,11 @@ export function calculateDailyValues(userProfile = {}) {
   const carbsKcal = Math.max(calories - proteinKcal - fatKcalFinal, 0);
   const carbs_g = Math.round(carbsKcal / 4);
 
-  return {
+  return applyCalorieCycling({
     ...standard,
     calories,
     protein_g,
     carbs_g,
     fat_g,
-  };
+  }, userProfile);
 }
