@@ -213,6 +213,7 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
   const { weightUnit } = useWeightUnit();
   const canvasRef = useRef(null);
   const [imgUrl, setImgUrl] = useState(null);
+  const [drawFailed, setDrawFailed] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Compute week-range string for the header: "May 16 – May 22"
@@ -230,31 +231,33 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
     if (!open || !recap) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    drawCard(ctx, {
-      username: username || 'Athlete',
-      weekRangeStr,
-      recap,
-      weightUnit,
-      language,
-    });
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const nextUrl = URL.createObjectURL(blob);
-      // Revoke the previous URL BEFORE swapping. Without this, rapid
-      // re-renders (deps churn while open) would accumulate orphaned
-      // blob URLs in memory until the cleanup effect runs.
-      setImgUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return nextUrl;
+    // Draw synchronously and read the preview back with toDataURL rather
+    // than the async toBlob(). toBlob's callback can never fire (it hands
+    // back a null blob in some WebViews / when the tab is backgrounded),
+    // which left imgUrl null forever and the modal spinning indefinitely.
+    // toDataURL is synchronous and universally supported, so the preview
+    // is guaranteed to resolve the moment we've drawn. (Download / Share
+    // still use toBlob below — those are user-gestured and fall back to a
+    // download, so a null there degrades gracefully instead of hanging.)
+    try {
+      const ctx = canvas.getContext('2d');
+      drawCard(ctx, {
+        username: username || 'Athlete',
+        weekRangeStr,
+        recap,
+        weightUnit,
+        language,
       });
-    }, 'image/png');
+      setImgUrl(canvas.toDataURL('image/png'));
+      setDrawFailed(false);
+    } catch (err) {
+      setDrawFailed(true);
+      setImgUrl(null);
+      import('@/lib/reportError')
+        .then(({ reportError }) => reportError(err, { feature: 'recap.share.draw' }))
+        .catch(() => {});
+    }
   }, [open, recap, username, weekRangeStr, weightUnit, language]);
-
-  // Release the active object URL when the modal unmounts.
-  useEffect(() => {
-    return () => { if (imgUrl) URL.revokeObjectURL(imgUrl); };
-  }, [imgUrl]);
 
   const blobFromCanvas = () => new Promise((resolve) => {
     canvasRef.current?.toBlob((b) => resolve(b), 'image/png');
@@ -345,6 +348,12 @@ export default function WeeklyRecapShareCard({ open, onClose, recap, username })
                     open. */}
                 <img loading="lazy" src={imgUrl} alt="Weekly recap" className="w-full block aspect-square object-cover" />
               </motion.div>
+            ) : drawFailed ? (
+              <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4 px-6 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {tFallback('recap.share.failed', "Couldn't render your recap image. Try reopening this.")}
+                </p>
+              </div>
             ) : (
               <div className="aspect-square rounded-2xl bg-muted flex items-center justify-center mb-4">
                 <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

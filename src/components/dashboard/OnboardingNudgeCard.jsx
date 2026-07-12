@@ -27,15 +27,13 @@
 import React, { useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import {
-  Dumbbell, Bell, UserPlus, ClipboardList, Share2, Gift, X, ArrowRight,
+  Dumbbell, Bell, ClipboardList, Share2, Gift, X, ArrowRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { usePushSubscription } from '@/lib/usePushSubscription';
-import { supabase } from '@/api/supabaseClient';
 import { todayLocalDateString } from '@/lib/dateUtils';
 
 const STATE_KEY = (userId) => `flexyn.onboardingState.${userId || 'anon'}`;
@@ -68,23 +66,6 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
   const navigate = useNavigate();
   const push = usePushSubscription();
   const [hidden, setHidden] = useState(false);
-
-  // Quick count of users this person follows. Drives the "follow a
-  // friend" nudge's skip condition. Lightweight — the hub_follows
-  // table indexes follower_email so the count is cheap.
-  const { data: followsCount = 0 } = useQuery({
-    queryKey: ['onboardingFollowsCount', user?.email],
-    queryFn: async () => {
-      if (!user?.email) return 0;
-      const { count } = await supabase
-        .from('hub_follows')
-        .select('id', { count: 'exact', head: true })
-        .eq('follower_email', user.email);
-      return count ?? 0;
-    },
-    enabled: !!user?.email,
-    staleTime: 5 * 60_000, // 5 min — follows don't change fast
-  });
 
   // Build the nudge config. Each entry has:
   //   • key                — localStorage marker
@@ -122,16 +103,10 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
         }
       },
     },
-    {
-      key: 'follow_friend',
-      shouldShow: () => followsCount === 0,
-      title: tFallback('onboarding.follow_friend.title', 'Follow your first friend'),
-      body:  tFallback('onboarding.follow_friend.body',  'Their workouts show up in your feed. Yours show up in theirs.'),
-      cta:   tFallback('onboarding.follow_friend.cta',   'Find people'),
-      icon:  UserPlus,
-      accent: 'sky',
-      onAct: () => navigate('/hub'),
-    },
+    // The "follow your first friend" nudge was moved off the dashboard to
+    // the Hub page (above the friends leaderboard) — see
+    // components/hub/FollowFriendNudge.jsx — since that's where the
+    // follow action actually happens.
     {
       key: 'try_regimen',
       shouldShow: () => true,
@@ -180,7 +155,7 @@ export default function OnboardingNudgeCard({ hasWorkouts = false, userEmail }) 
     // doesn't rebuild on every parent re-render. `push` is returned
     // by usePushSubscription as a fresh object identity each render
     // even when none of its fields have changed.
-  ], [hasWorkouts, push.isSupported, push.isSubscribed, push.permission, push.subscribe, followsCount, navigate, tFallback]);
+  ], [hasWorkouts, push.isSupported, push.isSubscribed, push.permission, push.subscribe, navigate, tFallback]);
 
   // Pick the first nudge that's both uncompleted AND applicable. If
   // any are already shown today, suppress so we never double-prompt.

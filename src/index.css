@@ -104,9 +104,18 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Kill scroll chaining / rubber-band overscroll on every surface so the
+     page can't be dragged up or down past its content (iOS bounce, trackpad
+     over-scroll). Set on html AND body — body alone doesn't stop the
+     document-level bounce in Safari/standalone PWA. overflow-x hidden
+     prevents sideways overscroll too. */
+  html {
+    overscroll-behavior: none;
+  }
   body {
     @apply bg-background text-foreground;
     overscroll-behavior: none;
+    overflow-x: hidden;
   }
 }
 

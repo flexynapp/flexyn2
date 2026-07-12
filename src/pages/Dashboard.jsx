@@ -199,7 +199,15 @@ function HeroCard({
             dots. It sits on the dark hero surface (variant="hero" → light
             text / translucent pill) and its calendar expands inline, so the
             whole card grows with it rather than pushing sibling cards. */}
-        <div className="px-4 md:px-6 pb-4 md:pb-5 -mt-6 md:-mt-8">
+        {/* z-20 + stopping pointerdown here keeps the hero card's drag='x'
+            swipe gesture from swallowing taps on the streak chevron — the
+            banner lives inside the draggable card, so without this the
+            slideshow's drag handler ate the tap and the calendar never
+            expanded. */}
+        <div
+          className="relative z-20 px-4 md:px-6 pb-4 md:pb-5 -mt-6 md:-mt-8"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
           <ErrorBoundary label="LoginStreakBanner">
             <LoginStreakBanner variant="hero" />
           </ErrorBoundary>
@@ -1113,7 +1121,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-3">
               <Activity className="w-4 h-4 text-sky-500" />
               <h3 className="font-heading font-bold text-sm tracking-tight">
-                {tFallback('dashboard.section.recovery', 'Recovery')}
+                {tFallback('dashboard.section.recovery', 'Nutrition & Recovery')}
               </h3>
             </div>
 
@@ -1121,10 +1129,12 @@ export default function Dashboard() {
               <div className="space-y-2">
                 <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
                 <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
-                <div className="grid grid-cols-2 gap-2">
-                  <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
-                  <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-                </div>
+                {/* Full-width, stacked — a 2-col grid cramped the mood row
+                    (5×44px targets can't fit half the card, so the last
+                    emoji clipped) and clipped the hydration dots. Stacked,
+                    each card has the room its content needs. */}
+                <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+                <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
                 <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
                 <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
               </div>
