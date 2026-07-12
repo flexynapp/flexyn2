@@ -2049,7 +2049,6 @@ export default function Workout() {
           title={cardioPageTitle || t('nav.workout')}
           hidePeriod
           subtitle={cardioPageTitle ? null : t('workout.subtitle')}
-          className="hidden md:flex"
         />
 
         <motion.div variants={itemVariants} initial="hidden" animate="visible" transition={{ delay: 0.2 }}>
