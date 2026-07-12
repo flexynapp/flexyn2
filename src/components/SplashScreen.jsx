@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 /**
  * Flexyn App Opener — full-screen launch animation.
@@ -12,14 +12,17 @@ import { useEffect, useMemo, useRef, useState } from "react";
  * design's phone frame + Replay/Mode controls are design-canvas chrome and
  * are intentionally dropped — this renders the opener content full-screen.
  *
- * Contract (unchanged, so <LaunchSplash> needs no structural change):
- *  - onComplete: () => void   called once, after the fade-out finishes.
+ * Contract:
+ *  - onComplete: () => void   called once, after the mark is drawn + held
+ *                             (the parent then crossfades the opener away).
  *  - background:  string      full-bleed backdrop colour.
  *  - drawMs:      number      length of the draw+settle sequence.
  *
- * Plays ONCE, then fades out and calls onComplete. Honors
- * prefers-reduced-motion (skips straight to the lit mark + wordmark) and
- * guarantees a minimum on-screen time so it never "flashes".
+ * Plays ONCE (draw → settle → brief hold), then calls onComplete and stays
+ * fully visible — LaunchSplash owns the fade-out/crossfade onto the app so
+ * the opener dissolves straight into the dashboard in one smooth motion.
+ * Honors prefers-reduced-motion (skips straight to the lit mark + wordmark)
+ * and guarantees a minimum on-screen time so it never "flashes".
  */
 
 // Fire gradient stops (design default accent).
@@ -120,7 +123,6 @@ export default function SplashScreen({
   background = "#3F4D5A",
   drawMs = 1700,
 }) {
-  const [phase, setPhase] = useState("play"); // "play" -> "fade" -> done
   const doneRef = useRef(false);
 
   const prefersReduced =
@@ -130,20 +132,17 @@ export default function SplashScreen({
 
   useEffect(() => {
     const holdAfterAnim = 250; // linger a beat on the lit mark
-    const fadeMs = 350;
     const activeMs = prefersReduced ? 500 : drawMs + holdAfterAnim;
 
-    const toFade = setTimeout(() => setPhase("fade"), activeMs);
+    // Signal done after the draw + hold; the opener then stays fully visible
+    // while LaunchSplash crossfades it (and its backdrop) away onto the app.
     const toDone = setTimeout(() => {
       if (doneRef.current) return;
       doneRef.current = true;
       onComplete && onComplete();
-    }, activeMs + fadeMs);
+    }, activeMs);
 
-    return () => {
-      clearTimeout(toFade);
-      clearTimeout(toDone);
-    };
+    return () => clearTimeout(toDone);
   }, [drawMs, prefersReduced, onComplete]);
 
   const markup = useMemo(() => ({ __html: INNER }), []);
@@ -159,10 +158,8 @@ export default function SplashScreen({
         zIndex: 9999,
         background,
         overflow: "hidden",
-        opacity: phase === "fade" ? 0 : 1,
-        transition: "opacity 350ms ease",
-        pointerEvents: phase === "fade" ? "none" : "auto",
-        // Drives every child animation's duration.
+        // Drives every child animation's duration. The opener no longer
+        // self-fades — LaunchSplash crossfades the whole overlay away.
         "--flx-dur": `${drawMs}ms`,
       }}
     >
