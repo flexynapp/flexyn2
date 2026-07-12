@@ -118,7 +118,7 @@ const INNER = `
 export default function SplashScreen({
   onComplete,
   background = "#3F4D5A",
-  drawMs = 1200,
+  drawMs = 1700,
 }) {
   const [phase, setPhase] = useState("play"); // "play" -> "fade" -> done
   const doneRef = useRef(false);

@@ -46,7 +46,7 @@ export default function LaunchSplash() {
           animation (SplashScreen fades itself at drawMs), this keeps a solid
           #12161B fill instead of flashing the app/spinner until auth is known. */}
       <div aria-hidden style={{ position: 'fixed', inset: 0, zIndex: 9998, background: BG }} />
-      <SplashScreen onComplete={() => setAnimDone(true)} background={BG} drawMs={1200} />
+      <SplashScreen onComplete={() => setAnimDone(true)} background={BG} drawMs={1700} />
     </>
   );
 }
