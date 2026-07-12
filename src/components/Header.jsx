@@ -100,7 +100,7 @@ export default function Header() {
             aria-label="Go to dashboard"
             className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
-            <FlexynLogo className="h-7" />
+            <FlexynLogo className="h-9" />
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't
