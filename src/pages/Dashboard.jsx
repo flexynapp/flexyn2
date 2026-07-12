@@ -37,7 +37,6 @@ import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
 import OnboardingNudgeCard from '@/components/dashboard/OnboardingNudgeCard';
-import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -1448,8 +1447,11 @@ export default function Dashboard() {
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
       <div className="mt-1 mb-2 space-y-1">
+        {/* One streak badge only — the daily (login) streak. The separate
+            workout-streak banner rendered a second "N-day streak" chip
+            right below this one, which read as a duplicate; workout cadence
+            is already surfaced by the hero "This week" slide + Progress. */}
         <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-        <ErrorBoundary label="WorkoutStreakBanner"><WorkoutStreakBanner /></ErrorBoundary>
       </div>
 
       {/* ── Hero ───────────────────────────────────────────────── */}

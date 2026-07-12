@@ -13,6 +13,14 @@ import { useId } from 'react';
 import raw from '@/assets/flexyn-lockup.svg?raw';
 
 const base = raw
+  // Tighten the viewBox to the actual mark bounds. The exported lockup's
+  // viewBox is "0 0 489 141", but the flame + wordmark only occupy
+  // x:36→333 / y:25→112 — leaving ~156px of dead space on the right (and
+  // uneven top/bottom padding). With width:auto that padding rendered as a
+  // gap: the mark hugged the left on mobile and sat left-of-centre in the
+  // centered desktop sidebar. Reframe to the content (with ~4px breathing
+  // room) so the lockup fills its box and centers correctly everywhere.
+  .replace(/viewBox="0 0 489 141"/, 'viewBox="32 21 305 95"')
   // Let the container's height drive size; keep aspect ratio.
   .replace(/\swidth="\d+"\s+height="\d+"/, ' style="height:100%;width:auto;display:block"')
   // Theme-aware wordmark.
