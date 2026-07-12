@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LOGO_URL } from '@/lib/constants';
+import FlexynLogo from './FlexynLogo';
 import { ChevronLeft, MessageCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useState, useEffect, useRef } from 'react';
@@ -98,9 +98,9 @@ export default function Header() {
           <button
             onClick={handleLogoTap}
             aria-label="Go to dashboard"
-            className="w-11 h-11 -ms-1 flex items-center justify-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
+            className="h-11 px-1 -ms-1 flex items-center rounded-xl shrink-0 hover:opacity-80 transition-opacity touch-manipulation"
           >
-            <img src={LOGO_URL} alt="Flexyn" className="w-9 h-9 object-contain" />
+            <FlexynLogo className="h-11" />
           </button>
         )}
         {/* Title — `min-w-0` is critical: without it, `flex-1` won't
@@ -113,9 +113,13 @@ export default function Header() {
             icons stay fully visible. */}
         <button
           onClick={handleLogoTap}
+          aria-label={isChildRoute ? undefined : 'Go to dashboard'}
           className="font-heading font-bold text-lg tracking-tight flex-1 min-w-0 truncate text-start hover:opacity-80 transition-opacity px-2 touch-manipulation"
         >
-          {isChildRoute ? title : t('app.name')}
+          {/* On the home route the lockup already shows the wordmark, so
+              this collapses to a spacer; on child routes it holds the page
+              title. */}
+          {isChildRoute ? title : ''}
         </button>
         {/* Network status — only renders when offline OR briefly after
             reconnect, so usually invisible. When something feels broken,

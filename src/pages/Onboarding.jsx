@@ -19,6 +19,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
 import { reportError } from '@/lib/reportError';
+import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { todayLocalDateString } from '@/lib/dateUtils';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -3070,16 +3071,13 @@ export default function Onboarding() {
       // warning (not error) because we have a documented fallback path;
       // the real error level is set on minErr below if BOTH fail.
       reportError(err, { feature: 'onboarding.full-save', level: 'warning', userEmail: user?.email, note: 'attempting minimal-save fallback' });
-      // Detect duplicate-username error and route the user back to a step
-      // where they can fix it — the old code just toasted a misleading
-      // "check your connection" message and stranded them on the reveal
-      // screen. Postgres 23505 = unique_violation, message also mentions
-      // "username" when the username unique constraint is the culprit.
-      const isDupUsername =
-        err?.code === '23505' ||
-        /duplicate key|unique constraint|already exists/i.test(err?.message || '') ||
-        /username/i.test(err?.message || '');
-      if (isDupUsername) {
+      // Detect a duplicate-username error and route the user back to a step
+      // where they can fix it. Keyed off the constraint NAME (via the shared
+      // classifier) so it fires ONLY for the username unique constraint —
+      // an email collision (also a 23505) or any other save failure falls
+      // through to the generic handler instead of being mislabelled
+      // "username taken" and bouncing the user to a step they can't fix.
+      if (isDuplicateUsernameError(err)) {
         setUsernameError('That username is already taken. Try another.');
         setSaving(false);
         // Jump back to the age step (last step before reveal where the
@@ -3093,10 +3091,7 @@ export default function Onboarding() {
       // 23514 with a 'username_profanity' tag in err.message. Route the
       // user back to the username step with a clear inline error so
       // they can fix it without guessing.
-      const isProfaneUsername =
-        err?.code === '23514' &&
-        /username_profanity|prohibited content/i.test((err?.message || '') + ' ' + (err?.hint || ''));
-      if (isProfaneUsername) {
+      if (isProfaneUsernameError(err)) {
         setUsernameError('That username contains prohibited content. Pick another.');
         setSaving(false);
         const ageIdx = STEPS.indexOf('age');
@@ -3143,18 +3138,12 @@ export default function Onboarding() {
           // outage. Report at error level + surface the actual PG code
           // in the toast so the user can report something specific.
           reportError(coreErr, { feature: 'onboarding.core-save', userEmail: user?.email, note: 'all 3 tiers failed', tier2Err: tier2Err?.message });
-          const isDupUsernameCore =
-            coreErr?.code === '23505' ||
-            /duplicate key|unique constraint|already exists/i.test(coreErr?.message || '');
-          const isProfaneUsernameCore =
-            coreErr?.code === '23514' &&
-            /username_profanity|prohibited content/i.test((coreErr?.message || '') + ' ' + (coreErr?.hint || ''));
-          if (isDupUsernameCore) {
+          if (isDuplicateUsernameError(coreErr)) {
             setUsernameError('That username is already taken. Try another.');
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);
             toast.error('That username is already taken — try another.');
-          } else if (isProfaneUsernameCore) {
+          } else if (isProfaneUsernameError(coreErr)) {
             setUsernameError('That username contains prohibited content. Pick another.');
             const ageIdx = STEPS.indexOf('age');
             if (ageIdx >= 0) goTo(ageIdx);

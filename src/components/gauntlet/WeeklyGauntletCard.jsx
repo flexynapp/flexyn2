@@ -1,7 +1,7 @@
 // src/components/gauntlet/WeeklyGauntletCard.jsx
 // Featured community gauntlet card shown at the top of the Gauntlet screen.
 import { motion } from 'framer-motion';
-import { Users, Zap, Clock, CheckCircle, Trophy } from 'lucide-react';
+import { Users, Zap, Clock, CheckCircle, Trophy, Loader2 } from 'lucide-react';
 
 function timeUntil(dateStr) {
   const diff = new Date(dateStr) - Date.now();
@@ -22,11 +22,18 @@ function formatVolume(v) {
 
 /**
  * Props:
- *  gauntlet  — weekly_gauntlets row
- *  attempt   — weekly_gauntlet_attempts row | null
- *  onStart() — called when user taps "Enter Gauntlet"
+ *  gauntlet       — weekly_gauntlets row
+ *  attempt        — weekly_gauntlet_attempts row | null
+ *  onStart()      — enter the gauntlet (creates the in-progress attempt)
+ *  onLogWorkout() — go log a workout (shown once entered, below threshold)
+ *  onSubmit()     — submit the qualifying session as the attempt score
+ *  submitting     — submit in flight
+ *  canSubmit      — best session already clears the threshold
+ *  bestScore      — best in-week single-session score, or null
  */
-export default function WeeklyGauntletCard({ gauntlet, attempt, onStart }) {
+export default function WeeklyGauntletCard({
+  gauntlet, attempt, onStart, onLogWorkout, onSubmit, submitting, canSubmit, bestScore,
+}) {
   if (!gauntlet) return null;
 
   const passed   = attempt?.status === 'completed';
@@ -125,17 +132,42 @@ export default function WeeklyGauntletCard({ gauntlet, attempt, onStart }) {
 
       {/* CTA */}
       {!passed && !failed && (
-        <div className="px-4 pb-4 pt-1">
-          <motion.button
-            type="button"
-            whileTap={{ scale: 0.97 }}
-            onClick={onStart}
-            className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}
-          >
-            <Zap className="w-4 h-4" />
-            {started ? 'Continue Gauntlet' : 'Enter Gauntlet'}
-          </motion.button>
+        <div className="px-4 pb-4 pt-1 space-y-2">
+          {/* Progress toward the goal, once entered (total_volume scoring). */}
+          {started && bestScore != null && (
+            <p className="text-center text-xs text-muted-foreground">
+              Best session this week:{' '}
+              <span className="font-bold text-foreground tabular-nums">{formatVolume(bestScore)}</span>
+              {' / '}
+              <span className="tabular-nums">{formatVolume(gauntlet.passing_threshold)}</span> {goalUnit}
+            </p>
+          )}
+
+          {started && canSubmit ? (
+            // Best session already clears the bar — submitting always wins.
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={onSubmit}
+              disabled={submitting}
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2 disabled:opacity-60"
+              style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
+            >
+              {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              {submitting ? 'Submitting…' : 'Submit & clear the gauntlet'}
+            </motion.button>
+          ) : (
+            <motion.button
+              type="button"
+              whileTap={{ scale: 0.97 }}
+              onClick={started ? (onLogWorkout || onStart) : onStart}
+              className="w-full py-2.5 rounded-xl text-sm font-bold text-white flex items-center justify-center gap-2"
+              style={{ background: 'linear-gradient(135deg, #7c3aed, #db2777)' }}
+            >
+              <Zap className="w-4 h-4" />
+              {started ? 'Log a qualifying session' : 'Enter Gauntlet'}
+            </motion.button>
+          )}
         </div>
       )}
 

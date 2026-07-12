@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LOGO_URL } from '@/lib/constants';
+import FlexynLogo from './FlexynLogo';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
@@ -38,13 +38,12 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
     <motion.div
       whileTap={{ scale: 0.88 }}
       transition={{ type: 'spring', stiffness: 500, damping: 22 }}
-      // Wave 71→74: the Hub tab gets a modest elevation — center "FAB"
-      // of the bottom nav. -mt-3 (12 px) clipped the ring above the nav
-      // border once Wave 73 tightened the nav padding to pt-1; -mt-2 +
-      // a w-9 ring (vs w-10) keeps Hub aligned with the other icons
-      // without the ring breaking through the top border line. Color +
-      // ring are still the dominant visual cue.
-      className={isHubItem ? '-mt-2' : ''}
+      // Hub is the center "FAB" of the nav. It's distinguished by its
+      // filled colored ring; it must NOT carry a negative top margin —
+      // that pushed its taller (36 px) icon slot down relative to the
+      // 20 px icons, dropping the "Hub" label ~8 px below the others and
+      // breaking the label row. Every tab now uses an equal-height icon
+      // slot (below), so all labels align on one baseline.
     >
       {showLongPressHint && hasQuickActions && (
         <OneShotTooltip id={TOOLTIP.LONG_PRESS_TABS} anchorRef={ref} placement="top">
@@ -93,7 +92,9 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
                           ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/40'
                           : 'border-2 border-primary text-primary bg-primary/5')
                 }`
-              : '',
+              // Non-Hub tabs: an equal-height (h-9) centered icon slot so
+              // every tab's label sits on the same baseline as Hub's.
+              : 'flex items-center justify-center w-9 h-9',
           ].join(' ')}
         >
           <item.icon className={`${isHubItem ? 'w-5 h-5' : 'w-5 h-5'} ${isActive ? 'stroke-[2.5]' : ''}`} />
@@ -276,11 +277,8 @@ export default function Layout() {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
-          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
+          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Flexyn — go to dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity">
+            <FlexynLogo className="h-14" />
           </Link>
           {/* Row 1: Profile menu (full width) */}
           <div className="w-full mt-1">

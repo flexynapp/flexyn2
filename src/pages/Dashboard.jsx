@@ -31,6 +31,7 @@ import HydrationRing from '@/components/dashboard/HydrationRing';
 import MoodLogCard from '@/components/dashboard/MoodLogCard';
 import JournalWidget from '@/components/dashboard/JournalWidget';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
+import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
@@ -65,7 +66,7 @@ import { getDateLocale } from '@/lib/dateLocales';
 function HeroCard({
   streak, hasWorkedOutToday, daysSinceLast,
   logs, cardioLogs, goals, userProfile, user,
-  onPrimary, navigate,
+  onPrimary, onReadinessInfo, navigate,
   t, tFallback,
 }) {
   // Pick the right CTA copy based on the user's recent activity.
@@ -201,13 +202,13 @@ function HeroCard({
           the arrow chip all key off --primary / --primary-foreground
           (set per-theme in ThemeContext), so the button recolors
           automatically when the user changes their theme. */}
-      <div className="relative mt-3 mx-4 md:mx-6 flex items-center gap-2">
+      <div className="relative mt-3 mx-4 md:mx-6 flex items-stretch gap-2">
         <motion.button
           whileHover={{ y: -2 }}
           whileTap={{ scale: 0.98 }}
           transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           onClick={onPrimary}
-          className="group relative flex-1 overflow-hidden rounded-2xl p-2.5 md:p-3 border-2 border-white flex items-center justify-between gap-3 text-start select-none-ui"
+          className="group relative flex-[2] overflow-hidden rounded-2xl p-2.5 md:p-3 border-2 border-white flex items-center justify-between gap-3 text-start select-none-ui"
           // Theme-following CTA — keys off the user's selected theme via
           // --primary / --primary-foreground (ThemeContext sets these per
           // theme). A subtle white→dark sheen over the solid primary adds
@@ -278,6 +279,16 @@ function HeroCard({
             <ArrowRight className="w-5 h-5 md:w-6 md:h-6 transition-transform group-hover:translate-x-0.5 rtl:scale-x-[-1]" strokeWidth={2.5} />
           </motion.div>
         </motion.button>
+        {/* Readiness — 1/3 of the row beside the primary CTA (2/3). Pulled
+            up here from a standalone dashboard section so it reads as part
+            of the "today" moment; renderDashboardSection('readiness') now
+            returns null so it isn't rendered twice. items-stretch keeps it
+            the same height as the CTA. */}
+        <div className="flex-1 min-w-[92px]">
+          <ErrorBoundary label="ReadinessCard">
+            <ReadinessCard logs={logs} compact onClick={onReadinessInfo} />
+          </ErrorBoundary>
+        </div>
       </div>
     </motion.div>
   );
@@ -681,7 +692,10 @@ export default function Dashboard() {
   // visible halves would split the pair across rows.
   const dashboardRows = useMemo(() => {
     const result = [];
-    const visibleOrder = widgetOrder.filter(id => !hiddenSections.has(id));
+    // 'readiness' is excluded entirely — it now renders inside the hero
+    // (beside the CTA), so it must not occupy a section row (which would
+    // leave an empty gap for any saved widgetOrder that still lists it).
+    const visibleOrder = widgetOrder.filter(id => !hiddenSections.has(id) && id !== 'readiness');
     let i = 0;
     while (i < visibleOrder.length) {
       const id = visibleOrder[i];
@@ -1073,49 +1087,11 @@ export default function Dashboard() {
   /* ── Section renderer for drag-to-reorder ──────────────────────── */
   const renderDashboardSection = (id, paired = false) => {
     switch (id) {
-      case 'readiness': {
-        // In half/hotdog mode the readiness card collapses to a small
-        // labeled square that sits next to its half-width partner. We drop
-        // the section header so the row can be as compact as possible (the
-        // card has its own internal "Readiness" label).
-        const isHalf = (sectionLayouts.readiness || 'full') === 'half';
-        if (isHalf && paired) {
-          return (
-            <React.Fragment key="readiness">
-              <ErrorBoundary label="ReadinessCard">
-                <ReadinessCard logs={logs} compact onClick={() => setReadinessInfoOpen(true)} />
-              </ErrorBoundary>
-            </React.Fragment>
-          );
-        }
-        if (isHalf && !paired) {
-          // Lone half — no adjacent half to pair with. Render the full,
-          // self-explanatory card (score + tier + recommendation), full
-          // width, so it never renders as a small orphan on the left.
-          return (
-            <React.Fragment key="readiness">
-              <ErrorBoundary label="ReadinessCard">
-                <ReadinessCard logs={logs} onClick={() => setReadinessInfoOpen(true)} />
-              </ErrorBoundary>
-            </React.Fragment>
-          );
-        }
-        return (
-          <React.Fragment key="readiness">
-            <SectionHeader
-              label={tFallback('dashboard.section.readiness', 'Readiness')}
-              open={readinessOpen}
-              onToggle={toggleReadiness}
-              tFallback={tFallback}
-            />
-            <Collapsible open={readinessOpen}>
-              <div className="mb-3">
-                <ErrorBoundary label="ReadinessCard"><ReadinessCard logs={logs} onClick={() => setReadinessInfoOpen(true)} /></ErrorBoundary>
-              </div>
-            </Collapsible>
-          </React.Fragment>
-        );
-      }
+      case 'readiness':
+        // Readiness now lives in the hero (a 2/3 CTA + 1/3 Readiness row —
+        // see HeroCard). Return null here so a saved widgetOrder that still
+        // lists 'readiness' can't render it a second time as a section.
+        return null;
       case 'recovery': return (
         <React.Fragment key="recovery">
           {/* Recovery card — mirrors Daily Quests exactly: outer Card
@@ -1140,6 +1116,7 @@ export default function Dashboard() {
                   <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
                   <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
                 </div>
+                <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
                 <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
               </div>
             )}
@@ -1487,6 +1464,7 @@ export default function Dashboard() {
           userProfile={userProfile}
           user={user}
           onPrimary={() => navigate('/workout')}
+          onReadinessInfo={() => setReadinessInfoOpen(true)}
           navigate={navigate}
           t={t}
           tFallback={tFallback}

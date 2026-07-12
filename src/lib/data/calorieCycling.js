@@ -8,6 +8,7 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
+import { db } from '@/api/db';
 
 
 const EMPTY = { training: null, rest: null };
@@ -27,14 +28,24 @@ export async function getMine(userId) {
   return data.calorie_cycling;
 }
 
-/** Persist the cycling config. */
+/**
+ * Persist the cycling config. Writes only the calorie_cycling column (a
+ * narrow, low-failure write) then patches the db.js `_profile` cache so
+ * me() + the react-query ['userProfile'] result reflect the new targets
+ * without a full reload — a raw update alone left the module cache stale,
+ * so a saved config only took effect after reloading the page.
+ */
 export async function saveMine(userId, cycling) {
   if (!userId) throw new Error('userId required');
+  const value = cycling || null;
   const { error } = await supabase
     .from('user_profiles')
-    .update({ calorie_cycling: cycling || null })
+    .update({ calorie_cycling: value })
     .eq('id', userId);
   if (error) throw error;
+  // Best-effort cache sync — the write already succeeded, so a cache miss
+  // here only costs the pre-fix behavior (update visible after reload).
+  try { db.auth.patchCache({ calorie_cycling: value }); } catch { /* non-critical */ }
 }
 
 /**

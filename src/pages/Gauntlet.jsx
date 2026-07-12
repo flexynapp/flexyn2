@@ -2,7 +2,7 @@
 // The Gauntlet screen: community weekly challenge at top, personal 10-challenge
 // winding path below. Tap any node to see its detail card. Completion triggers
 // the stats modal with share.
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, Swords, ChevronLeft, X, Zap, Lock, Dumbbell } from 'lucide-react';
@@ -12,6 +12,9 @@ import { useDateFormatter } from '@/lib/intl';
 import { reportError } from '@/lib/reportError';
 import { toast } from 'sonner';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
+import { totalVolume } from '@/lib/workoutVolume';
 import {
   getGauntletChallenges,
   getMyProgress,
@@ -19,6 +22,7 @@ import {
   getActiveCommunityGauntlet,
   getCommunityGauntletAttempt,
   startCommunityGauntletAttempt,
+  completeCommunityGauntletAttempt,
 } from '@/lib/data/gauntlet';
 import GauntletPath from '@/components/gauntlet/GauntletPath';
 import WeeklyGauntletCard from '@/components/gauntlet/WeeklyGauntletCard';
@@ -187,6 +191,7 @@ function ChallengeDetail({ challenge, status, completedAt, onClose, onStartWorko
 export default function Gauntlet() {
   const navigate = useNavigate();
   const qc       = useQueryClient();
+  const { user } = useAuth();
   const [selectedChallenge, setSelectedChallenge] = useState(null);
   const [statsModal, setStatsModal]               = useState(null);
   // { seq: number, available: boolean } — set when user taps a chest
@@ -249,6 +254,59 @@ export default function Gauntlet() {
     },
   });
 
+  // ── Submit a weekly gauntlet score ────────────────────────────────────────
+  // Only the seeded `total_volume` scoring is wired: the score is the user's
+  // best SINGLE-SESSION volume among workouts logged inside the gauntlet week
+  // (week_start..week_end, both bare YYYY-MM-DD so string compare is safe).
+  // completeCommunityGauntletAttempt marks the attempt 'failed' below the
+  // threshold, so we only expose Submit once the best session already clears
+  // it — a sub-threshold submit would permanently fail the user for the week.
+  const scoringSupported = weeklyGauntlet?.scoring_method === 'total_volume';
+  const attemptOpen      = !!weeklyAttempt && weeklyAttempt.status === 'in_progress';
+
+  const { data: weekLogs = [] } = useQuery({
+    queryKey: ['gauntlet-weekly-logs', user?.email, weeklyGauntlet?.id],
+    queryFn:  () => db.entities.WorkoutLog.filter({ created_by: user.email }, '-date', 50),
+    enabled:  !!user?.email && !!weeklyGauntlet?.id && scoringSupported && attemptOpen,
+    staleTime: 60_000,
+  });
+
+  const bestWeekSession = useMemo(() => {
+    if (!weeklyGauntlet || !scoringSupported) return null;
+    const start = weeklyGauntlet.week_start || '';
+    const end   = weeklyGauntlet.week_end   || '';
+    let best = null;
+    for (const log of weekLogs) {
+      const d = String(log?.date || '').slice(0, 10);
+      if ((start && d < start) || (end && d > end)) continue;
+      const vol = totalVolume(log?.exercises || []);
+      if (!best || vol > best.volume) best = { volume: vol, id: log?.id ?? null };
+    }
+    return best;
+  }, [weekLogs, weeklyGauntlet, scoringSupported]);
+
+  const canSubmitWeekly =
+    attemptOpen && scoringSupported && bestWeekSession != null &&
+    bestWeekSession.volume >= (weeklyGauntlet?.passing_threshold ?? Infinity);
+
+  const submitWeeklyMut = useMutation({
+    mutationFn: () =>
+      completeCommunityGauntletAttempt(weeklyGauntlet.id, bestWeekSession?.volume ?? 0, bestWeekSession?.id ?? null),
+    onSuccess: (attempt) => {
+      qc.invalidateQueries({ queryKey: ['weekly-gauntlet-attempt', weeklyGauntlet?.id] });
+      qc.invalidateQueries({ queryKey: ['weekly-gauntlet-active'] });
+      if (attempt?.status === 'completed') {
+        toast.success("🏆 You cleared this week's gauntlet!");
+      } else {
+        toast('Score submitted. Keep pushing to clear it.');
+      }
+    },
+    onError: (err) => {
+      reportError(err, { feature: 'gauntlet.weekly-submit', level: 'warning' });
+      toast.error('Could not submit your score. Try again.');
+    },
+  });
+
   // ── Tap a path node ───────────────────────────────────────────────────────
   async function handleSelectChallenge(ch) {
     // Deselect if tapping same
@@ -304,6 +362,11 @@ export default function Gauntlet() {
             gauntlet={weeklyGauntlet}
             attempt={weeklyAttempt}
             onStart={() => startWeeklyMut.mutate()}
+            onLogWorkout={() => navigate('/workout')}
+            onSubmit={() => submitWeeklyMut.mutate()}
+            submitting={submitWeeklyMut.isPending}
+            canSubmit={canSubmitWeekly}
+            bestScore={scoringSupported ? bestWeekSession?.volume ?? null : null}
           />
         </ErrorBoundary>
       </div>

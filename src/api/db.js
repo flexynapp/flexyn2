@@ -270,6 +270,19 @@ const auth = {
     return _loadProfile();
   },
 
+  /** Merge a patch into the in-memory profile cache. For callers that write
+   *  a specific column via a raw supabase update rather than updateMe (e.g.
+   *  calorieCycling.saveMine) — keeps me() and the react-query
+   *  ['userProfile'] result in sync without a refetch, so the change is
+   *  visible immediately instead of only after a full reload. No-op until
+   *  the profile has been loaded once. */
+  patchCache(patch) {
+    if (_profile && patch && typeof patch === 'object') {
+      _profile = { ..._profile, ...patch };
+    }
+    return _profile;
+  },
+
   /** Patch the user profile and refresh the cache.
    *  Resilient retry: strips unknown columns (42703) and retries, same as create().
    *  This ensures username and onboarding flags always land even when some
