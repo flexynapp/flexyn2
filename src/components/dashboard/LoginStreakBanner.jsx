@@ -8,9 +8,9 @@
 // inactive even though they were using the app daily. Moved to the
 // global LoginStreakSync component which mounts at the App level.
 
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Flame, Snowflake, ChevronDown, ChevronUp } from 'lucide-react';
+import { Snowflake, ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StreakFlame from '@/components/StreakFlame';
 import AnimatedNumber from '@/components/AnimatedNumber';
@@ -44,23 +44,6 @@ export default function LoginStreakBanner() {
     staleTime: 30_000,
   });
 
-  // High-density ember particle engine — continuous flow across the full banner.
-  // The useMemo must run before any conditional return so the hook order
-  // stays stable between renders where streak === 0 (hidden) and streak > 0
-  // (visible). Rules of Hooks: never call hooks after an early return.
-  const embers = useMemo(() =>
-    Array.from({ length: 48 }, (_, i) => ({
-      id: i,
-      x: Math.random() * 100,
-      size: Math.random() * 3 + 1,
-      dur: Math.random() * 2.8 + 1.6,
-      delay: Math.random() * 4,
-      drift: (Math.random() - 0.5) * 22,
-      rise: (Math.random() * 0.5 + 0.5) * 54,
-      // Alternate ember glow between orange core and yellow-white tip
-      color: i % 3 === 0 ? '#fbbf24' : i % 3 === 1 ? '#f97316' : '#fed7aa',
-    })),
-  []);
   const [showCalendar, setShowCalendar] = useState(false);
 
   if (!user?.id) return null;
@@ -73,62 +56,32 @@ export default function LoginStreakBanner() {
 
   return (
     <div>
+    {/* Compact inline pill — hugs its content on the left instead of a
+        full-width card, and the ember-particle overlay was dropped, to
+        keep the (already busy) dashboard clean. Tap to expand the calendar. */}
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="relative overflow-hidden flex items-center justify-between gap-2 px-2.5 py-1 rounded-lg bg-orange-500/10 border border-orange-500/20"
+      className="inline-flex items-center gap-1.5 ps-2 pe-1 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20"
     >
-      {/* Full-container ember particle overlay */}
-      {embers.map(e => (
-        <motion.div
-          key={e.id}
-          className="absolute pointer-events-none rounded-full"
-          style={{
-            left: `${e.x}%`,
-            bottom: 0,
-            width: e.size,
-            height: e.size,
-            background: e.color,
-            filter: 'blur(0.3px)',
-            opacity: 0,
-          }}
-          animate={{
-            y: [0, -e.rise],
-            x: [0, e.drift, e.drift * 0.5, 0],
-            opacity: [0, 0.7, 0.4, 0],
-            scale: [1, 0.6, 0.3],
-          }}
-          transition={{
-            duration: e.dur,
-            repeat: Infinity,
-            delay: e.delay,
-            ease: 'easeOut',
-          }}
-        />
-      ))}
-      <div className="flex items-center gap-2 min-w-0">
-        <Flame className="w-4 h-4 text-orange-500 shrink-0" />
-        <TapToCopy value={`${streak}-day login streak`} label="streak">
-          <span className="text-sm">
-            <span className="font-heading font-bold tabular-nums">
-              <AnimatedNumber value={streak} />
-            </span>
-            {/* Milestone flame — visually richer as the streak grows.
-                See StreakFlame for tier definitions. */}
-            <StreakFlame days={streak} size={14} className="ms-1" />
-            <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
-            {isPersonalBest && (
-              <span className="ms-2 text-[10px] font-bold uppercase tracking-wider text-orange-500">
-                {t('dashboard.best')}
-              </span>
-            )}
+      <StreakFlame days={streak} size={15} className="shrink-0" />
+      <TapToCopy value={`${streak}-day login streak`} label="streak">
+        <span className="text-xs whitespace-nowrap">
+          <span className="font-heading font-bold tabular-nums">
+            <AnimatedNumber value={streak} />
           </span>
-        </TapToCopy>
-      </div>
+          <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
+          {isPersonalBest && (
+            <span className="ms-1.5 text-[9px] font-bold uppercase tracking-wider text-orange-500">
+              {t('dashboard.best')}
+            </span>
+          )}
+        </span>
+      </TapToCopy>
       {freezes > 0 && (
-        <div
-          className="flex items-center gap-1 text-[11px] text-cyan-500"
+        <span
+          className="flex items-center gap-0.5 text-[10px] text-cyan-500 ms-0.5"
           title={tFallback(
             freezes === 1 ? 'dashboard.streakFreezeTooltip' : 'dashboard.streakFreezesTooltip',
             freezes === 1 ? '{n} streak freeze available' : '{n} streak freezes available',
@@ -137,18 +90,18 @@ export default function LoginStreakBanner() {
         >
           <Snowflake className="w-3 h-3" />
           <span className="tabular-nums">×{freezes}</span>
-        </div>
+        </span>
       )}
       <button
         type="button"
         onClick={() => setShowCalendar(v => !v)}
-        className="relative z-10 flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground hover:bg-secondary/30 transition-colors"
+        className="flex items-center rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
         aria-label={showCalendar
           ? tFallback('streakBanner.hideCalendar', 'Hide streak calendar')
           : tFallback('streakBanner.showCalendar', 'Show streak calendar')}
         aria-expanded={showCalendar}
       >
-        {showCalendar ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+        {showCalendar ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
       </button>
     </motion.div>
     <AnimatePresence>

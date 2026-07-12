@@ -603,7 +603,9 @@ export default function Nutrition() {
           action_data: { date, oz: waterEntryOz(variables) },
         }).catch(() => {});
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-        toast.success(t('nutrition.toast.waterLogged'));
+        // No toast on water log — the hydration ring already pulses/fills as
+        // visual confirmation, and a toast on every glass was pure FOV noise
+        // (you log water many times a day). Removed per notification cleanup.
         // Quest progress — count one quest "tick" per logged glass entry
         quests.recordAction(user, ACTION_TYPES.WATER_LOGGED, 1)
           .then(() => queryClient.invalidateQueries({ queryKey: ['dailyQuests'] }))
