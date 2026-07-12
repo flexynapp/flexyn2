@@ -1,119 +1,179 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X } from 'lucide-react';
-import { toast } from 'sonner';
+import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
 import WidgetLibrary from './WidgetLibrary';
 import WidgetRenderer, { WIDGET_COMPONENTS } from './WidgetRenderer';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
 
 // Per-user namespaced key — previously the single 'dashboardWidgets' key
 // meant two users on the same device (shared phone, family member
 // signing in/out) inherited each other's widget layout. Follows the
 // `flexyn.<feature>.<userId>` convention documented in CLAUDE.md.
+// localStorage is now a CACHE — the source of truth is
+// user_profiles.dashboard_widgets so the layout follows the user across
+// devices. Local keeps first paint instant and works offline / before the
+// migration lands (updateMe strips the column safely if it's missing).
 const STORAGE_KEY = (userId) => `flexyn.dashboardWidgets.${userId || 'anon'}`;
 const LEGACY_KEY = 'dashboardWidgets';
 
-export default function DashboardWidgets({ logs, goals, isLoading }) {
+// Drop widget IDs not in the current catalog so a deprecated/renamed
+// widget in saved state doesn't render as an "Unknown widget" card.
+const dropStale = (arr) => (Array.isArray(arr) ? arr.filter((id) => id in WIDGET_COMPONENTS) : []);
+
+// One reorderable widget row. Drag + remove controls only appear in Edit
+// mode — no hover-reveal (there's no pointer on the mobile target, so a
+// hover affordance would be invisible). In edit mode the controls are
+// 44px tap targets and the widget's own content is made non-interactive so
+// a rearrange tap can't accidentally trigger a widget action.
+function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove, removeLabel, dragHint }) {
+  const controls = useDragControls();
+  return (
+    <Reorder.Item
+      value={widgetId}
+      dragListener={false}
+      dragControls={controls}
+      initial={{ opacity: 0, scale: 0.96 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.85 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 26 }}
+      className="relative"
+    >
+      {editing && (
+        <>
+          {/* Drag handle — touch-none so dragging doesn't scroll the page. */}
+          <button
+            type="button"
+            onPointerDown={(e) => controls.start(e)}
+            aria-label={dragHint}
+            title={dragHint}
+            className="absolute -top-2 -start-2 z-10 w-10 h-10 rounded-full bg-secondary border border-border text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none shadow-sm"
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onRemove(widgetId)}
+            className="absolute -top-2 -end-2 z-10 w-10 h-10 rounded-full bg-destructive text-white flex items-center justify-center shadow-sm"
+            title={removeLabel}
+            aria-label={removeLabel}
+          >
+            <X className="w-4 h-4" />
+          </motion.button>
+        </>
+      )}
+
+      <div className={editing ? 'pointer-events-none select-none ring-2 ring-primary/30 rounded-2xl' : ''}>
+        <WidgetRenderer widgetId={widgetId} logs={logs} goals={goals} isLoading={isLoading} />
+      </div>
+    </Reorder.Item>
+  );
+}
+
+export default function DashboardWidgets({ logs, goals, isLoading, userProfile }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const [activeWidgets, setActiveWidgets] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
-  // hydratedFor pins the userId that the current activeWidgets state
-  // was loaded for. Save effect only writes when the loaded userId
-  // matches the current one. Without this, an account switch between
-  // load and save could write User A's state under User B's storage
-  // key — a real cross-account data leak risk that the prior
-  // hydratedRef boolean was not strict enough to prevent.
+  const [editing, setEditing] = useState(false);
+  // Pins the userId the authoritative load settled for. Guards the save
+  // effect (never write User A's state under User B's key on an account
+  // switch) and the load effect (don't clobber in-session edits once the
+  // DB value has been applied).
   const hydratedFor = useRef(null);
+  const dbSaveTimer = useRef(null);
 
-  // Load saved widgets from localStorage when the user changes (or
-  // appears for the first time). The outer try/catch covers Safari
-  // private-mode + iOS quota-exceeded — both throw on the bare
-  // `localStorage.getItem` call before any JSON parsing happens.
-  useEffect(() => {
-    const uid = user?.id;
-    // Mark unhydrated until the load below settles for THIS uid. If
-    // user.id changes mid-flight, the save effect skips persisting
-    // while we re-load.
-    hydratedFor.current = null;
-    // Filter out widget IDs that aren't in the current WIDGET_COMPONENTS
-    // catalog — a deprecated/renamed widget left in saved state would
-    // otherwise render as a row of "Unknown widget" cards forever.
-    const dropStale = (arr) => (Array.isArray(arr) ? arr.filter(id => id in WIDGET_COMPONENTS) : []);
+  const readLocal = (uid) => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY(uid));
-      if (saved) {
-        setActiveWidgets(dropStale(JSON.parse(saved)));
-      } else {
-        // One-shot migration from the legacy non-namespaced key — only
-        // the first-loaded user inherits it; subsequent users get a
-        // clean slate. Avoids the multi-user data leak retroactively.
-        const legacy = localStorage.getItem(LEGACY_KEY);
-        if (legacy) {
-          setActiveWidgets(dropStale(JSON.parse(legacy)));
-          try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
-        } else {
-          setActiveWidgets([]);
-        }
+      if (saved) return dropStale(JSON.parse(saved));
+      const legacy = localStorage.getItem(LEGACY_KEY);
+      if (legacy) {
+        const v = dropStale(JSON.parse(legacy));
+        try { localStorage.removeItem(LEGACY_KEY); } catch { /* ignore */ }
+        return v;
       }
-    } catch {
-      setActiveWidgets([]);
-    }
-    hydratedFor.current = uid;
-  }, [user?.id]);
+    } catch { /* Safari private mode / quota / bad JSON */ }
+    return [];
+  };
 
-  // Save widgets to localStorage whenever they change. Same Safari /
-  // quota concerns as above — wrap so a write failure doesn't surface
-  // as an uncaught error (would land in the parent ErrorBoundary and
-  // crash the whole widget grid for a non-critical persistence issue).
+  // Debounced write-through to the DB. updateMe carries the strip-and-
+  // retry safety net, so if the dashboard_widgets column isn't deployed
+  // yet the write degrades to a no-op and localStorage still holds the
+  // layout. Debounced so a drag-reorder (many intermediate orders) or a
+  // rapid add/remove burst collapses into one round-trip.
+  const queueDbSave = (uid, widgets) => {
+    if (!uid) return;
+    if (dbSaveTimer.current) clearTimeout(dbSaveTimer.current);
+    dbSaveTimer.current = setTimeout(() => {
+      db.auth.updateMe({ dashboard_widgets: widgets }).catch(() => { /* best-effort */ });
+    }, 800);
+  };
+  useEffect(() => () => { if (dbSaveTimer.current) clearTimeout(dbSaveTimer.current); }, []);
+
+  // Load: fast local first paint, then authoritative reconcile once the
+  // profile is available. DB wins on load (cross-device); after that,
+  // in-session edits win (guarded by hydratedFor).
   useEffect(() => {
-    // Only persist when the loaded user matches the current user —
-    // closes the account-switch window where save would otherwise
-    // write the prior user's state to the new user's storage key.
+    const uid = user?.id;
+    if (!uid) { hydratedFor.current = null; setActiveWidgets([]); return; }
+
+    if (hydratedFor.current !== uid) {
+      // Instant paint from cache while user_profiles loads.
+      setActiveWidgets(readLocal(uid));
+    }
+
+    if (userProfile != null && hydratedFor.current !== uid) {
+      const dbVal = Array.isArray(userProfile.dashboard_widgets)
+        ? dropStale(userProfile.dashboard_widgets)
+        : null;
+      if (dbVal && dbVal.length > 0) {
+        setActiveWidgets(dbVal);
+        try { localStorage.setItem(STORAGE_KEY(uid), JSON.stringify(dbVal)); } catch { /* ignore */ }
+      } else {
+        // No server layout yet — adopt local and migrate it up so this
+        // device's layout starts syncing to the others.
+        const local = readLocal(uid);
+        setActiveWidgets(local);
+        if (local.length > 0) queueDbSave(uid, local);
+      }
+      hydratedFor.current = uid;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, userProfile]);
+
+  // Persist every change to both the cache and (debounced) the DB.
+  useEffect(() => {
     if (hydratedFor.current !== user?.id) return;
-    try {
-      localStorage.setItem(STORAGE_KEY(user?.id), JSON.stringify(activeWidgets));
-    } catch { /* best-effort — quota / private mode */ }
+    try { localStorage.setItem(STORAGE_KEY(user?.id), JSON.stringify(activeWidgets)); } catch { /* best-effort */ }
+    queueDbSave(user?.id, activeWidgets);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWidgets, user?.id]);
 
-  // Functional setState here — two fast taps in the WidgetLibrary
-  // both read `activeWidgets` from this closure before the first
-  // setState applies, producing two no-op renders. The functional
-  // form sees the latest committed state on each invocation.
+  // Add does NOT close the library — the user can add (and remove) several
+  // widgets in one pass; the library card flips to its "on" state in place.
   const handleAddWidget = (widgetId) => {
-    let alreadyAdded = false;
-    setActiveWidgets(prev => {
-      if (prev.includes(widgetId)) {
-        alreadyAdded = true;
-        return prev;
-      }
-      return [...prev, widgetId];
-    });
-    if (alreadyAdded) {
-      // Surface an explicit signal — previously this branch was a
-      // silent no-op and the user couldn't tell whether their tap
-      // had registered.
-      toast.info(tFallback('widgets.alreadyAdded', 'Widget already on your dashboard.'));
-    }
-    setLibraryOpen(false);
+    setActiveWidgets((prev) => (prev.includes(widgetId) ? prev : [...prev, widgetId]));
   };
 
   const handleRemoveWidget = (widgetId) => {
-    setActiveWidgets(prev => prev.filter(id => id !== widgetId));
+    setActiveWidgets((prev) => prev.filter((id) => id !== widgetId));
   };
 
-  // Empty state
-  if (activeWidgets.length === 0) {
-    return (
-      <>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="py-2"
-        >
+  const isEmpty = activeWidgets.length === 0;
+  const removeLabel = t('dashboard.removeWidget') || 'Remove widget';
+  const dragHint = tFallback('dashboard.dragWidget', 'Drag to reorder');
+
+  // WidgetLibrary is mounted ONCE below (not per-branch) so adding the
+  // first widget — which flips this from the empty to the populated view —
+  // doesn't unmount/remount the open dialog mid-interaction.
+  return (
+    <>
+      {isEmpty ? (
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="py-2">
           <Card className="p-3 text-center border-dashed">
             <div className="mb-1">
               <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-1">
@@ -121,77 +181,66 @@ export default function DashboardWidgets({ logs, goals, isLoading }) {
               </div>
             </div>
             <h3 className="font-heading font-bold text-base mb-1">{t('dashboard.customizeTitle')}</h3>
-            <p className="text-muted-foreground text-xs mb-2">
-              {t('dashboard.customizeDesc')}
-            </p>
+            <p className="text-muted-foreground text-xs mb-2">{t('dashboard.customizeDesc')}</p>
             <Button onClick={() => setLibraryOpen(true)} className="gap-2">
               <Plus className="w-4 h-4" /> {t('dashboard.addFirstWidget')}
             </Button>
           </Card>
         </motion.div>
-
-        <WidgetLibrary
-          open={libraryOpen}
-          onClose={() => setLibraryOpen(false)}
-          onSelect={handleAddWidget}
-          activeWidgets={activeWidgets}
-        />
-      </>
-    );
-  }
-
-  // Render widgets
-  return (
-    <>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-heading font-bold text-lg">{t('dashboard.yourWidgets')}</h2>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLibraryOpen(true)}
-          className="gap-1"
-        >
-          <Plus className="w-3 h-3" /> {t('dashboard.addWidget')}
-        </Button>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        <AnimatePresence>
-          {activeWidgets.map((widgetId, idx) => (
-            <motion.div
-              key={widgetId}
-              layout
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.8 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="relative group"
+      ) : (
+        <>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="font-heading font-bold text-lg">{t('dashboard.yourWidgets')}</h2>
+            {/* Edit toggle — reveals drag handles + remove controls. Keeps
+                the default view clean (no always-on control clutter) and
+                makes reordering discoverable without relying on hover. */}
+            <Button
+              variant={editing ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setEditing((v) => !v)}
+              className="gap-1"
             >
-              <WidgetRenderer widgetId={widgetId} logs={logs} goals={goals} isLoading={isLoading} />
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => handleRemoveWidget(widgetId)}
-                // opacity-60 on small screens (where there's no hover
-                // event), opacity-0+group-hover on md+ where the user
-                // has a mouse. The previous opacity-0 only state meant
-                // mobile users — the majority — had no visible way to
-                // remove a widget; the button was invisible until tap.
-                className="absolute -top-2 -end-2 w-7 h-7 rounded-full bg-destructive text-white flex items-center justify-center opacity-60 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:opacity-100 transition-opacity shadow-sm"
-                title={t('dashboard.removeWidget') || 'Remove widget'}
-                aria-label={t('dashboard.removeWidget') || 'Remove widget'}
-              >
-                <X className="w-3.5 h-3.5" />
-              </motion.button>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </div>
+              {editing
+                ? (<><Check className="w-3.5 h-3.5" /> {tFallback('dashboard.doneEditing', 'Done')}</>)
+                : (<><Pencil className="w-3.5 h-3.5" /> {tFallback('dashboard.editLayout', 'Edit')}</>)}
+            </Button>
+          </div>
+
+          <Reorder.Group axis="y" values={activeWidgets} onReorder={setActiveWidgets} className="space-y-3">
+            <AnimatePresence>
+              {activeWidgets.map((widgetId) => (
+                <ReorderableWidget
+                  key={widgetId}
+                  widgetId={widgetId}
+                  logs={logs}
+                  goals={goals}
+                  isLoading={isLoading}
+                  editing={editing}
+                  onRemove={handleRemoveWidget}
+                  removeLabel={removeLabel}
+                  dragHint={dragHint}
+                />
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
+
+          {/* Persistent add affordance at the END of the list, so the user
+              can add another widget without scrolling back to the header. */}
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            className="mt-3 w-full min-h-[52px] rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-foreground active:border-primary/60 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
+          >
+            <Plus className="w-4 h-4" /> {t('dashboard.addWidget')}
+          </button>
+        </>
+      )}
 
       <WidgetLibrary
         open={libraryOpen}
         onClose={() => setLibraryOpen(false)}
         onSelect={handleAddWidget}
+        onRemove={handleRemoveWidget}
         activeWidgets={activeWidgets}
       />
     </>

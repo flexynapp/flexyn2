@@ -3,12 +3,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus } from 'lucide-react';
+import { Plus, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { WIDGET_DEFINITIONS, WIDGET_CATEGORIES } from '@/lib/widgetDefinitions';
 import { useLanguage } from '@/lib/LanguageContext';
 
-export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets = [] }) {
+export default function WidgetLibrary({ open, onClose, onSelect, onRemove, activeWidgets = [] }) {
   const { t, tFallback } = useLanguage();
   const [selectedCategory, setSelectedCategory] = useState('all');
 
@@ -57,15 +57,24 @@ export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets =
           >
             {filteredWidgets.map((widget) => {
               const isActive = activeWidgets.includes(widget.id);
+              // Whole card is a toggle: add if off, remove if on. The
+              // library now stays open across taps (no auto-close), so a
+              // user can add/remove several widgets in one pass and see
+              // each card's state flip in place.
+              const toggle = () => (isActive ? onRemove?.(widget.id) : onSelect(widget.id));
               return (
                 <Card
                   key={widget.id}
-                  className={`p-4 cursor-pointer border-2 transition-all ${
+                  role="button"
+                  tabIndex={0}
+                  aria-pressed={isActive}
+                  className={`p-4 cursor-pointer border-2 transition-all min-h-[44px] ${
                     isActive
                       ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-primary/50'
+                      : 'border-border active:border-primary/60'
                   }`}
-                  onClick={() => !isActive && onSelect(widget.id)}
+                  onClick={toggle}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } }}
                 >
                   <div className="flex items-start gap-3">
                     <div className="text-2xl shrink-0">{widget.icon}</div>
@@ -89,28 +98,23 @@ export default function WidgetLibrary({ open, onClose, onSelect, activeWidgets =
                         );
                       })()}
                     </div>
-                    {!isActive && (
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="shrink-0 h-8 w-8"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onSelect(widget.id);
-                        }}
-                      >
-                        <Plus className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {isActive && (
-                      // Active widgets show "On Dashboard" rather than
-                      // the same "Add" label as inactive widgets.
-                      // Previously the badge text was identical and
-                      // tapping did nothing — users couldn't tell which
-                      // widgets were already in their dashboard.
-                      // (Audit 08 #5.)
-                      <Badge className="shrink-0 bg-green-600 text-white">{tFallback('widgets.onDashboard', 'On Dashboard')}</Badge>
-                    )}
+                    {/* Trailing toggle control — 44px tap target. Off = +,
+                        On = green check that removes on tap (no hover needed,
+                        so it works on touch). */}
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); toggle(); }}
+                      aria-label={isActive
+                        ? tFallback('widgets.removeFromDashboard', 'On dashboard — tap to remove')
+                        : tFallback('widgets.addToDashboard', 'Add to dashboard')}
+                      className={`shrink-0 h-11 w-11 rounded-full flex items-center justify-center transition-colors ${
+                        isActive
+                          ? 'bg-green-600 text-white active:bg-green-700'
+                          : 'bg-secondary text-foreground active:bg-primary/15'
+                      }`}
+                    >
+                      {isActive ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                    </button>
                   </div>
                 </Card>
               );

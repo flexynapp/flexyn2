@@ -10,7 +10,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Snowflake, ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import StreakFlame from '@/components/StreakFlame';
 import AnimatedNumber from '@/components/AnimatedNumber';
@@ -54,7 +54,6 @@ export default function LoginStreakBanner({ variant = 'default' }) {
   if (streak === 0) return null; // hide on day 0; banner appears after first record
 
   const longest = profile?.longest_login_streak ?? streak;
-  const freezes = profile?.streak_freezes_available ?? 0;
   const isPersonalBest = streak === longest && streak > 1;
 
   return (
@@ -84,19 +83,6 @@ export default function LoginStreakBanner({ variant = 'default' }) {
           )}
         </span>
       </TapToCopy>
-      {freezes > 0 && (
-        <span
-          className={`flex items-center gap-0.5 text-[10px] ms-0.5 ${onHero ? 'text-cyan-300' : 'text-cyan-500'}`}
-          title={tFallback(
-            freezes === 1 ? 'dashboard.streakFreezeTooltip' : 'dashboard.streakFreezesTooltip',
-            freezes === 1 ? '{n} streak freeze available' : '{n} streak freezes available',
-            { n: freezes }
-          )}
-        >
-          <Snowflake className="w-3 h-3" />
-          <span className="tabular-nums">×{freezes}</span>
-        </span>
-      )}
       <button
         type="button"
         onClick={() => setShowCalendar(v => !v)}
