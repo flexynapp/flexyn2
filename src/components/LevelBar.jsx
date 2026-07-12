@@ -10,6 +10,13 @@ import LeaderboardsModal from '@/components/LeaderboardsModal';
 import RegionalLeaderboardsModal from '@/components/RegionalLeaderboardsModal';
 import StatsHubModal from '@/components/StatsHubModal';
 
+// Regional Leaderboards are hidden: they filter on user_profiles
+// country_code / state_code, which nothing collects (onboarding's
+// LocationStep was removed — see CLAUDE.md "out of scope"), so the boards
+// always come back empty. The modal + RPCs stay in the tree; flip this to
+// true once location capture ships. Until then, don't surface a dead entry.
+const REGIONAL_LEADERBOARDS_ENABLED = false;
+
 export default function LevelBar({ totalXp = 0, compact = false }) {
   const { t } = useLanguage();
   const levelData = calculateLevelFromXp(totalXp);
@@ -181,7 +188,9 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
                     </motion.button>
                   </div>
 
-                  {/* Regional Leaderboards */}
+                  {/* Regional Leaderboards — hidden until location capture
+                      exists (REGIONAL_LEADERBOARDS_ENABLED). */}
+                  {REGIONAL_LEADERBOARDS_ENABLED && (
                   <div className="px-5 pb-3">
                     <motion.button
                       onClick={() => { setShowTooltip(false); setRegionalLeaderboardsOpen(true); }}
@@ -206,6 +215,7 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
                       </motion.div>
                     </motion.button>
                   </div>
+                  )}
 
                   {/* Ranks — Coming Soon */}
                   <div className="px-5 py-4">
