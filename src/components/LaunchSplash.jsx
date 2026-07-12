@@ -15,7 +15,7 @@ import SplashScreen from '@/components/SplashScreen';
 
 // Matches the App Opener design's default canvas (slate) so the backdrop
 // and the splash read as one surface.
-const BG = '#3F4D5A';
+const BG = '#12161B'; // matches the new SplashScreen's near-black canvas
 // Duration of the crossfade from the opener to the app beneath it.
 const CROSSFADE_MS = 150;
 

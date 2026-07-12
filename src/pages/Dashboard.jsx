@@ -194,6 +194,16 @@ function HeroCard({
             t={t}
           />
         </div>
+
+        {/* Login streak lives inside the hero card, beneath the carousel
+            dots. It sits on the dark hero surface (variant="hero" → light
+            text / translucent pill) and its calendar expands inline, so the
+            whole card grows with it rather than pushing sibling cards. */}
+        <div className="px-4 md:px-6 pb-4 md:pb-5 -mt-6 md:-mt-8">
+          <ErrorBoundary label="LoginStreakBanner">
+            <LoginStreakBanner variant="hero" />
+          </ErrorBoundary>
+        </div>
       </motion.div>
 
       {/* Primary CTA — sits BELOW the hero card (no overlap) and follows
@@ -1203,7 +1213,7 @@ export default function Dashboard() {
         const allActions = [
           { key: 'startWorkout',  to: '/workout', icon: Play,         label: t('dashboard.startWorkout'),
             iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-500' },
-          { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My week'),
+          { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My Week'),
             iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-500',
             onClick: () => setWeekModalOpen(true) },
           { key: 'createRegimen', icon: Dumbbell,     label: t('dashboard.createRegimen'),
@@ -1421,14 +1431,6 @@ export default function Dashboard() {
       {/* ── Streak banners — sit between the greeting and the hero so
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
-      <div className="mt-1 mb-2 space-y-1">
-        {/* One streak badge only — the daily (login) streak. The separate
-            workout-streak banner rendered a second "N-day streak" chip
-            right below this one, which read as a duplicate; workout cadence
-            is already surfaced by the hero "This week" slide + Progress. */}
-        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-      </div>
-
       {/* ── Hero ───────────────────────────────────────────────── */}
       <div className="mb-2">
         <HeroCard

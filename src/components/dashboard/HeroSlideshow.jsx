@@ -633,18 +633,10 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
   // isn't on the brand-new-user `path`. Achievements rotate behind it
   // every 10s. (Was previously a mutually-exclusive fallback layout —
   // a 5K milestone from 15 days ago would hide the streak entirely.)
-  // Coerce streak to a finite number — a corrupt profile column or a
-  // prop that drifts to undefined would otherwise render `NaN day
-  // streak` in the lead slide.
-  const safeStreak = Number.isFinite(Number(streak)) ? Number(streak) : 0;
-  const streakSlide = mode !== 'path' ? {
-    id: 'streak',
-    kind: 'streak',
-    color: '20 95% 55%', // warm orange — the brand
-    streak: safeStreak,
-    hasWorkedOutToday,
-    daysSinceLast,
-  } : null;
+  // Streak is no longer a hero slide — it moved to a compact pill BENEATH
+  // the carousel in the same hero card (rendered by HeroCard via
+  // LoginStreakBanner), so it's not duplicated inside the rotation.
+  const streakSlide = null;
 
   // "Feature of the day" + "Feature of the week" — fixed promo slides
   // that always rotate in alongside the user's achievements. Loud

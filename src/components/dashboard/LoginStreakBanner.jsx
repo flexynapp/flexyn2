@@ -21,9 +21,12 @@ import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import StreakCalendarGrid from './StreakCalendarGrid';
 
-export default function LoginStreakBanner() {
+export default function LoginStreakBanner({ variant = 'default' }) {
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
+  // 'hero' variant sits on the dark hero card, so it needs light text and
+  // a translucent-white pill instead of the orange-on-light default.
+  const onHero = variant === 'hero';
 
   // Read the user's streak data
   const { data: profile } = useQuery({
@@ -63,17 +66,19 @@ export default function LoginStreakBanner() {
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="inline-flex items-center gap-1.5 ps-2 pe-1 py-0.5 rounded-full bg-orange-500/10 border border-orange-500/20"
+      className={`inline-flex items-center gap-1.5 ps-2 pe-1 py-0.5 rounded-full border ${
+        onHero ? 'bg-white/10 border-white/20' : 'bg-orange-500/10 border-orange-500/20'
+      }`}
     >
       <StreakFlame days={streak} size={15} className="shrink-0" />
       <TapToCopy value={`${streak}-day login streak`} label="streak">
-        <span className="text-xs whitespace-nowrap">
+        <span className={`text-xs whitespace-nowrap ${onHero ? 'text-white' : ''}`}>
           <span className="font-heading font-bold tabular-nums">
             <AnimatedNumber value={streak} />
           </span>
-          <span className="text-muted-foreground"> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
+          <span className={onHero ? 'text-white/75' : 'text-muted-foreground'}> {streak === 1 ? t('dashboard.dayStreak') : t('dashboard.daysStreak')}</span>
           {isPersonalBest && (
-            <span className="ms-1.5 text-[9px] font-bold uppercase tracking-wider text-orange-500">
+            <span className={`ms-1.5 text-[9px] font-bold uppercase tracking-wider ${onHero ? 'text-orange-300' : 'text-orange-500'}`}>
               {t('dashboard.best')}
             </span>
           )}
@@ -81,7 +86,7 @@ export default function LoginStreakBanner() {
       </TapToCopy>
       {freezes > 0 && (
         <span
-          className="flex items-center gap-0.5 text-[10px] text-cyan-500 ms-0.5"
+          className={`flex items-center gap-0.5 text-[10px] ms-0.5 ${onHero ? 'text-cyan-300' : 'text-cyan-500'}`}
           title={tFallback(
             freezes === 1 ? 'dashboard.streakFreezeTooltip' : 'dashboard.streakFreezesTooltip',
             freezes === 1 ? '{n} streak freeze available' : '{n} streak freezes available',
@@ -95,7 +100,9 @@ export default function LoginStreakBanner() {
       <button
         type="button"
         onClick={() => setShowCalendar(v => !v)}
-        className="flex items-center rounded-full p-0.5 text-muted-foreground hover:text-foreground hover:bg-secondary/40 transition-colors"
+        className={`flex items-center rounded-full p-0.5 transition-colors ${
+          onHero ? 'text-white/60 hover:text-white hover:bg-white/10' : 'text-muted-foreground hover:text-foreground hover:bg-secondary/40'
+        }`}
         aria-label={showCalendar
           ? tFallback('streakBanner.hideCalendar', 'Hide streak calendar')
           : tFallback('streakBanner.showCalendar', 'Show streak calendar')}

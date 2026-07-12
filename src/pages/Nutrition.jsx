@@ -29,7 +29,6 @@ import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
-import PortionGuide from '@/components/nutrition/PortionGuide';
 import RecipeBuilderModal from '@/components/nutrition/RecipeBuilderModal';
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
@@ -327,7 +326,7 @@ export default function Nutrition() {
   // stays pinned at the top as the headline.
   // 'shortcuts' carousel is pinned above CalorieTopBar (not reorderable)
   // 'portionGuide' is its own reorderable section
-  const DEFAULT_NUTRITION_ORDER = ['logForm', 'portionGuide', 'water', 'fasting', 'tabs', 'meals'];
+  const DEFAULT_NUTRITION_ORDER = ['logForm', 'water', 'fasting', 'tabs', 'meals'];
   const [editMode, setEditMode] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState(DEFAULT_NUTRITION_ORDER);
   const [showScanner, setShowScanner] = useState(false);
@@ -1402,7 +1401,6 @@ export default function Nutrition() {
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
                   {rowId === 'tabs'         ? 'Nutritional Values'
                     : rowId === 'logForm'   ? 'Log A Meal'
-                    : rowId === 'portionGuide' ? 'Portion Guide'
                     : rowId === 'water'     ? 'Water Intake'
                     : rowId === 'fasting'   ? 'Intermittent Fasting'
                     : rowId === 'meals'     ? "Today's Meals"
@@ -1451,11 +1449,7 @@ export default function Nutrition() {
 
 {/* shortcuts is pinned above CalorieTopBar — not rendered here */}
 
-      {rowId === 'portionGuide' && (
-      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="mb-4">
-        <PortionGuide />
-      </motion.div>
-      )}
+      {/* Portion guide removed — unnecessary and took up space. */}
 
       {rowId === 'logForm' && (
       <motion.div
