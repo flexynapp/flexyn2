@@ -22,6 +22,7 @@ import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import PWAInstallPrompt from '@/components/PWAInstallPrompt';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt';
 import LoginStreakSync from '@/components/LoginStreakSync';
+import LaunchSplash from './components/LaunchSplash';
 import Layout from './components/Layout';
 
 // Overlay components — each renders null until its trigger fires, so
@@ -408,6 +409,7 @@ function App() {
     <AuthProvider>
     <RestTimerProvider>
       <QueryClientProvider client={queryClientInstance}>
+        <LaunchSplash />
         <Router>
           <AuthenticatedApp />
         </Router>
