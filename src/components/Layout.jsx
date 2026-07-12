@@ -1,6 +1,6 @@
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { LOGO_URL } from '@/lib/constants';
+import FlexynLogo from './FlexynLogo';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
 import Header from './Header';
 import LanguagePicker from './LanguagePicker';
@@ -276,11 +276,8 @@ export default function Layout() {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
-          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="flex flex-col items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="w-12 h-12 rounded-xl overflow-hidden">
-              <img src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
-            </div>
-            <span className="font-heading font-bold text-xl text-foreground tracking-tight">Flexyn</span>
+          <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Flexyn — go to dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity">
+            <FlexynLogo className="h-10" />
           </Link>
           {/* Row 1: Profile menu (full width) */}
           <div className="w-full mt-1">
