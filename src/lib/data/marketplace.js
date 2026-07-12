@@ -129,12 +129,17 @@ export async function cancelListing(listingId) {
 /**
  * Get all listings created by a specific seller, any status, newest first.
  */
-export async function listBySeller(sellerEmail) {
-  if (!sellerEmail) return [];
+export async function listBySeller(sellerUserId) {
+  // Key by seller_user_id, not seller_email: create_marketplace_listing
+  // (mig 025) stamps seller_email from auth.email(), which is '' for
+  // guest accounts — an email read would miss a guest's own listings.
+  // seller_user_id is auth.uid() and always populated. (No current
+  // callers; fixed so future use can't inherit the guest hole.)
+  if (!sellerUserId) return [];
   const { data, error } = await supabase
     .from('marketplace_listings')
     .select('*')
-    .eq('seller_email', sellerEmail)
+    .eq('seller_user_id', sellerUserId)
     .order('created_at', { ascending: false });
   if (error) throwReported(error, 'marketplace');
   return data ?? [];

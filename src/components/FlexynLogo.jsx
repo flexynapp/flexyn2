@@ -22,7 +22,11 @@ const base = raw
   // room) so the lockup fills its box and centers correctly everywhere.
   .replace(/viewBox="0 0 489 141"/, 'viewBox="32 21 305 95"')
   // Let the container's height drive size; keep aspect ratio.
-  .replace(/\swidth="\d+"\s+height="\d+"/, ' style="height:100%;width:auto;display:block"')
+  // overflow:visible — the wordmark is live <text> in Leckerli One, which
+  // loads async; before it lands, the fallback cursive can render a few px
+  // wider than the tightened viewBox (only ~4px slack) and would clip at
+  // the SVG edge. Visible overflow makes the FOUT frame draw fully.
+  .replace(/\swidth="\d+"\s+height="\d+"/, ' style="height:100%;width:auto;display:block;overflow:visible"')
   // Theme-aware wordmark.
   .replace(/fill="#000000"/g, 'fill="currentColor"')
   // Drop the embedded Google-Fonts import (already loaded app-wide).

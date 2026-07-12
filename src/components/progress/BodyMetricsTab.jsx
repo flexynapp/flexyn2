@@ -325,7 +325,15 @@ export default function BodyMetricsTab() {
     if (field === 'birthday') {
       if (!value) return;
       try {
-        await db.auth.updateMe({ birthday: value });
+        // Sync the derived `age` column alongside the birthday — the
+        // fitness calcs (BMR, water, VO2max, nutrition targets) read
+        // `age`, which onboarding writes once; without this an edited
+        // birthday leaves them frozen at the signup value.
+        const yearsAgo = (Date.now() - new Date(value).getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+        const agePatch = Number.isFinite(yearsAgo) && yearsAgo >= 13 && yearsAgo <= 120
+          ? { age: Math.floor(yearsAgo) }
+          : {};
+        await db.auth.updateMe({ birthday: value, ...agePatch });
         queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
         setEditingProfile(null);
         setEditValue('');

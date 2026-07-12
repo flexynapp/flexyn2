@@ -54,6 +54,7 @@ const missingKeys = {
     // Goals validation
     'goals.exerciseRequired': 'Please select an exercise',
     'goals.minReps': 'Target reps must be at least 1',
+    'goals.minWeight': 'must be at least {val}',
     'goals.targetRequired': 'Please enter a target value',
     // Goal duration inputs
     'workout.hours': 'hrs',

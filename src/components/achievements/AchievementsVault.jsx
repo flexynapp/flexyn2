@@ -40,10 +40,12 @@ import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 export default function AchievementsVault({ onClose }) {
   const { user } = useAuth();
   useBodyScrollLock(true);
+  // user_id, not created_by: server-granted achievements (mig 189) stamp
+  // created_by='' for guests — the email filter hid them from the vault.
   const { data: achievements = [] } = useQuery({
-    queryKey: ['achievements', user?.email],
-    queryFn: () => db.entities.Achievement.filter({ created_by: user.email }),
-    enabled: !!user?.email,
+    queryKey: ['achievements', user?.id],
+    queryFn: () => db.entities.Achievement.filter({ user_id: user.id }),
+    enabled: !!user?.id,
   });
 
   return createPortal(

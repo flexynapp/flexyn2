@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LOGO_URL } from '@/lib/constants';
 import { ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -167,7 +166,10 @@ export default function SignInToContinue({
         className="relative z-10 flex flex-col items-center text-center mt-8 mb-8"
       >
         <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-xl shadow-primary/40 ring-2 ring-white/10 mb-4">
-          <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+          {/* Self-hosted flame app icon — was the base44 CDN LOGO_URL, an
+              external dependency with no onError fallback on the FIRST screen
+              a user sees. /favicon.svg ships in the app bundle. */}
+          <img src="/favicon.svg" alt="Flexyn" className="w-full h-full object-contain" />
         </div>
         <p className="font-heading text-3xl font-bold tracking-tight mb-4">Flexyn</p>
         <h2 className="font-heading text-xl font-bold tracking-tight mb-2 max-w-xs">{heading}</h2>

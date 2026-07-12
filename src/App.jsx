@@ -80,23 +80,14 @@ function ProfileRedirect() {
   useEffect(() => {
     if (!username) { setTarget(false); return; }
     const handle = username.replace(/^@/, '');
-    // Read via the whitelisted public_profiles view (migration 175).
-    // Fallback to the base table covers the deploy window where the
-    // frontend ships before the view's SQL has been pasted into prod.
+    // Resolve username → email via the narrow resolve_profile_email RPC
+    // (migration 195). email was removed from the public_profiles view to
+    // stop bulk harvesting via the anon key; this RPC returns the single
+    // matching email for an exact username (still anon-callable so shared
+    // /@username links resolve for logged-out visitors).
     supabase
-      .from('public_profiles')
-      .select('email')
-      .eq('username', handle)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!error) { setTarget(data?.email || false); return; }
-        supabase
-          .from('user_profiles')
-          .select('email')
-          .eq('username', handle)
-          .maybeSingle()
-          .then(({ data: fallback }) => setTarget(fallback?.email || false));
-      });
+      .rpc('resolve_profile_email', { p_username: handle })
+      .then(({ data }) => setTarget(data || false));
   }, [username]);
   if (target === null) {
     return <div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" /></div>;

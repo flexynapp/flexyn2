@@ -21,13 +21,21 @@ const slideVariants = {
   center: { x: 0, opacity: 1 },
 };
 
+// Module-level constant so the "no custom quotes yet" fallback is
+// referentially STABLE. An inline `= []` destructure default mints a new
+// array on every render while the query is loading — which made the
+// [customQuotes] effect below re-fire each render, and since getDailyQuote
+// returns a fresh object, each setQuote re-rendered, looping until React's
+// "Maximum update depth exceeded" bailout on every Dashboard load.
+const NO_CUSTOM_QUOTES = [];
+
 export default function DailyQuote({ editMode = false }) {
   const { tFallback } = useLanguage();
   const { user } = useAuth();
   const [manageOpen, setManageOpen] = useState(false);
 
   // The user's custom quotes cycle in alongside the built-in pool.
-  const { data: customQuotes = [] } = useQuery({
+  const { data: customQuotes = NO_CUSTOM_QUOTES } = useQuery({
     queryKey: ['customQuotes', user?.id],
     queryFn: listMyQuotes,
     enabled: !!user?.id,
@@ -38,9 +46,14 @@ export default function DailyQuote({ editMode = false }) {
 
   // Re-evaluate when the custom list loads/changes (same-day cache keeps it
   // stable; a freshly-added quote only changes today's pick if the cache
-  // was empty) and roll over at local midnight.
+  // was empty) and roll over at local midnight. Idempotent setter: keep the
+  // previous object when the pick hasn't actually changed, so referential
+  // churn upstream can never re-loop the render.
   useEffect(() => {
-    setQuote(getDailyQuote(customQuotes));
+    setQuote(prev => {
+      const next = getDailyQuote(customQuotes);
+      return prev && next && prev.key === next.key && prev.text === next.text ? prev : next;
+    });
   }, [customQuotes]);
 
   useEffect(() => {
