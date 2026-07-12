@@ -804,10 +804,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const signatureTrophy = isSelf ? (user?.signature_trophy ?? '') : (targetProfile?.signature_trophy ?? '');
 
   // Auto-awarded earned trophies (separate from the decorative case).
+  // Query by user_id, NOT email: grant_eligible_trophies stores
+  // user_trophies.user_id (from auth.uid(), always correct) alongside
+  // user_email — but for guest / anonymous users the RPC records an EMPTY
+  // user_email (auth.users.email is ''), while the profile carries the
+  // canonical `guest_<uid>@flexyn.guest`. Reading by email then missed the
+  // rows entirely, so guests' earned trophies showed as "none". user_id is
+  // the stable identifier and matches for every account type.
+  const trophyUserId = isSelf ? user?.id : targetProfile?.id;
   const { data: earnedTrophies = [] } = useQuery({
-    queryKey: ['userTrophies', email],
-    queryFn: () => listEarnedTrophies(email, true),
-    enabled: !!email,
+    queryKey: ['userTrophies', trophyUserId],
+    queryFn: () => listEarnedTrophies(trophyUserId, false),
+    enabled: !!trophyUserId,
     staleTime: 5 * 60_000,
   });
   const isVerifiedUser = isVerified(displayUsername);

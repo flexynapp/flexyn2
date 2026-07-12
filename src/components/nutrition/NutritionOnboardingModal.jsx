@@ -233,7 +233,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) handleDismissWithoutCompleting(); }}>
-      <DialogContent className="max-w-md p-0 overflow-hidden">
+      <DialogContent className="max-w-md p-0 overflow-hidden" title="Set your nutrition targets">
         {/* Progress bar */}
         <div className="w-full h-1 bg-secondary">
           <motion.div
