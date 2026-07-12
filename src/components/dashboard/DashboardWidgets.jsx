@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, X, GripVertical } from 'lucide-react';
-import { toast } from 'sonner';
+import { Plus, X, GripVertical, Pencil, Check } from 'lucide-react';
 import WidgetLibrary from './WidgetLibrary';
 import WidgetRenderer, { WIDGET_COMPONENTS } from './WidgetRenderer';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -25,10 +24,12 @@ const LEGACY_KEY = 'dashboardWidgets';
 // widget in saved state doesn't render as an "Unknown widget" card.
 const dropStale = (arr) => (Array.isArray(arr) ? arr.filter((id) => id in WIDGET_COMPONENTS) : []);
 
-// One reorderable widget row. dragListener is off so the whole card isn't
-// a drag surface (widgets have their own taps/inputs); only the grip
-// handle starts a drag via dragControls.
-function ReorderableWidget({ widgetId, logs, goals, isLoading, onRemove, removeLabel, dragHint }) {
+// One reorderable widget row. Drag + remove controls only appear in Edit
+// mode — no hover-reveal (there's no pointer on the mobile target, so a
+// hover affordance would be invisible). In edit mode the controls are
+// 44px tap targets and the widget's own content is made non-interactive so
+// a rearrange tap can't accidentally trigger a widget action.
+function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove, removeLabel, dragHint }) {
   const controls = useDragControls();
   return (
     <Reorder.Item
@@ -39,31 +40,35 @@ function ReorderableWidget({ widgetId, logs, goals, isLoading, onRemove, removeL
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.85 }}
       transition={{ type: 'spring', stiffness: 300, damping: 26 }}
-      className="relative group"
+      className="relative"
     >
-      {/* Drag handle — touch-none so a drag doesn't also scroll the page. */}
-      <button
-        type="button"
-        onPointerDown={(e) => controls.start(e)}
-        aria-label={dragHint}
-        title={dragHint}
-        className="absolute -top-2 -start-2 z-10 w-7 h-7 rounded-full bg-secondary border border-border text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none opacity-70 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shadow-sm"
-      >
-        <GripVertical className="w-3.5 h-3.5" />
-      </button>
+      {editing && (
+        <>
+          {/* Drag handle — touch-none so dragging doesn't scroll the page. */}
+          <button
+            type="button"
+            onPointerDown={(e) => controls.start(e)}
+            aria-label={dragHint}
+            title={dragHint}
+            className="absolute -top-2 -start-2 z-10 w-10 h-10 rounded-full bg-secondary border border-border text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none shadow-sm"
+          >
+            <GripVertical className="w-4 h-4" />
+          </button>
+          <motion.button
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onRemove(widgetId)}
+            className="absolute -top-2 -end-2 z-10 w-10 h-10 rounded-full bg-destructive text-white flex items-center justify-center shadow-sm"
+            title={removeLabel}
+            aria-label={removeLabel}
+          >
+            <X className="w-4 h-4" />
+          </motion.button>
+        </>
+      )}
 
-      <WidgetRenderer widgetId={widgetId} logs={logs} goals={goals} isLoading={isLoading} />
-
-      <motion.button
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        onClick={() => onRemove(widgetId)}
-        className="absolute -top-2 -end-2 z-10 w-7 h-7 rounded-full bg-destructive text-white flex items-center justify-center opacity-60 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100 hover:opacity-100 transition-opacity shadow-sm"
-        title={removeLabel}
-        aria-label={removeLabel}
-      >
-        <X className="w-3.5 h-3.5" />
-      </motion.button>
+      <div className={editing ? 'pointer-events-none select-none ring-2 ring-primary/30 rounded-2xl' : ''}>
+        <WidgetRenderer widgetId={widgetId} logs={logs} goals={goals} isLoading={isLoading} />
+      </div>
     </Reorder.Item>
   );
 }
@@ -73,6 +78,7 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
   const { user } = useAuth();
   const [activeWidgets, setActiveWidgets] = useState([]);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
   // Pins the userId the authoritative load settled for. Guards the save
   // effect (never write User A's state under User B's key on an account
   // switch) and the load effect (don't clobber in-session edits once the
@@ -147,26 +153,26 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWidgets, user?.id]);
 
+  // Add does NOT close the library — the user can add (and remove) several
+  // widgets in one pass; the library card flips to its "on" state in place.
   const handleAddWidget = (widgetId) => {
-    let alreadyAdded = false;
-    setActiveWidgets((prev) => {
-      if (prev.includes(widgetId)) { alreadyAdded = true; return prev; }
-      return [...prev, widgetId];
-    });
-    if (alreadyAdded) {
-      toast.info(tFallback('widgets.alreadyAdded', 'Widget already on your dashboard.'));
-    }
-    setLibraryOpen(false);
+    setActiveWidgets((prev) => (prev.includes(widgetId) ? prev : [...prev, widgetId]));
   };
 
   const handleRemoveWidget = (widgetId) => {
     setActiveWidgets((prev) => prev.filter((id) => id !== widgetId));
   };
 
-  // Empty state
-  if (activeWidgets.length === 0) {
-    return (
-      <>
+  const isEmpty = activeWidgets.length === 0;
+  const removeLabel = t('dashboard.removeWidget') || 'Remove widget';
+  const dragHint = tFallback('dashboard.dragWidget', 'Drag to reorder');
+
+  // WidgetLibrary is mounted ONCE below (not per-branch) so adding the
+  // first widget — which flips this from the empty to the populated view —
+  // doesn't unmount/remount the open dialog mid-interaction.
+  return (
+    <>
+      {isEmpty ? (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="py-2">
           <Card className="p-3 text-center border-dashed">
             <div className="mb-1">
@@ -181,53 +187,60 @@ export default function DashboardWidgets({ logs, goals, isLoading, userProfile }
             </Button>
           </Card>
         </motion.div>
+      ) : (
+        <>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h2 className="font-heading font-bold text-lg">{t('dashboard.yourWidgets')}</h2>
+            {/* Edit toggle — reveals drag handles + remove controls. Keeps
+                the default view clean (no always-on control clutter) and
+                makes reordering discoverable without relying on hover. */}
+            <Button
+              variant={editing ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setEditing((v) => !v)}
+              className="gap-1"
+            >
+              {editing
+                ? (<><Check className="w-3.5 h-3.5" /> {tFallback('dashboard.doneEditing', 'Done')}</>)
+                : (<><Pencil className="w-3.5 h-3.5" /> {tFallback('dashboard.editLayout', 'Edit')}</>)}
+            </Button>
+          </div>
 
-        <WidgetLibrary
-          open={libraryOpen}
-          onClose={() => setLibraryOpen(false)}
-          onSelect={handleAddWidget}
-          activeWidgets={activeWidgets}
-        />
-      </>
-    );
-  }
+          <Reorder.Group axis="y" values={activeWidgets} onReorder={setActiveWidgets} className="space-y-3">
+            <AnimatePresence>
+              {activeWidgets.map((widgetId) => (
+                <ReorderableWidget
+                  key={widgetId}
+                  widgetId={widgetId}
+                  logs={logs}
+                  goals={goals}
+                  isLoading={isLoading}
+                  editing={editing}
+                  onRemove={handleRemoveWidget}
+                  removeLabel={removeLabel}
+                  dragHint={dragHint}
+                />
+              ))}
+            </AnimatePresence>
+          </Reorder.Group>
 
-  const removeLabel = t('dashboard.removeWidget') || 'Remove widget';
-  const dragHint = tFallback('dashboard.dragWidget', 'Drag to reorder');
-
-  // Render widgets — single-column reorderable list. Drag is via the grip
-  // handle only, so widget interactions (journal input, tap-to-open) still
-  // work. Reorder persists to localStorage + DB through the save effect.
-  return (
-    <>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="font-heading font-bold text-lg">{t('dashboard.yourWidgets')}</h2>
-        <Button variant="outline" size="sm" onClick={() => setLibraryOpen(true)} className="gap-1">
-          <Plus className="w-3 h-3" /> {t('dashboard.addWidget')}
-        </Button>
-      </div>
-
-      <Reorder.Group axis="y" values={activeWidgets} onReorder={setActiveWidgets} className="space-y-3">
-        <AnimatePresence>
-          {activeWidgets.map((widgetId) => (
-            <ReorderableWidget
-              key={widgetId}
-              widgetId={widgetId}
-              logs={logs}
-              goals={goals}
-              isLoading={isLoading}
-              onRemove={handleRemoveWidget}
-              removeLabel={removeLabel}
-              dragHint={dragHint}
-            />
-          ))}
-        </AnimatePresence>
-      </Reorder.Group>
+          {/* Persistent add affordance at the END of the list, so the user
+              can add another widget without scrolling back to the header. */}
+          <button
+            type="button"
+            onClick={() => setLibraryOpen(true)}
+            className="mt-3 w-full min-h-[52px] rounded-2xl border-2 border-dashed border-border text-muted-foreground hover:text-foreground active:border-primary/60 transition-colors flex items-center justify-center gap-2 text-sm font-semibold"
+          >
+            <Plus className="w-4 h-4" /> {t('dashboard.addWidget')}
+          </button>
+        </>
+      )}
 
       <WidgetLibrary
         open={libraryOpen}
         onClose={() => setLibraryOpen(false)}
         onSelect={handleAddWidget}
+        onRemove={handleRemoveWidget}
         activeWidgets={activeWidgets}
       />
     </>
