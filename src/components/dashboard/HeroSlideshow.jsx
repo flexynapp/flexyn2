@@ -31,13 +31,16 @@
 
 import React, { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import {
   Flame, Trophy, TrendingUp, Award, Zap, Sparkles,
   Calendar, CheckCircle2, Dumbbell, Footprints, ChevronRight,
-  Swords, Camera,
+  Swords, Camera, Bell, UserPlus, ClipboardList, Share2, Gift,
 } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
+import { usePushSubscription } from '@/lib/usePushSubscription';
+import { supabase } from '@/api/supabaseClient';
 
 const ROTATE_MS = 8000;
 
@@ -596,6 +599,175 @@ function buildPathSlides({ profile, user, logs }) {
   return slides;
 }
 
+// Local-Monday week start (ms) — shared by telemetry + week cadence.
+function mondayStartMs() {
+  const d = new Date();
+  const day = d.getDay();            // 0=Sun..6=Sat
+  const back = day === 0 ? 6 : day - 1;
+  d.setHours(0, 0, 0, 0);
+  d.setDate(d.getDate() - back);
+  return d.getTime();
+}
+
+// Sum weight × reps across every set in a set of workout logs.
+function sumVolume(logsSubset) {
+  let vol = 0;
+  for (const log of logsSubset) {
+    const exs = Array.isArray(log.exercises) ? log.exercises : [];
+    for (const ex of exs) {
+      const sets = Array.isArray(ex.sets) ? ex.sets : [];
+      for (const s of sets) {
+        const w = Number(s.weight);
+        const r = Number(s.reps);
+        if (Number.isFinite(w) && Number.isFinite(r)) vol += w * r;
+      }
+    }
+  }
+  return Math.round(vol);
+}
+
+/**
+ * Personal-telemetry slides — always-on stats derived from data already
+ * in the dashboard cache (ZERO extra network calls). These render even
+ * when the values are 0, so a fresh account sees the metrics it will
+ * grow into ("Workouts logged 0 — log your first"), and they light up
+ * automatically as the user records more. Deliberately excludes the
+ * streak (which now lives in its own pill under the carousel).
+ */
+function buildTelemetrySlides({ logs, cardioLogs, profile }) {
+  const all = Array.isArray(logs) ? logs : [];
+  const weekStart = mondayStartMs();
+  const inWeek = (row) => (row?.date ? new Date(row.date).getTime() : 0) >= weekStart;
+  const weekLogs = all.filter(inWeek);
+
+  const totalLogs = all.length;
+  const workoutsThisWeek = weekLogs.length;
+  const weeklyVolume = sumVolume(weekLogs);
+  const level = Number(profile?.current_level) || 1;
+  const xp = Number(profile?.total_xp) || 0;
+  const trainingDays = Array.isArray(profile?.training_days) ? profile.training_days.length : 0;
+  const weekTarget = Math.max(3, Math.min(trainingDays || 3, 6));
+
+  const slides = [
+    {
+      id: 'tele:week', kind: 'telemetry',
+      icon: Calendar, iconBg: 'bg-blue-400/20', kicker: 'This week',
+      title: 'Workouts',
+      metricValue: workoutsThisWeek, metricUnit: ` / ${weekTarget}`,
+      progressPct: Math.min(100, (workoutsThisWeek / weekTarget) * 100),
+      progressStartLabel: 'Mon', progressEndLabel: 'Sun',
+      progressCurrentLabel: `${workoutsThisWeek} done`,
+      progressTargetLabel: `${weekTarget} target`,
+      sub: workoutsThisWeek > 0 ? 'Keep the week rolling.' : 'Three a week is where strength builds.',
+      cta: { label: 'Plan the week', to: '/workout' },
+    },
+    {
+      id: 'tele:volume', kind: 'telemetry',
+      icon: TrendingUp, iconBg: 'bg-emerald-400/20', kicker: 'This week',
+      title: 'Volume lifted',
+      metricValue: weeklyVolume, metricUnit: ' lb',
+      sub: weeklyVolume > 0 ? 'Total weight × reps across every set.' : 'Log sets and this fills in automatically.',
+    },
+    {
+      id: 'tele:total', kind: 'telemetry',
+      icon: Dumbbell, iconBg: 'bg-primary/20', kicker: 'All time',
+      title: 'Workouts logged',
+      metricValue: totalLogs, metricUnit: '',
+      sub: totalLogs > 0 ? 'Consistency compounds — keep stacking sessions.' : 'Log your first to start the count.',
+      cta: totalLogs > 0 ? null : { label: 'Start a workout', to: '/workout' },
+    },
+    {
+      id: 'tele:level', kind: 'telemetry',
+      icon: Award, iconBg: 'bg-violet-400/20', kicker: 'Your level',
+      title: 'Standing',
+      metricValue: level, metricPrefix: 'Lv ', metricUnit: '',
+      sub: `${xp.toLocaleString()} XP earned overall`,
+    },
+  ];
+
+  // Cardio distance this week — only when there's something to show.
+  const cardio = Array.isArray(cardioLogs) ? cardioLogs : [];
+  const cardioMeters = cardio.filter(inWeek).reduce((s, l) => s + (Number(l.distance_meters) || 0), 0);
+  if (cardioMeters > 0) {
+    slides.push({
+      id: 'tele:cardio', kind: 'telemetry',
+      icon: Footprints, iconBg: 'bg-cyan-400/20', kicker: 'This week',
+      title: 'Distance',
+      metricValue: cardioMeters / 1000, metricUnit: ' km', metricDecimals: 1,
+      sub: 'Cardio logged this week.',
+      cta: { label: 'Log cardio', to: '/workout?openCardio=1' },
+    });
+  }
+
+  return slides;
+}
+
+/**
+ * Suggestion slides — the old dashboard onboarding nudges, now folded
+ * into the hero rotation (and the standalone nudge cards removed). Each
+ * gates on live state so a suggestion drops out the moment it's done
+ * (followed someone → follow slide gone; logged a workout → first-workout
+ * slide gone). `cta.action` slides run an in-app handler instead of a
+ * route (enable push, jump to the share card).
+ */
+function buildSuggestionSlides({ logs, followsCount, push }) {
+  const hasWorkouts = Array.isArray(logs) && logs.length > 0;
+  const s = [];
+
+  if (!hasWorkouts) {
+    s.push({
+      id: 'sug:first_workout', kind: 'suggestion',
+      icon: Dumbbell, iconBg: 'bg-emerald-400/20', kicker: 'Get started',
+      title: 'Log your first workout',
+      sub: 'Two minutes. Just one set. The streak starts today.',
+      cta: { label: 'Start', to: '/workout' },
+    });
+  }
+  if (push && push.isSupported && !push.isSubscribed && push.permission !== 'denied') {
+    s.push({
+      id: 'sug:push', kind: 'suggestion',
+      icon: Bell, iconBg: 'bg-primary/20', kicker: 'Stay in it',
+      title: 'Turn on notifications',
+      sub: 'Nemesis moves, crew wars, at-risk streaks — the moment they happen.',
+      cta: { label: 'Enable', action: 'enablePush' },
+    });
+  }
+  if (followsCount === 0) {
+    s.push({
+      id: 'sug:follow', kind: 'suggestion',
+      icon: UserPlus, iconBg: 'bg-sky-400/20', kicker: 'Find your people',
+      title: 'Follow your first friend',
+      sub: 'Their workouts show up in your feed. Yours show up in theirs.',
+      cta: { label: 'Find people', to: '/hub?search=open' },
+    });
+  }
+  s.push({
+    id: 'sug:regimen', kind: 'suggestion',
+    icon: ClipboardList, iconBg: 'bg-amber-400/20', kicker: 'Train smarter',
+    title: 'Try a regimen',
+    sub: 'Pre-built routines for legs, push, pull. No more guessing what to lift.',
+    cta: { label: 'Browse', to: '/workout' },
+  });
+  if (hasWorkouts) {
+    s.push({
+      id: 'sug:share', kind: 'suggestion',
+      icon: Share2, iconBg: 'bg-rose-400/20', kicker: 'Show it off',
+      title: 'Share your week',
+      sub: 'A polished card of your stats. Post to Stories — it counts.',
+      cta: { label: 'See it', action: 'shareWeek' },
+    });
+  }
+  s.push({
+    id: 'sug:invite', kind: 'suggestion',
+    icon: Gift, iconBg: 'bg-fuchsia-400/20', kicker: 'Bring a friend',
+    title: 'Invite a friend',
+    sub: 'You both get 200 coins + an Elite capsule. Use your code.',
+    cta: { label: 'Open', to: '/profile' },
+  });
+
+  return s;
+}
+
 /**
  * Pick which mode to render. Achievements wins when there's anything
  * fresh to celebrate. New-user path wins when there's nothing
@@ -618,6 +790,23 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
 }, ref) {
   const { tFallback } = useLanguage();
 
+  // Push + follows drive two of the suggestion slides. Follows is a
+  // cheap head-count; both are shared React Query caches.
+  const push = usePushSubscription();
+  const { data: followsCount = 0 } = useQuery({
+    queryKey: ['heroFollowsCount', user?.email],
+    queryFn: async () => {
+      if (!user?.email) return 0;
+      const { count } = await supabase
+        .from('hub_follows')
+        .select('id', { count: 'exact', head: true })
+        .eq('follower_email', user.email);
+      return count ?? 0;
+    },
+    enabled: !!user?.email,
+    staleTime: 5 * 60_000,
+  });
+
   const achievementSlides = useMemo(
     () => buildAchievementSlides({ logs, cardioLogs, goals, profile }),
     [logs, cardioLogs, goals, profile]
@@ -626,8 +815,30 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     () => buildPathSlides({ profile, user, logs }),
     [profile, user, logs]
   );
+  const telemetrySlides = useMemo(
+    () => buildTelemetrySlides({ logs, cardioLogs, profile }),
+    [logs, cardioLogs, profile]
+  );
+  const suggestionSlides = useMemo(
+    () => buildSuggestionSlides({ logs, followsCount, push }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [logs, followsCount, push.isSupported, push.isSubscribed, push.permission]
+  );
 
   const mode = pickMode({ achievementSlides, pathSlides, profile, logs });
+
+  // CTA dispatch — most slides route; a couple run an in-app action
+  // (enable push, scroll to the weekly-recap share card).
+  const handleCta = (cta) => {
+    if (!cta) return;
+    if (cta.action === 'enablePush') { push.subscribe?.(); return; }
+    if (cta.action === 'shareWeek') {
+      const el = typeof document !== 'undefined' && document.querySelector('[data-recap-card]');
+      if (el?.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (cta.to) onSlideCta?.(cta.to);
+  };
 
   // Streak slide is ALWAYS the lead slide of the carousel when the user
   // isn't on the brand-new-user `path`. Achievements rotate behind it
@@ -668,11 +879,31 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     },
   ];
 
-  const slides = mode === 'path'
-    ? pathSlides
-    : streakSlide
-      ? [streakSlide, ...featureSlides, ...achievementSlides]
-      : [...featureSlides, ...achievementSlides];
+  // Non-path rotation = promo features + the user's personal telemetry +
+  // actionable suggestions + recent achievements. Deduped by id and
+  // capped so the carousel stays a scannable 5–9 slides rather than an
+  // endless scroll. Achievements lead (freshest wins) when present.
+  const slides = useMemo(() => {
+    if (mode === 'path') return pathSlides;
+    const combined = [
+      ...(streakSlide ? [streakSlide] : []),
+      ...featureSlides,
+      ...telemetrySlides,
+      ...suggestionSlides,
+      ...achievementSlides,
+    ];
+    const seen = new Set();
+    const deduped = [];
+    for (const s of combined) {
+      if (!s || seen.has(s.id)) continue;
+      seen.add(s.id);
+      deduped.push(s);
+    }
+    return deduped.slice(0, 9);
+    // featureSlides/streakSlide are recomputed each render (cheap literals);
+    // depend on the array pieces that actually carry data.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, pathSlides, telemetrySlides, suggestionSlides, achievementSlides]);
 
   const [idx, setIdx] = useState(0);
   // Reset to slide 0 if the slide set length shrinks below idx.
@@ -730,6 +961,9 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       'bg-orange-400/20':  '25 90% 55%',
       'bg-cyan-400/20':    '190 85% 55%',
       'bg-blue-400/20':    '220 85% 60%',
+      'bg-sky-400/20':     '205 90% 58%',
+      'bg-rose-400/20':    '345 85% 60%',
+      'bg-fuchsia-400/20': '292 85% 62%',
     };
     onSlideColorChange?.(map[slide.iconBg] || null);
   }, [idx, slides, onSlideColorChange]);
@@ -855,7 +1089,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             {slide.cta && (
               <button
                 type="button"
-                onClick={() => onSlideCta?.(slide.cta.to)}
+                onClick={() => handleCta(slide.cta)}
                 className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
               >
                 {slide.cta.label}
@@ -1020,11 +1254,11 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             {slide.sub}
           </p>
 
-          {mode === 'path' && slide.cta && (
+          {slide.cta && (
             <button
               type="button"
-              onClick={() => onSlideCta?.(slide.cta.to)}
-              className="inline-flex items-center gap-1 mt-3 text-[12px] font-semibold text-white/90 hover:text-white transition-colors"
+              onClick={() => handleCta(slide.cta)}
+              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
             >
               {slide.cta.label}
               <ChevronRight className="w-3.5 h-3.5" />

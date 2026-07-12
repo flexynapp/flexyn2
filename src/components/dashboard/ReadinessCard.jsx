@@ -9,17 +9,13 @@
 // rest. Replaces vibes-based "should I go to the gym" with a
 // number the user can trust.
 
-import React, { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Activity } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { computeRecoveryScore } from '@/lib/recoveryScore';
-import { getTodaySleepLog } from '@/lib/data/sleepLogs';
-import { getTodayMoodLog } from '@/lib/data/moodLogs';
-import { parseLocalDate } from '@/lib/dateUtils';
+import { useReadiness } from '@/hooks/useReadiness';
 
 // Readiness uses a fixed traffic-light palette across themes — green
 // = trained / ready, amber = moderate, red = depleted. Hex strokes
@@ -53,67 +49,9 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
 
-  // Use a query key prefix that matches MoodLogCard / SleepLog so an
-  // invalidate from those components reaches us too. MoodLogCard's
-  // full key is ['moodLogToday', user?.id, todayDateKey]; React Query
-  // matches by prefix on invalidation so the 2-key form here picks
-  // up the invalidation regardless of the third element. The trade-
-  // off: this card doesn't auto-roll at midnight (no date in the key
-  // means React Query holds onto yesterday's row until the staleTime
-  // refetch fires). MoodLog's per-minute tick in the underlying
-  // useQuery causes a refetch when the day flips, so this card
-  // reconciles naturally on the next refetch.
-  const { data: sleep } = useQuery({
-    queryKey: ['sleepLogToday', user?.id],
-    queryFn: getTodaySleepLog,
-    enabled: !!user?.id,
-    staleTime: 5 * 60_000,
-  });
-  const { data: mood } = useQuery({
-    queryKey: ['moodLogToday', user?.id],
-    queryFn: getTodayMoodLog,
-    enabled: !!user?.id,
-    staleTime: 5 * 60_000,
-  });
-
-  // Find the most recent workout from `logs` (already in dashboard cache).
-  // Use parseLocalDate so 'YYYY-MM-DD' DATE columns are interpreted in
-  // local TZ. Without this, the recovery `daysSinceWorkout` term could
-  // flicker ±1 at midnight in negative-offset zones. Memoize so the
-  // O(N) scan only runs when logs actually changes, not on every
-  // sleep/mood query revalidation.
-  const lastWorkoutAt = useMemo(() => {
-    if (!Array.isArray(logs)) return null;
-    let best = null;
-    for (const log of logs) {
-      const raw = log?.date || log?.created_at || log?.created_date;
-      const d = parseLocalDate(raw);
-      if (!d) continue;
-      if (!best || d > best) best = d;
-    }
-    return best;
-  }, [logs]);
-
-  // Mood maps to an inverted soreness scale that computeRecoveryScore
-  // already knows how to consume — mood 5 (fresh) → soreness 1 (none),
-  // mood 1 (drained) → soreness 5 (maximum). Clamp both pathways so a
-  // corrupt mood=0 or sleep.soreness=12 row can't overshoot the scale.
-  // (Audit 08 #27.)
-  const sorenessProxy = sleep?.soreness != null
-    ? Math.max(1, Math.min(5, sleep.soreness))
-    : (mood?.mood != null ? Math.max(1, Math.min(5, 6 - mood.mood)) : undefined);
-
-  const { score: rawScore, label } = computeRecoveryScore({
-    sleepHours:    sleep?.hours,
-    sleepQuality:  sleep?.quality,
-    soreness:      sorenessProxy,
-    lastWorkoutAt,
-  });
-  // Guard NaN/Infinity — computeRecoveryScore returns a number under
-  // normal inputs, but a regression in the underlying math (or a brand
-  // new user with no signal at all) could surface NaN, which then
-  // propagates into dashOffset and breaks the SVG dasharray render.
-  const score = Number.isFinite(rawScore) ? Math.max(0, Math.min(100, rawScore)) : 0;
+  // Shared score source — the same hook feeds the Dashboard readiness
+  // explainer, so the number here and the breakdown there never drift.
+  const { score, label } = useReadiness(logs);
 
   // Defensive fallback — every COLOR_BY_LABEL key is a known label,
   // but defending against a future score-engine change that returns an

@@ -33,10 +33,10 @@ import JournalWidget from '@/components/dashboard/JournalWidget';
 import StepsLogCard from '@/components/dashboard/StepsLogCard';
 import SleepLogCard from '@/components/dashboard/SleepLogCard';
 import ReadinessCard from '@/components/dashboard/ReadinessCard';
+import { useReadiness } from '@/hooks/useReadiness';
 import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
-import OnboardingNudgeCard from '@/components/dashboard/OnboardingNudgeCard';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -925,6 +925,11 @@ export default function Dashboard() {
 
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
+
+  // Shared readiness computation — feeds the explainer sheet so it can
+  // show the user their ACTUAL logged signals + how each contributed to
+  // the score (same numbers ReadinessCard renders).
+  const readiness = useReadiness(logs);
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
 
@@ -1299,9 +1304,9 @@ export default function Dashboard() {
       case 'onboarding': return (
         <React.Fragment key="onboarding">
           <div className="space-y-2">
-            <ErrorBoundary label="OnboardingNudgeCard">
-              <OnboardingNudgeCard hasWorkouts={rawLogs.length > 0} userEmail={user?.email} />
-            </ErrorBoundary>
+            {/* OnboardingNudgeCard removed — its suggestions (log a workout,
+                follow a friend, try a regimen, share your week, invite,
+                notifications) now rotate as slides in the hero carousel. */}
             <ErrorBoundary label="PushOptInBanner">
               <PushOptInBanner hasWorkouts={rawLogs.length > 0} />
             </ErrorBoundary>
@@ -1612,41 +1617,76 @@ export default function Dashboard() {
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
               </button>
             </div>
+            {/* Live score + label so the header isn't abstract. */}
+            <div className="flex items-baseline gap-2 mb-3">
+              <span className="font-heading font-black text-4xl tabular-nums leading-none">{readiness.score}</span>
+              <span className="text-sm font-bold text-muted-foreground">/ 100 · {readiness.label}</span>
+            </div>
             <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-              A single 0-100 number for "should I go hard today?" — blended from four signals we already track.
+              Blended from four signals you log. Here's exactly what went into today's number — each row shows your value, the 0-100 it scored, and the points it added.
             </p>
-            <ul className="space-y-3 mb-4">
-              <li className="flex gap-3">
-                <span className="text-xl leading-none">😴</span>
-                <div>
-                  <p className="text-sm font-semibold">Last night's sleep</p>
-                  <p className="text-xs text-muted-foreground leading-snug">Hours + quality from your sleep log.</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-xl leading-none">🙂</span>
-                <div>
-                  <p className="text-sm font-semibold">Today's mood / soreness</p>
-                  <p className="text-xs text-muted-foreground leading-snug">From your mood check-in or sleep soreness slider.</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-xl leading-none">🏋️</span>
-                <div>
-                  <p className="text-sm font-semibold">Days since last workout</p>
-                  <p className="text-xs text-muted-foreground leading-snug">Recent training raises strain; rest days raise recovery.</p>
-                </div>
-              </li>
-              <li className="flex gap-3">
-                <span className="text-xl leading-none">📊</span>
-                <div>
-                  <p className="text-sm font-semibold">Weekly volume trend</p>
-                  <p className="text-xs text-muted-foreground leading-snug">Hard weeks bank fatigue; the score factors that in.</p>
-                </div>
-              </li>
+            <ul className="space-y-2.5 mb-4">
+              {(() => {
+                const b = readiness.breakdown || {};
+                const moodLabels = ['Drained', 'Low', 'OK', 'Good', 'Great'];
+                const rows = [
+                  {
+                    emoji: '😴', name: "Last night's sleep", weight: '40%', d: b.sleep,
+                    value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
+                  },
+                  {
+                    emoji: '⭐', name: 'Sleep quality', weight: '20%', d: b.quality,
+                    value: b.quality?.logged ? `${b.quality.value} / 5` : null,
+                  },
+                  {
+                    emoji: '🙂', name: 'Mood / soreness', weight: '25%', d: b.soreness,
+                    value: readiness.mood?.mood
+                      ? moodLabels[Math.max(0, Math.min(4, readiness.mood.mood - 1))]
+                      : (readiness.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
+                  },
+                  {
+                    emoji: '🏋️', name: 'Days since last workout', weight: '15%', d: b.recency,
+                    value: b.recency?.logged
+                      ? (b.recency.value === 0 ? 'Trained today' : `${b.recency.value} day${b.recency.value === 1 ? '' : 's'} ago`)
+                      : null,
+                  },
+                ];
+                return rows.map((r) => (
+                  <li key={r.name} className="flex gap-3 items-start">
+                    <span className="text-xl leading-none mt-0.5">{r.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <p className="text-sm font-semibold">{r.name}</p>
+                        <p className="text-xs font-bold tabular-nums shrink-0">
+                          {r.d?.logged
+                            ? <span className="text-foreground">{r.value}</span>
+                            : <span className="text-muted-foreground/70 font-medium italic">not logged</span>}
+                        </p>
+                      </div>
+                      {/* Sub-score bar + contribution — the "why". */}
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${r.d?.logged ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                            style={{ width: `${Math.max(0, Math.min(100, r.d?.score ?? 0))}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold tabular-nums text-muted-foreground shrink-0 w-14 text-end">
+                          +{r.d?.contribution ?? 0} pts
+                        </span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground/70 leading-snug mt-0.5">
+                        {r.d?.logged
+                          ? `Scored ${r.d.score}/100 · weighted ${r.weight}`
+                          : `No data yet — using a neutral estimate (${r.d?.score ?? 70}/100). Log it to sharpen your score.`}
+                      </p>
+                    </div>
+                  </li>
+                ));
+              })()}
             </ul>
             <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-              The more you log (sleep, mood, workouts), the more accurate the score gets. Skip a signal and we lean on what's left.
+              These four, weighted together, make your {readiness.score}/100. The more you log (sleep, mood, workouts), the less we estimate — and the more the number reflects you.
             </p>
             <button
               type="button"

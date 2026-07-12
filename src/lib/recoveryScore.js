@@ -86,7 +86,50 @@ export function computeRecoveryScore({
 
   const score = Math.round(weighted);
   const { label, color } = labelForScore(score);
-  return { score, label, color };
+
+  // Per-signal breakdown so the UI can show the user EXACTLY which
+  // inputs produced this number — value they logged (or that we
+  // defaulted to a neutral estimate), the 0-100 sub-score it earned,
+  // its weight, and the points it contributed to the final total.
+  // `logged: false` means the user hasn't given us that signal and we
+  // leaned on a neutral 70.
+  let daysSince = null;
+  if (lastWorkoutAt) {
+    const d = lastWorkoutAt instanceof Date ? lastWorkoutAt : new Date(lastWorkoutAt);
+    if (!Number.isNaN(d.getTime())) daysSince = Math.max(0, differenceInCalendarDays(now, d));
+  }
+  // Apportion the point contributions with the largest-remainder method
+  // so the four displayed values sum EXACTLY to `score` — otherwise
+  // independently rounding each (e.g. 17.5→18 and 10.5→11) can make the
+  // rows read 71 while the headline says 70, which is exactly the
+  // "why is my score that number?" confusion this breakdown exists to kill.
+  const parts = [
+    { key: 'sleep',    logged: typeof sleepHours === 'number',                     value: sleepHours ?? null,   sub: sleepScore,    weight: 0.40 },
+    { key: 'quality',  logged: typeof sleepQuality === 'number' && sleepQuality > 0, value: sleepQuality ?? null, sub: qualityScore,  weight: 0.20 },
+    { key: 'soreness', logged: typeof soreness === 'number' && soreness > 0,        value: soreness ?? null,     sub: sorenessScore, weight: 0.25 },
+    { key: 'recency',  logged: !!lastWorkoutAt,                                     value: daysSince,            sub: recencyScore,  weight: 0.15 },
+  ];
+  const raw = parts.map((p) => p.sub * p.weight);
+  const floors = raw.map((r) => Math.floor(r));
+  let leftover = score - floors.reduce((a, b) => a + b, 0);
+  const byFrac = raw
+    .map((r, i) => ({ i, frac: r - floors[i] }))
+    .sort((a, b) => b.frac - a.frac);
+  const contribs = [...floors];
+  for (let k = 0; k < byFrac.length && leftover > 0; k++) { contribs[byFrac[k].i] += 1; leftover -= 1; }
+
+  const breakdown = {};
+  parts.forEach((p, i) => {
+    breakdown[p.key] = {
+      logged: p.logged,
+      value: p.value,
+      score: Math.round(p.sub),
+      weight: p.weight,
+      contribution: Math.max(0, contribs[i]),
+    };
+  });
+
+  return { score, label, color, breakdown };
 }
 
 function labelForScore(score) {

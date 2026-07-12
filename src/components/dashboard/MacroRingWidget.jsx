@@ -22,10 +22,15 @@ import { calculateDailyValues } from '@/lib/nutritionDefaults';
 // for the rationale — overnight PWA stays open, date string would
 // otherwise freeze at module-load time).
 
-// SVG donut ring — a single arc showing pct [0–100]
-function Ring({ r, strokeWidth, pct, color, dashOffset = 0 }) {
+// SVG donut ring — a single arc showing pct [0–100]. The progress arc
+// sweeps in from empty on mount (framer-motion strokeDashoffset tween),
+// staggered per ring, so the macros "draw" beautifully rather than
+// snapping to their final fill. Re-keys on pct via `animate` so a new
+// meal log re-animates the delta.
+function Ring({ r, strokeWidth, pct, color, delay = 0 }) {
   const circumference = 2 * Math.PI * r;
-  const arc = (pct / 100) * circumference;
+  const safePct = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+  const target = circumference * (1 - safePct / 100);
   return (
     <>
       {/* Track */}
@@ -36,17 +41,18 @@ function Ring({ r, strokeWidth, pct, color, dashOffset = 0 }) {
         strokeWidth={strokeWidth}
         className="text-secondary"
       />
-      {/* Progress */}
-      <circle
+      {/* Progress — sweeps from empty to `safePct` */}
+      <motion.circle
         cx={60} cy={60} r={r}
         fill="none"
         stroke={color}
         strokeWidth={strokeWidth}
         strokeLinecap="round"
-        strokeDasharray={`${arc} ${circumference}`}
-        strokeDashoffset={dashOffset}
+        strokeDasharray={circumference}
         transform="rotate(-90 60 60)"
-        style={{ transition: 'stroke-dasharray 0.6s ease' }}
+        initial={{ strokeDashoffset: circumference }}
+        animate={{ strokeDashoffset: target }}
+        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1], delay }}
       />
     </>
   );
@@ -110,7 +116,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
           {/* SVG rings */}
           <div className="shrink-0">
             <svg width="120" height="120" viewBox="0 0 120 120">
-              {MACROS.map(m => {
+              {MACROS.map((m, i) => {
                 const goal = goals[m.goalKey] || defaultGoals[m.goalKey];
                 const consumed = totals[m.key];
                 const pct = goal > 0 ? Math.min((consumed / goal) * 100, 100) : 0;
@@ -121,6 +127,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
                     strokeWidth={m.sw}
                     pct={pct}
                     color={m.color}
+                    delay={i * 0.08}
                   />
                 );
               })}

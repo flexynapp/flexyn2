@@ -17,7 +17,6 @@ import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
 import LiveActivityRail from '@/components/hub/LiveActivityRail';
 import FollowSuggestionRail from '@/components/hub/FollowSuggestionRail';
 import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
-import FollowFriendNudge from '@/components/hub/FollowFriendNudge';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -287,13 +286,6 @@ export default function Hub() {
             setSection('profile');
           }}
         />
-      )}
-
-      {/* "Follow your first friend" — moved here from the dashboard, sits
-          directly above the friends leaderboard (which is empty until you
-          follow someone). CTA opens people search. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
-        <FollowFriendNudge onFindPeople={() => setSearchOpen(true)} />
       )}
 
       {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
