@@ -175,8 +175,13 @@ function HeroCard({
             between auto-rotations. The min-height matches the tallest
             template slide's natural height — slides shorter than this
             now sit at the top with empty space underneath rather than
-            collapsing the card. (Screenshot feedback, 2026-06.) */}
-        <div className="relative p-4 md:p-6 md:pb-12 min-h-[280px] md:min-h-[300px]">
+            collapsing the card. (Screenshot feedback, 2026-06.)
+            NOTE: bottom padding is intentionally small (pb-2) — the streak
+            pill below flows right after this box, and the previous pb-12 +
+            negative-margin tuck clipped the pill / its expanded calendar on
+            taller slides (progress bar + CTA). Now the pill sits cleanly
+            below the dots and the card grows to fit whatever's open. */}
+        <div className="relative p-4 md:p-6 pb-2 md:pb-2 min-h-[264px] md:min-h-[284px]">
           <HeroSlideshow
             ref={slideshowRef}
             logs={logs}
@@ -205,7 +210,7 @@ function HeroCard({
             slideshow's drag handler ate the tap and the calendar never
             expanded. */}
         <div
-          className="relative z-20 px-4 md:px-6 pb-4 md:pb-5 -mt-6 md:-mt-8"
+          className="relative z-20 px-4 md:px-6 pb-4 md:pb-5 pt-0"
           onPointerDown={(e) => e.stopPropagation()}
         >
           <ErrorBoundary label="LoginStreakBanner">
@@ -930,6 +935,24 @@ export default function Dashboard() {
   // show the user their ACTUAL logged signals + how each contributed to
   // the score (same numbers ReadinessCard renders).
   const readiness = useReadiness(logs);
+
+  // Readiness explainer redirects — send the user to exactly where they
+  // add the missing signal. Sleep/quality/mood live in the (collapsible)
+  // recovery section on this page, so we close the sheet, expand that
+  // section, and scroll it into view. Recency is driven by workouts, so
+  // that one routes to the Workout page.
+  const goLogReadinessSignal = (target) => {
+    setReadinessInfoOpen(false);
+    if (target === 'workout') { navigate('/workout'); return; }
+    setRecoveryOpen(true);
+    // Defer the scroll a tick so the section has expanded first.
+    setTimeout(() => {
+      try {
+        document.querySelector('[data-recovery-section]')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch { /* no-op */ }
+    }, 80);
+  };
   const regimens = useMemo(() => filterAfterReset(rawRegimens, userProfile), [rawRegimens, userProfile]);
   const goals = useMemo(() => filterAfterReset(rawGoals, userProfile), [rawGoals, userProfile]);
 
@@ -1122,7 +1145,7 @@ export default function Dashboard() {
               toggles. Hitting collapse no longer wipes the whole
               section like the old SectionHeader + Collapsible
               wrappers did. */}
-          <Card className="p-4 md:p-5 bg-gradient-to-br from-blue-200/30 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
+          <Card data-recovery-section className="p-4 md:p-5 bg-gradient-to-br from-blue-200/30 to-blue-100/10 dark:from-blue-500/8 dark:to-blue-500/5 border-blue-200/40 dark:border-blue-500/20 theme-card-accent">
             <div className="flex items-center gap-2 mb-3">
               <Activity className="w-4 h-4 text-sky-500" />
               <h3 className="font-heading font-bold text-sm tracking-tight">
@@ -1629,10 +1652,14 @@ export default function Dashboard() {
               {(() => {
                 const b = readiness.breakdown || {};
                 const moodLabels = ['Drained', 'Low', 'OK', 'Good', 'Great'];
+                const moodLogged = !!(readiness.mood?.mood || readiness.sleep?.soreness);
                 const rows = [
                   {
                     emoji: '😴', name: "Last night's sleep", weight: '40%', d: b.sleep,
                     value: b.sleep?.logged ? `${b.sleep.value} hr` : null,
+                    // One "Log sleep" button covers hours + quality (both come
+                    // from the sleep log), shown when either is missing.
+                    cta: (!b.sleep?.logged || !b.quality?.logged) ? { label: 'Log sleep', target: 'recovery' } : null,
                   },
                   {
                     emoji: '⭐', name: 'Sleep quality', weight: '20%', d: b.quality,
@@ -1643,12 +1670,16 @@ export default function Dashboard() {
                     value: readiness.mood?.mood
                       ? moodLabels[Math.max(0, Math.min(4, readiness.mood.mood - 1))]
                       : (readiness.sleep?.soreness ? `Soreness ${readiness.sleep.soreness}/5` : null),
+                    cta: moodLogged ? null : { label: 'Log mood', target: 'recovery' },
                   },
                   {
                     emoji: '🏋️', name: 'Days since last workout', weight: '15%', d: b.recency,
                     value: b.recency?.logged
                       ? (b.recency.value === 0 ? 'Trained today' : `${b.recency.value} day${b.recency.value === 1 ? '' : 's'} ago`)
                       : null,
+                    // Always offer the workout route — training is the action
+                    // that moves this signal.
+                    cta: { label: 'Log a workout', target: 'workout' },
                   },
                 ];
                 return rows.map((r) => (
@@ -1680,6 +1711,15 @@ export default function Dashboard() {
                           ? `Scored ${r.d.score}/100 · weighted ${r.weight}`
                           : `No data yet — using a neutral estimate (${r.d?.score ?? 70}/100). Log it to sharpen your score.`}
                       </p>
+                      {r.cta && (
+                        <button
+                          type="button"
+                          onClick={() => goLogReadinessSignal(r.cta.target)}
+                          className="mt-1.5 inline-flex items-center gap-0.5 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          {r.cta.label} <span aria-hidden="true">→</span>
+                        </button>
+                      )}
                     </div>
                   </li>
                 ));
