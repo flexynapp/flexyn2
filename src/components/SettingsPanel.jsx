@@ -160,7 +160,11 @@ export default function SettingsPanel() {
           toast.error(tFallback('settings.validation.under13', 'You must be 13 or older to use Flexyn.'));
           return;
         }
-        await db.auth.updateMe({ birthday: statValue });
+        // Also sync the derived `age` column: every fitness calc (BMR,
+        // water intake, VO2max, nutrition targets) reads `age`, which was
+        // otherwise only written once at onboarding — so a birthday edit
+        // must refresh it or those calcs stay frozen at the signup value.
+        await db.auth.updateMe({ birthday: statValue, age: Math.floor(yearsAgo) });
       } else {
         const parsed = parseFloat(statValue);
         if (isNaN(parsed) || parsed <= 0) {

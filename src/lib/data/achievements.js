@@ -3,10 +3,13 @@ import { db } from '@/api/db';
 import { filterAfterReset } from '@/lib/accountReset';
 
 export const list = async (email) => {
-  const [rows, me] = await Promise.all([
-    db.entities.Achievement.filter({ created_by: email }),
-    db.auth.me().catch(() => null),
-  ]);
+  // Prefer user_id: server-granted achievements (mig 189) stamp
+  // created_by='' for guests, so an email filter misses them. Both
+  // writers (entity create + the 189 RPC) populate user_id.
+  const me = await db.auth.me().catch(() => null);
+  const rows = me?.id
+    ? await db.entities.Achievement.filter({ user_id: me.id })
+    : await db.entities.Achievement.filter({ created_by: email });
   return filterAfterReset(rows, me);
 };
 

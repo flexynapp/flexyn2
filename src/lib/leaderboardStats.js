@@ -34,9 +34,20 @@ export async function backfillLeaderboardStatsOnce(userEmail) {
   } catch { /* ignore */ }
 
   try {
-    const achievements = await db.entities.Achievement.filter({ created_by: userEmail });
+    // Filter by user_id, not created_by: server-granted achievements (mig
+    // 189) stamp created_by='' for guests, so the email filter missed
+    // them; user_id is populated by BOTH writers (entity create + RPC).
+    const achievements = me?.id
+      ? await db.entities.Achievement.filter({ user_id: me.id })
+      : await db.entities.Achievement.filter({ created_by: userEmail });
 
-    const unlockedCount = achievements.filter(a => a.unlocked).length;
+    // Every row in `achievements` IS an unlocked achievement (rows are
+    // inserted at unlock time, with unlocked_at). The old predicate
+    // `a.unlocked` referenced a column that never existed, so this always
+    // computed 0 — and then CLOBBERED a nonzero
+    // achievements_unlocked_count back to 0 on the next line, zeroing the
+    // user on the achievements leaderboard.
+    const unlockedCount = achievements.length;
 
     if ((Number(me?.achievements_unlocked_count) || 0) !== unlockedCount) {
       await db.auth.updateMe({ achievements_unlocked_count: unlockedCount });

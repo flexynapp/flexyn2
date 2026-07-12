@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { LOGO_URL } from '@/lib/constants';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { db } from '@/api/db';
@@ -56,7 +55,10 @@ export default function Splash() {
         className="flex flex-col items-center gap-3"
       >
         <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-2xl">
-          <img loading="lazy" src={LOGO_URL} alt="Flexyn" className="w-full h-full object-contain" />
+          {/* Self-hosted flame app icon — was the base44 CDN LOGO_URL, an
+              external dependency with no onError fallback on the FIRST screen
+              a user sees. /favicon.svg ships in the app bundle. */}
+          <img src="/favicon.svg" alt="Flexyn" className="w-full h-full object-contain" />
         </div>
         <motion.div
           initial={{ opacity: 0, y: 8 }}

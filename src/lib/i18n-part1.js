@@ -257,6 +257,8 @@ export const translations_p1 = {
     'regimens.toast.madePublic': 'Regimen is now public',
     'regimens.toast.madePrivate': 'Regimen is now private',
     'common.posting': 'Posting…',
+    'common.error': 'Something went wrong',
+    'common.loading': 'Loading…',
     'common.more': 'More',
     'common.less': 'Less',
     'common.edit': 'Edit',

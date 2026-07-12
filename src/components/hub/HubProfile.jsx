@@ -811,11 +811,19 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // canonical `guest_<uid>@flexyn.guest`. Reading by email then missed the
   // rows entirely, so guests' earned trophies showed as "none". user_id is
   // the stable identifier and matches for every account type.
+  // Fallback: on ?profile= deep links targetProfile can briefly be just
+  // { email } with no id (profile row not fetched / missing), which would
+  // leave the query disabled and that user's trophies never rendering.
+  // Query by email in that window — the id branch stays primary (a
+  // guest's own profile always has user.id, so guests never hit the
+  // email branch where their server-side user_email is '').
   const trophyUserId = isSelf ? user?.id : targetProfile?.id;
+  const trophyKey = trophyUserId ?? email;
+  const trophyByEmail = !trophyUserId;
   const { data: earnedTrophies = [] } = useQuery({
-    queryKey: ['userTrophies', trophyUserId],
-    queryFn: () => listEarnedTrophies(trophyUserId, false),
-    enabled: !!trophyUserId,
+    queryKey: ['userTrophies', trophyKey, trophyByEmail],
+    queryFn: () => listEarnedTrophies(trophyKey, trophyByEmail),
+    enabled: !!trophyKey,
     staleTime: 5 * 60_000,
   });
   const isVerifiedUser = isVerified(displayUsername);
@@ -1615,6 +1623,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             "earn one more badge" identity investment loop. */}
         <ProfileBadgeShowcase
           userEmail={isSelf ? user?.email : targetUser?.email}
+          userId={isSelf ? user?.id : targetProfile?.id}
           isOwn={isSelf}
         />
 

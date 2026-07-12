@@ -18,6 +18,8 @@ export const hubI18n = {
     'hub.shareError': 'Could not share',
     'hub.privacy.public': 'Public',
     'hub.privacy.followers': 'Followers',
+    'hub.privacy.followersOnly': 'Followers only',
+    'hub.post': 'Post',
     'hub.empty.pumpTitle': 'The feed is quiet',
     'hub.empty.pumpDesc': 'Be the first to post and start the energy.',
     'hub.empty.squadTitle': "You're not following anyone yet",

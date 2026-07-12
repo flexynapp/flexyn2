@@ -74,16 +74,20 @@ function Badge({ row, onTap, tappable }) {
   );
 }
 
-export default function ProfileBadgeShowcase({ userEmail, isOwn }) {
+export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
   const { tFallback } = useLanguage();
 
+  // Prefer user_id: server-granted achievements (mig 189) stamp
+  // created_by='' for guests, so an email-only filter hides a guest's
+  // badges. Email stays as the fallback for callers that only know the
+  // email (deep-linked profiles before the profile row resolves).
   const { data: rows = [] } = useQuery({
-    queryKey: ['profileBadges', userEmail],
+    queryKey: ['profileBadges', userId ?? userEmail],
     queryFn: async () => {
-      if (!userEmail) return [];
+      if (!userId && !userEmail) return [];
       try {
         const list = await db.entities.Achievement.filter(
-          { created_by: userEmail },
+          userId ? { user_id: userId } : { created_by: userEmail },
           '-unlocked_at',
           MAX_BADGES,
         );
@@ -92,7 +96,7 @@ export default function ProfileBadgeShowcase({ userEmail, isOwn }) {
         return [];
       }
     },
-    enabled: !!userEmail,
+    enabled: !!(userId || userEmail),
     staleTime: 60_000,
   });
 

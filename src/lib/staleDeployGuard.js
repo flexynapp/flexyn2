@@ -35,6 +35,11 @@ function isChunkMessage(msg) {
 // window the cause isn't stale cache — let it surface normally rather
 // than trap the user in a reload loop.
 function reloadOnce() {
+  // A chunk fetch that failed because the device is OFFLINE is not a
+  // stale deploy — reloading would drop in-memory state (e.g. an
+  // in-progress workout) for nothing, since the reload would hit the
+  // same dead network. Let the SW-cached shell / Suspense handle it.
+  try { if (typeof navigator !== 'undefined' && navigator.onLine === false) return; } catch { /* ignore */ }
   try {
     const last = Number(sessionStorage.getItem(CHUNK_RELOAD_FLAG) || '0');
     if (Date.now() - last < 60_000) return;
