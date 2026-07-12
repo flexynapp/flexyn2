@@ -92,16 +92,15 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
       .eq('id', user.id)
       .single();
 
-    // Fetch opponent's email — cross-user read via public_profiles
-    // (email is whitelisted on the view; it's the app's join key).
-    const { data: opProfile } = await selectProfiles((from) => from
-      .select('email')
-      .eq('id', opponentId)
-      .single());
+    // Resolve opponent's email via the narrow resolve_profile_email RPC
+    // (migration 195). email was removed from the public_profiles view to
+    // stop bulk harvesting; this returns the single matching email by id.
+    const { data: opEmail } = await supabase
+      .rpc('resolve_profile_email', { p_id: opponentId });
 
-    if (!myProfile?.email || !opProfile?.email) return;
+    if (!myProfile?.email || !opEmail) return;
 
-    const conv = await findOrCreateConversation(myProfile.email, opProfile.email);
+    const conv = await findOrCreateConversation(myProfile.email, opEmail);
     if (!conv?.id) return;
 
     const payload = JSON.stringify({

@@ -13,6 +13,11 @@ import { motion } from 'framer-motion';
 import { X, Loader2, Search } from 'lucide-react';
 
 const TENOR_KEY = import.meta.env.VITE_TENOR_API_KEY || '';
+
+// True only when a Tenor key is configured at build time. Callers gate the
+// GIF entry point on this so users never see the dev-facing "set the env
+// var" state — without a key the whole feature is hidden, not broken.
+export const GIF_ENABLED = !!TENOR_KEY;
 const TRENDING_URL = `https://tenor.googleapis.com/v2/featured?key=${TENOR_KEY}&limit=24&media_filter=gif,tinygif`;
 const searchUrl = (q) =>
   `https://tenor.googleapis.com/v2/search?q=${encodeURIComponent(q)}&key=${TENOR_KEY}&limit=24&media_filter=gif,tinygif`;

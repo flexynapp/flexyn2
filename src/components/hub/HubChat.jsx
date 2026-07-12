@@ -6,7 +6,7 @@ import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation } from '@/lib/data/conversationRequests';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
 import DMStickerPicker from './DMStickerPicker';
-import GifPicker from './GifPicker';
+import GifPicker, { GIF_ENABLED } from './GifPicker';
 import VoiceMemoRecorder, { formatDuration as formatVoiceDuration } from './VoiceMemoRecorder';
 import { ITEMS as LOOT_ITEMS } from '@/lib/lootCatalog';
 import { format, parseISO, differenceInHours, formatDistanceToNowStrict } from 'date-fns';
@@ -1661,14 +1661,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         >
           <Smile className="w-4 h-4" />
         </button>
-        {/* GIF picker — Tenor-backed. */}
-        <button
-          onClick={() => setGifPickerOpen(true)}
-          aria-label="Send GIF"
-          className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border"
-        >
-          GIF
-        </button>
+        {/* GIF picker — Tenor-backed. Hidden entirely when no Tenor key is
+            configured, so users never hit the picker's dev-facing "set the
+            env var" state (the button used to always render). */}
+        {GIF_ENABLED && (
+          <button
+            onClick={() => setGifPickerOpen(true)}
+            aria-label="Send GIF"
+            className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border"
+          >
+            GIF
+          </button>
+        )}
         {/* Poll — in-chat poll with live vote tally. */}
         <button
           onClick={() => setPollComposerOpen(v => !v)}
@@ -1740,7 +1744,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         )}
       </AnimatePresence>
       <AnimatePresence>
-        {gifPickerOpen && (
+        {GIF_ENABLED && gifPickerOpen && (
           <GifPicker
             open
             onPick={handleSendGif}
