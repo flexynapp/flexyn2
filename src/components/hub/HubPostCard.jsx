@@ -846,8 +846,12 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
           )}
         </div>
         <div className="flex-1 min-w-0 pointer-events-none">
-          <div className="flex items-baseline gap-1.5 truncate">
-            <p className={`font-heading font-bold text-sm truncate ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
+          <div className="flex items-baseline gap-1.5 min-w-0">
+            {/* min-w-0 lets the handle shrink below its intrinsic width so
+                `truncate` actually ellipsizes it. Without it, a long handle
+                keeps full width and shoves the shrink-0 trophy / title badge
+                past the card edge (clipped) instead of truncating cleanly. */}
+            <p className={`font-heading font-bold text-sm truncate min-w-0 ${onAuthorClick && post.author_email ? 'hover:underline' : ''}`}>
               {author.handle}
             </p>
             {author.signatureTrophy && (

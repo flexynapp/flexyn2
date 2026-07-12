@@ -15,8 +15,11 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useUnreadDMCount } from '@/lib/hubMessaging';
 
 // Routes that show a back arrow + page title (instead of the logo).
-// The four hoisted-from-Hub destinations all behave as child routes.
-const CHILD_ROUTES = ['/workout', '/progress', '/nutrition', '/messages', '/market', '/coach'];
+// Only the hoisted-from-Hub sub-destinations behave as child routes — the
+// five primary bottom-nav tabs (dashboard, workout, hub, progress,
+// nutrition) all show the logo, since they're top-level (nowhere to go
+// "back" to) and each renders its own in-page title.
+const CHILD_ROUTES = ['/messages', '/market', '/coach'];
 
 export default function Header() {
   const navigate = useNavigate();
