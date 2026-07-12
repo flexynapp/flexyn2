@@ -114,7 +114,7 @@ export default function MoodLogCard() {
       transition={{ duration: 0.3 }}
       className="h-full"
     >
-      <Card className="px-3 py-2 h-full flex flex-col justify-center gap-1.5">
+      <Card className="px-3 py-3 h-full min-h-[104px] flex flex-col justify-center gap-2">
         <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground">
           {(() => {
             if (!current) return tFallback('mood.prompt', 'How are you feeling?');

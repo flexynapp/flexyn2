@@ -114,7 +114,7 @@ export default function HydrationRing({ goalOz = DEFAULT_GOAL_OZ }) {
       transition={{ duration: 0.3 }}
       className="h-full"
     >
-      <Card className="px-4 py-3 h-full flex items-center cursor-pointer hover:bg-secondary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      <Card className="px-4 py-3 h-full flex items-center min-h-[104px] cursor-pointer hover:bg-secondary/30 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             onClick={() => navigate('/nutrition')}
             role="button"
             tabIndex={0}

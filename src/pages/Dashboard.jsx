@@ -194,6 +194,24 @@ function HeroCard({
             t={t}
           />
         </div>
+
+        {/* Login streak lives inside the hero card, beneath the carousel
+            dots. It sits on the dark hero surface (variant="hero" → light
+            text / translucent pill) and its calendar expands inline, so the
+            whole card grows with it rather than pushing sibling cards. */}
+        {/* z-20 + stopping pointerdown here keeps the hero card's drag='x'
+            swipe gesture from swallowing taps on the streak chevron — the
+            banner lives inside the draggable card, so without this the
+            slideshow's drag handler ate the tap and the calendar never
+            expanded. */}
+        <div
+          className="relative z-20 px-4 md:px-6 pb-4 md:pb-5 -mt-6 md:-mt-8"
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <ErrorBoundary label="LoginStreakBanner">
+            <LoginStreakBanner variant="hero" />
+          </ErrorBoundary>
+        </div>
       </motion.div>
 
       {/* Primary CTA — sits BELOW the hero card (no overlap) and follows
@@ -1103,7 +1121,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-2 mb-3">
               <Activity className="w-4 h-4 text-sky-500" />
               <h3 className="font-heading font-bold text-sm tracking-tight">
-                {tFallback('dashboard.section.recovery', 'Recovery')}
+                {tFallback('dashboard.section.recovery', 'Nutrition & Recovery')}
               </h3>
             </div>
 
@@ -1111,10 +1129,12 @@ export default function Dashboard() {
               <div className="space-y-2">
                 <ErrorBoundary label="MacroRingWidget"><MacroRingWidget userProfile={userProfile} /></ErrorBoundary>
                 <ErrorBoundary label="CalorieProgressWidget"><CalorieProgressWidget userProfile={userProfile} /></ErrorBoundary>
-                <div className="grid grid-cols-2 gap-2">
-                  <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
-                  <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
-                </div>
+                {/* Full-width, stacked — a 2-col grid cramped the mood row
+                    (5×44px targets can't fit half the card, so the last
+                    emoji clipped) and clipped the hydration dots. Stacked,
+                    each card has the room its content needs. */}
+                <ErrorBoundary label="HydrationRing"><HydrationRing /></ErrorBoundary>
+                <ErrorBoundary label="MoodLogCard"><MoodLogCard /></ErrorBoundary>
                 <ErrorBoundary label="SleepLogCard"><SleepLogCard /></ErrorBoundary>
                 <ErrorBoundary label="StepsLogCard"><StepsLogCard /></ErrorBoundary>
               </div>
@@ -1203,7 +1223,7 @@ export default function Dashboard() {
         const allActions = [
           { key: 'startWorkout',  to: '/workout', icon: Play,         label: t('dashboard.startWorkout'),
             iconBg: 'bg-orange-500/15',  iconColor: 'text-orange-500' },
-          { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My week'),
+          { key: 'myWeek',        icon: CalendarDays, label: tFallback('dashboard.myWeek', 'My Week'),
             iconBg: 'bg-blue-500/15',    iconColor: 'text-blue-500',
             onClick: () => setWeekModalOpen(true) },
           { key: 'createRegimen', icon: Dumbbell,     label: t('dashboard.createRegimen'),
@@ -1421,14 +1441,6 @@ export default function Dashboard() {
       {/* ── Streak banners — sit between the greeting and the hero so
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
-      <div className="mt-1 mb-2 space-y-1">
-        {/* One streak badge only — the daily (login) streak. The separate
-            workout-streak banner rendered a second "N-day streak" chip
-            right below this one, which read as a duplicate; workout cadence
-            is already surfaced by the hero "This week" slide + Progress. */}
-        <ErrorBoundary label="LoginStreakBanner"><LoginStreakBanner /></ErrorBoundary>
-      </div>
-
       {/* ── Hero ───────────────────────────────────────────────── */}
       <div className="mb-2">
         <HeroCard

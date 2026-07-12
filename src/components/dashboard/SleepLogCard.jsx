@@ -154,37 +154,7 @@ export default function SleepLogCard() {
           })}
         </div>
 
-        {/* quality — optional, enabled once hours is set */}
-        <div
-          className="flex items-center gap-1.5"
-          role="radiogroup"
-          aria-label={tFallback('sleep.qualityAria', 'Sleep quality')}
-        >
-          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/70 me-0.5">
-            {tFallback('sleep.qualityKicker', 'Quality')}
-          </span>
-          {QUALITY_LABELS.map((label, i) => {
-            const q = i + 1;
-            const active = quality === q;
-            return (
-              <button
-                key={q}
-                type="button"
-                disabled={submitting || !logged}
-                onClick={() => save({ nextQuality: q })}
-                role="radio"
-                aria-checked={active}
-                aria-label={tFallback(`sleep.quality.${q}`, label)}
-                title={tFallback(`sleep.quality.${q}`, label)}
-                className={[
-                  'w-4 h-4 rounded-full transition-transform',
-                  !logged ? 'opacity-30 cursor-not-allowed' : 'hover:scale-125',
-                  active ? 'bg-primary scale-110' : 'bg-muted-foreground/30',
-                ].join(' ')}
-              />
-            );
-          })}
-        </div>
+        {/* Quality dots removed — redundant with the hours score above. */}
       </Card>
     </motion.div>
   );

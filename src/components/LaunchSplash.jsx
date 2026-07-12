@@ -15,7 +15,7 @@ import SplashScreen from '@/components/SplashScreen';
 
 // Matches the App Opener design's default canvas (slate) so the backdrop
 // and the splash read as one surface.
-const BG = '#3F4D5A';
+const BG = '#3F4D5A'; // App Opener design default canvas (slate)
 // Duration of the crossfade from the opener to the app beneath it.
 const CROSSFADE_MS = 150;
 
@@ -59,7 +59,7 @@ export default function LaunchSplash() {
           auth resolves slower than the animation, so nothing flashes through
           until we deliberately crossfade the whole overlay away. */}
       <div style={{ position: 'absolute', inset: 0, background: BG }} />
-      <SplashScreen onComplete={() => setAnimDone(true)} background={BG} drawMs={1100} />
+      <SplashScreen onComplete={() => setAnimDone(true)} background={BG} drawMs={1600} />
     </div>
   );
 }
