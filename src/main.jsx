@@ -6,6 +6,12 @@ import App from './App.jsx'
 import './index.css'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { capturePendingReferralCode } from './lib/data/referrals'
+import { installStaleDeployGuard } from './lib/staleDeployGuard'
+
+// Recover from stale-deploy chunk fetches (see staleDeployGuard) before
+// the app mounts, so a cached tab that hits a missing chunk self-heals
+// with one reload instead of showing a half-rendered screen.
+installStaleDeployGuard()
 
 // Signature for anyone who opens DevTools.
 try {
