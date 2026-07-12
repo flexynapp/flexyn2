@@ -278,7 +278,7 @@ export default function Layout() {
       <aside className="hidden lg:flex fixed start-0 top-0 bottom-0 w-64 flex-col bg-card border-e border-border z-30">
         <div className="p-6 flex flex-col items-center gap-2">
           <Link to="/dashboard" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Flexyn — go to dashboard" className="flex items-center justify-center hover:opacity-80 transition-opacity">
-            <FlexynLogo className="h-12" />
+            <FlexynLogo className="h-14" />
           </Link>
           {/* Row 1: Profile menu (full width) */}
           <div className="w-full mt-1">
