@@ -12,6 +12,7 @@ export default function LeaderboardsModal({ open, onClose }) {
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent
+        title="Leaderboards"
         className="max-w-2xl max-h-[88vh] overflow-y-auto p-0 gap-0"
         onInteractOutside={(e) => {
           // Only close when the user clicks the dark backdrop overlay,
