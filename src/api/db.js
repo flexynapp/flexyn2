@@ -290,7 +290,21 @@ const auth = {
   async updateMe(data) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Not authenticated');
-    let payload = { id: user.id, email: user.email, ...data, updated_at: new Date().toISOString() };
+    // Guest / anonymous users have user.email = '' (empty). Writing that
+    // raw into the payload is a double bug: user_profiles.email is UNIQUE
+    // (user_profiles_email_key), so the FIRST guest's updateMe clobbers the
+    // canonical `guest_<uid>@flexyn.guest` that handle_new_user (mig 172)
+    // wrote — and EVERY subsequent guest then collides on '' with 23505.
+    // 23505 isn't 42703/PGRST204, so the strip-and-retry loop below can't
+    // recover it and the whole upsert throws — silently breaking onboarding
+    // completion, nutrition setup, theme, and every other profile write for
+    // the 2nd+ guest. Synthesize the same uid-derived placeholder create()
+    // uses so the value is unique per guest AND matches created_by on their
+    // rows (so their workout/history reads resolve). Real users keep their
+    // own email (unchanged behavior).
+    const effectiveEmail = user.email
+      || (user.id ? `guest_${user.id}@flexyn.guest` : null);
+    let payload = { id: user.id, email: effectiveEmail, ...data, updated_at: new Date().toISOString() };
 
     // Columns that are always safe — never strip these even in nuclear mode.
     const CORE_KEYS = new Set(['id', 'email', 'updated_at', 'username',
