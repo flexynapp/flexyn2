@@ -5,7 +5,7 @@ import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
-import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, Repeat2, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
+import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence, Reorder, useReducedMotion } from 'framer-motion';
 import GoalsModal from '@/components/goals/GoalsModal';
@@ -1373,33 +1373,8 @@ export default function Dashboard() {
                 <span>{tFallback('dashboard.reset', 'Reset')}</span>
               </button>
             )}
-            {/* Rest-day toggle — small left/right switch tucked next to
-                Customize home. Only appears on un-worked-out days. */}
-            {!hasWorkedOutToday && (
-              <button
-                type="button"
-                role="switch"
-                aria-checked={isRestDay}
-                onClick={() => isRestDay ? handleUndoRestDay() : handleDeclareRestDay()}
-                title={isRestDay
-                  ? tFallback('dashboard.restDay.undo', 'Undo rest day')
-                  : tFallback('dashboard.restDay.markCta', 'Mark today as a rest day')}
-                className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <span className="hidden sm:inline">{tFallback('dashboard.restDay.short', 'Rest')}</span>
-                <span
-                  className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                    isRestDay ? 'bg-green-500/70' : 'bg-secondary border border-border'
-                  }`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow-sm transition-transform ${
-                      isRestDay ? 'translate-x-3.5' : 'translate-x-0.5'
-                    }`}
-                  />
-                </span>
-              </button>
-            )}
+            {/* Rest-day toggle removed — it was an unused slide switch
+                cluttering the greeting header. */}
             {/* Dropped the duplicate "Set Default" button that was here —
                 it only wrote to localStorage which is per-device. The
                 first "Set default" above (handleSetAsDefault) uses the
@@ -1473,44 +1448,9 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* ── Repeat-last-workout — single quick action below the hero.
-            TodaysPlanCard removed for now (user will reimplement later);
-            rest-day moved to a toggle next to the Customize Home button. */}
-      <div className="flex flex-wrap items-start gap-2 mb-3 md:mb-4">
-        <div className="flex-1 min-w-[15rem] empty:hidden">
-          {!hasWorkedOutToday && !isRestDay && logs.length > 0 && (() => {
-            // Pick the most-recent log with actual exercises. logs[0] could
-            // be an empty-exercises row from a crashed mid-save; repeating
-            // it lands the user in an empty workout screen with nothing
-            // to repeat. (Audit 08 #13.)
-            const last = logs.find(l => Array.isArray(l.exercises) && l.exercises.length > 0);
-            if (!last) return null;
-            const title = last.regimen_name || tFallback('workout.lastWorkout', 'Last workout');
-            return (
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: 0.05 }}
-              >
-                <button
-                  onClick={() => navigate('/workout', { state: { repeatLog: last } })}
-                  className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 hover:border-primary/50 transition-colors text-start"
-                >
-                  <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <Repeat2 className="w-3.5 h-3.5 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[9px] font-bold uppercase tracking-[0.18em] text-primary">{tFallback('dashboard.repeatLast', 'Repeat last workout')}</p>
-                    <p className="text-xs font-heading font-bold leading-tight truncate">{title}</p>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-primary/60 shrink-0 group-hover:translate-x-0.5 transition-transform rtl:scale-x-[-1]" />
-                </button>
-              </motion.div>
-            );
-          })()}
-        </div>
-
-      </div>
+      {/* Repeat-last-workout moved OFF the dashboard — it lives on the
+          Workout page now (Workout.jsx repeat flow), per cleanup: the
+          dashboard was too busy and this duplicated a Workout-tab action. */}
 
       {/* Hidden-sections chip rail — only renders in edit mode and
           only when the user has actually hidden something. Tapping a

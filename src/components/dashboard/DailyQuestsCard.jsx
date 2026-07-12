@@ -4,7 +4,7 @@
 // (idempotent), polls for progress changes, and lets the user claim coin
 // rewards when quests complete.
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -18,6 +18,19 @@ import * as quests from '@/lib/data/quests';
 import * as notifications from '@/lib/data/notifications';
 import { getQuestDefinition, QUEST_DIFFICULTY, questDestinationRoute } from '@/lib/questCatalog';
 import { reportError } from '@/lib/reportError';
+
+// Confetti burst when all of the day's quests are complete. Lazy-imports
+// canvas-confetti (its own chunk) and honors reduced-motion.
+function fireAllQuestsConfetti() {
+  if (typeof window !== 'undefined' && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const colors = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#a855f7'];
+  import('canvas-confetti').then(({ default: confetti }) => {
+    confetti({ particleCount: 130, spread: 100, origin: { x: 0.5, y: 0.5 }, colors });
+    setTimeout(() => confetti({ particleCount: 80, spread: 75, origin: { x: 0.15, y: 0.5 }, colors }), 120);
+    setTimeout(() => confetti({ particleCount: 80, spread: 75, origin: { x: 0.85, y: 0.5 }, colors }), 240);
+  }).catch(() => {});
+}
 
 export default function DailyQuestsCard({ onNavigated }) {
   // Collapsible quest list — chevron at the bottom flips between
@@ -151,6 +164,56 @@ export default function DailyQuestsCard({ onNavigated }) {
       toast.error(t('dashboard.claimError'));
     }
   };
+
+  // Completion effects: a top-of-screen "quest complete — tap to claim"
+  // toast the moment a quest crosses into completed, and a confetti burst
+  // when ALL of the day's quests are done. Refs seed on first render so we
+  // don't retroactively fire for quests already completed earlier today.
+  const hydratedRef = useRef(false);
+  const announcedRef = useRef(new Set());
+  const allDoneRef = useRef(false);
+  useEffect(() => {
+    if (!rows || rows.length === 0) return;
+    const total = rows.length;
+    const completeCount = rows.filter((r) => r.completed_at).length;
+
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      rows.forEach((r) => { if (r.completed_at) announcedRef.current.add(r.id); });
+      if (total > 0 && completeCount === total) allDoneRef.current = true;
+      return;
+    }
+
+    rows.forEach((r) => {
+      if (!r.completed_at || announcedRef.current.has(r.id)) return;
+      announcedRef.current.add(r.id);
+      if (r.claimed_at) return; // already claimed elsewhere — no prompt
+      const def = getQuestDefinition(r.quest_id);
+      const k = `quest.${r.quest_id}.label`;
+      const tl = t(k);
+      const label = tl === k ? (def?.label || 'Quest') : tl;
+      triggerHaptic('primary');
+      toast.success(
+        tFallback('dashboard.questCompleteToast', 'Quest complete: {label}', { label }),
+        {
+          icon: '🎯',
+          description: tFallback('dashboard.questCompleteClaimHint', 'Tap to claim your reward'),
+          duration: 8000,
+          action: { label: t('dashboard.claim'), onClick: () => handleClaim(r) },
+        },
+      );
+    });
+
+    if (total > 0 && completeCount === total && !allDoneRef.current) {
+      allDoneRef.current = true;
+      triggerHaptic('primary');
+      fireAllQuestsConfetti();
+      toast.success(tFallback('dashboard.allQuestsCompleteToast', 'All daily quests complete! 🎉'), { duration: 6000 });
+    }
+    // Keyed on `rows` — the meaningful trigger. handleClaim/t are captured
+    // from the render where rows changed, which is current.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   if (!user?.id || rows.length === 0) return null;
 

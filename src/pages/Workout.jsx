@@ -2017,6 +2017,11 @@ export default function Workout() {
       // route change that re-reads location.search.
       const search = params.toString();
       navigate({ pathname: '/workout', search: search ? `?${search}` : '' }, { replace: true });
+      // Land at the TOP of the opened view. React-router keeps the prior
+      // scroll position across the route change, so a quest deep-link
+      // (e.g. the cardio quest) otherwise dropped the user into the
+      // middle of the newly-opened panel. Scroll after the panel renders.
+      setTimeout(() => { try { window.scrollTo({ top: 0, behavior: 'auto' }); } catch { /* noop */ } }, 0);
     }
   }, [location.search, navigate]);
 
