@@ -519,9 +519,13 @@ async function _invokeXp({ xp_gained = 0, action_type } = {}) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || !xp_gained) return null;
 
-    // 1. Increment XP (RPC also updates current_level after migration 006)
-    const { error } = await supabase.rpc('increment_user_xp', {
-      p_user_id: user.id,
+    // 1. Grant XP through grant_action_xp (migration 198): it enforces a
+    //    per-action daily cap (anti-farm for the fixed grants) and then
+    //    delegates to the global-capped increment_user_xp. Passing
+    //    action_type is what makes the per-action cap possible — the raw
+    //    increment_user_xp RPC is no longer client-callable.
+    const { error } = await supabase.rpc('grant_action_xp', {
+      p_action_type: action_type || 'other',
       p_xp: Math.round(xp_gained),
     });
     if (error) console.warn('[XP] rpc failed:', error.message);

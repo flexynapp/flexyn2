@@ -1117,7 +1117,10 @@ export default function Workout() {
       // (First Blood → The Final Gauntlet), using the just-saved workout +
       // history (realPrev is the pre-save cache = the right comparison
       // window for streak/weekly/PR metrics). Non-blocking, never throws.
-      checkGauntletProgress({ workoutLog: clampedData, workoutLogId: null, historicalLogs: realPrev })
+      // Pass the saved log's id so the RPC can VERIFY the per-session
+      // metrics server-side (mig 201) — the client evaluation is now just a
+      // pre-check, not the source of truth.
+      checkGauntletProgress({ workoutLog: clampedData, workoutLogId: result?.workoutLog?.id ?? null, historicalLogs: realPrev })
         .then((award) => {
           if (!award) return;
           queryClient.invalidateQueries({ queryKey: ['gauntlet-progress'] });
@@ -2367,7 +2370,10 @@ export default function Workout() {
               // (not 24h) so workouts logged early morning still feel
               // like today if it's still today.
               const lastDateStr = last.date ? String(last.date).slice(0, 10) : null;
-              const todayStr = new Date().toISOString().slice(0, 10);
+              // Local calendar day — last.date is stored as a local
+              // 'yyyy-MM-dd', so comparing against a UTC day misfired the
+              // "Today" label near midnight in non-UTC zones.
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isToday = lastDateStr === todayStr;
               const subtitleParts = [
                 last.date ? (isToday ? tFallback('common.today', 'Today') : format(parseISO(last.date), 'MMM d')) : null,

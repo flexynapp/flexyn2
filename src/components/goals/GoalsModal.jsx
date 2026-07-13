@@ -17,10 +17,14 @@ import { fireGoalCelebration } from '@/lib/goalCelebration';
 import { fireFirstGoalCelebration } from '@/lib/firstGoalCelebration';
 import { reportError } from '@/lib/reportError';
 import { useOptimisticDelete } from '@/hooks/useOptimisticDelete';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { formatWeight } from '@/lib/weightUnit';
 
 // Small inline summary of a goal target for the first-goal celebration
-// copy. Kept inline so the helper stays goal-shape-agnostic.
-function summarizeGoalTarget(g) {
+// copy. target_weight is stored canonically in lbs, so convert it to the
+// viewer's unit (formatWeight adds the kg/lb/st label) — otherwise a kg
+// user's "100 kg" goal read out as the raw "220.462" with no unit.
+function summarizeGoalTarget(g, weightUnit) {
   if (!g) return '';
   if (g.goal_type === 'cardio_distance' && g.target_distance_meters) {
     return `${g.cardio_activity || 'Cardio'} ${Math.round(g.target_distance_meters)}m`;
@@ -33,8 +37,9 @@ function summarizeGoalTarget(g) {
   }
   // Strength
   const name = g.exercise_name || 'lift';
-  if (g.target_weight && g.target_reps) return `${name} ${g.target_weight}×${g.target_reps}`;
-  if (g.target_weight) return `${name} ${g.target_weight}`;
+  const w = g.target_weight != null ? formatWeight(g.target_weight, weightUnit) : null;
+  if (w && g.target_reps) return `${name} ${w} × ${g.target_reps}`;
+  if (w) return `${name} ${w}`;
   if (g.target_reps)   return `${name} ${g.target_reps} reps`;
   return name;
 }
@@ -45,6 +50,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'completed'
   const [tabDirection, setTabDirection] = useState(1);
   const { t } = useLanguage();
+  const { weightUnit } = useWeightUnit();
 
   const switchTab = (tab) => {
     setTabDirection(tab === 'completed' ? 1 : -1);
@@ -67,7 +73,7 @@ export default function GoalsModal({ open, onClose, goals = [], logs = [], userP
       const isFirstGoal = activePrev.length === 0;
       if (isFirstGoal) {
         fireFirstGoalCelebration({
-          targetSummary: summarizeGoalTarget(created || submittedData),
+          targetSummary: summarizeGoalTarget(created || submittedData, weightUnit),
           userEmail: user?.email,
         });
       } else {
