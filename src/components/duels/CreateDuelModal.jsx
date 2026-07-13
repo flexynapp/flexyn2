@@ -65,15 +65,15 @@ async function getFriends(userEmail, currentUserId) {
   if (!userEmail) return [];
   const { data: follows } = await supabase
     .from('hub_follows')
-    .select('followee_email')
+    .select('followee_id')
     .eq('follower_email', userEmail)
     .limit(50);
   if (!follows?.length) return [];
-  const emails = follows.map(f => f.followee_email).filter(Boolean);
-  if (!emails.length) return [];
+  const ids = follows.map(f => f.followee_id).filter(Boolean);
+  if (!ids.length) return [];
   const { data: profiles } = await selectProfiles((from) => from
     .select('id, username, avatar_url, current_level')
-    .in('email', emails)
+    .in('id', ids)
     .neq('id', currentUserId)
     .not('username', 'is', null)
     .limit(20));
