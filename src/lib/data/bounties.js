@@ -304,22 +304,22 @@ export async function generateDemoBounties() {
 
   if (!myProfile) throw new Error('Profile not found');
 
-  // Get followed users via email column
+  // Get followed users via the (now-populated) followee_id column
   const { data: follows } = await supabase
     .from('hub_follows')
-    .select('followee_email')
+    .select('followee_id')
     .eq('follower_email', myProfile.email)
     .limit(10);
 
   let targetProfiles = [];
 
   if (follows?.length) {
-    const emails = follows.map(f => f.followee_email);
-    const { data: profiles } = await selectProfiles((from) => from
+    const ids = follows.map(f => f.followee_id).filter(Boolean);
+    const { data: profiles } = ids.length ? await selectProfiles((from) => from
       .select('id, username, avatar_url, total_xp')
-      .in('email', emails)
+      .in('id', ids)
       .not('username', 'is', null)
-      .limit(5));
+      .limit(5)) : { data: [] };
     targetProfiles = profiles ?? [];
   }
 
