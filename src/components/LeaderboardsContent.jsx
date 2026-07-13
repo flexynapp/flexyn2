@@ -123,7 +123,6 @@ export default function LeaderboardsContent({ active = true }) {
           const val = Number(r.value) || 0;
           return {
             id:     r.user_id,
-            email:  r.email,
             full_name: r.full_name || r.username || t('progress.anonymous'),
             rank:   idx + 1,
             _val:   val,
@@ -138,7 +137,6 @@ export default function LeaderboardsContent({ active = true }) {
       const lvl = calculateLevelFromXp(xp);
       return {
         id: u.id,
-        email: u.email,
         full_name: u.full_name || t('progress.anonymous'),
         total_xp: xp,
         level: lvl.level,
@@ -183,7 +181,7 @@ export default function LeaderboardsContent({ active = true }) {
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
   }, [allUsers, activeBoard, period, periodScoped, periodRows, weightUnit, distanceUnit, t]);
 
-  const myRow = ranked.find(r => r.email === user?.email);
+  const myRow = ranked.find(r => r.id === user?.id);
 
   return (
     <>
@@ -312,7 +310,7 @@ export default function LeaderboardsContent({ active = true }) {
                   them a quick read of where they stand without
                   scrolling to find their row in a 100-deep list. */}
               {(() => {
-                const myRowIdx = ranked.findIndex(r => r.email === user?.email);
+                const myRowIdx = ranked.findIndex(r => r.id === user?.id);
                 if (myRowIdx < 0) return null;
                 const myRow = ranked[myRowIdx];
                 if (myRowIdx < 3) return null; // already visible on podium
@@ -345,12 +343,12 @@ export default function LeaderboardsContent({ active = true }) {
                 // actual position deep in the list). The user's row
                 // stays visible in podium positions (idx < 3) because
                 // the pill explicitly skips that range.
-                const myIdx = ranked.findIndex(r => r.email === user?.email);
+                const myIdx = ranked.findIndex(r => r.id === user?.id);
                 const suppressMyRow = myIdx >= 3;
                 return ranked.map((row, idx) => {
                   if (suppressMyRow && idx === myIdx) return null;
                   const podium = PODIUM_STYLE[idx];
-                  const isMe = row.email === user?.email;
+                  const isMe = row.id === user?.id;
                   return (
                   <motion.div
                     key={row.id}

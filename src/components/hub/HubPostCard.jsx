@@ -10,7 +10,7 @@ import { blockUserFull } from '@/lib/data/userBlocks';
 import { format, parseISO, formatDistanceToNow, differenceInHours } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
+import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import * as hubReactions from '@/lib/data/hubReactions';
 import { reportError } from '@/lib/reportError';
 import * as hubPosts from '@/lib/data/hubPosts';
@@ -576,8 +576,8 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
   // "is this my own post?" block above the view-tracking useEffect)
   // because the deps array of that useEffect references it. Keeping
   // a duplicate `const isMine =` here would be a redeclaration error.
-  const authorsByEmail = useAuthorsByEmail();
-  const author = resolveAuthor(authorsByEmail, post.author_email, {
+  const authorsById = useAuthorsById();
+  const author = resolveAuthor(authorsById, post.user_id, {
     author_name: post.author_name,
     author_avatar_url: post.author_avatar_url,
   });
