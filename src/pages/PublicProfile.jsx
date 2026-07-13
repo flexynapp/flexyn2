@@ -15,9 +15,11 @@
 //   • not found                — friendly 404 state.
 //
 // Data:
-//   • user_profiles RLS already has `using(true)` (migration 001) so
-//     anon callers can read all non-sensitive columns.
-//   • No email, no auth metadata is exposed — just display fields.
+//   • Reads via the get_public_profile_by_username RPC (migration 206), a
+//     SECURITY DEFINER function that returns just the public display fields
+//     for one username. It exposes email ONLY to authenticated callers, so
+//     the anon key cannot bulk-harvest emails through the public_profiles
+//     view (anon SELECT on that view is revoked in migration 207).
 
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -29,7 +31,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
-import { selectProfiles } from '@/lib/data/users';
+import { supabase } from '@/api/supabaseClient';
 
 // Tier → accent colour for the league badge
 const TIER_COLORS = {
@@ -82,21 +84,12 @@ export default function PublicProfile() {
 
   const cleanUsername = (username || '').replace(/^@/, '');
 
-  // Fetch profile by username — anon-safe via the public_profiles view
-  // (readable by anon + authenticated; falls back to user_profiles while
-  // the view migration is pending).
+  // Fetch profile by username via the anon-safe RPC (returns only public
+  // display fields; email is included for authenticated callers only).
   useEffect(() => {
     if (!cleanUsername) { setNotFound(true); return; }
-    selectProfiles((from) => from
-      .select([
-        'id', 'username', 'full_name', 'bio', 'avatar_url',
-        'current_level', 'total_xp', 'prestige_level',
-        'workout_streak', 'longest_workout_streak',
-        'achievements_unlocked_count', 'league_tier',
-        'is_private', 'email',
-      ].join(', '))
-      .eq('username', cleanUsername)
-      .maybeSingle())
+    supabase
+      .rpc('get_public_profile_by_username', { p_username: cleanUsername })
       .then(({ data, error }) => {
         if (error || !data) { setNotFound(true); return; }
         setProfile(data);
