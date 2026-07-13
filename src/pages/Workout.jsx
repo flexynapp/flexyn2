@@ -1117,7 +1117,10 @@ export default function Workout() {
       // (First Blood → The Final Gauntlet), using the just-saved workout +
       // history (realPrev is the pre-save cache = the right comparison
       // window for streak/weekly/PR metrics). Non-blocking, never throws.
-      checkGauntletProgress({ workoutLog: clampedData, workoutLogId: null, historicalLogs: realPrev })
+      // Pass the saved log's id so the RPC can VERIFY the per-session
+      // metrics server-side (mig 201) — the client evaluation is now just a
+      // pre-check, not the source of truth.
+      checkGauntletProgress({ workoutLog: clampedData, workoutLogId: result?.workoutLog?.id ?? null, historicalLogs: realPrev })
         .then((award) => {
           if (!award) return;
           queryClient.invalidateQueries({ queryKey: ['gauntlet-progress'] });
