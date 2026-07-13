@@ -45,6 +45,7 @@ import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
 import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
+import { safeExternalUrl } from '@/lib/safeUrl';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
 const CreateDuelModal = lazy(() => import('@/components/duels/CreateDuelModal'));
@@ -1130,10 +1131,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </p>
             )}
 
-            {/* Link in bio */}
-            {websiteUrl && (
+            {/* Link in bio — href passes through safeExternalUrl so a saved
+                javascript:/data: value can't execute for viewers. */}
+            {websiteUrl && safeExternalUrl(websiteUrl) && (
               <a
-                href={websiteUrl}
+                href={safeExternalUrl(websiteUrl)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={e => e.stopPropagation()}

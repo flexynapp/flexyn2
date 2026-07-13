@@ -16,7 +16,6 @@ import { toast } from 'sonner';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { useAuth } from '@/lib/AuthContext';
-import * as inventory from '@/lib/data/inventory';
 import * as capsules from '@/lib/data/capsules';
 
 // Custom event name used by external callers (e.g. StatsHubModal "Bag &
@@ -106,33 +105,28 @@ export function useBagFlow() {
       // migration 074, column drift, etc.) where the inventory
       // insert was previously failing and the user saw the bug
       // screenshot's "Could not save item" toast.
-      let rpcError = null;
-      if (capsuleId) {
-        const { error } = await supabase.rpc('finalize_capsule_claim', {
-          p_capsule_id:  capsuleId,
-          p_item_id:     wonItem.id,
-          p_item_name:   wonItem.name,
-          p_item_emoji:  wonItem.emoji ?? '',
-          p_item_rarity: wonItem.rarity ?? 'common',
-          p_item_type:   wonItem.type   ?? 'sticker',
-          p_variant:     wonItem.variant ?? null,
-        });
-        if (error) {
-          rpcError = error;
-          console.warn('[inventoryFlow] finalize_capsule_claim failed — falling back to addItem:', error.code, error.message);
-        }
-      }
-      if (!capsuleId || rpcError) {
-        // No capsuleId OR RPC failed — direct insert via legacy path.
-        // Returns null silently if userId/userEmail/item are missing,
-        // so wrap in try and throw if the row didn't land.
-        const row = await inventory.addItem(
-          userProfile?.id || user?.id,
-          user.email,
-          wonItem,
-          'capsule',
-        );
-        if (!row) throw rpcError || new Error('inventory_insert_failed');
+      // finalize_capsule_claim is the ONLY path that can write inventory:
+      // direct client inserts into user_inventory are locked server-side
+      // (migration 197) to stop item injection (a client could otherwise
+      // grant itself any cosmetic at any rarity with no capsule). The
+      // previous fallback did exactly that direct insert, so it's gone.
+      // This is safe: claim_capsule_loot already persisted the rolled
+      // rarity/category/variant on the user_capsules row before this
+      // callback, so a finalize failure loses nothing — it's retryable,
+      // and we surface the error rather than silently dropping loot.
+      if (!capsuleId) throw new Error('missing_capsule_id');
+      const { error: finalizeError } = await supabase.rpc('finalize_capsule_claim', {
+        p_capsule_id:  capsuleId,
+        p_item_id:     wonItem.id,
+        p_item_name:   wonItem.name,
+        p_item_emoji:  wonItem.emoji ?? '',
+        p_item_rarity: wonItem.rarity ?? 'common',
+        p_item_type:   wonItem.type   ?? 'sticker',
+        p_variant:     wonItem.variant ?? null,
+      });
+      if (finalizeError) {
+        console.warn('[inventoryFlow] finalize_capsule_claim failed:', finalizeError.code, finalizeError.message);
+        throw finalizeError;
       }
 
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });

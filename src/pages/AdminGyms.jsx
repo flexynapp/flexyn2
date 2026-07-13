@@ -24,6 +24,7 @@ import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import EmptyState from '@/components/EmptyState';
+import { safeExternalUrl } from '@/lib/safeUrl';
 import {
   listPendingVerifications,
   approveVerification,
@@ -183,11 +184,11 @@ export default function AdminGyms() {
                       <span>{v.phone}</span>
                     </div>
                   )}
-                  {v.website_url && (
+                  {v.website_url && safeExternalUrl(v.website_url) && (
                     <div className="flex gap-2">
                       <Globe className="w-3 h-3 mt-0.5 text-muted-foreground shrink-0" />
                       <a
-                        href={v.website_url}
+                        href={safeExternalUrl(v.website_url)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-primary hover:underline inline-flex items-center gap-1"

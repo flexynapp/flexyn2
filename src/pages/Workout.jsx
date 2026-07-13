@@ -2367,7 +2367,10 @@ export default function Workout() {
               // (not 24h) so workouts logged early morning still feel
               // like today if it's still today.
               const lastDateStr = last.date ? String(last.date).slice(0, 10) : null;
-              const todayStr = new Date().toISOString().slice(0, 10);
+              // Local calendar day — last.date is stored as a local
+              // 'yyyy-MM-dd', so comparing against a UTC day misfired the
+              // "Today" label near midnight in non-UTC zones.
+              const todayStr = format(new Date(), 'yyyy-MM-dd');
               const isToday = lastDateStr === todayStr;
               const subtitleParts = [
                 last.date ? (isToday ? tFallback('common.today', 'Today') : format(parseISO(last.date), 'MMM d')) : null,
