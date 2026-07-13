@@ -81,7 +81,6 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
       const lvl = calculateLevelFromXp(xp);
       return {
         id: u.id,
-        email: u.email,
         full_name: u.full_name || t('progress.anonymous'),
         total_xp: xp,
         level: lvl.level,
@@ -131,7 +130,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
   }, [allUsers, activeBoard, weightUnit, distanceUnit, t, activeCountry, activeState]);
 
-  const myRow = ranked.find(r => r.email === user?.email);
+  const myRow = ranked.find(r => r.id === user?.id);
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
@@ -327,7 +326,7 @@ export default function RegionalLeaderboardsModal({ open, onClose }) {
               >
                 {ranked.map((row, idx) => {
                   const podium = PODIUM_STYLE[idx];
-                  const isMe = row.email === user?.email;
+                  const isMe = row.id === user?.id;
                   return (
                     <motion.div
                       key={row.id}

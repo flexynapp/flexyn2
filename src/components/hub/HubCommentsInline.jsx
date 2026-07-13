@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
 import { useMultiProfanityGuard } from '@/lib/useProfanityGuard';
-import { useAuthorsByEmail, resolveAuthor } from '@/lib/data/useAuthors';
+import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubComments from '@/lib/data/hubComments';
@@ -31,7 +31,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   // Navigate to the canonical profile route for a tapped @mention.
-  // Email is resolved by renderCommentBody via the authorsByEmail map.
+  // Email is resolved by renderCommentBody via the authorsById map.
   const handleMentionClick = useCallback((email) => {
     if (!email) return;
     onClose?.();
@@ -48,20 +48,20 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const desiredLikeRef = useRef(new Map());
   const inFlightRef = useRef(false);
 
-  const authorsByEmail = useAuthorsByEmail();
+  const authorsById = useAuthorsById();
 
   // ── @mention autocomplete ─────────────────────────────────────────────────
   const inputRef = useRef(null);
   const [mentionQuery, setMentionQuery] = useState(''); // text after the @
   const [mentionActive, setMentionActive] = useState(false);
 
-  // Build a flat list of known handles from authorsByEmail for autocomplete
+  // Build a flat list of known handles from authorsById for autocomplete
   const knownHandles = useMemo(() => {
-    return Object.values(authorsByEmail).map(a => ({
+    return Object.values(authorsById).map(a => ({
       email:  a.email,
       handle: a.username || a.email?.split('@')[0] || '',
     })).filter(a => a.handle);
-  }, [authorsByEmail]);
+  }, [authorsById]);
 
   const mentionResults = useMemo(() => {
     if (!mentionActive || mentionQuery.length < 1) return [];
@@ -276,11 +276,11 @@ export default function HubCommentsInline({ post, open, onClose }) {
                 <CommentRow
                   comment={c}
                   user={user}
-                  authorsByEmail={authorsByEmail}
+                  authorsById={authorsById}
                   isLiked={isLikedDisplayed(c.id)}
                   likeCount={likeCountFor(c)}
                   onLike={() => handleLike(c.id)}
-                  onReply={() => setReplyTarget({ id: c.id, handle: resolveAuthor(authorsByEmail, c.author_email, { author_name: c.author_name }).handle })}
+                  onReply={() => setReplyTarget({ id: c.id, handle: resolveAuthor(authorsById, c.user_id, { author_name: c.author_name }).handle })}
                   onDelete={() => handleDelete(c)}
                   showReply
                   t={t}
@@ -323,7 +323,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
                               key={r.id}
                               comment={r}
                               user={user}
-                              authorsByEmail={authorsByEmail}
+                              authorsById={authorsById}
                               isLiked={isLikedDisplayed(r.id)}
                               likeCount={likeCountFor(r)}
                               onLike={() => handleLike(r.id)}
@@ -427,19 +427,19 @@ export default function HubCommentsInline({ post, open, onClose }) {
 // ── @mention renderer ─────────────────────────────────────────────────────────
 // Splits comment body on @username tokens. Each mention becomes a button
 // that navigates to the mentioned user's profile (resolved via the
-// authorsByEmail map already passed into CommentRow). When the handle
+// authorsById map already passed into CommentRow). When the handle
 // can't be resolved (no map entry — comment from outside the post's
 // author cohort), falls back to a non-clickable highlight so the user
 // still sees the mention styling.
 // (Audit 10 #2 — mentions used to render as plain styled <span>, tap
 // did nothing.)
-function renderCommentBody(text, authorsByEmail, onMentionClick) {
+function renderCommentBody(text, authorsById, onMentionClick) {
   if (!text) return null;
   const parts = text.split(/(@\w+)/g);
   // Index handle (everything after @) → email for tap resolution.
   const handleToEmail = (() => {
     const map = new Map();
-    Object.values(authorsByEmail || {}).forEach(a => {
+    Object.values(authorsById || {}).forEach(a => {
       const u = (a?.username || '').toLowerCase();
       if (u) map.set(u, a.email);
     });
@@ -467,18 +467,18 @@ function renderCommentBody(text, authorsByEmail, onMentionClick) {
 
 // ── CommentRow sub-component ──────────────────────────────────────────────────
 
-function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail, onMentionClick }) {
+function CommentRow({ comment: c, user, authorsById, isLiked, likeCount, onLike, onReply, onDelete, showReply, t, postAuthorEmail, onMentionClick }) {
   const { language } = useLanguage();
   const [reportOpen, setReportOpen] = useState(false);
   const [translation, setTranslation] = useState(null);
   const [translating, setTranslating] = useState(false);
   const [showOriginal, setShowOriginal] = useState(false);
   const [canTranslate, setCanTranslate] = useState(true);
-  const author = resolveAuthor(authorsByEmail, c.author_email, {
+  const author = resolveAuthor(authorsById, c.user_id, {
     author_name: c.author_name,
     author_avatar_url: c.author_avatar_url,
   });
-  const isMine = c.author_email === user?.email;
+  const isMine = c.user_id === user?.id;
   const timeLabel = c.created_date ? format(parseISO(c.created_date), 'MMM d, h:mma') : '';
   const displayBody = translation && !showOriginal ? translation.text : c.body;
 
@@ -511,7 +511,7 @@ function CommentRow({ comment: c, user, authorsByEmail, isLiked, likeCount, onLi
               )}
             </div>
             <p className="text-sm whitespace-pre-wrap break-words mt-0.5">
-              {renderCommentBody(displayBody, authorsByEmail, onMentionClick)}
+              {renderCommentBody(displayBody, authorsById, onMentionClick)}
             </p>
           </div>
 

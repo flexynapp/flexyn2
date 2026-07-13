@@ -6,12 +6,16 @@
 // The live record is preferred over the snapshot stored on the post.
 // Snapshot is used as a fallback only — for deleted accounts, RLS-stripped
 // fields, or when the list query hasn't loaded yet.
+//
+// Keyed by user_id (not email) so it keeps working once email is removed
+// from the public_profiles view. Posts/comments carry user_id, so callers
+// pass the author's id.
 
 import { useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as users from '@/lib/data/users';
 
-export function useAuthorsByEmail() {
+export function useAuthorsById() {
   const qc = useQueryClient();
   const { data: list = [] } = useQuery({
     queryKey: ['hubAuthorsList'],
@@ -38,26 +42,25 @@ export function useAuthorsByEmail() {
     };
   }, [qc]);
 
-  const byEmail = {};
+  const byId = {};
   for (const u of list) {
-    if (u?.email) byEmail[u.email.toLowerCase()] = u;
+    if (u?.id) byId[u.id] = u;
   }
-  return byEmail;
+  return byId;
 }
 
 /**
  * Resolve display fields for a single author.
- * @param {object} byEmail - the map from useAuthorsByEmail()
- * @param {string} authorEmail - the post/comment's author_email
+ * @param {object} byId - the map from useAuthorsById()
+ * @param {string} authorId - the post/comment's user_id
  * @param {{ author_name?: string, author_avatar_url?: string }} snapshot
  * @returns {{ handle, avatarUrl, initials, username, equippedTitleId, equippedFrameId }}
  */
-export function resolveAuthor(byEmail, authorEmail, snapshot = {}) {
-  const live = authorEmail ? byEmail[authorEmail.toLowerCase()] : null;
+export function resolveAuthor(byId, authorId, snapshot = {}) {
+  const live = authorId ? byId[authorId] : null;
   const liveUsername = live?.username || null;
   const snapUsername = (snapshot.author_name || '').replace(/^@/, '').trim() || null;
-  const emailPrefix = authorEmail ? authorEmail.split('@')[0] : null;
-  const username = liveUsername || snapUsername || emailPrefix || 'athlete';
+  const username = liveUsername || snapUsername || 'athlete';
   const handle = `@${username}`;
   const avatarUrl = live?.avatar_url || snapshot.author_avatar_url || null;
   const initials = (username || '?').slice(0, 2).toUpperCase();
