@@ -228,6 +228,17 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
     }
   }, [feedTab, following, loadingOlder, olderExhausted, olderPosts, windowPosts]);
 
+  // Stable callback identity so memo(HubPostCard) actually holds — previously
+  // a fresh arrow was created per card per render, re-rendering every card on
+  // any HubFeed state change (e.g. the realtime new-posts pill). Setters +
+  // PAGE_SIZE are stable, so empty deps are correct.
+  const handleHashtagClick = useCallback((tag) => {
+    setActiveHashtag(h => h === tag ? null : tag);
+    setShowTrending(true);
+    setVisibleCount(PAGE_SIZE);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   // Remember scroll position per feed-tab so navigating into a post
   // detail / profile and back lands the user where they were.
   useScrollRestoration(`hub-feed-${feedTab}`, { window: true, ready: !isLoading });
@@ -622,12 +633,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
           <HubPostCard
             post={post}
             onAuthorClick={onAuthorClick}
-            onHashtagClick={(tag) => {
-              setActiveHashtag(h => h === tag ? null : tag);
-              setShowTrending(true);
-              setVisibleCount(PAGE_SIZE);
-              window.scrollTo({ top: 0, behavior: 'smooth' });
-            }}
+            onHashtagClick={handleHashtagClick}
           />
         </motion.div>
       ))}

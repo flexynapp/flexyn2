@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -383,7 +383,11 @@ function ImagePreview({ src }) {
   );
 }
 
-export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
+// Memoized: the Hub feed renders 8-50 of these heavy (motion-laden, ~1450-line)
+// cards. Without memo, any HubFeed state change (e.g. the realtime new-posts
+// pill bumping a counter) re-rendered every card. Props are `post` + two
+// callbacks now stabilized in HubFeed, so memo holds across those updates.
+function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
   const { t, tFallback, language } = useLanguage();
   // onHashtagClick: optional prop to filter feed by a hashtag
   // (passed in by HubFeed when hashtag system is active)
@@ -1449,3 +1453,5 @@ function ActionButton({ icon: Icon, count, active, activeColor, onClick }) {
     </motion.button>
   );
 }
+
+export default memo(HubPostCard);
