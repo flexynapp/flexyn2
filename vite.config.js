@@ -223,6 +223,15 @@ export default defineConfig({
           // inside the Debrief Vault modal.
           if (id.includes('html2canvas')) return undefined;
 
+          // jspdf (~250 KB) is dynamic-imported by gymSignageKit.js ONLY (the
+          // gym-signage PDF export — a rare admin action). Without this
+          // explicit `undefined` the vendor-misc catch-all below pulls it into
+          // the always-loaded entry bundle, defeating the dynamic import — the
+          // exact bug fixed for html2canvas/maplibre above, missed for jspdf.
+          // With it, jspdf lands in a lazy chunk loaded only when a user
+          // actually generates signage. ~250 KB off every cold start.
+          if (id.includes('node_modules/jspdf')) return undefined;
+
           // Pose-detection / TF.js — already lazy-loaded by analyzeForm, but
           // pin to its own chunks so it definitely doesn't bleed into entry.
           if (id.includes('@tensorflow-models/pose-detection')) return 'vendor-pose';
