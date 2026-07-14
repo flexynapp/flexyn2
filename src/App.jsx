@@ -40,8 +40,13 @@ import Layout from './components/Layout';
 // query by milliseconds. Other queries already fetch the profile, so
 // React Query dedupes and there's no data race.
 import Splash from './pages/Splash';
-import Onboarding from './pages/Onboarding';
 import SignInToContinue from './pages/SignInToContinue';
+// Onboarding is ~3,400 lines and ONLY new users ever see it — lazy-loaded so it
+// stays out of the eager index chunk (every returning user was paying for it).
+// Splash + SignIn stay eager (they're the genuine first-paint bootstrap screens
+// where a loading flash would look broken); Onboarding renders behind a
+// PageLoader fallback, same as the lazy route pages.
+const Onboarding = lazy(() => import('./pages/Onboarding'));
 // DuelInviteLanding is rendered OUTSIDE the auth gate so anonymous
 // recipients of a shareable invite URL can see the challenger's name
 // + avatar without being bounced to the sign-in screen first. Eager
@@ -275,7 +280,7 @@ const AuthenticatedApp = () => {
       // as the post-auth Onboarding render below.
       return isReturningUser()
         ? <SignInToContinue />
-        : <ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>;
+        : <ErrorBoundary label="Onboarding"><Suspense fallback={<PageLoader />}><Onboarding /></Suspense></ErrorBoundary>;
     }
   }
 
@@ -298,7 +303,9 @@ const AuthenticatedApp = () => {
     // recovery affordance (Go to Home / Try again / Copy details).
     return (
       <ErrorBoundary label="Onboarding">
-        <Onboarding />
+        <Suspense fallback={<PageLoader />}>
+          <Onboarding />
+        </Suspense>
       </ErrorBoundary>
     );
   }
@@ -326,7 +333,7 @@ const AuthenticatedApp = () => {
     <>
       <Routes>
         <Route path="/" element={<Splash />} />
-        <Route path="/onboarding" element={<ErrorBoundary label="Onboarding"><Onboarding /></ErrorBoundary>} />
+        <Route path="/onboarding" element={<ErrorBoundary label="Onboarding"><Suspense fallback={<PageLoader />}><Onboarding /></Suspense></ErrorBoundary>} />
         <Route element={<Layout />}>
           <Route path="/dashboard" element={<ErrorBoundary label="Dashboard"><Suspense fallback={<PageLoader />}><Dashboard /></Suspense></ErrorBoundary>} />
           <Route path="/nutrition" element={<ErrorBoundary label="Nutrition"><Suspense fallback={<PageLoader />}><Nutrition /></Suspense></ErrorBoundary>} />
