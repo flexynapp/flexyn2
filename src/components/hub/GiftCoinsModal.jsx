@@ -38,7 +38,7 @@ export default function GiftCoinsModal({ open, onClose, recipient }) {
   const balance  = Math.max(0, Number(user?.flex_coins) || 0);
   const recipName = recipient?.username
     ? `@${recipient.username}`
-    : (recipient?.email ? `@${recipient.email.split('@')[0]}` : tFallback('gift.thisUser', 'this user'));
+    : tFallback('gift.thisUser', 'this user');
   const cleanAmount = Number.isFinite(amount) ? Math.floor(amount) : 0;
   const overBudget  = cleanAmount > balance;
   const overCap     = cleanAmount > 10000;

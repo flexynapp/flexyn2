@@ -518,7 +518,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // ── Derived display values (needed by mutations below) ──────────────────
   const ownerUsername = isSelf
     ? user?.username
-    : (targetUser?.username || targetProfile?.username || (email ? email.split('@')[0] : null));
+    : (targetUser?.username || targetProfile?.username || null);
   const avatarUrl = isSelf ? user?.avatar_url : targetProfile?.avatar_url;
 
   // ── Follow / unfollow as a mutation ─────────────────────────────────────
@@ -754,7 +754,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   //
   // Only when the email itself is missing do we render the generic
   // "Athlete" placeholder.
-  const emailPrefix = email ? email.split('@')[0] : null;
+  const emailPrefix = null;
   // For own profile: treat a deleted_ placeholder the same as no username.
   const rawSelfUsername = isSelf ? user?.username : null;
   const selfUsername = (rawSelfUsername && !rawSelfUsername.startsWith('deleted_'))
@@ -2111,7 +2111,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
       return users.filter(u => emails.includes(u.email)).map(u => ({
         ...u,
         // Fallback to email prefix if username is stripped by User.list()
-        username: u.username || (u.email ? u.email.split('@')[0] : 'athlete'),
+        username: u.username || 'athlete',
         levelData: calculateLevelFromXp(Number(u.total_xp) || 0),
         tier: getTier(calculateLevelFromXp(Number(u.total_xp) || 0).level, t),
       }));
@@ -2163,7 +2163,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
                     // has SOMETHING to display as @handle, matching what search shows.
                     onSelectUser({
                       ...u,
-                      username: u.username || u.email?.split('@')[0] || null,
+                      username: u.username || null,
                     });
                   }}
                   className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/60 transition-colors text-start"
@@ -2187,7 +2187,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="font-heading font-bold text-sm truncate">
-                      @{u.username || u.email?.split('@')[0] || t('hub.profile.anonymousAthlete')}
+                      @{u.username || t('hub.profile.anonymousAthlete')}
                     </p>
                     {u.tier && (
                       <p className={`text-xs truncate ${u.tier.text}`}>{u.tier.name}</p>

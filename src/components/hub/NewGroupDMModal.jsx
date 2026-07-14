@@ -15,6 +15,7 @@ import { createPortal } from 'react-dom';
 import { Users, X, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { handle } from '@/lib/userDisplay';
 import * as hubFollows from '@/lib/data/hubFollows';
 import { createGroupConversation } from '@/lib/data/hubMessages';
 
@@ -176,11 +177,10 @@ export default function NewGroupDMModal({ open, onClose, onCreated }) {
                       <div className="w-8 h-8 rounded-full bg-primary/15 text-primary text-xs font-bold flex items-center justify-center overflow-hidden">
                         {f.avatar
                           ? <img loading="lazy" src={f.avatar} alt="" className="w-full h-full object-cover" />
-                          : (f.username || f.email || '?').slice(0, 2).toUpperCase()}
+                          : (f.username || '?').slice(0, 2).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0 text-start">
-                        <p className="text-sm font-semibold truncate">{f.username ? `@${f.username}` : f.email}</p>
-                        {f.username && <p className="text-[10px] text-muted-foreground truncate">{f.email}</p>}
+                        <p className="text-sm font-semibold truncate">{handle(f)}</p>
                       </div>
                       <div className={`w-5 h-5 rounded-full border flex items-center justify-center ${
                         isSel ? 'bg-primary border-primary text-primary-foreground' : 'border-border'

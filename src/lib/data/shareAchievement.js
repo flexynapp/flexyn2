@@ -35,7 +35,7 @@ export async function shareAchievementPost({ user, achievement }) {
   try {
     const post = await hubPosts.create({
       author_email:           user.email,
-      author_name:            user.username ? `@${user.username}` : (user.email.split('@')[0] || 'Athlete'),
+      author_name:            user.username ? `@${user.username}` : 'Athlete',
       author_avatar_url:      user.avatar_url || null,
       post_type:              POST_TYPE,
       body:                   friendly,

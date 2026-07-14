@@ -8,6 +8,7 @@
 // — not a dialog/modal, a full-view replacement.
 
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { handle } from '@/lib/userDisplay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -84,9 +85,7 @@ function RegimenCard({ regimen, index, isMine, user, onAdopted }) {
   const [expanded, setExpanded] = useState(false);
   const muscles = useMemo(() => regimenMuscles(regimen), [regimen]);
 
-  const authorHandle = regimen.author_username
-    ? `@${regimen.author_username}`
-    : `@${(regimen.created_by || '').split('@')[0]}`;
+  const authorHandle = handle(regimen);
 
   const adoptMutation = useMutation({
     mutationFn: () => regimens.copyTemplate(regimen, user),

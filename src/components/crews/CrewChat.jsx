@@ -522,7 +522,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
     setRollCallOpen(false);
     try {
       await crewsData.sendCrewMessage(crew.id, user.id, 'roll_call', question);
-      await crewsData.notifyCrewRollCall(crew.id, question, user.username || user.email?.split('@')[0] || 'Someone');
+      await crewsData.notifyCrewRollCall(crew.id, question, user.username || 'Someone');
       qc.invalidateQueries({ queryKey: ['crewMessages', crew.id] });
       toast.success('Roll Call sent!');
     } catch { toast.error('Could not send Roll Call.'); }

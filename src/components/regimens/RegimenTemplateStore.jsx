@@ -3,6 +3,7 @@
 // Users can also share their own regimens to the Hub from here.
 
 import React, { useState, useMemo } from 'react';
+import { handle } from '@/lib/userDisplay';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -68,7 +69,7 @@ function ShareToHubDialog({ regimen, user, onClose }) {
 
       await hubPosts.create({
         author_email: user.email,
-        author_name: user.username || user.email.split('@')[0],
+        author_name: user.username || 'Athlete',
         author_avatar_url: user.avatar_url || null,
         post_type: 'regimen',
         body,
@@ -152,9 +153,7 @@ function TemplateCard({ template, isMine, user, onCopied }) {
   const [expanded, setExpanded] = useState(false);
   const [sharingOpen, setSharingOpen] = useState(false);
 
-  const authorHandle = template.author_username
-    ? `@${template.author_username}`
-    : `@${(template.created_by || '').split('@')[0]}`;
+  const authorHandle = handle(template);
 
   const copyMutation = useMutation({
     mutationFn: () => regimens.copyTemplate(template, user),

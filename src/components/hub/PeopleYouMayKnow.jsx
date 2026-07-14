@@ -117,7 +117,7 @@ function PYMKCard({ candidate, isFollowed, delay, onFollow, onSelect }) {
   const userXp = Number(candidate.total_xp) || 0;
   const levelData = calculateLevelFromXp(userXp);
   const tier = getTier(levelData.level, t);
-  const username = candidate.username || candidate.email?.split('@')[0] || 'athlete';
+  const username = candidate.username || 'athlete';
   const initials = username.slice(0, 2).toUpperCase();
 
   return (

@@ -291,7 +291,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                           className="w-full text-start p-3 rounded-xl border border-border/40 hover:border-border hover:bg-secondary/40 transition-colors"
                         >
                           <p className="text-xs text-muted-foreground font-medium mb-1">
-                            {post.author_name || post.author_email?.split('@')[0] || 'Athlete'}
+                            {post.author_name || 'Athlete'}
                           </p>
                           <p className="text-sm text-foreground line-clamp-2 break-words">
                             {(post.body || post.content || '').startsWith('[POLL_V1]')
@@ -434,7 +434,7 @@ function RecentSearchCard({ user, onClick, onRemove }) {
   const userXp = Number(user?.total_xp) || 0;
   const levelData = calculateLevelFromXp(userXp);
   const tier = getTier(levelData.level, t);
-  const username = user.username || user.email?.split('@')[0] || 'athlete';
+  const username = user.username || 'athlete';
   const initials = (username || 'A').slice(0, 2).toUpperCase();
 
   const tierToRing = {
@@ -499,7 +499,7 @@ function UserResultRow({ user, onClick, delay, isFollowed, onAdd }) {
   const userXp = Number(user?.total_xp) || 0;
   const levelData = calculateLevelFromXp(userXp);
   const tier = getTier(levelData.level, t);
-  const username = user.username || user.email?.split('@')[0] || 'athlete';
+  const username = user.username || 'athlete';
   const initials = (username || 'A').slice(0, 2).toUpperCase();
 
   const tierToRing = {

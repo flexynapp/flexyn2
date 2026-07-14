@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useSettings } from '@/lib/SettingsContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { maskEmail } from '@/lib/userDisplay';
 import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon, BellOff } from 'lucide-react';
 import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
 import { setNemesisOptOut } from '@/lib/data/nemesis';
@@ -1188,7 +1189,7 @@ export default function SettingsPanel() {
                     <div key={b.blocked_email} className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <UserX className="w-3 h-3 text-muted-foreground shrink-0" />
-                        <span className="text-[11px] text-foreground truncate">{b.blocked_email}</span>
+                        <span className="text-[11px] text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                       </div>
                       <button
                         onClick={() => handleUnblock(b.blocked_email)}
@@ -1333,7 +1334,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myBlocks.map(b => (
               <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{b.blocked_email}</span>
+                <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
                 <button
                   onClick={() => handleUnblockFull(b.blocked_email)}
                   className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
@@ -1358,7 +1359,7 @@ export default function SettingsPanel() {
           <ul className="space-y-1.5">
             {myMutes.map(m => (
               <li key={m.muted_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
-                <span className="text-foreground truncate">{m.muted_email}</span>
+                <span className="text-foreground truncate">{maskEmail(m.muted_email)}</span>
                 <button
                   onClick={() => handleUnmute(m.muted_email)}
                   className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"

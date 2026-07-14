@@ -188,9 +188,7 @@ export default function ShareSheetModal({ post, open, onClose }) {
                   </p>
                 ) : (
                   conversations.slice(0, 20).map(conv => {
-                    const otherEmail = (conv.participant_emails || [])
-                      .find(e => e?.toLowerCase() !== user?.email?.toLowerCase());
-                    const handle = otherEmail?.split('@')[0] || 'User';
+                    const handle = 'User';
                     return (
                       <button
                         key={conv.id}

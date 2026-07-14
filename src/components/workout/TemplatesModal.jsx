@@ -3,6 +3,7 @@
 // browse community templates, share to Hub.
 
 import React, { useState, useMemo } from 'react';
+import { handle } from '@/lib/userDisplay';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -193,7 +194,7 @@ function ShareToHubForm({ template, user, onClose }) {
 
       await hubPosts.create({
         author_email: user.email,
-        author_name: user.username || user.email.split('@')[0],
+        author_name: user.username || 'Athlete',
         author_avatar_url: user.avatar_url || null,
         post_type: 'regimen',
         body,
@@ -356,7 +357,7 @@ function MyTemplateCard({ template, user, onUse, onDelete, onTogglePublic }) {
 function CommunityTemplateCard({ template, user, queryClient, onCopied }) {
   const { t } = useLanguage();
   const isMine = template.created_by === user?.email;
-  const authorHandle = `@${(template.author_username || (template.created_by || '').split('@')[0])}`;
+  const authorHandle = handle(template);
 
   const copyMutation = useMutation({
     mutationFn: () => templates.copyTemplate(template, user),

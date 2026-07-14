@@ -104,7 +104,7 @@ export default function RegimenReviewsBlock({ regimenId, user }) {
                 <div className="flex items-center gap-1.5 min-w-0">
                   <StarRating value={r.rating} size="sm" />
                   <span className="text-muted-foreground truncate">
-                    {r.reviewer_email?.split('@')[0] || 'Athlete'}
+                    {'Athlete'}
                   </span>
                 </div>
                 <span className="text-[10px] text-muted-foreground shrink-0">

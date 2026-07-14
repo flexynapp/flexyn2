@@ -35,11 +35,6 @@ function formatInboxTime(dateStr) {
   return format(date, 'MMM d');
 }
 
-function emailToHandle(email) {
-  if (!email) return null;
-  return email.split('@')[0];
-}
-
 export default function HubMessages({ pendingChatTarget = null, onPendingConsumed = null }) {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
@@ -430,7 +425,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
               {visibleConvs.map((c, i) => {
                 const otherEmail = (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()) || '';
                 const profile = profilesByEmail[otherEmail?.toLowerCase()];
-                const username = profile?.username || emailToHandle(otherEmail);
+                const username = profile?.username || null;
                 const handle = username ? `@${username}` : t('hub.profile.anonymousAthlete');
                 const initials = (username || '?').slice(0, 2).toUpperCase();
                 const lastMsg = c.latestMessage;

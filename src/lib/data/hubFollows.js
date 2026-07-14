@@ -116,7 +116,7 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
       const followee = all.find(u => u.email?.toLowerCase() === followeeEmail.toLowerCase());
       const follower = all.find(u => u.email?.toLowerCase() === followerEmail.toLowerCase());
       if (followee?.id) {
-        const followerName = follower?.username ? `@${follower.username}` : (followerEmail.split('@')[0] || 'Someone');
+        const followerName = follower?.username ? `@${follower.username}` : 'Someone';
         // Per-recipient i18n via notify_friend_follow_for (migration 041).
         // The RPC reads the recipient's preferred_language server-side so
         // the title renders in their language, not the follower's. Falls

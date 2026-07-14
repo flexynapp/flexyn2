@@ -227,7 +227,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   });
 
   const otherProfile    = otherUser || resolvedOther;
-  const otherUsername   = otherProfile?.username || (otherEmail ? otherEmail.split('@')[0] : null);
+  const otherUsername   = otherProfile?.username || null;
   const otherHandle     = otherUsername ? `@${otherUsername}` : t('hub.profile.anonymousAthlete');
   const otherInitials   = (otherUsername || '?').slice(0, 2).toUpperCase();
   const otherAvatarUrl  = otherProfile?.avatar_url || null;
@@ -1047,7 +1047,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <div className="flex-1 min-w-0">
           <p className="font-heading font-bold text-sm truncate">
             {isGroup
-              ? (conversation?.title || otherEmails.map(e => e.split('@')[0]).slice(0, 3).join(', '))
+              ? (conversation?.title || 'Group chat')
               : otherHandle}
           </p>
           <p className="text-[10px] text-muted-foreground flex items-center gap-1">
@@ -1291,7 +1291,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           const prev = visibleMessages[i - 1];
                           const sameSenderAsPrev = prev?.sender_email?.toLowerCase() === m.sender_email?.toLowerCase();
                           if (sameSenderAsPrev) return null;
-                          const handle = m.sender_email ? m.sender_email.split('@')[0] : 'Athlete';
+                          const handle = 'Athlete';
                           return (
                             <p className="text-[10px] font-bold text-muted-foreground mb-0.5 px-1">
                               @{handle}

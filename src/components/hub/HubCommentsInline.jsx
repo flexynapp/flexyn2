@@ -14,6 +14,7 @@ import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { containsProfanity } from '@/lib/profanityFilter';
 import * as hubComments from '@/lib/data/hubComments';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
+import { handle } from '@/lib/userDisplay';
 import ReportDialog from './ReportDialog';
 import { toast } from 'sonner';
 
@@ -59,7 +60,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const knownHandles = useMemo(() => {
     return Object.values(authorsById).map(a => ({
       email:  a.email,
-      handle: a.username || a.email?.split('@')[0] || '',
+      handle: a.username || '',
     })).filter(a => a.handle);
   }, [authorsById]);
 
@@ -191,7 +192,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
       await hubComments.create({
         post_id: post.id,
         author_email: user.email,
-        author_name: user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+        author_name: handle(user),
         body: trimmed,
         ...(replyTarget?.id ? { parent_comment_id: replyTarget.id } : {}),
       });

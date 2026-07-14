@@ -44,7 +44,7 @@ export default function LiveSessionBroadcaster({ onClose }) {
     channelRef.current?.send({
       type: 'broadcast',
       event: 'activity',
-      payload: { exercise: ex, set: s, reps: r, host: user?.username || user?.email?.split('@')[0] },
+      payload: { exercise: ex, set: s, reps: r, host: user?.username || 'Athlete' },
     });
     hubLiveSessions.updateActivity(sessionId, {
       currentExercise: ex || null,

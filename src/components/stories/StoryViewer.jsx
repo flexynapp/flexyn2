@@ -144,7 +144,7 @@ function InsightsPanel({ storyId, onClose }) {
                     <div key={l.liker_id} className="flex items-center gap-3">
                       <MiniAvatar profile={l.profile} />
                       <span className="font-medium text-sm">
-                        {l.profile?.username || l.liker_email?.split('@')[0] || 'Someone'}
+                        {l.profile?.username || 'Someone'}
                       </span>
                     </div>
                   ))}

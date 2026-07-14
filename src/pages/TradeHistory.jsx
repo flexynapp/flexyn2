@@ -8,6 +8,7 @@
 // already embedded in hub_messages. Reads through tradeHistory.js.
 
 import React, { useState } from 'react';
+import { maskEmail } from '@/lib/userDisplay';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -119,14 +120,13 @@ function TradeRow({ trade }) {
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {trade.iAmSender ? 'You offered' : `${counterparty?.split('@')[0] || 'Someone'} offered`}
+            {trade.iAmSender ? 'You offered' : `${counterparty ? maskEmail(counterparty) : 'Someone'} offered`}
           </p>
-          {/* Show only the email local-part as a degraded handle to
-              avoid leaking the full counterparty address to the screen.
-              A proper user_profiles lookup would let us show the
-              actual @username — TODO. */}
+          {/* Counterparty is only known by email here; mask it so no full
+              address (or raw local-part) is rendered. A user_profiles lookup
+              would let us show the actual @username — TODO. */}
           <p className="text-xs text-muted-foreground truncate">
-            @{counterparty?.split('@')[0] || 'unknown'}
+            {counterparty ? maskEmail(counterparty) : 'unknown'}
           </p>
         </div>
         <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusMeta.bg} ${statusMeta.color}`}>

@@ -222,7 +222,7 @@ export async function listLeagueMembers(leagueId) {
   // Embed user_profiles row so the standings UI can show @username
   // instead of leaking email-local-part. The original `select('*')`
   // only returned league_members columns (user_id + user_email +
-  // weekly_xp), forcing the UI to fall back to email.split('@')[0]
+  // weekly_xp), forcing the UI to fall back to the email local-part
   // which leaked corporate handles to every other league member.
   // (Audit 15 #H5.)
   const { data, error } = await supabase
