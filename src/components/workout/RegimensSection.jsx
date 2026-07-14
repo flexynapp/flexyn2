@@ -210,7 +210,7 @@ export default function RegimensSection({ onStartRegimen }) {
         `Check out my regimen — ${sharingRegimen.name} · ${exerciseCount} exercises`;
       await hubPosts.create({
         author_email: user.email,
-        author_name: user.username || user.email.split('@')[0],
+        author_name: user.username || 'Athlete',
         author_avatar_url: user.avatar_url || null,
         post_type: 'regimen',
         body,

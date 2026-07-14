@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import { displayName, handle } from '@/lib/userDisplay';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { useFormDraft } from '@/hooks/useFormDraft';
@@ -530,7 +531,7 @@ export default function HubComposer({ onClose }) {
         const pollBody = '[POLL_V1]' + JSON.stringify({ question: q, options: opts });
         await hubPosts.create({
           author_email: user.email,
-          author_name: user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+          author_name: handle(user),
           author_avatar_url: user.avatar_url || null,
           post_type: 'poll',
           body: pollBody,
@@ -566,7 +567,7 @@ export default function HubComposer({ onClose }) {
         const videoUrl = result?.file_url || null;
         await hubPosts.create({
           author_email:       user.email,
-          author_name:        user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+          author_name:        handle(user),
           author_avatar_url:  user.avatar_url || null,
           post_type:          'video',
           body:               body.trim() || 'Shared a video',
@@ -724,7 +725,7 @@ export default function HubComposer({ onClose }) {
 
       await hubPosts.create({
         author_email:           user.email,
-        author_name:            user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'Athlete'),
+        author_name:            handle(user),
         author_avatar_url:      user.avatar_url || null,
         post_type:              postTypeMap[effectiveSelected.kind] || 'status',
         body:                   finalBody,
@@ -759,7 +760,7 @@ export default function HubComposer({ onClose }) {
           if (!followerEmails || followerEmails.length === 0) return;
           const allUsers = await users.list().catch(() => []);
           const lcMap = new Map(allUsers.map(u => [u.email?.toLowerCase(), u]));
-          const posterName = user.username ? `@${user.username}` : (user.email?.split('@')[0] || 'A friend');
+          const posterName = user.username ? `@${user.username}` : 'A friend';
           const preview = (finalBody || '').slice(0, 100);
           const capped = followerEmails.slice(0, 100);
           // Per-recipient i18n via notify_friend_post_for (migration 041).
@@ -1217,7 +1218,7 @@ export default function HubComposer({ onClose }) {
         <div className="flex flex-wrap gap-1.5 mb-2">
           {collaboratorEmails.map(email => {
             const u = allUsers.find(u => u.email === email);
-            const label = u?.username ? `@${u.username}` : email.split('@')[0];
+            const label = handle(u);
             return (
               <span key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
                 <Users className="w-3 h-3" />
@@ -1258,11 +1259,10 @@ export default function HubComposer({ onClose }) {
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-start hover:bg-secondary transition-colors"
               >
                 <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0 text-xs font-bold text-primary">
-                  {(u.username || u.email)[0].toUpperCase()}
+                  {displayName(u)[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-medium truncate">{u.username ? `@${u.username}` : u.email.split('@')[0]}</p>
-                  <p className="text-[11px] text-muted-foreground truncate">{u.email}</p>
+                  <p className="font-medium truncate">{handle(u)}</p>
                 </div>
               </button>
             ))}

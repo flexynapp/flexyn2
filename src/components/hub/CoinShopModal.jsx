@@ -45,7 +45,7 @@ export default function CoinShopModal({ open, onClose }) {
   }, [open]);
 
   // Admin bypass — skip RPC (which validates real DB balance) and directly grant
-  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || '';
+  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || ''; // email-local-part-ok: admin-whitelist check, never rendered
   const isAdmin = ADMIN_USERNAMES.includes(user?.username?.toLowerCase()) ||
                   ADMIN_USERNAMES.includes(emailPrefix);
 

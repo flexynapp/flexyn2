@@ -56,8 +56,7 @@ function summarize(post) {
 }
 
 function displayName(post) {
-  return post?.author_username
-    || (post?.author_email ? post.author_email.split('@')[0] : 'Someone');
+  return post?.author_username || 'Someone';
 }
 
 export default function FollowerActivityBanner() {

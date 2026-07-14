@@ -17,6 +17,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { titleCase } from '@/lib/textCase';
 import * as hubMessages from '@/lib/data/hubMessages';
 import { buildCrewInviteBody } from './CrewDMInviteCard';
+import { displayName, handle } from '@/lib/userDisplay';
 
 export default function CrewCreationFlow({ onCreated, onClose }) {
   const { user } = useAuth();
@@ -77,7 +78,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
         .select('username, avatar_url')
         .eq('id', user.id)
         .maybeSingle();
-      const inviterName   = myProfile?.username || user.email?.split('@')[0] || 'Someone';
+      const inviterName   = myProfile?.username || 'Someone';
       const inviterAvatar = myProfile?.avatar_url || null;
       const inviteBody    = buildCrewInviteBody(crew.id, crew.name, inviterName, inviterAvatar);
 
@@ -165,7 +166,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                     className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-white gap-1"
                     style={{ background: 'hsl(var(--primary))' }}
                   >
-                    @{p.username || p.email.split('@')[0]}
+                    {handle(p)}
                     <X className="w-2.5 h-2.5" />
                   </button>
                 ))}
@@ -181,7 +182,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
               ) : (
                 friends.map(p => {
                   const isSelected = selected.some(s => s.email === p.email);
-                  const username = p.username || p.email.split('@')[0];
+                  const username = displayName(p);
                   return (
                     <button
                       key={p.email}

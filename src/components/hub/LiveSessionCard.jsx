@@ -22,7 +22,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
   const [viewers, setViewers] = useState(session.viewer_count || 0);
   const channelRef = useRef(null);
 
-  const handle = session.host_email?.split('@')[0] || 'Athlete';
+  const handle = 'Athlete';
 
   useEffect(() => {
     // Subscribe to Realtime for live updates

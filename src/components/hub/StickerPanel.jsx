@@ -195,11 +195,11 @@ export default function StickerPanel({ postId, onClose, onAuthorClick = null }) 
                         onClick={handleProfileClick}
                         className="text-xs text-muted-foreground hover:text-primary hover:underline flex-1 truncate text-start transition-colors"
                       >
-                        @{r.user_name ?? r.user_email?.split('@')[0]}
+                        @{r.user_name ?? 'athlete'}
                       </button>
                     ) : (
                       <span className="text-xs text-muted-foreground flex-1 truncate">
-                        @{r.user_name ?? r.user_email?.split('@')[0]}
+                        @{r.user_name ?? 'athlete'}
                       </span>
                     )}
                     <StickerDisplay

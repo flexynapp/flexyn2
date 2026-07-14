@@ -13,6 +13,7 @@ import { getCrewStats, getCrewFirstAchievers } from '@/lib/data/crews';
 import { useNumberFormatter, useDateFormatter } from '@/lib/intl';
 import { useLanguage } from '@/lib/LanguageContext';
 import { getAchievementById } from '@/lib/achievementDefinitions';
+import { displayName } from '@/lib/userDisplay';
 
 function StatCard({ icon, label, value, sub }) {
   return (
@@ -55,16 +56,12 @@ export default function CrewStatsPanel({ crewId, onClose }) {
     return `${fmt(Math.round(lbs))} lbs`;
   };
 
-  const topName = stats?.topPerformer?.profile?.username
-    || stats?.topPerformer?.profile?.email?.split('@')[0]
-    || '—';
+  const topName = displayName(stats?.topPerformer?.profile, '—');
   const topVolume = stats?.topPerformer?.volume
     ? fmtVolume(stats.topPerformer.volume)
     : '0 lbs';
 
-  const prName = stats?.bestPr?.profile?.username
-    || stats?.bestPr?.profile?.email?.split('@')[0]
-    || '—';
+  const prName = displayName(stats?.bestPr?.profile, '—');
   const prDesc = stats?.bestPr
     ? `${stats.bestPr.exercise} — ${stats.bestPr.weight} lbs × ${stats.bestPr.reps}`
     : '—';
@@ -130,7 +127,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                 <div className="space-y-1.5">
                   {firstAchievers.slice(0, 8).map((row) => {
                     const def = getAchievementById(row.achievementId);
-                    const name = row.profile?.username || row.profile?.email?.split('@')[0] || '—';
+                    const name = displayName(row.profile, '—');
                     return (
                       <div key={row.achievementId}
                         className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/30">
@@ -161,7 +158,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                   {[...stats.memberStats]
                     .sort((a, b) => b.volume - a.volume)
                     .map((ms, i) => {
-                      const name = ms.profile?.username || ms.profile?.email?.split('@')[0] || ms.userId.slice(0, 8);
+                      const name = displayName(ms.profile, ms.userId.slice(0, 8));
                       return (
                         <div key={ms.userId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/30">
                           <span className="text-[10px] font-bold text-muted-foreground w-4">{i + 1}</span>

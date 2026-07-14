@@ -23,6 +23,7 @@ import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
 import * as wishlist from '@/lib/data/marketplaceWishlist';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
 import { RARITY } from '@/lib/lootCatalog';
+import { displayName } from '@/lib/userDisplay';
 import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
 import { useNumberFormatter } from '@/lib/intl';
 import RecentlyViewedRail from './RecentlyViewedRail';
@@ -149,7 +150,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
         by{' '}
         {isMine || !onSellerClick ? (
           <span className="text-gray-400 font-medium">
-            {listing.seller_username || listing.seller_email.split('@')[0]}
+            {displayName(listing)}
           </span>
         ) : (
           <button
@@ -157,7 +158,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
             onClick={(e) => { e.stopPropagation(); onSellerClick(listing.seller_email); }}
             className="text-gray-300 font-medium hover:text-white hover:underline"
           >
-            {listing.seller_username || listing.seller_email.split('@')[0]}
+            {displayName(listing)}
           </button>
         )}
         {soldLabel && (
@@ -252,7 +253,7 @@ function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
       <div>
         <p className="font-bold text-white text-sm pe-24">{bundle.title}</p>
         <p className="text-gray-400 text-[11px] mt-0.5">
-          by {bundle.seller_email?.split('@')[0]} · {listings.length} items
+          by {displayName(bundle)} · {listings.length} items
         </p>
       </div>
 
@@ -320,7 +321,7 @@ function ListItemDialog({ open, onClose, userItems, user, onSuccess }) {
       await marketplace.createListing({
         seller_user_id:  user.id,
         seller_email:    user.email,
-        seller_username: user.username ?? user.display_name ?? user.email.split('@')[0],
+        seller_username: displayName(user),
         inventory_id:    selectedItem.id,
         item_id:         selectedItem.item_id,
         item_name:       selectedItem.item_name,
@@ -506,7 +507,7 @@ function TradeOfferDialog({ open, listing, userItems, user, onClose }) {
       // renders an interactive card instead of raw text. Plain-text fallback
       // is concatenated below so older clients (or copy/paste) still see
       // something readable.
-      const fromName = user.username ?? user.email.split('@')[0];
+      const fromName = displayName(user);
       const tradePayload = {
         v: 1,
         type: 'trade_offer',

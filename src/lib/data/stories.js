@@ -112,7 +112,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       const userStories = storyMap.get(email)   ?? [];
       return {
         email,
-        username:           profile.username || email.split('@')[0],
+        username:           profile.username || 'Athlete',
         avatarUrl:          profile.avatar_url ?? null,
         storyDmsDisabled:   profile.story_dms_disabled ?? false,
         isOwn:              email === user.email,

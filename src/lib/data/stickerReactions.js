@@ -51,7 +51,7 @@ export async function reactWithSticker(postId, user, sticker) {
       post_id:        postId,
       user_id:        user.id,
       user_email:     user.email,
-      user_name:      user.username ?? user.email?.split('@')[0] ?? 'User',
+      user_name:      user.username ?? 'User',
       user_avatar_url: user.avatar_url ?? null,
       item_id:        sticker.item_id,
       item_name:      itemName,

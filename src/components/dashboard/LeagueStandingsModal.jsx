@@ -187,7 +187,7 @@ function Body({ data, userId, t, tFallback, fmt, onOpenMember }) {
                     <div className="flex-1 min-w-0">
                       <p className="font-heading font-bold text-sm truncate">
                         {/* Prefer username over email-local-part. The
-                            previous fallback to `user_email.split('@')[0]`
+                            previous fallback to the email local-part
                             leaked the email username portion to every
                             other league member — a corporate signup like
                             "j.smith.cfo@acme.com" exposed the user's work

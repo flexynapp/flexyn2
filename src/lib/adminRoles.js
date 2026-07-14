@@ -18,6 +18,6 @@ export const ADMIN_USERNAMES = ['sean', 'seanj', 'kegan', 'keganbergeron', 'admi
 export function isAppAdmin(user) {
   if (!user) return false;
   const uname = (user.username || '').toLowerCase();
-  const emailPrefix = (user.email || '').split('@')[0]?.toLowerCase() || '';
+  const emailPrefix = (user.email || '').split('@')[0]?.toLowerCase() || ''; // email-local-part-ok: admin-whitelist check, never rendered
   return ADMIN_USERNAMES.includes(uname) || ADMIN_USERNAMES.includes(emailPrefix);
 }

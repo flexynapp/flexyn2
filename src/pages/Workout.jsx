@@ -3108,7 +3108,7 @@ export default function Workout() {
           open={!!shareCardWorkout}
           onClose={() => setShareCardWorkout(null)}
           workout={shareCardWorkout}
-          username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+          username={user?.username ? `@${user.username}` : 'Athlete'}
           includeBarWeight={!!userProfile?.include_bar_in_volume}
         />
       </ErrorBoundary>
@@ -3124,7 +3124,7 @@ export default function Workout() {
               onClose={() => setPrShare(null)}
               pr={prShare.pr}
               unit={prShare.unit}
-              username={user?.username ? `@${user.username}` : (user?.email?.split('@')[0] || 'Athlete')}
+              username={user?.username ? `@${user.username}` : 'Athlete'}
             />
           </Suspense>
         </ErrorBoundary>

@@ -233,7 +233,7 @@ export async function listFeedPosts(gymId, limit = 30) {
   if (!gymId) return [];
   // Embed the author's user_profiles row so the UI can show
   // @username instead of the email local-part. Previously the
-  // GymFeedTab fell back to `author_email.split('@')[0]` which leaked
+  // GymFeedTab fell back to the email local-part which leaked
   // the email username portion (a corporate user signing up as
   // "j.smith.cfo@acme.com" had their work email handle posted on
   // every gym feed). (Audit 12 #42 + #43.)

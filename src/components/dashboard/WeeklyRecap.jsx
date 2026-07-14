@@ -189,7 +189,7 @@ export default function WeeklyRecap({ logs = [], cardioLogs = [] }) {
             // `user_metadata.username` which doesn't exist on the
             // user object Flexyn renders against — so virtually every
             // user got "Athlete" on their share card. (Audit 08 #L-4.)
-            username={user?.username || user?.full_name?.split(' ')[0] || user?.email?.split('@')[0] || 'Athlete'}
+            username={user?.username || user?.full_name?.split(' ')[0] || 'Athlete'}
           />
         </Suspense>
       )}

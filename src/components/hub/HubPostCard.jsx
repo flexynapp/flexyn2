@@ -86,7 +86,7 @@ function RepostCard({ originalPostId, onAuthorClick }) {
   if (!original) return null;
 
   const body = original.body || original.content || '';
-  const displayName = original.author_name || original.author_email?.split('@')[0] || 'Athlete';
+  const displayName = original.author_name || 'Athlete';
 
   return (
     <div
@@ -746,7 +746,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
     try {
       await hubPosts.create({
         author_email: user.email,
-        author_name: user.username || user.email.split('@')[0],
+        author_name: user.username || 'Athlete',
         body: '', // repost body empty — original shown via original_post_id
         privacy: 'public',
         post_type: 'repost',
@@ -899,7 +899,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
                       onClick={(ev) => { ev.stopPropagation(); onAuthorClick?.({ email: e }); }}
                       className="font-semibold text-foreground hover:underline"
                     >
-                      @{e.split('@')[0]}{i < Math.min(post.collaborator_emails.length, 2) - 1 ? ', ' : ''}
+                      @athlete{i < Math.min(post.collaborator_emails.length, 2) - 1 ? ', ' : ''}
                     </button>
                   ))}
                 </span>
@@ -969,7 +969,7 @@ export default function HubPostCard({ post, onAuthorClick = null, onHashtagClick
             </button>
             <button
               onClick={async () => {
-                const handle = post.author_name?.replace(/^@/, '') || post.author_email;
+                const handle = post.author_name?.replace(/^@/, '') || 'this user';
                 if (!confirm(`Block @${handle}? They won't see your profile, posts, or stories, and you won't see theirs. You can unblock from Settings.`)) return;
                 try {
                   await blockUserFull(post.author_email);
