@@ -740,10 +740,17 @@ export async function getCrewFirstAchievers(crewId) {
   // Pull every unlocked achievement for every member in parallel.
   const perMember = await Promise.all(members.map(async (m) => {
     const profile = profileMap[m.user_id];
-    if (!profile?.email) return [];
+    // Filter by user_id, not created_by=email. achievements.user_id is
+    // reliably server-stamped (grant_xp_milestone_achievements writes
+    // auth.uid()), RLS already permits the auth.uid()=user_id branch, and this
+    // also catches guest members whose rows carry created_by='' (the old email
+    // filter silently missed them — same defect the app already fixed in
+    // leaderboardStats/AchievementsVault/ProfileBadgeShowcase). `profile` is
+    // kept for the display fields on the returned rows.
+    if (!m.user_id || !profile) return [];
     try {
       const all = await db.entities.Achievement
-        .filter({ created_by: profile.email })
+        .filter({ user_id: m.user_id })
         .catch(() => []);
       // The achievements table stores ONLY unlocked rows (row presence =
       // unlocked). Date column is `unlocked_at`. Previously filtered on
