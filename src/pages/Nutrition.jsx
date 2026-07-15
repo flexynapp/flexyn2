@@ -1434,12 +1434,13 @@ export default function Nutrition() {
             value={rowId}
             as="div"
             dragListener={editMode}
-            // layout="position" animates only the item's position, never its
-            // size. Without it, collapsing a tall section to the small "Show"
-            // stub makes framer scale-project the box, stretching the text
-            // mid-transition. Position-only keeps text crisp; neighbours still
-            // slide up smoothly, and drag-reordering is unaffected.
-            layout="position"
+            // Layout animation is only wanted for drag-reordering, which only
+            // happens in customize mode. Enabling it in normal mode made
+            // framer scale-/position-project the box during hide/show — that
+            // stretched the stub text on collapse and clipped the next
+            // section (Today's Meals) on expand. Gate it to editMode so
+            // hide/show is an instant, distortion-free swap.
+            layout={editMode ? 'position' : false}
             className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && isHidden ? 'opacity-50' : ''}`}
           >
             {editMode && (
