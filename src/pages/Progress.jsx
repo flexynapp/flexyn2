@@ -411,8 +411,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl text-white shadow-xl shadow-black/20 touch-pan-y"
-        style={{ background: 'hsl(210 18% 11%)' }}
+        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
       >
         {/* Per-slide color tint — animates on slide change */}
         <motion.div
@@ -421,12 +420,12 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
           className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.20), transparent 65%)` }}
         />
         <motion.div
           key={`mesh-bl-${slide.id}`}
           className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.12), transparent 70%)` }}
           animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -440,15 +439,15 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
               <IconComp
                 aria-hidden="true"
                 className="absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
-                style={{ width: 96, height: 96, opacity: 0.13, color: 'white' }}
+                style={{ width: 96, height: 96, opacity: 0.12, color: `hsl(${slide.color})` }}
               />
             );
           })()}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-              <Icon className="w-4 h-4 text-white/85" />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
+              <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
             </div>
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
               {slide.kicker}
             </span>
           </div>
@@ -467,7 +466,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
               >
                 {slide.value}
               </h3>
-              <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+              <p className="text-sm text-muted-foreground max-w-[36ch] leading-relaxed mt-2">
                 {slide.tip}
               </p>
             </motion.div>
@@ -481,7 +480,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
                   onClick={() => goTo(i)}
                   aria-label={`Slide ${i + 1}`}
                   className={`h-1.5 rounded-full transition-all ${
-                    i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                    i === idx ? 'bg-primary w-6' : 'bg-foreground/20 w-1.5 hover:bg-foreground/40'
                   }`}
                 />
               ))}
@@ -736,7 +735,6 @@ export default function Progress() {
     },
   ];
   const carouselRef = useRef(null);
-  const jumpToSlide = (id) => carouselRef.current?.goToId?.(id);
 
   // ── Tab switch helper ─────────────────────────────────────────────────────
   // Auto-scroll-on-switch removed per user feedback: it was pushing
@@ -797,35 +795,9 @@ export default function Progress() {
                 color tint, swipe to advance, right-edge chevron. ──── */}
           <ProgressCarousel ref={carouselRef} slides={carouselSlides} />
 
-          {/* ── Hero Stats Strip — clickable, drives the carousel.
-                Tap Streak → carousel jumps to Streak slide, etc. ──── */}
-          <motion.div
-            className="grid grid-cols-4 gap-2 md:gap-3 mb-6"
-            initial="hidden"
-            animate="visible"
-            variants={{ hidden: {}, visible: { transition: { staggerChildren: 0.07 } } }}
-          >
-            {heroStats.map((stat) => (
-              <motion.button
-                key={stat.label}
-                type="button"
-                onClick={() => jumpToSlide(stat.id)}
-                variants={{ hidden: { opacity: 0, y: 16 }, visible: { opacity: 1, y: 0 } }}
-                transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-                whileHover={{ y: -2, scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                aria-label={`Show ${stat.label} in carousel`}
-              >
-                <Card className="p-3 border-border/60 shadow-sm text-center h-full cursor-pointer">
-                  <div className={`w-8 h-8 rounded-xl ${stat.iconBg} flex items-center justify-center mx-auto mb-2`}>
-                    <stat.icon className={`w-4 h-4 ${stat.accent}`} />
-                  </div>
-                  <p className={`font-heading font-black text-lg leading-none ${stat.accent}`}>{stat.value}</p>
-                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
-                </Card>
-              </motion.button>
-            ))}
-          </motion.div>
+          {/* The 4 stat tiles (Streak / Workouts / Volume / Level) that
+              used to sit here now live inside the "Advanced Analytics"
+              modal — see the heroStats prop below. */}
 
           {/* "You usually train Mon · Wed · Fri at 6:30 PM" — a soft
               pattern-recognition insight. Renders nothing if there
@@ -1242,7 +1214,7 @@ export default function Progress() {
       />
 
       {/* Advanced Analytics Modal */}
-      <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs}>
+      <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} heroStats={heroStats}>
         {/* The old "Analytics" tab's charts now live inside Advanced
             Analytics as their own section (the tab was removed). */}
         <ErrorBoundary label="Analytics">

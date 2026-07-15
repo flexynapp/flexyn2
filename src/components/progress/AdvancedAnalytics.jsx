@@ -8,7 +8,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 
-export default function AdvancedAnalytics({ open, onClose, logs, children }) {
+export default function AdvancedAnalytics({ open, onClose, logs, children, heroStats = [] }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const stats = useMemo(() => {
@@ -86,6 +86,26 @@ export default function AdvancedAnalytics({ open, onClose, logs, children }) {
           <DialogTitle className="font-heading text-xl">{t('analytics.title')}</DialogTitle>
         </DialogHeader>
         
+        {/* At-a-glance tiles (Streak / Workouts / Volume / Level) — moved
+            here from the top of the Progress page. Shown even at the
+            zero-state, since streak/level/etc. are meaningful then too. */}
+        {heroStats.length > 0 && (
+          <div className="grid grid-cols-4 gap-2 md:gap-3 pe-4">
+            {heroStats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <Card key={stat.label} className="p-3 border-border/60 shadow-sm text-center h-full">
+                  <div className={`w-8 h-8 rounded-xl ${stat.iconBg} flex items-center justify-center mx-auto mb-2`}>
+                    <Icon className={`w-4 h-4 ${stat.accent}`} />
+                  </div>
+                  <p className={`font-heading font-black text-lg leading-none ${stat.accent}`}>{stat.value}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1 uppercase tracking-wider leading-tight">{stat.label}</p>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+
         {logs.length === 0 ? (
           <div className="p-8 text-center">
             <p className="text-muted-foreground">{t('progress.noDataDesc')}</p>
