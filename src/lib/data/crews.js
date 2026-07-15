@@ -658,48 +658,80 @@ export async function getCrewStats(crewId) {
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
 
-  // 3. Fetch last 7 days of workouts for each member. Filter by user_id,
-  // not created_by=email: workout_logs.user_id is server-populated and the
-  // owner-access RLS policy permits the auth.uid()=user_id branch, so this
-  // resolves the same rows without depending on the email column (which the
-  // public_profiles view is being drained of).
+  // 3. Aggregate each member's last-7-days volume + best 1RM.
+  //
+  // Preferred path: the get_crew_weekly_stats RPC (migration 212). It runs
+  // SECURITY DEFINER so it bypasses the per-row owner-only RLS on
+  // workout_logs, but is gated on the caller's own crew_members membership
+  // (auth.uid()) server-side, so it only ever exposes stats for a crew the
+  // caller belongs to. This is what actually fixes the bug: reading each
+  // OTHER member's WorkoutLog from the client returns nothing (RLS =
+  // "auth.email()=created_by OR auth.uid()=user_id"), so the panel used to
+  // show 0 volume / null PR for everyone except the viewer. The RPC also
+  // collapses the old O(16) per-member round-trips into a single call.
+  //
+  // Fallback (pre-212 host, RPC missing): the legacy per-member client loop
+  // below. On those hosts cross-member reads stay RLS-blocked, so non-viewer
+  // members still read as 0/null — the documented limitation 212 removes.
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  const memberStats = await Promise.all(
-    members.map(async (m) => {
-      const profile = profileMap[m.user_id];
-      if (!profile) return { userId: m.user_id, profile, volume: 0, bestPr: null };
+  let memberStats = null;
+  const { data: rpcRows, error: rpcErr } = await supabase
+    .rpc('get_crew_weekly_stats', { p_crew_id: crewId });
+  if (!rpcErr && Array.isArray(rpcRows)) {
+    const statByUser = {};
+    for (const row of rpcRows) statByUser[row.user_id] = row;
+    memberStats = members.map((m) => ({
+      userId: m.user_id,
+      profile: profileMap[m.user_id],
+      volume: Number(statByUser[m.user_id]?.volume_lbs) || 0,
+      // RPC best_pr shape matches the legacy path: {exercise, weight, reps, e1rm}
+      bestPr: statByUser[m.user_id]?.best_pr ?? null,
+    }));
+  }
 
-      let logs = [];
-      try {
-        logs = await db.entities.WorkoutLog
-          .filter({ user_id: m.user_id }, '-date', 20)
-          .catch(() => []);
-        // Filter to this week
-        logs = (logs ?? []).filter(l => l.date >= weekAgo);
-      } catch { logs = []; }
+  if (!memberStats) {
+    // Legacy per-member fallback. Filter by user_id (server-populated), not
+    // created_by=email, so it rides the auth.uid()=user_id RLS branch and
+    // doesn't depend on the email column the public_profiles view is being
+    // drained of. Cross-member rows are RLS-blocked here → 0/null for
+    // everyone but the viewer; that's the bug 212 closes.
+    memberStats = await Promise.all(
+      members.map(async (m) => {
+        const profile = profileMap[m.user_id];
+        if (!profile) return { userId: m.user_id, profile, volume: 0, bestPr: null };
 
-      let volume = 0;
-      let bestPr = null;
+        let logs = [];
+        try {
+          logs = await db.entities.WorkoutLog
+            .filter({ user_id: m.user_id }, '-date', 20)
+            .catch(() => []);
+          // Filter to this week
+          logs = (logs ?? []).filter(l => l.date >= weekAgo);
+        } catch { logs = []; }
 
-      for (const log of logs) {
-        for (const ex of (log.exercises ?? [])) {
-          for (const set of (ex.sets ?? [])) {
-            const w = Number(set.weight) || 0;
-            const r = Number(set.reps)   || 0;
-            volume += w * r;
-            // Epley 1RM approximation
-            const e1rm = r > 1 ? w * (1 + r / 30) : w;
-            if (!bestPr || e1rm > bestPr.e1rm) {
-              bestPr = { exercise: ex.name, weight: w, reps: r, e1rm };
+        let volume = 0;
+        let bestPr = null;
+
+        for (const log of logs) {
+          for (const ex of (log.exercises ?? [])) {
+            for (const set of (ex.sets ?? [])) {
+              const w = Number(set.weight) || 0;
+              const r = Number(set.reps)   || 0;
+              volume += w * r;
+              // Epley 1RM approximation
+              const e1rm = r > 1 ? w * (1 + r / 30) : w;
+              if (!bestPr || e1rm > bestPr.e1rm) {
+                bestPr = { exercise: ex.name, weight: w, reps: r, e1rm };
+              }
             }
           }
         }
-      }
 
-      return { userId: m.user_id, profile, volume, bestPr };
-    })
-  );
+        return { userId: m.user_id, profile, volume, bestPr };
+      })
+    );
+  }
 
   // 4. Aggregate
   const totalVolumeLbs = memberStats.reduce((s, m) => s + m.volume, 0);
