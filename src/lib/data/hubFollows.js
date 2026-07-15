@@ -64,6 +64,13 @@ export const listFollowingIds = async (userId) => {
   return rows.map(r => r.followee_id).filter(Boolean);
 };
 
+/** List the user_ids following the given user — id-keyed twin of listFollowers(). */
+export const listFollowersIds = async (userId) => {
+  if (!userId) return [];
+  const rows = await e().filter({ followee_id: userId }, '-created_date', 500).catch(() => []);
+  return rows.map(r => r.follower_id).filter(Boolean);
+};
+
 /** Check if follower follows target. */
 export const isFollowing = async (followerEmail, followeeEmail) => {
   if (!followerEmail || !followeeEmail) return false;
@@ -205,10 +212,10 @@ export const unfollow = async (follower, followee) => {
  *   3. Shuffle and cap at `limit`, then fetch their profiles.
  * Falls back to any recent profiles with a username when the user has no friends yet.
  */
-export const getRecommendations = async (userEmail, followingEmails = [], limit = 6) => {
-  if (!userEmail) return [];
+export const getRecommendations = async (userId, followingIds = [], limit = 6) => {
+  if (!userId) return [];
 
-  const alreadyFollowing = new Set([userEmail, ...followingEmails]);
+  const alreadyFollowing = new Set([userId, ...followingIds]);
 
   // Always include a slice of RECENT signups in addition to any
   // friend-of-friend recommendations. Without this, new accounts that
@@ -220,48 +227,48 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const fofSlots    = Math.max(0, limit - recentSlots);
 
   const { data: recentData } = await safeSelect({
-    columns: ['id', 'email', 'username', 'avatar_url', 'created_at'],
+    columns: ['id', 'username', 'avatar_url', 'created_at'],
     build: (cols) => users.selectProfiles((from) => from
       .select(cols)
-      .neq('email', userEmail)
+      .neq('id', userId)
       .not('username', 'is', null)
       .order('created_at', { ascending: false })
       .limit(recentSlots * 4)), // overfetch so we have room after filtering
   });
   const recentFiltered = (recentData ?? [])
-    .filter(p => !alreadyFollowing.has(p.email))
+    .filter(p => !alreadyFollowing.has(p.id))
     .slice(0, recentSlots);
 
   // Track everyone we'll surface so friend-of-friend doesn't duplicate
   // someone the recent-signups bucket already chose.
   const picked = new Map();
-  for (const p of recentFiltered) picked.set(p.email, p);
+  for (const p of recentFiltered) picked.set(p.id, p);
 
-  if (followingEmails.length === 0) {
+  if (followingIds.length === 0) {
     // No friends yet — fill remaining slots with extra recent profiles.
     // We already overfetched above so just take more from the same list.
     const extra = (recentData ?? [])
-      .filter(p => !alreadyFollowing.has(p.email) && !picked.has(p.email))
+      .filter(p => !alreadyFollowing.has(p.id) && !picked.has(p.id))
       .slice(0, fofSlots);
-    for (const p of extra) picked.set(p.email, p);
+    for (const p of extra) picked.set(p.id, p);
     return Array.from(picked.values()).slice(0, limit);
   }
 
   // Friend-of-friend: sample up to 5 friends to keep queries light.
   // Pull BOTH directions — who they follow AND who follows them — so that
   // a friend who doesn't follow many people still surfaces their community.
-  const sample = followingEmails.slice(0, 5);
+  const sample = followingIds.slice(0, 5);
   const friendLists = await Promise.all(
-    sample.flatMap(email => [listFollowing(email), listFollowers(email)])
+    sample.flatMap(id => [listFollowingIds(id), listFollowersIds(id)])
   );
 
   const candidates = [];
   const seen = new Set();
   for (const list of friendLists) {
-    for (const email of list) {
-      if (!alreadyFollowing.has(email) && !seen.has(email) && !picked.has(email)) {
-        candidates.push(email);
-        seen.add(email);
+    for (const id of list) {
+      if (!alreadyFollowing.has(id) && !seen.has(id) && !picked.has(id)) {
+        candidates.push(id);
+        seen.add(id);
       }
     }
   }
@@ -275,13 +282,13 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const fofSelected = candidates.slice(0, fofSlots);
   if (fofSelected.length > 0) {
     const { data: fofData } = await safeSelect({
-      columns: ['id', 'email', 'username', 'avatar_url'],
+      columns: ['id', 'username', 'avatar_url'],
       build: (cols) => users.selectProfiles((from) => from
         .select(cols)
-        .in('email', fofSelected)),
+        .in('id', fofSelected)),
     });
     for (const p of (fofData ?? [])) {
-      if (!picked.has(p.email)) picked.set(p.email, p);
+      if (!picked.has(p.id)) picked.set(p.id, p);
     }
   }
 

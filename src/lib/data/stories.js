@@ -261,15 +261,14 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
 // the UI hides the reply input — but a malicious client could bypass
 // the UI by calling sendStoryReply directly. This check makes the
 // toggle a real boundary.
-async function _recipientAllowsDmReplies(recipientEmail) {
-  if (!recipientEmail) return false;
+async function _recipientAllowsDmReplies(recipientId) {
+  if (!recipientId) return false;
   try {
-    // Cross-user read of the recipient's story_dms_disabled flag — the
-    // server-enforced reply gate needs it, so the column must stay
-    // exposed on the public_profiles view.
+    // Cross-user read of the recipient's story_dms_disabled flag, keyed by
+    // user_id (never the view's email — which no longer exists).
     const { data } = await selectProfiles((from) => from
       .select('story_dms_disabled')
-      .ilike('email', recipientEmail.toLowerCase())
+      .eq('id', recipientId)
       .maybeSingle());
     // If the column doesn't exist on this host yet, default to allowing
     // replies (matches the legacy behavior).
@@ -296,23 +295,23 @@ async function _recipientAllowsDmReplies(recipientEmail) {
  * The conversationId lets the caller surface a one-tap "Open" CTA in
  * the success toast so the user can jump straight into the thread.
  */
-export async function sendStoryReply(storyOwnerEmail, sender, message) {
-  if (!storyOwnerEmail || !sender?.email || !message?.trim()) {
+export async function sendStoryReply(storyOwnerId, sender, message) {
+  if (!storyOwnerId || !sender?.email || !message?.trim()) {
     return { ok: false, reason: 'invalid' };
   }
   // Server-checked: do they accept reply DMs at all?
-  const allowed = await _recipientAllowsDmReplies(storyOwnerEmail);
+  const allowed = await _recipientAllowsDmReplies(storyOwnerId);
   if (!allowed) {
     console.warn('[stories] reply blocked — recipient has story DMs disabled');
     return { ok: false, reason: 'dms_disabled' };
   }
   try {
-    const conv = await findOrCreateConversation(sender.email, storyOwnerEmail);
+    const conv = await findOrCreateConversation(sender.email, storyOwnerId);
     if (!conv?.id) return { ok: false, reason: 'network' };
     await sendMessage({
       conversationId: conv.id,
       senderEmail:    sender.email,
-      recipientEmail: storyOwnerEmail,
+      recipientId:    storyOwnerId,
       body:           message.trim(),
     });
     return { ok: true, conversationId: conv.id };

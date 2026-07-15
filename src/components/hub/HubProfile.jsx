@@ -359,11 +359,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // user_profiles while the view migration is pending).
       const { data } = await selectProfiles((from) => from
         .select('last_active_at')
-        .eq(targetId ? 'id' : 'email', targetKey)
+        .eq('id', targetId)
         .maybeSingle());
       return data?.last_active_at || null;
     },
-    enabled: !isSelf && !!targetKey,
+    // id-only: legacy email-targets (no id) simply skip the activity pill
+    // rather than filtering the view by a column that no longer exists.
+    enabled: !isSelf && !!targetId,
     staleTime: 60_000,
   });
 
@@ -383,15 +385,22 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     queryKey: ['hubProfileLookup', targetKey],
     queryFn: async () => {
       if (isSelf) return null;
+      // id-only lookup. A legacy email-target (no id) can't be resolved
+      // through the view anymore — fall back to whatever the nav prop
+      // carried rather than filtering the view by a dropped column.
+      if (!targetId) return targetUser || null;
       // safeSelect strips columns that aren't in the PostgREST schema
       // cache yet (e.g. country_flag / trophy_case if migration 049
       // is pending) and retries — so a mid-migration deploy doesn't
       // crash the Hub. Existing `?.` / `??` fallback patterns on
       // these fields downstream still render correctly when a
-      // column is absent.
+      // column is absent. NOTE: no `email` column — it was removed from
+      // the public_profiles view; the target's email (for the still
+      // email-keyed follow/DM/post queries) is resolved separately via
+      // the resolve_profile_email RPC below.
       const { data } = await safeSelect({
         columns: [
-          'id', 'email', 'username', 'avatar_url', 'total_xp',
+          'id', 'username', 'avatar_url', 'total_xp',
           'preferred_theme', 'loot_theme_id',
           'equipped_title_id', 'equipped_frame_id',
           'city', 'country_flag', 'bio',
@@ -400,7 +409,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         ],
         build: (cols) => selectProfiles((from) => from
           .select(cols)
-          .eq(targetId ? 'id' : 'email', targetKey)
+          .eq('id', targetId)
           .single()),
       });
       if (!data) return targetUser || null;
@@ -415,11 +424,28 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     initialData: isSelf ? null : (targetUser?.username ? targetUser : undefined),
   });
 
-  // Resolved target email for the rest of this component (follow / DM / stories
-  // / allUsers are still email-keyed). Prefer the prop; for an id-only target
-  // it's filled from the fetched profile row once loaded. Declared post-query
-  // so the lookups above stay id-first (avoids a TDZ on `email`).
-  const email = isSelf ? user?.email : (targetEmailProp || targetProfile?.email || null);
+  // For an id-only target we still need the target's email for the parts of
+  // this component that remain email-keyed (isFollowing / getMutualFollowSince
+  // read hub_follows.*_email; listForProfile reads hub_posts.author_email;
+  // stories/notes read *_email). We can no longer read it off the
+  // public_profiles view (email was dropped), so resolve it server-side via
+  // the narrow resolve_profile_email RPC (SECURITY DEFINER, reads
+  // user_profiles directly). This is a single-row lookup by id, never a bulk
+  // read, and the email is used only as a query key — never displayed.
+  const { data: resolvedTargetEmail } = useQuery({
+    queryKey: ['resolveProfileEmail', targetId],
+    queryFn: async () => {
+      const { data } = await supabase.rpc('resolve_profile_email', { p_id: targetId });
+      return data || null;
+    },
+    enabled: !isSelf && !!targetId && !targetEmailProp,
+    staleTime: 5 * 60_000,
+  });
+
+  // Resolved target email for the rest of this component. Prefer the nav
+  // prop (email-link targets carry it); otherwise the RPC-resolved value.
+  // Declared post-query so the lookups above stay id-first.
+  const email = isSelf ? user?.email : (targetEmailProp || resolvedTargetEmail || null);
 
   // Profile stories (for clickable avatar → StoryViewer)
   // Crew stories are scoped to crew_id and must never appear here.
@@ -474,15 +500,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     enabled: !isSelf && !!activeNote?.id && !!user?.id,
   });
 
-  const { data: followers = [] } = useQuery({
-    queryKey: ['hubFollowers', email],
-    queryFn: () => hubFollows.listFollowers(email),
-    enabled: !!email,
+  // Follower / following lists as user_ids (the modal resolves them by id
+  // via User.list().id — never off the view's email). Legacy email-targets
+  // (no targetId) show empty lists rather than reading the view.
+  const { data: followerIds = [] } = useQuery({
+    queryKey: ['hubFollowers', targetId],
+    queryFn: () => hubFollows.listFollowersIds(targetId),
+    enabled: !!targetId,
   });
-  const { data: following = [] } = useQuery({
-    queryKey: ['hubFollowing', email],
-    queryFn: () => hubFollows.listFollowing(email),
-    enabled: !!email,
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['hubFollowing', targetId],
+    queryFn: () => hubFollows.listFollowingIds(targetId),
+    enabled: !!targetId,
   });
   const {
     data: amFollowing,
@@ -576,7 +605,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', email] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
     },
   });
@@ -605,7 +634,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
-      queryClient.invalidateQueries({ queryKey: ['hubFollowers', email] });
+      queryClient.invalidateQueries({ queryKey: ['hubFollowers', targetId] });
       queryClient.invalidateQueries({ queryKey: ['hubFollowing', user?.email] });
     },
   });
@@ -1558,13 +1587,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           <AnimatedStatButton
             onClick={() => setOpenModal('followers')}
             icon={UsersIcon}
-            value={followers.length}
-            label={pluralize(followers.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language)}
+            value={followerIds.length}
+            label={pluralize(followerIds.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language)}
           />
           <AnimatedStatButton
             onClick={() => setOpenModal('following')}
             icon={UserIcon}
-            value={following.length}
+            value={followingIds.length}
             label={tFallback('hub.profile.following', 'following')}
           />
         </div>
@@ -1771,8 +1800,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             open={giftOpen}
             onClose={() => setGiftOpen(false)}
             recipient={{
-              id:       targetProfile?.id,
-              email:    targetProfile?.email,
+              id:       targetProfile?.id ?? targetId,
+              email,
               username: targetProfile?.username,
             }}
           />
@@ -2004,7 +2033,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         {openModal && (
           <FollowingModal
             type={openModal}
-            emails={openModal === 'followers' ? followers : following}
+            ids={openModal === 'followers' ? followerIds : followingIds}
             onClose={() => setOpenModal(null)}
             onSelectUser={(selectedUser) => {
               setOpenModal(null);
@@ -2118,9 +2147,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   );
 }
 
-function FollowingModal({ type, emails, onClose, onSelectUser }) {
+function FollowingModal({ type, ids, onClose, onSelectUser }) {
   const { t } = useLanguage();
-  
+
   // Lock body scroll when modal is open
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -2130,19 +2159,20 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
   }, []);
 
   const { data: allUsers = [] } = useQuery({
-    queryKey: ['hubProfileUsers', emails],
+    queryKey: ['hubProfileUsers', ids],
     queryFn: async () => {
-      if (!emails.length) return [];
+      if (!ids.length) return [];
       const users = await db.entities.User.list().catch(() => []);
-      return users.filter(u => emails.includes(u.email)).map(u => ({
+      // Resolve the follower/following rows by user_id — never off the
+      // view's email column (which no longer exists).
+      return users.filter(u => ids.includes(u.id)).map(u => ({
         ...u,
-        // Fallback to email prefix if username is stripped by User.list()
         username: u.username || 'athlete',
         levelData: calculateLevelFromXp(Number(u.total_xp) || 0),
         tier: getTier(calculateLevelFromXp(Number(u.total_xp) || 0).level, t),
       }));
     },
-    enabled: !!emails.length,
+    enabled: !!ids.length,
   });
 
   return (
@@ -2207,7 +2237,7 @@ function FollowingModal({ type, emails, onClose, onSelectUser }) {
                       />
                     ) : (
                       <span className="font-heading font-bold text-sm text-primary">
-                        {(u.username || u.email)?.slice(0, 2).toUpperCase()}
+                        {(u.username || 'athlete').slice(0, 2).toUpperCase()}
                       </span>
                     )}
                   </div>

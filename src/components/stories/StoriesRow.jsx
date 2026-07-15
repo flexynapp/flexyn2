@@ -282,21 +282,20 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
     if (state !== 'idle') return;
     setState('adding');
     try {
-      await onAdd(profile.email);
+      await onAdd(profile.id);
       setState('added');
     } catch {
       setState('idle');
     }
-  }, [state, onAdd, profile.email]);
+  }, [state, onAdd, profile.id]);
 
   const handleViewProfile = useCallback(() => {
     onViewProfile?.({
       id: profile.id,
-      email: profile.email,
       username: profile.username,
       avatar_url: profile.avatar_url,
     });
-  }, [onViewProfile, profile.id, profile.email, profile.username, profile.avatar_url]);
+  }, [onViewProfile, profile.id, profile.username, profile.avatar_url]);
 
   return (
     <div
@@ -432,13 +431,6 @@ export default function StoriesRow({ onViewProfile } = {}) {
   // 'hubFollowing') so a follow tap in one place didn't invalidate the
   // others, and the new friend's stories silently failed to appear in
   // this row until full page reload.
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['hubFollowing', user?.email],
-    queryFn:  () => hubFollows.listFollowing(user.email),
-    enabled:  !!user?.email,
-    staleTime: 60_000,
-  });
-
   // Id-keyed follow list for the stories feed — it resolves owner profiles
   // by user_id, so it never needs the followed users' emails.
   const { data: followingIds = [] } = useQuery({
@@ -513,15 +505,15 @@ export default function StoriesRow({ onViewProfile } = {}) {
   // Cache stale-check is now only a safety net for offline /
   // RPC-down cases — we no longer gate fetches on it.
   useEffect(() => {
-    if (!user?.email || qaFetchedRef.current) return;
+    if (!user?.id || qaFetchedRef.current) return;
     qaFetchedRef.current = true;
     let cancelled = false;
     const cache = qaLoad(user?.id);
-    const addedSet = new Set(cache?.addedEmails ?? []);
+    const addedSet = new Set(cache?.addedIds ?? []);
     if (cache?.list?.length > 0) {
       // Paint the cached list right away so the rail doesn't blink
       // on every app open.
-      const remaining = (cache.list ?? []).filter(p => !addedSet.has(p.email));
+      const remaining = (cache.list ?? []).filter(p => !addedSet.has(p.id));
       setQaList(remaining);
       if (remaining.length > 0) setQaHadItems(true);
     }
@@ -530,30 +522,30 @@ export default function StoriesRow({ onViewProfile } = {}) {
     // larger N (12 vs 6) so newly-arrived candidates have a slot
     // even if a few "always-popular" rows would otherwise hog the
     // top 6.
-    hubFollows.getRecommendations(user.email, followingEmails, 12).then(recs => {
+    hubFollows.getRecommendations(user.id, followingIds, 12).then(recs => {
       if (cancelled) return;
       if (!Array.isArray(recs) || recs.length === 0) return;
-      const fresh = recs.filter(p => !addedSet.has(p.email));
+      const fresh = recs.filter(p => !addedSet.has(p.id));
       qaSave(user?.id, {
         refreshedAt: new Date().toISOString(),
         list: fresh,
-        addedEmails: Array.from(addedSet),
+        addedIds: Array.from(addedSet),
       });
       setQaList(fresh);
       if (fresh.length > 0) setQaHadItems(true);
     }).catch(() => {});
     return () => { cancelled = true; };
-  // followingEmails intentionally omitted — we read the snapshot once at mount.
+  // followingIds intentionally omitted — we read the snapshot once at mount.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.email]);
+  }, [user?.id]);
 
   const groups      = feedData?.groups    ?? [];
   const viewedIds   = feedData?.viewedIds ?? new Set();
   const ownGroup    = groups.find(g => g.isOwn);
 
   // Filter out anyone the user already follows (cache may predate the follow)
-  const followingSet   = new Set([user?.email, ...followingEmails]);
-  const visibleQaList  = qaList.filter(p => !followingSet.has(p.email));
+  const followingSet   = new Set([user?.id, ...followingIds]);
+  const visibleQaList  = qaList.filter(p => !followingSet.has(p.id));
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
   const showQuickAdd = !qaDismissed && qaHadItems;
@@ -685,20 +677,20 @@ export default function StoriesRow({ onViewProfile } = {}) {
     toast.success('Note pulled.');
   }, [ownGroup, queryClient]);
 
-  const handleQuickAdd = useCallback(async (email) => {
+  const handleQuickAdd = useCallback(async (id) => {
     // Persist the addition so it survives page refresh
     const cache = qaLoad(user?.id);
     if (cache) {
-      cache.addedEmails = [...new Set([...(cache.addedEmails ?? []), email])];
+      cache.addedIds = [...new Set([...(cache.addedIds ?? []), id])];
       qaSave(user?.id, cache);
     }
-    await hubFollows.follow(user.email, email);
+    await hubFollows.follow(user.id, id);
     // Defer removal so QuickAddAvatarItem has a frame to render the
     // "Added" check state — yanking the item out of the list before
     // its internal `setState('added')` runs meant the success feedback
     // was never visible.
     setTimeout(() => {
-      setQaList(prev => prev.filter(p => p.email !== email));
+      setQaList(prev => prev.filter(p => p.id !== id));
     }, 900);
     queryClient.invalidateQueries({ queryKey: ['hubFollowing'] });
     queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
@@ -806,7 +798,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
                 <>
                   {visibleQaList.map(profile => (
                     <QuickAddAvatarItem
-                      key={profile.email}
+                      key={profile.id}
                       profile={profile}
                       onAdd={handleQuickAdd}
                       onViewProfile={onViewProfile}

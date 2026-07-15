@@ -406,7 +406,7 @@ export default function StoryViewer({
   const handleSendReply = async () => {
     if (!reply.trim() || !currentGroup || replySending) return;
     setReplySending(true);
-    const res = await storiesData.sendStoryReply(currentGroup.email, user, reply.trim());
+    const res = await storiesData.sendStoryReply(currentGroup.user_id, user, reply.trim());
     setReplySending(false);
     if (res?.ok) {
       setReply('');
