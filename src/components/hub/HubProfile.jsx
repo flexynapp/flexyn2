@@ -288,8 +288,17 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // needs its own listener.)
   const { themeId: liveThemeId, lootThemeId: liveLootThemeId } = useTheme();
   const queryClient = useQueryClient();
-  const isSelf = !targetUser || targetUser?.email === user?.email;
-  const email = isSelf ? user?.email : targetUser?.email;
+  const isSelf = !targetUser
+    || (targetUser?.id && targetUser.id === user?.id)
+    || (targetUser?.email && targetUser.email === user?.email);
+  // The target may arrive keyed by id (new profile route) or by email (legacy
+  // links). targetKey drives the lookups below (id preferred). The resolved
+  // `email` used by the rest of this component's still-email-keyed machinery is
+  // derived AFTER the profile query (from the prop, else the fetched row) —
+  // declared there to avoid a TDZ, since these lookups no longer depend on it.
+  const targetId = isSelf ? user?.id : (targetUser?.id ?? null);
+  const targetEmailProp = isSelf ? user?.email : (targetUser?.email ?? null);
+  const targetKey = targetId ?? targetEmailProp;
   const [openModal, setOpenModal] = useState(null); // 'followers', 'following', or null
   const [unfollowConfirmOpen, setUnfollowConfirmOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
@@ -326,7 +335,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // race with the layout shift of new content.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
-  }, [email]);
+  }, [targetKey]);
 
   // ── last_active_at: update on own profile open, display on others' ────────
   useEffect(() => {
@@ -341,7 +350,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   // Fetch target user's last_active_at (only when viewing someone else)
   const { data: targetLastActive } = useQuery({
-    queryKey: ['lastActive', email],
+    queryKey: ['lastActive', targetKey],
     queryFn: async () => {
       // maybeSingle so a missing row returns null cleanly instead of
       // throwing PGRST116, which the surrounding try-less code path
@@ -350,11 +359,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       // user_profiles while the view migration is pending).
       const { data } = await selectProfiles((from) => from
         .select('last_active_at')
-        .eq('email', email)
+        .eq(targetId ? 'id' : 'email', targetKey)
         .maybeSingle());
       return data?.last_active_at || null;
     },
-    enabled: !isSelf && !!email,
+    enabled: !isSelf && !!targetKey,
     staleTime: 60_000,
   });
 
@@ -371,7 +380,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   })();
 
   const { data: targetProfile } = useQuery({
-    queryKey: ['hubProfileLookup', email],
+    queryKey: ['hubProfileLookup', targetKey],
     queryFn: async () => {
       if (isSelf) return null;
       // safeSelect strips columns that aren't in the PostgREST schema
@@ -391,15 +400,26 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         ],
         build: (cols) => selectProfiles((from) => from
           .select(cols)
-          .eq('email', email)
+          .eq(targetId ? 'id' : 'email', targetKey)
           .single()),
       });
       if (!data) return targetUser || null;
       return { ...data, username: data.username || targetUser?.username || null };
     },
-    enabled: !isSelf && !!email,
-    initialData: isSelf ? null : targetUser,
+    enabled: !isSelf && !!targetKey,
+    // Only seed from the prop when it actually carries display data (email
+    // links pass {email, username, avatar}). An id-only target ({id}) has no
+    // username, and with the 60s default staleTime a seeded-but-sparse
+    // initialData would suppress the refetch and strand the header on the
+    // "Athlete" placeholder — so leave it unset and let the query fetch.
+    initialData: isSelf ? null : (targetUser?.username ? targetUser : undefined),
   });
+
+  // Resolved target email for the rest of this component (follow / DM / stories
+  // / allUsers are still email-keyed). Prefer the prop; for an id-only target
+  // it's filled from the fetched profile row once loaded. Declared post-query
+  // so the lookups above stay id-first (avoids a TDZ on `email`).
+  const email = isSelf ? user?.email : (targetEmailProp || targetProfile?.email || null);
 
   // Profile stories (for clickable avatar → StoryViewer)
   // Crew stories are scoped to crew_id and must never appear here.
