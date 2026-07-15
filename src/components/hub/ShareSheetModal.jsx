@@ -48,8 +48,8 @@ export default function ShareSheetModal({ post, open, onClose }) {
   const [crewSending, setCrewSending] = useState(null); // crew id being sent to
 
   const origin = (typeof window !== 'undefined' && window.location.origin) || 'https://flexyn.netlify.app';
-  const postUrl = post.author_email
-    ? `${origin}/hub?profile=${encodeURIComponent(post.author_email)}`
+  const postUrl = post.user_id
+    ? `${origin}/hub?profile=${encodeURIComponent(post.user_id)}`
     : origin;
   const postText = (post.body || post.content || 'Check out this post on Flexyn').slice(0, 200);
   const shareTitle = post.author_name ? `${post.author_name} on Flexyn` : 'Flexyn';

@@ -272,7 +272,7 @@ export default function PublicProfile() {
               // Authenticated visitor viewing someone else
               <>
                 <Button
-                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.email || profile.username)}`)}
+                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.id || profile.username)}`)}
                   className="w-full"
                 >
                   <ExternalLink className="w-4 h-4 me-2" />
