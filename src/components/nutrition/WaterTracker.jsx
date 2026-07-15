@@ -75,7 +75,9 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
     ? parseFloat(ozToDisplay(dailyRecOz).toFixed(1))
     : Math.round(ozToDisplay(dailyRecOz));
 
-  const ringColor = 'hsl(var(--primary))';
+  // Water reads as blue, not the app's orange primary.
+  const ringColor = '#3b82f6';       // blue-500
+  const ringColorLight = '#60a5fa';  // blue-400
 
   // Compact ring dimensions
   const R = 30, SIZE = 72, circumference = 2 * Math.PI * R;
@@ -100,8 +102,8 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
           <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`} style={{ transform: 'rotate(-90deg)' }}>
             <defs>
               <linearGradient id="wRingGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity="0.7" />
-                <stop offset="100%" stopColor="hsl(var(--primary))" />
+                <stop offset="0%" stopColor={ringColor} stopOpacity="0.7" />
+                <stop offset="100%" stopColor={ringColor} />
               </linearGradient>
             </defs>
             <circle cx={SIZE/2} cy={SIZE/2} r={R} fill="none" stroke="hsl(var(--border))" strokeWidth="6" />
@@ -140,7 +142,7 @@ export default function WaterTracker({ waterOz = 0, userProfile = {}, waterUnit 
           <div className="h-2.5 bg-border/30 rounded-full overflow-hidden">
             <motion.div
               className="h-full rounded-full"
-              style={{ background: `linear-gradient(90deg, hsl(var(--primary)/0.8), hsl(var(--primary)))` }}
+              style={{ background: `linear-gradient(90deg, ${ringColorLight}, ${ringColor})` }}
               animate={{ width: `${Math.min(animatedProgress, 100)}%` }}
               transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
             />

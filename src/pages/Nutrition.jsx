@@ -1562,7 +1562,7 @@ export default function Nutrition() {
                     aria-pressed={waterUnit === unit}
                     className={`px-3 py-1 text-xs font-medium transition-colors ${
                       waterUnit === unit
-                        ? 'bg-primary text-primary-foreground'
+                        ? 'bg-blue-500 text-white'
                         : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
@@ -1579,9 +1579,9 @@ export default function Nutrition() {
 
             {/* BUTTON ROW */}
             <div className="flex flex-wrap gap-2 pt-2">
-              {/* Add Glass Button */}
+              {/* Add Glass Button — blue to match the water theme */}
               <Button
-                className="text-xs md:text-sm"
+                className="text-xs md:text-sm bg-blue-500 hover:bg-blue-600 text-white"
                 onClick={() => guardSubmit(() => {
                   if (waterOz + 8 > WATER_DAILY_CAP_OZ) {
                     toast.error(`Daily water limit reached (${ozToDisplay(WATER_DAILY_CAP_OZ)} ${waterUnit}). Stay safe!`);
