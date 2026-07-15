@@ -157,13 +157,14 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
   const [optimisticRxns, setOptimisticRxns] = useState(null);
   const tint = isOwn ? '' : senderBubbleColor(msg.sender_id);
 
-  // Fetch reactions from DB — keyed per message so all instances share the cache.
+  // Fetch reactions from DB — keyed per message so all instances share the
+  // cache, but batched underneath: every visible message refetches on the
+  // same 15s cadence, and getReactionsForMessage coalesces same-tick calls
+  // into ONE `message_id IN (…)` query for the whole chat instead of one
+  // query per rendered message.
   const { data: rxnData } = useQuery({
     queryKey: ['crewMsgRxns', msg.id],
-    queryFn: async () => {
-      const map = await crewRxns.getReactionsForMessages([msg.id]);
-      return map[msg.id] || [];
-    },
+    queryFn: () => crewRxns.getReactionsForMessage(msg.id),
     enabled: !String(msg.id).startsWith('temp-'),
     staleTime: 10_000,
     refetchInterval: 15_000,
@@ -485,11 +486,21 @@ function XpFuelMessage({ msg, currentUserId, crewId }) {
 function RollCallMessage({ msg, currentUserId, crewId }) {
   const question = msg.content || 'Did you work out today?';
 
+  // Only poll while the roll call is live (day-scoped question — votes
+  // stop arriving after that). Old roll calls in scrollback used to keep
+  // an 8s poll each, forever: N stale roll calls × every viewer = pure
+  // waste for results that can no longer change. Aged-out ones fetch
+  // once and sit on the cache.
+  const isLive = (() => {
+    const t = new Date(msg.created_at || msg.created_date || 0).getTime();
+    return t > 0 && Date.now() - t < 24 * 60 * 60 * 1000;
+  })();
+
   const { data: results, refetch } = useQuery({
     queryKey: ['rollCall', msg.id],
     queryFn:  () => crewsData.getRollCallResults(msg.id),
-    refetchInterval: 8000,
-    staleTime: 3000,
+    refetchInterval: isLive ? 8000 : false,
+    staleTime: isLive ? 3000 : Infinity,
   });
 
   const [myVote, setMyVote] = useState(() => {

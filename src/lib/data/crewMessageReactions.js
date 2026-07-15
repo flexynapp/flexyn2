@@ -3,6 +3,7 @@
 // Mirrors dmMessageReactions.js — same table shape, same RPC pattern.
 
 import { supabase } from '@/api/supabaseClient';
+import { createBatcher } from '@/lib/microBatcher';
 
 /**
  * Fetch all reactions for an array of crew message IDs in one round-trip.
@@ -22,6 +23,23 @@ export const getReactionsForMessages = async (messageIds) => {
   }
   return map;
 };
+
+// Every rendered CrewMessageItem keeps a per-message reactions query
+// alive on a 15s refetchInterval — without batching that's one DB query
+// per visible message per tick (50 messages = 50 queries/15s per open
+// chat). The intervals were all started at mount, so refetches land in
+// the same tick; a 50ms window collapses them into ONE IN (...) query.
+// TanStack still owns caching/invalidation per message key above this.
+const reactionsBatcher = createBatcher(async (messageIds) => {
+  const map = await getReactionsForMessages(messageIds);
+  return new Map(messageIds.map((id) => [id, map[id] || []]));
+}, { windowMs: 50 });
+
+/**
+ * Batched single-message read: same-tick callers share one round-trip.
+ * Returns [{ user_id, emoji }] for the message (empty array if none).
+ */
+export const getReactionsForMessage = (messageId) => reactionsBatcher(messageId);
 
 /**
  * Toggle a reaction on/off for the current user.
