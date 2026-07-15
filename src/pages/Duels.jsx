@@ -183,36 +183,37 @@ export default function Duels() {
     <div className="bg-background pb-6">
       {/* Header */}
       <div className="px-4 pt-6 pb-4">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => navigate(-1)}
-              aria-label={tFallback('common.back', 'Back')}
-              className="-ms-1 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
-            </button>
-            <Swords className="w-5 h-5 text-primary" />
-            <h1 className="text-xl font-black">{tFallback('duels.title', 'Duels')}</h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowInviteLink(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-secondary text-foreground text-xs font-bold border border-border hover:bg-secondary/70 transition-colors"
-              aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
-            >
-              <LinkIcon className="w-3.5 h-3.5" />
-              {tFallback('duels.inviteLink', 'Invite link')}
-            </button>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-primary text-primary-foreground text-xs font-bold hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              {tFallback('duels.challenge', 'Challenge')}
-            </button>
-          </div>
+        {/* Action buttons — lifted into their own row above the title so
+            they have room to breathe. Full-width (flex-1) + larger. */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => setShowInviteLink(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-secondary text-foreground text-sm font-bold border border-border hover:bg-secondary/70 transition-colors"
+            aria-label={tFallback('duels.inviteByLink', 'Challenge someone by link')}
+          >
+            <LinkIcon className="w-4 h-4" />
+            {tFallback('duels.inviteLink', 'Invite link')}
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:bg-primary/90 transition-colors"
+          >
+            <Plus className="w-4 h-4" />
+            {tFallback('duels.challenge', 'Challenge')}
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 mb-1">
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            aria-label={tFallback('common.back', 'Back')}
+            className="-ms-1 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
+          </button>
+          <Swords className="w-5 h-5 text-primary" />
+          <h1 className="text-xl font-black">{tFallback('duels.title', 'Duels')}</h1>
         </div>
         <p className="text-sm text-muted-foreground">{tFallback('duels.subtitle', 'Head-to-head workout battles')}</p>
       </div>
