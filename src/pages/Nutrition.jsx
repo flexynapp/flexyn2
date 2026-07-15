@@ -167,7 +167,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           type="button"
           onClick={next}
           aria-label="Next slide"
-          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/30 backdrop-blur-sm text-background hover:bg-foreground/50 active:scale-95 flex items-center justify-center shadow-md transition-all"
+          className="absolute end-3 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/45 backdrop-blur-sm text-background hover:bg-foreground/60 active:scale-95 flex items-center justify-center shadow-md transition-all"
         >
           <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
         </button>
