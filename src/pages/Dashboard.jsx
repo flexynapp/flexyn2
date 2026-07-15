@@ -1470,7 +1470,10 @@ export default function Dashboard() {
             the user sees their daily streak the moment they open the
             app. Kept compact via the banners' own min variants. ───── */}
       {/* ── Hero ───────────────────────────────────────────────── */}
-      <div className="mb-2">
+      {/* mt-5 gives the hero breathing room below the greeting when no
+          Resume banner sits between them; when the banner IS present its
+          own margin collapses with this one, so the gap stays consistent. */}
+      <div className="mt-5 mb-2">
         <HeroCard
           streak={streak}
           hasWorkedOutToday={hasWorkedOutToday}
