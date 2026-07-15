@@ -2264,6 +2264,9 @@ export default function Workout() {
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
                             <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
+                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Ready to go
+                            </span>
                           </div>
                           <div className="shrink-0">
                             <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"
