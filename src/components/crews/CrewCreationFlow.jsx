@@ -27,11 +27,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
   const [query, setQuery]       = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  // Load following list + their profiles
-  const { data: followingEmails = [] } = useQuery({
-    queryKey: ['following', user?.email],
-    queryFn:  () => hubFollows.listFollowing(user.email),
-    enabled:  !!user?.email,
+  // Load following list (id-keyed) + their profiles
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['followingIds', user?.id],
+    queryFn:  () => hubFollows.listFollowingIds(user.id),
+    enabled:  !!user?.id,
     staleTime: 60_000,
   });
 
@@ -42,17 +42,17 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
   });
 
   const friends = allProfiles
-    .filter(p => followingEmails.includes(p.email) && p.email !== user?.email)
+    .filter(p => followingIds.includes(p.id) && p.id !== user?.id)
     .filter(p => {
       if (!query.trim()) return true;
       const q = query.toLowerCase();
-      return (p.username || '').toLowerCase().includes(q) || (p.email || '').toLowerCase().includes(q);
+      return (p.username || '').toLowerCase().includes(q);
     });
 
   const toggle = (profile) => {
     setSelected(prev => {
-      const has = prev.some(p => p.email === profile.email);
-      if (has) return prev.filter(p => p.email !== profile.email);
+      const has = prev.some(p => p.id === profile.id);
+      if (has) return prev.filter(p => p.id !== profile.id);
       if (prev.length >= 15) { toast('Max 15 people per crew.'); return prev; }
       return [...prev, profile];
     });
@@ -85,12 +85,12 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
       await Promise.allSettled(
         selected.map(async (friend) => {
           try {
-            const conv = await hubMessages.findOrCreateConversation(user.email, friend.email);
+            const conv = await hubMessages.findOrCreateConversation(user.email, friend.id);
             if (conv) {
               await hubMessages.sendMessage({
                 conversationId: conv.id,
                 senderEmail:    user.email,
-                recipientEmail: friend.email,
+                recipientId:    friend.id,
                 body:           inviteBody,
               });
             }
@@ -161,7 +161,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
               <div className="px-4 pb-2 flex flex-wrap gap-1.5 shrink-0">
                 {selected.map(p => (
                   <button
-                    key={p.email}
+                    key={p.id}
                     onClick={() => toggle(p)}
                     className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-white gap-1"
                     style={{ background: 'hsl(var(--primary))' }}
@@ -181,11 +181,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 </div>
               ) : (
                 friends.map(p => {
-                  const isSelected = selected.some(s => s.email === p.email);
+                  const isSelected = selected.some(s => s.id === p.id);
                   const username = displayName(p);
                   return (
                     <button
-                      key={p.email}
+                      key={p.id}
                       onClick={() => toggle(p)}
                       className="w-full flex items-center gap-3 py-2.5 text-start"
                     >
