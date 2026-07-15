@@ -15,7 +15,7 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -326,9 +326,13 @@ export default function Nutrition() {
   // stays pinned at the top as the headline.
   // 'shortcuts' carousel is pinned above CalorieTopBar (not reorderable)
   // 'portionGuide' is its own reorderable section
-  const DEFAULT_NUTRITION_ORDER = ['logForm', 'water', 'fasting', 'tabs', 'meals'];
+  const DEFAULT_NUTRITION_ORDER = ['logForm', 'tabs', 'water', 'fasting', 'meals'];
   const [editMode, setEditMode] = useState(false);
   const [widgetOrder, setWidgetOrder] = useState(DEFAULT_NUTRITION_ORDER);
+  // Sections the user has hidden (e.g. Intermittent Fasting). Persisted
+  // per-user; hidden rows are skipped in normal mode but reappear (dimmed,
+  // with a restore button) in customize mode.
+  const [hiddenWidgets, setHiddenWidgets] = useState([]);
   const [showScanner, setShowScanner] = useState(false);
   const [scannerStatus, setScannerStatus] = useState('idle');
   const [scannerError, setScannerError] = useState(null);
@@ -445,16 +449,40 @@ export default function Nutrition() {
         setWidgetOrder(merged);
       }
     } catch { /* ignore */ }
+    // Hidden sections
+    try {
+      const savedHidden = localStorage.getItem(`flexyn.nutritionHidden.${user.id}`);
+      if (savedHidden) {
+        const parsedHidden = JSON.parse(savedHidden);
+        if (Array.isArray(parsedHidden)) {
+          setHiddenWidgets(parsedHidden.filter(id => DEFAULT_NUTRITION_ORDER.includes(id)));
+        }
+      }
+    } catch { /* ignore */ }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleReorder = (newOrder) => {
     setWidgetOrder(newOrder);
     try { localStorage.setItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`, JSON.stringify(newOrder)); } catch { /* ignore */ }
   };
+  const persistHidden = (next) => {
+    try { localStorage.setItem(`flexyn.nutritionHidden.${user?.id || 'anon'}`, JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const hideWidget = (id) => {
+    setHiddenWidgets(prev => { const next = prev.includes(id) ? prev : [...prev, id]; persistHidden(next); return next; });
+  };
+  const showWidget = (id) => {
+    setHiddenWidgets(prev => { const next = prev.filter(x => x !== id); persistHidden(next); return next; });
+  };
   const handleResetOrder = () => {
     setWidgetOrder(DEFAULT_NUTRITION_ORDER);
+    setHiddenWidgets([]);
     try { localStorage.removeItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`); } catch { /* ignore */ }
+    try { localStorage.removeItem(`flexyn.nutritionHidden.${user?.id || 'anon'}`); } catch { /* ignore */ }
   };
+  // Normal mode drops hidden sections; customize mode keeps them visible
+  // (dimmed, with a Show button) so they can be restored without a full reset.
+  const renderOrder = editMode ? widgetOrder : widgetOrder.filter(id => !hiddenWidgets.includes(id));
   // Admin: snapshot current widgetOrder as the default for new users.
   const canSetAsDefault = isAppAdmin(user);
   const handleSetAsDefault = async () => {
@@ -1050,14 +1078,17 @@ export default function Nutrition() {
       transition={{ duration: 0.5, ease: 'easeOut' }}
       className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-4xl mx-auto">
 
-      {/* ── Header row: title left, scanner CTA right ─────────────────────── */}
+      {/* ── Header ───────────────────────────────────────────────────────────
+          Top row: title + customize (container-mover) buttons on the left,
+          Scanner History on the right — all vertically centered so the
+          dropdown lines up with the heading and mover. Date sits below. */}
       <motion.div
         initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-        className="flex items-start justify-between gap-4 mb-6"
+        className="mb-6"
       >
-        {/* Left — title + date + customize toggle */}
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center justify-between gap-4">
+          {/* Left — title + customize toggle */}
+          <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
             <div className="flex items-center gap-1.5">
               <button
@@ -1099,41 +1130,38 @@ export default function Nutrition() {
               )}
             </div>
           </div>
-          <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
+
+          {/* Right — Photo-AI hidden file input + Scanner History toggle.
+              The orange "Scan Food" and purple "Photo-AI" buttons were
+              removed; those actions now live in the quick-access row. */}
+          <div className="flex items-center shrink-0">
+            {/* Photo-AI recognition trigger — hidden file input behind
+                the quick-access card. No `capture` attr so iOS surfaces
+                both "Take photo" and "Choose from library". */}
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePhotoMealPick}
+            />
+            <button
+              onClick={() => setShowScanHistory(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              Scanner History
+              {scanHistory.length > 0 && (
+                <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+                  {scanHistory.length}
+                </span>
+              )}
+              {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+          </div>
         </div>
 
-        {/* Right — Photo-AI file input + Scanner History toggle. The
-            orange "Scan Food" and purple "Photo-AI" buttons were removed;
-            those actions now live in the quick-access card row below. */}
-        <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {/* Photo-AI recognition trigger — hidden file input behind
-              a styled button so iOS surfaces "Take photo" + "Choose
-              from library" naturally. No `capture` attr: capture
-              forces the camera directly and suppresses the
-              photo-library chooser this comment promises. */}
-          <input
-            ref={photoInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handlePhotoMealPick}
-          />
-
-          {/* Scanner history toggle */}
-          <button
-            onClick={() => setShowScanHistory(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-          >
-            <Clock className="w-3.5 h-3.5" />
-            Scanner History
-            {scanHistory.length > 0 && (
-              <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
-                {scanHistory.length}
-              </span>
-            )}
-            {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-          </button>
-        </div>
+        <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
       </motion.div>
 
       {/* ── Scanner history panel ──────────────────────────────────────────── */}
@@ -1387,14 +1415,14 @@ export default function Nutrition() {
               a chain of `{id === 'X' && (...)}` conditionals filters
               to the one section that matches the id. Per-user
               localStorage via flexyn.nutritionWidgetOrder.<userId>. ═══ */}
-      <Reorder.Group axis="y" values={widgetOrder} onReorder={handleReorder} as="div">
-        {widgetOrder.map(rowId => (
+      <Reorder.Group axis="y" values={renderOrder} onReorder={handleReorder} as="div">
+        {renderOrder.map(rowId => (
           <Reorder.Item
             key={rowId}
             value={rowId}
             as="div"
             dragListener={editMode}
-            className={`relative ${editMode ? 'touch-none select-none' : ''}`}
+            className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && hiddenWidgets.includes(rowId) ? 'opacity-50' : ''}`}
           >
             {editMode && (
               <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
@@ -1407,6 +1435,15 @@ export default function Nutrition() {
                     : rowId === 'meals'     ? "Today's Meals"
                     : rowId}
                 </span>
+                {hiddenWidgets.includes(rowId) && (
+                  <button
+                    type="button"
+                    onClick={() => showWidget(rowId)}
+                    className="ms-auto flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold text-primary hover:bg-primary/10 transition-colors"
+                  >
+                    <Eye className="w-3 h-3" /> Show
+                  </button>
+                )}
               </div>
             )}
 
@@ -1663,6 +1700,17 @@ export default function Nutrition() {
 
       {rowId === 'fasting' && (
       <div className="mb-4">
+        {!hiddenWidgets.includes('fasting') && (
+          <div className="flex justify-end mb-1">
+            <button
+              type="button"
+              onClick={() => hideWidget('fasting')}
+              className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <EyeOff className="w-3 h-3" /> Hide
+            </button>
+          </div>
+        )}
         <FastingTrackerCard />
       </div>
       )}
