@@ -99,13 +99,13 @@ export async function getCrewMembers(crewId) {
   const userIds = data.map(m => m.user_id).filter(Boolean);
   if (userIds.length === 0) return data;
   const { data: profiles } = await selectProfiles((from) => from
-    .select('id, email, username, avatar_url')
+    .select('id, username, avatar_url')
     .in('id', userIds));
   const byId = new Map((profiles ?? []).map(p => [p.id, p]));
   return data.map(m => {
     const p = byId.get(m.user_id);
     return p
-      ? { ...m, email: p.email, username: p.username, avatar_url: p.avatar_url }
+      ? { ...m, username: p.username, avatar_url: p.avatar_url }
       : m;
   });
 }
@@ -650,26 +650,30 @@ export async function getCrewStats(crewId) {
   const members = await getCrewMembers(crewId);
   if (!members.length) return { totalVolumeLbs: 0, topPerformer: null, bestPr: null, members: [] };
 
-  // 2. Get user profiles to resolve emails
+  // 2. Get user profiles (id-keyed) for display
   const userIds = members.map(m => m.user_id);
   const { data: profiles } = await selectProfiles((from) => from
-    .select('id, email, username, avatar_url')
+    .select('id, username, avatar_url')
     .in('id', userIds));
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
 
-  // 3. Fetch last 7 days of workouts for each member (Base44)
+  // 3. Fetch last 7 days of workouts for each member. Filter by user_id,
+  // not created_by=email: workout_logs.user_id is server-populated and the
+  // owner-access RLS policy permits the auth.uid()=user_id branch, so this
+  // resolves the same rows without depending on the email column (which the
+  // public_profiles view is being drained of).
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
   const memberStats = await Promise.all(
     members.map(async (m) => {
       const profile = profileMap[m.user_id];
-      if (!profile?.email) return { userId: m.user_id, profile, volume: 0, bestPr: null };
+      if (!profile) return { userId: m.user_id, profile, volume: 0, bestPr: null };
 
       let logs = [];
       try {
         logs = await db.entities.WorkoutLog
-          .filter({ created_by: profile.email }, '-date', 20)
+          .filter({ user_id: m.user_id }, '-date', 20)
           .catch(() => []);
         // Filter to this week
         logs = (logs ?? []).filter(l => l.date >= weekAgo);
