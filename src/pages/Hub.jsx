@@ -35,6 +35,19 @@ const EMBERS = [
   { x: 70, size: 2, duration: 2.1, delay: 1.8, travel: 26 },
 ];
 
+// Parse the ?profile= URL param into an id-or-email target. A UUID token is
+// treated as a user id; anything else stays an email — backward-compatible with
+// the legacy /hub?profile=<email> links. This lets the profile route move to
+// ids (so email can eventually leave the public_profiles view) without breaking
+// any existing email link. HubProfile accepts either shape.
+const PROFILE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function paramToProfileTarget(raw) {
+  if (!raw) return null;
+  let v;
+  try { v = decodeURIComponent(raw); } catch { v = raw; }
+  return PROFILE_UUID_RE.test(v) ? { id: v } : { email: v };
+}
+
 export default function Hub() {
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
@@ -57,7 +70,7 @@ export default function Hub() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(
-    initialProfileEmail ? { email: decodeURIComponent(initialProfileEmail) } : null
+    paramToProfileTarget(initialProfileEmail)
   );
   const [pendingCrewId, setPendingCrewId] = useState(null);
 
@@ -110,7 +123,7 @@ export default function Hub() {
       if (!consumedInitialProfileRef.current) {
         consumedInitialProfileRef.current = true;
       } else {
-        setProfileTarget({ email: decodeURIComponent(profileEmail) });
+        setProfileTarget(paramToProfileTarget(profileEmail));
         setSection('profile');
       }
       params.delete('profile');
@@ -195,7 +208,7 @@ export default function Hub() {
               <button
                 type="button"
                 onClick={() => {
-                  if (section === 'profile' && (!profileTarget || profileTarget?.email === user?.email)) {
+                  if (section === 'profile' && (!profileTarget || profileTarget?.id === user?.id || profileTarget?.email === user?.email)) {
                     setSection('feed');
                   } else {
                     setProfileTarget(null);
@@ -204,7 +217,7 @@ export default function Hub() {
                 }}
                 aria-label={t('hub.myProfile')}
                 className={`h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
-                  section === 'profile' && (!profileTarget || profileTarget?.email === user?.email)
+                  section === 'profile' && (!profileTarget || profileTarget?.id === user?.id || profileTarget?.email === user?.email)
                     ? 'bg-primary/10 text-primary'
                     : 'text-muted-foreground hover:bg-secondary'
                 }`}
