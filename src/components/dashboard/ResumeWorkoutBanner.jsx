@@ -138,7 +138,7 @@ export default function ResumeWorkoutBanner() {
           if (e.target !== e.currentTarget) return;
           if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleResume(); }
         }}
-        className="flex items-center gap-3 p-3 mb-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover:border-primary/50 transition-colors"
+        className="flex items-center gap-3 p-3 mt-5 mb-3 rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 via-primary/5 to-transparent cursor-pointer hover:border-primary/50 transition-colors"
         aria-label={`${tFallback('workout.resumeKicker', 'Resume')} ${title}`}
       >
         <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center shrink-0">
