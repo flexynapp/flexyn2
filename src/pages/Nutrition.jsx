@@ -1338,7 +1338,7 @@ export default function Nutrition() {
         {[
           { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipeBuilder(true) },
           { label: 'History', icon: History,   action: () => setShowMealHistory(true) },
-          { label: 'Planner', icon: Calendar,  action: () => setShowWeeklyPlanner(true) },
+          { label: 'Nutritional Diets', icon: Calendar, action: () => setShowWeeklyPlanner(true) },
         ].map(({ label, icon: Icon, action }) => (
           <button key={label} type="button" onClick={action}
             className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -1353,7 +1353,7 @@ export default function Nutrition() {
           onClick={() => photoInputRef.current?.click()}
           disabled={photoRecognizing}
           className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
-          style={{ background: 'linear-gradient(135deg, #7c3aed, #4338ca)' }}
+          style={{ background: 'linear-gradient(315deg, #c4b5fd 0%, #a78bfa 32%, #8b5cf6 64%, #6d28d9 100%)' }}
         >
           {photoRecognizing
             ? <Loader2 className="w-4 h-4 animate-spin" />

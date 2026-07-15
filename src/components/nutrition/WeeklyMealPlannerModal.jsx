@@ -304,8 +304,8 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
             <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-primary" />
-              <h2 className="font-heading font-bold text-base">Weekly meal planner</h2>
+              <CalendarDays className="w-4 h-4 text-primary shrink-0" />
+              <h2 className="font-heading font-bold text-base leading-tight">Weekly Plan &amp; Nutritional Plans</h2>
             </div>
             <button onClick={onClose} aria-label="Close" className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
               <X className="w-3.5 h-3.5" />
