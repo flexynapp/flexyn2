@@ -155,7 +155,7 @@ function ListingCard({ listing, currentUser, flexCoins, onBuy, onCancel, onOffer
         ) : (
           <button
             type="button"
-            onClick={(e) => { e.stopPropagation(); onSellerClick(listing.seller_email); }}
+            onClick={(e) => { e.stopPropagation(); onSellerClick(listing.seller_user_id); }}
             className="text-gray-300 font-medium hover:text-white hover:underline"
           >
             {displayName(listing)}
@@ -986,11 +986,11 @@ export default function MarketplaceFeed() {
   });
 
   // Single navigate handler threaded into every ListingCard's seller
-  // link. Routes to /hub?profile=<email> — the canonical profile URL.
+  // link. Routes to /hub?profile=<user_id> — the canonical profile URL.
   const navigate = useNavigate();
-  const handleSellerClick = useCallback((email) => {
-    if (!email) return;
-    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+  const handleSellerClick = useCallback((sellerId) => {
+    if (!sellerId) return;
+    navigate(`/hub?profile=${encodeURIComponent(sellerId)}`);
   }, [navigate]);
 
   // Wishlist (mig 121). Single query for the viewer's saved

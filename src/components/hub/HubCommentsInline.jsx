@@ -32,11 +32,11 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const { t } = useLanguage();
   const navigate = useNavigate();
   // Navigate to the canonical profile route for a tapped @mention.
-  // Email is resolved by renderCommentBody via the authorsById map.
-  const handleMentionClick = useCallback((email) => {
-    if (!email) return;
+  // The user_id is resolved by renderCommentBody via the authorsById map.
+  const handleMentionClick = useCallback((userId) => {
+    if (!userId) return;
     onClose?.();
-    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+    navigate(`/hub?profile=${encodeURIComponent(userId)}`);
   }, [navigate, onClose]);
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -437,27 +437,27 @@ export default function HubCommentsInline({ post, open, onClose }) {
 function renderCommentBody(text, authorsById, onMentionClick) {
   if (!text) return null;
   const parts = text.split(/(@\w+)/g);
-  // Index handle (everything after @) → email for tap resolution.
-  const handleToEmail = (() => {
+  // Index handle (everything after @) → user_id for tap resolution.
+  const handleToUserId = (() => {
     const map = new Map();
     Object.values(authorsById || {}).forEach(a => {
       const u = (a?.username || '').toLowerCase();
-      if (u) map.set(u, a.email);
+      if (u && a.id) map.set(u, a.id);
     });
     return map;
   })();
   return parts.map((part, i) => {
     if (!/^@\w+$/.test(part)) return <span key={i}>{part}</span>;
     const handle = part.slice(1).toLowerCase();
-    const email = handleToEmail.get(handle);
-    if (!email || !onMentionClick) {
+    const userId = handleToUserId.get(handle);
+    if (!userId || !onMentionClick) {
       return <span key={i} className="font-semibold text-primary">{part}</span>;
     }
     return (
       <button
         key={i}
         type="button"
-        onClick={(e) => { e.stopPropagation(); onMentionClick(email); }}
+        onClick={(e) => { e.stopPropagation(); onMentionClick(userId); }}
         className="font-semibold text-primary hover:underline"
       >
         {part}

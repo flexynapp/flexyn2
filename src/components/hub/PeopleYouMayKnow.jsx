@@ -103,7 +103,7 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
                 });
               });
             }}
-            onSelect={() => onSelectUser?.({ email: candidate.email, username: candidate.username })}
+            onSelect={() => onSelectUser?.({ id: candidate.id, email: candidate.email, username: candidate.username })}
           />
         ))}
       </div>
