@@ -217,6 +217,19 @@ export default function Workout() {
     }
   }, [user?.id]);
 
+  // Starter-plan hero dismissal. Removing the card from the Workout page
+  // doesn't delete the regimen — it stays available under Regimens. The
+  // choice is remembered per-user so it doesn't reappear next session.
+  const [starterDismissed, setStarterDismissed] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    try { setStarterDismissed(!!localStorage.getItem(`flexyn.starterPlanDismissed.${user.id}`)); } catch { /* ignore */ }
+  }, [user?.id]);
+  const dismissStarterPlan = () => {
+    setStarterDismissed(true);
+    try { localStorage.setItem(`flexyn.starterPlanDismissed.${user?.id || 'anon'}`, '1'); } catch { /* ignore */ }
+  };
+
   useEffect(() => {
     if (started) {
       activity.markActive(90);
@@ -2169,7 +2182,7 @@ export default function Workout() {
                 Goes above the freestyle CTA so the personalized plan is
                 the first thing the user sees, but freestyle stays
                 available right below for users who want to wing it. */}
-            {logs.length === 0 && (() => {
+            {logs.length === 0 && !starterDismissed && (() => {
               const starter = regimens.find(r =>
                 typeof r?.name === 'string' &&
                 r.name.startsWith('Your Starter Plan'),
@@ -2181,6 +2194,7 @@ export default function Workout() {
                   userProfile={userProfile}
                   onStart={startFromRegimen}
                   onCustomize={() => setRegimensOpen(true)}
+                  onDismiss={dismissStarterPlan}
                 />
               );
             })()}
@@ -2250,9 +2264,6 @@ export default function Workout() {
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
                             <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
                             <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
-                            <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Ready to go
-                            </span>
                           </div>
                           <div className="shrink-0">
                             <div className="w-16 h-16 rounded-2xl flex items-center justify-center relative overflow-hidden"

@@ -15,7 +15,7 @@
 
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Play, Sparkles, Pencil, ArrowRight } from 'lucide-react';
+import { Play, Sparkles, Pencil, X } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 
 const GOAL_KEYS = {
@@ -47,6 +47,7 @@ export default function StarterPlanHeroCard({
   userProfile,
   onStart,
   onCustomize,
+  onDismiss,
 }) {
   const { tFallback } = useLanguage();
   if (!regimen) return null;
@@ -75,6 +76,19 @@ export default function StarterPlanHeroCard({
       className="relative w-full mb-4 overflow-hidden rounded-2xl bg-gradient-to-br from-primary/15 via-violet-500/12 to-fuchsia-500/10 border border-primary/30 p-5 md:p-6 shadow-lg shadow-primary/10"
     >
       <div className="absolute -top-12 -end-12 w-48 h-48 rounded-full blur-3xl bg-primary/30 pointer-events-none" />
+
+      {/* Dismiss — removes the card from the Workout page only. The
+          regimen itself stays available under Regimens. */}
+      {onDismiss && (
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label={tFallback('workout.starter.dismissAria', 'Remove starter plan from Workout page')}
+          className="absolute top-3 end-3 z-10 w-7 h-7 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground bg-background/50 hover:bg-background/80 border border-border/50 transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
 
       <div className="relative">
         <div className="flex items-center gap-1.5 mb-2">
@@ -138,7 +152,6 @@ export default function StarterPlanHeroCard({
           >
             <Play className="w-4 h-4 fill-current" />
             {tFallback('workout.starter.startCta', 'Start your first workout')}
-            <ArrowRight className="w-4 h-4" />
           </motion.button>
           {onCustomize && (
             <button
