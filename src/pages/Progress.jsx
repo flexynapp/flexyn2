@@ -774,7 +774,7 @@ export default function Progress() {
               onClick={() => setPersonalBestsModalOpen(true)}
               className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-amber-100 to-yellow-100 text-amber-700 dark:from-amber-500/15 dark:to-yellow-500/15 dark:text-amber-300 border border-amber-200/70 dark:border-amber-500/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
             >
-              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
               <Trophy className="w-3.5 h-3.5 relative z-10" />
               <span className="relative z-10">{t('progress.personalBests')}</span>
             </motion.button>
@@ -784,7 +784,7 @@ export default function Progress() {
               onClick={() => setAdvancedAnalyticsOpen(true)}
               className="flex-1 min-w-[10rem] inline-flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-emerald-100 to-teal-100 text-teal-700 dark:from-emerald-500/15 dark:to-teal-500/15 dark:text-teal-300 border border-teal-200/70 dark:border-teal-500/25 text-xs font-bold shadow-sm hover:shadow transition-all relative overflow-hidden"
             >
-              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/25 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
+              <motion.div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/70 to-white/0" animate={{ x: ['100%', '-100%'] }} transition={{ duration: 2, repeat: Infinity }} />
               <SparklesIcon className="w-3.5 h-3.5 relative z-10" />
               <span className="relative z-10">{t('progress.advancedAnalytics')}</span>
             </motion.button>
