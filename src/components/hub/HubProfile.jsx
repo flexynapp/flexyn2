@@ -407,7 +407,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       return { ...data, username: data.username || targetUser?.username || null };
     },
     enabled: !isSelf && !!targetKey,
-    initialData: isSelf ? null : targetUser,
+    // Only seed from the prop when it actually carries display data (email
+    // links pass {email, username, avatar}). An id-only target ({id}) has no
+    // username, and with the 60s default staleTime a seeded-but-sparse
+    // initialData would suppress the refetch and strand the header on the
+    // "Athlete" placeholder — so leave it unset and let the query fetch.
+    initialData: isSelf ? null : (targetUser?.username ? targetUser : undefined),
   });
 
   // Resolved target email for the rest of this component (follow / DM / stories
