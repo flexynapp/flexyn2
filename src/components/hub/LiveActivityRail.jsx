@@ -120,7 +120,7 @@ export default function LiveActivityRail() {
                 // and we navigate cleanly. If they haven't: fall back
                 // to username — the search/profile resolver tolerates
                 // either as a fuzzy match (better than 404).
-                const target = u.email || u.username;
+                const target = u.user_id || u.email || u.username;
                 if (!target) return;
                 navigate(`/hub?profile=${encodeURIComponent(target)}`);
               }}

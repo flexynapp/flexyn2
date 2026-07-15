@@ -253,7 +253,7 @@ export default function GymFeedTab({ gymId, gymOwnerId }) {
                 <button
                   key={p.id}
                   type="button"
-                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(p.author_email || '')}`)}
+                  onClick={() => navigate(`/hub?profile=${encodeURIComponent(p.user_id || '')}`)}
                   className="w-full text-start flex gap-3 p-3 rounded-xl border border-border bg-card/60 hover:bg-secondary/40 transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">

@@ -29,9 +29,9 @@ export default function LeagueStandingsModal({ open, onClose }) {
   // Self row stays visual — there's no value in navigating to your
   // own profile from your own league standings.
   const openMemberProfile = (member) => {
-    if (!member?.email || member.user_id === user?.id) return;
+    if (!member?.user_id || member.user_id === user?.id) return;
     onClose();
-    navigate(`/hub?profile=${encodeURIComponent(member.email)}`);
+    navigate(`/hub?profile=${encodeURIComponent(member.user_id)}`);
   };
 
   const { data, isLoading } = useQuery({

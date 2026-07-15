@@ -159,10 +159,10 @@ export default function NemesisCard({ currentUserId }) {
             to their profile." Falls back to a non-button div when we
             don't have an email yet (pre-mig fetch, deleted account)
             so the tap doesn't dead-end on /hub?profile=undefined. */}
-        {profile?.email ? (
+        {profile?.id ? (
           <button
             type="button"
-            onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.email)}`)}
+            onClick={() => navigate(`/hub?profile=${encodeURIComponent(profile.id)}`)}
             aria-label={`View @${name}'s profile`}
             className="w-full flex items-center gap-4 px-4 pb-3 pt-2 text-start hover:bg-rose-500/5 active:bg-rose-500/10 transition-colors"
           >
