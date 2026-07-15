@@ -2,9 +2,10 @@
 // Full duels hub — active duels, history, challenge someone.
 
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Swords, Trophy, Plus, Dumbbell, Timer, Crown } from 'lucide-react';
+import { Swords, Trophy, Plus, Dumbbell, Timer, Crown, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { listMyDuels, cancelDuel } from '@/lib/data/duels';
 import { selectProfiles } from '@/lib/data/users';
@@ -109,6 +110,7 @@ function DuelRow({ duel, currentUserId, opponent, onClick }) {
 }
 
 export default function Duels() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   // The component referenced tFallback on line ~146 without calling
   // useLanguage() at the top of Duels() — only DuelRow destructured
@@ -183,6 +185,14 @@ export default function Duels() {
       <div className="px-4 pt-6 pb-4">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => navigate(-1)}
+              aria-label={tFallback('common.back', 'Back')}
+              className="-ms-1 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5 rtl:scale-x-[-1]" />
+            </button>
             <Swords className="w-5 h-5 text-primary" />
             <h1 className="text-xl font-black">{tFallback('duels.title', 'Duels')}</h1>
           </div>
