@@ -8,7 +8,7 @@ import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { formatWeight } from '@/lib/weightUnit';
 import { muscleKey, translateExerciseName } from '@/lib/exerciseTranslations';
 
-export default function AdvancedAnalytics({ open, onClose, logs }) {
+export default function AdvancedAnalytics({ open, onClose, logs, children }) {
   const { t, language } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const stats = useMemo(() => {
@@ -91,28 +91,32 @@ export default function AdvancedAnalytics({ open, onClose, logs }) {
             <p className="text-muted-foreground">{t('progress.noDataDesc')}</p>
           </div>
         ) : (
-          <div className="space-y-3 pe-4">
-            {stats.map((stat, idx) => {
-              const Icon = stat.icon;
-              return (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.05 }}
-                >
-                  <Card className="p-4 border-none shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow">
-                    <div className={`w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 ${stat.color}`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
-                      <p className="font-heading font-bold text-lg mt-0.5 break-words">{stat.value}</p>
-                    </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
+          <div className="space-y-6 pe-4">
+            <div className="space-y-3">
+              {stats.map((stat, idx) => {
+                const Icon = stat.icon;
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                  >
+                    <Card className="p-4 border-none shadow-sm flex items-start gap-4 hover:shadow-md transition-shadow">
+                      <div className={`w-10 h-10 rounded-lg bg-secondary flex items-center justify-center shrink-0 ${stat.color}`}>
+                        <Icon className="w-5 h-5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-muted-foreground font-medium">{stat.label}</p>
+                        <p className="font-heading font-bold text-lg mt-0.5 break-words">{stat.value}</p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                );
+              })}
+            </div>
+            {/* Charts moved here from the removed "Analytics" tab. */}
+            {children && <div className="pt-4 border-t border-border">{children}</div>}
           </div>
         )}
       </DialogContent>

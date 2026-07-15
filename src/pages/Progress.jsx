@@ -75,7 +75,6 @@ const FRAME_PREV   = { week: 7, month: 30, year: 365, all: null };
 // See src/components/achievements/AchievementsVault.jsx.
 const TAB_META = [
   { id: 'trends',    label: 'Trends',    Icon: TrendingUp,  iconColor: 'text-primary',    activeBg: 'bg-primary',     activeText: 'text-primary-foreground' },
-  { id: 'analytics', label: 'Analytics', Icon: BarChart2,   iconColor: 'text-amber-500',  activeBg: 'bg-amber-500',   activeText: 'text-white' },
   { id: 'body',      label: 'Body',      Icon: Ruler,       iconColor: 'text-emerald-500', activeBg: 'bg-emerald-500', activeText: 'text-white' },
   { id: 'photos',    label: 'Photos',    Icon: Camera,      iconColor: 'text-violet-500', activeBg: 'bg-violet-500',  activeText: 'text-white' },
   { id: 'insights',  label: 'Insights',  Icon: Lightbulb,   iconColor: 'text-cyan-500',   activeBg: 'bg-cyan-500',    activeText: 'text-white' },
@@ -1023,7 +1022,7 @@ export default function Progress() {
               keep their natural width and overflow-scroll so the row
               doesn't squeeze each one into an unreadable nub. */}
           <div ref={tabsBarRef} className="mb-6">
-            <div className="flex gap-2.5 overflow-x-auto pb-1 -mx-4 px-4 md:mx-0 md:px-0 scrollbar-hide">
+            <div className="grid grid-cols-2 gap-2.5">
               {TAB_META.map(tab => {
                 const isActive = activeTab === tab.id;
                 return (
@@ -1032,7 +1031,7 @@ export default function Progress() {
                     onClick={() => switchTab(tab.id)}
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
-                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] min-w-[120px] md:flex-1 rounded-xl text-[15px] font-bold whitespace-nowrap transition-all border ${
+                    className={`flex items-center justify-center gap-2.5 px-5 py-3.5 min-h-[48px] w-full rounded-xl text-[15px] font-bold whitespace-nowrap transition-all border ${
                       isActive
                         ? `${tab.activeBg} ${tab.activeText} border-transparent shadow-md`
                         : `bg-secondary/60 text-muted-foreground border-border/50 hover:bg-secondary hover:text-foreground`
@@ -1056,17 +1055,6 @@ export default function Progress() {
                 exit={{ opacity: 0, y: -12, pointerEvents: 'none' }}
                 transition={{ duration: 0.28, ease: 'easeOut' }}
               >
-                {activeTab === 'analytics' && (
-                  <div className="space-y-6">
-                    {/* Personal Bests + Advanced Analytics buttons
-                        moved ABOVE the carousel — see lifted version
-                        near top of Progress page. */}
-                    <ErrorBoundary label="Analytics">
-                      <AnalyticsTab logs={logs} />
-                    </ErrorBoundary>
-                  </div>
-                )}
-
                 {activeTab === 'body' && (
                   <ErrorBoundary label="BodyMetrics">
                     <BodyMetricsTab />
@@ -1254,7 +1242,13 @@ export default function Progress() {
       />
 
       {/* Advanced Analytics Modal */}
-      <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs} />
+      <AdvancedAnalytics open={advancedAnalyticsOpen} onClose={() => setAdvancedAnalyticsOpen(false)} logs={logs}>
+        {/* The old "Analytics" tab's charts now live inside Advanced
+            Analytics as their own section (the tab was removed). */}
+        <ErrorBoundary label="Analytics">
+          <AnalyticsTab logs={logs} />
+        </ErrorBoundary>
+      </AdvancedAnalytics>
     </motion.div>
   );
 }

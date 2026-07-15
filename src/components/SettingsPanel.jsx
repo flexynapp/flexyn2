@@ -561,6 +561,20 @@ export default function SettingsPanel() {
     </button>
   );
 
+  // Cycle tracking master switch — persisted on user_profiles
+  // (cycle_tracking_enabled). Off hides the tracker from the Progress ›
+  // Body page entirely; on brings it back. The Body page's own "Remove"
+  // button flips this off too, so this toggle re-enables it.
+  const handleCycleTracking = async (next) => {
+    try {
+      await db.auth.updateMe({ cycle_tracking_enabled: next });
+      queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
+      toast.success(next ? 'Cycle tracking enabled.' : 'Cycle tracking removed.');
+    } catch {
+      toast.error('Could not update. Try again.');
+    }
+  };
+
   const settings = [
     // Distinguish from the push-notification toggle below — this one only
     // controls in-app sonner toasts. Audit caught users confusing the two
@@ -573,6 +587,7 @@ export default function SettingsPanel() {
     { icon: Timer, label: t('settings.restTimer'), value: restTimerEnabled, onChange: setRestTimerEnabled },
     { icon: Sparkles, label: t('settings.levelAnimations'), value: levelAnimationsEnabled, onChange: setLevelAnimationsEnabled },
     { icon: Circle, label: t('settings.nutrientRingView'), value: nutrientRingView, onChange: setNutrientRingView },
+    { icon: Heart, label: tFallback('settings.cycleTracking', 'Cycle tracking'), value: !!profile?.cycle_tracking_enabled, onChange: handleCycleTracking },
   ];
 
   return (

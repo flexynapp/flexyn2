@@ -13,49 +13,12 @@
 import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Heart, Plus, Loader2, ShieldCheck, X } from 'lucide-react';
+import { Heart, Plus, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as cycleLogs from '@/lib/data/cycleLogs';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
-
-function EnableCard({ onEnable }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25 }}
-      className="rounded-2xl border border-border bg-card p-4"
-    >
-      <div className="flex items-start gap-3">
-        <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center shrink-0">
-          <Heart className="w-5 h-5 text-rose-500" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h3 className="font-heading font-bold text-sm">Cycle tracking</h3>
-          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-            Log your cycle to get training suggestions adapted to your
-            current phase — strength bias in the follicular phase,
-            higher volume tolerance in the luteal phase, lighter work
-            during your period.
-          </p>
-          <div className="mt-3 flex items-center gap-1.5 text-[11px] text-emerald-500 font-medium">
-            <ShieldCheck className="w-3 h-3" />
-            Private — only you can see this data.
-          </div>
-          <button
-            type="button"
-            onClick={onEnable}
-            className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-500 text-white text-xs font-bold hover:bg-rose-600 transition-colors"
-          >
-            Enable cycle tracking
-          </button>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 function LogStartModal({ open, onClose, onSubmit, submitting }) {
   const [date, setDate] = useState(() => format(new Date(), 'yyyy-MM-dd'));
@@ -139,13 +102,13 @@ export default function CycleTrackerCard({ profile }) {
       )
     : null;
 
-  const handleEnable = async () => {
-    const res = await cycleLogs.setEnabled(user.id, true);
+  const handleDisable = async () => {
+    const res = await cycleLogs.setEnabled(user.id, false);
     if (res.ok) {
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
-      toast.success('Cycle tracking enabled.');
+      toast.success('Cycle tracking removed. Re-enable it in Settings.');
     } else {
-      toast.error('Could not enable. Try again.');
+      toast.error('Could not update. Try again.');
     }
   };
 
@@ -164,7 +127,8 @@ export default function CycleTrackerCard({ profile }) {
     }
   };
 
-  if (!enabled) return <EnableCard onEnable={handleEnable} />;
+  // Removed from the Body page when disabled — re-enable via Settings.
+  if (!enabled) return null;
 
   return (
     <>
@@ -192,13 +156,24 @@ export default function CycleTrackerCard({ profile }) {
               )}
             </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setLogOpen(true)}
-            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-bold transition-colors"
-          >
-            <Plus className="w-3 h-3" /> Log
-          </button>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <button
+              type="button"
+              onClick={() => setLogOpen(true)}
+              className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-secondary/60 hover:bg-secondary text-xs font-bold transition-colors"
+            >
+              <Plus className="w-3 h-3" /> Log
+            </button>
+            <button
+              type="button"
+              onClick={handleDisable}
+              aria-label="Remove cycle tracking"
+              title="Remove cycle tracking"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {state && (
