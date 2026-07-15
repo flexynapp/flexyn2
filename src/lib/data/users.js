@@ -80,7 +80,7 @@ export async function selectProfiles(build) {
 // the trophy_case JSONB) for every user on the hottest read path. Scales with
 // the user count.
 export const AUTHOR_COLUMNS =
-  'id, email, username, avatar_url, equipped_title_id, equipped_frame_id, signature_trophy';
+  'id, username, avatar_url, equipped_title_id, equipped_frame_id, signature_trophy';
 
 /**
  * List all (public) profiles. Mirrors the old db.entities.User.list().
