@@ -246,9 +246,8 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
                   type="button"
                   onClick={() => goTo(i)}
                   aria-label={`Slide ${i + 1}`}
-                  className={`h-1.5 rounded-full transition-all ${
-                    i === idx ? 'bg-primary w-6' : 'bg-foreground/20 w-1.5 hover:bg-foreground/40'
-                  }`}
+                  className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+                  style={{ background: i === idx ? `hsl(${slide.color})` : `hsl(${slide.color} / 0.25)` }}
                 />
               ))}
             </div>

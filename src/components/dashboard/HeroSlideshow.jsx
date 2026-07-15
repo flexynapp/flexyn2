@@ -782,6 +782,22 @@ function pickMode({ achievementSlides, pathSlides, profile, logs }) {
   return 'streak';
 }
 
+// Maps a slide's iconBg utility to the HSL accent used for its gradient
+// mesh AND its pagination dots, so a slide with no explicit `color`
+// still colours its dots to match. Shared by the color-reporting effect
+// and the dot render below.
+const ICON_BG_TO_HSL = {
+  'bg-amber-400/20':   '45 95% 55%',
+  'bg-emerald-400/20': '160 80% 50%',
+  'bg-violet-400/20':  '270 85% 60%',
+  'bg-orange-400/20':  '25 90% 55%',
+  'bg-cyan-400/20':    '190 85% 55%',
+  'bg-blue-400/20':    '220 85% 60%',
+  'bg-sky-400/20':     '205 90% 58%',
+  'bg-rose-400/20':    '345 85% 60%',
+  'bg-fuchsia-400/20': '292 85% 62%',
+};
+
 const HeroSlideshow = forwardRef(function HeroSlideshow({
   logs, cardioLogs, goals, profile, user,
   streak, hasWorkedOutToday, daysSinceLast,
@@ -954,23 +970,22 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     const slide = slides[idx];
     if (!slide) { onSlideColorChange?.(null); return; }
     if (slide.color) { onSlideColorChange?.(slide.color); return; }
-    const map = {
-      'bg-amber-400/20':   '45 95% 55%',
-      'bg-emerald-400/20': '160 80% 50%',
-      'bg-violet-400/20':  '270 85% 60%',
-      'bg-orange-400/20':  '25 90% 55%',
-      'bg-cyan-400/20':    '190 85% 55%',
-      'bg-blue-400/20':    '220 85% 60%',
-      'bg-sky-400/20':     '205 90% 58%',
-      'bg-rose-400/20':    '345 85% 60%',
-      'bg-fuchsia-400/20': '292 85% 62%',
-    };
-    onSlideColorChange?.(map[slide.iconBg] || null);
+    onSlideColorChange?.(ICON_BG_TO_HSL[slide.iconBg] || null);
   }, [idx, slides, onSlideColorChange]);
 
   // ── Render slide — streak / achievement / path ─────────────────────
   const slide = slides[idx];
   if (!slide) return null;
+
+  // Pagination dots take the current slide's accent so they always match
+  // the slide on screen (and follow theme changes, since the fallback is
+  // the --primary / --foreground tokens rather than a hard-coded colour).
+  const slideAccent = slide.color || ICON_BG_TO_HSL[slide.iconBg] || null;
+  const dotStyle = (active) => ({
+    background: active
+      ? (slideAccent ? `hsl(${slideAccent})` : 'hsl(var(--primary))')
+      : (slideAccent ? `hsl(${slideAccent} / 0.25)` : 'hsl(var(--foreground) / 0.25)'),
+  });
 
   // STREAK slide renders with its own chrome (giant N + "day streak"
   // label) — visually distinct so the carousel doesn't blur achievements
@@ -1033,9 +1048,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
-                }`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+                style={dotStyle(i === idx)}
               />
             ))}
           </div>
@@ -1106,9 +1120,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 type="button"
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-                className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
-                }`}
+                className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+                style={dotStyle(i === idx)}
               />
             ))}
           </div>
@@ -1280,9 +1293,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               type="button"
               onClick={() => goTo(i)}
               aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
-              className={`h-1.5 rounded-full transition-all ${
-                i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
-              }`}
+              className={`h-1.5 rounded-full transition-all ${i === idx ? 'w-6' : 'w-1.5'}`}
+              style={dotStyle(i === idx)}
             />
           ))}
         </div>
