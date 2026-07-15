@@ -108,7 +108,7 @@ function AnimatedNumber({ from = 0, to, durationMs = 1400, decimals = 0, suffix 
  * to-right over 1s — so the user sees their progress emerge rather
  * than appear instantly.
  */
-function Sparkline({ values, color = '#fff', height = 32 }) {
+function Sparkline({ values, color = 'hsl(var(--primary))', height = 32 }) {
   const W = 140;
   const H = height;
   // Filter to finite values BEFORE the length check — a corrupt PR
@@ -203,15 +203,15 @@ function ProgressBar({ pct = 0, startLabel = '', endLabel = '', currentLabel, ta
   const reduce = prefersReducedMotion();
   return (
     <div className="mt-2">
-      <div className="relative h-1.5 rounded-full bg-white/15 overflow-hidden">
+      <div className="relative h-1.5 rounded-full bg-secondary overflow-hidden">
         <motion.div
-          className="absolute inset-y-0 start-0 rounded-full bg-white"
+          className="absolute inset-y-0 start-0 rounded-full bg-primary"
           initial={reduce ? { width: `${safePct}%` } : { width: '0%' }}
           animate={{ width: `${safePct}%` }}
           transition={reduce ? { duration: 0 } : { duration: 1.1, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
         />
       </div>
-      <div className="flex items-center justify-between mt-1 text-[10px] text-white/55">
+      <div className="flex items-center justify-between mt-1 text-[10px] text-foreground/55">
         <span>{startLabel}{currentLabel != null && ` · ${currentLabel}`}</span>
         <span>{endLabel}{targetLabel != null && ` · ${targetLabel}`}</span>
       </div>
@@ -983,10 +983,10 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
           style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-8 h-8 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
           </div>
-          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+          <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-foreground/70">
             {hasWorkedOutToday
               ? t('dashboard.hero.kicker.done')
               : streak > 0
@@ -1012,11 +1012,11 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               >
                 <AnimatedNumber from={0} to={streak} durationMs={1400} />
               </span>
-              <span className="font-heading text-lg md:text-xl font-medium text-white/70 leading-tight pb-2">
+              <span className="font-heading text-lg md:text-xl font-medium text-foreground/70 leading-tight pb-2">
                 {streak === 1 ? t('dashboard.hero.daySingular') : t('dashboard.hero.dayPlural')}
               </span>
             </div>
-            <p className="text-sm text-white/60 max-w-[28ch] leading-relaxed mt-3">
+            <p className="text-sm text-foreground/60 max-w-[28ch] leading-relaxed mt-3">
               {hasWorkedOutToday
                 ? t('dashboard.hero.subtitle.done')
                 : streak > 0
@@ -1034,7 +1034,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                  i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
                 }`}
               />
             ))}
@@ -1078,19 +1078,19 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             className="relative min-w-0"
           >
             <h2
-              className="font-heading font-bold leading-[1.05] tracking-tight text-white break-words"
+              className="font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words"
               style={{ fontSize: 'clamp(1.6rem, 5vw, 2.5rem)' }}
             >
               {slide.title}
             </h2>
-            <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+            <p className="text-sm text-foreground/75 max-w-[36ch] leading-relaxed mt-2">
               {slide.sub}
             </p>
             {slide.cta && (
               <button
                 type="button"
                 onClick={() => handleCta(slide.cta)}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-purple-500/30 hover:bg-purple-500/40 backdrop-blur-sm text-[12px] font-semibold text-foreground transition-colors"
               >
                 {slide.cta.label}
                 <ChevronRight className="w-3.5 h-3.5" />
@@ -1107,7 +1107,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 onClick={() => goTo(i)}
                 aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                  i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
                 }`}
               />
             ))}
@@ -1138,12 +1138,12 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             : { top: '50%', transform: 'translateY(-50%)' }),
         }} />}
       <div className="flex items-center gap-2">
-        <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-white/10'}`}>
-          <SlideIcon className="w-4 h-4 text-white" />
+        <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
+          <SlideIcon className="w-4 h-4 text-foreground" />
         </div>
-        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+        <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-foreground/70">
           {slide.kicker}
-          {subKicker && <span className="text-white/70 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
+          {subKicker && <span className="text-foreground/70 normal-case tracking-normal font-normal ms-2">· {subKicker}</span>}
         </span>
       </div>
 
@@ -1162,8 +1162,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           <h2
             className={
               slide.metricValue != null
-                ? 'font-heading font-semibold text-white/85 break-words'
-                : 'font-heading font-bold leading-[1.05] tracking-tight text-white break-words'
+                ? 'font-heading font-semibold text-foreground/85 break-words'
+                : 'font-heading font-bold leading-[1.05] tracking-tight text-foreground break-words'
             }
             style={
               slide.metricValue != null
@@ -1180,7 +1180,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           {slide.metricValue != null && (
             <div className="flex items-baseline gap-2 mt-1">
               <span
-                className="font-heading font-bold leading-none tracking-tight tabular-nums text-white"
+                className="font-heading font-bold leading-none tracking-tight tabular-nums text-foreground"
                 style={{ fontSize: 'clamp(3rem, 10vw, 5.25rem)' }}
               >
                 {slide.metricPrefix}
@@ -1202,7 +1202,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               initial={{ opacity: 0, x: -8 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.9 }}
-              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-white/12 text-[11px] font-bold text-white"
+              className="inline-flex items-center gap-1 mt-2 px-2 py-0.5 rounded-full bg-secondary text-[11px] font-bold text-foreground"
             >
               {slide.metricDelta > 0 ? '+' : ''}
               {slide.metricDelta}
@@ -1210,7 +1210,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
                 ? tFallback(slide.metricDeltaUnitKey, slide.metricDeltaUnit || '')
                 : (slide.metricDeltaUnit || '')}
               {slide.metricDeltaSuffix && (
-                <span className="font-medium text-white/70">
+                <span className="font-medium text-foreground/70">
                   {slide.metricDeltaSuffixKey
                     ? tFallback(slide.metricDeltaSuffixKey, slide.metricDeltaSuffix)
                     : slide.metricDeltaSuffix}
@@ -1224,7 +1224,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               their progression curve emerge. */}
           {slide.history && (
             <div className="mt-3 max-w-[220px] opacity-90">
-              <Sparkline values={slide.history} color="#ffffff" height={32} />
+              <Sparkline values={slide.history} color="hsl(var(--primary))" height={32} />
             </div>
           )}
 
@@ -1250,7 +1250,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
           )}
 
           {/* Sub copy — context line. Always present. */}
-          <p className="text-sm text-white/60 max-w-[36ch] leading-relaxed mt-3">
+          <p className="text-sm text-foreground/60 max-w-[36ch] leading-relaxed mt-3">
             {slide.sub}
           </p>
 
@@ -1258,7 +1258,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
             <button
               type="button"
               onClick={() => handleCta(slide.cta)}
-              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
+              className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-primary/10 hover:bg-primary/20 backdrop-blur-sm text-[12px] font-semibold text-foreground transition-colors"
             >
               {slide.cta.label}
               <ChevronRight className="w-3.5 h-3.5" />
@@ -1281,7 +1281,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
               onClick={() => goTo(i)}
               aria-label={tFallback('dashboard.hero.slide', `Slide ${i + 1}`)}
               className={`h-1.5 rounded-full transition-all ${
-                i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                i === idx ? 'bg-primary w-6' : 'bg-foreground/25 w-1.5 hover:bg-foreground/40'
               }`}
             />
           ))}

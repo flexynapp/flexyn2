@@ -136,35 +136,35 @@ function HeroCard({
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl bg-[hsl(210_18%_11%)] dark:bg-[hsl(210_22%_8%)] text-white shadow-2xl shadow-black/20 touch-pan-y"
+        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
       >
         {/* Animated gradient mesh — tint follows the current slide's
             color (orange for streak, purple for duels feature, pink
             for stories feature, cyan for cardio milestones, etc.). */}
-        <div className="absolute inset-0 opacity-90 pointer-events-none">
+        <div className="absolute inset-0 opacity-100 pointer-events-none">
           <motion.div
             key={`mesh-tr-${slideColor || 'default'}`}
-            initial={{ opacity: 0.5 }}
-            animate={{ opacity: 1 }}
+            initial={{ opacity: 0.4 }}
+            animate={{ opacity: 0.7 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.55), transparent 65%)` }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.12), transparent 65%)` }}
           />
           <motion.div
             key={`mesh-bl-${slideColor || 'default'}`}
             className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.25), transparent 70%)` }}
-            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.85, 1, 0.85] }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.07), transparent 70%)` }}
+            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.6, 0.8, 0.6] }}
             transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
           />
         </div>
 
         {/* Subtle grid texture */}
         <div
-          className="absolute inset-0 opacity-[0.07] pointer-events-none"
+          className="absolute inset-0 opacity-[0.5] pointer-events-none"
           style={{
             backgroundImage:
-              'linear-gradient(hsl(0 0% 100% / 0.6) 1px, transparent 1px), linear-gradient(90deg, hsl(0 0% 100% / 0.6) 1px, transparent 1px)',
+              'linear-gradient(hsl(var(--foreground) / 0.04) 1px, transparent 1px), linear-gradient(90deg, hsl(var(--foreground) / 0.04) 1px, transparent 1px)',
             backgroundSize: '32px 32px',
           }}
         />
@@ -214,7 +214,7 @@ function HeroCard({
           onPointerDown={(e) => e.stopPropagation()}
         >
           <ErrorBoundary label="LoginStreakBanner">
-            <LoginStreakBanner variant="hero" />
+            <LoginStreakBanner variant="default" />
           </ErrorBoundary>
         </div>
       </motion.div>
