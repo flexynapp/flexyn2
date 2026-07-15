@@ -238,10 +238,10 @@ function HeroCard({
           // for every theme (orange, blue, violet, neon, …).
           style={{
             background:
-              'linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,255,255,0) 42%, rgba(0,0,0,0.16)), hsl(var(--primary))',
-            color: 'hsl(var(--primary-foreground))',
+              'linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0) 42%, rgba(0,0,0,0.18)), linear-gradient(315deg, #ffd27a 0%, #fb9d38 32%, #f2700d 64%, #c2410c 100%)',
+            color: '#ffffff',
             boxShadow:
-              '0 12px 24px -8px hsl(var(--primary) / 0.5), 0 5px 12px -4px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)',
+              '0 12px 24px -8px rgba(242,112,13,0.5), 0 5px 12px -4px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.35)',
           }}
         >
           {/* Subtle shine sweep — a single slow, dim sheen that passes
