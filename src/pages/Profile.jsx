@@ -32,9 +32,11 @@ export default function Profile() {
   // subview directly; if the tapped user is the signed-in user, Hub
   // collapses it back to /profile via the same handler.
   const handleSelectUser = (selectedUser) => {
-    const email = selectedUser?.email;
-    if (!email) return;
-    navigate(`/hub?profile=${encodeURIComponent(email)}`);
+    // Prefer user_id (id-keyed profile route); fall back to email for any
+    // payload that doesn't carry an id yet.
+    const target = selectedUser?.id || selectedUser?.email;
+    if (!target) return;
+    navigate(`/hub?profile=${encodeURIComponent(target)}`);
   };
 
   return (
