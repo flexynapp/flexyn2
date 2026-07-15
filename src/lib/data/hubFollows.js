@@ -109,33 +109,48 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
     }
     throw err;
   }
-  // Notify the followee — non-blocking, fire and forget
+  // Notify the followee — non-blocking, fire and forget.
+  //
+  // Uses the follow row's own ids instead of scanning users.list() and
+  // matching by email. The BEFORE INSERT trigger (mig 208) resolves
+  // follower_id / followee_id from the emails at write time, and
+  // create() returns the row via insert().select(), so both ids are on
+  // `created` here. This removes a public_profiles email read AND an
+  // O(all-users) fetch from the follow hot path.
   (async () => {
     try {
-      const all = await users.list().catch(() => []);
-      const followee = all.find(u => u.email?.toLowerCase() === followeeEmail.toLowerCase());
-      const follower = all.find(u => u.email?.toLowerCase() === followerEmail.toLowerCase());
-      if (followee?.id) {
-        const followerName = follower?.username ? `@${follower.username}` : 'Someone';
-        // Per-recipient i18n via notify_friend_follow_for (migration 041).
-        // The RPC reads the recipient's preferred_language server-side so
-        // the title renders in their language, not the follower's. Falls
-        // back to the legacy client-rendered notifyFriendFollow helper if
-        // the RPC is unavailable (pre-migration hosts).
-        const { error } = await supabase.rpc('notify_friend_follow_for', {
-          p_user_id:       followee.id,
-          p_follower_name: followerName,
+      const followeeId = created?.followee_id;
+      if (!followeeId) return;
+
+      // Follower's @handle for the notification title — a single targeted
+      // profile read by id, not a full-list scan.
+      let followerName = 'Someone';
+      if (created?.follower_id) {
+        const { data: followerProfile } = await users.selectProfiles((from) => from
+          .select('username')
+          .eq('id', created.follower_id)
+          .single());
+        if (followerProfile?.username) followerName = `@${followerProfile.username}`;
+      }
+
+      // Per-recipient i18n via notify_friend_follow_for (migration 041).
+      // The RPC reads the recipient's preferred_language server-side so
+      // the title renders in their language, not the follower's. Falls
+      // back to the legacy client-rendered notifyFriendFollow helper if
+      // the RPC is unavailable (pre-migration hosts).
+      const { error } = await supabase.rpc('notify_friend_follow_for', {
+        p_user_id:       followeeId,
+        p_follower_name: followerName,
+      });
+      if (error && (error.code === '42883' || error.code === '42P01')) {
+        await notifyFriendFollow({
+          recipientUserId: followeeId,
+          recipientEmail:  followeeEmail,
+          followerName,
+          t,
         });
-        if (error && (error.code === '42883' || error.code === '42P01')) {
-          await notifyFriendFollow({
-            recipientUserId: followee.id,
-            recipientEmail:  followee.email,
-            followerName,
-            t,
-          });
-        } else if (error) {
-          console.warn('[hubFollows] notify_friend_follow_for failed:', error);
-        }
+      } else if (error) {
+        console.warn('[hubFollows] notify_friend_follow_for failed:', error);
       }
     } catch { /* swallow — notification failure must not block follow */ }
   })();
