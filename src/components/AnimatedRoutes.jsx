@@ -20,7 +20,7 @@ function tabIndex(pathname) {
   return TAB_ORDER.indexOf(pathname);
 }
 
-export default function AnimatedRoutes({ children }) {
+export default function AnimatedRoutes({ children, resetNonce = 0 }) {
   const location = useLocation();
   const previousPathRef = useRef(location.pathname);
   const [reducedMotion, setReducedMotion] = useState(false);
@@ -55,7 +55,11 @@ export default function AnimatedRoutes({ children }) {
   return (
     <AnimatePresence mode="popLayout" initial={false}>
       <motion.div
-        key={location.pathname}
+        // Nonce is appended so re-tapping the active tab (which bumps it
+        // in Layout) forces a fresh remount of the page — resetting any
+        // open sub-view back to the root. Different-tab navigation still
+        // remounts via the pathname portion.
+        key={`${location.pathname}#${resetNonce}`}
         initial={{ opacity: 0, x: direction * slideOffset }}
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: -direction * slideOffset, pointerEvents: 'none' }}

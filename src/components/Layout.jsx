@@ -144,6 +144,13 @@ function useDailyChestReady(userId) {
 export default function Layout() {
   const location = useLocation();
   const navigate = useNavigate();
+  // Bumped when a nav tab is tapped while already on that section. It's
+  // folded into the routed page's key (see AnimatedRoutes) so the page
+  // remounts fresh — closing any open sub-view (Cardio, tabs, modals)
+  // and returning to the root/top. Tapping a *different* tab already
+  // remounts via the pathname change, so this only matters for re-taps.
+  const [tabResetNonce, setTabResetNonce] = useState(0);
+  const resetActiveTab = () => setTabResetNonce((n) => n + 1);
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const chestReady = useDailyChestReady(user?.id);
@@ -358,7 +365,10 @@ export default function Layout() {
               >
                 <Link
                   to={item.path}
-                  onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    if (isActive) resetActiveTab();
+                  }}
                   className={`flex items-center justify-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-colors duration-200 select-none-ui
                     ${isActive
                       ? 'bg-primary text-primary-foreground shadow-md'
@@ -390,7 +400,7 @@ export default function Layout() {
       <main className="lg:ms-64 flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
-          <AnimatedRoutes>
+          <AnimatedRoutes resetNonce={tabResetNonce}>
             <Outlet />
           </AnimatedRoutes>
         </PullToRefresh>
@@ -433,22 +443,20 @@ export default function Layout() {
                   // Light haptic on every tab tap — matches iOS tab bars.
                   // 'light' is a 10ms pulse that's felt but not obtrusive.
                   triggerHaptic('light');
-                  // Three behaviors stacked on one tap:
-                  //   1. Navigating to a different tab → just scroll to top.
-                  //   2. Tapping the active tab when scrolled down → scroll
-                  //      to top (the universal Twitter/IG pattern).
-                  //   3. Tapping the active tab when already AT top → broadcast
-                  //      a refresh event the active page can opt into. Apps
-                  //      with feeds (Hub, Dashboard) treat this as a manual
-                  //      refresh; pages without one ignore it.
-                  if (isActive && window.scrollY < 50) {
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                  // Re-tapping the tab you're already on returns the section
+                  // to its root: the <Link to={item.path}> strips any
+                  // sub-view query params, and resetActiveTab() remounts the
+                  // page so open panels (Cardio, tabs, modals) close and it
+                  // lands at the top. (A different tab already mounts fresh.)
+                  if (isActive) {
+                    resetActiveTab();
+                    // Feeds (e.g. Hub) can also treat a re-tap as a refresh.
                     try {
                       window.dispatchEvent(new CustomEvent('flexyn:active-tab-retap', {
                         detail: { path: item.path },
                       }));
                     } catch { /* ignore */ }
-                  } else {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
                   }
                 }}
               />
