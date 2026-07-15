@@ -1366,7 +1366,7 @@ export default function Nutrition() {
         {[
           { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipeBuilder(true) },
           { label: 'History', icon: History,   action: () => setShowMealHistory(true) },
-          { label: 'Nutritional Diets', icon: Calendar, action: () => setShowWeeklyPlanner(true) },
+          { label: 'Plans', icon: Calendar, action: () => setShowWeeklyPlanner(true) },
         ].map(({ label, icon: Icon, action }) => (
           <button key={label} type="button" onClick={action}
             className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
