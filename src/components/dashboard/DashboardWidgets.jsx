@@ -44,24 +44,25 @@ function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove
     >
       {editing && (
         <>
-          {/* Drag handle — touch-none so dragging doesn't scroll the page. */}
+          {/* Drag handle — touch-none so dragging doesn't scroll the page.
+              Bare icon (no circle) so it doesn't overlap the card corner. */}
           <button
             type="button"
             onPointerDown={(e) => controls.start(e)}
             aria-label={dragHint}
             title={dragHint}
-            className="absolute -top-2 -start-2 z-10 w-10 h-10 rounded-full bg-secondary border border-border text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none shadow-sm"
+            className="absolute -top-2 -start-2 z-10 w-8 h-8 text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
           >
-            <GripVertical className="w-4 h-4" />
+            <GripVertical className="w-5 h-5" strokeWidth={2.5} />
           </button>
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onRemove(widgetId)}
-            className="absolute -top-2 -end-2 z-10 w-10 h-10 rounded-full bg-card border border-border text-destructive flex items-center justify-center shadow-sm"
+            className="absolute -top-2 -end-2 z-10 w-8 h-8 text-destructive flex items-center justify-center [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
             title={removeLabel}
             aria-label={removeLabel}
           >
-            <X className="w-4 h-4" />
+            <X className="w-5 h-5" strokeWidth={2.75} />
           </motion.button>
         </>
       )}
