@@ -50,6 +50,8 @@ function _isUnread(m, myEmailLc) {
 /** Build a stable participant_key from two emails. */
 const buildKey = (a, b) => [a.toLowerCase(), b.toLowerCase()].sort().join('|');
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
  * Create a group DM with the caller + the supplied participant emails.
  * Backed by mig 116's create_group_conversation RPC, which validates
@@ -76,8 +78,22 @@ export const createGroupConversation = async (emails, title = null) => {
  * Find or create a 1:1 conversation between two users.
  * Idempotent — returns the existing conversation if one exists.
  */
-export const findOrCreateConversation = async (myEmail, otherEmail) => {
-  if (!myEmail || !otherEmail) return null;
+export const findOrCreateConversation = async (myEmail, other) => {
+  if (!myEmail || !other) return null;
+
+  // The peer may be passed as a user_id (uuid) or an email. Callers on
+  // id-keyed surfaces pass the id so they never read the peer's email off
+  // the public_profiles view; we resolve it to an email here via the
+  // narrow resolve_profile_email RPC (SECURITY DEFINER, reads
+  // user_profiles directly, so it survives dropping email from the view).
+  // The resolved email is used only to build participant_key /
+  // participant_emails membership — it is never returned to the caller.
+  let otherEmail = other;
+  if (UUID_RE.test(String(other))) {
+    const { data } = await supabase.rpc('resolve_profile_email', { p_id: other });
+    otherEmail = data || null;
+  }
+  if (!otherEmail) return null;
   if (myEmail.toLowerCase() === otherEmail.toLowerCase()) return null;
   // Lower-case both emails on insert so RLS membership checks
   // (`auth.email() = ANY(participant_emails)`) succeed when the
@@ -85,14 +101,14 @@ export const findOrCreateConversation = async (myEmail, otherEmail) => {
   // vs DB-canonical). Mig 116's group RPC already lowercases; the
   // 1:1 path was the inconsistency. Wave 57 (Messages audit) caught.
   const me = String(myEmail).toLowerCase();
-  const other = String(otherEmail).toLowerCase();
-  const key = buildKey(me, other);
+  const otherLc = String(otherEmail).toLowerCase();
+  const key = buildKey(me, otherLc);
   const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
   try {
     return await conv().create({
       participant_key: key,
-      participant_emails: [me, other].sort(),
+      participant_emails: [me, otherLc].sort(),
       last_message_at: new Date().toISOString(),
       last_message_preview: '',
     });
