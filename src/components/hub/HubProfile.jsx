@@ -552,10 +552,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   const followMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.email || !email) {
+      // Prefer ids so an id-only target (no email in scope) is still
+      // followable and we never depend on the peer's view email.
+      const followerRef = user?.id || user?.email;
+      const followeeRef = targetId || email;
+      if (!followerRef || !followeeRef) {
         throw new Error('missing-user');
       }
-      return hubFollows.follow(user.email, email, { t });
+      return hubFollows.follow(followerRef, followeeRef, { t });
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.email, email] });
@@ -579,10 +583,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
   const unfollowMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.email || !email) {
+      const followerRef = user?.id || user?.email;
+      const followeeRef = targetId || email;
+      if (!followerRef || !followeeRef) {
         throw new Error('missing-user');
       }
-      return hubFollows.unfollow(user.email, email);
+      return hubFollows.unfollow(followerRef, followeeRef);
     },
     onMutate: async () => {
       await queryClient.cancelQueries({ queryKey: ['hubIsFollowing', user?.email, email] });

@@ -7,6 +7,18 @@ import { safeSelect } from '@/api/safeSelect';
 
 const e = () => db.entities.HubFollow;
 
+// A follow participant may be passed as a user_id (uuid) or an email.
+// Callers on id-keyed surfaces pass ids so they never have to read another
+// user's email off the public_profiles view; legacy callers still pass
+// emails. The bidirectional hub_follows trigger (mig 208 + 217) fills
+// whichever column is left null, so either form yields a fully-populated
+// row and both id- and email-keyed reads keep working.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const followMatch = (participant, idKey, emailKey) =>
+  UUID_RE.test(String(participant ?? ''))
+    ? { [idKey]: participant }
+    : { [emailKey]: String(participant ?? '').toLowerCase() };
+
 /**
  * Returns up to N popular active users the caller isn't following.
  * Backs the Hub feed "Suggested follows" rail. Server-side ranking
@@ -103,22 +115,25 @@ export const getMutualFollowSince = async (emailA, emailB) => {
  * language. Omitting it falls back to English (callers in non-React
  * contexts can skip it).
  */
-export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
-  if (followerEmail === followeeEmail) return null;
-  const existing = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
+export const follow = async (follower, followee, { t } = {}) => {
+  if (!follower || !followee || String(follower) === String(followee)) return null;
+  const matchBoth = {
+    ...followMatch(follower, 'follower_id', 'follower_email'),
+    ...followMatch(followee, 'followee_id', 'followee_email'),
+  };
+  const existing = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
   // TOCTOU compensator: between the probe above and this insert, a
   // concurrent follow call (rapid double-tap, two tabs) can land first.
-  // If hub_follows has a UNIQUE (follower_email, followee_email)
-  // constraint, the second insert errors with 23505. Catch that and
-  // re-read so both racers return the same canonical row instead of
-  // one throwing a duplicate-key error at the user.
+  // If hub_follows has a UNIQUE constraint on the pair, the second insert
+  // errors with 23505. Catch that and re-read so both racers return the
+  // same canonical row instead of one throwing a duplicate-key error.
   let created;
   try {
-    created = await e().create({ follower_email: followerEmail, followee_email: followeeEmail });
+    created = await e().create({ ...matchBoth });
   } catch (err) {
     if (err?.code === '23505' || /duplicate key|unique constraint/i.test(err?.message || '')) {
-      const reread = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
+      const reread = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
       if (reread.length > 0) return reread[0];
     }
     throw err;
@@ -159,7 +174,7 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
       if (error && (error.code === '42883' || error.code === '42P01')) {
         await notifyFriendFollow({
           recipientUserId: followeeId,
-          recipientEmail:  followeeEmail,
+          recipientEmail:  created?.followee_email ?? null,
           followerName,
           t,
         });
@@ -171,9 +186,13 @@ export const follow = async (followerEmail, followeeEmail, { t } = {}) => {
   return created;
 };
 
-/** Remove a follow relationship. */
-export const unfollow = async (followerEmail, followeeEmail) => {
-  const existing = await e().filter({ follower_email: followerEmail, followee_email: followeeEmail }, '-created_date', 1).catch(() => []);
+/** Remove a follow relationship. follower/followee may be id or email. */
+export const unfollow = async (follower, followee) => {
+  const matchBoth = {
+    ...followMatch(follower, 'follower_id', 'follower_email'),
+    ...followMatch(followee, 'followee_id', 'followee_email'),
+  };
+  const existing = await e().filter(matchBoth, '-created_date', 1).catch(() => []);
   if (existing.length === 0) return;
   await e().delete(existing[0].id).catch(() => {});
 };
