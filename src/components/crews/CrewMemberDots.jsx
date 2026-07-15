@@ -17,18 +17,20 @@
 
 import { motion } from 'framer-motion';
 
-function colorForEmail(email) {
-  // Deterministic per-email color so initials avatars get consistent
-  // colors across sessions. Cheap hash → HSL slice.
+function colorForKey(key) {
+  // Deterministic per-user color so initials avatars get consistent
+  // colors across sessions. Cheap hash → HSL slice. Keyed on the stable
+  // user_id (uuid) rather than email — same determinism, no PII.
   let h = 0;
-  for (let i = 0; i < (email || '').length; i++) {
-    h = (h * 31 + email.charCodeAt(i)) >>> 0;
+  const s = key || '';
+  for (let i = 0; i < s.length; i++) {
+    h = (h * 31 + s.charCodeAt(i)) >>> 0;
   }
   return `hsl(${h % 360} 55% 45%)`;
 }
 
 function initialsOf(member) {
-  const src = member.username || member.email || '';
+  const src = member.username || '';
   return src.trim().slice(0, 2).toUpperCase() || '?';
 }
 
@@ -46,7 +48,7 @@ export default function CrewMemberDots({ members = [], max = 5, size = 24, total
     <div className="inline-flex items-center" aria-label={`${totalCount ?? members.length} crew members`}>
       {visible.map((member, i) => (
         <motion.div
-          key={member.email || i}
+          key={member.user_id || i}
           initial={{ opacity: 0, scale: 0.6 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: i * 0.05, type: 'spring', stiffness: 380, damping: 25 }}
@@ -56,7 +58,7 @@ export default function CrewMemberDots({ members = [], max = 5, size = 24, total
             height: size,
             marginLeft: i === 0 ? 0 : -overlap,
             zIndex: visible.length - i,
-            backgroundColor: colorForEmail(member.email),
+            backgroundColor: colorForKey(member.user_id),
           }}
         >
           {member.avatar_url ? (
