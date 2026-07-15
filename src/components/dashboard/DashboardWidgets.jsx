@@ -57,7 +57,7 @@ function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onRemove(widgetId)}
-            className="absolute -top-2 -end-2 z-10 w-10 h-10 rounded-full bg-destructive text-white flex items-center justify-center shadow-sm"
+            className="absolute -top-2 -end-2 z-10 w-10 h-10 rounded-full bg-card border border-border text-destructive flex items-center justify-center shadow-sm"
             title={removeLabel}
             aria-label={removeLabel}
           >
