@@ -281,12 +281,18 @@ export const listOlderMessages = async (conversationId, beforeCreatedDate, limit
  * and new queries work. Updates conversation's last_message_at and preview.
  * Pass `attachmentUrl` to include an image attachment (migration 012).
  */
-export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, body, attachmentUrl, repliedToMessageId, repliedToSnippet, messageType, stickerId, durationMs }) => {
+export const sendMessage = async ({ conversationId, senderEmail, recipientEmail, recipientId, body, attachmentUrl, repliedToMessageId, repliedToSnippet, messageType, stickerId, durationMs }) => {
   if (!conversationId || !senderEmail || (!body && !attachmentUrl && !stickerId)) return null;
   const created = await msg().create({
     conversation_id: conversationId,
     sender_email: senderEmail,
+    // recipient_email is optional metadata — DM delivery, block checks and
+    // the dm_received notification all run off the conversation's
+    // participant_emails, not this column. id-keyed callers pass
+    // recipientId (the backfilled recipient_id) so they never read the
+    // peer's email off the public_profiles view.
     ...(recipientEmail ? { recipient_email: recipientEmail } : {}),
+    ...(recipientId ? { recipient_id: recipientId } : {}),
     body: body || '',
     content: body || '', // keep content in sync for queries that use either column
     ...(attachmentUrl ? { attachment_url: attachmentUrl } : {}),
