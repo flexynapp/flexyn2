@@ -126,9 +126,9 @@ function HeroCard({
           type="button"
           onClick={() => slideshowRef.current?.next?.()}
           aria-label={tFallback ? tFallback('dashboard.hero.next', 'Next slide') : 'Next slide'}
-          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-11 h-11 rounded-full bg-foreground/80 backdrop-blur-sm text-background hover:bg-foreground active:scale-95 flex items-center justify-center shadow-lg transition-all"
+          className="absolute -end-4 md:-end-6 lg:-end-8 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-foreground/30 backdrop-blur-sm text-background hover:bg-foreground/50 active:scale-95 flex items-center justify-center shadow-md transition-all"
         >
-          <ChevronRight className="w-5 h-5 rtl:scale-x-[-1]" />
+          <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
         </button>
       )}
       <motion.div
