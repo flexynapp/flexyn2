@@ -69,7 +69,11 @@ function NavTab({ item, isActive, isHubItem, hubBlue, hubPurple, hubHasNewFollow
           ${isActive ? 'text-primary' : 'text-muted-foreground'}`}
       >
         <motion.div
-          animate={isActive ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
+          // The Hub tab is a ringed/filled pill; giving it the active
+          // scale-up + upward nudge that the bare-icon tabs get made it
+          // pop above the nav row and read as "higher" than the others.
+          // Keep it flat (no lift/scale) so it lines up with the rest.
+          animate={isActive && !isHubItem ? { scale: 1.2, y: -2 } : { scale: 1, y: 0 }}
           transition={{ type: 'spring', stiffness: 400, damping: 18 }}
           className={[
             'relative',
