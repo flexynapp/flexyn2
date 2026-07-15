@@ -156,9 +156,12 @@ export default function Header() {
             )}
           </button>
           {/* Negative inline-start margins pull the bell + profile toward
-              the messages icon so the w-11 tap targets don't read as far
-              apart. Tap areas stay full size; only the visual gap tightens. */}
-          <div className="-ms-2">
+              the messages icon. The bell gets a larger pull (-ms-4) than the
+              profile (-ms-2) because the profile's avatar glyph is 36px vs
+              the 20px icons — matching the *center* spacing left the DMs↔bell
+              whitespace visibly wider than bell↔profile. This equalises the
+              actual gap the eye reads. Tap areas stay full size. */}
+          <div className="-ms-4">
             <NotificationBell />
           </div>
           {/* Profile menu — the LevelBar pill that used to hang below
