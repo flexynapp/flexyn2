@@ -323,6 +323,9 @@ export default function MuscleGroupHeatmap({ logs }) {
     [muscles, mode, maxVol],
   );
   const headline = mode === 'recovery' ? FINE_IDS.filter((id) => muscles[id].recovery < 55).length : ranked.length;
+  // No workouts logged in-range → the figure still renders (all fresh), but
+  // swap the data-y headline/status for a "log a workout" invitation.
+  const empty = !FINE_IDS.some((id) => muscles[id].sets > 0);
 
   return (
     <div style={{ position: 'relative' }}>
@@ -331,15 +334,17 @@ export default function MuscleGroupHeatmap({ logs }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
           <Kicker>Progress · Muscle map</Kicker>
           <span style={{ flex: 1, height: 1, background: 'hsl(var(--border))' }} />
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: 'hsl(var(--primary))' }}>● LIVE</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: empty ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))' }}>{empty ? '○ NO DATA' : '● LIVE'}</span>
         </div>
         <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 30, letterSpacing: '-0.035em', lineHeight: 1.02, color: 'hsl(var(--foreground))' }}>
-          {mode === 'recovery' ? <>{headline} muscle{headline === 1 ? '' : 's'}<br />need recovery.</> : <>Where your<br />work landed.</>}
+          {empty ? <>Your muscle<br />heat map.</> : mode === 'recovery' ? <>{headline} muscle{headline === 1 ? '' : 's'}<br />need recovery.</> : <>Where your<br />work landed.</>}
         </h1>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
-          {mode === 'recovery'
-            ? 'Colour shows fatigue right now — fresh green muscles are ready, hot ones still need rest before you hit them again.'
-            : 'Colour shows training volume over the selected window — brighter means more work landed there.'}
+          {empty
+            ? 'Log a workout and the muscles you trained light up here — colour shows fatigue so you know what’s ready to hit again.'
+            : mode === 'recovery'
+              ? 'Colour shows fatigue right now — fresh green muscles are ready, hot ones still need rest before you hit them again.'
+              : 'Colour shows training volume over the selected window — brighter means more work landed there.'}
         </p>
       </div>
 

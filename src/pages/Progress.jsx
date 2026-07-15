@@ -254,12 +254,14 @@ function AnalyticsTab({ logs }) {
   const trainedDays = workoutFrequency.filter(d => d.Workouts === 1).length;
 
   if (logs.length === 0) {
+    // Charts have nothing to plot yet, but the muscle map still renders —
+    // it shows the full body figure (all fresh) with a "log a workout"
+    // hint, so the Body Heat Map is visible the moment you open Progress
+    // instead of being replaced by a blank "no data" card.
     return (
-      <Card className="p-12 text-center border-dashed">
-        <BarChart2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-        <p className="font-heading font-semibold">No data yet</p>
-        <p className="text-sm text-muted-foreground mt-1">{t('progress.logWorkoutsForAnalytics')}</p>
-      </Card>
+      <ErrorBoundary label="MuscleGroupHeatmap">
+        <MuscleGroupHeatmap logs={logs} />
+      </ErrorBoundary>
     );
   }
 
@@ -316,12 +318,10 @@ function AnalyticsTab({ logs }) {
         )}
       </Card>
 
-      {/* Muscle-split volume heatmap — anatomical body map colored by
-          training intensity per group. Complements the volume bar chart
-          above with the "what am I neglecting?" read at a glance.
-          TODO (user request 2026-05-28): redo the training heat map.
-          Current version reads fine but the user wants a redesigned
-          variant — design TBD; come back to this. */}
+      {/* Body Heat Map — front/back anatomical figure coloured by per-muscle
+          recovery / training volume (Claude Design handoff, wired to real
+          logs). Also rendered on its own in the no-data branch above so the
+          figure is always visible. */}
       <ErrorBoundary label="MuscleGroupHeatmap">
         <MuscleGroupHeatmap logs={logs} />
       </ErrorBoundary>
