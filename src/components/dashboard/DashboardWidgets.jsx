@@ -51,14 +51,14 @@ function ReorderableWidget({ widgetId, logs, goals, isLoading, editing, onRemove
             onPointerDown={(e) => controls.start(e)}
             aria-label={dragHint}
             title={dragHint}
-            className="absolute -top-2 -start-2 z-10 w-8 h-8 text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
+            className="absolute top-1.5 start-1.5 z-10 w-8 h-8 text-muted-foreground flex items-center justify-center cursor-grab active:cursor-grabbing touch-none [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
           >
             <GripVertical className="w-5 h-5" strokeWidth={2.5} />
           </button>
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => onRemove(widgetId)}
-            className="absolute -top-2 -end-2 z-10 w-8 h-8 text-destructive flex items-center justify-center [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
+            className="absolute top-1.5 end-1.5 z-10 w-8 h-8 text-destructive flex items-center justify-center [filter:drop-shadow(0_1px_1.5px_rgba(0,0,0,0.35))]"
             title={removeLabel}
             aria-label={removeLabel}
           >
