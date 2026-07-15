@@ -1,6 +1,5 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import { db } from '@/api/db';
 import { markReturningUser } from '@/lib/firstLaunch';
 import { reportError } from '@/lib/reportError';
@@ -46,30 +45,13 @@ export default function Splash() {
     });
   }, [navigate]);
 
-  return (
-    <div className="fixed inset-0 bg-background flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.6, ease: 'easeOut' }}
-        className="flex flex-col items-center gap-3"
-      >
-        <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-2xl">
-          {/* Self-hosted flame app icon — was the base44 CDN LOGO_URL, an
-              external dependency with no onError fallback on the FIRST screen
-              a user sees. /favicon.svg ships in the app bundle. */}
-          <img src="/favicon.svg" alt="Flexyn" className="w-full h-full object-contain" />
-        </div>
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5 }}
-          className="text-center"
-        >
-          <p className="font-heading text-3xl font-bold tracking-tight">Flexyn</p>
-          <p className="text-sm text-muted-foreground mt-1">Your personal fitness companion</p>
-        </motion.div>
-      </motion.div>
-    </div>
-  );
+  // Render only a neutral fill — NO branding. This route exists purely to
+  // run the auth check + redirect above; the visible launch animation is
+  // owned by <LaunchSplash> (mounted at the app root), which crossfades
+  // away once auth resolves. Previously this returned a full branded splash
+  // (flame icon + "Flexyn" + tagline), so on cold start the user saw the
+  // animated opener crossfade onto THIS second, static splash before it
+  // navigated to the dashboard — the "two splash screens" flash. Keeping it
+  // a bare background lets the opener land directly on the dashboard.
+  return <div className="fixed inset-0 bg-background" aria-hidden="true" />;
 }
