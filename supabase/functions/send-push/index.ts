@@ -70,7 +70,7 @@
 //
 // ── INVOCATION ───────────────────────────────────────────────────────────────
 //
-// Request body (JSON):
+// Request body (JSON) — SINGLE:
 //   {
 //     user_id: "<uuid>",          // recipient — REQUIRED
 //     title:   "...",
@@ -80,9 +80,21 @@
 //     tag:     "..."              // optional dedup tag
 //   }
 //
+// or BATCH (migration 222's statement-level trigger — one HTTP call per
+// INSERT statement instead of one per row):
+//   {
+//     notifications: [ { user_id, title, body, icon, url, tag }, ... ]
+//   }
+//
+// Batch mode is restricted to cross-user-authorized callers (trigger
+// secret / service_role) — a user JWT gets 403 even if every item
+// targets themselves; the single shape covers that case. Batches are
+// capped at MAX_BATCH items; the DB trigger chunks to 200 per call.
+//
 // The function fans out one push request per subscription row owned by
-// user_id. 410 Gone responses cause the subscription to be deleted
-// (the user uninstalled the app or revoked permission).
+// each target user (one subscription lookup for the whole batch).
+// 410 Gone responses cause the subscription to be deleted (the user
+// uninstalled the app or revoked permission).
 
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -156,6 +168,24 @@ interface PushPayload {
   tag?: string;
 }
 
+interface BatchPayload {
+  notifications: PushPayload[];
+}
+
+// Upper bound on batch items per request. The DB trigger chunks at 200;
+// this is a hard cap against a malformed/hostile oversized body.
+const MAX_BATCH = 500;
+
+function encodeItemBody(item: PushPayload): string {
+  return JSON.stringify({
+    title: item.title || 'Flexyn',
+    body:  item.body  || '',
+    icon:  item.icon  || '/icon-192.png',
+    url:   item.url   || '/',
+    tag:   item.tag,
+  });
+}
+
 serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'method_not_allowed' }), {
@@ -223,7 +253,7 @@ serve(async (req) => {
     });
   }
 
-  let payload: PushPayload;
+  let payload: PushPayload | BatchPayload;
   try {
     payload = await req.json();
   } catch {
@@ -233,7 +263,85 @@ serve(async (req) => {
     });
   }
 
-  if (!payload.user_id) {
+  // ── BATCH MODE ──────────────────────────────────────────────────────
+  // { notifications: [...] } — one subscription lookup + one expired-sub
+  // cleanup for the whole batch, instead of one function invocation per
+  // notification row. Cross-user by nature, so only the DB trigger
+  // secret / service_role may use it.
+  if (Array.isArray((payload as BatchPayload).notifications)) {
+    if (!canSendToAnyUser) {
+      return new Response(JSON.stringify({ error: 'forbidden' }), {
+        status: 403,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+    const items = (payload as BatchPayload).notifications
+      .filter((n) => n && typeof n.user_id === 'string' && n.user_id.length > 0)
+      .slice(0, MAX_BATCH);
+    if (items.length === 0) {
+      return new Response(JSON.stringify({ ok: true, sent: 0, reason: 'empty_batch' }), {
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    const userIds = [...new Set(items.map((n) => n.user_id))];
+    const { data: batchSubs, error: batchErr } = await supabase
+      .from('push_subscriptions')
+      .select('id, user_id, endpoint, p256dh_key, auth_key')
+      .in('user_id', userIds);
+    if (batchErr) {
+      console.error('[send-push] batch subscription lookup failed:', batchErr);
+      return new Response(JSON.stringify({ error: 'lookup_failed' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    type SubRow = { id: string; user_id: string; endpoint: string; p256dh_key: string; auth_key: string };
+    const subsByUser = new Map<string, SubRow[]>();
+    for (const sub of batchSubs ?? []) {
+      const list = subsByUser.get(sub.user_id);
+      if (list) list.push(sub);
+      else subsByUser.set(sub.user_id, [sub]);
+    }
+
+    const expiredIds: string[] = [];
+    let sentCount = 0;
+    for (const item of items) {
+      const targets = subsByUser.get(item.user_id);
+      if (!targets || targets.length === 0) continue;
+      const itemBody = encodeItemBody(item);
+      for (const sub of targets) {
+        try {
+          await webpush.sendNotification(
+            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh_key, auth: sub.auth_key } },
+            itemBody
+          );
+          sentCount += 1;
+        } catch (err: any) {
+          if (err?.statusCode === 410 || err?.statusCode === 404) {
+            expiredIds.push(sub.id);
+          } else {
+            console.warn('[send-push] batch delivery failed:', err?.statusCode, err?.message);
+          }
+        }
+      }
+    }
+
+    if (expiredIds.length > 0) {
+      await supabase.from('push_subscriptions').delete().in('id', [...new Set(expiredIds)]);
+    }
+
+    return new Response(
+      JSON.stringify({ ok: true, sent: sentCount, removed: new Set(expiredIds).size, batch: items.length }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // ── SINGLE MODE (legacy shape) ──────────────────────────────────────
+  const single = payload as PushPayload;
+
+  if (!single.user_id) {
     return new Response(JSON.stringify({ error: 'user_id_required' }), {
       status: 400,
       headers: { 'Content-Type': 'application/json' },
@@ -241,7 +349,7 @@ serve(async (req) => {
   }
 
   // Bind the target to the caller unless they proved cross-user authority.
-  if (!canSendToAnyUser && payload.user_id !== callerUserId) {
+  if (!canSendToAnyUser && single.user_id !== callerUserId) {
     return new Response(JSON.stringify({ error: 'forbidden' }), {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
@@ -258,7 +366,7 @@ serve(async (req) => {
   const { data: subs, error } = await supabase
     .from('push_subscriptions')
     .select('id, endpoint, p256dh_key, auth_key')
-    .eq('user_id', payload.user_id);
+    .eq('user_id', single.user_id);
   if (error) {
     console.error('[send-push] subscription lookup failed:', error);
     return new Response(JSON.stringify({ error: 'lookup_failed' }), {
@@ -272,13 +380,7 @@ serve(async (req) => {
     });
   }
 
-  const body = JSON.stringify({
-    title: payload.title || 'Flexyn',
-    body:  payload.body  || '',
-    icon:  payload.icon  || '/icon-192.png',
-    url:   payload.url   || '/',
-    tag:   payload.tag,
-  });
+  const body = encodeItemBody(single);
 
   const expired: string[] = []; // subscription IDs that returned 410 Gone
   let sent = 0;
