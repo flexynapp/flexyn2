@@ -28,6 +28,7 @@ import { format, addDays, startOfWeek } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
 
 const MEAL_SLOTS = [
   { key: 'breakfast', label: 'Breakfast', emoji: '🌅' },
@@ -212,12 +213,15 @@ function GroceryListModal({ open, items, onClose }) {
 }
 
 // ── Main planner modal ────────────────────────────────────────────────
-export default function WeeklyMealPlannerModal({ open, onClose }) {
+export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
   const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType }
   const [groceryOpen, setGroceryOpen] = useState(false);
+  // Two tabs: the 7-day grid ('planner') and the Nutrition Plans browser
+  // ('plans'), which was folded in here from its own modal.
+  const [tab, setTab] = useState('planner');
 
   const ws = useMemo(() => weekStart(anchor), [anchor]);
   const days = useMemo(
@@ -308,6 +312,32 @@ export default function WeeklyMealPlannerModal({ open, onClose }) {
             </button>
           </div>
 
+          {/* Tab switcher — Weekly plan grid vs. Nutrition Plans browser */}
+          <div className="flex gap-1 p-1 mx-4 my-2 bg-secondary rounded-lg shrink-0">
+            {[
+              { id: 'planner', label: 'Weekly plan' },
+              { id: 'plans',   label: 'Nutrition plans' },
+            ].map(tb => (
+              <button
+                key={tb.id}
+                onClick={() => setTab(tb.id)}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  tab === tb.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {tb.label}
+              </button>
+            ))}
+          </div>
+
+          {tab === 'plans' ? (
+            /* Nutrition Plans — folded in from the old standalone modal.
+               px-4/pt-4 so PlanDetail's negative-margin hero bleeds right. */
+            <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 pb-6">
+              <NutritionPlansPanel userProfile={userProfile} />
+            </div>
+          ) : (
+          <>
           {/* Week nav */}
           <div className="flex items-center justify-between px-4 py-2 border-b border-border shrink-0">
             <button
@@ -407,6 +437,8 @@ export default function WeeklyMealPlannerModal({ open, onClose }) {
               {plans.length > 0 && <Check className="w-3 h-3 opacity-70" />}
             </button>
           </div>
+          </>
+          )}
         </motion.div>
 
         <RecipePickerModal

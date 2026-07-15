@@ -257,11 +257,15 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
   );
 }
 
-/* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function NutritionPlansModal({ open, onClose, userProfile }) {
+/* ─── Reusable content panel (list + detail) ─────────────────────────────────
+ * The plans browser without any sheet chrome, so it can render both inside
+ * the standalone modal AND as a tab inside the Weekly Planner. Manages its
+ * own selected-plan state. Wrap it in a container with `px-4 sm:px-6` +
+ * top padding so PlanDetail's negative-margin hero bleeds correctly. */
+export function NutritionPlansPanel({ userProfile }) {
   const [selected, setSelected] = useState(null);
 
-  const restrictions = useMemo(() => loadRestrictions(userProfile), [userProfile]);
+  const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
   const targetCalories = userProfile?.daily_calorie_target || userProfile?.calories || null;
 
   const availablePlans = useMemo(() => filterPlans(restrictions), [restrictions]);
@@ -277,8 +281,79 @@ export default function NutritionPlansModal({ open, onClose, userProfile }) {
     [scaledPlans, selected]
   );
 
+  return (
+    <AnimatePresence mode="wait">
+      {!selected ? (
+        <motion.div
+          key="list"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0, x: -30 }}
+          transition={{ duration: 0.18 }}
+        >
+          <p className="text-xs text-muted-foreground mb-4">
+            {availablePlans.length} plan{availablePlans.length !== 1 ? 's' : ''} match your profile
+            {filteredOut > 0 && ` · ${filteredOut} filtered by restrictions`}
+          </p>
+
+          {/* Restriction notice */}
+          {restrictions.length > 0 && (
+            <div className="mb-4 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
+              <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Filtered for your restrictions:</span>{' '}
+                {restrictions.join(', ').replace(/_/g, '-')}
+              </p>
+            </div>
+          )}
+
+          {/* Calorie context */}
+          {targetCalories && (
+            <div className="mb-4 px-3 py-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 flex items-start gap-2">
+              <Flame className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">Scaled to your target:</span>{' '}
+                {targetCalories} kcal/day — all macros adjusted proportionally
+              </p>
+            </div>
+          )}
+
+          {availablePlans.length === 0 ? (
+            <div className="text-center py-12">
+              <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="font-heading font-semibold">No plans match your restrictions</p>
+              <p className="text-sm text-muted-foreground mt-1">Try adjusting your dietary restrictions in Edit Goals.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {scaledPlans.map(({ plan, scaled }) => (
+                <PlanCard
+                  key={plan.id}
+                  plan={plan}
+                  scaled={scaled}
+                  colors={PLAN_COLORS[plan.color]}
+                  onSelect={() => setSelected(plan.id)}
+                />
+              ))}
+            </div>
+          )}
+        </motion.div>
+      ) : selectedEntry ? (
+        <PlanDetail
+          key="detail"
+          plan={selectedEntry.plan}
+          scaled={selectedEntry.scaled}
+          colors={PLAN_COLORS[selectedEntry.plan.color]}
+          onBack={() => setSelected(null)}
+        />
+      ) : null}
+    </AnimatePresence>
+  );
+}
+
+/* ─── Main modal ─────────────────────────────────────────────────────────── */
+export default function NutritionPlansModal({ open, onClose, userProfile }) {
   const handleClose = () => {
-    setSelected(null);
     onClose();
   };
 
@@ -313,15 +388,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile }) {
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 sm:px-6 pb-3 shrink-0">
-              <div>
-                <h2 className="font-heading font-bold text-xl">Nutrition Plans</h2>
-                {!selected && (
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {availablePlans.length} plan{availablePlans.length !== 1 ? 's' : ''} match your profile
-                    {filteredOut > 0 && ` · ${filteredOut} filtered by restrictions`}
-                  </p>
-                )}
-              </div>
+              <h2 className="font-heading font-bold text-xl">Nutrition Plans</h2>
               <button onClick={handleClose} className="p-2 rounded-full hover:bg-secondary transition-colors">
                 <X className="w-5 h-5" />
               </button>
@@ -329,67 +396,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile }) {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-6">
-              <AnimatePresence mode="wait">
-                {!selected ? (
-                  <motion.div
-                    key="list"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0, x: -30 }}
-                    transition={{ duration: 0.18 }}
-                  >
-                    {/* Restriction notice */}
-                    {restrictions.length > 0 && (
-                      <div className="mb-4 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
-                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Filtered for your restrictions:</span>{' '}
-                          {restrictions.join(', ').replace(/_/g, '-')}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Calorie context */}
-                    {targetCalories && (
-                      <div className="mb-4 px-3 py-2.5 rounded-xl bg-orange-500/5 border border-orange-500/20 flex items-start gap-2">
-                        <Flame className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
-                        <p className="text-xs text-muted-foreground">
-                          <span className="font-semibold text-foreground">Scaled to your target:</span>{' '}
-                          {targetCalories} kcal/day — all macros adjusted proportionally
-                        </p>
-                      </div>
-                    )}
-
-                    {availablePlans.length === 0 ? (
-                      <div className="text-center py-12">
-                        <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-                        <p className="font-heading font-semibold">No plans match your restrictions</p>
-                        <p className="text-sm text-muted-foreground mt-1">Try adjusting your dietary restrictions in Edit Goals.</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {scaledPlans.map(({ plan, scaled }) => (
-                          <PlanCard
-                            key={plan.id}
-                            plan={plan}
-                            scaled={scaled}
-                            colors={PLAN_COLORS[plan.color]}
-                            onSelect={() => setSelected(plan.id)}
-                          />
-                        ))}
-                      </div>
-                    )}
-                  </motion.div>
-                ) : selectedEntry ? (
-                  <PlanDetail
-                    key="detail"
-                    plan={selectedEntry.plan}
-                    scaled={selectedEntry.scaled}
-                    colors={PLAN_COLORS[selectedEntry.plan.color]}
-                    onBack={() => setSelected(null)}
-                  />
-                ) : null}
-              </AnimatePresence>
+              <NutritionPlansPanel userProfile={userProfile} />
             </div>
           </motion.div>
         </>

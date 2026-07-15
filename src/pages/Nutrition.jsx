@@ -177,8 +177,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.18}
         onDragEnd={handleDragEnd}
-        className="relative overflow-hidden rounded-2xl text-white shadow-xl shadow-black/20 touch-pan-y"
-        style={{ background: 'hsl(210 18% 11%)' }}
+        className="relative overflow-hidden rounded-2xl bg-card text-foreground border border-border shadow-sm touch-pan-y"
       >
         <motion.div
           key={`mesh-tr-${slide.id}`}
@@ -186,12 +185,12 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6 }}
           className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.55), transparent 65%)` }}
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.20), transparent 65%)` }}
         />
         <motion.div
           key={`mesh-bl-${slide.id}`}
           className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl pointer-events-none"
-          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.22), transparent 70%)` }}
+          style={{ background: `radial-gradient(circle, hsl(${slide.color} / 0.12), transparent 70%)` }}
           animate={{ x: [0, 20, 0], y: [0, -10, 0] }}
           transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
         />
@@ -202,14 +201,14 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
             <Icon
               aria-hidden="true"
               className="absolute pointer-events-none select-none"
-              style={{ width: 100, height: 100, opacity: 0.13, color: 'white', right: 16, top: '50%', transform: 'translateY(-50%)' }}
+              style={{ width: 100, height: 100, opacity: 0.12, color: `hsl(${slide.color})`, right: 16, top: '50%', transform: 'translateY(-50%)' }}
             />
           )}
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center">
-              <Icon className="w-4 h-4 text-white/85" />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: `hsl(${slide.color} / 0.14)` }}>
+              <Icon className="w-4 h-4" style={{ color: `hsl(${slide.color})` }} />
             </div>
-            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-white/70">
+            <span className="text-[11px] font-semibold tracking-[0.18em] uppercase text-muted-foreground">
               {slide.kicker}
             </span>
           </div>
@@ -225,13 +224,14 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
               <h3 className="font-heading font-bold leading-none tracking-tight" style={{ fontSize: 'clamp(1.6rem, 5.5vw, 2.25rem)' }}>
                 {slide.title}
               </h3>
-              <p className="text-sm text-white/75 max-w-[36ch] leading-relaxed mt-2">
+              <p className="text-sm text-muted-foreground max-w-[36ch] leading-relaxed mt-2">
                 {slide.tip}
               </p>
               <button
                 type="button"
                 onClick={slide.onCta}
-                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:bg-white/35 backdrop-blur-sm text-[12px] font-semibold text-white transition-colors"
+                className="inline-flex items-center gap-1 mt-3 px-3 py-1.5 rounded-full backdrop-blur-sm text-[12px] font-semibold transition-opacity hover:opacity-80"
+                style={{ background: `hsl(${slide.color} / 0.15)`, color: `hsl(${slide.color})` }}
               >
                 {slide.ctaLabel}
                 <ChevronRight className="w-3.5 h-3.5 rtl:scale-x-[-1]" />
@@ -247,7 +247,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
                   onClick={() => goTo(i)}
                   aria-label={`Slide ${i + 1}`}
                   className={`h-1.5 rounded-full transition-all ${
-                    i === idx ? 'bg-white w-6' : 'bg-white/30 w-1.5 hover:bg-white/50'
+                    i === idx ? 'bg-primary w-6' : 'bg-foreground/20 w-1.5 hover:bg-foreground/40'
                   }`}
                 />
               ))}
@@ -1102,24 +1102,10 @@ export default function Nutrition() {
           <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
         </div>
 
-        {/* Right — Scan + History stacked */}
+        {/* Right — Photo-AI file input + Scanner History toggle. The
+            orange "Scan Food" and purple "Photo-AI" buttons were removed;
+            those actions now live in the quick-access card row below. */}
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          {/* Primary scan button */}
-          <motion.button
-            whileHover={{ scale: 1.04, y: -1 }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            onClick={startScanner}
-            className="group relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading font-bold text-sm text-primary-foreground overflow-hidden shadow-lg shadow-primary/30"
-            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.8))' }}
-          >
-            {/* Shimmer sweep */}
-            <span className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
-              style={{ background: 'linear-gradient(105deg, transparent 30%, rgba(255,255,255,0.18) 50%, transparent 70%)' }} />
-            <ScanLine className="w-4 h-4 shrink-0" />
-            {tFallback('nutrition.scanFood', 'Scan Food')}
-          </motion.button>
-
           {/* Photo-AI recognition trigger — hidden file input behind
               a styled button so iOS surfaces "Take photo" + "Choose
               from library" naturally. No `capture` attr: capture
@@ -1132,20 +1118,6 @@ export default function Nutrition() {
             style={{ display: 'none' }}
             onChange={handlePhotoMealPick}
           />
-          <motion.button
-            whileHover={{ scale: 1.04, y: -1 }}
-            whileTap={{ scale: 0.96 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            onClick={() => photoInputRef.current?.click()}
-            disabled={photoRecognizing}
-            className="group relative flex items-center gap-2 px-4 py-2.5 rounded-xl font-heading font-bold text-sm text-white overflow-hidden shadow-lg disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: 'linear-gradient(135deg, #7c3aed, #4338ca)' }}
-          >
-            {photoRecognizing
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <span className="text-base leading-none">📸</span>}
-            {photoRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
-          </motion.button>
 
           {/* Scanner history toggle */}
           <button
@@ -1346,14 +1318,27 @@ export default function Nutrition() {
         onPlanner={() => setShowWeeklyPlanner(true)}
       />
 
-      {/* Quick-access row — same 5 actions as icon buttons for users who miss the carousel */}
-      <div className="flex gap-2 mb-1">
+      {/* Quick-access row — icon shortcuts for users who miss the carousel.
+          Scan wears the logo flame gradient; Photo-AI wears its signature
+          purple (replaces the header button). Plans was removed — it now
+          lives as a tab inside the Planner. */}
+      <div className="flex gap-2 mb-3">
+        {/* Scan — flame gradient (matches the logo) */}
+        <button
+          type="button"
+          onClick={startScanner}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform"
+          style={{ background: 'linear-gradient(315deg, #ffd27a 0%, #fb9d38 32%, #f2700d 64%, #c2410c 100%)' }}
+        >
+          <ScanLine className="w-4 h-4" />
+          <span className="text-[10px] font-semibold">{tFallback('nutrition.scan', 'Scan')}</span>
+        </button>
+
+        {/* Neutral shortcuts */}
         {[
-          { label: 'Scan',    icon: ScanLine,   action: startScanner },
-          { label: 'Recipes', icon: ChefHat,    action: () => setShowRecipeBuilder(true) },
-          { label: 'History', icon: History,    action: () => setShowMealHistory(true) },
-          { label: 'Plans',   icon: ListChecks, action: () => setShowNutritionPlans(true) },
-          { label: 'Planner', icon: Calendar,   action: () => setShowWeeklyPlanner(true) },
+          { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipeBuilder(true) },
+          { label: 'History', icon: History,   action: () => setShowMealHistory(true) },
+          { label: 'Planner', icon: Calendar,  action: () => setShowWeeklyPlanner(true) },
         ].map(({ label, icon: Icon, action }) => (
           <button key={label} type="button" onClick={action}
             className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl bg-secondary/60 border border-border/40 text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors">
@@ -1361,6 +1346,22 @@ export default function Nutrition() {
             <span className="text-[10px] font-semibold">{label}</span>
           </button>
         ))}
+
+        {/* Photo-AI — purple gradient (moved out of the header) */}
+        <button
+          type="button"
+          onClick={() => photoInputRef.current?.click()}
+          disabled={photoRecognizing}
+          className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
+          style={{ background: 'linear-gradient(135deg, #7c3aed, #4338ca)' }}
+        >
+          {photoRecognizing
+            ? <Loader2 className="w-4 h-4 animate-spin" />
+            : <span className="text-base leading-none">📸</span>}
+          <span className="text-[10px] font-semibold">
+            {photoRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
+          </span>
+        </button>
       </div>
 
       {/* Calorie counter — just below the shortcut row */}
@@ -1762,6 +1763,7 @@ export default function Nutrition() {
         <WeeklyMealPlannerModal
           open={showWeeklyPlanner}
           onClose={() => setShowWeeklyPlanner(false)}
+          userProfile={userProfile}
         />
       </ErrorBoundary>
     </motion.div>
