@@ -37,7 +37,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     // safeSelect strips and retries so the StoriesRow doesn't crash
     // the Hub when one of those migrations is pending.
     safeSelect({
-      columns: ['email', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
+      columns: ['id', 'email', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
       build: (cols) => selectProfiles((from) => from.select(cols).in('email', allEmails)),
     }),
 
@@ -112,6 +112,7 @@ export async function getStoriesFeedData(user, followingEmails = []) {
       const userStories = storyMap.get(email)   ?? [];
       return {
         email,
+        user_id:            profile.id ?? null,
         username:           profile.username || 'Athlete',
         avatarUrl:          profile.avatar_url ?? null,
         storyDmsDisabled:   profile.story_dms_disabled ?? false,

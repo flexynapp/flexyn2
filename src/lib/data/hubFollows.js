@@ -172,7 +172,7 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const fofSlots    = Math.max(0, limit - recentSlots);
 
   const { data: recentData } = await safeSelect({
-    columns: ['email', 'username', 'avatar_url', 'created_at'],
+    columns: ['id', 'email', 'username', 'avatar_url', 'created_at'],
     build: (cols) => users.selectProfiles((from) => from
       .select(cols)
       .neq('email', userEmail)
@@ -227,7 +227,7 @@ export const getRecommendations = async (userEmail, followingEmails = [], limit 
   const fofSelected = candidates.slice(0, fofSlots);
   if (fofSelected.length > 0) {
     const { data: fofData } = await safeSelect({
-      columns: ['email', 'username', 'avatar_url'],
+      columns: ['id', 'email', 'username', 'avatar_url'],
       build: (cols) => users.selectProfiles((from) => from
         .select(cols)
         .in('email', fofSelected)),

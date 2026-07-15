@@ -291,11 +291,12 @@ function QuickAddAvatarItem({ profile, onAdd, onViewProfile }) {
 
   const handleViewProfile = useCallback(() => {
     onViewProfile?.({
+      id: profile.id,
       email: profile.email,
       username: profile.username,
       avatar_url: profile.avatar_url,
     });
-  }, [onViewProfile, profile.email, profile.username, profile.avatar_url]);
+  }, [onViewProfile, profile.id, profile.email, profile.username, profile.avatar_url]);
 
   return (
     <div
@@ -619,7 +620,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
     }
     if (group.stories.length === 0) {
       // No story — navigate to their profile if the parent supports it
-      onViewProfile?.({ email: group.email, username: group.username, avatar_url: group.avatarUrl });
+      onViewProfile?.({ id: group.user_id, email: group.email, username: group.username, avatar_url: group.avatarUrl });
       return;
     }
 
