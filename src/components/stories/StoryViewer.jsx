@@ -32,6 +32,7 @@ import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
 import { formatTimeUntil } from '@/lib/timeUntil';
 import { downloadMedia } from '@/lib/downloadMedia';
+import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import StoryOverlayRenderer from './StoryOverlayRenderer';
 
 const STORY_DURATION_MS = 8000;
@@ -264,11 +265,13 @@ export default function StoryViewer({
     if (group?.stories) {
       for (let i = storyIdx + 1; i < Math.min(group.stories.length, storyIdx + 4); i += 1) {
         const s = group.stories[i];
-        if (s && s.media_type !== 'video' && s.image_url) urls.push(s.image_url);
+        // Preload the SAME transformed URL the viewer renders — a raw-URL
+        // preload would warm the wrong cache entry (see lib/imageCdn.js).
+        if (s && s.media_type !== 'video' && s.image_url) urls.push(cdnImageUrl(s.image_url, { width: 1080, quality: 80 }));
       }
     }
     const nextFirst = groups[groupIdx + 1]?.stories?.[0];
-    if (nextFirst && nextFirst.media_type !== 'video' && nextFirst.image_url) urls.push(nextFirst.image_url);
+    if (nextFirst && nextFirst.media_type !== 'video' && nextFirst.image_url) urls.push(cdnImageUrl(nextFirst.image_url, { width: 1080, quality: 80 }));
     // Track the preloaded Image instances so the cleanup can abort
     // their in-flight decode + drop the references for the GC. Without
     // this, advancing through a story tray quickly stacks N×4 Image
@@ -472,8 +475,11 @@ export default function StoryViewer({
                   style={{ filter: currentStory.overlay_style?.filter ?? 'none' }}
                   className="absolute inset-0 w-full h-full object-contain" />
               ) : (
-                <motion.img key={currentStory.id} src={currentStory.image_url} alt=""
-                  onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                <motion.img key={currentStory.id} src={cdnImageUrl(currentStory.image_url, { width: 1080, quality: 80 })} alt=""
+                  onError={(e) => {
+                    if (cdnFallbackSrc(e, currentStory.image_url)) return; // transform failed → retry raw
+                    e.currentTarget.style.display = 'none';
+                  }}
                   initial={{ opacity: 0, x: slideDir.current === 1 ? '60%' : slideDir.current === -1 ? '-60%' : 0 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: slideDir.current === 1 ? '-20%' : slideDir.current === -1 ? '20%' : 0 }}

@@ -29,6 +29,7 @@ import ShareSheetModal from './ShareSheetModal';
 import CreatorAnalyticsPanel from './CreatorAnalyticsPanel';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
+import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 
 // ── Hashtag renderer ──────────────────────────────────────────────────────────
 // Splits post body on #word tokens and renders each as a tappable chip.
@@ -330,6 +331,11 @@ function PollCard({ post, userEmail }) {
 // Tap once to expand to full image; tap again to collapse.
 function ImagePreview({ src }) {
   const [expanded, setExpanded] = useState(false);
+  // CDN transforms (no-ops until VITE_IMAGE_CDN=1 — see lib/imageCdn.js):
+  // the collapsed teaser renders 100px tall + blurred, so it never needs
+  // the full upload; the expanded view caps at sensible mobile width.
+  const teaserSrc   = cdnImageUrl(src, { width: 320,  quality: 50 });
+  const expandedSrc = cdnImageUrl(src, { width: 1080, quality: 75 });
   return (
     <div
       className="border-y border-border bg-black cursor-pointer select-none"
@@ -346,11 +352,14 @@ function ImagePreview({ src }) {
       {expanded ? (
         <div className="relative">
           <img
-            src={src}
+            src={expandedSrc}
             alt=""
             className="w-full max-h-[600px] object-contain"
             loading="lazy"
-            onError={(e) => { e.currentTarget.parentElement.style.display = 'none'; }}
+            onError={(e) => {
+              if (cdnFallbackSrc(e, src)) return; // transform failed → retry raw
+              e.currentTarget.parentElement.style.display = 'none';
+            }}
           />
           <button
             type="button"
@@ -364,12 +373,15 @@ function ImagePreview({ src }) {
       ) : (
         <div className="relative overflow-hidden" style={{ height: 100 }}>
           <img
-            src={src}
+            src={teaserSrc}
             alt=""
             className="w-full h-full object-cover"
             style={{ filter: 'blur(4px)', transform: 'scale(1.05)', opacity: 0.55 }}
             loading="lazy"
-            onError={(e) => { const el = e.currentTarget.closest('[role=button]'); if (el) el.style.display = 'none'; }}
+            onError={(e) => {
+              if (cdnFallbackSrc(e, src)) return; // transform failed → retry raw
+              const el = e.currentTarget.closest('[role=button]'); if (el) el.style.display = 'none';
+            }}
           />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-background/85 backdrop-blur-sm border border-border/60 text-xs font-semibold text-foreground shadow-sm">

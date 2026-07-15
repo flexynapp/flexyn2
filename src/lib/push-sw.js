@@ -12,7 +12,9 @@
 
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { registerRoute, NavigationRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { NetworkFirst, CacheFirst } from 'workbox-strategies';
+import { ExpirationPlugin } from 'workbox-expiration';
+import { CacheableResponsePlugin } from 'workbox-cacheable-response';
 
 // Plugin injects the precache file list here.
 precacheAndRoute(self.__WB_MANIFEST);
@@ -47,6 +49,39 @@ registerRoute(
       networkTimeoutSeconds: 4, // fall back to cache only if network is slow/offline
     })
   )
+);
+
+// ── Supabase storage images: CACHE-FIRST ────────────────────────────────
+//
+// Stories, feed photos, and avatars are immutable once uploaded (paths
+// are content-unique — timestamped filenames, never overwritten), so
+// re-downloading them on every view is pure wasted egress. Cache-first
+// serves repeat views from disk and only hits the network on first
+// sight; this is the single biggest Supabase-egress lever for returning
+// users.
+//
+// Scoped to request.destination === 'image' so story VIDEOS are never
+// cached (large, and range-request streaming doesn't mix with the
+// Cache API). Covers both /object/ and /render/ (CDN-transform) URLs.
+// statuses [0, 200] because cross-origin <img> fetches are no-cors →
+// opaque (status 0). ExpirationPlugin bounds disk usage and evicts
+// oldest-first if the browser squeezes our quota.
+registerRoute(
+  ({ url, request }) =>
+    request.destination === 'image' &&
+    url.hostname.endsWith('.supabase.co') &&
+    url.pathname.startsWith('/storage/v1/'),
+  new CacheFirst({
+    cacheName: 'flexyn-storage-images',
+    plugins: [
+      new CacheableResponsePlugin({ statuses: [0, 200] }),
+      new ExpirationPlugin({
+        maxEntries: 300,
+        maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+        purgeOnQuotaError: true,
+      }),
+    ],
+  })
 );
 
 // ── Push event ──────────────────────────────────────────────────────────────
