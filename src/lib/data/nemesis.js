@@ -28,7 +28,7 @@ export async function getNemesisProfile(nemesisId) {
   // person's Hub profile (?profile=<email>) — screenshot feedback
   // asked for the avatar / @handle area to be tappable to navigate.
   const { data, error } = await selectProfiles((from) => from
-    .select('id, email, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
+    .select('id, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
     .eq('id', nemesisId)
     .single());
   return error ? null : data;

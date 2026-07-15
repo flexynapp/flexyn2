@@ -732,7 +732,7 @@ export async function getCrewFirstAchievers(crewId) {
 
   const userIds = members.map(m => m.user_id);
   const { data: profiles } = await selectProfiles((from) => from
-    .select('id, email, username, avatar_url')
+    .select('id, username, avatar_url')
     .in('id', userIds));
   const profileMap = {};
   for (const p of (profiles ?? [])) profileMap[p.id] = p;
