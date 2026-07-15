@@ -85,14 +85,13 @@ function ProfileRedirect() {
   useEffect(() => {
     if (!username) { setTarget(false); return; }
     const handle = username.replace(/^@/, '');
-    // Resolve username → email via the narrow resolve_profile_email RPC
-    // (migration 195). email was removed from the public_profiles view to
-    // stop bulk harvesting via the anon key; this RPC returns the single
-    // matching email for an exact username (still anon-callable so shared
-    // /@username links resolve for logged-out visitors).
+    // Resolve username → user_id via get_public_profile_by_username (mig 206,
+    // anon-callable so shared /@username links resolve for logged-out
+    // visitors). Redirecting by id (not email) keeps email out of the URL and
+    // matches the id-keyed profile route — no email round-trip needed.
     supabase
-      .rpc('resolve_profile_email', { p_username: handle })
-      .then(({ data }) => setTarget(data || false));
+      .rpc('get_public_profile_by_username', { p_username: handle })
+      .then(({ data }) => setTarget(data?.id || false));
   }, [username]);
   if (target === null) {
     return <div className="fixed inset-0 flex items-center justify-center"><div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" /></div>;
