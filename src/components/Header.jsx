@@ -137,13 +137,14 @@ export default function Header() {
             type="button"
             onClick={() => navigate('/messages')}
             aria-label={tFallback('hub.messages.title', 'Messages')}
-            className={`relative h-11 w-11 inline-flex items-center justify-center rounded-lg transition-colors ${
-              onMessages
-                ? 'bg-primary/10 text-primary'
-                : 'text-muted-foreground hover:bg-secondary'
+            className={`group relative h-11 w-11 inline-flex items-center justify-center transition-colors ${
+              onMessages ? 'text-primary' : 'text-muted-foreground'
             }`}
           >
-            <MessageCircle className="w-5 h-5" />
+            {/* Highlight is an inner pill (not the full w-11 tap box) so it
+                fits the tight icon spacing without overlapping the bell. */}
+            <span className={`absolute inset-y-1.5 inset-x-2.5 rounded-lg transition-colors ${onMessages ? 'bg-primary/10' : 'group-hover:bg-secondary'}`} />
+            <MessageCircle className="relative w-5 h-5" />
             {unreadDM > 0 && (
               <motion.span
                 key={unreadDM}

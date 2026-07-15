@@ -80,9 +80,12 @@ export default function NotificationBell() {
         type="button"
         onClick={handleOpen}
         aria-label={ariaLabel}
-        className="relative h-11 w-11 inline-flex items-center justify-center rounded-md hover:bg-secondary transition-colors"
+        className="group relative h-11 w-11 inline-flex items-center justify-center transition-colors"
       >
-        <Bell className="w-5 h-5 text-foreground" aria-hidden="true" />
+        {/* Inner pill highlight so the tightly-spaced header icons don't
+            overlap on hover; tap target stays the full h-11 w-11. */}
+        <span className="absolute inset-y-1.5 inset-x-2.5 rounded-lg group-hover:bg-secondary transition-colors" />
+        <Bell className="relative w-5 h-5 text-foreground" aria-hidden="true" />
         {/*
           aria-live="polite" on the badge so the count change is
           announced WITHOUT interrupting the user's current screen
