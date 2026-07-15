@@ -439,9 +439,18 @@ export default function StoriesRow({ onViewProfile } = {}) {
     staleTime: 60_000,
   });
 
+  // Id-keyed follow list for the stories feed — it resolves owner profiles
+  // by user_id, so it never needs the followed users' emails.
+  const { data: followingIds = [] } = useQuery({
+    queryKey: ['hubFollowingIds', user?.id],
+    queryFn:  () => hubFollows.listFollowingIds(user.id),
+    enabled:  !!user?.id,
+    staleTime: 60_000,
+  });
+
   const { data: feedData } = useQuery({
-    queryKey: ['storiesFeed', user?.id, followingEmails.join(',')],
-    queryFn:  () => storiesData.getStoriesFeedData(user, followingEmails),
+    queryKey: ['storiesFeed', user?.id, followingIds.join(',')],
+    queryFn:  () => storiesData.getStoriesFeedData(user, followingIds),
     enabled:  !!user?.id,
     staleTime: 30_000,
     refetchOnWindowFocus: true,
@@ -620,11 +629,11 @@ export default function StoriesRow({ onViewProfile } = {}) {
     }
     if (group.stories.length === 0) {
       // No story — navigate to their profile if the parent supports it
-      onViewProfile?.({ id: group.user_id, email: group.email, username: group.username, avatar_url: group.avatarUrl });
+      onViewProfile?.({ id: group.user_id, username: group.username, avatar_url: group.avatarUrl });
       return;
     }
 
-    const idx = storyGroups.findIndex(g => g.email === group.email);
+    const idx = storyGroups.findIndex(g => g.user_id === group.user_id);
     setViewerStartIdx(Math.max(0, idx));
     setViewerOpen(true);
   }, [storyGroups, onViewProfile]);
@@ -775,7 +784,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
           {/* Slots 2+: Own avatar + friends */}
           {groups.map(group => (
             <StoryAvatarButton
-              key={group.email}
+              key={group.user_id}
               group={group}
               onPress={() => handleAvatarPress(group)}
               onNoteLike={() => group.note && handleNoteLike(group.note)}

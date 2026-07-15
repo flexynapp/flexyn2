@@ -17,28 +17,29 @@ import { findOrCreateConversation, sendMessage } from './hubMessages';
  *
  * Returns { groups, viewedIds, likedIds, noteByEmail, likedNoteIds, ownPrivacyDefault }
  */
-export async function getStoriesFeedData(user, followingEmails = []) {
-  if (!user?.id) return { groups: [], viewedIds: new Set(), likedIds: new Set(), noteByEmail: {}, likedNoteIds: new Set(), ownPrivacyDefault: 'friends' };
+export async function getStoriesFeedData(user, followingIds = []) {
+  if (!user?.id) return { groups: [], viewedIds: new Set(), likedIds: new Set(), noteByUserId: {}, likedNoteIds: new Set(), ownPrivacyDefault: 'friends' };
 
-  const allEmails = [...new Set([user.email, ...followingEmails])];
+  const allIds = [...new Set([user.id, ...followingIds])];
   const now = new Date().toISOString();
 
   const [storiesRes, profilesRes, viewsRes, likesRes, notesRes, blocksRes] = await Promise.all([
     supabase
       .from('stories')
       .select('*')
-      .in('user_email', allEmails)
+      .in('user_id', allIds)
       .is('crew_id', null)   // SECURITY: exclude crew-scoped stories from the personal feed
       .gt('expires_at', now)
       .order('created_at', { ascending: true }),
 
+    // Resolve owner profiles by user_id — never off the email column.
     // story_dms_disabled (migration 046) + default_story_privacy
     // (migration 047) may be missing in mid-migration environments;
     // safeSelect strips and retries so the StoriesRow doesn't crash
     // the Hub when one of those migrations is pending.
     safeSelect({
-      columns: ['id', 'email', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
-      build: (cols) => selectProfiles((from) => from.select(cols).in('email', allEmails)),
+      columns: ['id', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy'],
+      build: (cols) => selectProfiles((from) => from.select(cols).in('id', allIds)),
     }),
 
     supabase
@@ -54,23 +55,23 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     supabase
       .from('status_notes')
       .select('*')
-      .in('user_email', allEmails)
+      .in('user_id', allIds)
       .gt('expires_at', now)
       .order('created_at', { ascending: false }),
 
-    // Who has blocked the current viewer?
+    // Who has blocked the current viewer? (id-keyed block graph, mig 210)
     supabase
       .from('story_blocks')
-      .select('blocker_email')
-      .eq('blocked_email', user.email),
+      .select('blocker_id')
+      .eq('blocked_id', user.id),
   ]);
 
-  const stories          = storiesRes.data  ?? [];
-  const profiles         = profilesRes.data ?? [];
-  const viewedIds        = new Set((viewsRes.data  ?? []).map(r => r.story_id));
-  const likedIds         = new Set((likesRes.data  ?? []).map(r => r.story_id));
-  const notes            = notesRes.data    ?? [];
-  const blockedByEmails  = new Set((blocksRes.data ?? []).map(r => r.blocker_email));
+  const stories        = storiesRes.data  ?? [];
+  const profiles       = profilesRes.data ?? [];
+  const viewedIds      = new Set((viewsRes.data  ?? []).map(r => r.story_id));
+  const likedIds       = new Set((likesRes.data  ?? []).map(r => r.story_id));
+  const notes          = notesRes.data    ?? [];
+  const blockedByIds   = new Set((blocksRes.data ?? []).map(r => r.blocker_id));
 
   // Fetch liked note IDs and note like counts in a second parallel pass
   const noteIds = notes.map(n => n.id);
@@ -89,37 +90,40 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     noteLikeCounts[r.note_id] = (noteLikeCounts[r.note_id] ?? 0) + 1;
   }
 
-  // Most-recent active note per email
-  const noteByEmail = {};
+  // Most-recent active note per user_id
+  const noteByUserId = {};
   for (const note of notes) {
-    if (!noteByEmail[note.user_email]) {
-      noteByEmail[note.user_email] = { ...note, likeCount: noteLikeCounts[note.id] ?? 0 };
+    if (!noteByUserId[note.user_id]) {
+      noteByUserId[note.user_id] = { ...note, likeCount: noteLikeCounts[note.id] ?? 0 };
     }
   }
 
-  const profileByEmail = Object.fromEntries(profiles.map(p => [p.email, p]));
+  const profileById = Object.fromEntries(profiles.map(p => [p.id, p]));
 
   const storyMap = new Map();
   for (const story of stories) {
-    if (!storyMap.has(story.user_email)) storyMap.set(story.user_email, []);
-    storyMap.get(story.user_email).push(story);
+    if (!storyMap.has(story.user_id)) storyMap.set(story.user_id, []);
+    storyMap.get(story.user_id).push(story);
   }
 
-  const groups = allEmails
-    .filter(email => email === user.email || !blockedByEmails.has(email))
-    .map(email => {
-      const profile     = profileByEmail[email] ?? {};
-      const userStories = storyMap.get(email)   ?? [];
+  const groups = allIds
+    .filter(id => id === user.id || !blockedByIds.has(id))
+    .map(id => {
+      const profile     = profileById[id] ?? {};
+      const userStories = storyMap.get(id)  ?? [];
       return {
-        email,
-        user_id:            profile.id ?? null,
+        user_id:            id,
+        // Owner email for the story-reply DM path only, sourced from the
+        // story row's own user_email column (NOT the public_profiles view).
+        // Null for no-story groups — you can't reply to those anyway.
+        email:              userStories[0]?.user_email ?? null,
         username:           profile.username || 'Athlete',
         avatarUrl:          profile.avatar_url ?? null,
         storyDmsDisabled:   profile.story_dms_disabled ?? false,
-        isOwn:              email === user.email,
+        isOwn:              id === user.id,
         stories:            userStories,
         hasUnseen:          userStories.some(s => !viewedIds.has(s.id)),
-        note:               noteByEmail[email] ?? null,
+        note:               noteByUserId[id] ?? null,
       };
     });
 
@@ -132,12 +136,12 @@ export async function getStoriesFeedData(user, followingEmails = []) {
     return 0;
   });
 
-  const ownProfile = profileByEmail[user.email] ?? {};
+  const ownProfile = profileById[user.id] ?? {};
   return {
     groups,
     viewedIds,
     likedIds,
-    noteByEmail,
+    noteByUserId,
     likedNoteIds,
     ownPrivacyDefault: ownProfile.default_story_privacy ?? 'friends',
   };

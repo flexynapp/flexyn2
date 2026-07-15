@@ -38,6 +38,20 @@ export const listFollowers = async (email) => {
   return rows.map(r => r.follower_email);
 };
 
+/**
+ * List the user_ids the given user is following — the id-keyed twin of
+ * listFollowing(). follower_id / followee_id are backfilled and
+ * trigger-maintained (mig 208), so this reads the same follow graph
+ * without touching emails. Prefer this over listFollowing() on paths that
+ * resolve profiles by id (e.g. the stories feed) so they never depend on
+ * the public_profiles email column.
+ */
+export const listFollowingIds = async (userId) => {
+  if (!userId) return [];
+  const rows = await e().filter({ follower_id: userId }, '-created_date', 500).catch(() => []);
+  return rows.map(r => r.followee_id).filter(Boolean);
+};
+
 /** Check if follower follows target. */
 export const isFollowing = async (followerEmail, followeeEmail) => {
   if (!followerEmail || !followeeEmail) return false;
