@@ -458,7 +458,7 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
         />
         {/* PYMK suggestion rail — shown on Squad empty state to help new users build their network */}
         {feedTab === 'squad' && (
-          <PeopleYouMayKnow onSelectUser={(u) => navigate(`/hub?profile=${encodeURIComponent(u.email)}`)} />
+          <PeopleYouMayKnow onSelectUser={(u) => navigate(`/hub?profile=${encodeURIComponent(u.id || u.email)}`)} />
         )}
       </div>
     );
