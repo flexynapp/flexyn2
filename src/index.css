@@ -263,7 +263,7 @@
   position: absolute;
   top: 0; left: 12%; right: 12%;
   height: 1.5px;
-  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.45), transparent);
+  background: linear-gradient(90deg, transparent, var(--card-accent, hsl(var(--primary) / 0.45)), transparent);
   pointer-events: none;
   border-radius: inherit;
   transition: opacity 0.2s ease;
@@ -275,7 +275,7 @@
 [data-theme-tier='legendary'] .theme-card-accent::before {
   left: 0; right: 0;
   height: 2px;
-  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.65), transparent);
+  background: linear-gradient(90deg, transparent, var(--card-accent, hsl(var(--primary) / 0.65)), transparent);
 }
 
 /* Legendary tier adds a gentle pulse so the rarest themes shimmer. */

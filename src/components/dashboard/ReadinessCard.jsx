@@ -96,6 +96,10 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
         className="h-full"
       >
         <Card
+          // Tint the top accent strip with the readiness status colour
+          // (green / amber / orange / rose) instead of the app's orange
+          // primary, so it matches the card rather than clashing with it.
+          style={{ '--card-accent': `${colors.ring}73` }}
           className={`px-2 py-1 border ${colors.border} ${colors.bg} h-full flex flex-col items-center justify-center gap-0.5 ${onClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
           // Compact mode hides the action copy — surface it as a
           // tooltip + aria-label so screen readers + hover users still
@@ -145,7 +149,7 @@ export default function ReadinessCard({ logs = [], compact = false, onClick }) {
         {...wrapperProps}
         className={`block w-full text-start ${onClick ? 'cursor-pointer hover:opacity-95 transition-opacity' : ''}`}
       >
-      <Card className={`px-4 py-3 border ${colors.border} ${colors.bg}`}>
+      <Card style={{ '--card-accent': `${colors.ring}73` }} className={`px-4 py-3 border ${colors.border} ${colors.bg}`}>
         <div className="flex items-center gap-3">
           <div className="relative shrink-0" style={{ width: SIZE, height: SIZE }}>
             <svg width={SIZE} height={SIZE} className="-rotate-90">
