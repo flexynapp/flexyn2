@@ -7,16 +7,53 @@
 
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
+import { createBatcher } from '@/lib/microBatcher';
 import * as hubPosts from './hubPosts';
 
 const e = () => db.entities.HubReaction;
+
+// ── Batched my-reaction reads ────────────────────────────────────────────
+//
+// Every feed card fires getMyReaction + getMyEmojiReaction on mount —
+// 2 queries × N cards per page. Both read the same table with the same
+// (post_id, created_by) predicate, so one batcher serves both: calls
+// landing in the same tick collapse into a single
+// `post_id IN (…) AND created_by = email` query, and each helper picks
+// what it needs from the per-post row list (newest-first, mirroring the
+// old per-post `-created_date` order). One batcher per email — in
+// practice just the signed-in user. Covered by the table's
+// (created_by, post_id, emoji) unique index.
+const myRowsBatchers = new Map();
+const loadMyRows = (email, postId) => {
+  let batcher = myRowsBatchers.get(email);
+  if (!batcher) {
+    batcher = createBatcher(async (postIds) => {
+      const { data, error } = await supabase
+        .from('hub_reactions')
+        .select('*')
+        .in('post_id', postIds)
+        .eq('created_by', email)
+        .order('created_date', { ascending: false });
+      if (error) throw error;
+      const byPost = new Map();
+      for (const row of data || []) {
+        const rows = byPost.get(row.post_id);
+        if (rows) rows.push(row);
+        else byPost.set(row.post_id, [row]);
+      }
+      return byPost;
+    });
+    myRowsBatchers.set(email, batcher);
+  }
+  return batcher(postId);
+};
 
 /** Get the current user's reaction (or null) for a given post. */
 export const getMyReaction = async (postId, email) => {
   if (!postId || !email) return null;
   // Filter by created_by (auto-injected on insert) — migration also populates user_email
-  const rows = await e().filter({ post_id: postId, created_by: email }, '-created_date', 1).catch(() => []);
-  return rows[0] || null;
+  const rows = await loadMyRows(email, postId).catch(() => null);
+  return rows?.[0] || null;
 };
 
 /**
@@ -83,12 +120,10 @@ export const setReaction = async (postId, email, newReaction /* 'like' | 'dislik
  */
 export async function getMyEmojiReaction(postId, email) {
   if (!postId || !email) return null;
-  const rows = await e().filter(
-    { post_id: postId, created_by: email, reaction_type: null },
-    '-created_date',
-    1,
-  ).catch(() => []);
-  return rows[0]?.emoji || null;
+  // Shares the batched (post_id IN …) fetch with getMyReaction; emoji
+  // reactions are the rows with reaction_type NULL, newest first.
+  const rows = await loadMyRows(email, postId).catch(() => null);
+  return rows?.find((r) => r.reaction_type == null)?.emoji || null;
 }
 
 /**

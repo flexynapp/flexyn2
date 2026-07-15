@@ -8,7 +8,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubPosts from '@/lib/data/hubPosts';
 import * as hubFollows from '@/lib/data/hubFollows';
-import { supabase } from '@/api/supabaseClient';
+import { onHubPostInsert } from '@/lib/hubPostsRealtime';
 import HubPostCard from './HubPostCard';
 import EmptyState from '@/components/EmptyState';
 import { NoFeedIllustration, NoFriendsIllustration } from '@/components/emptyStateIllustrations';
@@ -123,24 +123,21 @@ export default function HubFeed({ feedTab, onAuthorClick }) {
 
   useEffect(() => {
     if (!user?.email) return;
-    const channelName = `hub_feed_new_posts_${user.email}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
     const myEmailLc = user.email.toLowerCase();
-    const ch = supabase.channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_posts' }, (payload) => {
-        const row = payload.new;
-        if (!row) return;
-        const authorLc = row.author_email?.toLowerCase();
-        if (!authorLc || authorLc === myEmailLc) return;
-        const f = realtimeFilterRef.current;
-        if (f.blockedLc.has(authorLc)) return;
-        if (f.mutedLc.has(authorLc))   return;
-        if (row.privacy && row.privacy !== 'public' && row.privacy !== 'followers') return;
-        if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return;
-        if (f.feedTab === 'squad' && !f.followingLc.has(authorLc)) return;
-        setPendingNewCount(c => c + 1);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch).catch(() => {}); };
+    // Shared hub_posts INSERT subscription (one Realtime channel per
+    // client, multiplexed with FollowerActivityBanner — see
+    // src/lib/hubPostsRealtime.js).
+    return onHubPostInsert((row) => {
+      const authorLc = row.author_email?.toLowerCase();
+      if (!authorLc || authorLc === myEmailLc) return;
+      const f = realtimeFilterRef.current;
+      if (f.blockedLc.has(authorLc)) return;
+      if (f.mutedLc.has(authorLc))   return;
+      if (row.privacy && row.privacy !== 'public' && row.privacy !== 'followers') return;
+      if (row.publish_at && new Date(row.publish_at).getTime() > Date.now()) return;
+      if (f.feedTab === 'squad' && !f.followingLc.has(authorLc)) return;
+      setPendingNewCount(c => c + 1);
+    });
   }, [user?.email]);
 
   // Reset visible count when switching tabs — start fresh at 8.

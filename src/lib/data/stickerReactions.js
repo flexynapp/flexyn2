@@ -2,12 +2,45 @@
 // Sticker reactions on hub posts — backed by post_sticker_reactions table.
 
 import { supabase } from '@/api/supabaseClient';
+import { createBatcher } from '@/lib/microBatcher';
+
+const PER_POST_LIMIT = 50;
+
+// Feed cards each fetch a post's sticker reactions on mount — one query
+// per card. Coalesce same-tick calls into a single `post_id IN (…)`
+// fetch. The global row cap scales with the batch size so the worst
+// case matches what the old per-post queries could return combined;
+// per-post slicing below re-applies the exact per-post cap.
+const postReactionsBatcher = createBatcher(async (postIds) => {
+  const { data, error } = await supabase
+    .from('post_sticker_reactions')
+    .select('*')
+    .in('post_id', postIds)
+    .order('created_at', { ascending: false })
+    .limit(postIds.length * PER_POST_LIMIT);
+  if (error) throw error;
+  const byPost = new Map();
+  for (const row of data ?? []) {
+    const rows = byPost.get(row.post_id);
+    if (rows) rows.push(row);
+    else byPost.set(row.post_id, [row]);
+  }
+  // Newest-first per post → cap → reverse for chronological display.
+  for (const [id, rows] of byPost) {
+    byPost.set(id, rows.slice(0, PER_POST_LIMIT).reverse());
+  }
+  return byPost;
+});
 
 /** Fetch the most recent N sticker reactions for a post (default 50).
  *  Capped to avoid hammering the DB on viral posts; the UI shows a
  *  "+N more" rollup when the count exceeds the limit. */
-export async function getPostReactions(postId, limit = 50) {
+export async function getPostReactions(postId, limit = PER_POST_LIMIT) {
   if (!postId) return [];
+  if (limit === PER_POST_LIMIT) {
+    return (await postReactionsBatcher(postId)) || [];
+  }
+  // Non-default limit — rare path, keep the exact single-post query.
   const { data, error } = await supabase
     .from('post_sticker_reactions')
     .select('*')

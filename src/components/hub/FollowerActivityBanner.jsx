@@ -21,7 +21,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, X, Trophy, Dumbbell, MessageCircle } from 'lucide-react';
-import { supabase } from '@/api/supabaseClient';
+import { onHubPostInsert } from '@/lib/hubPostsRealtime';
 import { useAuth } from '@/lib/AuthContext';
 import { useQuery } from '@tanstack/react-query';
 import * as hubFollows from '@/lib/data/hubFollows';
@@ -87,30 +87,22 @@ export default function FollowerActivityBanner() {
 
   useEffect(() => {
     if (!user?.email) return;
-
-    // Unique per-mount channel name — same defensive pattern as
-    // HubFeed (avoids "cannot add postgres_changes callbacks after
-    // subscribe()" on React 18 StrictMode double-mount).
-    const channelName = `hub_follower_activity_${user.email}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
     const myEmailLc = user.email.toLowerCase();
 
-    const ch = supabase.channel(channelName)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'hub_posts' }, (payload) => {
-        const post = payload?.new;
-        if (!post) return;
-        const author = (post.author_email || '').toLowerCase();
-        if (author === myEmailLc) return; // skip own
-        if (!followingSetRef.current.has(author)) return; // not followed (read live from ref)
-        const id = post.id || `${author}-${Date.now()}`;
-        setBanners((prev) => {
-          // Dedupe by post id (Realtime can fire duplicates on resub).
-          if (prev.some((b) => b.id === id)) return prev;
-          // Keep newest first; cap at MAX_VISIBLE.
-          return [{ id, post }, ...prev].slice(0, MAX_VISIBLE);
-        });
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch).catch(() => {}); };
+    // Shared hub_posts INSERT subscription (one Realtime channel per
+    // client, multiplexed with HubFeed — see src/lib/hubPostsRealtime.js).
+    return onHubPostInsert((post) => {
+      const author = (post.author_email || '').toLowerCase();
+      if (author === myEmailLc) return; // skip own
+      if (!followingSetRef.current.has(author)) return; // not followed (read live from ref)
+      const id = post.id || `${author}-${Date.now()}`;
+      setBanners((prev) => {
+        // Dedupe by post id (Realtime can fire duplicates on resub).
+        if (prev.some((b) => b.id === id)) return prev;
+        // Keep newest first; cap at MAX_VISIBLE.
+        return [{ id, post }, ...prev].slice(0, MAX_VISIBLE);
+      });
+    });
   }, [user?.email]);
 
   // Auto-dismiss each banner after AUTO_DISMISS_MS. Per-banner timer
