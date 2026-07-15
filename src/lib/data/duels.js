@@ -92,17 +92,12 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
       .eq('id', user.id)
       .single();
 
-    // Resolve opponent's email via the narrow resolve_profile_email RPC
-    // (migration 195). We deliberately do NOT read email off the
-    // public_profiles view here — the view still exposes email today, but
-    // the goal is to drop that column, so this path resolves the single
-    // matching email by id through the RPC instead of a view select.
-    const { data: opEmail } = await supabase
-      .rpc('resolve_profile_email', { p_id: opponentId });
+    if (!myProfile?.email) return;
 
-    if (!myProfile?.email || !opEmail) return;
-
-    const conv = await findOrCreateConversation(myProfile.email, opEmail);
+    // Pass the opponent by id — findOrCreateConversation resolves it to an
+    // email server-side (resolve_profile_email), so we never read the
+    // opponent's email off the public_profiles view here.
+    const conv = await findOrCreateConversation(myProfile.email, opponentId);
     if (!conv?.id) return;
 
     const payload = JSON.stringify({
