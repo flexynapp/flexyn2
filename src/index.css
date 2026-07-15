@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Leckerli+One&family=Press+Start+2P&family=Space+Grotesk:wght@400;500;600;700&family=Caveat:wght@500;700&display=swap');
+/* Fonts moved to a <link rel="preconnect"> + stylesheet in index.html <head>
+   so they load in parallel with the bundle instead of being chained behind
+   this CSS via @import (which caused a cold-load flash on heading text). */
 
 @tailwind base;
 @tailwind components;
