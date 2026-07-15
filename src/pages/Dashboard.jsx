@@ -144,17 +144,17 @@ function HeroCard({
         <div className="absolute inset-0 opacity-100 pointer-events-none">
           <motion.div
             key={`mesh-tr-${slideColor || 'default'}`}
-            initial={{ opacity: 0.4 }}
-            animate={{ opacity: 0.7 }}
+            initial={{ opacity: 0.6 }}
+            animate={{ opacity: 0.9 }}
             transition={{ duration: 0.7, ease: 'easeOut' }}
             className="absolute -top-1/3 -end-1/4 w-[120%] h-[140%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.12), transparent 65%)` }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.20), transparent 65%)` }}
           />
           <motion.div
             key={`mesh-bl-${slideColor || 'default'}`}
             className="absolute -bottom-1/3 -start-1/4 w-[100%] h-[120%] rounded-full blur-3xl"
-            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.07), transparent 70%)` }}
-            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.6, 0.8, 0.6] }}
+            style={{ background: `radial-gradient(circle, hsl(${slideColor || 'var(--primary)'} / 0.13), transparent 70%)` }}
+            animate={{ x: [0, 20, 0], y: [0, -10, 0], opacity: [0.75, 0.95, 0.75] }}
             transition={{ duration: 9, repeat: Infinity, ease: 'easeInOut' }}
           />
         </div>
