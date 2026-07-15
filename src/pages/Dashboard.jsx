@@ -1369,7 +1369,7 @@ export default function Dashboard() {
            tiering below by product decision. */}
       <StoriesRow
         onViewProfile={(u) =>
-          navigate('/hub?profile=' + encodeURIComponent(u.email))
+          navigate('/hub?profile=' + encodeURIComponent(u.id || u.email))
         }
       />
 
