@@ -111,7 +111,7 @@ export async function sendDuelDM(duelId, opponentId, type = 'open', windowHours 
     await sendMessage({
       conversationId: conv.id,
       senderEmail:    myProfile.email,
-      recipientEmail: opProfile.email,
+      recipientId:    opponentId,
       body:           `[DUEL_INVITE_V1]${payload}`,
     });
   } catch (err) {
