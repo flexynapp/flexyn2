@@ -260,24 +260,29 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const isLoading = useDelayedLoading(convsLoading);
   const crewsLoading = useDelayedLoading(crewsLoadingRaw);
 
-  const otherEmails = (conversations || [])
-    .map(c => (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()))
+  // Resolve each other-participant's DISPLAY profile (username/avatar) by
+  // user_id via participant_ids — not by scanning users.list() and matching
+  // on email. participant_ids is backfilled + trigger-maintained (mig 216)
+  // and RLS already authorises the id path. The email needed for the SEND
+  // path is read from each conversation's own participant_emails column in
+  // the render below (not the public_profiles view), so this drops the
+  // view's email from the inbox without touching message delivery.
+  const otherIds = (conversations || [])
+    .map(c => (c.participant_ids || []).find(id => id && id !== user?.id))
     .filter(Boolean);
 
-  const { data: profilesByEmail = {} } = useQuery({
-    queryKey: ['hubMessageProfiles', otherEmails.sort().join(',')],
+  const { data: profilesById = {} } = useQuery({
+    queryKey: ['hubMessageProfiles', otherIds.slice().sort().join(',')],
     queryFn: async () => {
-      if (otherEmails.length === 0) return {};
-      const all = await users.list().catch(() => []);
-      const otherEmailsLc = new Set(otherEmails.map(e => e?.toLowerCase()).filter(Boolean));
+      if (otherIds.length === 0) return {};
+      const { data } = await users.selectProfiles((from) => from
+        .select('id, username, avatar_url')
+        .in('id', otherIds));
       const map = {};
-      for (const u of all) {
-        const lc = u.email?.toLowerCase();
-        if (lc && otherEmailsLc.has(lc)) map[lc] = u;
-      }
+      for (const u of (data ?? [])) map[u.id] = u;
       return map;
     },
-    enabled: otherEmails.length > 0,
+    enabled: otherIds.length > 0,
     staleTime: 60_000,
   });
 
@@ -423,8 +428,9 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
           ) : (
             <div className="space-y-1">
               {visibleConvs.map((c, i) => {
+                const otherId = (c.participant_ids || []).find(id => id && id !== user?.id) || '';
                 const otherEmail = (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()) || '';
-                const profile = profilesByEmail[otherEmail?.toLowerCase()];
+                const profile = profilesById[otherId];
                 const username = profile?.username || null;
                 const handle = username ? `@${username}` : t('hub.profile.anonymousAthlete');
                 const initials = (username || '?').slice(0, 2).toUpperCase();
@@ -514,7 +520,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     <button
                       onClick={() => {
                         setActiveConv(c);
-                        setOpenOtherUser(profile || { email: otherEmail, username });
+                        setOpenOtherUser(profile ? { ...profile, email: otherEmail } : { id: otherId, email: otherEmail, username });
                       }}
                       className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
                     >
