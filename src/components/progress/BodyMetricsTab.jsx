@@ -10,8 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Plus, Trash2, Scale, Pencil, X, Check, Ruler } from 'lucide-react';
-import MuscleDiagram from '@/components/body-metrics/MuscleDiagram';
-import MuscleDetailsModal from '@/components/body-metrics/MuscleDetailsModal';
+import MuscleGroupHeatmap from '@/components/progress/MuscleGroupHeatmap';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, Legend,
@@ -189,7 +188,6 @@ export default function BodyMetricsTab() {
   const [initialForm, setInitialForm] = useState(null);
   const [editingProfile, setEditingProfile] = useState(null);
   const [editValue, setEditValue] = useState('');
-  const [muscleModal, setMuscleModal] = useState({ open: false, muscleId: null, category: null });
 
   // Fetch user profile for height + pre-filled weight
   const { data: profile } = useQuery({
@@ -221,10 +219,6 @@ export default function BodyMetricsTab() {
 
   const entries = useMemo(() => filterAfterReset(rawEntries, profile), [rawEntries, profile]);
   const logs = useMemo(() => filterAfterReset(rawLogs, profile), [rawLogs, profile]);
-
-  const handleMuscleClick = (muscleId, muscleData) => {
-    setMuscleModal({ open: true, muscleId, category: muscleData.category });
-  };
 
   const createMutation = useMutation({
     mutationFn: d => db.entities.BodyMetric.create(d),
@@ -581,26 +575,11 @@ export default function BodyMetricsTab() {
         </Card>
         )}
 
-          {/* Training Heatmap */}
-        <div className="w-full overflow-x-auto">
-          <div style={{ minWidth: 320 }}>
-            <MuscleDiagram
-              workoutHistory={logs}
-              gender={profile?.gender}
-              timeRange="30d"
-              onMuscleClick={handleMuscleClick}
-            />
-          </div>
-        </div>
-
-        {/* Muscle Details Modal */}
-        <MuscleDetailsModal
-          open={muscleModal.open}
-          onClose={() => setMuscleModal({ open: false, muscleId: null, category: null })}
-          muscleId={muscleModal.muscleId}
-          category={muscleModal.category}
-          workoutHistory={logs}
-        />
+          {/* Body Heat Map — front/back anatomical figure coloured by
+              per-muscle recovery / training volume (Claude Design handoff,
+              wired to real logs). Replaces the old MuscleDiagram training
+              heatmap. Renders even with no logs (all-fresh + a hint). */}
+        <MuscleGroupHeatmap logs={logs} />
 
         {/* History Table */}
       {sorted.length === 0 ? (

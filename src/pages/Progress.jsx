@@ -32,7 +32,6 @@ import PRHistoryModal from '@/components/progress/PRHistoryModal';
 // src/components/achievements/AchievementsVault.jsx.
 import GroupedExerciseTrends from '@/components/progress/GroupedExerciseTrends';
 import TrainingPatternCard from '@/components/progress/TrainingPatternCard';
-import MuscleGroupHeatmap from '@/components/progress/MuscleGroupHeatmap';
 import WorkoutCalendarGrid from '@/components/progress/WorkoutCalendarGrid';
 import PageHeader from '@/components/PageHeader';
 import { latestDebrief, generateWeeklyDebrief, currentWeekStart } from '@/lib/data/debriefs';
@@ -254,14 +253,12 @@ function AnalyticsTab({ logs }) {
   const trainedDays = workoutFrequency.filter(d => d.Workouts === 1).length;
 
   if (logs.length === 0) {
-    // Charts have nothing to plot yet, but the muscle map still renders —
-    // it shows the full body figure (all fresh) with a "log a workout"
-    // hint, so the Body Heat Map is visible the moment you open Progress
-    // instead of being replaced by a blank "no data" card.
     return (
-      <ErrorBoundary label="MuscleGroupHeatmap">
-        <MuscleGroupHeatmap logs={logs} />
-      </ErrorBoundary>
+      <Card className="p-12 text-center border-dashed">
+        <BarChart2 className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+        <p className="font-heading font-semibold">No data yet</p>
+        <p className="text-sm text-muted-foreground mt-1">{t('progress.logWorkoutsForAnalytics')}</p>
+      </Card>
     );
   }
 
@@ -317,14 +314,6 @@ function AnalyticsTab({ logs }) {
           </ResponsiveContainer>
         )}
       </Card>
-
-      {/* Body Heat Map — front/back anatomical figure coloured by per-muscle
-          recovery / training volume (Claude Design handoff, wired to real
-          logs). Also rendered on its own in the no-data branch above so the
-          figure is always visible. */}
-      <ErrorBoundary label="MuscleGroupHeatmap">
-        <MuscleGroupHeatmap logs={logs} />
-      </ErrorBoundary>
 
       <Card className="p-5 border-none shadow-sm">
         <div className="flex items-center justify-between mb-1">
