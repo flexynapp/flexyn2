@@ -315,8 +315,8 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           {/* Tab switcher — Weekly plan grid vs. Nutrition Plans browser */}
           <div className="flex gap-1 p-1 mx-4 my-2 bg-secondary rounded-lg shrink-0">
             {[
-              { id: 'planner', label: 'Weekly plan' },
-              { id: 'plans',   label: 'Plans' },
+              { id: 'planner', label: 'Weekly Plan' },
+              { id: 'plans',   label: 'Nutritional Plans' },
             ].map(tb => (
               <button
                 key={tb.id}
