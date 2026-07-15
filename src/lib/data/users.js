@@ -74,10 +74,23 @@ export async function selectProfiles(build) {
   return result;
 }
 
-/** List all (public) profiles. Mirrors the old db.entities.User.list(). */
-export async function list(limit = 1000) {
+// Lean column set for author/flair resolution (useAuthors, which runs on every
+// Hub feed load). The resolver + @mention autocomplete only read these 7 fields
+// — selecting them instead of `*` avoids pulling all 32 profile columns (incl.
+// the trophy_case JSONB) for every user on the hottest read path. Scales with
+// the user count.
+export const AUTHOR_COLUMNS =
+  'id, email, username, avatar_url, equipped_title_id, equipped_frame_id, signature_trophy';
+
+/**
+ * List all (public) profiles. Mirrors the old db.entities.User.list().
+ * @param {number} limit
+ * @param {string} columns  PostgREST column list; defaults to '*'. Pass a lean
+ *   subset (e.g. AUTHOR_COLUMNS) on hot paths that only need a few fields.
+ */
+export async function list(limit = 1000, columns = '*') {
   const { data, error } = await selectProfiles((from) =>
-    from.select('*').limit(limit)
+    from.select(columns).limit(limit)
   );
   if (error) throw error;
   return data ?? [];

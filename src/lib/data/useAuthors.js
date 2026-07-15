@@ -19,7 +19,9 @@ export function useAuthorsById() {
   const qc = useQueryClient();
   const { data: list = [] } = useQuery({
     queryKey: ['hubAuthorsList'],
-    queryFn: () => users.list().catch(() => []),
+    // Lean fetch: the resolver + @mention autocomplete only read 7 fields,
+    // so skip the full select('*') (all 32 profile cols) on every feed load.
+    queryFn: () => users.list(1000, users.AUTHOR_COLUMNS).catch(() => []),
     staleTime: 60_000,
     refetchOnWindowFocus: true,
   });
