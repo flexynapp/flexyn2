@@ -74,7 +74,7 @@ export default function LiveSessionCard({ session, onViewProfile }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => onViewProfile?.({ email: session.host_email })}
+              onClick={() => onViewProfile?.({ id: session.host_user_id, email: session.host_email })}
               className="text-sm font-bold hover:underline"
             >
               @{handle}

@@ -93,14 +93,14 @@ function RepostCard({ originalPostId, onAuthorClick }) {
       className="mx-3 mb-3 rounded-xl border border-border bg-secondary/20 p-3 cursor-pointer hover:bg-secondary/40 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       onClick={(e) => {
         e.stopPropagation();
-        onAuthorClick?.({ email: original.author_email });
+        onAuthorClick?.({ id: original.user_id, email: original.author_email });
       }}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
-          onAuthorClick?.({ email: original.author_email });
+          onAuthorClick?.({ id: original.user_id, email: original.author_email });
         }
       }}
       aria-label={`Open ${displayName}'s profile`}
@@ -916,7 +916,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              if (!doubleTapGuardRef.current) onAuthorClick({ email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+              if (!doubleTapGuardRef.current) onAuthorClick({ id: post.user_id, email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
             }}
             onMouseDown={(e) => { e.stopPropagation(); startAvatarLongPress(); }}
             onMouseUp={cancelAvatarLongPress}
@@ -1417,7 +1417,7 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                   <button
                     onClick={() => {
                       setAvatarPreviewOpen(false);
-                      onAuthorClick({ email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
+                      onAuthorClick({ id: post.user_id, email: post.author_email, username: author.username, avatar_url: author.avatarUrl });
                     }}
                     className="flex-1 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-semibold"
                   >
