@@ -214,15 +214,26 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   const otherEmails = (conversation?.participant_emails || [])
     .filter(e => e?.toLowerCase() !== myEmailLc);
   const otherEmail = otherEmails[0] || '';
+  const otherIds = (conversation?.participant_ids || [])
+    .filter(id => id && id !== user?.id);
+  const otherId = otherIds[0] || '';
 
   const { data: resolvedOther } = useQuery({
-    queryKey: ['hubChatProfile', otherEmail],
+    queryKey: ['hubChatProfile', otherId || otherEmail],
     queryFn: async () => {
-      if (!otherEmail) return null;
-      const all = await users.list().catch(() => []);
-      return all.find(u => u.email === otherEmail) || null;
+      if (!otherId) return null;
+      // Resolve the peer's display profile by user_id (participant_ids is
+      // backfilled + trigger-maintained, mig 216) instead of scanning
+      // users.list() and matching on email — drops a public_profiles email
+      // read. otherEmail stays for the send path (recipientEmail), sourced
+      // from the conversation's own participant_emails, not the view.
+      const { data } = await users.selectProfiles((from) => from
+        .select('id, username, avatar_url')
+        .eq('id', otherId)
+        .single());
+      return data || null;
     },
-    enabled: !otherUser && !!otherEmail,
+    enabled: !otherUser && !!otherId,
     staleTime: 60_000,
   });
 
