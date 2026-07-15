@@ -480,9 +480,12 @@ export default function Nutrition() {
     try { localStorage.removeItem(`flexyn.nutritionWidgetOrder.${user?.id || 'anon'}`); } catch { /* ignore */ }
     try { localStorage.removeItem(`flexyn.nutritionHidden.${user?.id || 'anon'}`); } catch { /* ignore */ }
   };
-  // Normal mode drops hidden sections; customize mode keeps them visible
-  // (dimmed, with a Show button) so they can be restored without a full reset.
-  const renderOrder = editMode ? widgetOrder : widgetOrder.filter(id => !hiddenWidgets.includes(id));
+  // Hidden sections keep their slot in both modes. Normal mode renders a
+  // compact "Show …" stub in place (a discoverable, one-tap restore);
+  // customize mode shows the section dimmed with a Show button in its
+  // drag header. Nothing is silently dropped, so a hidden section is
+  // always recoverable without hunting through the customize toggle.
+  const renderOrder = widgetOrder;
   // Admin: snapshot current widgetOrder as the default for new users.
   const canSetAsDefault = isAppAdmin(user);
   const handleSetAsDefault = async () => {
@@ -1416,26 +1419,30 @@ export default function Nutrition() {
               to the one section that matches the id. Per-user
               localStorage via flexyn.nutritionWidgetOrder.<userId>. ═══ */}
       <Reorder.Group axis="y" values={renderOrder} onReorder={handleReorder} as="div">
-        {renderOrder.map(rowId => (
+        {renderOrder.map(rowId => {
+          const isHidden = hiddenWidgets.includes(rowId);
+          const sectionLabel =
+              rowId === 'tabs'    ? 'Nutritional Values'
+            : rowId === 'logForm' ? 'Log A Meal'
+            : rowId === 'water'   ? 'Water Intake'
+            : rowId === 'fasting' ? 'Intermittent Fasting'
+            : rowId === 'meals'   ? "Today's Meals"
+            : rowId;
+          return (
           <Reorder.Item
             key={rowId}
             value={rowId}
             as="div"
             dragListener={editMode}
-            className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && hiddenWidgets.includes(rowId) ? 'opacity-50' : ''}`}
+            className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && isHidden ? 'opacity-50' : ''}`}
           >
             {editMode && (
               <div className="flex items-center gap-2 mt-2 mb-1 px-1 cursor-grab active:cursor-grabbing">
                 <GripVertical className="w-4 h-4 text-primary/50" />
                 <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary/50">
-                  {rowId === 'tabs'         ? 'Nutritional Values'
-                    : rowId === 'logForm'   ? 'Log A Meal'
-                    : rowId === 'water'     ? 'Water Intake'
-                    : rowId === 'fasting'   ? 'Intermittent Fasting'
-                    : rowId === 'meals'     ? "Today's Meals"
-                    : rowId}
+                  {sectionLabel}
                 </span>
-                {hiddenWidgets.includes(rowId) && (
+                {isHidden && (
                   <button
                     type="button"
                     onClick={() => showWidget(rowId)}
@@ -1446,6 +1453,19 @@ export default function Nutrition() {
                 )}
               </div>
             )}
+
+            {/* Normal mode: a hidden section collapses to an in-place
+                restore stub so it's obvious it can be brought back. */}
+            {isHidden && !editMode ? (
+              <button
+                type="button"
+                onClick={() => showWidget(rowId)}
+                className="w-full flex items-center justify-center gap-2 mb-4 py-3 rounded-xl border border-dashed border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+              >
+                <Eye className="w-3.5 h-3.5" /> Show {sectionLabel}
+              </button>
+            ) : (
+            <>
 
       {rowId === 'tabs' && (
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, delay: 0.2 }} className="mb-6">
@@ -1761,8 +1781,11 @@ export default function Nutrition() {
       </motion.div>
       )}
 
+            </>
+            )}
           </Reorder.Item>
-        ))}
+          );
+        })}
       </Reorder.Group>
 
       {/* Meal History Modal */}
