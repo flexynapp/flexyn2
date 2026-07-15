@@ -112,7 +112,7 @@ function wipeLocalClientState({ preserveKeys = false } = {}) {
   } catch {}
 }
 
-export default function ProfileMenu() {
+export default function ProfileMenu({ compact = false } = {}) {
   const { t, tFallback } = useLanguage();
   const location = useLocation();
   const navigate = useNavigate();
@@ -286,7 +286,12 @@ export default function ProfileMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => { setOpen(v => !v); setView('main'); }}
-        className="relative flex items-center justify-center gap-2 w-full h-11 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2"
+        className={compact
+          // Header: a plain h-11 w-11 icon button so it lines up with the
+          // messages + bell buttons (no extra padding/margin/name).
+          ? 'relative flex items-center justify-center h-11 w-11 hover:bg-secondary rounded-lg transition-colors select-none-ui'
+          // Sidebar: full-width row with avatar + first name.
+          : 'relative flex items-center justify-center gap-2 w-full h-11 hover:bg-secondary rounded-lg px-3 transition-colors select-none-ui ms-2'}
         aria-label={
           capsuleCount > 0
             ? `Profile — ${capsuleCount} unopened ${capsuleCount === 1 ? 'capsule' : 'capsules'}`
@@ -335,7 +340,7 @@ export default function ProfileMenu() {
             {capsuleCount > 9 ? '9+' : capsuleCount}
           </motion.span>
         )}
-        {user?.full_name && (
+        {!compact && user?.full_name && (
           <span className="text-sm font-medium">{user.full_name.split(' ')[0]}</span>
         )}
       </button>

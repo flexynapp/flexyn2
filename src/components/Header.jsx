@@ -170,7 +170,7 @@ export default function Header() {
                 • the /profile page (LevelBar shown full size)
                 • the Hub profile sub-view (existing card) */}
           <div className="relative -ms-2">
-            <ProfileMenu />
+            <ProfileMenu compact />
           </div>
         </div>
       </div>
