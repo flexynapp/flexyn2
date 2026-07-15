@@ -38,6 +38,8 @@ const _sbState = {
   lastLimit: null,
   nextData: [],
   nextError: null,
+  lastRpc: null,
+  rpcReturn: { data: null, error: null },
 };
 
 vi.mock('@/api/supabaseClient', () => ({
@@ -56,6 +58,10 @@ vi.mock('@/api/supabaseClient', () => ({
       };
       return chain;
     },
+    rpc: vi.fn(async (name, args) => {
+      _sbState.lastRpc = { name, args };
+      return _sbState.rpcReturn;
+    }),
   },
 }));
 
@@ -77,6 +83,9 @@ beforeEach(() => {
   _sbState.lastLimit = null;
   _sbState.nextData = [];
   _sbState.nextError = null;
+  _sbState.lastRpc = null;
+  _sbState.rpcReturn = { data: null, error: null };
+  localStorage.clear();
 });
 
 describe('listMessages', () => {
@@ -138,5 +147,44 @@ describe('listOlderMessages', () => {
     _sbState.nextData = null;
     const rows = await hubMessages.listOlderMessages('conv-1', '2026-06-10T01:00:00Z');
     expect(rows).toEqual([]);
+  });
+});
+
+describe('unreadCountFor', () => {
+  it('uses the dm_unread_count RPC and passes localStorage last-reads', async () => {
+    localStorage.setItem('fn-conv-read-conv-abc', '1752500000000');
+    localStorage.setItem('unrelated-key', '123');
+    _sbState.rpcReturn = { data: 7, error: null };
+
+    const count = await hubMessages.unreadCountFor('me@x.com');
+
+    expect(count).toBe(7);
+    expect(_sbState.lastRpc.name).toBe('dm_unread_count');
+    expect(_sbState.lastRpc.args).toEqual({
+      p_last_reads: { 'conv-abc': 1752500000000 },
+    });
+    // RPC path never pulls message rows
+    expect(_msgState.lastFilterLimit).toBeNull();
+  });
+
+  it('falls back to the legacy window count when the RPC is missing (42883)', async () => {
+    _sbState.rpcReturn = { data: null, error: { code: '42883', message: 'function does not exist' } };
+    _msgState.filterReturn = [
+      { id: 'm1', conversation_id: 'c1', sender_email: 'other@x.com', read_at: null, created_date: '2026-07-15T00:00:00Z' },
+      { id: 'm2', conversation_id: 'c1', sender_email: 'me@x.com',    read_at: null, created_date: '2026-07-15T00:01:00Z' },
+      { id: 'm3', conversation_id: 'c2', sender_email: 'other@x.com', read_at: '2026-07-15T00:02:00Z', created_date: '2026-07-15T00:00:30Z' },
+    ];
+
+    const count = await hubMessages.unreadCountFor('me@x.com');
+
+    // m1 only: m2 is my own, m3 is read
+    expect(count).toBe(1);
+    expect(_msgState.lastFilterLimit).toBe(400);
+  });
+
+  it('returns 0 without any call when email is missing', async () => {
+    const count = await hubMessages.unreadCountFor(null);
+    expect(count).toBe(0);
+    expect(_sbState.lastRpc).toBeNull();
   });
 });

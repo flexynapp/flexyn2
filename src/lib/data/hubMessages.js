@@ -25,7 +25,8 @@ const msg  = () => db.entities.HubMessage;
 // ── Per-conversation last-read tracking ───────────────────────────────────────
 // Stored in localStorage so the badge clears instantly when a conversation is
 // opened, even if the DB update is blocked by RLS (migration 011 fixes RLS).
-const _key = (convId) => `fn-conv-read-${convId}`;
+const _READ_KEY_PREFIX = 'fn-conv-read-';
+const _key = (convId) => `${_READ_KEY_PREFIX}${convId}`;
 const _getLastRead  = (convId) => { try { return parseInt(localStorage.getItem(_key(convId)) || '0', 10); } catch { return 0; } };
 const _setLastRead  = (convId) => { try { localStorage.setItem(_key(convId), Date.now().toString()); } catch {} };
 
@@ -406,11 +407,37 @@ export const markRead = async (conversationId, myEmail) => {
 export const unreadCountFor = async (myEmail) => {
   if (!myEmail) return 0;
   const myEmailLc = myEmail.toLowerCase();
-  // Window widened 100 → 400: the previous 100-newest-globally cap could
-  // miss genuine unread messages older than that window on an active
-  // account (badge stuck at 0 while unread DMs exist). 400 effectively
-  // eliminates that at beta volume while preserving the localStorage
-  // instant-clear in _isUnread. Proper fix is the TODO'd COUNT(*) RPC.
+
+  // Server-side COUNT via dm_unread_count (mig 223) — replaces the
+  // 400-newest-rows pull with a single integer over the wire, and is
+  // exact regardless of account age. The localStorage last-read map is
+  // passed along so the instant badge-clear on opening a conversation
+  // (see _isUnread) survives: the RPC counts those conversations by
+  // "newer than last-read" instead of read_at.
+  try {
+    const lastReads = {};
+    try {
+      for (let i = 0; i < localStorage.length; i += 1) {
+        const k = localStorage.key(i);
+        if (!k || !k.startsWith(_READ_KEY_PREFIX)) continue;
+        const ms = parseInt(localStorage.getItem(k) || '0', 10);
+        if (ms > 0) lastReads[k.slice(_READ_KEY_PREFIX.length)] = ms;
+      }
+    } catch { /* storage unavailable → DB read_at semantics only */ }
+
+    const { data, error } = await supabase.rpc('dm_unread_count', {
+      p_last_reads: lastReads,
+    });
+    if (!error && typeof data === 'number') return data;
+    // 42883 = function does not exist (migration 223 not yet applied).
+    if (error && error.code !== '42883' && error.code !== '42P01') {
+      console.warn('[hubMessages] dm_unread_count RPC failed, falling back:', error);
+    }
+  } catch (err) {
+    console.warn('[hubMessages] dm_unread_count RPC threw, falling back:', err);
+  }
+
+  // Fallback path — pre-migration-223 legacy window count.
   const recent = await msg().filter({}, '-created_date', 400).catch(() => []);
   return recent.filter(m => _isUnread(m, myEmailLc)).length;
 };
