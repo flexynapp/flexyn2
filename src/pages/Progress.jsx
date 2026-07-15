@@ -886,8 +886,8 @@ export default function Progress() {
                     ) : (
                       <p className="text-xs text-muted-foreground mb-3">No workouts logged {statsFrame === 'week' ? 'this week' : statsFrame === 'month' ? 'this month' : statsFrame === 'year' ? 'this year' : 'yet'}.</p>
                     )}
-                    {/* Timeframe toggle — below muscle pills, right-aligned */}
-                    <div className="flex justify-end">
+                    {/* Timeframe toggle — below muscle pills, centered */}
+                    <div className="flex justify-center">
                       <div className="flex gap-1 bg-secondary/50 rounded-xl p-1 shadow-inner">
                         {(['week', 'month', 'year', 'all']).map((f) => (
                           <button
