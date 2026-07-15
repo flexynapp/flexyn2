@@ -1434,6 +1434,12 @@ export default function Nutrition() {
             value={rowId}
             as="div"
             dragListener={editMode}
+            // layout="position" animates only the item's position, never its
+            // size. Without it, collapsing a tall section to the small "Show"
+            // stub makes framer scale-project the box, stretching the text
+            // mid-transition. Position-only keeps text crisp; neighbours still
+            // slide up smoothly, and drag-reordering is unaffected.
+            layout="position"
             className={`relative ${editMode ? 'touch-none select-none' : ''} ${editMode && isHidden ? 'opacity-50' : ''}`}
           >
             {editMode && (
