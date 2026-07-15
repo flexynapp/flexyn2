@@ -357,9 +357,10 @@ export default function HubComposer({ onClose }) {
     if (videoInputRef.current) videoInputRef.current.value = '';
   };
 
-  // Collaborator tagging state
+  // Collaborator tagging state (id-keyed — co-authors are stored on the
+  // post as collaborator_ids; mig 219 keeps collaborator_emails in sync)
   const [collaboratorInput, setCollaboratorInput] = useState('');
-  const [collaboratorEmails, setCollaboratorEmails] = useState([]);
+  const [collaboratorIds, setCollaboratorIds] = useState([]);
 
   // Look up users for collaborator @mention suggestions
   const { data: allUsers = [] } = useQuery({
@@ -373,12 +374,12 @@ export default function HubComposer({ onClose }) {
     const q = collaboratorInput.toLowerCase().replace(/^@/, '');
     return allUsers
       .filter(u =>
-        u.email !== user?.email &&
-        !collaboratorEmails.includes(u.email) &&
-        ((u.username || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q))
+        u.id !== user?.id &&
+        !collaboratorIds.includes(u.id) &&
+        (u.username || '').toLowerCase().includes(q)
       )
       .slice(0, 5);
-  }, [collaboratorInput, allUsers, collaboratorEmails, user?.email]);
+  }, [collaboratorInput, allUsers, collaboratorIds, user?.id]);
 
   // ── Load shareable activities ──
   const { data: recentWorkouts = [] } = useQuery({
@@ -576,7 +577,7 @@ export default function HubComposer({ onClose }) {
           like_count:   0,
           dislike_count: 0,
           comment_count: 0,
-          collaborator_emails: collaboratorEmails.length > 0 ? collaboratorEmails : [],
+          collaborator_ids: collaboratorIds.length > 0 ? collaboratorIds : [],
           ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
           ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
         });
@@ -737,7 +738,7 @@ export default function HubComposer({ onClose }) {
         linked_entity_type:     effectiveSelected.kind === 'status' ? null : effectiveSelected.kind,
         linked_entity_id:       effectiveSelected.kind === 'status' ? null : (effectiveSelected.item?.id || null),
         linked_entity_snapshot: snapshot,
-        collaborator_emails:    collaboratorEmails.length > 0 ? collaboratorEmails : [],
+        collaborator_ids:       collaboratorIds.length > 0 ? collaboratorIds : [],
         ...(privacy === 'crew' && selectedCrewId ? { crew_id: selectedCrewId } : {}),
         ...(cwType ? { content_warning: cwType, content_warning_label: cwType === 'other' ? (cwLabel.trim() || null) : null } : {}),
         ...(scheduleEnabled && scheduledAt ? { publish_at: new Date(scheduledAt).toISOString() } : {}),
@@ -1214,18 +1215,18 @@ export default function HubComposer({ onClose }) {
         Co-authors (optional)
       </label>
       {/* Chips of added collaborators */}
-      {collaboratorEmails.length > 0 && (
+      {collaboratorIds.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
-          {collaboratorEmails.map(email => {
-            const u = allUsers.find(u => u.email === email);
+          {collaboratorIds.map(id => {
+            const u = allUsers.find(u => u.id === id);
             const label = handle(u);
             return (
-              <span key={email} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
+              <span key={id} className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs font-medium">
                 <Users className="w-3 h-3" />
                 {label}
                 <button
                   type="button"
-                  onClick={() => setCollaboratorEmails(prev => prev.filter(e => e !== email))}
+                  onClick={() => setCollaboratorIds(prev => prev.filter(x => x !== id))}
                   className="ms-0.5 hover:text-destructive"
                 >
                   <X className="w-3 h-3" />
@@ -1249,11 +1250,11 @@ export default function HubComposer({ onClose }) {
           <div className="absolute top-full start-0 end-0 z-20 mt-1 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
             {collaboratorSuggestions.map(u => (
               <button
-                key={u.email}
+                key={u.id}
                 type="button"
                 onMouseDown={(e) => e.preventDefault()}
                 onClick={() => {
-                  setCollaboratorEmails(prev => [...prev, u.email]);
+                  setCollaboratorIds(prev => [...prev, u.id]);
                   setCollaboratorInput('');
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-start hover:bg-secondary transition-colors"
@@ -1495,7 +1496,7 @@ export default function HubComposer({ onClose }) {
                   clearStatusImage();
                   clearVideo();
                   setCollaboratorInput('');
-                  setCollaboratorEmails([]);
+                  setCollaboratorIds([]);
                 }}
                 className="p-1.5 rounded-md hover:bg-secondary"
               >

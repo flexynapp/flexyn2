@@ -32,7 +32,7 @@ function getRecentSearches(userId) {
 function saveRecentSearch(userId, user) {
   try {
     let recent = getRecentSearches(userId);
-    recent = recent.filter(u => u.email !== user.email);
+    recent = recent.filter(u => u.id !== user.id);
     recent.unshift(user);
     recent = recent.slice(0, MAX_RECENT_SEARCHES);
     localStorage.setItem(recentSearchesKey(userId), JSON.stringify(recent));
@@ -41,10 +41,10 @@ function saveRecentSearch(userId, user) {
   }
 }
 
-function removeRecentSearch(userId, email) {
+function removeRecentSearch(userId, id) {
   try {
     let recent = getRecentSearches(userId);
-    recent = recent.filter(u => u.email !== email);
+    recent = recent.filter(u => u.id !== id);
     localStorage.setItem(recentSearchesKey(userId), JSON.stringify(recent));
   } catch {
     // Silently fail if localStorage is unavailable
@@ -58,7 +58,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
   const [searchResults, setSearchResults] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState([]);
-  const [followedEmails, setFollowedEmails] = useState(new Set());
+  const [followedIds, setFollowedIds] = useState(new Set());
   const [localAdded, setLocalAdded] = useState(new Set());
   // Feature 17: tab toggle
   const [activeTab, setActiveTab] = useState('people'); // 'people' | 'posts'
@@ -70,13 +70,13 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     if (open) {
       setRecentSearches(getRecentSearches(currentUser?.id));
       setLocalAdded(new Set());
-      if (currentUser?.email) {
-        hubFollows.listFollowing(currentUser.email)
-          .then(emails => setFollowedEmails(new Set(emails)))
+      if (currentUser?.id) {
+        hubFollows.listFollowingIds(currentUser.id)
+          .then(ids => setFollowedIds(new Set(ids)))
           .catch(() => {});
       }
     }
-  }, [open, currentUser?.email, currentUser?.id]);
+  }, [open, currentUser?.id]);
 
   // Search effect
   useEffect(() => {
@@ -93,8 +93,8 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
         const q = searchQuery.toLowerCase();
         const filtered = allUsers
           .filter(u => {
-            if (!u.email) return false;
-            if (u.email === currentUser?.email) return false; // never return self
+            if (!u.id) return false;
+            if (u.id === currentUser?.id) return false; // never return self
             // Hide deleted / reset accounts — their username starts with "deleted_"
             if (u.username?.startsWith('deleted_')) return false;
             // Match against username OR full_name. Display stays username-only —
@@ -156,9 +156,9 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
     onClose();
   };
 
-  const handleRemoveRecent = (e, email) => {
+  const handleRemoveRecent = (e, id) => {
     e.stopPropagation();
-    removeRecentSearch(currentUser?.id, email);
+    removeRecentSearch(currentUser?.id, id);
     setRecentSearches(getRecentSearches(currentUser?.id));
   };
 
@@ -335,7 +335,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                             key={user.id || idx}
                             user={user}
                             onClick={() => handleSelectUser(user)}
-                            onRemove={(e) => handleRemoveRecent(e, user.email)}
+                            onRemove={(e) => handleRemoveRecent(e, user.id)}
                           />
                         ))}
                       </div>
@@ -386,7 +386,7 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
               {searchQuery && !isLoading && searchResults.length > 0 && (
                 <div className="space-y-1.5">
                   {searchResults.map((user, idx) => {
-                    const isFollowed = followedEmails.has(user.email) || localAdded.has(user.email);
+                    const isFollowed = followedIds.has(user.id) || localAdded.has(user.id);
                     return (
                       <UserResultRow
                         key={user.id}
@@ -396,9 +396,9 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                         isFollowed={isFollowed}
                         onAdd={async (e) => {
                           e.stopPropagation();
-                          setLocalAdded(prev => new Set([...prev, user.email]));
+                          setLocalAdded(prev => new Set([...prev, user.id]));
                           try {
-                            await hubFollows.follow(currentUser.email, user.email, { t });
+                            await hubFollows.follow(currentUser.id, user.id, { t });
                           } catch (err) {
                             // Revert the optimistic check AND surface
                             // an error toast so the user understands
@@ -408,10 +408,10 @@ export default function HubSearchOverlay({ open, onClose, onSelectUser, onSelect
                             // (Audit 10 #11.)
                             setLocalAdded(prev => {
                               const next = new Set(prev);
-                              next.delete(user.email);
+                              next.delete(user.id);
                               return next;
                             });
-                            toast.error(`Couldn't follow @${user.username || user.email}. Try again.`);
+                            toast.error(`Couldn't follow @${user.username || 'user'}. Try again.`);
                           }
                         }}
                       />
