@@ -155,7 +155,12 @@ export default function Header() {
               </motion.span>
             )}
           </button>
-          <NotificationBell />
+          {/* Negative inline-start margins pull the bell + profile toward
+              the messages icon so the w-11 tap targets don't read as far
+              apart. Tap areas stay full size; only the visual gap tightens. */}
+          <div className="-ms-2">
+            <NotificationBell />
+          </div>
           {/* Profile menu — the LevelBar pill that used to hang below
               this was removed in Wave 72. Even after the Wave 71 nudge
               (end-1 → end-2, -mt-1 → -mt-2) it still clipped at the
@@ -164,7 +169,7 @@ export default function Header() {
                 • the ProfileMenu dropdown
                 • the /profile page (LevelBar shown full size)
                 • the Hub profile sub-view (existing card) */}
-          <div className="relative -ml-2">
+          <div className="relative -ms-2">
             <ProfileMenu />
           </div>
         </div>
