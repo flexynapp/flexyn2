@@ -25,36 +25,35 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
 
   // Fetch PYMK candidates from RPC, fall back to User.list()
   const { data: candidates = [], isLoading } = useQuery({
-    queryKey: ['pymk', user?.email],
+    queryKey: ['pymk', user?.id],
     queryFn: async () => {
-      if (!user?.email) return [];
-      // Try RPC first
+      if (!user?.id) return [];
+      // Try RPC first — it now returns user_id (mig 218), so candidates
+      // hydrate by id and we never match users.list() rows on email.
       const { data: rpcData, error: rpcErr } = await supabase.rpc('get_people_you_may_know', {
-        p_email: user.email,
         p_limit: 8,
       });
       if (!rpcErr && rpcData?.length) {
-        // Hydrate with full user objects
         const allUsers = await db.entities.User.list().catch(() => []);
-        const emailSet = new Set(rpcData.map(r => r.email));
-        const mutualMap = Object.fromEntries(rpcData.map(r => [r.email, r.mutual_count]));
+        const idSet = new Set(rpcData.map(r => r.user_id));
+        const mutualMap = Object.fromEntries(rpcData.map(r => [r.user_id, r.mutual_count]));
         return allUsers
-          .filter(u => emailSet.has(u.email) && u.email !== user.email && !u.username?.startsWith('deleted_'))
-          .map(u => ({ ...u, mutualCount: mutualMap[u.email] ?? 0 }))
+          .filter(u => idSet.has(u.id) && u.id !== user.id && !u.username?.startsWith('deleted_'))
+          .map(u => ({ ...u, mutualCount: mutualMap[u.id] ?? 0 }))
           .slice(0, 8);
       }
-      // Fallback: recent users not yet followed
-      const [allUsers, following] = await Promise.all([
+      // Fallback: recent users not yet followed (id-keyed)
+      const [allUsers, followingIds] = await Promise.all([
         db.entities.User.list().catch(() => []),
-        hubFollows.listFollowing(user.email).catch(() => []),
+        hubFollows.listFollowingIds(user.id).catch(() => []),
       ]);
-      const followSet = new Set(following);
+      const followSet = new Set(followingIds);
       return allUsers
-        .filter(u => u.email !== user.email && !followSet.has(u.email) && !u.username?.startsWith('deleted_'))
+        .filter(u => u.id !== user.id && !followSet.has(u.id) && !u.username?.startsWith('deleted_'))
         .slice(0, 8)
         .map(u => ({ ...u, mutualCount: 0 }));
     },
-    enabled: !!user?.email,
+    enabled: !!user?.id,
     staleTime: 5 * 60_000,
   });
 
@@ -89,21 +88,21 @@ export default function PeopleYouMayKnow({ onSelectUser }) {
       <div className="flex gap-3 overflow-x-auto pb-1 snap-x snap-mandatory">
         {candidates.map((candidate, i) => (
           <PYMKCard
-            key={candidate.id || candidate.email}
+            key={candidate.id}
             candidate={candidate}
-            isFollowed={localFollowed.has(candidate.email)}
+            isFollowed={localFollowed.has(candidate.id)}
             delay={i * 0.05}
             onFollow={async () => {
-              setLocalFollowed(prev => new Set([...prev, candidate.email]));
-              await hubFollows.follow(user.email, candidate.email, { t }).catch(() => {
+              setLocalFollowed(prev => new Set([...prev, candidate.id]));
+              await hubFollows.follow(user.id, candidate.id, { t }).catch(() => {
                 setLocalFollowed(prev => {
                   const next = new Set(prev);
-                  next.delete(candidate.email);
+                  next.delete(candidate.id);
                   return next;
                 });
               });
             }}
-            onSelect={() => onSelectUser?.({ id: candidate.id, email: candidate.email, username: candidate.username })}
+            onSelect={() => onSelectUser?.({ id: candidate.id, username: candidate.username })}
           />
         ))}
       </div>
