@@ -1632,6 +1632,8 @@ export default function Nutrition() {
             newEntry={newEntry}
             setNewEntry={setNewEntry}
             onScan={startScanner}
+            onPhotoAI={() => photoInputRef.current?.click()}
+            isRecognizing={photoRecognizing}
             onLog={addEntry}
             isScanning={showScanner}
             isLogging={saveMutation.isPending}

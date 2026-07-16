@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Barcode, Plus, Bookmark, Trash2, ImageIcon } from 'lucide-react';
+import { Plus, Bookmark, Trash2, ImageIcon, Loader2 } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -92,8 +92,8 @@ function NutrientTile({ field, value, onChange, t }) {
   );
 }
 
-export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isScanning, isLogging, defaultOpen = false }) {
-  const { t } = useLanguage();
+export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecognizing, onLog, isLogging, defaultOpen = false }) {
+  const { t, tFallback } = useLanguage();
   const TABS = [
     { id: 'nutrients', label: t('nutrition.nutritionalValues') },
     { id: 'vitamins', label: t('nutrition.vitaminsAndMinerals') },
@@ -360,8 +360,11 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
       {/* Actions */}
       {activeTab !== 'saved' && (
         <div className="flex gap-2">
-          <Button variant="outline" onClick={onScan} className="flex-1" disabled={isScanning}>
-            <Barcode className="w-4 h-4 me-2" /> {t('nutrition.scan')}
+          <Button variant="outline" onClick={onPhotoAI} className="flex-1" disabled={isRecognizing}>
+            {isRecognizing
+              ? <Loader2 className="w-4 h-4 me-2 animate-spin" />
+              : <span className="me-2 text-base leading-none">📸</span>}
+            {isRecognizing ? tFallback('nutrition.reading', 'Reading…') : tFallback('nutrition.photoAi', 'Photo-AI')}
           </Button>
           <Button onClick={handleLog} className="flex-1" disabled={isLogging}>
             <Plus className="w-4 h-4 me-2" /> {t('nutrition.logMeal')}
