@@ -708,7 +708,7 @@ export default function StoriesRow({ onViewProfile } = {}) {
     <>
       {/* Horizontal strip — single seamless scroll */}
       <div className="mb-4 -mx-4 md:-mx-6">
-        <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-2 scrollbar-hide">
+        <div className="flex items-end gap-2 px-4 md:px-6 overflow-x-auto pb-1 pt-1 scrollbar-hide">
 
           {/* Slot 1: "Add Story" — leftmost when own story exists */}
           {showAddButton && (

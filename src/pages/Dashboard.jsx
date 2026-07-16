@@ -1361,7 +1361,7 @@ export default function Dashboard() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.4 }}
-      className="px-4 md:px-6 pt-3 md:pt-5 lg:pb-6 max-w-5xl mx-auto"
+      className="px-4 md:px-6 pt-1 md:pt-2 lg:pb-6 max-w-5xl mx-auto"
     >
       {/* ── Stories ──────────────────────────────────────────────
            Pinned to the very top (above the greeting) to maximize
