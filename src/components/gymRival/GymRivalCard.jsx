@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from 'framer-motion';
-import { Target, Loader2, ChevronRight, Clock, AlertTriangle } from 'lucide-react';
+import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getMyGymRival, getRivalProfile, rollGymRival, isThisWeek, msUntilNextWeekStart } from '@/lib/data/gymRival';
@@ -34,8 +34,11 @@ export default function GymRivalCard({ currentUserId }) {
   const otherId = assignment ? (iAmInitiator ? assignment.rival_id : assignment.user_id) : null;
   const status = assignment?.status;
   const voidThisWeek = status === 'void' && isThisWeek(assignment?.assigned_at);
-  // A void from a past week is stale — the user is free to roll again.
-  const hasActiveMatch = assignment && (status === 'pending' || status === 'active' || voidThisWeek);
+  const settledRecent = status === 'completed' && assignment?.settled_at
+    && (Date.now() - new Date(assignment.settled_at).getTime() < 2 * 86400_000);
+  const myResult = assignment?.winner_id ? (assignment.winner_id === currentUserId ? 'win' : 'loss') : 'draw';
+  // A void/completed from a past week is stale — the user is free to roll again.
+  const hasActiveMatch = assignment && (status === 'pending' || status === 'active' || voidThisWeek || settledRecent);
   const iConfirmed = assignment ? (iAmInitiator ? assignment.initiator_confirmed : assignment.rival_confirmed) : false;
 
   const { data: profile } = useQuery({
@@ -133,6 +136,29 @@ export default function GymRivalCard({ currentUserId }) {
             <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Challenge voided</span>
             <p className="text-sm font-bold mt-0.5">Someone went AFK — no rewards</p>
             <p className="text-xs text-muted-foreground flex items-center gap-1"><Clock className="w-3 h-3" /> Next roll in {(() => { const ms = msUntilNextWeekStart(); const d = Math.floor(ms / 86400000); const h = Math.floor((ms % 86400000) / 3600000); return d > 0 ? `${d}d ${h}h` : `${h}h`; })()}</p>
+          </div>
+          <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+        </motion.button>
+        {menu}
+      </>
+    );
+  }
+
+  // ── Completed this week → result chip ───────────────────────────────────
+  if (settledRecent) {
+    const win = myResult === 'win';
+    const draw = myResult === 'draw';
+    return (
+      <>
+        <motion.button type="button" onClick={() => setMenuOpen(true)} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+          className={`w-full rounded-2xl border p-4 mb-4 flex items-center gap-3 text-start transition-colors ${win ? 'border-emerald-500/25 bg-emerald-500/5 hover:bg-emerald-500/10' : 'border-border bg-secondary/30 hover:bg-secondary/50'}`}>
+          <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${win ? 'bg-emerald-500/10' : draw ? 'bg-secondary' : 'bg-rose-500/10'}`}>
+            {win ? <Trophy className="w-6 h-6 text-emerald-500" /> : draw ? <Target className="w-6 h-6 text-muted-foreground" /> : <Swords className="w-6 h-6 text-rose-500" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className={`text-[10px] font-black uppercase tracking-wider ${win ? 'text-emerald-500' : 'text-muted-foreground'}`}>Last week's result</span>
+            <p className="text-sm font-bold mt-0.5">{win ? 'You won! 🏆' : draw ? 'It was a draw' : `@${name || 'Your rival'} won`}</p>
+            <p className="text-xs text-muted-foreground">Tap to see the result & roll again</p>
           </div>
           <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
         </motion.button>

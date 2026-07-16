@@ -71,6 +71,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
   const otherConfirmed = assignment ? (iAmInitiator ? assignment.rival_confirmed : assignment.initiator_confirmed) : false;
   const status = assignment?.status;
   const voidThisWeek = status === 'void' && isThisWeek(assignment?.assigned_at);
+  const settledRecent = status === 'completed' && assignment?.settled_at
+    && (Date.now() - new Date(assignment.settled_at).getTime() < 2 * 86400_000);
+  const myResult = assignment?.winner_id
+    ? (assignment.winner_id === currentUserId ? 'win' : 'loss')
+    : 'draw';
 
   const { data: rival } = useQuery({
     queryKey: ['gymRivalProfile', otherId],
@@ -194,6 +199,37 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <p className="text-xs text-muted-foreground mt-1">Level {rival?.current_level ?? '—'}</p>
                   </motion.div>
                 )}
+              </motion.div>
+            ) : settledRecent ? (
+              // ── Completed (settled) result ──────────────────────────
+              <motion.div key="result" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="min-h-[50vh] flex flex-col items-center justify-center text-center">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 ${myResult === 'win' ? 'bg-emerald-500/10' : myResult === 'loss' ? 'bg-rose-500/10' : 'bg-secondary'}`}>
+                  {myResult === 'win' ? <Trophy className="w-8 h-8 text-emerald-500" />
+                    : myResult === 'loss' ? <Swords className="w-8 h-8 text-rose-500" />
+                    : <Target className="w-8 h-8 text-muted-foreground" />}
+                </div>
+                <p className="font-heading font-black text-2xl">
+                  {myResult === 'win' ? 'You won the week! 🏆' : myResult === 'loss' ? 'You lost this one' : 'It was a draw'}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2 max-w-[34ch]">
+                  {myResult === 'win'
+                    ? `You out-trained @${rival?.username || 'your rival'}. Rewards were added to your account.`
+                    : myResult === 'loss'
+                      ? `@${rival?.username || 'Your rival'} edged you out. Roll a new rival and get them next week.`
+                      : `Dead even with @${rival?.username || 'your rival'} — no winner this week.`}
+                </p>
+                {myResult === 'win' && (
+                  <div className="mt-5 flex items-center gap-4">
+                    <div className="text-center"><Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
+                    <div className="text-center"><Coins className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.coins)}</p><p className="text-[10px] text-muted-foreground">Coins</p></div>
+                    <div className="text-center"><Package className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{reward.capsules}</p><p className="text-[10px] text-muted-foreground">Capsules</p></div>
+                  </div>
+                )}
+                <button onClick={onReroll} disabled={rerolling}
+                  className="mt-7 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+                  {rerolling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
+                  {rerolling ? 'Finding someone…' : 'Find a new rival'}
+                </button>
               </motion.div>
             ) : voidThisWeek ? (
               // ── Void (AFK) ──────────────────────────────────────────

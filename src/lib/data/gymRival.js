@@ -28,7 +28,7 @@ export async function getMyGymRival() {
     .from('gym_rival_assignments')
     .select('*')
     .or(`user_id.eq.${user.id},rival_id.eq.${user.id}`)
-    .in('status', ['pending', 'active', 'void'])
+    .in('status', ['pending', 'active', 'void', 'completed'])
     .order('assigned_at', { ascending: false })
     .limit(1)
     .maybeSingle();
