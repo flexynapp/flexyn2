@@ -41,7 +41,7 @@ export const PLAN_TEMPLATES = [
     // Contains dairy (Greek Yogurt, Cottage Cheese) + grains/potato → not paleo.
     excludedFor: ['vegetarian', 'vegan', 'keto', 'dairy_free', 'paleo'],
     baseCalories: 2000,
-    baseMacros: { protein: 180, carbs: 200, fat: 55 },
+    baseMacros: { protein: 176, carbs: 195, fat: 50 },
     meals: [
       {
         id: 'breakfast', name: 'Power Breakfast', time: 'Breakfast · 7:00 AM',
@@ -84,7 +84,7 @@ export const PLAN_TEMPLATES = [
       },
       {
         id: 'snack2', name: 'Evening Protein', time: 'Snack · 9:00 PM',
-        kcal: 120, macros: { p: 18, c: 16, f: 7 },
+        kcal: 120, macros: { p: 14, c: 11, f: 2 },
         ingredients: [
           { name: 'Cottage Cheese', amount: '½ cup',  note: 'low-fat' },
           { name: 'Mixed Berries',  amount: '¼ cup',  note: 'any variety' },
@@ -107,8 +107,8 @@ export const PLAN_TEMPLATES = [
     goalFit: ['lose'],
     // Dairy (String/Cottage Cheese) + wheat toast + almond butter + quinoa.
     excludedFor: ['vegetarian', 'vegan', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'paleo'],
-    baseCalories: 2000,
-    baseMacros: { protein: 190, carbs: 160, fat: 60 },
+    baseCalories: 1690,
+    baseMacros: { protein: 180, carbs: 126, fat: 46 },
     meals: [
       {
         id: 'breakfast', name: 'High-Protein Start', time: 'Breakfast · 7:00 AM',
@@ -178,7 +178,7 @@ export const PLAN_TEMPLATES = [
     // (gluten) and grains/legumes (not paleo).
     excludedFor: ['keto', 'gluten_free', 'paleo'],
     baseCalories: 2000,
-    baseMacros: { protein: 140, carbs: 240, fat: 62 },
+    baseMacros: { protein: 122, carbs: 248, fat: 56 },
     meals: [
       {
         id: 'breakfast', name: 'Protein Smoothie Bowl', time: 'Breakfast · 7:30 AM',
@@ -250,8 +250,8 @@ export const PLAN_TEMPLATES = [
     goalFit: ['lose', 'maintain'],
     // Adds macadamia nuts (nut_free) + dairy/processed meats (not paleo).
     excludedFor: ['vegetarian', 'vegan', 'dairy_free', 'halal', 'kosher', 'nut_free', 'paleo'],
-    baseCalories: 2000,
-    baseMacros: { protein: 150, carbs: 20, fat: 155 },
+    baseCalories: 2140,
+    baseMacros: { protein: 139, carbs: 26, fat: 167 },
     meals: [
       {
         id: 'breakfast', name: 'Bacon & Eggs', time: 'Breakfast · 7:00 AM',
@@ -296,7 +296,7 @@ export const PLAN_TEMPLATES = [
       },
       {
         id: 'snack2', name: 'Keto Night Cap', time: 'Snack · 9:00 PM',
-        kcal: 140, macros: { p: 14, c: 2, f: 15 },
+        kcal: 280, macros: { p: 3, c: 8, f: 27 },
         ingredients: [
           { name: 'Macadamia Nuts', amount: '1 oz',  note: 'raw or dry-roasted' },
           { name: 'Dark Chocolate', amount: '½ oz',  note: '90%+ cacao' },
@@ -320,8 +320,8 @@ export const PLAN_TEMPLATES = [
     // Fish (not vegetarian) + dairy (yogurt/feta/cheese) + wheat toast/crackers
     // (gluten) + walnuts/almond butter (nuts) + grains (not paleo).
     excludedFor: ['vegan', 'keto', 'vegetarian', 'dairy_free', 'gluten_free', 'nut_free', 'paleo'],
-    baseCalories: 2000,
-    baseMacros: { protein: 130, carbs: 225, fat: 72 },
+    baseCalories: 1910,
+    baseMacros: { protein: 132, carbs: 202, fat: 65 },
     meals: [
       {
         id: 'breakfast', name: 'Greek Morning Bowl', time: 'Breakfast · 7:00 AM',
@@ -391,8 +391,8 @@ export const PLAN_TEMPLATES = [
     color: 'orange',
     goalFit: ['gain'],
     excludedFor: ['vegetarian', 'vegan', 'keto', 'paleo', 'dairy_free', 'gluten_free', 'nut_free'],
-    baseCalories: 2000,
-    baseMacros: { protein: 175, carbs: 215, fat: 55 },
+    baseCalories: 2400,
+    baseMacros: { protein: 198, carbs: 253, fat: 64 },
     meals: [
       {
         id: 'breakfast', name: 'Loaded Oats & Eggs', time: 'Breakfast · 7:00 AM',
@@ -461,7 +461,7 @@ export const PLAN_TEMPLATES = [
     goalFit: ['gain', 'maintain'],
     excludedFor: ['vegan', 'keto', 'paleo', 'dairy_free', 'gluten_free'],
     baseCalories: 2000,
-    baseMacros: { protein: 155, carbs: 210, fat: 62 },
+    baseMacros: { protein: 158, carbs: 206, fat: 58 },
     meals: [
       {
         id: 'breakfast', name: 'Yogurt & Egg Protein Start', time: 'Breakfast · 7:00 AM',
