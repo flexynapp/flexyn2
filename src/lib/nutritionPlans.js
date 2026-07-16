@@ -676,7 +676,9 @@ export function classifyIngredient(name) {
   if (/\begg/.test(s)) tags.add('egg');
   // Gluten (oats flagged: commonly cross-contaminated). Quinoa is NOT gluten.
   // `toast` via word boundary so "toasted [seeds]" isn't read as bread.
-  if (!glutenFree && (has('wheat', 'barley', 'rye', 'bread', 'cracker', 'pasta', 'flour', 'couscous', 'bagel', 'oats', 'granola') || /\btoast\b/.test(s))) tags.add('gluten');
+  // 'seitan' is pure wheat gluten — MUST be caught so it's never fed to a
+  // gluten-free/celiac user, even though it reads as a plant protein.
+  if (!glutenFree && (has('wheat', 'barley', 'rye', 'bread', 'cracker', 'pasta', 'flour', 'couscous', 'bagel', 'oats', 'granola', 'seitan') || /\btoast\b/.test(s))) tags.add('gluten');
   // Tree nuts / peanuts (coconut, nutmeg, water chestnut, nut-free excluded)
   if (!s.includes('nut-free') && (
       /\b(almond|walnut|pecan|cashew|pistachio|macadamia|hazelnut|peanut|brazil nut)\b/.test(s) ||
@@ -692,7 +694,7 @@ export function classifyIngredient(name) {
   if (has('honey')) tags.add('honey');
   // Carb sources (for keto / paleo)
   if (!glutenFree && (has('rice', 'oats', 'quinoa', 'bread', 'granola', 'cracker', 'wheat', 'couscous', 'pasta', 'corn', 'barley') || /\btoast\b/.test(s))) tags.add('grain');
-  if (has('lentil', 'bean', 'chickpea', 'hummus', 'tofu', 'tempeh', 'edamame', 'soy') && !has('soy sauce', 'soy milk')) tags.add('legume');
+  if (has('lentil', 'bean', 'chickpea', 'hummus', 'tofu', 'tempeh', 'edamame', 'soy', 'pea') && !has('soy sauce', 'soy milk')) tags.add('legume');
   if (has('potato') && !has('sweet potato')) tags.add('starch');
   if (has('banana', 'honey', 'dried mango', 'maple')) tags.add('sugar');
   // Allergens (soy + sesame; egg/fish/shellfish/nuts/dairy/gluten already
@@ -844,7 +846,9 @@ const GENERIC_SWAPS = {
   nuts:      { name: 'Seed Mix',            note: 'pumpkin & sunflower' },
   gluten:    { name: 'Gluten-Free Swap',    note: 'certified GF' },
   grain:     { name: 'Cauliflower Rice',    note: 'grain-free' },
-  legume:    { name: 'Cauliflower Base',    note: 'legume-free' },
+  // Legumes are removed only for paleo — swap to a protein a paleo (and
+  // allergen-restricted) eater can actually have, not a low-protein vegetable.
+  legume:    { name: 'Hemp Seeds',          note: 'paleo, allergen-free protein' },
   starch:    { name: 'Roasted Radishes',    note: 'low-carb' },
   sugar:     { name: 'Fresh Berries',       note: 'lower sugar' },
   pork:      { name: 'Turkey or Beef',      note: 'pork-free' },
@@ -856,18 +860,33 @@ const GENERIC_SWAPS = {
 
 // Universally-safe fallbacks, tried in order. Used by the safety net when a
 // swap would still leave an active restriction/allergen (e.g. a soy-allergic
-// vegan whose tofu swap is itself soy). The first that violates NOTHING wins;
-// "Steamed Vegetables" classifies with zero tags, so it is always safe —
-// guaranteeing no allergen/restriction ever survives, at any cost to variety.
+// vegan whose tofu swap is itself soy). The first that violates NOTHING wins.
+//
+// Ordered by the RD playbook for restricted diets: reach for the most
+// protein-dense COMPLIANT food first and only fall to vegetables when nothing
+// else fits — so even the most-allergic user gets real protein, not a plate of
+// veg. Coverage across the hierarchy:
+//   • omnivores        → chicken / salmon
+//   • vegan            → seitan (gluten) / tempeh (soy)
+//   • vegan + soy      → seitan / lentils / chickpeas
+//   • vegan+soy+gluten → lentils / chickpeas / pea protein
+//   • + nut / sesame   → same (legumes & pea are allergen-free)
+//   • + legume (paleo) → hemp & pumpkin seeds (seed protein, allergen-free)
+//   • truly everything → quinoa → mushrooms → avocado → steamed veg (always safe)
 const SAFE_FALLBACKS = [
-  { name: 'Grilled Chicken',      note: 'lean protein' },
-  { name: 'Grilled Salmon',       note: 'omega-rich protein' },
-  { name: 'Chickpeas',            note: 'plant protein' },
-  { name: 'Lentils',              note: 'plant protein' },
-  { name: 'Quinoa',               note: 'complete plant protein' },
-  { name: 'Roasted Mushrooms',    note: 'savory whole food' },
-  { name: 'Avocado',              note: 'healthy fats' },
-  { name: 'Steamed Vegetables',   note: 'allergen-free whole food' },
+  { name: 'Grilled Chicken Breast', note: 'lean complete protein' },
+  { name: 'Grilled Salmon',         note: 'omega-rich protein' },
+  { name: 'Seitan',                 note: 'high-protein wheat meat' },       // vegan, NOT gluten-free
+  { name: 'Tempeh',                 note: 'fermented plant protein' },       // vegan, NOT soy-free
+  { name: 'Lentils',                note: 'plant protein + fiber' },          // soy/nut/gluten-free
+  { name: 'Chickpeas',              note: 'plant protein' },
+  { name: 'Pea Protein',            note: 'allergen-free protein isolate' },  // near-universal
+  { name: 'Hemp Seeds',             note: 'complete seed protein' },          // legume-free too (paleo)
+  { name: 'Pumpkin Seeds',          note: 'protein + minerals' },
+  { name: 'Quinoa',                 note: 'complete-protein grain' },
+  { name: 'Roasted Mushrooms',      note: 'savory whole food' },
+  { name: 'Avocado',                note: 'healthy fats' },
+  { name: 'Steamed Vegetables',     note: 'allergen-free whole food' },
 ];
 
 // Order matters only when several restrictions target the same ingredient;
