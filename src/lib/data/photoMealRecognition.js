@@ -23,11 +23,13 @@
 //   • 30 s with no response  → { ok: false, error: 'TIMEOUT' }
 //   • Network                → { ok: false, error: 'NETWORK' }
 //
-// All errors are surfaced to the UI for a friendly toast. The result
-// shape (when ok: true):
+// All errors are surfaced to the UI for a friendly toast. On success the
+// Edge Function returns { ok: true, result: {...} } and this module passes
+// that object through verbatim — so the caller reads the macros off
+// `res.result`, not the top level. The `result` shape:
 //   {
-//     food_name, calories, protein_g, carbs_g, fat_g, fiber_g,
-//     confidence, notes,
+//     food_name, portion_estimate, calories, protein_g, carbs_g, fat_g,
+//     fiber_g, confidence, notes,
 //   }
 
 import { supabase } from '@/api/supabaseClient';
@@ -173,6 +175,10 @@ export async function recognizeMealPhoto(blob, { timeoutMs = DEFAULT_TIMEOUT_MS 
       if (status === 404) return { ok: false, error: 'PIPELINE_MISSING' };
       if (status === 413) return { ok: false, error: 'IMAGE_TOO_LARGE' };
       if (status === 429) return { ok: false, error: 'RATE_LIMIT' };
+      // No HTTP status means the request never reached the function (fetch
+      // error / function not deployed / CORS). Return a clean NETWORK code
+      // rather than leaking supabase-js's raw "Failed to send a request…".
+      if (status == null) return { ok: false, error: 'NETWORK' };
       return { ok: false, error: error.message || 'NETWORK' };
     }
     if (!data) return { ok: false, error: 'EMPTY' };

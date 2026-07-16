@@ -78,6 +78,26 @@ describe('recognizeMealPhoto — canvas downscale', () => {
     expect(res).toEqual({ ok: true, result: { food_name: 'Pasta' } });
   });
 
+  it('passes the full result through verbatim (portion_estimate, confidence, notes)', async () => {
+    vi.stubGlobal('createImageBitmap', vi.fn(async () => ({
+      width: 1000, height: 1000, close: vi.fn(),
+    })));
+    const result = {
+      food_name: 'Grilled salmon with quinoa',
+      portion_estimate: '1 plate (~450 g)',
+      calories: 540, protein_g: 45, carbs_g: 50, fat_g: 18, fiber_g: 6,
+      confidence: 'high',
+      notes: 'Salmon ~180g, quinoa ~150g, asparagus ~90g.',
+    };
+    invokeMock.mockResolvedValue({ data: { ok: true, result }, error: null });
+
+    const res = await recognizeMealPhoto(jpegBlob(1024));
+    expect(res).toEqual({ ok: true, result });
+    // The new fields survive the round-trip so the UI can show them.
+    expect(res.result.portion_estimate).toBe('1 plate (~450 g)');
+    expect(res.result.confidence).toBe('high');
+  });
+
   it('never upscales a small image', async () => {
     vi.stubGlobal('createImageBitmap', vi.fn(async () => ({
       width: 640, height: 480, close: vi.fn(),
@@ -157,6 +177,12 @@ describe('recognizeMealPhoto — error-body parsing', () => {
 
     invokeMock.mockResolvedValue({ data: null, error: httpError(429) });
     expect(await recognizeMealPhoto(jpegBlob())).toEqual({ ok: false, error: 'RATE_LIMIT' });
+  });
+
+  it('maps a fetch-level failure (no HTTP status) to NETWORK, not the raw message', async () => {
+    // supabase-js throws this when the function isn't deployed / CORS / offline.
+    invokeMock.mockResolvedValue({ data: null, error: { message: 'Failed to send a request to the Edge Function' } });
+    expect(await recognizeMealPhoto(jpegBlob())).toEqual({ ok: false, error: 'NETWORK' });
   });
 });
 

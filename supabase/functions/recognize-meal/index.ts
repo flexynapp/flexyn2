@@ -28,14 +28,15 @@
 //   {
 //     "ok": true,
 //     "result": {
-//       "food_name":   "Grilled chicken with rice and broccoli",
-//       "calories":    540,
-//       "protein_g":   45,
-//       "carbs_g":     50,
-//       "fat_g":       18,
-//       "fiber_g":     6,
-//       "confidence":  "high" | "medium" | "low",
-//       "notes":       "Estimate based on typical portion sizes."
+//       "food_name":       "Grilled chicken with rice and broccoli",
+//       "portion_estimate":"1 plate (~450 g)",
+//       "calories":        540,
+//       "protein_g":       45,
+//       "carbs_g":         50,
+//       "fat_g":           18,
+//       "fiber_g":         6,
+//       "confidence":      "high" | "medium" | "low",
+//       "notes":           "Chicken breast ~180g, white rice ~150g, broccoli ~120g."
 //     }
 //   }
 //
@@ -53,21 +54,33 @@ import { createClient } from 'jsr:@supabase/supabase-js@2';
 const MODEL = 'claude-sonnet-4-6';  // good vision quality, fast enough for interactive
 const MAX_IMG_BYTES = 5 * 1024 * 1024; // 5MB hard cap
 
-const SYSTEM_PROMPT = `You are a nutrition expert analyzing a photograph of a meal.
+const SYSTEM_PROMPT = `You are a nutrition expert analyzing a photograph of a meal, like the Cal AI app.
 
-Examine the image and return a JSON object with these fields:
-  - food_name: short descriptive name (e.g. "Grilled salmon with quinoa")
-  - calories: integer estimate (kcal)
-  - protein_g: integer estimate (grams)
-  - carbs_g: integer estimate (grams)
-  - fat_g: integer estimate (grams)
-  - fiber_g: integer estimate (grams), can be 0
-  - confidence: "high" | "medium" | "low" — how sure you are about portion sizes
-  - notes: one short sentence explaining your reasoning or caveats
+Examine the image carefully and return a JSON object with these fields:
+  - food_name: short descriptive name of the whole dish (e.g. "Grilled salmon with quinoa and asparagus")
+  - portion_estimate: the total serving you're estimating, in plain words WITH a weight
+      or volume when you can (e.g. "1 plate (~450 g)", "1 cup", "2 slices (~120 g)").
+      This is what the calories/macros below are for.
+  - calories: integer kcal for that portion
+  - protein_g: integer grams for that portion
+  - carbs_g: integer grams for that portion
+  - fat_g: integer grams for that portion
+  - fiber_g: integer grams for that portion (0 if unsure)
+  - confidence: "high" | "medium" | "low" — how sure you are about the portion sizes
+  - notes: one short sentence breaking the plate into its components with rough weights
+      (e.g. "Salmon ~180g, quinoa ~150g, asparagus ~90g."). This is what makes the estimate
+      trustworthy — always fill it in.
 
-Estimate portion sizes from visual cues (plate size, hand reference, common
-dish proportions). If the image is NOT food, return { "not_food": true }
-instead of any macros.
+How to estimate the portion (this is the hard part — get it right):
+  - Anchor scale to reference objects: plate/bowl diameter, fork/spoon length, a hand,
+    standard can/bottle sizes. A dinner plate is ~27 cm; a fork is ~19 cm.
+  - Judge depth and coverage, not just the top-down area — a mounded bowl holds far more
+    than a flat one of the same width.
+  - If several foods share the plate, estimate each, then SUM them into the totals above
+    and list the components in notes.
+  - Prefer a realistic single-serving estimate over a round number.
+
+If the image is NOT food, return { "not_food": true } instead of any macros.
 
 Return ONLY the JSON object. No prose, no markdown fences.`;
 
@@ -165,7 +178,9 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 600,
+        // Headroom for the portion breakdown in `notes` + the component list;
+        // the JSON itself is small, so this caps runaway output cheaply.
+        max_tokens: 800,
         system: SYSTEM_PROMPT,
         messages: [
           {

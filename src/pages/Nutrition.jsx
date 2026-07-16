@@ -788,6 +788,7 @@ export default function Nutrition() {
       else if (err === 'IMAGE_TOO_LARGE' || err === 'TOO_LARGE') toast.error(tFallback('nutrition.photoAi.tooLarge', 'Photo is too large even after compression — try a smaller image.'));
       else if (err === 'UNSUPPORTED_FORMAT') toast.error(tFallback('nutrition.photoAi.unsupportedFormat', "This photo format isn't supported here — try a JPEG or PNG."));
       else if (err === 'TIMEOUT') toast.error(tFallback('nutrition.photoAi.timeout', 'Recognition timed out — check your connection and try again.'));
+      else if (err === 'NETWORK') toast.error(tFallback('nutrition.photoAi.network', "Couldn't reach the recognizer — check your connection and try again."));
       else toast.error(tFallback('nutrition.photoAi.failed', 'Could not recognize meal. Try again.'));
       return;
     }
@@ -812,7 +813,20 @@ export default function Nutrition() {
       fat_g:      finiteOr(r.fat_g,     prev.fat_g),
       fiber_g:    finiteOr(r.fiber_g,   prev.fiber_g),
     }));
-    toast.success(`Identified: ${r.food_name || 'meal'} — review macros and save.`);
+    // Surface the portion + how sure the model is (Cal-AI shows this) so the
+    // user knows whether to trust the numbers before saving. Low-confidence
+    // estimates get a nudge-to-check toast instead of a plain success.
+    const portion = (typeof r.portion_estimate === 'string' && r.portion_estimate.trim())
+      ? ` · ${r.portion_estimate.trim()}`
+      : '';
+    const confidence = ['high', 'medium', 'low'].includes(r.confidence) ? r.confidence : null;
+    const label = `${r.food_name || 'meal'}${portion}`;
+    if (confidence === 'low') {
+      toast.warning(`Identified: ${label} — low confidence, double-check the macros before saving.`);
+    } else {
+      const conf = confidence ? ` (${confidence} confidence)` : '';
+      toast.success(`Identified: ${label}${conf} — review and save.`);
+    }
     // Scroll the meal form into view so the user can review.
     setTimeout(() => {
       document.getElementById('log-meal-form')?.scrollIntoView({ behavior: 'smooth' });
