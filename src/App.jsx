@@ -127,13 +127,30 @@ const AdminGyms    = lazy(() => import('./pages/AdminGyms'));
 const GymEdit      = lazy(() => import('./pages/GymEdit'));
 const Profile     = lazy(() => import('./pages/Profile'));
 
-// Tiny fallback shown while a lazy page chunk loads. Designed to match the
-// loading spinner used during auth bootstrap so the visual transition is
-// continuous — same color, same size, same position.
+// Fallback shown while a lazy page chunk loads. Instead of a bare spinner
+// we render grey placeholder blocks with a sweeping sheen (skeleton-shimmer)
+// so a slow connection sees the page's shape filling in — a title bar, a
+// hero block, and a grid of card placeholders. The blocks are generic on
+// purpose: they approximate every route's layout closely enough to read as
+// "content loading" without matching any one page exactly. Rendered in the
+// normal content flow (not fixed) so it sits inside the Layout chrome that's
+// already painted (header + bottom nav), matching where the real page lands.
 function PageLoader() {
   return (
-    <div className="fixed inset-0 flex items-center justify-center pointer-events-none">
-      <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+    <div
+      className="px-4 pt-4 pb-8 max-w-3xl mx-auto w-full space-y-4"
+      aria-hidden="true"
+    >
+      {/* Page title */}
+      <div className="skeleton-shimmer h-7 w-40 rounded-lg" />
+      {/* Hero / primary card */}
+      <div className="skeleton-shimmer h-36 rounded-2xl" />
+      {/* Card grid */}
+      <div className="grid grid-cols-2 gap-3">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="skeleton-shimmer h-24 rounded-2xl" />
+        ))}
+      </div>
     </div>
   );
 }

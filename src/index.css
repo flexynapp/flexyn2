@@ -287,6 +287,35 @@
   50%      { opacity: 0.55; }
 }
 
+/* ── Skeleton loading blocks — grey placeholder with a sweeping sheen,
+   shown while a page chunk (or its data) is still loading on slow
+   connections. Theme-aware: the base grey is derived from --foreground
+   and the sheen from --background, so it tracks the active palette. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: hsl(var(--foreground) / 0.07);
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    hsl(var(--background) / 0.6),
+    transparent
+  );
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes skeleton-shimmer {
+  100% { transform: translateX(100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer::after { animation: none; }
+}
+
 /* ── Level-card animated gradient — used on the StatsHub level hero and
    the LevelBar expanded panel. Slowly slides the gradient horizontally so
    the teal/fuchsia bands feel alive without being distracting. Apply via
