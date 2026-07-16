@@ -46,6 +46,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 // the barcode scanner — so we dynamic-import it inside the scan
 // handler instead of pulling it into the entry chunk.
 import { useLanguage } from '@/lib/LanguageContext';
+import { useSettings } from '@/lib/SettingsContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { useLocation } from 'react-router-dom';
 
@@ -271,6 +272,7 @@ const EMPTY_PROFILE = Object.freeze({});
 
 export default function Nutrition() {
   const { t, tFallback } = useLanguage();
+  const { calorieCyclingEnabled } = useSettings();
   const fmt = useNumberFormatter();
   const location = useLocation();
 
@@ -1491,20 +1493,23 @@ export default function Nutrition() {
       {/* Calorie counter — just below the shortcut row */}
       <CalorieTopBar entries={entries} userProfile={userProfile} />
 
-      {/* Calorie cycling — set training-vs-rest-day targets. A small,
+      {/* Calorie cycling — set training-vs-rest-day targets. Hidden unless the
+          user opts into the feature in Settings (off by default). A small,
           low-emphasis affordance right under the target it controls. */}
-      <div className="flex justify-end -mt-1 mb-1">
-        <button
-          type="button"
-          onClick={() => setShowCalorieCycling(true)}
-          className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Repeat className="w-3 h-3" />
-          {userProfile?.calorie_cycling
-            ? tFallback('nutrition.cycling.editCta', 'Calorie cycling: on')
-            : tFallback('nutrition.cycling.setCta', 'Set calorie cycling')}
-        </button>
-      </div>
+      {calorieCyclingEnabled && (
+        <div className="flex justify-end -mt-1 mb-1">
+          <button
+            type="button"
+            onClick={() => setShowCalorieCycling(true)}
+            className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Repeat className="w-3 h-3" />
+            {userProfile?.calorie_cycling
+              ? tFallback('nutrition.cycling.editCta', 'Calorie cycling: on')
+              : tFallback('nutrition.cycling.setCta', 'Set calorie cycling')}
+          </button>
+        </div>
+      )}
 
       {/* ═══ Reorderable sections — drag in edit mode to reorder.
               Each Reorder.Item iteration matches widgetOrder; inside,

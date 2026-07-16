@@ -20,7 +20,7 @@ import * as userBlocksData from '@/lib/data/userBlocks';
 import * as userMutesData  from '@/lib/data/userMutes';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { useTheme } from '@/lib/ThemeContext';
-import { Sun } from 'lucide-react';
+import { Sun, Repeat } from 'lucide-react';
 import TwoFactorSection from './TwoFactorSection';
 import ConnectedAppsSection from './ConnectedAppsSection';
 import { getSoundsEnabled, setSoundsEnabled, playSound, SOUND } from '@/lib/playSound';
@@ -243,6 +243,7 @@ export default function SettingsPanel() {
     restTimerEnabled, setRestTimerEnabled,
     levelAnimationsEnabled, setLevelAnimationsEnabled,
     nutrientRingView, setNutrientRingView,
+    calorieCyclingEnabled, setCalorieCyclingEnabled,
   } = useSettings();
 
   // Web Push subscription state for THIS device. Distinct from the
@@ -587,6 +588,7 @@ export default function SettingsPanel() {
     { icon: Timer, label: t('settings.restTimer'), value: restTimerEnabled, onChange: setRestTimerEnabled },
     { icon: Sparkles, label: t('settings.levelAnimations'), value: levelAnimationsEnabled, onChange: setLevelAnimationsEnabled },
     { icon: Circle, label: t('settings.nutrientRingView'), value: nutrientRingView, onChange: setNutrientRingView },
+    { icon: Repeat, label: tFallback('settings.calorieCycling', 'Calorie cycling'), value: calorieCyclingEnabled, onChange: setCalorieCyclingEnabled },
     { icon: Heart, label: tFallback('settings.cycleTracking', 'Cycle tracking'), value: !!profile?.cycle_tracking_enabled, onChange: handleCycleTracking },
   ];
 

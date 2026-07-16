@@ -30,6 +30,11 @@ export function SettingsProvider({ children }) {
   const [nutrientRingView, setNutrientRingViewState] = useState(
     () => localStorage.getItem('fn-nutrient-ring-view') === 'true'
   );
+  // Calorie cycling (training-vs-rest-day targets) is an advanced feature —
+  // off by default. When enabled, its entry point appears on the Nutrition page.
+  const [calorieCyclingEnabled, setCalorieCyclingEnabledState] = useState(
+    () => localStorage.getItem('fn-calorie-cycling-enabled') === 'true'
+  );
 
   const toggleSetting = (key, value) => {
     localStorage.setItem(key, value);
@@ -81,6 +86,11 @@ export function SettingsProvider({ children }) {
       setNutrientRingView: (val) => {
         setNutrientRingViewState(val);
         toggleSetting('fn-nutrient-ring-view', val);
+      },
+      calorieCyclingEnabled,
+      setCalorieCyclingEnabled: (val) => {
+        setCalorieCyclingEnabledState(val);
+        toggleSetting('fn-calorie-cycling-enabled', val);
       },
     }}>
       {children}
