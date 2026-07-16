@@ -15,6 +15,21 @@ export const DIETARY_RESTRICTIONS = [
   { id: 'kosher',      label: 'Kosher',      emoji: '✡️',  desc: 'Kosher certified only' },
 ];
 
+// Food allergens — hard safety exclusions, kept separate from lifestyle diets
+// so onboarding can present them as a distinct "allergies" step. nut / dairy /
+// gluten allergies are already covered by the Nut-Free / Dairy-Free /
+// Gluten-Free diet options above; these are the remaining Big-9 allergens.
+// Selected allergen ids are stored alongside dietary restrictions and fed to
+// the same substitution engine (which guarantees they never appear).
+export const ALLERGENS = [
+  { id: 'egg',       label: 'Egg',       emoji: '🥚', desc: 'No eggs' },
+  { id: 'soy',       label: 'Soy',       emoji: '🫛', desc: 'No soy, tofu, tempeh, or tamari' },
+  { id: 'fish',      label: 'Fish',      emoji: '🐟', desc: 'No finned fish' },
+  { id: 'shellfish', label: 'Shellfish', emoji: '🦐', desc: 'No shrimp, crab, lobster, etc.' },
+  { id: 'sesame',    label: 'Sesame',    emoji: '🌰', desc: 'No sesame seeds or tahini' },
+];
+export const ALLERGEN_IDS = ALLERGENS.map(a => a.id);
+
 const PLAN_COLORS = {
   orange: { card: 'from-orange-500/20 to-orange-400/5', badge: 'bg-orange-500/15 text-orange-600 dark:text-orange-400', bar: 'bg-orange-500' },
   red:    { card: 'from-red-500/20 to-red-400/5',       badge: 'bg-red-500/15 text-red-600 dark:text-red-400',          bar: 'bg-red-500' },
@@ -679,6 +694,12 @@ export function classifyIngredient(name) {
   if (has('lentil', 'bean', 'chickpea', 'hummus', 'tofu', 'tempeh', 'edamame', 'soy') && !has('soy sauce', 'soy milk')) tags.add('legume');
   if (has('potato') && !has('sweet potato')) tags.add('starch');
   if (has('banana', 'honey', 'dried mango', 'maple')) tags.add('sugar');
+  // Allergens (soy + sesame; egg/fish/shellfish/nuts/dairy/gluten already
+  // tagged above). Soy is deliberately separate from `legume` — soy-allergic
+  // users must reject tofu/tempeh/tamari/soy-milk even though those are the
+  // engine's own swap targets.
+  if (has('tofu', 'tempeh', 'edamame', 'soybean', 'miso', 'tamari') || has('soy')) tags.add('soy');
+  if (has('sesame', 'tahini')) tags.add('sesame');
   return tags;
 }
 
@@ -694,6 +715,13 @@ const RESTRICTION_TAGS = {
   // No blanket 'legume' for keto — tofu/soy are low-carb & keto-friendly;
   // the high-carb legumes (lentils, beans) have their own specific swaps.
   keto:        ['grain', 'starch', 'sugar'],
+  // Allergens — hard exclusions. nut/dairy/gluten are covered by the
+  // nut_free/dairy_free/gluten_free ids above; these are the rest of the Big 9.
+  egg:         ['egg'],
+  fish:        ['fish'],
+  shellfish:   ['shellfish'],
+  soy:         ['soy'],
+  sesame:      ['sesame'],
 };
 
 // ── Curated building blocks (keyed by exact ingredient name, lower-case) ──
@@ -798,27 +826,52 @@ const SWAPS = {
   kosher:      { ...PORK_SWAPS },
   paleo:       { ...PALEO_SWAPS },
   keto:        { ...KETO_SWAPS },
+  // Allergen-specific niceties (the generic swaps + safety net cover the rest).
+  soy:         { 'tamari sauce': { name: 'Coconut Aminos', note: 'soy-free' }, 'soy sauce': { name: 'Coconut Aminos', note: 'soy-free' } },
 };
 
-// Tasteful fallback if a future ingredient has no specific swap.
+// Tasteful fallback if a future ingredient has no specific swap. Note the
+// meat/fish/egg generics avoid soy in the NAME (classifier only reads names),
+// so they don't re-trigger a soy allergy — and the safety net below is the
+// hard guarantee regardless.
 const GENERIC_SWAPS = {
-  dairy:  { name: 'Plant-Based Dairy Swap', note: 'coconut- or soy-based' },
-  meat:   { name: 'Plant Protein',          note: 'tofu, tempeh or seitan' },
-  fish:   { name: 'Marinated Tofu',         note: 'sea-seasoned' },
-  egg:    { name: 'Tofu Scramble',          note: 'black salt for eggy flavor' },
-  honey:  { name: 'Maple Syrup',            note: 'plant-based' },
-  nuts:   { name: 'Seed Mix',               note: 'pumpkin & sunflower' },
-  gluten: { name: 'Gluten-Free Swap',       note: 'certified GF' },
-  grain:  { name: 'Cauliflower Rice',       note: 'grain-free' },
-  legume: { name: 'Cauliflower Base',       note: 'legume-free' },
-  starch: { name: 'Roasted Radishes',       note: 'low-carb' },
-  sugar:  { name: 'Fresh Berries',          note: 'lower sugar' },
-  pork:   { name: 'Turkey or Beef',         note: 'pork-free' },
+  dairy:     { name: 'Coconut-Based Alternative', note: 'dairy-free' },
+  meat:      { name: 'Plant Protein',       note: 'pea- or pulse-based' },
+  fish:      { name: 'Marinated Portobello', note: 'meaty, sea-seasoned' },
+  egg:       { name: 'Chickpea Scramble',   note: 'black salt for eggy flavor' },
+  honey:     { name: 'Maple Syrup',         note: 'plant-based' },
+  nuts:      { name: 'Seed Mix',            note: 'pumpkin & sunflower' },
+  gluten:    { name: 'Gluten-Free Swap',    note: 'certified GF' },
+  grain:     { name: 'Cauliflower Rice',    note: 'grain-free' },
+  legume:    { name: 'Cauliflower Base',    note: 'legume-free' },
+  starch:    { name: 'Roasted Radishes',    note: 'low-carb' },
+  sugar:     { name: 'Fresh Berries',       note: 'lower sugar' },
+  pork:      { name: 'Turkey or Beef',      note: 'pork-free' },
+  egg_alt:   { name: 'Chickpea Scramble',   note: 'egg-free' },
+  soy:       { name: 'Chickpeas',           note: 'soy-free plant protein' },
+  shellfish: { name: 'Grilled Chicken',     note: 'shellfish-free' },
+  sesame:    { name: 'Olive Oil',           note: 'sesame-free' },
 };
+
+// Universally-safe fallbacks, tried in order. Used by the safety net when a
+// swap would still leave an active restriction/allergen (e.g. a soy-allergic
+// vegan whose tofu swap is itself soy). The first that violates NOTHING wins;
+// "Steamed Vegetables" classifies with zero tags, so it is always safe —
+// guaranteeing no allergen/restriction ever survives, at any cost to variety.
+const SAFE_FALLBACKS = [
+  { name: 'Grilled Chicken',      note: 'lean protein' },
+  { name: 'Grilled Salmon',       note: 'omega-rich protein' },
+  { name: 'Chickpeas',            note: 'plant protein' },
+  { name: 'Lentils',              note: 'plant protein' },
+  { name: 'Quinoa',               note: 'complete plant protein' },
+  { name: 'Roasted Mushrooms',    note: 'savory whole food' },
+  { name: 'Avocado',              note: 'healthy fats' },
+  { name: 'Steamed Vegetables',   note: 'allergen-free whole food' },
+];
 
 // Order matters only when several restrictions target the same ingredient;
-// broadest patterns first so their curated swap wins.
-const RESTRICTION_ORDER = ['vegan', 'vegetarian', 'paleo', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'halal', 'kosher'];
+// broadest patterns first so their curated swap wins. Allergens appended.
+const RESTRICTION_ORDER = ['vegan', 'vegetarian', 'paleo', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'halal', 'kosher', 'egg', 'fish', 'shellfish', 'soy', 'sesame'];
 
 // Supplements need their own swaps — an off-limits supplement can't become a
 // food (Fish Oil → "Marinated Tofu" is nonsense). Keyed by supplement name.
@@ -850,8 +903,19 @@ export function adaptSupplement(supp, restrictions = []) {
   return cur;
 }
 
+/** True if `name` violates ANY of the active restrictions/allergens. */
+function violatesAny(name, restrictions) {
+  const tags = classifyIngredient(name);
+  return restrictions.some(r => (RESTRICTION_TAGS[r] || []).some(t => tags.has(t)));
+}
+
 /** Adapt a single ingredient for the active restrictions. Returns a new
- *  object; when swapped it carries `swapped` + `swappedFrom` for the UI. */
+ *  object; when swapped it carries `swapped` + `swappedFrom` for the UI.
+ *  GUARANTEE: the returned ingredient violates none of the active
+ *  restrictions/allergens — if a curated/generic swap can't achieve that
+ *  (e.g. every plant-protein swap is soy for a soy-allergic user), it falls
+ *  back to the first universally-safe whole food. A user NEVER receives an
+ *  ingredient that hits one of their restrictions or allergens. */
 export function adaptIngredient(ing, restrictions = []) {
   if (!restrictions.length) return ing;
   let cur = { ...ing };
@@ -869,6 +933,16 @@ export function adaptIngredient(ing, restrictions = []) {
       if (original === null) original = cur.name;
       cur = { ...cur, name: rep.name, note: rep.note ?? cur.note };
     }
+  }
+  // ── SAFETY NET ──────────────────────────────────────────────────────────
+  // If the result STILL violates any active restriction/allergen (a swap
+  // introduced a new one — classically soy via a tofu/tempeh swap for a
+  // soy-allergic user), escalate to the first universally-safe fallback.
+  if (violatesAny(cur.name, restrictions)) {
+    const safe = SAFE_FALLBACKS.find(f => !violatesAny(f.name, restrictions));
+    const chosen = safe || { name: 'Steamed Vegetables', note: 'allergen-free whole food' };
+    if (original === null) original = cur.name;
+    cur = { ...cur, name: chosen.name, note: chosen.note };
   }
   if (original !== null) { cur.swapped = true; cur.swappedFrom = original; }
   return cur;

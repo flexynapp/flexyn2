@@ -26,6 +26,12 @@ const RESTRICTION_TAGS = {
   kosher:      ['pork', 'shellfish'],
   paleo:       ['grain', 'legume', 'dairy'],
   keto:        ['grain', 'starch', 'sugar'],
+  // Allergens
+  egg:         ['egg'],
+  fish:        ['fish'],
+  shellfish:   ['shellfish'],
+  soy:         ['soy'],
+  sesame:      ['sesame'],
 };
 
 const leaksFor = (plan, restrictions) => {
@@ -119,10 +125,33 @@ describe('adaptPlan — no restriction leaks', () => {
     });
   }
 
-  it('handles the all-restrictions-at-once stack with zero leaks', () => {
+  it('handles the all-restrictions-and-allergens-at-once stack with zero leaks', () => {
     for (const template of PLAN_TEMPLATES) {
       const adapted = adaptPlan(template, ALL);
       expect(leaksFor(adapted, ALL)).toEqual([]);
+    }
+  });
+
+  it('SAFETY: never feeds soy to a soy-allergic user, even when the diet swap is soy', () => {
+    // The classic trap: a soy-allergic vegan whose meat/dairy swaps are tofu.
+    const dangerStacks = [['soy', 'vegan'], ['soy', 'vegan', 'nut_free'], ['soy', 'vegetarian', 'paleo']];
+    for (const stack of dangerStacks) {
+      for (const template of PLAN_TEMPLATES) {
+        const adapted = adaptPlan(template, stack);
+        for (const meal of adapted.meals) {
+          for (const ing of meal.ingredients) {
+            expect(classifyIngredient(ing.name).has('soy')).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('SAFETY: every ingredient is compliant even under all 5 allergens at once', () => {
+    const allergens = ['egg', 'fish', 'shellfish', 'soy', 'sesame'];
+    for (const template of PLAN_TEMPLATES) {
+      const adapted = adaptPlan(template, allergens);
+      expect(leaksFor(adapted, allergens)).toEqual([]);
     }
   });
 

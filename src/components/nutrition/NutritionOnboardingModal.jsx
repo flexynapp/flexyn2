@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { DIETARY_RESTRICTIONS, persistRestrictions } from '@/lib/nutritionPlans';
+import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, persistRestrictions } from '@/lib/nutritionPlans';
 
 const GOALS = [
   { id: 'lose',     icon: TrendingDown, color: 'text-blue-500',   bg: 'bg-blue-500/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
@@ -116,12 +116,25 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   const [targetWeight, setTargetWeight] = useState('');
   const [targetDate, setTargetDate] = useState(format(addDays(new Date(), 90), 'yyyy-MM-dd'));
   const [activity, setActivity] = useState('moderate');
-  const [dietaryRestrictions, setDietaryRestrictions] = useState([]);
+  // Pre-fill from the saved profile (edit mode) — split the stored merged list
+  // back into diets vs allergens so both steps show current selections.
+  const _saved = userProfile?.dietary_restrictions || [];
+  const [dietaryRestrictions, setDietaryRestrictions] = useState(
+    () => _saved.filter(id => DIETARY_RESTRICTIONS.some(d => d.id === id)),
+  );
+  const [allergens, setAllergens] = useState(
+    () => _saved.filter(id => ALLERGEN_IDS.includes(id)),
+  );
   const [saving, setSaving] = useState(false);
 
   const toggleRestriction = (id) => {
     setDietaryRestrictions(prev =>
       prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id]
+    );
+  };
+  const toggleAllergen = (id) => {
+    setAllergens(prev =>
+      prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
 
@@ -158,10 +171,11 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
     }
     if (step === 2) return !!activity;
     if (step === 3) return true; // restrictions are optional
+    if (step === 4) return true; // allergens are optional
     return true;
   })();
 
-  const totalSteps = 5; // 0=goal, 1=target, 2=activity, 3=restrictions, 4=preview
+  const totalSteps = 6; // 0=goal, 1=target, 2=activity, 3=restrictions, 4=allergens, 5=preview
   const next = () => setStep(s => Math.min(s + 1, totalSteps - 1));
   const back = () => setStep(s => Math.max(s - 1, 0));
 
@@ -182,10 +196,11 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         payload.target_weight_lbs = null;
         payload.target_date = null;
       }
-      if (dietaryRestrictions.length > 0) {
-        payload.dietary_restrictions = dietaryRestrictions;
-        persistRestrictions(dietaryRestrictions);
-      }
+      // Store diets + allergens together — the substitution engine treats them
+      // uniformly (both are hard exclusions it guarantees never appear).
+      const combined = [...dietaryRestrictions, ...allergens];
+      payload.dietary_restrictions = combined;
+      persistRestrictions(combined);
       await db.auth.updateMe(payload);
       try { localStorage.setItem(onboardedKey, 'true'); } catch { /* ignore */ }
       // Update the userProfile cache OPTIMISTICALLY so the parent's
@@ -396,7 +411,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   Dietary Restrictions
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">Select all that apply — or skip if you have none.</p>
-                <p className="text-xs text-muted-foreground mb-4">We'll filter nutrition plans that don't fit your restrictions.</p>
+                <p className="text-xs text-muted-foreground mb-4">We'll adapt every nutrition plan to fit your restrictions.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {DIETARY_RESTRICTIONS.map(r => {
                     const selected = dietaryRestrictions.includes(r.id);
@@ -425,10 +440,53 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
               </motion.div>
             )}
 
-            {/* STEP 4 — Preview */}
-            {step === 4 && preview && (
+            {/* STEP 4 — Food Allergies */}
+            {step === 4 && (
               <motion.div
-                key="step4"
+                key="step4-allergens"
+                initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.2 }}
+              >
+                <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-rose-500" />
+                  Food Allergies
+                </h2>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Select any allergies — we'll make sure these <span className="font-semibold text-foreground">never</span> appear in a plan.
+                </p>
+                <p className="text-xs text-muted-foreground mb-4">Nut, dairy &amp; gluten allergies are on the previous step.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {ALLERGENS.map(a => {
+                    const selected = allergens.includes(a.id);
+                    return (
+                      <motion.button
+                        key={a.id}
+                        onClick={() => toggleAllergen(a.id)}
+                        whileTap={{ scale: 0.97 }}
+                        className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-start transition-colors ${selected ? 'border-rose-500 bg-rose-500/5' : 'border-border hover:border-rose-500/40'}`}
+                      >
+                        <span className="text-xl leading-none shrink-0">{a.emoji}</span>
+                        <div className="min-w-0 flex-1">
+                          <p className="font-heading font-semibold text-xs leading-tight">{a.label}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{a.desc}</p>
+                        </div>
+                        {selected && <Check className="w-4 h-4 text-rose-500 shrink-0" />}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+                {allergens.length > 0 && (
+                  <p className="text-xs text-rose-500 font-medium mt-3 text-center">
+                    {allergens.length} allergen{allergens.length === 1 ? '' : 's'} — guaranteed excluded from every plan
+                  </p>
+                )}
+              </motion.div>
+            )}
+
+            {/* STEP 5 — Preview */}
+            {step === 5 && preview && (
+              <motion.div
+                key="step5"
                 initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 transition={{ duration: 0.2 }}
               >
