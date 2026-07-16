@@ -780,7 +780,9 @@ export default function Nutrition() {
     if (!res?.ok) {
       const err = res?.error;
       if (err === 'NOT_FOOD') toast.error(tFallback('nutrition.photoAi.notFood', "That doesn't look like food — try another photo."));
-      else if (err === 'PIPELINE_MISSING') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
+      // PIPELINE_MISSING = function not deployed; SERVER_MISCONFIGURED = deployed
+      // but the Anthropic key isn't set. Both mean "not fully set up" to a user.
+      else if (err === 'PIPELINE_MISSING' || err === 'SERVER_MISCONFIGURED') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
       else if (err === 'RATE_LIMIT') toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit — try again in a moment.'));
       // 'TOO_LARGE' was the old client-side code; the server has always
       // sent 'IMAGE_TOO_LARGE'. Accept both so neither path falls
