@@ -124,4 +124,23 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     const r = buildStarterRegimen({ goals: ['mobility', 'strength'], level: 'consistent', daysCount: 3 });
     expect(r.name).toContain('Move Better');
   });
+
+  it('endurance ("Run further") is running-first and never hands a runner cycling', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'advanced', daysCount: 5 });
+    const names = r.exercises.map(e => e.name);
+    expect(names).toContain('Running');
+    expect(names).not.toContain('Cycling');
+  });
+
+  it('respects a cyclist\'s preference: leads with Cycling, drops Running', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 4, cardioPreference: 'cycling' });
+    const names = r.exercises.map(e => e.name);
+    expect(names[0]).toBe('Cycling');
+    expect(names).not.toContain('Running');
+  });
+
+  it('cardioPreference only affects the endurance goal', () => {
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 4, cardioPreference: 'cycling' });
+    expect(r.exercises.map(e => e.name)).not.toContain('Cycling');
+  });
 });

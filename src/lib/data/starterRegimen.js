@@ -37,13 +37,26 @@ const GOAL_TITLES = {
 };
 
 // Exercise picks per goal. Verified at module load against EXERCISE_LIBRARY.
+// The endurance goal ("Run further") is RUNNING-first with running-support
+// strength — no cycling by default. A user's preferred cardio (captured in
+// onboarding) swaps the primary modality, so a runner never gets cycling and
+// a cyclist can opt into it.
 const GOAL_EXERCISES = {
   strength:  ['Squat', 'Bench Press', 'Deadlift', 'Overhead Press', 'Barbell Row', 'Pull-Up'],
   muscle:    ['Bench Press', 'Incline Dumbbell Press', 'Barbell Row', 'Pull-Up', 'Squat', 'Romanian Deadlift', 'Overhead Press', 'Dumbbell Curl'],
   lose:      ['Goblet Squat', 'Push-Up', 'Dumbbell Row', 'Dumbbell Lunge', 'Plank', 'Mountain Climbers'],
-  endurance: ['Running', 'Cycling', 'Jump Rope', 'Mountain Climbers'],
+  endurance: ['Running', 'Jump Rope', 'Mountain Climbers', 'Body Weight Lunge', 'Glute Bridge', 'Plank'],
   mobility:  ['Body Weight Lunge', 'Push-Up', 'Plank', 'Side Plank', 'Glute Bridge'],
 };
+
+// Preferred-cardio → the exercise that leads an endurance plan. Only modalities
+// present in EXERCISE_LIBRARY. Default is running (the goal is "Run further").
+const CARDIO_MODALITY = {
+  running:   'Running',
+  cycling:   'Cycling',
+  jump_rope: 'Jump Rope',
+};
+Object.values(CARDIO_MODALITY).forEach(EX); // pre-flight validate
 
 // Sets/reps by experience level. Newbies and returning lifters share a
 // program (3×10) to keep the on-ramp gentle.
@@ -90,11 +103,20 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  *                                       user reports advanced lift capacity.
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference } = {}) {
   const primary = (Array.isArray(goals) && goals[0]) ? goals[0] : 'strength';
   const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
   const goalTitle = GOAL_TITLES[goalKey];
-  const exerciseNames = GOAL_EXERCISES[goalKey];
+  let exerciseNames = GOAL_EXERCISES[goalKey];
+
+  // Respect the user's preferred cardio for endurance plans: lead with their
+  // chosen modality (running by default) and drop any other cardio machine so
+  // a runner is never handed cycling — and vice-versa.
+  if (goalKey === 'endurance' && CARDIO_MODALITY[cardioPreference]) {
+    const lead = CARDIO_MODALITY[cardioPreference];
+    const otherModalities = Object.values(CARDIO_MODALITY).filter(m => m !== lead);
+    exerciseNames = [lead, ...exerciseNames.filter(n => n !== lead && !otherModalities.includes(n))];
+  }
 
   const baseSetsReps = LEVEL_SETS_REPS[level] || LEVEL_SETS_REPS.newbie;
   const advIdx = advancedIndex(assessment);

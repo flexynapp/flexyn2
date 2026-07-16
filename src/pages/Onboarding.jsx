@@ -6,6 +6,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SignInToContinue from './SignInToContinue';
+import FlexynLogo from '@/components/FlexynLogo';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
@@ -489,17 +490,10 @@ function WelcomeStep({ onNext, onSignIn }) {
     <div className="flex flex-col h-full pt-3 gap-5 justify-between">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-            className="w-10 h-10 rounded-[12px] flex items-center justify-center relative overflow-hidden shadow-xl shadow-primary/40"
-            style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(38 92% 60%))' }}>
-            <span className="absolute inset-0" style={{ background: 'radial-gradient(120% 100% at 50% 0%, hsl(0 0% 100% / 0.35), transparent 50%)' }} />
-            <span className="font-heading font-bold text-[22px] text-white relative tracking-tighter">F</span>
-          </motion.div>
-          <motion.span initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
-            className="font-heading font-bold text-[17px] tracking-tight text-foreground">Flexyn</motion.span>
-        </div>
+        <motion.div initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
+          <FlexynLogo className="h-9" />
+        </motion.div>
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
           className="font-mono text-[10px] font-semibold text-muted-foreground tracking-[0.16em] uppercase">V 2.0</motion.div>
       </div>
@@ -2480,19 +2474,16 @@ function LoadingStep({ onDone }) {
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-4">
-      {/* Logo animation */}
-      <motion.div className="relative w-28 h-28 flex items-center justify-center mb-2"
+      {/* Logo animation — real Flexyn lockup, gently pulsing */}
+      <motion.div className="relative w-40 h-24 flex items-center justify-center mb-2"
         animate={{ scale: [1, 1.04, 1] }} transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}>
         {[0, 1, 2].map(i => (
-          <motion.div key={i} className="absolute rounded-full border border-primary/25"
-            style={{ inset: i * -14 }}
-            animate={{ opacity: [0.5, 0.1, 0.5], scale: [1, 1.08, 1] }}
+          <motion.div key={i} className="absolute rounded-full border border-primary/20"
+            style={{ inset: -10 - i * 14 }}
+            animate={{ opacity: [0.4, 0.08, 0.4], scale: [1, 1.06, 1] }}
             transition={{ duration: 2.2, delay: i * 0.4, repeat: Infinity, ease: 'easeInOut' }} />
         ))}
-        <div className="w-20 h-20 rounded-[22px] flex items-center justify-center shadow-2xl shadow-primary/40"
-          style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(38 92% 60%))' }}>
-          <span className="font-heading font-bold text-3xl text-white tracking-tighter">F</span>
-        </div>
+        <FlexynLogo className="h-11 relative" />
       </motion.div>
 
       <h2 className="font-heading font-bold text-2xl tracking-tight text-foreground text-center">Building your plan</h2>
