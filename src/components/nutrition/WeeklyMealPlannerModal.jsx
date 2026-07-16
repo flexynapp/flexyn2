@@ -20,7 +20,7 @@ import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import {
-  X, ChevronLeft, ChevronRight, Loader2, Plus,
+  X, ChevronLeft, ChevronRight, ChevronDown, Loader2, Plus,
   CalendarDays, Camera, ChefHat, Pencil, ChevronRight as ChevRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,6 +37,31 @@ const MEAL_SLOTS = [
   { key: 'dinner',    label: 'Dinner',    emoji: '🍽️' },
   { key: 'snack',     label: 'Snack',     emoji: '🍎' },
 ];
+
+// Full nutrient set for manual meal entry — mirrors LogMealForm so the
+// planner can capture any nutrient, not just the four headline macros.
+const MANUAL_MACRO_FIELDS = [
+  { key: 'calories',       label: 'Calories',    unit: 'kcal', color: 'text-orange-600' },
+  { key: 'protein_g',      label: 'Protein',     unit: 'g',    color: 'text-red-600' },
+  { key: 'carbs_g',        label: 'Carbs',       unit: 'g',    color: 'text-blue-600' },
+  { key: 'fat_g',          label: 'Fat',         unit: 'g',    color: 'text-yellow-600' },
+  { key: 'fiber_g',        label: 'Fiber',       unit: 'g',    color: 'text-green-600' },
+  { key: 'sugar_g',        label: 'Sugar',       unit: 'g',    color: 'text-purple-600' },
+  { key: 'sodium_mg',      label: 'Sodium',      unit: 'mg',   color: 'text-pink-600' },
+  { key: 'cholesterol_mg', label: 'Cholesterol', unit: 'mg',   color: 'text-cyan-600' },
+];
+const MANUAL_MICRO_FIELDS = [
+  { key: 'iron_mg',         label: 'Iron',        unit: 'mg',  color: 'text-red-600' },
+  { key: 'magnesium_mg',    label: 'Magnesium',   unit: 'mg',  color: 'text-emerald-600' },
+  { key: 'calcium_mg',      label: 'Calcium',     unit: 'mg',  color: 'text-slate-600' },
+  { key: 'potassium_mg',    label: 'Potassium',   unit: 'mg',  color: 'text-yellow-600' },
+  { key: 'vitamin_a_iu',    label: 'Vitamin A',   unit: 'IU',  color: 'text-orange-600' },
+  { key: 'vitamin_c_mg',    label: 'Vitamin C',   unit: 'mg',  color: 'text-rose-600' },
+  { key: 'vitamin_d_iu',    label: 'Vitamin D',   unit: 'IU',  color: 'text-amber-600' },
+  { key: 'vitamin_b12_mcg', label: 'Vitamin B12', unit: 'mcg', color: 'text-purple-600' },
+];
+const MANUAL_ALL_FIELDS = [...MANUAL_MACRO_FIELDS, ...MANUAL_MICRO_FIELDS];
+const emptyNutrients = () => MANUAL_ALL_FIELDS.reduce((acc, f) => { acc[f.key] = ''; return acc; }, {});
 
 function weekStart(date) {
   // ISO week (Mon as start) so Sun stays at the END, not start.
@@ -147,22 +172,42 @@ function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose 
 // name and the macros ride along for anything that reads them later.
 function ManualMealModal({ open, mealLabel, onSave, onClose }) {
   const [name, setName] = useState('');
-  const [macros, setMacros] = useState({ calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const [values, setValues] = useState(emptyNutrients);
+  const [showMicros, setShowMicros] = useState(false);
 
   useEffect(() => {
-    if (open) { setName(''); setMacros({ calories: '', protein_g: '', carbs_g: '', fat_g: '' }); }
+    if (open) { setName(''); setValues(emptyNutrients()); setShowMicros(false); }
   }, [open]);
 
   if (!open) return null;
 
-  const FIELDS = [
-    { key: 'calories',  label: 'Calories', unit: 'kcal', color: 'text-orange-600' },
-    { key: 'protein_g', label: 'Protein',  unit: 'g',    color: 'text-red-600' },
-    { key: 'carbs_g',   label: 'Carbs',    unit: 'g',    color: 'text-blue-600' },
-    { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-yellow-600' },
-  ];
   const canSave = name.trim().length > 0;
   const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+
+  // Plain render helper (not a nested component) so the inputs aren't
+  // remounted each keystroke — that would drop focus mid-typing.
+  const renderInput = (f) => (
+    <div key={f.key}>
+      <label className={`text-[11px] font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
+      <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
+        <input
+          type="number"
+          inputMode="decimal"
+          value={values[f.key]}
+          onChange={(e) => setValues(v => ({ ...v, [f.key]: e.target.value }))}
+          placeholder="0"
+          className="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none"
+        />
+        <span className="pe-3 text-[10px] text-muted-foreground shrink-0">{f.unit}</span>
+      </div>
+    </div>
+  );
+
+  const handleSave = () => {
+    const snapshot = { name: name.trim() };
+    for (const f of MANUAL_ALL_FIELDS) snapshot[f.key] = num(values[f.key]);
+    onSave(snapshot);
+  };
 
   return (
     <motion.div
@@ -181,7 +226,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="p-4 space-y-3 overflow-y-auto">
+        <div className="p-4 space-y-4 overflow-y-auto">
           <div>
             <label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Meal name</label>
             <input
@@ -192,34 +237,36 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
               className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            {FIELDS.map(f => (
-              <div key={f.key}>
-                <label className={`text-[11px] font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
-                <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
-                  <input
-                    type="number"
-                    inputMode="decimal"
-                    value={macros[f.key]}
-                    onChange={(e) => setMacros(m => ({ ...m, [f.key]: e.target.value }))}
-                    placeholder="0"
-                    className="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none"
-                  />
-                  <span className="pe-3 text-[10px] text-muted-foreground shrink-0">{f.unit}</span>
-                </div>
+
+          {/* Macros — always shown. */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Macros</p>
+            <div className="grid grid-cols-2 gap-2">
+              {MANUAL_MACRO_FIELDS.map(renderInput)}
+            </div>
+          </div>
+
+          {/* Vitamins & minerals — collapsed by default so the common
+              case stays fast, but every nutrient is one tap away. */}
+          <div>
+            <button
+              type="button"
+              onClick={() => setShowMicros(s => !s)}
+              className="w-full flex items-center justify-between px-1 py-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Vitamins &amp; minerals
+              <ChevronDown className={`w-4 h-4 transition-transform ${showMicros ? 'rotate-180' : ''}`} />
+            </button>
+            {showMicros && (
+              <div className="grid grid-cols-2 gap-2 mt-2">
+                {MANUAL_MICRO_FIELDS.map(renderInput)}
               </div>
-            ))}
+            )}
           </div>
         </div>
         <div className="px-4 py-3 border-t border-border shrink-0">
           <button
-            onClick={() => onSave({
-              name: name.trim(),
-              calories:  num(macros.calories),
-              protein_g: num(macros.protein_g),
-              carbs_g:   num(macros.carbs_g),
-              fat_g:     num(macros.fat_g),
-            })}
+            onClick={handleSave}
             disabled={!canSave}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
