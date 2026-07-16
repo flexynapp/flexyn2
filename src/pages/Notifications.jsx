@@ -240,7 +240,7 @@ export default function Notifications() {
           <Bell className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
           <p className="font-heading font-semibold">{tFallback('notifications.empty', 'Nothing here yet')}</p>
           <p className="text-sm text-muted-foreground mt-1">
-            {tFallback('notifications.emptyDesc', 'Activity from your crew, your nemesis, and the app will appear here.')}
+            {tFallback('notifications.emptyDesc', 'Activity from your crew, your Gym Rival, and the app will appear here.')}
           </p>
         </div>
       )}

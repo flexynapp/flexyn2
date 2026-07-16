@@ -18,7 +18,7 @@ import { reportError } from '@/lib/reportError';
 import { useNumberFormatter } from '@/lib/intl';
 
 const RESETS   = ['Current XP', 'Display level', 'Current season rank'];
-const PERSISTS = ['Lifetime XP total', 'All workout logs', 'All PRs & volume history', 'Flex Coins', 'Crew membership', 'Nemesis history'];
+const PERSISTS = ['Lifetime XP total', 'All workout logs', 'All PRs & volume history', 'Flex Coins', 'Crew membership', 'Gym Rival history'];
 
 export default function PrestigePrompt({ currentPrestige = 0, onDismiss }) {
   const qc = useQueryClient();

@@ -1,4 +1,4 @@
-// Tests for src/lib/data/nemesis.js performOverthrow — the most
+// Tests for src/lib/data/gymRival.js performOverthrow — the most
 // complex change shipped this session. Covers:
 //   • Order-of-operations: status update FIRST, then increment, then
 //     notification, then new-nemesis assignment. The
@@ -71,7 +71,7 @@ vi.mock('@/api/supabaseClient', () => ({
   },
 }));
 
-const { performOverthrow } = await import('../nemesis');
+const { performOverthrow } = await import('../gymRival');
 
 beforeEach(() => {
   callLog.length = 0;

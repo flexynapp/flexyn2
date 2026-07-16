@@ -728,7 +728,7 @@ function buildSuggestionSlides({ logs, followsCount, push }) {
       id: 'sug:push', kind: 'suggestion',
       icon: Bell, iconBg: 'bg-primary/20', kicker: 'Stay in it',
       title: 'Turn on notifications',
-      sub: 'Nemesis moves, crew wars, at-risk streaks — the moment they happen.',
+      sub: 'Gym Rival moves, crew wars, at-risk streaks — the moment they happen.',
       cta: { label: 'Enable', action: 'enablePush' },
     });
   }

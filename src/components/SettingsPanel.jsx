@@ -4,7 +4,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { maskEmail } from '@/lib/userDisplay';
 import { Bell, BellRing, Dumbbell, Languages, Ruler, Pause, Timer, Sparkles, Circle, Bug, Scale, User, Check, X, Loader2, Flame, Target, Trophy, Users, Star, Heart, MessageCircle, Lock, Globe, ShieldOff, UserX, ChevronDown, ChevronUp, Swords, Vibrate, Volume2, Moon, BellOff } from 'lucide-react';
 import { getMyQuietHours, setMyQuietHours, formatHour12 } from '@/lib/data/quietHours';
-import { setNemesisOptOut } from '@/lib/data/nemesis';
+import { setGymRivalOptOut } from '@/lib/data/gymRival';
 import { updateStoryDmsSettings } from '@/lib/data/stories';
 import { getStoryBlocks, blockUser, unblockUser, updateDefaultStoryPrivacy } from '@/lib/data/storyPrivacy';
 import { supabase } from '@/api/supabaseClient';
@@ -298,21 +298,21 @@ export default function SettingsPanel() {
     if (profile?.hide_from_search !== undefined) setHideFromSearch(!!profile.hide_from_search);
   }, [profile?.is_private, profile?.hide_from_search]);
 
-  // ── Nemesis opt-out (mig 081) ───────────────────────────────────────
-  // The backend already honors nemesis_opt_out (assignNemesis filters it),
-  // but there was no UI to set it — a ghost control. This wires setNemesisOptOut.
-  const [nemesisOptOut, setNemesisOptOutLocal] = useState(false);
+  // ── Gym Rival opt-out ───────────────────────────────────────────────
+  // The backend honors nemesis_opt_out (assignGymRival filters it — DB
+  // column still named nemesis_opt_out pending the rename migration).
+  const [gymRivalOptOut, setGymRivalOptOutLocal] = useState(false);
   useEffect(() => {
-    if (profile?.nemesis_opt_out !== undefined) setNemesisOptOutLocal(!!profile.nemesis_opt_out);
+    if (profile?.nemesis_opt_out !== undefined) setGymRivalOptOutLocal(!!profile.nemesis_opt_out);
   }, [profile?.nemesis_opt_out]);
-  const toggleNemesisOptOut = async (next) => {
-    setNemesisOptOutLocal(next); // optimistic
+  const toggleGymRivalOptOut = async (next) => {
+    setGymRivalOptOutLocal(next); // optimistic
     try {
-      await setNemesisOptOut(next);
+      await setGymRivalOptOut(next);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
     } catch {
-      setNemesisOptOutLocal(!next); // revert
-      toast.error(tFallback('settings.nemesis.saveFailed', 'Could not save — try again.'));
+      setGymRivalOptOutLocal(!next); // revert
+      toast.error(tFallback('settings.gymRival.saveFailed', 'Could not save — try again.'));
     }
   };
 
@@ -1261,13 +1261,13 @@ export default function SettingsPanel() {
         </div>
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <p id="settings-nemesis-label" className="text-xs text-foreground">Opt out of Nemesis</p>
-            <p className="text-[10px] text-muted-foreground">Stop being matched with a weekly rival to chase and overthrow.</p>
+            <p id="settings-gym-rival-label" className="text-xs text-foreground">Opt out of Gym Rival</p>
+            <p className="text-[10px] text-muted-foreground">Stop being matched with a weekly Gym Rival to compete against.</p>
           </div>
           <ToggleSwitch
-            checked={nemesisOptOut}
-            onChange={toggleNemesisOptOut}
-            labelledBy="settings-nemesis-label"
+            checked={gymRivalOptOut}
+            onChange={toggleGymRivalOptOut}
+            labelledBy="settings-gym-rival-label"
           />
         </div>
       </div>

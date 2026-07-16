@@ -152,7 +152,7 @@ export default function PushOptInBanner({ hasWorkouts = false }) {
             <p className="text-[11px] text-muted-foreground leading-snug mt-0.5">
               {tFallback(
                 'pushOptIn.subtitle',
-                'Get a ping when your nemesis logs a workout, your streak\'s at risk, or your crew needs you.',
+                'Get a ping when your Gym Rival logs a workout, your streak\'s at risk, or your crew needs you.',
               )}
             </p>
             <div className="flex items-center gap-2 mt-2">

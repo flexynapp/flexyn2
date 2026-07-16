@@ -42,7 +42,7 @@ import { getActiveDuel } from '@/lib/data/duels';
 import { getMyCrews } from '@/lib/data/crews';
 import { getActiveWarForCrew, contributeWarXp } from '@/lib/data/crewWars';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
-import NemesisCard from '@/components/nemesis/NemesisCard';
+import GymRivalCard from '@/components/gymRival/GymRivalCard';
 import { getMyProgress as getGauntletProgress, checkGauntletProgress } from '@/lib/data/gauntlet';
 import GauntletStatsModal from '@/components/gauntlet/GauntletStatsModal';
 import { reportError } from '@/lib/reportError';
@@ -1884,8 +1884,8 @@ export default function Workout() {
               Your auto-assigned rival — beat their stats to dethrone them.
             </p>
           )}
-          <ErrorBoundary label="NemesisCard">
-            <NemesisCard currentUserId={user?.id} />
+          <ErrorBoundary label="GymRivalCard">
+            <GymRivalCard currentUserId={user?.id} />
           </ErrorBoundary>
         </div>
       </div>

@@ -1,5 +1,6 @@
-// src/components/nemesis/NemesisCard.jsx
-// Dashboard nemesis card — shows assigned rival, Challenge CTA, Reroll button.
+// src/components/gymRival/GymRivalCard.jsx
+// Workout-page Gym Rival card — shows the assigned rival, Challenge CTA,
+// and a Reroll button. (Formerly NemesisCard.)
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -7,14 +8,14 @@ import { Target, RefreshCw, Loader2, Swords } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getMyNemesis, getNemesisProfile, assignNemesis } from '@/lib/data/nemesis';
+import { getMyGymRival, getRivalProfile, assignGymRival } from '@/lib/data/gymRival';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import CreateDuelModal from '@/components/duels/CreateDuelModal';
 
-export default function NemesisCard({ currentUserId }) {
+export default function GymRivalCard({ currentUserId }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const qc = useQueryClient();
@@ -23,33 +24,33 @@ export default function NemesisCard({ currentUserId }) {
   const [showDuel, setShowDuel] = useState(false);
 
   const { data: assignment, isLoading } = useQuery({
-    queryKey:  ['myNemesis', currentUserId],
-    queryFn:   getMyNemesis,
+    queryKey:  ['myGymRival', currentUserId],
+    queryFn:   getMyGymRival,
     enabled:   !!currentUserId,
     staleTime: 5 * 60_000,
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey:  ['nemesisProfile', assignment?.nemesis_id],
-    queryFn:   () => getNemesisProfile(assignment?.nemesis_id),
+    queryKey:  ['gymRivalProfile', assignment?.nemesis_id],
+    queryFn:   () => getRivalProfile(assignment?.nemesis_id),
     enabled:   !!assignment?.nemesis_id,
     staleTime: 5 * 60_000,
   });
 
   const assignMut = useMutation({
-    mutationFn: assignNemesis,
+    mutationFn: assignGymRival,
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['myNemesis'] });
-      qc.invalidateQueries({ queryKey: ['nemesisProfile'] });
+      qc.invalidateQueries({ queryKey: ['myGymRival'] });
+      qc.invalidateQueries({ queryKey: ['gymRivalProfile'] });
     },
     onError: (err) => {
-      reportError(err, { feature: 'nemesis.assign', level: 'warning', userEmail: user?.email });
-      toast.error('Could not assign nemesis. Try again.');
+      reportError(err, { feature: 'gymRival.assign', level: 'warning', userEmail: user?.email });
+      toast.error('Could not assign your Gym Rival. Try again.');
     },
   });
 
   // Initial load — render a skeleton (was: return null which left the
-  // dashboard area blank during the few hundred ms of fetch).
+  // area blank during the few hundred ms of fetch).
   if (isLoading) {
     return (
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
@@ -64,7 +65,7 @@ export default function NemesisCard({ currentUserId }) {
     );
   }
 
-  // ── No nemesis — prompt to assign ────────────────────────────────────────────
+  // ── No rival — prompt to find one ────────────────────────────────────────────
   if (!assignment) {
     return (
       <motion.div
@@ -76,12 +77,12 @@ export default function NemesisCard({ currentUserId }) {
           <Target className="w-5 h-5 text-rose-500" />
         </div>
         <p className="text-sm font-bold mb-1">
-          {tFallback('nemesis.findTitle', 'Find Your Nemesis')}
+          {tFallback('gymRival.findTitle', 'Find Your Gym Rival')}
         </p>
         <p className="text-xs text-muted-foreground mb-4">
           {tFallback(
-            'nemesis.findDesc',
-            "We'll pair you with a rival slightly above your level. Beat their stats, claim their rank."
+            'gymRival.findDesc',
+            "We'll match you with someone around your level for a week-long challenge. Out-train them to win."
           )}
         </p>
         <button
@@ -94,8 +95,8 @@ export default function NemesisCard({ currentUserId }) {
             : <Target className="w-4 h-4" />
           }
           {assignMut.isPending
-            ? tFallback('nemesis.searching', 'Searching…')
-            : tFallback('nemesis.findButton', 'Find My Nemesis')}
+            ? tFallback('gymRival.searching', 'Searching…')
+            : tFallback('gymRival.findButton', 'Find My Gym Rival')}
         </button>
       </motion.div>
     );
@@ -106,10 +107,9 @@ export default function NemesisCard({ currentUserId }) {
   const level  = profile?.current_level;
 
   // Show skeleton ONLY while the profile fetch is in-flight. If the
-  // fetch resolved to a row but `username` is null (deleted-but-not-
-  // cascaded, profile with avatar only), surface a "no longer available"
-  // state with a reroll affordance instead of an infinite skeleton.
-  // (Audit 15 #M3.)
+  // fetch resolved to a row but `username` is null, surface a "no longer
+  // available" state with a reroll affordance instead of an infinite
+  // skeleton.
   if (profileLoading) {
     return (
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/3 p-4 mb-4 animate-pulse">
@@ -127,7 +127,7 @@ export default function NemesisCard({ currentUserId }) {
     return (
       <div className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-4 mb-4">
         <p className="text-sm text-muted-foreground mb-3">
-          Your nemesis is no longer available. Reroll to get a new rival.
+          Your Gym Rival is no longer available. Reroll to get a new one.
         </p>
         <button
           type="button"
@@ -151,14 +151,10 @@ export default function NemesisCard({ currentUserId }) {
         {/* Label */}
         <div className="flex items-center gap-1.5 px-4 pt-3 pb-1">
           <Target className="w-3.5 h-3.5 text-rose-500" />
-          <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Your Nemesis</span>
+          <span className="text-[10px] font-black uppercase tracking-wider text-rose-500">Your Gym Rival</span>
         </div>
 
-        {/* Profile — tappable, navigates to the rival's Hub profile.
-            Screenshot feedback: "Make it so you can click this to go
-            to their profile." Falls back to a non-button div when we
-            don't have an email yet (pre-mig fetch, deleted account)
-            so the tap doesn't dead-end on /hub?profile=undefined. */}
+        {/* Profile — tappable, navigates to the rival's Hub profile. */}
         {profile?.id ? (
           <button
             type="button"
@@ -230,7 +226,7 @@ export default function NemesisCard({ currentUserId }) {
         </div>
       </motion.div>
 
-      {/* Duel modal pre-filled with nemesis */}
+      {/* Duel modal pre-filled with the rival */}
       <AnimatePresence>
         {showDuel && (
           <CreateDuelModal
