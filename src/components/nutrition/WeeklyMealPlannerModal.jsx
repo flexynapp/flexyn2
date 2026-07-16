@@ -21,13 +21,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import {
   X, ChevronLeft, ChevronRight, Loader2, Plus, Download,
-  CalendarDays, ShoppingCart, Check,
+  CalendarDays, ShoppingCart, Check, Camera, ChefHat, Pencil, ChevronRight as ChevRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
 
 const MEAL_SLOTS = [
@@ -83,6 +84,147 @@ function RecipePickerModal({ open, recipes: recipeList, onPick, onClose }) {
               </p>
             </button>
           ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── "How do you want to add this meal?" chooser ────────────────────────
+// Shown when a user taps an empty meal slot. Three ways in: Photo-AI
+// (snap the plate), Recipe (their saved recipes), or Manual (type the
+// macros). Mirrors the entry points on the Nutrition page's log form.
+function AddMethodSheet({ open, mealLabel, onPhoto, onRecipe, onManual, onClose }) {
+  if (!open) return null;
+  const options = [
+    { key: 'photo',  label: 'Photo-AI', desc: 'Snap a photo of your plate', Icon: Camera,  onClick: onPhoto,  tint: 'text-violet-500 bg-violet-500/10' },
+    { key: 'recipe', label: 'Recipe',   desc: 'Pick from your saved recipes', Icon: ChefHat, onClick: onRecipe, tint: 'text-emerald-500 bg-emerald-500/10' },
+    { key: 'manual', label: 'Manual',   desc: 'Enter the macros by hand',   Icon: Pencil,  onClick: onManual, tint: 'text-sky-500 bg-sky-500/10' },
+  ];
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      onClick={onClose}
+      className="fixed inset-0 z-[10000] bg-black/60 flex items-end sm:items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ y: 24 }} animate={{ y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md bg-card border border-border rounded-2xl shadow-2xl flex flex-col"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <h3 className="font-heading font-bold text-sm">Add {mealLabel?.toLowerCase() || 'meal'}</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="p-3 space-y-2">
+          {options.map(({ key, label, desc, Icon, onClick, tint }) => (
+            <button
+              key={key}
+              onClick={onClick}
+              className="w-full flex items-center gap-3 px-3 py-3 rounded-xl border border-border bg-secondary/40 hover:bg-secondary transition-colors text-start"
+            >
+              <span className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${tint}`}>
+                <Icon className="w-4 h-4" />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-bold text-sm">{label}</span>
+                <span className="block text-[11px] text-muted-foreground">{desc}</span>
+              </span>
+              <ChevRight className="w-4 h-4 text-muted-foreground shrink-0" />
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+// ── Manual meal entry sub-modal ────────────────────────────────────────
+// Compact name + core-macros form. Saves a `food_snapshot` on the plan
+// cell (same shape a Photo-AI result produces), so the grid renders the
+// name and the macros ride along for anything that reads them later.
+function ManualMealModal({ open, mealLabel, onSave, onClose }) {
+  const [name, setName] = useState('');
+  const [macros, setMacros] = useState({ calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+
+  useEffect(() => {
+    if (open) { setName(''); setMacros({ calories: '', protein_g: '', carbs_g: '', fat_g: '' }); }
+  }, [open]);
+
+  if (!open) return null;
+
+  const FIELDS = [
+    { key: 'calories',  label: 'Calories', unit: 'kcal', color: 'text-orange-600' },
+    { key: 'protein_g', label: 'Protein',  unit: 'g',    color: 'text-red-600' },
+    { key: 'carbs_g',   label: 'Carbs',    unit: 'g',    color: 'text-blue-600' },
+    { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-yellow-600' },
+  ];
+  const canSave = name.trim().length > 0;
+  const num = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? n : 0; };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+      onClick={onClose}
+      className="fixed inset-0 z-[10001] bg-black/60 flex items-end sm:items-center justify-center p-4"
+    >
+      <motion.div
+        initial={{ y: 24 }} animate={{ y: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full sm:max-w-md bg-card border border-border rounded-2xl shadow-2xl flex flex-col max-h-[85vh]"
+      >
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <h3 className="font-heading font-bold text-sm">Add {mealLabel?.toLowerCase() || 'meal'} manually</h3>
+          <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3 overflow-y-auto">
+          <div>
+            <label className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Meal name</label>
+            <input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. Chicken & rice"
+              autoFocus
+              className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {FIELDS.map(f => (
+              <div key={f.key}>
+                <label className={`text-[11px] font-bold uppercase tracking-wide ${f.color}`}>{f.label}</label>
+                <div className="mt-1 flex items-center rounded-lg border border-border bg-background focus-within:ring-2 focus-within:ring-primary/40">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    value={macros[f.key]}
+                    onChange={(e) => setMacros(m => ({ ...m, [f.key]: e.target.value }))}
+                    placeholder="0"
+                    className="w-full px-3 py-2 rounded-lg bg-transparent text-sm focus:outline-none"
+                  />
+                  <span className="pe-3 text-[10px] text-muted-foreground shrink-0">{f.unit}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="px-4 py-3 border-t border-border shrink-0">
+          <button
+            onClick={() => onSave({
+              name: name.trim(),
+              calories:  num(macros.calories),
+              protein_g: num(macros.protein_g),
+              carbs_g:   num(macros.carbs_g),
+              fat_g:     num(macros.fat_g),
+            })}
+            disabled={!canSave}
+            className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          >
+            Add to plan
+          </button>
         </div>
       </motion.div>
     </motion.div>
@@ -217,11 +359,23 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
-  const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType }
+  const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType } → recipe picker
+  const [addSlot, setAddSlot]       = useState(null); // { date, mealType, label } → method chooser
+  const [manualSlot, setManualSlot] = useState(null); // { date, mealType, label } → manual form
+  const [photoBusy, setPhotoBusy]   = useState(false);
   const [groceryOpen, setGroceryOpen] = useState(false);
   // Two tabs: the 7-day grid ('planner') and the Nutrition Plans browser
   // ('plans'), which was folded in here from its own modal.
   const [tab, setTab] = useState('planner');
+
+  // Horizontal-scroll centering: keep today's column in the middle of the
+  // viewport when the current week is shown, so the user opens straight
+  // onto "today" rather than Monday scrolled off-screen.
+  const scrollRef = useRef(null);
+  const todayRef  = useRef(null);
+  // Photo-AI: hidden file input + the slot the photo is being added to.
+  const photoInputRef  = useRef(null);
+  const photoTargetRef = useRef(null);
 
   const ws = useMemo(() => weekStart(anchor), [anchor]);
   const days = useMemo(
@@ -279,6 +433,74 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
       recipeId: recipe.id,
     });
     setPickerSlot(null);
+  };
+
+  // Center today's column in the horizontal scroll whenever the planner
+  // tab shows the current week's grid. rAF so we measure after layout.
+  useEffect(() => {
+    if (!open || tab !== 'planner' || isLoading) return;
+    const id = requestAnimationFrame(() => {
+      const c = scrollRef.current;
+      const tEl = todayRef.current;
+      if (!c || !tEl) return;
+      const cRect = c.getBoundingClientRect();
+      const tRect = tEl.getBoundingClientRect();
+      const delta = (tRect.left - cRect.left) - (c.clientWidth - tRect.width) / 2;
+      c.scrollLeft += delta;
+    });
+    return () => cancelAnimationFrame(id);
+  }, [open, tab, isLoading, ws]);
+
+  const finiteOr = (val, fb) => {
+    const n = Number(val);
+    return Number.isFinite(n) ? n : fb;
+  };
+
+  // Photo-AI: recognize the plate, then drop the result on the target
+  // slot as a food_snapshot (no recipe row needed).
+  const handlePhotoFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    const target = photoTargetRef.current;
+    photoTargetRef.current = null;
+    if (!file || !target) return;
+    setPhotoBusy(true);
+    const res = await recognizeMealPhoto(file);
+    setPhotoBusy(false);
+    if (!res?.ok) {
+      const err = res?.error;
+      if (err === 'NOT_FOOD') toast.error("That doesn't look like food — try another photo.");
+      else if (err === 'RATE_LIMIT') toast.error('Hit the rate limit — try again in a moment.');
+      else if (err === 'PIPELINE_MISSING') toast.error("Photo recognition isn't enabled yet.");
+      else toast.error('Could not recognize meal. Try again.');
+      return;
+    }
+    const r = res.result || {};
+    upsertMutation.mutate({
+      user,
+      planDate: target.date,
+      mealType: target.mealType,
+      foodSnapshot: {
+        name:      (typeof r.food_name === 'string' && r.food_name.trim()) || 'Meal',
+        calories:  finiteOr(r.calories,  0),
+        protein_g: finiteOr(r.protein_g, 0),
+        carbs_g:   finiteOr(r.carbs_g,   0),
+        fat_g:     finiteOr(r.fat_g,     0),
+        fiber_g:   finiteOr(r.fiber_g,   0),
+      },
+    });
+    toast.success(`Added: ${r.food_name || 'meal'}`);
+  };
+
+  const handleManualSave = (snapshot) => {
+    if (!manualSlot) return;
+    upsertMutation.mutate({
+      user,
+      planDate: manualSlot.date,
+      mealType: manualSlot.mealType,
+      foodSnapshot: snapshot,
+    });
+    setManualSlot(null);
   };
 
   const groceryItems = useMemo(
@@ -360,7 +582,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           </div>
 
           {/* Grid — horizontal scroll on mobile, grid on desktop */}
-          <div className="flex-1 overflow-y-auto p-3">
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -371,7 +593,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
                   const dateStr = isoDay(d);
                   const isToday = dateStr === isoDay(new Date());
                   return (
-                    <div key={dateStr} className="flex flex-col">
+                    <div key={dateStr} ref={isToday ? todayRef : undefined} className="flex flex-col">
                       <div className={`text-center pb-2 mb-1 border-b border-border/60 ${isToday ? 'text-primary font-bold' : ''}`}>
                         <p className="text-[10px] uppercase tracking-wider text-muted-foreground">
                           {format(d, 'EEE')}
@@ -392,7 +614,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
                                 if (plan) {
                                   if (confirm('Remove this meal?')) removeMutation.mutate(plan.id);
                                 } else {
-                                  setPickerSlot({ date: dateStr, mealType: slot.key });
+                                  setAddSlot({ date: dateStr, mealType: slot.key, label: slot.label });
                                 }
                               }}
                               className={`w-full min-h-[58px] rounded-lg px-1.5 py-1.5 text-start text-[10px] font-medium transition-colors flex flex-col ${
@@ -441,6 +663,30 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           )}
         </motion.div>
 
+        {/* Hidden file input driving the Photo-AI path. */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="hidden"
+          onChange={handlePhotoFile}
+        />
+
+        {/* Step 1 — how do you want to add this meal? */}
+        <AddMethodSheet
+          open={!!addSlot}
+          mealLabel={addSlot?.label}
+          onPhoto={() => {
+            photoTargetRef.current = { date: addSlot.date, mealType: addSlot.mealType };
+            setAddSlot(null);
+            photoInputRef.current?.click();
+          }}
+          onRecipe={() => { setPickerSlot({ date: addSlot.date, mealType: addSlot.mealType }); setAddSlot(null); }}
+          onManual={() => { setManualSlot(addSlot); setAddSlot(null); }}
+          onClose={() => setAddSlot(null)}
+        />
+
         <RecipePickerModal
           open={!!pickerSlot}
           recipes={recipeList}
@@ -448,11 +694,29 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           onClose={() => setPickerSlot(null)}
         />
 
+        <ManualMealModal
+          open={!!manualSlot}
+          mealLabel={manualSlot?.label}
+          onSave={handleManualSave}
+          onClose={() => setManualSlot(null)}
+        />
+
         <GroceryListModal
           open={groceryOpen}
           items={groceryItems}
           onClose={() => setGroceryOpen(false)}
         />
+
+        {/* Photo-AI recognition spinner overlay. */}
+        {photoBusy && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-[10002] bg-black/70 flex flex-col items-center justify-center gap-3"
+          >
+            <Loader2 className="w-7 h-7 animate-spin text-white" />
+            <p className="text-white text-sm font-medium">Recognizing your meal…</p>
+          </div>
+        )}
       </motion.div>
     </AnimatePresence>,
     document.body,
