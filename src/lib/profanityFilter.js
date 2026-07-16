@@ -268,6 +268,16 @@ function checkBlocklist(haystack, needle) {
   return needle.length >= 4 ? fuzzyContains(haystack, needle) : repeatContains(haystack, needle);
 }
 
+// Word-boundary variant for very short needles. Anchors the repeat pattern at a
+// \b so a 3-letter slur ("wop", "fuk") only matches at the start of a token —
+// NOT mid-string inside an innocent concatenation ("two plates" → "twoplates",
+// "low options" → "lowoptions"). Run against the SOFT (space-preserving) text.
+function boundedContains(haystack, needle) {
+  const escaped = needle.split('').map(c => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  const pattern = '\\b' + escaped.map(c => `${c}+`).join('');
+  return new RegExp(pattern).test(haystack);
+}
+
 // ── Star/symbol masking bypass detector ───────────────────────────────────
 // Catches "ni**er", "f**k", "b*tch" and similar patterns where asterisks or
 // hash signs mask one or more letters in the middle of a slur. Strategy:
@@ -374,10 +384,20 @@ export function containsProfanity(text, { context = 'public' } = {}) {
 
   // Build hit list: forward check for all words; reverse check only for
   // English-origin slurs (SKIP_REVERSE excludes foreign-language words).
-  const hits = NORMALIZED_BLOCKED.filter(w =>
-    checkBlocklist(aggressive, w) ||
-    (!SKIP_REVERSE_NORMALIZED.has(w) && checkBlocklist(reversed, w))
-  );
+  const hits = NORMALIZED_BLOCKED.filter((w) => {
+    // Short needles (≤3 chars: "wop", "fuk", "fuq") only match as a bounded
+    // token in the space-preserving text. A 3-letter substring otherwise fires
+    // inside innocent concatenations — "two plates" → "twoplates" contains
+    // "wop", "low options" → "lowoptions" too. Boundary matching still catches
+    // the real slur ("you wop", "wops").
+    if (w.length < 4) return boundedContains(soft, w);
+    // Longer needles: forward fuzzy on the space-stripped text, plus a reverse
+    // pass — but reverse only for words ≥5. Reversing a 3–4 letter slur isn't a
+    // real evasion, and reverse-fuzzy of short words matches common food words
+    // ("chips" → spic, "dogs and" → dago, "power" → wop).
+    return checkBlocklist(aggressive, w) ||
+      (w.length >= 5 && !SKIP_REVERSE_NORMALIZED.has(w) && checkBlocklist(reversed, w));
+  });
 
   if (hits.length > 0) {
     for (const hit of hits) {

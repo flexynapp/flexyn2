@@ -21,7 +21,9 @@ describe('DM context bypass', () => {
 describe('catches clear profanity in public context', () => {
   // Note: 'ass' is intentionally excluded — the filter skips it to avoid
   // false positives on words like 'class', 'bass', 'grass', 'passage', etc.
-  const slurs = ['fuck', 'shit', 'bitch', 'cunt', 'cock'];
+  // 'wop' and 'spic' included: short ethnic slurs must still flag as bounded
+  // tokens even though they no longer substring-match inside innocent words.
+  const slurs = ['fuck', 'shit', 'bitch', 'cunt', 'cock', 'wop', 'you wop', 'spic'];
   slurs.forEach(word => {
     it(`flags "${word}"`, () => {
       expect(containsProfanity(word)).toBe(true);
@@ -61,6 +63,21 @@ describe('false positive regressions — innocent words', () => {
     'Sussex',
     'Penistone',
     'Lightwater',
+    // Food names — short-slur substring / reverse-fuzzy false positives
+    // ("two p…" → wop, "chips" → spic reversed, "dogs and" → dago reversed,
+    // "power" → wop reversed). All must stay clear.
+    'Two plain hot dogs and two plain buns',
+    'hot dogs and buns',
+    'two hot dogs',
+    'two portions',
+    'two plates of pasta',
+    'fish and chips',
+    'chips and salsa',
+    'power clean',
+    'powerlifting',
+    'power bowl',
+    'empowerment',
+    'low options',
     // Fitness-specific terms
     'muscle',
     'barbell',
