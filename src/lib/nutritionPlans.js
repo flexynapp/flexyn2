@@ -383,6 +383,143 @@ export const PLAN_TEMPLATES = [
       { name: 'Probiotic',          dose: '10B CFU',    timing: 'With breakfast', benefit: 'Gut health + immunity',  icon: '🦠' },
     ],
   },
+  {
+    id: 'mass_builder',
+    name: 'Mass Builder',
+    tagline: 'Calorie-dense whole foods to pack on quality size',
+    icon: '🍚',
+    color: 'orange',
+    goalFit: ['gain'],
+    excludedFor: ['vegetarian', 'vegan', 'keto', 'paleo', 'dairy_free', 'gluten_free', 'nut_free'],
+    baseCalories: 2000,
+    baseMacros: { protein: 175, carbs: 215, fat: 55 },
+    meals: [
+      {
+        id: 'breakfast', name: 'Loaded Oats & Eggs', time: 'Breakfast · 7:00 AM',
+        kcal: 560, macros: { p: 36, c: 66, f: 18 },
+        ingredients: [
+          { name: 'Whole Eggs',    amount: '3 large',   note: 'scrambled' },
+          { name: 'Rolled Oats',   amount: '1 cup dry',  note: 'cooked in milk' },
+          { name: 'Whole Milk',    amount: '1 cup',      note: '3.25%' },
+          { name: 'Peanut Butter', amount: '1 tbsp',     note: 'stirred in' },
+          { name: 'Banana',        amount: '1 medium',   note: 'sliced' },
+        ],
+      },
+      {
+        id: 'lunch', name: 'Beef & Rice Power Bowl', time: 'Lunch · 12:30 PM',
+        kcal: 620, macros: { p: 46, c: 70, f: 16 },
+        ingredients: [
+          { name: 'Ground Beef',   amount: '6 oz',          note: '93/7, browned' },
+          { name: 'White Rice',    amount: '1½ cups cooked', note: 'jasmine' },
+          { name: 'Black Beans',   amount: '½ cup',         note: 'rinsed' },
+          { name: 'Avocado',       amount: '¼ medium',      note: 'sliced' },
+        ],
+      },
+      {
+        id: 'snack1', name: 'Mass Shake', time: 'Snack · 3:30 PM',
+        kcal: 360, macros: { p: 40, c: 40, f: 6 },
+        ingredients: [
+          { name: 'Whey Protein',  amount: '1½ scoops', note: 'vanilla' },
+          { name: 'Whole Milk',    amount: '1 cup',     note: '' },
+          { name: 'Frozen Berries', amount: '1 cup',    note: '' },
+          { name: 'Honey',         amount: '1 tbsp',    note: '' },
+        ],
+      },
+      {
+        id: 'dinner', name: 'Chicken, Sweet Potato & Greens', time: 'Dinner · 7:00 PM',
+        kcal: 600, macros: { p: 50, c: 55, f: 16 },
+        ingredients: [
+          { name: 'Chicken Breast', amount: '7 oz',   note: 'roasted' },
+          { name: 'Sweet Potato',   amount: '10 oz',  note: 'baked' },
+          { name: 'Green Beans',    amount: '1½ cups', note: 'sautéed' },
+          { name: 'Olive Oil',      amount: '1 tbsp', note: 'drizzled' },
+        ],
+      },
+      {
+        id: 'snack2', name: 'Bedtime Bowl', time: 'Snack · 9:30 PM',
+        kcal: 260, macros: { p: 26, c: 22, f: 8 },
+        ingredients: [
+          { name: 'Greek Yogurt', amount: '1 cup',  note: '2% plain' },
+          { name: 'Granola',      amount: '¼ cup',  note: '' },
+          { name: 'Almonds',      amount: '½ oz',   note: 'chopped' },
+        ],
+      },
+    ],
+    supplements: [
+      { name: 'Creatine Monohydrate', dose: '5g',       timing: 'Daily',              benefit: 'Strength + size',     icon: '⚡' },
+      { name: 'Whey Protein',         dose: '1–2 scoops', timing: 'Post-workout / gaps', benefit: 'Hit protein target', icon: '🥛' },
+      { name: 'Vitamin D3',           dose: '2000 IU',  timing: 'With breakfast',     benefit: 'Hormones + bone',     icon: '☀️' },
+      { name: 'Magnesium Glycinate',  dose: '400mg',    timing: 'Before bed',         benefit: 'Sleep + recovery',    icon: '🌙' },
+    ],
+  },
+  {
+    id: 'veg_strength',
+    name: 'Vegetarian Strength',
+    tagline: 'High-protein vegetarian eating — eggs, dairy & plants, no meat',
+    icon: '🥚',
+    color: 'green',
+    goalFit: ['gain', 'maintain'],
+    excludedFor: ['vegan', 'keto', 'paleo', 'dairy_free', 'gluten_free'],
+    baseCalories: 2000,
+    baseMacros: { protein: 155, carbs: 210, fat: 62 },
+    meals: [
+      {
+        id: 'breakfast', name: 'Yogurt & Egg Protein Start', time: 'Breakfast · 7:00 AM',
+        kcal: 470, macros: { p: 40, c: 48, f: 12 },
+        ingredients: [
+          { name: 'Whole Eggs',   amount: '2 large',  note: 'scrambled with spinach' },
+          { name: 'Greek Yogurt', amount: '1 cup',    note: '2% plain' },
+          { name: 'Rolled Oats',  amount: '½ cup dry', note: 'overnight' },
+          { name: 'Blueberries',  amount: '½ cup',    note: 'fresh' },
+        ],
+      },
+      {
+        id: 'lunch', name: 'Lentil & Feta Quinoa Bowl', time: 'Lunch · 12:30 PM',
+        kcal: 540, macros: { p: 32, c: 68, f: 14 },
+        ingredients: [
+          { name: 'Red Lentils',  amount: '¾ cup dry',    note: 'simmered' },
+          { name: 'Quinoa',       amount: '½ cup cooked', note: 'rinsed' },
+          { name: 'Feta Cheese',  amount: '1 oz',         note: 'crumbled' },
+          { name: 'Spinach',      amount: '2 cups',       note: 'wilted' },
+          { name: 'Olive Oil',    amount: '1 tbsp',       note: 'dressing' },
+        ],
+      },
+      {
+        id: 'snack1', name: 'Cottage Cheese & Fruit', time: 'Snack · 3:30 PM',
+        kcal: 220, macros: { p: 24, c: 20, f: 4 },
+        ingredients: [
+          { name: 'Cottage Cheese', amount: '¾ cup', note: 'low-fat' },
+          { name: 'Pineapple',      amount: '½ cup', note: 'diced' },
+        ],
+      },
+      {
+        id: 'dinner', name: 'Egg & Cheese Bean Wrap', time: 'Dinner · 7:00 PM',
+        kcal: 560, macros: { p: 40, c: 56, f: 20 },
+        ingredients: [
+          { name: 'Whole Eggs',       amount: '2 large',  note: 'scrambled' },
+          { name: 'Cheddar Cheese',   amount: '1 oz',     note: 'shredded' },
+          { name: 'Whole Wheat Wrap', amount: '1 large',  note: 'warmed' },
+          { name: 'Black Beans',      amount: '½ cup',    note: 'seasoned' },
+          { name: 'Salsa',            amount: '3 tbsp',   note: 'pico de gallo' },
+        ],
+      },
+      {
+        id: 'snack2', name: 'Casein Nightcap', time: 'Snack · 9:30 PM',
+        kcal: 210, macros: { p: 22, c: 14, f: 8 },
+        ingredients: [
+          { name: 'Greek Yogurt', amount: '¾ cup', note: 'plain' },
+          { name: 'Almonds',      amount: '½ oz',  note: 'chopped' },
+          { name: 'Honey',        amount: '1 tsp', note: 'drizzle' },
+        ],
+      },
+    ],
+    supplements: [
+      { name: 'Creatine Monohydrate', dose: '5g',      timing: 'Daily',          benefit: 'Strength (vegetarians run low)', icon: '⚡' },
+      { name: 'Vitamin B12',          dose: '500mcg',  timing: 'With breakfast', benefit: 'Energy + nerves',   icon: '⚡' },
+      { name: 'Iron + Vitamin C',     dose: '18mg + 500mg', timing: 'Between meals', benefit: 'Blood health',  icon: '🩸' },
+      { name: 'Vitamin D3',           dose: '2000 IU', timing: 'With breakfast', benefit: 'Immunity + bone',   icon: '☀️' },
+    ],
+  },
 ];
 
 /** Scale a plan's kcal and macros to the user's actual calorie target */
@@ -520,6 +657,9 @@ const DAIRY_SWAPS = {
   'heavy cream':    { name: 'Coconut Cream',           note: 'full-fat, silky' },
   'parmesan':       { name: 'Nutritional Yeast',       note: 'nutty, cheesy, B12-rich' },
   'butter':         { name: 'Vegan Butter',            note: 'plant-based, rich' },
+  'whole milk':     { name: 'Soy Milk',                note: 'unsweetened, high-protein' },
+  'milk':           { name: 'Soy Milk',                note: 'unsweetened' },
+  'whey protein':   { name: 'Plant Protein Powder',    note: 'pea + rice blend' },
 };
 const MEAT_SWAPS = {
   'chicken breast':  { name: 'Marinated Tempeh',   note: 'grilled — high-protein, savory' },
@@ -543,6 +683,8 @@ const NUT_SWAPS = {
   'walnuts':        { name: 'Toasted Pumpkin Seeds', note: 'crunchy, nut-free' },
   'mixed nuts':     { name: 'Mixed Seeds',           note: 'pumpkin, sunflower & hemp' },
   'macadamia nuts': { name: 'Roasted Pumpkin Seeds', note: 'buttery, nut-free' },
+  'peanut butter':  { name: 'Sunflower Seed Butter', note: 'creamy, nut-free' },
+  'almonds':        { name: 'Pumpkin Seeds',         note: 'toasted, nut-free' },
 };
 const GLUTEN_SWAPS = {
   'rolled oats':          { name: 'Certified GF Rolled Oats', note: 'gluten-free' },
@@ -551,6 +693,7 @@ const GLUTEN_SWAPS = {
   'whole grain toast':    { name: 'Gluten-Free Seeded Toast', note: 'toasted' },
   'whole grain crackers': { name: 'Seed Crackers',           note: 'gluten-free' },
   'granola':              { name: 'Gluten-Free Granola',      note: 'certified GF oats' },
+  'whole wheat wrap':     { name: 'Gluten-Free Wrap',         note: 'brown-rice or cassava' },
 };
 const PORK_SWAPS = {
   'bacon':            { name: 'Turkey Bacon',   note: 'pork-free' },
@@ -575,6 +718,9 @@ const PALEO_SWAPS = {
   'greek yogurt':         { name: 'Coconut Yogurt',        note: 'dairy-free, paleo' },
   'cottage cheese':       { name: 'Coconut Yogurt Bowl',   note: 'dairy-free' },
   'butter':               { name: 'Coconut Oil',           note: 'paleo cooking fat' },
+  'whole milk':           { name: 'Coconut Milk',          note: 'full-fat, paleo' },
+  'milk':                 { name: 'Coconut Milk',          note: 'full-fat, paleo' },
+  'whole wheat wrap':     { name: 'Lettuce Wrap',          note: 'grain-free' },
 };
 const KETO_SWAPS = {
   'rolled oats':       { name: 'Cauliflower Porridge', note: 'low-carb, cinnamon' },
@@ -588,6 +734,7 @@ const KETO_SWAPS = {
   'whole wheat toast': { name: 'Almond-Flour Bread',   note: 'low-carb' },
   'whole grain bread': { name: 'Almond-Flour Bread',   note: 'low-carb' },
   'red lentils':       { name: 'Cauliflower Base',     note: 'low-carb' },
+  'whole wheat wrap':  { name: 'Lettuce Wrap',         note: 'low-carb' },
 };
 
 const SWAPS = {
