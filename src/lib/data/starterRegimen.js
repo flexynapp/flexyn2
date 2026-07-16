@@ -124,7 +124,7 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  *                                       user reports advanced lift capacity.
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries } = {}) {
   const primary = (Array.isArray(goals) && goals[0]) ? goals[0] : 'strength';
   const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
   const goalTitle = GOAL_TITLES[goalKey];
@@ -137,6 +137,31 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     const lead = CARDIO_MODALITY[cardioPreference];
     const otherModalities = Object.values(CARDIO_MODALITY).filter(m => m !== lead);
     exerciseNames = [lead, ...exerciseNames.filter(n => n !== lead && !otherModalities.includes(n))];
+  }
+
+  // Honor the onboarding injury log — the injury step promises "we exclude
+  // affected areas from your starter plan." Drop any exercise that trains an
+  // injured muscle group (the library's muscle names match the injury
+  // regions exactly). Safety valve: if that would empty the plan (someone
+  // logged nearly every region), keep whatever exercises hit the FEWEST
+  // injured areas so the user still gets a workable, least-aggravating plan.
+  const injuredSet = new Set(
+    (Array.isArray(injuries) ? injuries : [])
+      .map(i => (i && i.muscleGroup) || i)
+      .filter(Boolean),
+  );
+  if (injuredSet.size) {
+    const clean = exerciseNames.filter(n => !EX(n).muscles.some(m => injuredSet.has(m)));
+    if (clean.length >= 2) {
+      exerciseNames = clean;
+    } else {
+      // Extreme case — rank by fewest injured-area overlaps, keep the best 3.
+      exerciseNames = [...exerciseNames]
+        .sort((a, b) =>
+          EX(a).muscles.filter(m => injuredSet.has(m)).length -
+          EX(b).muscles.filter(m => injuredSet.has(m)).length)
+        .slice(0, 3);
+    }
   }
 
   // Effective level factors in the fitness self-assessment (goal-aware), so

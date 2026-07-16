@@ -2808,8 +2808,9 @@ export default function Onboarding() {
       level: data.level,
       daysCount: Array.isArray(data.days) ? data.days.length : 0,
       assessment: data.assessment || null,
+      injuries: data.onboardingInjuries || [],
     }),
-    [data.goal, data.level, data.days, data.assessment]
+    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -3178,6 +3179,7 @@ export default function Onboarding() {
             level: data.level,
             daysCount: Array.isArray(data.days) ? data.days.length : 0,
             assessment: data.assessment || null,
+            injuries: data.onboardingInjuries || [],
           },
         }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });

@@ -161,4 +161,43 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     expect(r.exercises[0].target_sets).toBe(3);
     expect(r.exercises[0].target_reps).toBe(10);
   });
+
+  it('honors the onboarding injury log — excludes affected muscle groups (all goals)', () => {
+    const cases = [
+      { goal: 'strength',  injury: 'Back',   forbidden: 'Back' },
+      { goal: 'strength',  injury: 'Legs',   forbidden: 'Legs' },
+      { goal: 'muscle',    injury: 'Chest',  forbidden: 'Chest' },
+      { goal: 'lose',      injury: 'Legs',   forbidden: 'Legs' },
+      { goal: 'endurance', injury: 'Legs',   forbidden: 'Legs' },   // injured leg → no Running
+      { goal: 'mobility',  injury: 'Core',   forbidden: 'Core' },
+    ];
+    for (const { goal, injury, forbidden } of cases) {
+      const r = buildStarterRegimen({
+        goals: [goal], level: 'consistent', daysCount: 4,
+        injuries: [{ muscleGroup: injury, severity: 'moderate' }],
+      });
+      // No returned exercise may train the injured region.
+      for (const ex of r.exercises) {
+        expect(ex.muscle_groups).not.toContain(forbidden);
+      }
+      expect(r.exercises.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('injured leg + endurance never returns Running', () => {
+    const r = buildStarterRegimen({
+      goals: ['endurance'], level: 'consistent', daysCount: 4,
+      injuries: [{ muscleGroup: 'Legs', severity: 'serious' }],
+    });
+    expect(r.exercises.map(e => e.name)).not.toContain('Running');
+  });
+
+  it('never returns an empty plan even with many injured regions', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 3,
+      injuries: ['Chest', 'Back', 'Legs', 'Shoulders', 'Glutes', 'Core', 'Biceps', 'Triceps']
+        .map(muscleGroup => ({ muscleGroup, severity: 'serious' })),
+    });
+    expect(r.exercises.length).toBeGreaterThanOrEqual(1);
+  });
 });
