@@ -187,15 +187,20 @@ export default function LogMealForm({ newEntry, setNewEntry, onScan, onLog, isSc
 
   return (
     <Card className="p-4 border-none shadow-sm">
-      {/* Collapsible header */}
+      {/* Collapsible header — doubles as the primary "Log Meal" CTA, so it's
+          sized up and the toggle is a filled badge for clear visibility. */}
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="w-full flex items-center justify-between mb-0"
+        className="w-full flex items-center justify-between py-1"
       >
-        <h3 className="font-heading font-bold">{t('nutrition.logMealForm')}</h3>
-        <motion.span animate={{ rotate: open ? 45 : 0 }} transition={{ duration: 0.2 }}>
-          <Plus className="w-5 h-5 text-primary" />
+        <h3 className="font-heading font-bold text-lg">{t('nutrition.logMealForm')}</h3>
+        <motion.span
+          animate={{ rotate: open ? 45 : 0 }}
+          transition={{ duration: 0.2 }}
+          className="flex items-center justify-center w-9 h-9 rounded-full bg-primary text-primary-foreground shadow-sm"
+        >
+          <Plus className="w-5 h-5" strokeWidth={2.5} />
         </motion.span>
       </button>
 
