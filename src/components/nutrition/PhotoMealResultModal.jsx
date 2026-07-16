@@ -7,11 +7,15 @@
 // per-ingredient breakdown. The user can Edit the totals inline, then Save
 // — which logs the meal through the normal path so daily calories, macros,
 // and the dashboard Nutrition/Recovery cards all update.
+//
+// Also doubles as a read-only detail view (`readOnly`) for re-opening an
+// already-saved meal — same photo + metrics layout, but with the Edit /
+// Save footer swapped for Done (+ optional Delete via `onDelete`).
 
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils } from 'lucide-react';
+import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 const num = (v) => {
@@ -44,7 +48,7 @@ function Tile({ label, value, unit, color, editing, onChange, big = false }) {
   );
 }
 
-export default function PhotoMealResultModal({ open, imageUrl, result, saving, onClose, onSave }) {
+export default function PhotoMealResultModal({ open, imageUrl, result, saving, onClose, onSave, readOnly = false, onDelete }) {
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [vals, setVals] = useState({});
@@ -100,19 +104,41 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
           className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-xl flex flex-col"
           style={{ maxHeight: '94vh' }}
         >
-          {/* Photo banner + overlay */}
-          <div className="relative h-44 shrink-0 bg-black">
-            {imageUrl
-              ? <img src={imageUrl} alt="Your meal" className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-white/40"><Utensils className="w-8 h-8" /></div>}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20" />
+          {/* Photo banner + overlay. Show the WHOLE meal regardless of the
+              uploaded photo's aspect ratio / resolution: a blurred, zoomed
+              copy fills the frame as a backdrop, and the real image sits on
+              top with object-contain so nothing gets cropped out. */}
+          <div className="relative h-52 shrink-0 bg-neutral-900 overflow-hidden">
+            {imageUrl ? (
+              <>
+                <img
+                  src={imageUrl}
+                  alt=""
+                  aria-hidden="true"
+                  className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50"
+                />
+                <img
+                  src={imageUrl}
+                  alt="Your meal"
+                  className="relative w-full h-full object-contain"
+                />
+              </>
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-white/40"><Utensils className="w-8 h-8" /></div>
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/25 pointer-events-none" />
             <button onClick={onClose} aria-label="Close" className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
               <X className="w-4 h-4" />
             </button>
-            <div className="absolute top-3 start-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1">
-              <Sparkles className="w-3 h-3 text-white" />
-              <span className="text-[10px] font-bold uppercase tracking-wide text-white">Photo-AI</span>
-            </div>
+            {/* Photo-AI badge — hidden on the read-only detail view of a
+                meal that has no photo (a manually logged entry), where it
+                would be misleading. */}
+            {(!readOnly || imageUrl) && (
+              <div className="absolute top-3 start-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2.5 py-1">
+                <Sparkles className="w-3 h-3 text-white" />
+                <span className="text-[10px] font-bold uppercase tracking-wide text-white">Photo-AI</span>
+              </div>
+            )}
             <div className="absolute bottom-0 inset-x-0 p-3">
               {editing ? (
                 <Input
@@ -201,27 +227,48 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             <div className="h-3" />
           </div>
 
-          {/* Footer — Edit toggle + Save */}
-          <div className="px-4 py-3 border-t border-border flex gap-2">
-            <button
-              type="button"
-              onClick={() => setEditing((e) => !e)}
-              className={`flex-1 h-11 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 ${
-                editing ? 'border-primary text-primary bg-primary/10' : 'border-border text-foreground'
-              }`}
-            >
-              {editing ? <><Check className="w-4 h-4" /> Done</> : <><Pencil className="w-4 h-4" /> Edit</>}
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={saving}
-              className="flex-[1.4] h-11 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
-            >
-              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Save meal
-            </button>
-          </div>
+          {/* Footer — read-only detail (Delete? + Done) vs. Edit + Save. */}
+          {readOnly ? (
+            <div className="px-4 py-3 border-t border-border flex gap-2">
+              {onDelete && (
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="flex-1 h-11 rounded-lg border border-destructive/40 text-destructive text-sm font-bold flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-4 h-4" /> Delete
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex-[1.4] h-11 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5"
+              >
+                <Check className="w-4 h-4" /> Done
+              </button>
+            </div>
+          ) : (
+            <div className="px-4 py-3 border-t border-border flex gap-2">
+              <button
+                type="button"
+                onClick={() => setEditing((e) => !e)}
+                className={`flex-1 h-11 rounded-lg border text-sm font-bold flex items-center justify-center gap-1.5 ${
+                  editing ? 'border-primary text-primary bg-primary/10' : 'border-border text-foreground'
+                }`}
+              >
+                {editing ? <><Check className="w-4 h-4" /> Done</> : <><Pencil className="w-4 h-4" /> Edit</>}
+              </button>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-[1.4] h-11 rounded-lg bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center gap-1.5 disabled:opacity-60"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                Save meal
+              </button>
+            </div>
+          )}
         </motion.div>
       </motion.div>
     </AnimatePresence>,

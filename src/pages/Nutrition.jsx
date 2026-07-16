@@ -3,6 +3,7 @@ import { filterAfterReset } from '@/lib/accountReset';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import * as nutritionData from '@/lib/data/nutrition';
+import * as mealPlans from '@/lib/data/mealPlans';
 import { useAuth } from '@/lib/AuthContext';
 import { format } from 'date-fns';
 import { Card } from '@/components/ui/card';
@@ -404,6 +405,13 @@ export default function Nutrition() {
   const [showPhotoResult, setShowPhotoResult] = useState(false);
   const [photoResult, setPhotoResult] = useState(null);
   const [photoImageUrl, setPhotoImageUrl] = useState(null);
+  // The exact File the user picked — held so we can upload it to storage on
+  // save (the blob: preview URL doesn't survive a reload / can't be persisted).
+  const photoFileRef = useRef(null);
+  // Read-only detail view for re-opening an already-saved meal (image + metrics).
+  // { result, imageUrl } shaped like a recognition result so PhotoMealResultModal
+  // can render it directly.
+  const [mealDetail, setMealDetail] = useState(null);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -624,9 +632,11 @@ export default function Nutrition() {
   }, [logs]);
 
   const saveMutation = useMutation({
-    // Strip non-DB telemetry flags (leading underscore) so they don't
-    // trigger PostgREST strip-and-retry round-trips on save.
-    mutationFn: ({ _via_barcode: _vb, ...data } = {}) => nutritionData.create(data),
+    // Strip non-DB fields (leading underscore) so they don't trigger
+    // PostgREST strip-and-retry round-trips on save. `_planner_mirror` is a
+    // food_snapshot consumed in onSuccess (needs the new row's id), not a
+    // column.
+    mutationFn: ({ _via_barcode: _vb, _planner_mirror: _pm, ...data } = {}) => nutritionData.create(data),
     onMutate: async (variables) => {
       if (!isWaterEntry(variables)) return;
       const qKey = ['nutritionLogs', user?.email, date];
@@ -646,8 +656,24 @@ export default function Nutrition() {
       ]);
       return { previousLogs };
     },
-    onSuccess: async (_, variables) => {
+    onSuccess: async (createdRow, variables) => {
       queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, date] });
+
+      // Mirror a photo-logged meal into the weekly planner slot so it shows
+      // in its date+meal-type square on the Plans page. Best-effort; stores
+      // the new log's id on the snapshot so removing the plan can also un-log
+      // the diary entry. Fire-and-forget — never blocks the save.
+      if (variables?._planner_mirror && user?.id) {
+        mealPlans.upsert({
+          user,
+          planDate: variables.date || date,
+          mealType: variables.meal_type || mealType,
+          foodSnapshot: { ...variables._planner_mirror, log_id: createdRow?.id || null },
+        })
+          .then(() => queryClient.invalidateQueries({ queryKey: ['mealPlans', user?.id] }))
+          .catch((mirrorErr) => reportError(mirrorErr, { feature: 'nutrition.planner-mirror', level: 'warning', userEmail: user?.email }));
+      }
+
       if (isWaterEntry(variables)) {
         // XP value comes from XP_REWARDS.waterGlass (single source of truth).
         // Was hardcoded to 1 inline, drifted from the documented 3.
@@ -804,6 +830,7 @@ export default function Nutrition() {
     // and saves. Keep a preview URL of the exact photo they used.
     const r = res.result || {};
     try { if (photoImageUrl) URL.revokeObjectURL(photoImageUrl); } catch { /* noop */ }
+    photoFileRef.current = file;   // keep for upload-on-save
     setPhotoImageUrl(URL.createObjectURL(file));
     setPhotoResult(r);
     setShowPhotoResult(true);
@@ -813,6 +840,7 @@ export default function Nutrition() {
   const closePhotoResult = () => {
     setShowPhotoResult(false);
     setPhotoResult(null);
+    photoFileRef.current = null;
     try { if (photoImageUrl) URL.revokeObjectURL(photoImageUrl); } catch { /* noop */ }
     setPhotoImageUrl(null);
   };
@@ -820,14 +848,30 @@ export default function Nutrition() {
   // Save the (possibly edited) recognized meal through the normal logging
   // path so daily calories, macros, and the dashboard Nutrition/Recovery
   // cards all update. `entry` carries food_name + numeric macro columns.
-  const saveRecognizedMeal = (entry) => {
+  //
+  // Before saving we upload the photo to storage so it persists with the log
+  // (the blob: preview URL is memory-only). The recognition extras that have
+  // no dedicated column (portion/confidence/ingredients/sugar) ride along in
+  // `ai_meta`. We also hand the mutation a `_planner_mirror` snapshot so the
+  // meal shows up in its date+meal-type square on the Plans page — the mirror
+  // itself runs in onSuccess where the new log's id is available.
+  const saveRecognizedMeal = async (entry) => {
     if (saveMutation.isPending) return;
-    saveMutation.mutate({
-      date,
-      created_by: user?.email,
-      user_id: user?.id,
-      meal_type: mealType,
-      food_name: (entry.food_name || 'Meal').trim(),
+    const src = photoResult || {};
+    const file = photoFileRef.current;
+
+    // Upload the photo (best-effort — a failed upload shouldn't block the log).
+    let imageUrl = null;
+    if (file) {
+      try {
+        const up = await db.integrations.Core.UploadFile({ file, bucket: 'uploads' });
+        imageUrl = up?.file_url || null;
+      } catch (uploadErr) {
+        reportError(uploadErr, { feature: 'nutrition.photo-upload', level: 'warning', userEmail: user?.email });
+      }
+    }
+
+    const macros = {
       calories:  Number(entry.calories)  || 0,
       protein_g: Number(entry.protein_g) || 0,
       carbs_g:   Number(entry.carbs_g)   || 0,
@@ -835,8 +879,65 @@ export default function Nutrition() {
       fiber_g:   Number(entry.fiber_g)   || 0,
       sugar_g:   Number(entry.sugar_g)   || 0,
       sodium_mg: Number(entry.sodium_mg) || 0,
+    };
+    const foodName = (entry.food_name || 'Meal').trim();
+    const aiMeta = {
+      source:           'photo_ai',
+      portion_estimate: src.portion_estimate || null,
+      confidence:       ['high', 'medium', 'low'].includes(src.confidence) ? src.confidence : null,
+      items:            Array.isArray(src.items) ? src.items : [],
+      notes:            src.notes || null,
+      sugar_g:          macros.sugar_g,
+    };
+    // Snapshot mirrored into the weekly planner slot (food_snapshot JSONB).
+    const plannerSnapshot = {
+      name:             foodName,
+      ...macros,
+      image_url:        imageUrl,
+      portion_estimate: aiMeta.portion_estimate,
+      confidence:       aiMeta.confidence,
+      items:            aiMeta.items,
+      source:           'photo_ai',
+    };
+
+    saveMutation.mutate({
+      date,
+      created_by: user?.email,
+      user_id: user?.id,
+      meal_type: mealType,
+      food_name: foodName,
+      ...macros,
+      image_url: imageUrl,
+      ai_meta: aiMeta,
+      _planner_mirror: plannerSnapshot,
     });
     closePhotoResult();
+  };
+
+  // Re-open an already-saved meal in a read-only detail view (image + metrics).
+  // Reconstructs a recognition-shaped result from the stored row: headline
+  // macros live in their own columns (protein/carbs/fat/… or the _g aliases),
+  // the extras come from ai_meta.
+  const openMealDetail = (entry) => {
+    if (!entry || isWaterEntry(entry)) return;
+    const meta = entry.ai_meta || {};
+    setMealDetail({
+      imageUrl: entry.image_url || null,
+      result: {
+        food_name:        entry.food_name || 'Meal',
+        calories:         Number(entry.calories) || 0,
+        protein_g:        Number(entry.protein_g ?? entry.protein) || 0,
+        carbs_g:          Number(entry.carbs_g   ?? entry.carbs)   || 0,
+        fat_g:            Number(entry.fat_g     ?? entry.fat)     || 0,
+        fiber_g:          Number(entry.fiber_g   ?? entry.fiber)   || 0,
+        sugar_g:          Number(meta.sugar_g ?? entry.sugar_g)    || 0,
+        sodium_mg:        Number(entry.sodium_mg ?? entry.sodium)  || 0,
+        items:            Array.isArray(meta.items) ? meta.items : [],
+        portion_estimate: meta.portion_estimate || null,
+        confidence:       meta.confidence || null,
+        notes:            meta.notes || entry.notes || null,
+      },
+    });
   };
 
   const startScanner = async () => {
@@ -1882,8 +1983,22 @@ export default function Nutrition() {
                 transition={{ type: 'spring', stiffness: 300, damping: 22 }}
                 whileHover={{ scale: 1.02, y: -1 }}
                 style={{ overflow: 'hidden' }}>
-                <Card className="p-4 border-none shadow-sm flex items-center justify-between">
-                  <div className="flex-1">
+                <Card
+                  onClick={() => openMealDetail(entry)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openMealDetail(entry); } }}
+                  className="p-4 border-none shadow-sm flex items-center justify-between cursor-pointer hover:bg-secondary/40 transition-colors"
+                >
+                  {/* Photo thumbnail — hints the meal is viewable in detail. */}
+                  {entry.image_url && (
+                    <img
+                      src={entry.image_url}
+                      alt=""
+                      className="w-11 h-11 rounded-lg object-cover me-3 shrink-0"
+                    />
+                  )}
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium">{entry.food_name}</p>
                     <p className="text-sm text-muted-foreground space-x-2">
                       <span>{entry.calories} cal</span>
@@ -1896,7 +2011,7 @@ export default function Nutrition() {
                     variant="ghost"
                     size="icon"
                     aria-label={tFallback ? tFallback('nutrition.deleteEntry', 'Delete entry') : 'Delete entry'}
-                    onClick={() => deleteMutation.mutate(entry.id)}
+                    onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(entry.id); }}
                   >
                     <Trash2 className="w-4 h-4 text-destructive" aria-hidden="true" />
                   </Button>
@@ -1933,6 +2048,17 @@ export default function Nutrition() {
           saving={saveMutation.isPending}
           onClose={closePhotoResult}
           onSave={saveRecognizedMeal}
+        />
+      </ErrorBoundary>
+
+      {/* Read-only detail view — re-open a saved meal (image + metrics). */}
+      <ErrorBoundary label="MealDetailModal">
+        <PhotoMealResultModal
+          open={!!mealDetail}
+          readOnly
+          imageUrl={mealDetail?.imageUrl}
+          result={mealDetail?.result}
+          onClose={() => setMealDetail(null)}
         />
       </ErrorBoundary>
 

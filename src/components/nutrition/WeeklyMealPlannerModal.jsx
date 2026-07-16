@@ -28,9 +28,10 @@ import { format, addDays, startOfWeek } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
-import { syncPlannerDiaryLog, removePlannerDiaryLog } from '@/lib/data/nutrition';
+import { syncPlannerDiaryLog, removePlannerDiaryLog, remove as removeDiaryLog } from '@/lib/data/nutrition';
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
+import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
 
 const MEAL_SLOTS = [
   { key: 'breakfast', label: 'Breakfast', emoji: '🌅' },
@@ -287,6 +288,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType } → recipe picker
   const [addSlot, setAddSlot]       = useState(null); // { date, mealType, label } → method chooser
   const [manualSlot, setManualSlot] = useState(null); // { date, mealType, label } → manual form
+  const [detailPlan, setDetailPlan] = useState(null); // { plan, date, mealType } → read-only detail view
   const [photoBusy, setPhotoBusy]   = useState(false);
   // Custom horizontal scroll indicator metrics (pct = position 0..1,
   // ratio = viewport/content). Replaces the native scrollbar so the
@@ -608,7 +610,12 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                 // Ignore the click that ends a drag-scroll.
                                 if (drag.current.moved) { drag.current.moved = false; return; }
                                 if (plan) {
-                                  if (confirm('Remove this meal?')) {
+                                  // Meals with a food_snapshot (Photo-AI / manual) open a
+                                  // read-only detail view with the photo + metrics + Delete.
+                                  // Recipe-only slots keep the quick confirm-remove.
+                                  if (plan.food_snapshot) {
+                                    setDetailPlan({ plan, date: dateStr, mealType: slot.key });
+                                  } else if (confirm('Remove this meal?')) {
                                     removeMutation.mutate(plan.id);
                                     // If this slot was mirrored into today's diary, un-log it too.
                                     if (dateStr === isoDay(new Date())) {
@@ -707,6 +714,46 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           mealLabel={manualSlot?.label}
           onSave={handleManualSave}
           onClose={() => setManualSlot(null)}
+        />
+
+        {/* Read-only detail — the photo + full metrics for a planned/logged
+            meal, with a Delete action that also un-logs the diary counterpart. */}
+        <PhotoMealResultModal
+          open={!!detailPlan}
+          readOnly
+          imageUrl={detailPlan?.plan?.food_snapshot?.image_url || null}
+          result={(() => {
+            const s = detailPlan?.plan?.food_snapshot || {};
+            return {
+              food_name:        s.name || 'Meal',
+              calories:         s.calories,
+              protein_g:        s.protein_g,
+              carbs_g:          s.carbs_g,
+              fat_g:            s.fat_g,
+              fiber_g:          s.fiber_g,
+              sugar_g:          s.sugar_g,
+              sodium_mg:        s.sodium_mg,
+              items:            Array.isArray(s.items) ? s.items : [],
+              portion_estimate: s.portion_estimate || null,
+              confidence:       s.confidence || null,
+            };
+          })()}
+          onClose={() => setDetailPlan(null)}
+          onDelete={() => {
+            const dp = detailPlan;
+            if (!dp) return;
+            removeMutation.mutate(dp.plan.id);
+            const snap = dp.plan.food_snapshot || {};
+            if (snap.log_id) {
+              // Photo-AI / diary-mirrored meal — remove the real diary log too.
+              removeDiaryLog(snap.log_id).then(invalidateDiary).catch(() => {});
+            } else if (dp.date === isoDay(new Date())) {
+              // Planner-originated diary log (notes:'planner').
+              removePlannerDiaryLog({ user, date: dp.date, mealType: dp.mealType })
+                .then(invalidateDiary).catch(() => {});
+            }
+            setDetailPlan(null);
+          }}
         />
 
         {/* Photo-AI recognition spinner overlay. */}
