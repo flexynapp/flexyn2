@@ -28,6 +28,7 @@ import { format, addDays, startOfWeek } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import { syncPlannerDiaryLog, removePlannerDiaryLog } from '@/lib/data/nutrition';
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
 
@@ -279,7 +280,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 }
 
 // ── Main planner modal ────────────────────────────────────────────────
-export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding, onLogMeal }) {
+export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
@@ -386,13 +387,20 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
   const endGridDrag = () => { drag.current.down = false; };
 
   // Recompute the custom scroll-indicator geometry from the container.
+  // rAF-throttled so a burst of scroll events coalesces to one state update
+  // per frame instead of re-rendering the whole modal on every event.
+  const scrollRaf = useRef(0);
   const updateScrollMeta = () => {
-    const c = scrollRef.current;
-    if (!c) return;
-    const max = c.scrollWidth - c.clientWidth;
-    setScrollMeta({
-      pct:   max > 0 ? c.scrollLeft / max : 0,
-      ratio: c.scrollWidth > 0 ? Math.min(1, c.clientWidth / c.scrollWidth) : 1,
+    if (scrollRaf.current) return;
+    scrollRaf.current = requestAnimationFrame(() => {
+      scrollRaf.current = 0;
+      const c = scrollRef.current;
+      if (!c) return;
+      const max = c.scrollWidth - c.clientWidth;
+      setScrollMeta({
+        pct:   max > 0 ? c.scrollLeft / max : 0,
+        ratio: c.scrollWidth > 0 ? Math.min(1, c.clientWidth / c.scrollWidth) : 1,
+      });
     });
   };
 
@@ -452,14 +460,23 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     toast.success(`Added: ${r.food_name || 'meal'}`);
   };
 
-  // A meal planned for TODAY is a meal eaten today — mirror it into the
-  // nutrition diary so it counts toward the day's calories, macros, and the
-  // dashboard rings. Delegates to the page's proven log mutation (onLogMeal)
-  // so invalidation + quest/celebration credit match a normal meal log.
-  // Future-dated plans stay plan-only.
+  // Refresh the diary-backed surfaces (Nutrition page total + dashboard rings)
+  // after a planner meal is synced to / removed from today's diary.
+  const invalidateDiary = () => {
+    const today = isoDay(new Date());
+    queryClient.invalidateQueries({ queryKey: ['nutritionLogs', user?.email, today] });
+    queryClient.invalidateQueries({ queryKey: ['nutritionLogsRecent', user?.email] });
+  };
+
+  // A meal planned for TODAY is a meal eaten today — mirror it into the diary
+  // so it counts toward calories, Nutritional Values, and the dashboard rings.
+  // Idempotent per slot (notes:'planner'), so re-adding replaces rather than
+  // double-counts. Future-dated plans stay plan-only.
   const logToDiaryIfToday = (planDate, snap, mealType) => {
     if (!snap || planDate !== isoDay(new Date())) return;
-    onLogMeal?.({ ...snap, meal_type: mealType });
+    syncPlannerDiaryLog({ user, date: planDate, mealType, snapshot: snap })
+      .then(invalidateDiary)
+      .catch(() => {});
   };
 
   const handleManualSave = (snapshot) => {
@@ -591,7 +608,15 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
                                 // Ignore the click that ends a drag-scroll.
                                 if (drag.current.moved) { drag.current.moved = false; return; }
                                 if (plan) {
-                                  if (confirm('Remove this meal?')) removeMutation.mutate(plan.id);
+                                  if (confirm('Remove this meal?')) {
+                                    removeMutation.mutate(plan.id);
+                                    // If this slot was mirrored into today's diary, un-log it too.
+                                    if (dateStr === isoDay(new Date())) {
+                                      removePlannerDiaryLog({ user, date: dateStr, mealType: slot.key })
+                                        .then(invalidateDiary)
+                                        .catch(() => {});
+                                    }
+                                  }
                                 } else {
                                   setAddSlot({ date: dateStr, mealType: slot.key, label: slot.label });
                                 }

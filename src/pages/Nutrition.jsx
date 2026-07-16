@@ -1852,29 +1852,6 @@ export default function Nutrition() {
           onClose={() => setShowWeeklyPlanner(false)}
           userProfile={userProfile}
           onStartOnboarding={startNutritionOnboarding}
-          onLogMeal={(snap) => saveMutation.mutate({
-            food_name:      snap.name || 'Planned meal',
-            calories:       snap.calories       || 0,
-            protein_g:      snap.protein_g       || 0,
-            carbs_g:        snap.carbs_g          || 0,
-            fat_g:          snap.fat_g            || 0,
-            sodium_mg:      snap.sodium_mg        || 0,
-            fiber_g:        snap.fiber_g          || 0,
-            sugar_g:        snap.sugar_g          || 0,
-            cholesterol_mg: snap.cholesterol_mg   || 0,
-            iron_mg:        snap.iron_mg          || 0,
-            magnesium_mg:   snap.magnesium_mg     || 0,
-            calcium_mg:     snap.calcium_mg       || 0,
-            potassium_mg:   snap.potassium_mg     || 0,
-            vitamin_a_iu:   snap.vitamin_a_iu     || 0,
-            vitamin_c_mg:   snap.vitamin_c_mg     || 0,
-            vitamin_d_iu:   snap.vitamin_d_iu     || 0,
-            vitamin_b12_mcg: snap.vitamin_b12_mcg || 0,
-            meal_type:      snap.meal_type || 'snack',
-            date,
-            created_by:     user?.email,
-            user_id:        user?.id,
-          })}
         />
       </ErrorBoundary>
     </motion.div>

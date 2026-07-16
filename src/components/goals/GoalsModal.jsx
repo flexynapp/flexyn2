@@ -40,7 +40,7 @@ function summarizeGoalTarget(g, weightUnit) {
   const w = g.target_weight != null ? formatWeight(g.target_weight, weightUnit) : null;
   if (w && g.target_reps) return `${name} ${w} × ${g.target_reps}`;
   if (w) return `${name} ${w}`;
-  if (g.target_reps)   return `${name} ${g.target_reps} reps`;
+  if (g.target_reps)   return `${name} ${g.target_reps} rep${g.target_reps === 1 ? '' : 's'}`;
   return name;
 }
 

@@ -212,7 +212,7 @@ export default function WorkoutGeneratorModal({ open, onClose, onUseWorkout, onS
                 <div className="mb-4 p-4 rounded-xl bg-gradient-to-br from-primary/10 via-fuchsia-500/5 to-violet-500/10 border border-primary/20">
                   <p className="font-heading font-bold text-lg leading-tight">{result.title}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {result.exercises.length} exercises · {result.duration_minutes} min
+                    {result.exercises.length} exercise{result.exercises.length === 1 ? '' : 's'} · {result.duration_minutes} min
                   </p>
                 </div>
 

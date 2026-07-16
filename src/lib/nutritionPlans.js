@@ -24,12 +24,12 @@ const PLAN_COLORS = {
 };
 export { PLAN_COLORS };
 
-// NOTE: `excludedFor` must list EVERY restriction a plan violates,
-// including ingredient-level ones — if any meal contains dairy, the plan
-// must list 'dairy_free'; if any meal contains wheat/bread, 'gluten_free';
-// tree nuts/peanuts, 'nut_free'; etc. filterPlans() hides a plan whenever
-// an active restriction appears here, so an incomplete list leaks
-// off-limits foods to the user (e.g. cottage cheese to a dairy-free user).
+// NOTE: `excludedFor` is descriptive metadata — the restrictions each plan
+// natively conflicts with (kept accurate at the ingredient level). The app
+// no longer HIDES conflicting plans; adaptPlan() substitutes off-limits
+// ingredients for compliant ones instead (see the substitution engine
+// below). Retained for potential "naturally suited for" hints and as an
+// at-a-glance audit of each plan's allergen profile.
 export const PLAN_TEMPLATES = [
   {
     id: 'lean_muscle',
@@ -407,14 +407,6 @@ export function scalePlan(plan, targetCalories) {
       },
     })),
   };
-}
-
-/** Return plans that don't conflict with the user's restrictions */
-export function filterPlans(restrictions = []) {
-  if (!restrictions.length) return PLAN_TEMPLATES;
-  return PLAN_TEMPLATES.filter(
-    plan => !restrictions.some(r => plan.excludedFor.includes(r))
-  );
 }
 
 // localStorage helpers for dietary restrictions (synced to user profile when possible)

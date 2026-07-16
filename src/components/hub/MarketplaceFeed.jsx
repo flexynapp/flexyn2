@@ -253,7 +253,7 @@ function BundleCard({ bundle, listings, currentUser, flexCoins, onBuyBundle }) {
       <div>
         <p className="font-bold text-white text-sm pe-24">{bundle.title}</p>
         <p className="text-gray-400 text-[11px] mt-0.5">
-          by {displayName(bundle)} · {listings.length} items
+          by {displayName(bundle)} · {listings.length} item{listings.length === 1 ? '' : 's'}
         </p>
       </div>
 

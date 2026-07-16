@@ -207,7 +207,7 @@ export default function RegimensSection({ onStartRegimen }) {
     try {
       const exerciseCount = sharingRegimen.exercises?.length || 0;
       const body = shareCaption.trim() ||
-        `Check out my regimen — ${sharingRegimen.name} · ${exerciseCount} exercises`;
+        `Check out my regimen — ${sharingRegimen.name} · ${exerciseCount} exercise${exerciseCount === 1 ? '' : 's'}`;
       await hubPosts.create({
         author_email: user.email,
         author_name: user.username || 'Athlete',

@@ -166,7 +166,7 @@ function PersonalBestsTab({ logs, onViewHistory }) {
                 <motion.div className="bg-accent/5 rounded-lg p-3" whileHover={{ scale: 1.03 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }}>
                   <p className="text-xs text-muted-foreground mb-1 font-medium">{t('progress.bestReps')}</p>
                   <motion.p className="font-heading font-bold text-xl text-accent" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 300, delay: idx * 0.05 + 0.15 }}>
-                    {pb.reps > 0 ? `${pb.reps} reps` : '—'}
+                    {pb.reps > 0 ? `${pb.reps} rep${pb.reps === 1 ? '' : 's'}` : '—'}
                   </motion.p>
                   {pb.repsDate && <p className="text-xs text-muted-foreground mt-0.5">{format(parseLocalDate(pb.repsDate), 'MMM d, yyyy', { locale: dateLocale })}</p>}
                 </motion.div>
@@ -929,7 +929,7 @@ export default function Progress() {
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {daysSinceLast === 0 ? 'Today' : daysSinceLast === 1 ? 'Yesterday' : `${daysSinceLast} days ago`}
-                        {lastWorkout.exercises?.length ? ` · ${lastWorkout.exercises.length} exercises` : ''}
+                        {lastWorkout.exercises?.length ? ` · ${lastWorkout.exercises.length} exercise${lastWorkout.exercises.length === 1 ? '' : 's'}` : ''}
                       </p>
                     </div>
                   </div>
@@ -975,7 +975,7 @@ export default function Progress() {
                         {formatWeight(pr.weight, weightUnit)}
                       </p>
                       {pr.reps > 0 && (
-                        <p className="text-[10px] text-muted-foreground mt-1">{pr.reps} reps best</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{pr.reps} rep{pr.reps === 1 ? '' : 's'} best</p>
                       )}
                     </Card>
                   </motion.div>

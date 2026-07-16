@@ -190,7 +190,7 @@ function ShareToHubForm({ template, user, onClose }) {
     try {
       const exerciseCount = template.exercises?.length || 0;
       const body = caption.trim() ||
-        `Check out my workout template: ${template.name} · ${exerciseCount} exercises`;
+        `Check out my workout template: ${template.name} · ${exerciseCount} exercise${exerciseCount === 1 ? '' : 's'}`;
 
       await hubPosts.create({
         author_email: user.email,
