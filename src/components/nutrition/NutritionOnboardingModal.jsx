@@ -6,14 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight, ArrowLeft, AlertTriangle, ShieldCheck } from 'lucide-react';
+import { TrendingDown, Minus, TrendingUp, Calendar, Activity, Check, ArrowRight, ArrowLeft, AlertTriangle, ShieldCheck, X } from 'lucide-react';
 import { format, addDays } from 'date-fns';
 import { db } from '@/api/db';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
-import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, persistRestrictions } from '@/lib/nutritionPlans';
+import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, parseCustomTerms, persistRestrictions } from '@/lib/nutritionPlans';
 
 const GOALS = [
   { id: 'lose',     icon: TrendingDown, color: 'text-blue-500',   bg: 'bg-blue-500/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
@@ -125,6 +125,9 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   const [allergens, setAllergens] = useState(
     () => _saved.filter(id => ALLERGEN_IDS.includes(id)),
   );
+  // Free-text restrictions the user types (e.g. "shrimp" but not all shellfish).
+  const [customRestrictions, setCustomRestrictions] = useState(() => parseCustomTerms(_saved));
+  const [customInput, setCustomInput] = useState('');
   const [saving, setSaving] = useState(false);
 
   const toggleRestriction = (id) => {
@@ -137,6 +140,14 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
       prev.includes(id) ? prev.filter(a => a !== id) : [...prev, id]
     );
   };
+  const addCustom = () => {
+    const term = customInput.trim().toLowerCase();
+    if (term.length > 1 && !customRestrictions.includes(term)) {
+      setCustomRestrictions(prev => [...prev, term]);
+    }
+    setCustomInput('');
+  };
+  const removeCustom = (term) => setCustomRestrictions(prev => prev.filter(t => t !== term));
 
   const todayStr = format(new Date(), 'yyyy-MM-dd');
   const minDateStr = format(addDays(new Date(), 7), 'yyyy-MM-dd'); // require at least 1 week out
@@ -196,9 +207,14 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
         payload.target_weight_lbs = null;
         payload.target_date = null;
       }
-      // Store diets + allergens together — the substitution engine treats them
-      // uniformly (both are hard exclusions it guarantees never appear).
-      const combined = [...dietaryRestrictions, ...allergens];
+      // Store diets + allergens + any custom free-text terms together — the
+      // substitution engine treats them uniformly (all hard exclusions it
+      // guarantees never appear). Custom terms are prefixed `custom:`.
+      const combined = [
+        ...dietaryRestrictions,
+        ...allergens,
+        ...customRestrictions.map(t => `custom:${t}`),
+      ];
       payload.dietary_restrictions = combined;
       persistRestrictions(combined);
       await db.auth.updateMe(payload);
@@ -480,6 +496,41 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                     {allergens.length} allergen{allergens.length === 1 ? '' : 's'} — guaranteed excluded from every plan
                   </p>
                 )}
+
+                {/* Custom / free-text exclusions — for anything not in the list
+                    (e.g. shrimp but not all shellfish, cilantro, a nightshade). */}
+                <div className="mt-4 pt-4 border-t border-border/50">
+                  <p className="text-xs font-semibold text-foreground mb-1.5">Something else to avoid?</p>
+                  <div className="flex gap-2">
+                    <input
+                      value={customInput}
+                      onChange={(e) => setCustomInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustom(); } }}
+                      placeholder="e.g. shrimp, cilantro, mushrooms"
+                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={addCustom}
+                      disabled={customInput.trim().length < 2}
+                      className="px-3 py-2 rounded-lg bg-rose-500 text-white text-sm font-semibold disabled:opacity-40 transition-opacity"
+                    >
+                      Add
+                    </button>
+                  </div>
+                  {customRestrictions.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2.5">
+                      {customRestrictions.map(term => (
+                        <span key={term} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-1 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-medium">
+                          {term}
+                          <button type="button" onClick={() => removeCustom(term)} aria-label={`Remove ${term}`} className="w-4 h-4 rounded-full hover:bg-rose-500/20 flex items-center justify-center">
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </motion.div>
             )}
 

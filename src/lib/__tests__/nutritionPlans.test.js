@@ -173,6 +173,32 @@ describe('adaptPlan — no restriction leaks', () => {
     }
   });
 
+  it('honors custom free-text exclusions (e.g. only salmon, not all fish)', () => {
+    for (const term of ['salmon', 'quinoa', 'avocado', 'chicken', 'honey']) {
+      for (const template of PLAN_TEMPLATES) {
+        const adapted = adaptPlan(template, [`custom:${term}`]);
+        for (const meal of adapted.meals) {
+          for (const ing of meal.ingredients) {
+            expect(ing.name.toLowerCase().includes(term)).toBe(false);
+          }
+        }
+      }
+    }
+  });
+
+  it('composes custom terms with known restrictions without leaking either', () => {
+    const rs = ['dairy_free', 'soy', 'custom:mushroom'];
+    for (const template of PLAN_TEMPLATES) {
+      const adapted = adaptPlan(template, rs);
+      expect(leaksFor(adapted, ['dairy_free', 'soy'])).toEqual([]);
+      for (const meal of adapted.meals) {
+        for (const ing of meal.ingredients) {
+          expect(ing.name.toLowerCase().includes('mushroom')).toBe(false);
+        }
+      }
+    }
+  });
+
   it('marks swapped ingredients and counts them', () => {
     const dairyPlan = PLAN_TEMPLATES.find(p => p.id === 'lean_muscle');
     const adapted = adaptPlan(dairyPlan, ['dairy_free']);

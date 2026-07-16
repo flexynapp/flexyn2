@@ -923,10 +923,28 @@ export function adaptSupplement(supp, restrictions = []) {
   return cur;
 }
 
-/** True if `name` violates ANY of the active restrictions/allergens. */
+/** True if `name` violates ANY of the active restrictions/allergens.
+ *  Handles user-entered custom restrictions too: an id of the form
+ *  `custom:<term>` matches when the ingredient name contains <term> (so a
+ *  user allergic to only shrimp — not all shellfish — can type "shrimp").
+ *  The safety net then swaps any match for a compliant food automatically. */
 function violatesAny(name, restrictions) {
   const tags = classifyIngredient(name);
-  return restrictions.some(r => (RESTRICTION_TAGS[r] || []).some(t => tags.has(t)));
+  const lname = String(name).toLowerCase();
+  return restrictions.some(r => {
+    if (typeof r === 'string' && r.startsWith('custom:')) {
+      const term = r.slice(7).trim().toLowerCase();
+      return term.length > 1 && lname.includes(term);
+    }
+    return (RESTRICTION_TAGS[r] || []).some(t => tags.has(t));
+  });
+}
+
+/** Split stored restriction ids into known ids and custom free-text terms. */
+export function parseCustomTerms(restrictions = []) {
+  return restrictions
+    .filter(r => typeof r === 'string' && r.startsWith('custom:'))
+    .map(r => r.slice(7));
 }
 
 /** Adapt a single ingredient for the active restrictions. Returns a new
