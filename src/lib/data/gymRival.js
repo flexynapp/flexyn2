@@ -42,8 +42,8 @@ export async function getMyGymRival() {
  * notifies the rival. Returns the new row, or null if no rival is
  * available right now.
  */
-export async function rollGymRival() {
-  const { data, error } = await supabase.rpc('gym_rival_roll');
+export async function rollGymRival(type = 'gym') {
+  const { data, error } = await supabase.rpc('gym_rival_roll', { p_type: type === 'cardio' ? 'cardio' : 'gym' });
   if (error) throw error;
   return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
@@ -240,18 +240,14 @@ export async function getWeeklyComparison(userId, rivalId) {
 
 // ── Net rating (weekly competition score) ──────────────────────────────────────
 //
-// Combines the three tracked dimensions into one comparable number so the
-// two rivals can be ranked. Weights are chosen so a typical week's volume,
-// workout count, and distance land in the same order of magnitude:
-//   • volume (lbs lifted)  → ÷100      (e.g. 20,000 lbs → 200 pts)
-//   • workouts (sessions)  → ×100      (e.g. 4 workouts → 400 pts)
-//   • distance (km)        → ×20       (e.g. 15 km      → 300 pts)
+// Net rating is type-specific — one metric decides the match:
+//   • Gym Rival    → workout VOLUME only  (lbs ÷ 100)
+//   • Cardio Rival → DISTANCE only        (km × 20)
 // Higher net rating wins the week.
-export function computeNetRating({ volume = 0, sessions = 0, distanceMeters = 0 } = {}) {
-  const volumePts   = volume / 100;
-  const sessionsPts = sessions * 100;
-  const distancePts = (distanceMeters / 1000) * 20;
-  return Math.round(volumePts + sessionsPts + distancePts);
+export function computeNetRating({ volume = 0, distanceMeters = 0 } = {}, type = 'gym') {
+  return type === 'cardio'
+    ? Math.round((distanceMeters / 1000) * 20)
+    : Math.round(volume / 100);
 }
 
 /**
@@ -299,8 +295,7 @@ export async function getWeeklyRivalStats(userId, rivalId) {
     let distanceMeters = 0;
     for (const c of cardio ?? []) distanceMeters += Number(c.distance_meters) || 0;
 
-    const stat = { volume, sessions, distanceMeters };
-    return { ...stat, netRating: computeNetRating(stat) };
+    return { volume, sessions, distanceMeters };
   };
 
   const [user, rival] = await Promise.all([fetchStats(userId), fetchStats(rivalId)]);

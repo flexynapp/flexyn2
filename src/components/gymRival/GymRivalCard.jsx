@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { AnimatePresence } from 'framer-motion';
-import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords } from 'lucide-react';
+import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Dumbbell, Footprints } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { getMyGymRival, getRivalProfile, rollGymRival, isThisWeek, msUntilNextWeekStart } from '@/lib/data/gymRival';
@@ -49,7 +49,7 @@ export default function GymRivalCard({ currentUserId }) {
   });
 
   const rollMut = useMutation({
-    mutationFn: rollGymRival,
+    mutationFn: (type) => rollGymRival(type),
     onSuccess: async (row) => {
       if (!row) {
         toast.info('No available rivals right now — check back soon.');
@@ -87,7 +87,7 @@ export default function GymRivalCard({ currentUserId }) {
         onClose={() => setMenuOpen(false)}
         assignment={assignment}
         currentUserId={currentUserId}
-        onReroll={() => rollMut.mutate()}
+        onReroll={() => rollMut.mutate(assignment?.rival_type || 'gym')}
         rerolling={rollMut.isPending}
         onChallenge={() => { setMenuOpen(false); setShowDuel(true); }}
       />
@@ -108,15 +108,27 @@ export default function GymRivalCard({ currentUserId }) {
           <div className="w-10 h-10 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
             <Target className="w-5 h-5 text-rose-500" />
           </div>
-          <p className="text-sm font-bold mb-1">{tFallback('gymRival.findTitle', 'Find Your Gym Rival')}</p>
+          <p className="text-sm font-bold mb-1">{tFallback('gymRival.findTitle', 'Find Your Rival')}</p>
           <p className="text-xs text-muted-foreground mb-4">
-            {tFallback('gymRival.findDesc', "We'll match you with someone around your level for a week-long challenge. Out-train them to win.")}
+            {tFallback('gymRival.findDesc', 'Pick a challenge type and we\'ll match you with someone around your level for the week. Out-train them to win.')}
           </p>
-          <button onClick={() => rollMut.mutate()} disabled={rollMut.isPending}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
-            {rollMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Target className="w-4 h-4" />}
-            {rollMut.isPending ? tFallback('gymRival.searching', 'Searching…') : tFallback('gymRival.findButton', 'Find My Gym Rival')}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => rollMut.mutate('gym')} disabled={rollMut.isPending}
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+              <Dumbbell className="w-4 h-4" />
+              Gym Rival
+              <span className="text-[10px] font-medium opacity-80">Volume</span>
+            </button>
+            <button onClick={() => rollMut.mutate('cardio')} disabled={rollMut.isPending}
+              className="flex-1 inline-flex flex-col items-center gap-1 px-3 py-3 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors">
+              <Footprints className="w-4 h-4" />
+              Cardio Rival
+              <span className="text-[10px] font-medium opacity-80">Distance</span>
+            </button>
+          </div>
+          {rollMut.isPending && (
+            <p className="mt-3 text-xs text-muted-foreground inline-flex items-center gap-1.5"><Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching…</p>
+          )}
         </motion.div>
         {menu}
       </>
@@ -168,11 +180,12 @@ export default function GymRivalCard({ currentUserId }) {
   }
 
   // ── Pending / active → matchup chip ─────────────────────────────────────
+  const typeLabel = assignment?.rival_type === 'cardio' ? 'Cardio Rival' : 'Gym Rival';
   const needsMyConfirm = status === 'pending' && !iConfirmed;
   const waiting = status === 'pending' && iConfirmed;
-  const label = needsMyConfirm ? 'Confirm your Gym Rival'
+  const label = needsMyConfirm ? `Confirm your ${typeLabel}`
     : waiting ? 'Waiting for them to accept'
-    : "This week's Gym Rival";
+    : `This week's ${typeLabel}`;
 
   return (
     <>

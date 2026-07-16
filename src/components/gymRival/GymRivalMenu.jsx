@@ -9,13 +9,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Flame, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
+import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getRivalProfile, getWeeklyRivalStats, msUntilWeekEnd, msUntilNextWeekStart,
-  isThisWeek, computeRivalReward, confirmGymRival, voidStaleGymRival, getGymRivalRecord,
+  isThisWeek, computeRivalReward, confirmGymRival, voidStaleGymRival, getGymRivalRecord, computeNetRating,
 } from '@/lib/data/gymRival';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
@@ -162,10 +162,15 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
 
   if (!open) return null;
 
+  const rivalType = assignment?.rival_type || 'gym';
+  const isCardio = rivalType === 'cardio';
+  const typeLabel = isCardio ? 'Cardio Rival' : 'Gym Rival';
   const u = stats?.user;
   const r = stats?.rival;
-  const userLeads = u && r ? (u.netRating === r.netRating ? null : u.netRating > r.netRating) : null;
-  const reward = computeRivalReward(me?.current_level, rival?.current_level);
+  const uNet = u ? computeNetRating(u, rivalType) : null;
+  const rNet = r ? computeNetRating(r, rivalType) : null;
+  const userLeads = uNet != null && rNet != null ? (uNet === rNet ? null : uNet > rNet) : null;
+  const reward = computeRivalReward();
   const dist = (m) => formatDistance(m || 0, distanceUnit, m >= 1000 ? 1 : 2);
 
   return createPortal(
@@ -177,7 +182,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
         <div className="sticky top-0 z-10 flex items-center justify-between px-4 h-14 bg-background/90 backdrop-blur-md border-b border-border">
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-rose-500" />
-            <h2 className="font-heading font-black text-base">Gym Rival</h2>
+            <h2 className="font-heading font-black text-base">{assignment ? typeLabel : 'Rivals'}</h2>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
             <X className="w-5 h-5" />
@@ -295,8 +300,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   </div>
                   <StatRow icon={Award} label="Level" userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
                   <StatRow icon={Swords} label="W – L" userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
-                  <StatRow icon={Dumbbell} label="Volume" userVal={formatWeight(me?.total_volume_lbs || 0, weightUnit)} rivalVal={formatWeight(rival?.total_volume_lbs || 0, weightUnit)} userWins={cmp(me?.total_volume_lbs, rival?.total_volume_lbs)} />
-                  <StatRow icon={Footprints} label="Distance" userVal={dist(me?.total_distance_meters)} rivalVal={dist(rival?.total_distance_meters)} userWins={cmp(me?.total_distance_meters, rival?.total_distance_meters)} />
+                  {isCardio ? (
+                    <StatRow icon={Footprints} label="Distance" userVal={dist(me?.total_distance_meters)} rivalVal={dist(rival?.total_distance_meters)} userWins={cmp(me?.total_distance_meters, rival?.total_distance_meters)} />
+                  ) : (
+                    <StatRow icon={Dumbbell} label="Volume" userVal={formatWeight(me?.total_volume_lbs || 0, weightUnit)} rivalVal={formatWeight(rival?.total_volume_lbs || 0, weightUnit)} userWins={cmp(me?.total_volume_lbs, rival?.total_volume_lbs)} />
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4 text-center">
@@ -357,9 +365,9 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4">
                   <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Net Rating</p>
                   <div className="flex items-center justify-center gap-4">
-                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === true ? 'text-emerald-500' : 'text-foreground'}`}>{u ? fmt(u.netRating) : '—'}</span>
+                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === true ? 'text-emerald-500' : 'text-foreground'}`}>{uNet != null ? fmt(uNet) : '—'}</span>
                     <span className="text-muted-foreground font-bold">—</span>
-                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === false ? 'text-emerald-500' : 'text-foreground'}`}>{r ? fmt(r.netRating) : '—'}</span>
+                    <span className={`font-heading font-black text-4xl tabular-nums ${userLeads === false ? 'text-emerald-500' : 'text-foreground'}`}>{rNet != null ? fmt(rNet) : '—'}</span>
                   </div>
                   <p className="text-center text-xs font-bold mt-2">
                     {userLeads === null ? <span className="text-muted-foreground">Dead even — keep training.</span>
@@ -374,9 +382,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <span className="w-28" />
                     <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-rose-500">Rival</span>
                   </div>
-                  <StatRow icon={Dumbbell} label="Volume" userVal={u ? fmt(Math.round(u.volume)) : '—'} rivalVal={r ? fmt(Math.round(r.volume)) : '—'} userWins={u && r ? (u.volume === r.volume ? null : u.volume > r.volume) : null} />
-                  <StatRow icon={Flame} label="Workouts" userVal={u ? u.sessions : '—'} rivalVal={r ? r.sessions : '—'} userWins={u && r ? (u.sessions === r.sessions ? null : u.sessions > r.sessions) : null} />
-                  <StatRow icon={Footprints} label="Distance" userVal={u ? dist(u.distanceMeters) : '—'} rivalVal={r ? dist(r.distanceMeters) : '—'} userWins={u && r ? (u.distanceMeters === r.distanceMeters ? null : u.distanceMeters > r.distanceMeters) : null} />
+                  {isCardio ? (
+                    <StatRow icon={Footprints} label="Distance" userVal={u ? dist(u.distanceMeters) : '—'} rivalVal={r ? dist(r.distanceMeters) : '—'} userWins={u && r ? (u.distanceMeters === r.distanceMeters ? null : u.distanceMeters > r.distanceMeters) : null} />
+                  ) : (
+                    <StatRow icon={Dumbbell} label="Volume" userVal={u ? fmt(Math.round(u.volume)) : '—'} rivalVal={r ? fmt(Math.round(r.volume)) : '—'} userWins={u && r ? (u.volume === r.volume ? null : u.volume > r.volume) : null} />
+                  )}
                 </div>
 
                 <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 mb-5">
