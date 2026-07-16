@@ -23,20 +23,32 @@ import { calculateDailyValues } from '@/lib/nutritionDefaults';
 // position — the animation drives `left` from past the right edge to off-screen
 // left, so specks always traverse the full fill width even as it drains.
 const SPECKS = Array.from({ length: 28 }, (_, i) => ({
-  top:    (i * 29) % 82,                // vertical scatter 0–81%
-  left:   (i * 37) % 100,               // static scatter across the width
-  size:   2 + (i % 3),                  // 2–4px solid dots
-  dur:    6 + ((i * 7) % 18) / 5,       // 6–9.4s traverse (slow, gentle drift)
-  delay:  -(((i * 13) % 90) / 10),      // negative → already mid-flow on mount
-  hueOff: ((i * 17) % 28) - 14,         // −14..+13 offset shade
+  top:      (i * 29) % 82,              // vertical scatter 0–81%
+  left:     (i * 37) % 100,             // static scatter across the width
+  size:     2 + (i % 3),                // 2–4px solid dots
+  dur:      14 + ((i * 7) % 24) / 2,    // 14–25.5s drift — very slow current
+  delay:    -(((i * 13) % 140) / 10),   // spread across the long cycle
+  bobDur:   4 + ((i * 5) % 16) / 4,     // 4–7.75s gentle vertical bob
+  bobDelay: -(((i * 11) % 50) / 10),    // desynced from the drift → weaving motion
+  hueOff:   ((i * 17) % 28) - 14,       // −14..+13 offset shade
 }));
 
+// Horizontal drift (right→left, fades in/out at the edges) layered with a
+// slow vertical bob on a different period, so each speck weaves like it's
+// suspended in barely-moving water rather than tracking a straight line.
 const SPECK_KEYFRAMES = `
 @keyframes ctbFlow {
   0%   { left: calc(100% + 8px); opacity: 0; }
-  15%  { opacity: 0.95; }
-  85%  { opacity: 0.95; }
+  12%  { opacity: 0.9; }
+  88%  { opacity: 0.9; }
   100% { left: -8px; opacity: 0; }
+}
+@keyframes ctbBob {
+  0%   { transform: translateY(0); }
+  25%  { transform: translateY(-2.5px); }
+  50%  { transform: translateY(0); }
+  75%  { transform: translateY(2.5px); }
+  100% { transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
   .ctb-speck { animation: none !important; opacity: 0.6 !important; }
@@ -98,8 +110,8 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
                 top: `${s.top}%`,
                 left: `${s.left}%`,
                 background: `hsl(${Math.max(0, Math.min(140, hue + s.hueOff))} 60% 74%)`,
-                animation: `ctbFlow ${s.dur}s linear ${s.delay}s infinite`,
-                willChange: 'left, opacity',
+                animation: `ctbFlow ${s.dur}s linear ${s.delay}s infinite, ctbBob ${s.bobDur}s ease-in-out ${s.bobDelay}s infinite`,
+                willChange: 'left, transform, opacity',
               }}
             />
           ))}
