@@ -26,8 +26,8 @@ const SPECKS = Array.from({ length: 28 }, (_, i) => ({
   top:    (i * 29) % 82,                // vertical scatter 0–81%
   left:   (i * 37) % 100,               // static scatter across the width
   size:   2 + (i % 3),                  // 2–4px solid dots
-  dur:    2.4 + ((i * 7) % 18) / 10,    // 2.4–4.1s traverse
-  delay:  -(((i * 13) % 40) / 10),      // negative → already mid-flow on mount
+  dur:    6 + ((i * 7) % 18) / 5,       // 6–9.4s traverse (slow, gentle drift)
+  delay:  -(((i * 13) % 90) / 10),      // negative → already mid-flow on mount
   hueOff: ((i * 17) % 28) - 14,         // −14..+13 offset shade
 }));
 
