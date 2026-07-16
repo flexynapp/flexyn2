@@ -41,6 +41,27 @@ function parseSort(sort) {
 }
 
 /* ── Build a reusable entity accessor ───────────────────────────────────── */
+// Per-table cache of columns the running DB schema doesn't have. The
+// write-path strip-and-retry (create/update below) drops any column that
+// 42703s / PGRST204s and records it here, so later writes to the same table
+// strip those columns UP FRONT instead of paying one failed round-trip per
+// unknown column every time. This matters for nutrition_logs: a full
+// nutrient+vitamin payload carries ~15 columns the table doesn't have
+// (the _g/_mg aliases, sugar, cholesterol, 8 vitamins), which used to blow
+// past the retry budget and fail the whole insert. Session-scoped — cleared
+// on reload, which is also when a freshly-applied migration takes effect.
+const _missingCols = new Map();
+const _rememberMissingCol = (table, col) => {
+  let set = _missingCols.get(table);
+  if (!set) { set = new Set(); _missingCols.set(table, set); }
+  set.add(col);
+};
+const _stripKnownMissing = (table, payload) => {
+  const set = _missingCols.get(table);
+  if (set) for (const col of set) delete payload[col];
+  return payload;
+};
+
 function makeEntity(entityName) {
   const table = TABLE[entityName];
   if (!table) throw new Error(`[Supabase shim] Unknown entity: "${entityName}"`);
@@ -132,8 +153,14 @@ function makeEntity(entityName) {
         ...(authUser?.id     ? { user_id:    authUser.id    } : {}),
       };
 
-      let payload = { ...enriched };
-      for (let attempt = 0; attempt < 15; attempt++) {
+      // Drop columns already known to be missing on this table (from an
+      // earlier write this session) before the first attempt, so a rich
+      // payload doesn't re-discover all of them one failed insert at a time.
+      let payload = _stripKnownMissing(table, { ...enriched });
+      // Cap is generous enough to strip every unknown column in the widest
+      // payload (nutrition_logs micros → ~15) plus headroom, so a schema that
+      // lags the client never fails the whole write.
+      for (let attempt = 0; attempt < 48; attempt++) {
         const { data: row, error } = await supabase.from(table).insert(payload).select().single();
         if (!error) return row;
 
@@ -165,6 +192,7 @@ function makeEntity(entityName) {
           const match = error.message?.match(/column "([^"]+)"/);
           if (match?.[1] && match[1] in payload) {
             console.warn(`[Supabase] column "${match[1]}" not in ${table} yet — skipping (run migration 004)`);
+            _rememberMissingCol(table, match[1]);
             delete payload[match[1]];
             continue;
           }
@@ -177,6 +205,7 @@ function makeEntity(entityName) {
           const match = error.message?.match(/the '([^']+)' column/);
           if (match?.[1] && match[1] in payload) {
             console.warn(`[Supabase] PGRST204: column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
+            _rememberMissingCol(table, match[1]);
             delete payload[match[1]];
             continue;
           }
@@ -194,14 +223,15 @@ function makeEntity(entityName) {
      * is_public_free landed in mig 143 — pre-143 hosts would 42703
      * here without this loop). */
     async update(id, data) {
-      let payload = { ...data };
-      for (let attempt = 0; attempt < 15; attempt++) {
+      let payload = _stripKnownMissing(table, { ...data });
+      for (let attempt = 0; attempt < 48; attempt++) {
         const { data: row, error } = await supabase.from(table).update(payload).eq('id', id).select().single();
         if (!error) return row;
         if (error.code === '42703') {
           const match = error.message?.match(/column "([^"]+)"/);
           if (match?.[1] && match[1] in payload) {
             console.warn(`[Supabase] update column "${match[1]}" not in ${table} yet — skipping`);
+            _rememberMissingCol(table, match[1]);
             delete payload[match[1]];
             continue;
           }
@@ -210,6 +240,7 @@ function makeEntity(entityName) {
           const match = error.message?.match(/the '([^']+)' column/);
           if (match?.[1] && match[1] in payload) {
             console.warn(`[Supabase] PGRST204: update column "${match[1]}" not in PostgREST schema cache for ${table} — skipping`);
+            _rememberMissingCol(table, match[1]);
             delete payload[match[1]];
             continue;
           }

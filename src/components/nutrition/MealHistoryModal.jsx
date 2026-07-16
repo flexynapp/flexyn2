@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { format, parseISO, isToday, isYesterday } from 'date-fns';
 import { X, UtensilsCrossed, Flame, ChevronDown, ChevronUp, Calendar as CalendarIcon, BarChart3 } from 'lucide-react';
 import NutritionTrendsChart from './NutritionTrendsChart';
+import PhotoMealResultModal from './PhotoMealResultModal';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -11,6 +12,28 @@ import { useNumberFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useState } from 'react';
+
+// Reconstruct a recognition-shaped result from a stored log row so the saved
+// meal can be re-opened in the read-only detail view (photo + macros +, for
+// photo meals, the ingredient breakdown). Manual entries have no ai_meta, so
+// they show macros only.
+function mealEntryToResult(entry) {
+  const meta = entry?.ai_meta || {};
+  return {
+    food_name:        entry?.food_name || 'Meal',
+    calories:         Number(entry?.calories) || 0,
+    protein_g:        Number(entry?.protein_g ?? entry?.protein) || 0,
+    carbs_g:          Number(entry?.carbs_g   ?? entry?.carbs)   || 0,
+    fat_g:            Number(entry?.fat_g     ?? entry?.fat)     || 0,
+    fiber_g:          Number(entry?.fiber_g   ?? entry?.fiber)   || 0,
+    sugar_g:          Number(meta.sugar_g ?? entry?.sugar_g)     || 0,
+    sodium_mg:        Number(entry?.sodium_mg ?? entry?.sodium)  || 0,
+    items:            Array.isArray(meta.items) ? meta.items : [],
+    portion_estimate: meta.portion_estimate || null,
+    confidence:       meta.confidence || null,
+    notes:            meta.notes || entry?.notes || null,
+  };
+}
 
 function formatDateHeading(dateStr) {
   try {
@@ -32,7 +55,7 @@ function MacroPill({ label, value, color }) {
   );
 }
 
-function DaySection({ dateStr, entries }) {
+function DaySection({ dateStr, entries, onSelect }) {
   const [expanded, setExpanded] = useState(true);
 
   const totals = useMemo(() => entries.reduce((acc, e) => ({
@@ -89,8 +112,15 @@ function DaySection({ dateStr, entries }) {
                   initial={{ opacity: 0, x: -8 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.03, duration: 0.18 }}
-                  className="flex items-center justify-between px-4 py-3 rounded-xl bg-card border border-border/50 hover:border-primary/20 transition-colors"
+                  onClick={() => onSelect?.(entry)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect?.(entry); } }}
+                  className="flex items-center justify-between px-4 py-3 rounded-xl bg-card border border-border/50 hover:border-primary/40 cursor-pointer transition-colors"
                 >
+                  {entry.image_url && (
+                    <img src={entry.image_url} alt="" className="w-10 h-10 rounded-lg object-cover me-3 shrink-0" />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium truncate">{entry.food_name}</p>
                     <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
@@ -128,6 +158,9 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
   // <input type="date"> that scrolls the list to that day's section.
   const [tab, setTab] = useState('browse');
   const [pickedDate, setPickedDate] = useState('');
+  // Selected saved meal → read-only detail pop-out (image + macros + ingredients).
+  const [detail, setDetail] = useState(null);
+  const openDetail = (entry) => setDetail({ imageUrl: entry?.image_url || null, result: mealEntryToResult(entry) });
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
@@ -279,13 +312,13 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
                   if (!found) {
                     return <p className="text-xs text-muted-foreground text-center py-4">No entries on {pickedDate}.</p>;
                   }
-                  return <DaySection dateStr={found[0]} entries={found[1]} />;
+                  return <DaySection dateStr={found[0]} entries={found[1]} onSelect={openDetail} />;
                 })()}
               </div>
             ) : (
               <div>
                 {grouped.map(([dateStr, entries]) => (
-                  <DaySection key={dateStr} dateStr={dateStr} entries={entries} />
+                  <DaySection key={dateStr} dateStr={dateStr} entries={entries} onSelect={openDetail} />
                 ))}
               </div>
             )}
@@ -299,6 +332,15 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
           </div>
         </motion.div>
       </motion.div>
+
+      {/* Read-only detail for a tapped saved meal (portals above this modal). */}
+      <PhotoMealResultModal
+        open={!!detail}
+        readOnly
+        imageUrl={detail?.imageUrl}
+        result={detail?.result}
+        onClose={() => setDetail(null)}
+      />
     </AnimatePresence>
   );
 }

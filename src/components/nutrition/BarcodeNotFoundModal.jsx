@@ -5,6 +5,7 @@ import { X, PackageSearch, Save, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { create as createFoodItem } from '@/lib/data/foodItems';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { toast } from 'sonner';
@@ -36,6 +37,7 @@ const EMPTY_VITAMINS  = Object.fromEntries(VITAMIN_FIELDS.map(f => [f.key, '']))
 
 export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
   const { tFallback } = useLanguage();
+  const kbInset = useKeyboardInset();
   const [tab, setTab] = useState('nutrients');
   const [name, setName] = useState('');
   const [servingLabel, setServingLabel] = useState('1 serving');
@@ -235,8 +237,14 @@ export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
             </div>
           </div>
 
-          {/* Scrollable field area */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3">
+          {/* Scrollable field area. Pad the bottom by the keyboard height so a
+              focused field scrolls into view WITHIN this container instead of
+              the browser scrolling the whole page (which would expose the app
+              behind the sheet). */}
+          <div
+            className="flex-1 overflow-y-auto px-5 py-4 space-y-3"
+            style={{ paddingBottom: kbInset ? kbInset + 24 : undefined }}
+          >
             <AnimatePresence mode="wait">
               {tab === 'nutrients' ? (
                 <motion.div

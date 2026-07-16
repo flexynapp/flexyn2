@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 
 const num = (v) => {
   if (v === '' || v == null) return 0;
@@ -58,6 +59,7 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   const [editItems, setEditItems] = useState([]);
   const [slide, setSlide] = useState(0);
   const trackRef = useRef(null);
+  const kbInset = useKeyboardInset();
 
   // (Re)hydrate from the recognized result each time a new one opens.
   useEffect(() => {
@@ -245,7 +247,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto">
+          <div
+            className="flex-1 overflow-y-auto"
+            style={{ paddingBottom: kbInset ? kbInset + 24 : undefined }}
+          >
             {/* Swipeable macro panel: slide 0 = core, slide 1 = more */}
             <div
               ref={trackRef}
