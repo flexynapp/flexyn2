@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { create as createFoodItem } from '@/lib/data/foodItems';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { toast } from 'sonner';
@@ -38,6 +39,7 @@ const EMPTY_VITAMINS  = Object.fromEntries(VITAMIN_FIELDS.map(f => [f.key, '']))
 export default function BarcodeNotFoundModal({ barcode, onCancel, onSubmit }) {
   const { tFallback } = useLanguage();
   const kbInset = useKeyboardInset();
+  useBodyScrollLock(true);
   const [tab, setTab] = useState('nutrients');
   const [name, setName] = useState('');
   const [servingLabel, setServingLabel] = useState('1 serving');

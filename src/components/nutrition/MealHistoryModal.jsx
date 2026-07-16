@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { db } from '@/api/db';
 import { filterAfterReset } from '@/lib/accountReset';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { useState } from 'react';
 
 // Reconstruct a recognition-shaped result from a stored log row so the saved
@@ -161,10 +162,13 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
   // Selected saved meal → read-only detail pop-out (image + macros + ingredients).
   const [detail, setDetail] = useState(null);
   const openDetail = (entry) => setDetail({ imageUrl: entry?.image_url || null, result: mealEntryToResult(entry) });
+  useBodyScrollLock(open);
 
   const { data: rawLogs = [], isLoading } = useQuery({
     queryKey: ['nutritionHistory', user?.email],
-    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-date', 500),
+    // Newest-logged first (created_at, not just date) so today's latest meal
+    // is at the top and the user doesn't have to scroll to their latest entry.
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-created_at', 500),
     enabled: !!user?.email && open,
   });
 

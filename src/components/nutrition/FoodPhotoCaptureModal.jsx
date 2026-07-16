@@ -15,8 +15,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Images, Zap, ZapOff, Loader2, CameraOff, Sparkles } from 'lucide-react';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 export default function FoodPhotoCaptureModal({ open, onClose, onCapture, onPickLibrary }) {
+  useBodyScrollLock(open);
   const videoRef  = useRef(null);
   const streamRef = useRef(null);
   const trackRef  = useRef(null);

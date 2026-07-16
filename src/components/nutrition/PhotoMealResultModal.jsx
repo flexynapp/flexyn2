@@ -18,6 +18,7 @@ import { createPortal } from 'react-dom';
 import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useKeyboardInset } from '@/hooks/useKeyboardInset';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const num = (v) => {
   if (v === '' || v == null) return 0;
@@ -60,6 +61,8 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   const [slide, setSlide] = useState(0);
   const trackRef = useRef(null);
   const kbInset = useKeyboardInset();
+  // Lock the page behind the modal so only the modal scrolls.
+  useBodyScrollLock(open && !!result);
 
   // (Re)hydrate from the recognized result each time a new one opens.
   useEffect(() => {
@@ -188,12 +191,16 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
           className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-xl flex flex-col"
           style={{ maxHeight: '94vh' }}
         >
-          {/* Photo banner + overlay — the photo fills the whole banner. */}
-          <div className="relative h-44 shrink-0 bg-black">
+          {/* Photo banner + overlay — the photo fills the whole banner. Meals
+              with no saved photo get a warm gradient instead of stark black. */}
+          <div
+            className="relative h-44 shrink-0 overflow-hidden bg-black"
+            style={imageUrl ? undefined : { background: 'linear-gradient(135deg, hsl(24 90% 55% / 0.45), hsl(265 70% 55% / 0.4))' }}
+          >
             {imageUrl
               ? <img src={imageUrl} alt="Your meal" className="w-full h-full object-cover" />
-              : <div className="w-full h-full flex items-center justify-center text-white/40"><Utensils className="w-8 h-8" /></div>}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20" />
+              : <div className="w-full h-full flex items-center justify-center text-white/60"><Utensils className="w-10 h-10" /></div>}
+            <div className={`absolute inset-0 bg-gradient-to-t ${imageUrl ? 'from-black/75 via-black/10 to-black/20' : 'from-black/50 via-transparent to-black/10'}`} />
             <button onClick={onClose} aria-label="Close" className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
               <X className="w-4 h-4" />
             </button>

@@ -32,6 +32,7 @@ import { syncPlannerDiaryLog, removePlannerDiaryLog, remove as removeDiaryLog } 
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { NutritionPlansPanel } from '@/components/nutrition/NutritionPlansModal';
 import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
+import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const MEAL_SLOTS = [
   { key: 'breakfast', label: 'Breakfast', emoji: '🌅' },
@@ -284,6 +285,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  useBodyScrollLock(open);
   const [anchor, setAnchor] = useState(() => new Date());
   const [pickerSlot, setPickerSlot] = useState(null); // { date, mealType } → recipe picker
   const [addSlot, setAddSlot]       = useState(null); // { date, mealType, label } → method chooser
