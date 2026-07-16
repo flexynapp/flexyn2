@@ -278,7 +278,9 @@ export default function Workout() {
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
-  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis','gauntlet','formcoach','crew'];
+  // Gauntlet + Crew Wars intentionally omitted — reachable from the hero
+  // slideshow next to Freestyle Workout, so they don't need a grid tile.
+  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis','formcoach'];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
       const s = localStorage.getItem('wkt-card-order');
