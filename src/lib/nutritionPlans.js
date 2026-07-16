@@ -622,6 +622,36 @@ const GENERIC_SWAPS = {
 // broadest patterns first so their curated swap wins.
 const RESTRICTION_ORDER = ['vegan', 'vegetarian', 'paleo', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'halal', 'kosher'];
 
+// Supplements need their own swaps — an off-limits supplement can't become a
+// food (Fish Oil → "Marinated Tofu" is nonsense). Keyed by supplement name.
+const SUPPLEMENT_SWAPS = {
+  vegetarian: {
+    'fish oil (omega-3)': { name: 'Algae Omega-3', dose: '500mg DHA', benefit: 'Brain + heart health', icon: '🌊' },
+  },
+  vegan: {
+    'fish oil (omega-3)': { name: 'Algae Omega-3', dose: '500mg DHA', benefit: 'Brain + heart health', icon: '🌊' },
+    'vitamin d3':         { name: 'Vitamin D3 (Vegan)', benefit: 'Immunity + bone health', icon: '☀️' },
+  },
+};
+
+/** Adapt a single supplement for the active restrictions (vegan fish oil →
+ *  algae, etc.). Marks swapped/swappedFrom for the UI. */
+export function adaptSupplement(supp, restrictions = []) {
+  if (!restrictions.length) return supp;
+  let cur = { ...supp };
+  let original = null;
+  for (const r of RESTRICTION_ORDER) {
+    if (!restrictions.includes(r)) continue;
+    const rep = SUPPLEMENT_SWAPS[r]?.[cur.name.toLowerCase().trim()];
+    if (rep && rep.name.toLowerCase() !== cur.name.toLowerCase()) {
+      if (original === null) original = cur.name;
+      cur = { ...cur, ...rep };
+    }
+  }
+  if (original !== null) { cur.swapped = true; cur.swappedFrom = original; }
+  return cur;
+}
+
 /** Adapt a single ingredient for the active restrictions. Returns a new
  *  object; when swapped it carries `swapped` + `swappedFrom` for the UI. */
 export function adaptIngredient(ing, restrictions = []) {
@@ -659,5 +689,8 @@ export function adaptPlan(plan, restrictions = []) {
       return next;
     }),
   }));
-  return { ...plan, meals, adaptedFor: restrictions, swapCount };
+  // Supplements too — a "complete" substitution can't leave a vegan being
+  // told to take fish oil. Not counted in swapCount (those are ingredients).
+  const supplements = (plan.supplements || []).map(s => adaptSupplement(s, restrictions));
+  return { ...plan, meals, supplements, adaptedFor: restrictions, swapCount };
 }

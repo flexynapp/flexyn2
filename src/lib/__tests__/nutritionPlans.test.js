@@ -145,4 +145,21 @@ describe('adaptPlan — no restriction leaks', () => {
     const template = PLAN_TEMPLATES[0];
     expect(adaptPlan(template, [])).toBe(template);
   });
+
+  it('substitutes non-vegan supplements too (no fish oil for a vegan)', () => {
+    for (const restriction of ['vegetarian', 'vegan']) {
+      for (const template of PLAN_TEMPLATES) {
+        const adapted = adaptPlan(template, [restriction]);
+        const names = (adapted.supplements || []).map(s => s.name.toLowerCase());
+        expect(names.some(n => n.includes('fish oil'))).toBe(false);
+      }
+    }
+    // And the swap is surfaced for the UI.
+    const fatLoss = PLAN_TEMPLATES.find(p => p.id === 'fat_loss');
+    const adapted = adaptPlan(fatLoss, ['vegan']);
+    const algae = adapted.supplements.find(s => s.name === 'Algae Omega-3');
+    expect(algae).toBeTruthy();
+    expect(algae.swapped).toBe(true);
+    expect(algae.swappedFrom).toBe('Fish Oil (Omega-3)');
+  });
 });

@@ -181,6 +181,12 @@ function SupplementCard({ supp, colors }) {
           <p className="font-heading font-semibold text-sm leading-tight">{supp.name}</p>
           <p className="text-xs text-muted-foreground mt-0.5">{supp.dose} · {supp.timing}</p>
           <p className="text-xs mt-0.5 font-medium opacity-80">{supp.benefit}</p>
+          {supp.swapped && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full mt-1">
+              <ArrowLeftRight className="w-2.5 h-2.5" />
+              swapped from {supp.swappedFrom}
+            </span>
+          )}
         </div>
       </div>
     </div>
