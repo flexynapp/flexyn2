@@ -282,7 +282,7 @@ export default function Workout() {
   // Form Coach: now a button inside the active workout (Freestyle/Regimen).
   // None need a grid tile. Order per user request; the full-width Rival
   // card ('nemesis') stays last.
-  const CARD_ORDER_DEFAULT = ['generate','regimens','cardio','explore','duels','bounties','goals','saved','nemesis'];
+  const CARD_ORDER_DEFAULT = ['generate','explore','cardio','regimens','duels','bounties','goals','saved','nemesis'];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
       const s = localStorage.getItem('wkt-card-order');
