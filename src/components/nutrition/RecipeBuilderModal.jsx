@@ -253,7 +253,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto px-4">
+          <div className="flex-1 overflow-y-auto px-4 pb-4">
             {/* Food image */}
             <input
               ref={fileInputRef}
@@ -437,14 +437,14 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
             {/* Live totals — pure compute via sumIngredients */}
             <div className="mt-4 p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
               {[
-                { k: 'calories',   l: 'cal', txt: 'text-orange-500' },
-                { k: 'protein_g',  l: 'P g', txt: 'text-red-500' },
-                { k: 'carbs_g',    l: 'C g', txt: 'text-blue-500' },
-                { k: 'fat_g',      l: 'F g', txt: 'text-yellow-500' },
-              ].map(({ k, l, txt }) => (
+                { k: 'calories',   l: 'cal', unit: '',  txt: 'text-orange-500' },
+                { k: 'protein_g',  l: 'P',   unit: 'g', txt: 'text-red-500' },
+                { k: 'carbs_g',    l: 'C',   unit: 'g', txt: 'text-blue-500' },
+                { k: 'fat_g',      l: 'F',   unit: 'g', txt: 'text-yellow-500' },
+              ].map(({ k, l, unit, txt }) => (
                 <div key={k}>
                   <p className={`font-heading text-base font-bold tabular-nums ${txt}`}>
-                    {Math.round(totals[k] || 0)}
+                    {Math.round(totals[k] || 0)}{unit && <span className="text-[10px] font-bold ms-0.5">{unit.toUpperCase()}</span>}
                   </p>
                   <p className="text-[9px] uppercase tracking-wide text-muted-foreground">{l}</p>
                 </div>
