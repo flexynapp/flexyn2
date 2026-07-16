@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, ClipboardList, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
+import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -295,7 +296,14 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
   }, [userProfile?.nutrition_onboarding_complete, userProfile?.id]);
 
   const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
-  const targetCalories = userProfile?.daily_calorie_target || userProfile?.calories || null;
+  // Use the SAME goal-driven calorie target the rest of the nutrition UI shows
+  // (CalorieTopBar / MacroNutrientBox via calculateDailyValues). Onboarding
+  // saves the goal/activity inputs, not a stored calorie number, so reading a
+  // `daily_calorie_target` field left plans stuck at the 2000 kcal base.
+  const targetCalories = useMemo(
+    () => calculateDailyValues(userProfile)?.calories || null,
+    [userProfile],
+  );
 
   // Every plan is offered — adapted to the user's restrictions by swapping
   // off-limits ingredients for compliant, nutrient-matched alternatives.
