@@ -2247,8 +2247,8 @@ export default function Workout() {
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-primary/80 mb-2">{t('workout.startKicker')}</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">{t('workout.freestyle')}</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">{t('workout.freestyleDesc')}</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">{t('workout.freestyle')}</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">{t('workout.freestyleDesc')}</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-white/8 border border-white/10 text-[10px] font-semibold text-white/60 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Ready to go
                             </span>
@@ -2280,8 +2280,8 @@ export default function Workout() {
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-violet-400/80 mb-2">CHALLENGE YOURSELF</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">The Gauntlet</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">10 challenges. One path. Prove what you are made of.</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">The Gauntlet</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">10 challenges. One path. Prove what you are made of.</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-400/20 text-[10px] font-semibold text-violet-300/80 tracking-wide uppercase">
                               {gauntletProgress?.path_completed ? 'Completed' : gauntletProgress ? `Challenge #${gauntletProgress.current_challenge_sequence}` : 'Start now'}
                             </span>
@@ -2313,8 +2313,8 @@ export default function Workout() {
                         <div className="relative flex items-center justify-between gap-4 p-6 md:p-8">
                           <div className="min-w-0">
                             <span className="block text-[10px] font-bold tracking-[0.25em] uppercase text-emerald-400/80 mb-2">CREW BATTLES</span>
-                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight">Crew Wars</span>
-                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
+                            <span className="font-heading font-black text-3xl md:text-4xl leading-none block tracking-tight min-h-[2em]">Crew Wars</span>
+                            <span className="text-[13px] text-white/50 mt-2.5 block max-w-[36ch] leading-relaxed min-h-[3.25em]">Rally your crew. Crush rivals. Dominate the leaderboard.</span>
                             <span className="inline-flex items-center gap-1 mt-3 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-400/20 text-[10px] font-semibold text-emerald-300/80 tracking-wide uppercase">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />Join the fight
                             </span>
@@ -2334,7 +2334,7 @@ export default function Workout() {
                 {/* Height placeholder so container does not collapse */}
                 <div className="invisible pointer-events-none" aria-hidden="true">
                   <div className="flex items-center justify-between gap-4 p-6 md:p-8 pb-9 md:pb-10">
-                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none">x</span><span className="text-[13px] mt-2.5 block">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">badge placeholder</span></div>
+                    <div><span className="block text-[10px] mb-2">x</span><span className="font-heading font-black text-3xl block leading-none min-h-[2em]">x</span><span className="text-[13px] mt-2.5 block min-h-[3.25em]">placeholder line</span><span className="inline-flex mt-3 px-2.5 py-1 text-[10px]">badge placeholder</span></div>
                     <div className="w-16 h-16 rounded-2xl shrink-0" />
                   </div>
                 </div>

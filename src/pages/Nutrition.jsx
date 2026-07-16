@@ -1316,7 +1316,7 @@ export default function Nutrition() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, ease: 'easeOut' }}
-      className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-4xl mx-auto">
+      className="px-4 pt-1 md:px-8 md:pt-2 lg:pb-8 max-w-4xl mx-auto">
 
       {/* ── Header ───────────────────────────────────────────────────────────
           Top row: title + customize (container-mover) buttons on the left,
@@ -1330,10 +1330,10 @@ export default function Nutrition() {
         <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
           {format(new Date(), 'EEEE, MMMM d')}
         </p>
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-start justify-between gap-4">
           {/* Left — title + customize toggle */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
-            <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight">{t('nutrition.title')}</h1>
+            <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight">{t('nutrition.title')}</h1>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setEditMode(e => !e)}
