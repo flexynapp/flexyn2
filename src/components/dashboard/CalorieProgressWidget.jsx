@@ -17,6 +17,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
+import { db } from '@/api/db';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
 // NOTE: `today` is computed INSIDE the component (not at module load)
@@ -61,24 +62,35 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
     return () => clearInterval(id);
   }, []);
 
-  // Today's nutrition logs
+  // Resolve the identity that meals are logged under. Meals are written to
+  // nutrition_logs.created_by using db.auth.me().email — which for a guest is
+  // guest_<id>@flexyn.guest, and can differ from the raw auth context
+  // user.email (empty for anonymous guests). Use db.auth.me() as the
+  // authoritative source so the created_by filter always matches saved rows;
+  // fall back to context/profile if it isn't available.
+  const { data: authEmail = null } = useQuery({
+    queryKey: ['authIdentityEmail'],
+    queryFn: async () => { try { return (await db.auth.me())?.email || null; } catch { return null; } },
+    staleTime: 5 * 60_000,
+  });
+  const logEmail = authEmail || user?.email || userProfile?.email || null;
   const { data: todayLogs = [] } = useQuery({
-    // Share the SAME query key as src/pages/Nutrition.jsx (line 173)
-    // so that logging a meal on /nutrition invalidates this Dashboard
-    // widget too. Previously this used ['nutritionToday', ...] and the
-    // Nutrition page invalidated ['nutritionLogs', ...] — different
-    // caches, so this widget stayed stale until refetchInterval fired.
-    queryKey: ['nutritionLogs', user?.email, today],
+    // Share the SAME query key as src/pages/Nutrition.jsx so that logging a
+    // meal on /nutrition invalidates this Dashboard widget too.
+    queryKey: ['nutritionLogs', logEmail, today],
     queryFn: async () => {
-      if (!user?.email) return [];
+      if (!logEmail) return [];
       const { data } = await supabase
         .from('nutrition_logs')
-        .select('calories, protein_g, carbs_g, fat_g, food_name')
-        .eq('created_by', user.email)
+        // DB columns are protein/carbs/fat (no _g suffix). Selecting the
+        // suffixed names 400'd the whole query, so this widget silently read
+        // an empty set and always showed 0 — even after logging a meal.
+        .select('calories, protein, carbs, fat, food_name')
+        .eq('created_by', logEmail)
         .eq('date', today);
       return data || [];
     },
-    enabled: !!user?.email,
+    enabled: !!logEmail,
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
@@ -86,10 +98,10 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
   const goals = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
 
   const totals = useMemo(() => {
-    const calories  = todayLogs.reduce((s, n) => s + (n.calories  || 0), 0);
-    const protein_g = todayLogs.reduce((s, n) => s + (n.protein_g || 0), 0);
-    const carbs_g   = todayLogs.reduce((s, n) => s + (n.carbs_g   || 0), 0);
-    const fat_g     = todayLogs.reduce((s, n) => s + (n.fat_g     || 0), 0);
+    const calories  = todayLogs.reduce((s, n) => s + (n.calories || 0), 0);
+    const protein_g = todayLogs.reduce((s, n) => s + (n.protein  || 0), 0);
+    const carbs_g   = todayLogs.reduce((s, n) => s + (n.carbs    || 0), 0);
+    const fat_g     = todayLogs.reduce((s, n) => s + (n.fat      || 0), 0);
     return { calories, protein_g, carbs_g, fat_g };
   }, [todayLogs]);
 

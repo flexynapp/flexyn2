@@ -30,6 +30,7 @@ import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
+import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -399,6 +400,10 @@ export default function Nutrition() {
     }
   };
   const [photoRecognizing, setPhotoRecognizing] = useState(false);
+  // Photo-AI result pop-out — the recognized meal + the photo the user took.
+  const [showPhotoResult, setShowPhotoResult] = useState(false);
+  const [photoResult, setPhotoResult] = useState(null);
+  const [photoImageUrl, setPhotoImageUrl] = useState(null);
   const [newEntry, setNewEntry] = useState({
     food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '',
     sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '',
@@ -794,45 +799,44 @@ export default function Nutrition() {
       else toast.error(tFallback('nutrition.photoAi.failed', 'Could not recognize meal. Try again.'));
       return;
     }
+    // Show the result in a rich pop-out with the photo, a swipeable macro
+    // panel, and a per-ingredient breakdown — the user reviews / edits there
+    // and saves. Keep a preview URL of the exact photo they used.
     const r = res.result || {};
-    // Coerce + finite-check each macro. The LLM occasionally returns
-    // string values like "≈340" or "N/A" — without coercion those
-    // strings landed in state, got passed to addEntry, and persisted
-    // to the DB as strings (which then broke arithmetic everywhere
-    // else). Wave 57 (Cardio/Coach/Progress/Nutrition audit) caught
-    // this.
-    const finiteOr = (val, fallback) => {
-      if (val == null) return fallback;
-      const n = Number(val);
-      return Number.isFinite(n) ? n : fallback;
-    };
-    setNewEntry(prev => ({
-      ...prev,
-      food_name:  (typeof r.food_name === 'string' && r.food_name.trim()) || prev.food_name,
-      calories:   finiteOr(r.calories,  prev.calories),
-      protein_g:  finiteOr(r.protein_g, prev.protein_g),
-      carbs_g:    finiteOr(r.carbs_g,   prev.carbs_g),
-      fat_g:      finiteOr(r.fat_g,     prev.fat_g),
-      fiber_g:    finiteOr(r.fiber_g,   prev.fiber_g),
-    }));
-    // Surface the portion + how sure the model is (Cal-AI shows this) so the
-    // user knows whether to trust the numbers before saving. Low-confidence
-    // estimates get a nudge-to-check toast instead of a plain success.
-    const portion = (typeof r.portion_estimate === 'string' && r.portion_estimate.trim())
-      ? ` · ${r.portion_estimate.trim()}`
-      : '';
-    const confidence = ['high', 'medium', 'low'].includes(r.confidence) ? r.confidence : null;
-    const label = `${r.food_name || 'meal'}${portion}`;
-    if (confidence === 'low') {
-      toast.warning(`Identified: ${label} — low confidence, double-check the macros before saving.`);
-    } else {
-      const conf = confidence ? ` (${confidence} confidence)` : '';
-      toast.success(`Identified: ${label}${conf} — review and save.`);
-    }
-    // Scroll the meal form into view so the user can review.
-    setTimeout(() => {
-      document.getElementById('log-meal-form')?.scrollIntoView({ behavior: 'smooth' });
-    }, 100);
+    try { if (photoImageUrl) URL.revokeObjectURL(photoImageUrl); } catch { /* noop */ }
+    setPhotoImageUrl(URL.createObjectURL(file));
+    setPhotoResult(r);
+    setShowPhotoResult(true);
+  };
+
+  // Close + tidy up the photo-result modal (revoke the object URL).
+  const closePhotoResult = () => {
+    setShowPhotoResult(false);
+    setPhotoResult(null);
+    try { if (photoImageUrl) URL.revokeObjectURL(photoImageUrl); } catch { /* noop */ }
+    setPhotoImageUrl(null);
+  };
+
+  // Save the (possibly edited) recognized meal through the normal logging
+  // path so daily calories, macros, and the dashboard Nutrition/Recovery
+  // cards all update. `entry` carries food_name + numeric macro columns.
+  const saveRecognizedMeal = (entry) => {
+    if (saveMutation.isPending) return;
+    saveMutation.mutate({
+      date,
+      created_by: user?.email,
+      user_id: user?.id,
+      meal_type: mealType,
+      food_name: (entry.food_name || 'Meal').trim(),
+      calories:  Number(entry.calories)  || 0,
+      protein_g: Number(entry.protein_g) || 0,
+      carbs_g:   Number(entry.carbs_g)   || 0,
+      fat_g:     Number(entry.fat_g)     || 0,
+      fiber_g:   Number(entry.fiber_g)   || 0,
+      sugar_g:   Number(entry.sugar_g)   || 0,
+      sodium_mg: Number(entry.sodium_mg) || 0,
+    });
+    closePhotoResult();
   };
 
   const startScanner = async () => {
@@ -1917,6 +1921,18 @@ export default function Nutrition() {
           open={showRecipes}
           onClose={() => setShowRecipes(false)}
           userProfile={userProfile}
+        />
+      </ErrorBoundary>
+
+      {/* Photo-AI result pop-out */}
+      <ErrorBoundary label="PhotoMealResultModal">
+        <PhotoMealResultModal
+          open={showPhotoResult}
+          imageUrl={photoImageUrl}
+          result={photoResult}
+          saving={saveMutation.isPending}
+          onClose={closePhotoResult}
+          onSave={saveRecognizedMeal}
         />
       </ErrorBoundary>
 

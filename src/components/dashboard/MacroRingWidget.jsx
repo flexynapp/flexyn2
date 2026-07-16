@@ -16,6 +16,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { supabase } from '@/api/supabaseClient';
+import { db } from '@/api/db';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
 // `today` is computed inside the component (see CalorieProgressWidget
@@ -70,30 +71,41 @@ export default function MacroRingWidget({ userProfile = {} }) {
   const navigate = useNavigate();
   const today = format(new Date(), 'yyyy-MM-dd');
 
+  // Authoritative logging identity (db.auth.me().email) — for a guest this is
+  // guest_<id>@flexyn.guest, which the raw auth user.email may not carry. This
+  // matches what /nutrition writes to nutrition_logs.created_by.
+  const { data: authEmail = null } = useQuery({
+    queryKey: ['authIdentityEmail'],
+    queryFn: async () => { try { return (await db.auth.me())?.email || null; } catch { return null; } },
+    staleTime: 5 * 60_000,
+  });
+  const logEmail = authEmail || user?.email || userProfile?.email || null;
+
   const { data: todayLogs = [] } = useQuery({
-    // Shared key with src/pages/Nutrition.jsx — see CalorieProgressWidget
-    // for the rationale.
-    queryKey: ['nutritionLogs', user?.email, today],
+    // Shared key with src/pages/Nutrition.jsx + CalorieProgressWidget so all
+    // three read the same cache. DB columns are protein/carbs/fat (no _g) —
+    // selecting the suffixed names 400'd the whole query and read as empty.
+    queryKey: ['nutritionLogs', logEmail, today],
     queryFn: async () => {
-      if (!user?.email) return [];
+      if (!logEmail) return [];
       const { data } = await supabase
         .from('nutrition_logs')
-        .select('calories, protein_g, carbs_g, fat_g')
-        .eq('created_by', user.email)
+        .select('calories, protein, carbs, fat')
+        .eq('created_by', logEmail)
         .eq('date', today);
       return data || [];
     },
-    enabled: !!user?.email,
+    enabled: !!logEmail,
     staleTime: 60_000,
     refetchInterval: 120_000,
   });
 
   const goals   = useMemo(() => calculateDailyValues(userProfile), [userProfile]);
   const totals  = useMemo(() => ({
-    calories:  todayLogs.reduce((s, n) => s + (n.calories  || 0), 0),
-    protein_g: todayLogs.reduce((s, n) => s + (n.protein_g || 0), 0),
-    carbs_g:   todayLogs.reduce((s, n) => s + (n.carbs_g   || 0), 0),
-    fat_g:     todayLogs.reduce((s, n) => s + (n.fat_g     || 0), 0),
+    calories:  todayLogs.reduce((s, n) => s + (n.calories || 0), 0),
+    protein_g: todayLogs.reduce((s, n) => s + (n.protein  || 0), 0),
+    carbs_g:   todayLogs.reduce((s, n) => s + (n.carbs    || 0), 0),
+    fat_g:     todayLogs.reduce((s, n) => s + (n.fat      || 0), 0),
   }), [todayLogs]);
 
   const defaultGoals = { calories: 2000, protein_g: 150, carbs_g: 200, fat_g: 65 };

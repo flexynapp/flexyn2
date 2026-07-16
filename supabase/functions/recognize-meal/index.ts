@@ -26,24 +26,27 @@ Examine the image carefully and return a JSON object with these fields:
   - food_name: short descriptive name of the whole dish (e.g. "Grilled salmon with quinoa and asparagus")
   - portion_estimate: the total serving you're estimating, in plain words WITH a weight
       or volume when you can (e.g. "1 plate (~450 g)", "1 cup", "2 slices (~120 g)").
-      This is what the calories/macros below are for.
-  - calories: integer kcal for that portion
-  - protein_g: integer grams for that portion
-  - carbs_g: integer grams for that portion
-  - fat_g: integer grams for that portion
-  - fiber_g: integer grams for that portion (0 if unsure)
+  - items: an array of the distinct foods on the plate — break the meal into its real
+      components (usually 2-6). Each item is an object:
+        { "name": "Grilled chicken breast", "amount": "~180 g",
+          "calories": 280, "protein_g": 52, "carbs_g": 0, "fat_g": 6 }
+      Estimate each item's own portion and macros. The totals below MUST equal the sum of
+      the items. If it's truly a single food, return one item.
+  - calories: integer kcal — the TOTAL (sum of items)
+  - protein_g: integer grams — total
+  - carbs_g: integer grams — total
+  - fat_g: integer grams — total
+  - fiber_g: integer grams total (0 if unsure)
+  - sugar_g: integer grams total (0 if unsure)
+  - sodium_mg: integer milligrams total (0 if unsure)
   - confidence: "high" | "medium" | "low" — how sure you are about the portion sizes
-  - notes: one short sentence breaking the plate into its components with rough weights
-      (e.g. "Salmon ~180g, quinoa ~150g, asparagus ~90g."). This is what makes the estimate
-      trustworthy — always fill it in.
+  - notes: one short sentence with any caveats (e.g. "Sauce hidden under the rice may add fat.").
 
 How to estimate the portion (this is the hard part — get it right):
   - Anchor scale to reference objects: plate/bowl diameter, fork/spoon length, a hand,
     standard can/bottle sizes. A dinner plate is ~27 cm; a fork is ~19 cm.
   - Judge depth and coverage, not just the top-down area — a mounded bowl holds far more
     than a flat one of the same width.
-  - If several foods share the plate, estimate each, then SUM them into the totals above
-    and list the components in notes.
   - Prefer a realistic single-serving estimate over a round number.
 
 If the image is NOT food, return { "not_food": true } instead of any macros.
@@ -122,7 +125,8 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 800,
+        // Room for the per-item breakdown array. Still a tight cap.
+        max_tokens: 1200,
         system: SYSTEM_PROMPT,
         messages: [
           {
