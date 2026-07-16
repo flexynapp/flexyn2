@@ -201,7 +201,7 @@ function NutritionShortcutsCarousel({ onScan, onRecipes, onHistory, onPlans, onP
             <Icon
               aria-hidden="true"
               className="absolute pointer-events-none select-none"
-              style={{ width: 100, height: 100, opacity: 0.12, color: `hsl(${slide.color})`, right: 16, top: '50%', transform: 'translateY(-50%)' }}
+              style={{ width: 100, height: 100, opacity: 0.12, color: `hsl(${slide.color})`, right: 16, top: 5, transform: 'none' }}
             />
           )}
           <div className="flex items-center gap-2">

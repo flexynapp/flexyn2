@@ -438,7 +438,7 @@ const ProgressCarousel = forwardRef(function ProgressCarousel({ slides }, ref) {
             return (
               <IconComp
                 aria-hidden="true"
-                className="absolute end-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+                className="absolute end-4 top-[5px] pointer-events-none select-none"
                 style={{ width: 96, height: 96, opacity: 0.12, color: `hsl(${slide.color})` }}
               />
             );

@@ -996,7 +996,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
       <div className="relative flex flex-col justify-between gap-5 min-w-0">
         {/* Decorative icon — right-centre, translucent */}
         <Flame aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />
+          style={{ width: 110, height: 110, opacity: 0.12, color: 'white', right: 8, top: 5, transform: 'none' }} />
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-primary/10 backdrop-blur-sm flex items-center justify-center">
             <Flame className="w-4 h-4 text-primary/80" />
@@ -1064,7 +1064,7 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
     return (
       <div className="relative flex flex-col justify-between gap-4 min-w-0">
         <FeatureIcon aria-hidden="true" className="absolute pointer-events-none select-none"
-          style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: '50%', transform: 'translateY(-50%)' }} />
+          style={{ width: 110, height: 110, opacity: 0.11, color: 'white', right: 8, top: 5, transform: 'none' }} />
         {/* Purple overlay that tints the slideshow column without
             touching the hero's primary chrome. */}
         <div
@@ -1147,8 +1147,8 @@ const HeroSlideshow = forwardRef(function HeroSlideshow({
         style={{
           width: 110, height: 110, opacity: 0.11, color: 'white', right: 8,
           ...(slide.progressPct != null
-            ? { top: 14 }
-            : { top: '50%', transform: 'translateY(-50%)' }),
+            ? { top: 5 }
+            : { top: 5, transform: 'none' }),
         }} />}
       <div className="flex items-center gap-2">
         <div className={`w-8 h-8 rounded-full backdrop-blur-sm flex items-center justify-center ${slide.iconBg || 'bg-primary/10'}`}>
