@@ -270,7 +270,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             disabled={!canSave}
             className="w-full py-2.5 rounded-lg bg-primary text-primary-foreground font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
           >
-            Add to plan
+            Add to {mealLabel?.toLowerCase() || 'plan'}
           </button>
         </div>
       </motion.div>
