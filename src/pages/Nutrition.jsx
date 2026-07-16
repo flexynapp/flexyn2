@@ -1326,14 +1326,37 @@ export default function Nutrition() {
         initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         className="mb-6"
       >
-        <div className="flex items-start justify-between gap-4">
-          {/* Left column — date, then title. The row top-aligns (items-start)
-              so the right column's Scanner History sits level with the date. */}
-          <div className="min-w-0">
-          {/* Date first, then title — matches the Dashboard header order. */}
-          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+        {/* Photo-AI hidden file input (library fallback). */}
+        <input
+          ref={photoInputRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={handlePhotoMealPick}
+        />
+
+        {/* Row 1 — date + Scanner History on one line (aligned). */}
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground">
             {format(new Date(), 'EEEE, MMMM d')}
           </p>
+          <button
+            onClick={() => setShowScanHistory(v => !v)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+          >
+            <Clock className="w-3.5 h-3.5" />
+            Scanner History
+            {scanHistory.length > 0 && (
+              <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+                {scanHistory.length}
+              </span>
+            )}
+            {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+          </button>
+        </div>
+
+        {/* Row 2 — title (+ container-mover) + Edit Goals on one line (aligned). */}
+        <div className="flex items-center justify-between gap-4 mt-1">
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight">{t('nutrition.title')}</h1>
             <div className="flex items-center gap-1.5">
@@ -1376,44 +1399,14 @@ export default function Nutrition() {
               )}
             </div>
           </div>
-          </div>
-
-          {/* Right — Photo-AI hidden file input + Scanner History toggle.
-              The orange "Scan Food" and purple "Photo-AI" buttons were
-              removed; those actions now live in the quick-access row. */}
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            {/* Photo-AI recognition trigger — hidden file input behind
-                the quick-access card. No `capture` attr so iOS surfaces
-                both "Take photo" and "Choose from library". */}
-            <input
-              ref={photoInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={handlePhotoMealPick}
-            />
-            <button
-              onClick={() => setShowScanHistory(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <Clock className="w-3.5 h-3.5" />
-              Scanner History
-              {scanHistory.length > 0 && (
-                <span className="min-w-[16px] h-4 px-1 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
-                  {scanHistory.length}
-                </span>
-              )}
-              {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            </button>
-            {/* Re-run nutrition onboarding to reset goals + dietary prefs. */}
-            <button
-              onClick={openGoalsEditor}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
-            >
-              <Target className="w-3.5 h-3.5" />
-              Edit Goals
-            </button>
-          </div>
+          {/* Re-run nutrition onboarding to reset goals + dietary prefs. */}
+          <button
+            onClick={openGoalsEditor}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+          >
+            <Target className="w-3.5 h-3.5" />
+            Edit Goals
+          </button>
         </div>
       </motion.div>
 

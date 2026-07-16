@@ -45,9 +45,9 @@ const SPECK_KEYFRAMES = `
 }
 @keyframes ctbBob {
   0%   { transform: translateY(0); }
-  25%  { transform: translateY(-2.5px); }
+  25%  { transform: translateY(-1.5px); }
   50%  { transform: translateY(0); }
-  75%  { transform: translateY(2.5px); }
+  75%  { transform: translateY(1.5px); }
   100% { transform: translateY(0); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -91,7 +91,7 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
       </div>
 
       {/* Battery / lava-lamp gauge — drains from full toward empty */}
-      <div className="relative h-4 w-full rounded-full bg-secondary overflow-hidden">
+      <div className="relative h-3 w-full rounded-full bg-secondary overflow-hidden">
         <motion.div
           className="absolute inset-y-0 left-0 rounded-full overflow-hidden"
           style={{ background: fillGradient }}
