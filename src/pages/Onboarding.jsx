@@ -2319,7 +2319,7 @@ function InjuryHistoryStep({ step, total, value, onChange, onNext, onBack, onSki
           accentWord="around"
         />
         <p className="text-sm text-muted-foreground mt-1 mb-5">
-          We exclude affected areas from your starter plan. Skip if you're all good.
+          Moderate and serious injuries are excluded from your starter plan; mild ones stay in with an ease-in note. Skip if you're all good.
         </p>
 
         {/* Logged injuries */}
@@ -2790,8 +2790,10 @@ export default function Onboarding() {
       daysCount: Array.isArray(data.days) ? data.days.length : 0,
       assessment: data.assessment || null,
       injuries: data.onboardingInjuries || [],
+      age: data.stats?.age,
+      bodyFatPct: data.bodyBaseline?.bodyFatPct,
     }),
-    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries]
+    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -3161,6 +3163,8 @@ export default function Onboarding() {
             daysCount: Array.isArray(data.days) ? data.days.length : 0,
             assessment: data.assessment || null,
             injuries: data.onboardingInjuries || [],
+            age: data.stats?.age,
+            bodyFatPct: data.bodyBaseline?.bodyFatPct,
           },
         }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });

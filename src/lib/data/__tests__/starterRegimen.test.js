@@ -201,3 +201,118 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     expect(r.exercises.length).toBeGreaterThanOrEqual(1);
   });
 });
+
+describe('buildStarterRegimen — training days → scope', () => {
+  it('a 2-day plan is more compact than a 6-day plan', () => {
+    const two = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 2 });
+    const six = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 6 });
+    expect(two.exercises.length).toBeLessThan(six.exercises.length);
+    expect(two.exercises.length).toBe(5);
+    expect(six.exercises.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('scope scales monotonically with training days', () => {
+    const counts = [1, 2, 3, 4, 5, 6, 7].map(
+      d => buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: d }).exercises.length,
+    );
+    for (let i = 1; i < counts.length; i++) {
+      expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1]);
+    }
+  });
+});
+
+describe('buildStarterRegimen — age-aware recovery', () => {
+  it('caps volume at 4 sets for a 55+ lifter who would otherwise get 5', () => {
+    const young = buildStarterRegimen({ goals: ['strength'], level: 'advanced', daysCount: 4, age: 30 });
+    const older = buildStarterRegimen({ goals: ['strength'], level: 'advanced', daysCount: 4, age: 58 });
+    expect(young.exercises[0].target_sets).toBe(5);
+    expect(older.exercises[0].target_sets).toBe(4);
+    expect(older.description).toContain('recovery-adjusted');
+  });
+
+  it('caps volume at 3 sets for a 65+ lifter', () => {
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'advanced', daysCount: 4, age: 70 });
+    expect(r.exercises[0].target_sets).toBe(3);
+  });
+
+  it('leaves volume untouched for a younger lifter (no recovery note)', () => {
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 4, age: 40 });
+    expect(r.exercises[0].target_sets).toBe(4);
+    expect(r.description).not.toContain('recovery-adjusted');
+  });
+});
+
+describe('buildStarterRegimen — secondary goals → accessory', () => {
+  it('a strength+mobility user gets a mobility accessory alongside the strength core', () => {
+    const primaryOnly = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 5 });
+    const withSecondary = buildStarterRegimen({ goals: ['strength', 'mobility'], level: 'consistent', daysCount: 5 });
+    expect(withSecondary.name).toContain('Build Strength'); // primary still drives the plan
+    // The mobility accessory (Side Plank) is added.
+    expect(withSecondary.exercises.map(e => e.name)).toContain('Side Plank');
+    expect(primaryOnly.exercises.map(e => e.name)).not.toContain('Side Plank');
+  });
+
+  it('an injured secondary accessory is not added (injury-safe)', () => {
+    // muscle secondary accessory is Dumbbell Curl (Biceps) — a Biceps injury drops it.
+    const r = buildStarterRegimen({
+      goals: ['strength', 'muscle'], level: 'consistent', daysCount: 5,
+      injuries: [{ muscleGroup: 'Biceps', severity: 'moderate' }],
+    });
+    expect(r.exercises.map(e => e.name)).not.toContain('Dumbbell Curl');
+  });
+
+  it('never exceeds 8 exercises even with several secondary goals', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength', 'muscle', 'lose', 'endurance', 'mobility'],
+      level: 'consistent', daysCount: 7,
+    });
+    expect(r.exercises.length).toBeLessThanOrEqual(8);
+  });
+});
+
+describe('buildStarterRegimen — injury severity nuance', () => {
+  it('a MILD injury keeps the exercise but flags it with an ease-in note', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 5,
+      injuries: [{ muscleGroup: 'Legs', severity: 'mild' }],
+    });
+    const legExercise = r.exercises.find(e => e.muscle_groups.includes('Legs'));
+    expect(legExercise).toBeTruthy(); // not excluded
+    expect(legExercise.notes).toMatch(/ease in/i);
+  });
+
+  it('a MODERATE injury is excluded outright (no note, no exercise)', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 5,
+      injuries: [{ muscleGroup: 'Legs', severity: 'moderate' }],
+    });
+    for (const ex of r.exercises) {
+      expect(ex.muscle_groups).not.toContain('Legs');
+    }
+  });
+
+  it('injuries with no severity default to excluded (safe fallback)', () => {
+    const r = buildStarterRegimen({
+      goals: ['strength'], level: 'consistent', daysCount: 5,
+      injuries: [{ muscleGroup: 'Back' }],
+    });
+    for (const ex of r.exercises) {
+      expect(ex.muscle_groups).not.toContain('Back');
+    }
+  });
+});
+
+describe('buildStarterRegimen — body-fat conditioning nudge', () => {
+  it('adds conditioning for a high-body-fat strength user', () => {
+    const lean = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3, bodyFatPct: 15 });
+    const high = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3, bodyFatPct: 30 });
+    expect(lean.exercises.map(e => e.name)).not.toContain('Mountain Climbers');
+    expect(high.exercises.map(e => e.name)).toContain('Mountain Climbers');
+  });
+
+  it('does not add conditioning for an endurance goal (already cardio-heavy)', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3, bodyFatPct: 32 });
+    // endurance already leads with cardio; the strength/muscle-only nudge doesn't fire an extra add
+    expect(r.name).toContain('Build Endurance');
+  });
+});

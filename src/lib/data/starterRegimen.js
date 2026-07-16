@@ -58,6 +58,37 @@ const CARDIO_MODALITY = {
 };
 Object.values(CARDIO_MODALITY).forEach(EX); // pre-flight validate
 
+// One signature accessory per goal — appended when the user picked that goal
+// as a SECONDARY objective, so a strength+mobility user's plan visibly reflects
+// both. Validated against EXERCISE_LIBRARY below.
+const GOAL_ACCESSORY = {
+  strength:  'Deadlift',
+  muscle:    'Dumbbell Curl',
+  lose:      'Mountain Climbers',
+  endurance: 'Jump Rope',
+  mobility:  'Side Plank',
+};
+Object.values(GOAL_ACCESSORY).forEach(EX); // pre-flight validate
+
+// Training days → how many exercises the plan carries. Low frequency = a
+// compact full-body session hit each training day; high frequency = broader
+// scope / more total volume across the week.
+function targetExerciseCount(daysCount) {
+  const d = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
+  if (d <= 2) return 5;
+  if (d <= 4) return 6;
+  return 8;
+}
+
+// Age → recovery cap on sets. Recovery capacity declines with age, so an
+// assessed-advanced 60-year-old shouldn't get the same 5×5 as a 25-year-old.
+function ageSetsCap(age) {
+  if (!Number.isFinite(age)) return Infinity;
+  if (age >= 65) return 3;
+  if (age >= 55) return 4;
+  return Infinity;
+}
+
 // Sets/reps by experience level. Newbies and returning lifters share a
 // program (3×10) to keep the on-ramp gentle.
 const LEVEL_SETS_REPS = {
@@ -116,70 +147,88 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  * `db.entities.Regimen.create()`.
  *
  * @param {Object} input
- * @param {string[]} input.goals       - Array of goal IDs (e.g. ['strength','muscle']).
- * @param {string|null} input.level    - One of 'newbie'|'returning'|'consistent'|'advanced'.
- * @param {number} input.daysCount     - Training days per week (used in description).
- * @param {Object} [input.assessment]  - Optional fitness self-assessment
- *                                       (mig 129). Bumps volume when the
- *                                       user reports advanced lift capacity.
+ * @param {string[]} input.goals       - Goal IDs; goals[0] drives the core pool,
+ *                                       secondary goals add one accessory each.
+ * @param {string|null} input.level    - 'newbie'|'returning'|'consistent'|'advanced'.
+ * @param {number} input.daysCount     - Training days/week — sets the plan's scope.
+ * @param {Object} [input.assessment]  - Fitness self-assessment (mig 129); raises
+ *                                       the effective level for capable athletes.
+ * @param {string} [input.cardioPreference] - running|cycling|jump_rope (endurance).
+ * @param {Array}  [input.injuries]    - [{muscleGroup, severity}]; moderate/serious
+ *                                       excluded, mild flagged with a caution note.
+ * @param {number} [input.age]         - Caps volume for older lifters (55+ / 65+).
+ * @param {number} [input.bodyFatPct]  - High BF on a strength/muscle goal adds
+ *                                       a conditioning exercise.
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries } = {}) {
-  const primary = (Array.isArray(goals) && goals[0]) ? goals[0] : 'strength';
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries, age, bodyFatPct } = {}) {
+  const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
+  const primary = goalList[0] || 'strength';
   const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
   const goalTitle = GOAL_TITLES[goalKey];
   let exerciseNames = GOAL_EXERCISES[goalKey];
 
-  // Respect the user's preferred cardio for endurance plans: lead with their
-  // chosen modality (running by default) and drop any other cardio machine so
-  // a runner is never handed cycling — and vice-versa.
+  // ── Preferred cardio (endurance) — lead with the chosen modality (running by
+  // default) so a runner is never handed cycling, and vice-versa.
   if (goalKey === 'endurance' && CARDIO_MODALITY[cardioPreference]) {
     const lead = CARDIO_MODALITY[cardioPreference];
     const otherModalities = Object.values(CARDIO_MODALITY).filter(m => m !== lead);
     exerciseNames = [lead, ...exerciseNames.filter(n => n !== lead && !otherModalities.includes(n))];
   }
 
-  // Honor the onboarding injury log — the injury step promises "we exclude
-  // affected areas from your starter plan." Drop any exercise that trains an
-  // injured muscle group (the library's muscle names match the injury
-  // regions exactly). Safety valve: if that would empty the plan (someone
-  // logged nearly every region), keep whatever exercises hit the FEWEST
-  // injured areas so the user still gets a workable, least-aggravating plan.
-  const injuredSet = new Set(
-    (Array.isArray(injuries) ? injuries : [])
-      .map(i => (i && i.muscleGroup) || i)
-      .filter(Boolean),
+  // ── Injuries. Severity-aware: MODERATE/SERIOUS regions are excluded outright
+  // (the injury step promises we work around them); MILD regions stay but get a
+  // "ease in" note. Safety valve: if exclusion would empty the plan, keep the
+  // exercises hitting the fewest injured areas so it's never empty.
+  const injList = Array.isArray(injuries) ? injuries : [];
+  const excludeSet = new Set(
+    injList.filter(i => (i?.severity || 'moderate') !== 'mild').map(i => (i && i.muscleGroup) || i).filter(Boolean),
   );
-  if (injuredSet.size) {
-    const clean = exerciseNames.filter(n => !EX(n).muscles.some(m => injuredSet.has(m)));
-    if (clean.length >= 2) {
-      exerciseNames = clean;
-    } else {
-      // Extreme case — rank by fewest injured-area overlaps, keep the best 3.
-      exerciseNames = [...exerciseNames]
-        .sort((a, b) =>
-          EX(a).muscles.filter(m => injuredSet.has(m)).length -
-          EX(b).muscles.filter(m => injuredSet.has(m)).length)
-        .slice(0, 3);
-    }
+  const cautionSet = new Set(
+    injList.filter(i => i?.severity === 'mild').map(i => i && i.muscleGroup).filter(Boolean),
+  );
+  const trains = (name, set) => EX(name).muscles.some(m => set.has(m));
+  if (excludeSet.size) {
+    const clean = exerciseNames.filter(n => !trains(n, excludeSet));
+    exerciseNames = clean.length >= 2
+      ? clean
+      : [...exerciseNames]
+          .sort((a, b) => EX(a).muscles.filter(m => excludeSet.has(m)).length - EX(b).muscles.filter(m => excludeSet.has(m)).length)
+          .slice(0, 3);
   }
 
-  // Effective level factors in the fitness self-assessment (goal-aware), so
-  // the program matches real capability — an assessed athlete gets the
-  // advanced scheme even if they modestly self-reported "consistent".
+  // ── Training days → scope. Fewer days = a compact full-body session; more
+  // days = broader scope / more weekly volume. Trim keeps the compound-first
+  // ordering of each pool.
+  const safeDays = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
+  exerciseNames = exerciseNames.slice(0, targetExerciseCount(safeDays));
+
+  // ── Extras: one accessory per SECONDARY goal (so a strength+mobility plan
+  // shows both), plus a conditioning nudge when body fat is high on a
+  // strength/muscle goal. Injury-safe, deduped, capped at 8.
+  const addExtra = (name) => {
+    if (!name || exerciseNames.includes(name) || trains(name, excludeSet) || exerciseNames.length >= 8) return;
+    exerciseNames = [...exerciseNames, name];
+  };
+  for (const g of goalList.slice(1)) {
+    if (g !== goalKey) addExtra(GOAL_ACCESSORY[g]);
+  }
+  if (Number.isFinite(bodyFatPct) && bodyFatPct >= 25 && (goalKey === 'strength' || goalKey === 'muscle')) {
+    addExtra('Mountain Climbers');
+  }
+
+  // ── Volume: effective level (assessment-aware) with an age recovery cap.
   const effLevel = effectiveLevel(level, assessment, goalKey);
   const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
-  const sets = setsReps.sets;
+  const sets = Math.min(setsReps.sets, ageSetsCap(age));
   const reps = setsReps.reps;
 
   const exercises = exerciseNames.map(name => {
     const libEntry = EX(name);
-    // Cardio gets a longer "rep" target so the display reads correctly;
-    // mountain-climber / plank style get a moderate-high target.
     let targetReps = reps;
     if (CARDIO_NAMES.has(name)) targetReps = 30;
     else if (CARDIO_HIGH_REP_NAMES.has(name)) targetReps = 20;
-
+    const cautionMuscle = libEntry.muscles.find(m => cautionSet.has(m));
     return {
       name,
       displayName: name,
@@ -189,15 +238,14 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
       muscle_group: libEntry.muscles[0],
       target_sets: sets,
       target_reps: targetReps,
-      notes: '',
+      notes: cautionMuscle ? `Ease in — mild ${cautionMuscle.toLowerCase()} flagged.` : '',
     };
   });
 
-  const safeDays = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
-
+  const recoveryNote = Number.isFinite(age) && age >= 55 ? ' · recovery-adjusted' : '';
   return {
     name: `Your Starter Plan — ${goalTitle}`,
-    description: `${effLevel} · ${safeDays}×/week · auto-generated from onboarding`,
+    description: `${effLevel} · ${safeDays}×/week${recoveryNote} · auto-generated from onboarding`,
     exercises,
     is_public: false,
   };
