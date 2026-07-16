@@ -568,7 +568,10 @@ const PALEO_SWAPS = {
   'granola':              { name: 'Grain-Free Granola',    note: 'nuts & seeds' },
   'red lentils':          { name: 'Cauliflower & Mushroom Base', note: 'hearty, grain-free' },
   'hummus':               { name: 'Baba Ganoush',          note: 'roasted eggplant dip' },
-  'extra firm tofu':      { name: 'Grilled Chicken',       note: 'or portobello — grain/legume-free' },
+  // Portobello is compliant for EVERY stacked restriction (paleo + vegan +
+  // nut-free + GF). Chicken would break vegan/vegetarian when combined with
+  // paleo, since paleo is applied after the veg swaps.
+  'extra firm tofu':      { name: 'Grilled Portobello',     note: 'meaty, grain- & legume-free' },
   'greek yogurt':         { name: 'Coconut Yogurt',        note: 'dairy-free, paleo' },
   'cottage cheese':       { name: 'Coconut Yogurt Bowl',   note: 'dairy-free' },
   'butter':               { name: 'Coconut Oil',           note: 'paleo cooking fat' },

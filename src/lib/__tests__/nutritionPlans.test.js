@@ -105,22 +105,26 @@ describe('adaptPlan — no restriction leaks', () => {
     });
   }
 
-  const STACKS = [
-    ['dairy_free', 'vegan'],
-    ['dairy_free', 'gluten_free', 'nut_free'],
-    ['vegan', 'gluten_free', 'nut_free'],
-    ['gluten_free', 'nut_free', 'dairy_free', 'vegetarian'],
-    ['paleo', 'dairy_free'],
-    ['keto', 'gluten_free'],
-  ];
-  for (const stack of STACKS) {
-    it(`produces a compliant plan for stacked restrictions: ${stack.join('+')}`, () => {
+  // Exhaustive guard against the ordering bug where a later restriction's
+  // swap reintroduces an earlier one's offender (e.g. paleo swapping tofu →
+  // chicken breaks a stacked vegan). Every pair of restrictions, every plan.
+  const ALL = Object.keys(RESTRICTION_TAGS);
+  const PAIRS = ALL.flatMap((a, i) => ALL.slice(i + 1).map(b => [a, b]));
+  for (const pair of PAIRS) {
+    it(`produces a compliant plan for stacked restrictions: ${pair.join('+')}`, () => {
       for (const template of PLAN_TEMPLATES) {
-        const adapted = adaptPlan(template, stack);
-        expect(leaksFor(adapted, stack)).toEqual([]);
+        const adapted = adaptPlan(template, pair);
+        expect(leaksFor(adapted, pair)).toEqual([]);
       }
     });
   }
+
+  it('handles the all-restrictions-at-once stack with zero leaks', () => {
+    for (const template of PLAN_TEMPLATES) {
+      const adapted = adaptPlan(template, ALL);
+      expect(leaksFor(adapted, ALL)).toEqual([]);
+    }
+  });
 
   it('marks swapped ingredients and counts them', () => {
     const dairyPlan = PLAN_TEMPLATES.find(p => p.id === 'lean_muscle');
