@@ -232,7 +232,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Chicken & rice"
+              placeholder={mealLabel === 'Breakfast' ? 'e.g. Eggs & toast' : 'e.g. Chicken & rice'}
               autoFocus
               className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
