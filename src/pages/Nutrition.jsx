@@ -1225,6 +1225,27 @@ export default function Nutrition() {
     setNewEntry({ food_name: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', sodium_mg: '', fiber_g: '', sugar_g: '', cholesterol_mg: '', iron_mg: '', magnesium_mg: '', calcium_mg: '', potassium_mg: '', vitamin_a_iu: '', vitamin_c_mg: '', vitamin_d_iu: '', vitamin_b12_mcg: '' });
   };
 
+  // Re-log a previously-logged meal (from the Log Meal form's History tab)
+  // straight into today under the selected meal type — a fresh entry, so it
+  // flows through the normal calorie/macro/dashboard update path.
+  const reLogMeal = (meal) => {
+    if (!meal || saveMutation.isPending) return;
+    saveMutation.mutate({
+      date,
+      created_by: user?.email,
+      user_id: user?.id,
+      meal_type: mealType,
+      food_name: (meal.food_name || 'Meal').trim(),
+      calories:  Number(meal.calories)  || 0,
+      protein_g: Number(meal.protein_g) || 0,
+      carbs_g:   Number(meal.carbs_g)   || 0,
+      fat_g:     Number(meal.fat_g)     || 0,
+      fiber_g:   Number(meal.fiber_g)   || 0,
+      sugar_g:   Number(meal.sugar_g)   || 0,
+      sodium_mg: Number(meal.sodium_mg) || 0,
+    });
+  };
+
   const ozToDisplay = (oz) => {
     if (waterUnit === 'ml') return Math.round(oz * 29.5735);
     if (waterUnit === 'L') return parseFloat((oz * 0.0295735).toFixed(2));
@@ -1780,6 +1801,7 @@ export default function Nutrition() {
             setNewEntry={setNewEntry}
             onScan={startScanner}
             onPhotoAI={openPhotoCapture}
+            onReLog={reLogMeal}
             isRecognizing={photoRecognizing}
             onLog={addEntry}
             isScanning={showScanner}

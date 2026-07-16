@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Bookmark, Trash2, ImageIcon, Loader2 } from 'lucide-react';
+import { Plus, History, ImageIcon, Loader2, Repeat } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useAuth } from '@/lib/AuthContext';
+import { db } from '@/api/db';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
 import { toast } from 'sonner';
-import { loadSavedMeals, removeSavedMeal } from '@/lib/savedMeals';
 
 // TABS are built inside the component to support t()
 
@@ -92,44 +94,67 @@ function NutrientTile({ field, value, onChange, t }) {
   );
 }
 
-export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecognizing, onLog, isLogging, defaultOpen = false }) {
+export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecognizing, onLog, isLogging, onReLog, defaultOpen = false }) {
   const { t, tFallback } = useLanguage();
+  const { user } = useAuth();
   const TABS = [
     { id: 'nutrients', label: t('nutrition.nutritionalValues') },
     { id: 'vitamins', label: t('nutrition.vitaminsAndMinerals') },
-    { id: 'saved', label: '🔖 Saved' },
+    { id: 'history', label: (<span className="inline-flex items-center justify-center gap-1"><History className="w-3.5 h-3.5" /> {tFallback('nutrition.historyTab', 'History')}</span>) },
   ];
   const [open, setOpen] = useState(defaultOpen);
   const [activeTab, setActiveTab] = useState('nutrients');
   const [slideDir, setSlideDir] = useState(1);
-  const [savedMeals, setSavedMeals] = useState([]);
-  const [expandedSaved, setExpandedSaved] = useState(null);
+  const [reloggingId, setReloggingId] = useState(null);
 
-  // Load saved meals whenever the tab becomes active
-  useEffect(() => {
-    if (activeTab === 'saved') setSavedMeals(loadSavedMeals());
-  }, [activeTab, open]);
+  // Previously-logged meals, pulled (copied) from the same history data the
+  // Meal History page reads. Shared query key so the two stay in sync. This is
+  // a read-only mirror — the "Re-Log" action logs the meal fresh into today,
+  // it doesn't write back to history here.
+  const { data: historyRaw = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['nutritionHistory', user?.email],
+    queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email }, '-date', 300),
+    enabled: !!user?.email && open && activeTab === 'history',
+    staleTime: 60_000,
+  });
 
-  const handleUnsaveMeal = (id) => {
-    removeSavedMeal(id);
-    setSavedMeals(prev => prev.filter(m => m.id !== id));
-    if (expandedSaved === id) setExpandedSaved(null);
-  };
+  // Newest-first, de-duplicated by food name (one row per distinct meal), water
+  // excluded — a compact "log it again" list rather than every raw entry.
+  const historyMeals = useMemo(() => {
+    const isWater = (e) => {
+      const n = (e?.food_name || '').toString();
+      return n === 'Water' || /^Water\|/.test(n);
+    };
+    const seen = new Set();
+    const out = [];
+    for (const e of historyRaw) {
+      if (isWater(e)) continue;
+      const key = (e.food_name || '').trim().toLowerCase();
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      out.push({
+        id:        e.id,
+        food_name: e.food_name,
+        image_url: e.image_url || null,
+        calories:  Number(e.calories) || 0,
+        protein_g: Number(e.protein_g ?? e.protein) || 0,
+        carbs_g:   Number(e.carbs_g ?? e.carbs) || 0,
+        fat_g:     Number(e.fat_g ?? e.fat) || 0,
+        fiber_g:   Number(e.fiber_g ?? e.fiber) || 0,
+        sodium_mg: Number(e.sodium_mg ?? e.sodium) || 0,
+        sugar_g:   Number(e?.ai_meta?.sugar_g) || 0,
+      });
+      if (out.length >= 40) break;
+    }
+    return out;
+  }, [historyRaw]);
 
-  const handleUseSavedMeal = (meal) => {
-    setNewEntry(prev => ({
-      ...prev,
-      food_name: meal.food_name || '',
-      calories: meal.calories ?? '',
-      protein_g: meal.protein_g ?? '',
-      carbs_g: meal.carbs_g ?? '',
-      fat_g: meal.fat_g ?? '',
-    }));
-    const fromIdx = TABS.findIndex(t => t.id === 'saved');
-    const toIdx = TABS.findIndex(t => t.id === 'nutrients');
-    setSlideDir(toIdx > fromIdx ? 1 : -1);
-    setActiveTab('nutrients');
-    toast.success(`"${meal.food_name}" prefilled — review and log!`);
+  const handleReLog = (meal) => {
+    if (!onReLog || reloggingId) return;
+    setReloggingId(meal.id);
+    onReLog(meal);
+    // Brief lock so a double-tap can't double-log; the toast confirms success.
+    setTimeout(() => setReloggingId(null), 800);
   };
 
   // Allow parent to imperatively open the form (e.g. from dashboard deep-link)
@@ -255,88 +280,59 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
             exit="exit"
             transition={{ duration: 0.22, ease: 'easeInOut' }}
           >
-            {activeTab === 'saved' ? (
+            {activeTab === 'history' ? (
               <div>
-                {savedMeals.length === 0 ? (
+                {historyLoading ? (
+                  <div className="flex items-center justify-center py-10">
+                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : historyMeals.length === 0 ? (
                   <div className="text-center py-8">
-                    <Bookmark className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
-                    <p className="font-heading font-semibold text-sm">No saved meals yet</p>
-                    <p className="text-xs text-muted-foreground mt-1">Tap the bookmark icon on meal posts in the Hub to save them here.</p>
+                    <History className="w-10 h-10 text-muted-foreground mx-auto mb-2" />
+                    <p className="font-heading font-semibold text-sm">No meal history yet</p>
+                    <p className="text-xs text-muted-foreground mt-1">Meals you log show up here so you can re-log them in one tap.</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {savedMeals.map(meal => {
-                      const isExpanded = expandedSaved === meal.id;
-                      return (
-                        <div key={meal.id} className="rounded-xl border border-border overflow-hidden">
-                          {/* Image */}
-                          {meal.image_url && (
-                            <div className="relative">
-                              <img loading="lazy" src={meal.image_url} alt={meal.food_name} className="w-full max-h-36 object-cover" />
-                            </div>
-                          )}
-                          {/* Header row */}
-                          <button
-                            type="button"
-                            onClick={() => setExpandedSaved(isExpanded ? null : meal.id)}
-                            className="w-full flex items-start gap-2 px-3 py-2.5 text-start hover:bg-secondary/30 transition-colors"
-                          >
-                            {!meal.image_url && <ImageIcon className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-heading font-semibold text-sm leading-tight truncate">{meal.food_name}</p>
-                              {meal.author_name && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{meal.author_name}</p>
-                              )}
-                              {/* Macro pills */}
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {meal.calories > 0 && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} cal</span>
-                                )}
-                                {meal.protein_g > 0 && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400">{Math.round(meal.protein_g)}g P</span>
-                                )}
-                                {meal.carbs_g > 0 && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">{Math.round(meal.carbs_g)}g C</span>
-                                )}
-                                {meal.fat_g > 0 && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{Math.round(meal.fat_g)}g F</span>
-                                )}
-                              </div>
-                            </div>
-                          </button>
-                          {/* Expanded actions */}
-                          <AnimatePresence>
-                            {isExpanded && (
-                              <motion.div
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: 'auto', opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                transition={{ duration: 0.18 }}
-                                style={{ overflow: 'hidden' }}
-                              >
-                                <div className="flex gap-2 px-3 pb-3 border-t border-border/50 pt-2 bg-secondary/10">
-                                  <Button
-                                    size="sm"
-                                    className="flex-1 text-xs h-8"
-                                    onClick={() => handleUseSavedMeal(meal)}
-                                  >
-                                    <Plus className="w-3.5 h-3.5 me-1" /> Use this meal
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs h-8 text-destructive hover:text-destructive border-destructive/30"
-                                    onClick={() => handleUnsaveMeal(meal.id)}
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5" />
-                                  </Button>
-                                </div>
-                              </motion.div>
+                    {historyMeals.map(meal => (
+                      <div key={meal.id} className="flex items-center gap-2.5 rounded-xl border border-border px-2.5 py-2">
+                        {/* Thumbnail (photo meals) or placeholder */}
+                        {meal.image_url ? (
+                          <img loading="lazy" src={meal.image_url} alt="" className="w-11 h-11 rounded-lg object-cover shrink-0" />
+                        ) : (
+                          <div className="w-11 h-11 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                            <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-heading font-semibold text-sm leading-tight truncate">{meal.food_name}</p>
+                          <div className="flex flex-wrap gap-1.5 mt-1">
+                            {meal.calories > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} cal</span>
                             )}
-                          </AnimatePresence>
+                            {meal.protein_g > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400">{Math.round(meal.protein_g)}g P</span>
+                            )}
+                            {meal.carbs_g > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-600 dark:text-blue-400">{Math.round(meal.carbs_g)}g C</span>
+                            )}
+                            {meal.fat_g > 0 && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-500/15 text-yellow-600 dark:text-yellow-400">{Math.round(meal.fat_g)}g F</span>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
+                        <Button
+                          size="sm"
+                          className="text-xs h-8 shrink-0"
+                          onClick={() => handleReLog(meal)}
+                          disabled={reloggingId === meal.id}
+                        >
+                          {reloggingId === meal.id
+                            ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            : <><Repeat className="w-3.5 h-3.5 me-1" /> Re-Log</>}
+                        </Button>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -358,7 +354,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
       </div>
 
       {/* Actions */}
-      {activeTab !== 'saved' && (
+      {activeTab !== 'history' && (
         <div className="flex gap-2">
           <Button variant="outline" onClick={onPhotoAI} className="flex-1" disabled={isRecognizing}>
             {isRecognizing
