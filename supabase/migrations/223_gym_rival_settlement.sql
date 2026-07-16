@@ -118,9 +118,6 @@ DECLARE
   v_net_b     INT;
   v_winner    UUID;
   v_loser     UUID;
-  v_wlevel    INT;
-  v_llevel    INT;
-  v_mult      NUMERIC;
   v_xp        INT;
   v_coins     INT;
   v_caps      INT;
@@ -153,12 +150,10 @@ BEGIN
     END IF;
 
     IF v_winner IS NOT NULL THEN
-      SELECT current_level INTO v_wlevel FROM public.user_profiles WHERE id = v_winner;
-      SELECT current_level INTO v_llevel FROM public.user_profiles WHERE id = v_loser;
-      v_mult  := 1 + 0.15 * GREATEST(0, COALESCE(v_llevel, 1) - COALESCE(v_wlevel, 1));
-      v_xp    := round(5000 * v_mult);
-      v_coins := round(500  * v_mult);
-      v_caps  := round(5    * v_mult);
+      -- Flat prize — no level scaling.
+      v_xp    := 5000;
+      v_coins := 500;
+      v_caps  := 5;
 
       PERFORM public.increment_user_xp(v_winner, v_xp);
       UPDATE public.user_profiles

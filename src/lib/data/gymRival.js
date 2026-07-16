@@ -331,22 +331,13 @@ export function isThisWeek(date, now = new Date()) {
   return weekStartOf(date).getTime() === weekStartOf(now).getTime();
 }
 
-// ── Weekly-win reward scaling ───────────────────────────────────────────────────
+// ── Weekly-win reward ───────────────────────────────────────────────────────────
 //
-// Base prize for winning the week, scaled up when you beat a HIGHER-level
-// rival: +15% per level the rival is above you (never below the base).
+// Flat prize for winning the week — no level scaling.
 export const GYM_RIVAL_REWARD_BASE = { xp: 5000, coins: 500, capsules: 5 };
 
-export function computeRivalReward(userLevel = 1, rivalLevel = 1) {
-  const levelGap = Math.max(0, (Number(rivalLevel) || 1) - (Number(userLevel) || 1));
-  const mult = 1 + 0.15 * levelGap;
-  return {
-    multiplier: mult,
-    levelGap,
-    xp:       Math.round(GYM_RIVAL_REWARD_BASE.xp * mult),
-    coins:    Math.round(GYM_RIVAL_REWARD_BASE.coins * mult),
-    capsules: Math.round(GYM_RIVAL_REWARD_BASE.capsules * mult),
-  };
+export function computeRivalReward() {
+  return { ...GYM_RIVAL_REWARD_BASE };
 }
 
 /**

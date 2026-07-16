@@ -350,9 +350,6 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <div className="flex items-center gap-1.5 mb-3">
                     <Trophy className="w-4 h-4 text-amber-500" />
                     <p className="text-[11px] font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">Winner's prize</p>
-                    {reward.levelGap > 0 && (
-                      <span className="ms-auto text-[10px] font-bold text-amber-600 dark:text-amber-400">+{Math.round((reward.multiplier - 1) * 100)}% (higher-level rival)</span>
-                    )}
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div><Trophy className="w-4 h-4 text-amber-500 mx-auto mb-1" /><p className="font-heading font-black text-base tabular-nums">{fmt(reward.xp)}</p><p className="text-[10px] text-muted-foreground">XP</p></div>
