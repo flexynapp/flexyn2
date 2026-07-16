@@ -1832,7 +1832,7 @@ export default function Workout() {
               <History className="w-5 h-5 text-orange-400" />
             </div>
             <div>
-              <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts','Saved Workouts')}</p>
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts','Recent Workouts')}</p>
               <InfoText bid="saved" text="Replay past workouts with your previous weights pre-filled." />
             </div>
           </div>
@@ -2579,7 +2579,7 @@ export default function Workout() {
             <DialogHeader>
               <DialogTitle className="font-heading flex items-center gap-2">
                 <History className="w-5 h-5 text-accent" />
-                {tFallback('workout.savedWorkouts', 'Saved Workouts')}
+                {tFallback('workout.savedWorkouts', 'Recent Workouts')}
               </DialogTitle>
             </DialogHeader>
             <div className="mt-2">

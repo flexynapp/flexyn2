@@ -77,7 +77,7 @@ export default function WorkoutSavedList({ onSelectLog }) {
       <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
         <Dumbbell className="w-8 h-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {tFallback('workout.noSavedWorkouts', 'No saved workouts yet')}
+          {tFallback('workout.noSavedWorkouts', 'No recent workouts yet')}
         </p>
       </Card>
     );

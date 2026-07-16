@@ -1,9 +1,9 @@
 // i18n keys for the Saved Workouts feature — all 15 locales
 export const savedWorkoutsI18n = {
   en: {
-    'workout.savedWorkouts': 'Saved Workouts',
+    'workout.savedWorkouts': 'Recent Workouts',
     'workout.savedWorkoutsDesc': 'View your past workouts',
-    'workout.noSavedWorkouts': 'No saved workouts yet',
+    'workout.noSavedWorkouts': 'No recent workouts yet',
     'workout.exerciseSingular': 'exercise',
     'workout.setSingular': 'set',
     'workout.repeatLast': 'Repeat last workout',
