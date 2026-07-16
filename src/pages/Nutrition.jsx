@@ -29,7 +29,7 @@ import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
-import RecipeBuilderModal from '@/components/nutrition/RecipeBuilderModal';
+import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -367,7 +367,7 @@ export default function Nutrition() {
   // clock on mount so the user doesn't have to choose mid-day; can
   // be overridden via MealTypePicker.
   const [mealType, setMealType] = useState(() => autoPickMealType());
-  const [showRecipeBuilder, setShowRecipeBuilder] = useState(false);
+  const [showRecipes, setShowRecipes] = useState(false);
   const [showWeeklyPlanner, setShowWeeklyPlanner] = useState(false);
   // Photo-AI meal recognition state — `photoInputRef` is the hidden
   // <input type="file"> behind the "Photo-AI" button. `photoRecognizing`
@@ -1359,7 +1359,7 @@ export default function Nutrition() {
       {/* Shortcuts carousel — pinned at top */}
       <NutritionShortcutsCarousel
         onScan={startScanner}
-        onRecipes={() => setShowRecipeBuilder(true)}
+        onRecipes={() => setShowRecipes(true)}
         onHistory={() => setShowMealHistory(true)}
         onPlans={() => setShowNutritionPlans(true)}
         onPlanner={() => setShowWeeklyPlanner(true)}
@@ -1383,7 +1383,7 @@ export default function Nutrition() {
 
         {/* Neutral shortcuts */}
         {[
-          { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipeBuilder(true) },
+          { label: 'Recipes', icon: ChefHat,  action: () => setShowRecipes(true) },
           { label: 'History', icon: History,   action: () => setShowMealHistory(true) },
           { label: 'Plans', icon: Calendar, action: () => setShowWeeklyPlanner(true) },
         ].map(({ label, icon: Icon, action }) => (
@@ -1811,11 +1811,12 @@ export default function Nutrition() {
         })}
       </Reorder.Group>
 
-      {/* Meal History Modal */}
-      <ErrorBoundary label="RecipeBuilderModal">
-        <RecipeBuilderModal
-          open={showRecipeBuilder}
-          onClose={() => setShowRecipeBuilder(false)}
+      {/* Recipes hub — My Recipes + Discover, owns the builder */}
+      <ErrorBoundary label="RecipesHubModal">
+        <RecipesHubModal
+          open={showRecipes}
+          onClose={() => setShowRecipes(false)}
+          userProfile={userProfile}
         />
       </ErrorBoundary>
 

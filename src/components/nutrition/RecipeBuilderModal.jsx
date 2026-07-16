@@ -4,26 +4,35 @@
 // bowl" with N ingredients + macros, then log the saved recipe in
 // one tap from the LogMealForm.
 //
-// Minimal v1: name + servings + an editable ingredient table. Each
-// ingredient row has name + grams + calories + protein + carbs + fat
-// + fiber. Totals computed live via sumIngredients (pure helper).
+// Each ingredient carries a name, an amount with a customizable unit
+// (g / oz / cup / …), and calories + P/C/F. Beyond the macros, a
+// recipe-level "More nutrients" section records ANY nutritional value
+// — fiber, sodium, or any vitamin/mineral — via presets or a fully
+// custom nutrient. Prep directions and community publishing round it
+// out. Totals computed live via sumIngredients (pure helper).
 
 import React, { useEffect, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Loader2, Save, ChefHat } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Save, ChefHat, ChevronDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
+import {
+  INGREDIENT_UNITS, DEFAULT_UNIT, MICRO_PRESETS, MICRO_UNITS,
+} from '@/lib/data/nutritionRecipes';
 import { db } from '@/api/db';
 
 // Factory rather than module-level shared object so each row gets a
 // fresh reference — eliminates a class of subtle aliasing bugs and
 // makes resets independent. (Audit 11 #33.)
-const newEmptyIngredient = () => ({ name: '', grams: '', calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '' });
+const newEmptyIngredient = () => ({
+  name: '', amount: '', unit: DEFAULT_UNIT,
+  calories: '', protein_g: '', carbs_g: '', fat_g: '', fiber_g: '',
+});
 
 // Per-input cap so a stuck stepper / pasted phone number can't produce
 // totals like the screenshot's "2555555555555555300 C G". Returns the
@@ -38,33 +47,66 @@ function clampRecipeNumber(raw, max) {
   return raw;
 }
 
+// Small captioned numeric field — the caption below each input replaces
+// throwaway placeholder text (the old "kcal" ghost the user asked us to
+// drop) with a persistent label that survives typing.
+function NumField({ caption, value, onChange, max, className = '' }) {
+  return (
+    <div className={`flex flex-col items-center ${className}`}>
+      <Input
+        type="number" inputMode="decimal" min="0" max={max}
+        value={value}
+        onChange={(e) => onChange(clampRecipeNumber(e.target.value, max))}
+        // text-[16px] prevents iOS Safari from zooming the viewport when the
+        // field is focused (any font-size below 16px triggers the auto-zoom).
+        className="h-8 text-[16px] text-center px-1 w-full"
+      />
+      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">{caption}</span>
+    </div>
+  );
+}
+
 export default function RecipeBuilderModal({ open, onClose, editingRecipe = null }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [name, setName]         = useState('');
   const [servings, setServings] = useState('1');
   const [ingredients, setIngredients] = useState(() => [newEmptyIngredient()]);
+  const [directions, setDirections] = useState('');
+  const [micros, setMicros] = useState([]);       // [{ key, label, amount, unit, custom }]
+  const [microsOpen, setMicrosOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Resync deeply from editingRecipe when its contents change, not just
   // its id. Previously the deps `[open, editingRecipe?.id]` meant that
   // editing the same recipe twice (open → edit ingredient locally →
   // close without saving → re-open same recipe) showed the stale local
-  // edits instead of the canonical server state. Watching the
-  // ingredients length + name catches the most common re-open after
-  // server-side change too. (Audit 11 #33.)
+  // edits instead of the canonical server state. (Audit 11 #33.)
   useEffect(() => {
     if (!open) return;
     if (editingRecipe) {
       setName(editingRecipe.name || '');
       setServings(String(editingRecipe.servings ?? 1));
       setIngredients(Array.isArray(editingRecipe.ingredients) && editingRecipe.ingredients.length > 0
-        ? editingRecipe.ingredients.map(r => ({ ...newEmptyIngredient(), ...r }))
+        // Map legacy `grams`-only rows onto the amount+unit shape.
+        ? editingRecipe.ingredients.map(r => ({
+            ...newEmptyIngredient(),
+            ...r,
+            amount: r.amount ?? r.grams ?? '',
+            unit: recipes.normalizeUnit(r.unit),
+          }))
         : [newEmptyIngredient()]);
+      setDirections(editingRecipe.directions || '');
+      const loadedMicros = Array.isArray(editingRecipe.micros) ? editingRecipe.micros : [];
+      setMicros(loadedMicros.map(m => ({ ...m, amount: m.amount ?? '' })));
+      setMicrosOpen(loadedMicros.length > 0);
     } else {
       setName('');
       setServings('1');
       setIngredients([newEmptyIngredient()]);
+      setDirections('');
+      setMicros([]);
+      setMicrosOpen(false);
     }
   }, [open, editingRecipe?.id, editingRecipe?.name, editingRecipe?.ingredients?.length]);
 
@@ -75,6 +117,20 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
     setIngredients(curr => curr.length > 1 ? curr.filter((_, idx) => idx !== i) : curr);
   };
   const addIngredient = () => setIngredients(curr => [...curr, newEmptyIngredient()]);
+
+  // ── Micros (recipe-level custom nutrients) ──
+  const addPresetMicro = (preset) => {
+    setMicros(curr => curr.some(m => m.key === preset.key)
+      ? curr
+      : [...curr, { key: preset.key, label: preset.label, amount: '', unit: preset.unit }]);
+  };
+  const addCustomMicro = () => {
+    setMicros(curr => [...curr, { key: '', label: '', amount: '', unit: 'mg', custom: true }]);
+  };
+  const updateMicro = (i, patch) => {
+    setMicros(curr => curr.map((m, idx) => idx === i ? { ...m, ...patch } : m));
+  };
+  const removeMicro = (i) => setMicros(curr => curr.filter((_, idx) => idx !== i));
 
   const totals = recipes.sumIngredients(
     ingredients.map(i => Object.fromEntries(
@@ -88,7 +144,9 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       .filter(i => i.name?.trim())
       .map(i => ({
         name:        i.name.trim(),
-        grams:       Number(i.grams)       || 0,
+        amount:      Number(i.amount)      || 0,
+        unit:        recipes.normalizeUnit(i.unit),
+        grams:       Number(i.amount)      || 0,  // legacy mirror for older readers
         calories:    Number(i.calories)    || 0,
         protein_g:   Number(i.protein_g)   || 0,
         carbs_g:     Number(i.carbs_g)     || 0,
@@ -107,6 +165,8 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
         name,
         servings:     Number(servings) || 1,
         ingredients:  cleanIngredients,
+        directions,
+        micros,
       });
       queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
       toast.success(editingRecipe ? 'Recipe updated.' : 'Recipe saved.');
@@ -129,6 +189,8 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   };
 
   if (!open) return null;
+  const presetsToOffer = MICRO_PRESETS.filter(p => !micros.some(m => m.key === p.key));
+
   return createPortal(
     <AnimatePresence>
       <motion.div
@@ -158,59 +220,68 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
               maxLength={60}
               className="col-span-2 h-9"
             />
-            <Input
-              type="number" inputMode="decimal"
-              min="1"
-              step="0.5"
-              value={servings}
-              onChange={(e) => setServings(e.target.value)}
-              placeholder="Servings"
-              className="h-9 text-center"
-            />
-          </div>
-          <div className="flex-1 overflow-y-auto px-4">
-            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Ingredients</p>
-            {/* Column header row — without these, the placeholder text
-                ("g / kcal / P / C / F") was the only label and it
-                disappeared the moment the user typed. Screenshot
-                feedback: "There's all these buttons next to ingredient,
-                but there's no like space for them or like what they're
-                for." Matches the grid-cols-12 layout of the rows below
-                so the headers stay aligned over their inputs. */}
-            <div className="grid grid-cols-12 gap-1.5 items-center mb-1 px-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground/70">
-              <span className="col-span-5">Name</span>
-              <span className="col-span-1 text-center">g</span>
-              <span className="col-span-2 text-center">kcal</span>
-              <span className="col-span-1 text-center" title="Protein (g)">P</span>
-              <span className="col-span-1 text-center" title="Carbs (g)">C</span>
-              <span className="col-span-1 text-center" title="Fat (g)">F</span>
-              <span className="col-span-1 text-center" aria-hidden="true">·</span>
+            <div className="flex flex-col items-center">
+              <Input
+                type="number" inputMode="decimal"
+                min="1" step="0.5"
+                value={servings}
+                onChange={(e) => setServings(e.target.value)}
+                className="h-9 text-center w-full"
+              />
+              <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">servings</span>
             </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4">
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Ingredients</p>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (
-                <div key={i} className="grid grid-cols-12 gap-1.5 items-center">
-                  <Input
-                    value={ing.name}
-                    onChange={(e) => updateIngredient(i, { name: e.target.value })}
-                    placeholder="Ingredient"
-                    // text-[16px] on the input itself prevents iOS Safari from
-// zooming in when the field is focused (any font-size below 16px
-// triggers the auto-zoom; the surrounding labels stay text-xs).
-className="h-8 text-[16px] col-span-5"
-                  />
-                  <Input type="number" inputMode="decimal" min="0" max="10000" value={ing.grams}   onChange={(e) => updateIngredient(i, { grams:   clampRecipeNumber(e.target.value, 10000) })} placeholder="g"     className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" min="0" max="10000" value={ing.calories} onChange={(e) => updateIngredient(i, { calories: clampRecipeNumber(e.target.value, 10000) })} placeholder="kcal"  className="h-8 text-[16px] col-span-2 text-center" />
-                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.protein_g} onChange={(e) => updateIngredient(i, { protein_g: clampRecipeNumber(e.target.value, 1000) })} placeholder="P"   className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.carbs_g}   onChange={(e) => updateIngredient(i, { carbs_g: clampRecipeNumber(e.target.value, 1000) })}   placeholder="C"   className="h-8 text-[16px] col-span-1 text-center" />
-                  <Input type="number" inputMode="decimal" min="0" max="1000"  value={ing.fat_g}     onChange={(e) => updateIngredient(i, { fat_g: clampRecipeNumber(e.target.value, 1000) })}     placeholder="F"   className="h-8 text-[16px] col-span-1 text-center" />
-                  <button
-                    onClick={() => removeIngredient(i)}
-                    aria-label="Remove"
-                    className="col-span-1 h-8 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center"
-                    disabled={ingredients.length === 1}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                <div key={i} className="rounded-lg border border-border/70 p-2 space-y-1.5">
+                  {/* Row 1 — name + delete */}
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={ing.name}
+                      onChange={(e) => updateIngredient(i, { name: e.target.value })}
+                      placeholder="Ingredient"
+                      className="h-8 text-[16px] flex-1"
+                    />
+                    <button
+                      onClick={() => removeIngredient(i)}
+                      aria-label="Remove ingredient"
+                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center disabled:opacity-40"
+                      disabled={ingredients.length === 1}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                  {/* Row 2 — amount+unit, cal, P, C, F */}
+                  <div className="flex items-start gap-1.5">
+                    <div className="flex flex-col items-center basis-[34%]">
+                      <div className="flex items-center gap-1 w-full">
+                        <Input
+                          type="number" inputMode="decimal" min="0" max="10000"
+                          value={ing.amount}
+                          onChange={(e) => updateIngredient(i, { amount: clampRecipeNumber(e.target.value, 10000) })}
+                          className="h-8 text-[16px] text-center px-1 w-full"
+                        />
+                        <select
+                          value={recipes.normalizeUnit(ing.unit)}
+                          onChange={(e) => updateIngredient(i, { unit: e.target.value })}
+                          aria-label="Unit"
+                          className="h-8 rounded-md border border-input bg-background text-[13px] px-1 shrink-0"
+                        >
+                          {INGREDIENT_UNITS.map(u => (
+                            <option key={u.value} value={u.value}>{u.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <span className="mt-0.5 text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70">amount</span>
+                    </div>
+                    <NumField caption="cal" value={ing.calories}  max={10000} onChange={(v) => updateIngredient(i, { calories: v })}  className="flex-1" />
+                    <NumField caption="P"   value={ing.protein_g} max={1000}  onChange={(v) => updateIngredient(i, { protein_g: v })} className="flex-1" />
+                    <NumField caption="C"   value={ing.carbs_g}   max={1000}  onChange={(v) => updateIngredient(i, { carbs_g: v })}   className="flex-1" />
+                    <NumField caption="F"   value={ing.fat_g}     max={1000}  onChange={(v) => updateIngredient(i, { fat_g: v })}     className="flex-1" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -222,13 +293,90 @@ className="h-8 text-[16px] col-span-5"
               <Plus className="w-3.5 h-3.5" /> Add ingredient
             </button>
 
+            {/* Directions */}
+            <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mt-4 mb-1">Directions</p>
+            <textarea
+              value={directions}
+              onChange={(e) => setDirections(e.target.value.slice(0, 4000))}
+              placeholder="Step 1: …&#10;Step 2: …"
+              rows={3}
+              className="w-full rounded-md border border-input bg-background text-[16px] p-2 resize-y min-h-[64px]"
+            />
+
+            {/* More nutrients — recipe-level custom values (vitamins/minerals/anything) */}
+            <button
+              type="button"
+              onClick={() => setMicrosOpen(o => !o)}
+              className="mt-4 w-full flex items-center justify-between py-1.5 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+            >
+              <span>More nutrients · vitamins, minerals &amp; more</span>
+              <ChevronDown className={`w-4 h-4 transition-transform ${microsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {microsOpen && (
+              <div className="space-y-2 pb-1">
+                {micros.map((m, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <Input
+                      value={m.label}
+                      onChange={(e) => updateMicro(i, { label: e.target.value })}
+                      placeholder="Nutrient"
+                      readOnly={!m.custom}
+                      className={`h-8 text-[16px] flex-1 ${!m.custom ? 'bg-secondary/40' : ''}`}
+                    />
+                    <Input
+                      type="number" inputMode="decimal" min="0" max="100000"
+                      value={m.amount}
+                      onChange={(e) => updateMicro(i, { amount: clampRecipeNumber(e.target.value, 100000) })}
+                      className="h-8 text-[16px] text-center w-16"
+                    />
+                    <select
+                      value={m.unit}
+                      onChange={(e) => updateMicro(i, { unit: e.target.value })}
+                      aria-label="Nutrient unit"
+                      className="h-8 rounded-md border border-input bg-background text-[13px] px-1"
+                    >
+                      {MICRO_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <button
+                      onClick={() => removeMicro(i)}
+                      aria-label="Remove nutrient"
+                      className="w-8 h-8 shrink-0 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10 flex items-center justify-center"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                {presetsToOffer.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {presetsToOffer.map(p => (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => addPresetMicro(p)}
+                        className="px-2 py-1 rounded-full border border-border text-[11px] font-semibold text-muted-foreground hover:bg-secondary/50"
+                      >
+                        + {p.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={addCustomMicro}
+                  className="w-full flex items-center justify-center gap-1 py-1.5 rounded-md border border-dashed border-border text-[11px] font-bold uppercase tracking-wide text-muted-foreground hover:bg-secondary/40"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Custom nutrient
+                </button>
+              </div>
+            )}
+
             {/* Live totals — pure compute via sumIngredients */}
             <div className="mt-4 p-3 rounded-lg bg-secondary/40 grid grid-cols-4 gap-2 text-center">
               {[
-                { k: 'calories',   l: 'kcal', txt: 'text-orange-500' },
-                { k: 'protein_g',  l: 'P g',  txt: 'text-red-500' },
-                { k: 'carbs_g',    l: 'C g',  txt: 'text-blue-500' },
-                { k: 'fat_g',      l: 'F g',  txt: 'text-yellow-500' },
+                { k: 'calories',   l: 'cal', txt: 'text-orange-500' },
+                { k: 'protein_g',  l: 'P g', txt: 'text-red-500' },
+                { k: 'carbs_g',    l: 'C g', txt: 'text-blue-500' },
+                { k: 'fat_g',      l: 'F g', txt: 'text-yellow-500' },
               ].map(({ k, l, txt }) => (
                 <div key={k}>
                   <p className={`font-heading text-base font-bold tabular-nums ${txt}`}>
@@ -241,12 +389,10 @@ className="h-8 text-[16px] col-span-5"
             {Number(servings) > 1 && (() => {
               // Floor at 1 to avoid division-by-zero / negative servings
               // producing Infinity / NaN in the live per-serving display.
-              // The save path already coerces with `Number(servings) || 1`
-              // (line 85); the live UI now mirrors that. (Audit 11 #34.)
               const safeServings = Math.max(1, Number(servings) || 1);
               return (
                 <p className="text-[10px] text-muted-foreground text-center mt-2">
-                  Per serving: {Math.round((totals.calories || 0) / safeServings)} kcal ·
+                  Per serving: {Math.round((totals.calories || 0) / safeServings)} cal ·
                   {' '}{Math.round((totals.protein_g || 0) / safeServings)} P ·
                   {' '}{Math.round((totals.carbs_g   || 0) / safeServings)} C ·
                   {' '}{Math.round((totals.fat_g     || 0) / safeServings)} F
@@ -254,6 +400,7 @@ className="h-8 text-[16px] col-span-5"
               );
             })()}
           </div>
+
           <div className="px-4 py-3 border-t border-border">
             <Button onClick={handleSave} disabled={saving} className="w-full">
               {saving ? <Loader2 className="w-4 h-4 me-2 animate-spin" /> : <Save className="w-4 h-4 me-2" />}

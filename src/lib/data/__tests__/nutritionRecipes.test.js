@@ -2,7 +2,10 @@
 // perServing). Network-touching CRUD is exercised by the parent UI.
 
 import { describe, it, expect } from 'vitest';
-import { sumIngredients, perServing } from '../nutritionRecipes';
+import {
+  sumIngredients, perServing, normalizeUnit, normalizeMicros,
+  INGREDIENT_UNITS, MICRO_PRESETS, DEFAULT_UNIT,
+} from '../nutritionRecipes';
 
 describe('sumIngredients', () => {
   it('returns all-zero object for empty / missing input', () => {
@@ -45,5 +48,70 @@ describe('perServing', () => {
 
   it('returns {} for missing totals', () => {
     expect(perServing(null, 2)).toEqual({});
+  });
+});
+
+describe('normalizeUnit', () => {
+  it('keeps a known unit', () => {
+    for (const u of INGREDIENT_UNITS) expect(normalizeUnit(u.value)).toBe(u.value);
+  });
+  it('falls back to the default unit for unknown/empty', () => {
+    expect(normalizeUnit('furlong')).toBe(DEFAULT_UNIT);
+    expect(normalizeUnit(undefined)).toBe(DEFAULT_UNIT);
+    expect(normalizeUnit('')).toBe(DEFAULT_UNIT);
+    expect(DEFAULT_UNIT).toBe('g');
+  });
+});
+
+describe('normalizeMicros', () => {
+  it('keeps rows with a label and a finite amount', () => {
+    const out = normalizeMicros([
+      { key: 'iron_mg', label: 'Iron', amount: '3', unit: 'mg' },
+      { label: 'Vitamin C', amount: 60, unit: 'mg' },
+    ]);
+    expect(out).toEqual([
+      { key: 'iron_mg', label: 'Iron', amount: 3, unit: 'mg' },
+      { key: 'vitamin_c', label: 'Vitamin C', amount: 60, unit: 'mg' },
+    ]);
+  });
+
+  it('drops rows missing a label or a valid amount', () => {
+    const out = normalizeMicros([
+      { label: '', amount: 5, unit: 'mg' },          // no label
+      { label: 'Zinc', amount: '', unit: 'mg' },     // no amount
+      { label: 'Sodium', amount: 'abc', unit: 'mg' },// non-numeric
+      { label: 'Fiber', amount: 4, unit: 'g' },      // keep
+    ]);
+    expect(out).toEqual([{ key: 'fiber', label: 'Fiber', amount: 4, unit: 'g' }]);
+  });
+
+  it('derives a key by slugifying the label when none is given', () => {
+    const [row] = normalizeMicros([{ label: 'Omega 3 (EPA/DHA)', amount: 1, unit: 'g' }]);
+    expect(row.key).toBe('omega_3_epa_dha');
+  });
+
+  it('is safe on non-array input', () => {
+    expect(normalizeMicros(undefined)).toEqual([]);
+    expect(normalizeMicros(null)).toEqual([]);
+    expect(normalizeMicros('nope')).toEqual([]);
+  });
+});
+
+describe('constants', () => {
+  it('exposes grams as a selectable ingredient unit', () => {
+    expect(INGREDIENT_UNITS.some(u => u.value === 'g')).toBe(true);
+  });
+  it('every micro preset has a key, label and default unit', () => {
+    for (const p of MICRO_PRESETS) {
+      expect(p.key).toBeTruthy();
+      expect(p.label).toBeTruthy();
+      expect(p.unit).toBeTruthy();
+    }
+  });
+  it('offers headline vitamins & minerals as presets', () => {
+    const labels = MICRO_PRESETS.map(p => p.label);
+    for (const l of ['Vitamin C', 'Vitamin D', 'Iron', 'Calcium']) {
+      expect(labels).toContain(l);
+    }
   });
 });
