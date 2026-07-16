@@ -2,7 +2,7 @@
 // complex change shipped this session. Covers:
 //   • Order-of-operations: status update FIRST, then increment, then
 //     notification, then new-nemesis assignment. The
-//     notify_nemesis_overthrown_for RPC (mig 111) checks the row's
+//     notify_gym_rival_overthrown_for RPC (mig 111) checks the row's
 //     status server-side and no-ops if it's still 'active', so the
 //     order is load-bearing.
 //   • The broken .update({ overthrow_count: rpc(...) }) call removed
@@ -93,9 +93,9 @@ describe('performOverthrow', () => {
     // Find the ordinal indices of our three load-bearing calls.
     const ops = callLog.map(c => `${c.kind}:${c.op}`);
 
-    const idxStatusUpdate = ops.indexOf('from:update:nemesis_assignments');
+    const idxStatusUpdate = ops.indexOf('from:update:gym_rival_assignments');
     const idxIncrementRPC = ops.indexOf('rpc:increment_overthrow_count');
-    const idxNotifyRPC    = ops.indexOf('rpc:notify_nemesis_overthrown_for');
+    const idxNotifyRPC    = ops.indexOf('rpc:notify_gym_rival_overthrown_for');
 
     // All three must have fired
     expect(idxStatusUpdate).toBeGreaterThanOrEqual(0);
@@ -113,14 +113,14 @@ describe('performOverthrow', () => {
 
     // The .eq('id', 'assignment-42') sits right after the update payload.
     const eqCalls = callLog.filter(c =>
-      c.kind === 'from' && c.op === 'eq:nemesis_assignments'
+      c.kind === 'from' && c.op === 'eq:gym_rival_assignments'
     );
     const idEq = eqCalls.find(c => Array.isArray(c.args) && c.args[0] === 'id');
     expect(idEq).toBeTruthy();
     expect(idEq.args[1]).toBe('assignment-42');
 
     const notify = callLog.find(c =>
-      c.kind === 'rpc' && c.op === 'notify_nemesis_overthrown_for'
+      c.kind === 'rpc' && c.op === 'notify_gym_rival_overthrown_for'
     );
     expect(notify.args).toEqual({ p_assignment_id: 'assignment-42' });
   });
@@ -145,7 +145,7 @@ describe('performOverthrow', () => {
     await performOverthrow('assignment-42');
 
     const statusUpdate = callLog.find(c =>
-      c.kind === 'from' && c.op === 'update:nemesis_assignments'
+      c.kind === 'from' && c.op === 'update:gym_rival_assignments'
     );
     expect(statusUpdate.args).toMatchObject({ status: 'overthrown' });
     expect(statusUpdate.args.overthrown_at).toBeTruthy();
