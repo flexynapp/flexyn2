@@ -188,29 +188,12 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
           className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl overflow-hidden shadow-xl flex flex-col"
           style={{ maxHeight: '94vh' }}
         >
-          {/* Photo banner + overlay. Show the WHOLE meal regardless of the
-              uploaded photo's aspect ratio / resolution: a blurred, zoomed
-              copy fills the frame as a backdrop, and the real image sits on
-              top with object-contain so nothing gets cropped out. */}
-          <div className="relative h-52 shrink-0 bg-neutral-900 overflow-hidden">
-            {imageUrl ? (
-              <>
-                <img
-                  src={imageUrl}
-                  alt=""
-                  aria-hidden="true"
-                  className="absolute inset-0 w-full h-full object-cover blur-2xl scale-125 opacity-50"
-                />
-                <img
-                  src={imageUrl}
-                  alt="Your meal"
-                  className="relative w-full h-full object-contain"
-                />
-              </>
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white/40"><Utensils className="w-8 h-8" /></div>
-            )}
-            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/5 to-black/25 pointer-events-none" />
+          {/* Photo banner + overlay — the photo fills the whole banner. */}
+          <div className="relative h-44 shrink-0 bg-black">
+            {imageUrl
+              ? <img src={imageUrl} alt="Your meal" className="w-full h-full object-cover" />
+              : <div className="w-full h-full flex items-center justify-center text-white/40"><Utensils className="w-8 h-8" /></div>}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/20" />
             <button onClick={onClose} aria-label="Close" className="absolute top-3 end-3 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
               <X className="w-4 h-4" />
             </button>

@@ -32,6 +32,7 @@ import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTyp
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
 import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
+import FoodPhotoCaptureModal from '@/components/nutrition/FoodPhotoCaptureModal';
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -401,6 +402,9 @@ export default function Nutrition() {
     }
   };
   const [photoRecognizing, setPhotoRecognizing] = useState(false);
+  // Guided in-app camera for Photo-AI (framing overlay) — the primary capture
+  // entry; the hidden file input is the "choose from library" fallback.
+  const [showPhotoCapture, setShowPhotoCapture] = useState(false);
   // Photo-AI result pop-out — the recognized meal + the photo the user took.
   const [showPhotoResult, setShowPhotoResult] = useState(false);
   const [photoResult, setPhotoResult] = useState(null);
@@ -801,9 +805,9 @@ export default function Nutrition() {
   // Reads the chosen file, sends it to the recognize-meal Edge
   // Function, then prefills the meal log form with the returned
   // macros. User reviews + saves.
-  const handlePhotoMealPick = async (e) => {
-    const file = e.target.files?.[0];
-    e.target.value = ''; // reset so picking the same file twice still fires
+  // Core recognition path — accepts a File from either source: the library
+  // picker (hidden file input) or the in-app guided camera (captured frame).
+  const processPhotoFile = async (file) => {
     if (!file) return;
     setPhotoRecognizing(true);
     const res = await recognizeMealPhoto(file);
@@ -835,6 +839,20 @@ export default function Nutrition() {
     setPhotoResult(r);
     setShowPhotoResult(true);
   };
+
+  // Library-picker onChange → hand the chosen file to the recognition path.
+  const handlePhotoMealPick = (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // reset so picking the same file twice still fires
+    processPhotoFile(file);
+  };
+
+  // Guided in-app camera → recognise the captured frame.
+  const handlePhotoCapture = (file) => {
+    setShowPhotoCapture(false);
+    processPhotoFile(file);
+  };
+  const openPhotoCapture = () => setShowPhotoCapture(true);
 
   // Close + tidy up the photo-result modal (revoke the object URL).
   const closePhotoResult = () => {
@@ -1603,7 +1621,7 @@ export default function Nutrition() {
         {/* Photo-AI — purple gradient (moved out of the header) */}
         <button
           type="button"
-          onClick={() => photoInputRef.current?.click()}
+          onClick={openPhotoCapture}
           disabled={photoRecognizing}
           className="flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl text-white shadow-sm active:scale-95 transition-transform disabled:opacity-60 disabled:cursor-not-allowed"
           style={{ background: 'linear-gradient(315deg, #c4b5fd 0%, #a78bfa 32%, #8b5cf6 64%, #6d28d9 100%)' }}
@@ -1759,7 +1777,7 @@ export default function Nutrition() {
             newEntry={newEntry}
             setNewEntry={setNewEntry}
             onScan={startScanner}
-            onPhotoAI={() => photoInputRef.current?.click()}
+            onPhotoAI={openPhotoCapture}
             isRecognizing={photoRecognizing}
             onLog={addEntry}
             isScanning={showScanner}
@@ -2042,6 +2060,16 @@ export default function Nutrition() {
           open={showRecipes}
           onClose={() => setShowRecipes(false)}
           userProfile={userProfile}
+        />
+      </ErrorBoundary>
+
+      {/* Guided in-app camera for Photo-AI — framing overlay + shutter. */}
+      <ErrorBoundary label="FoodPhotoCaptureModal">
+        <FoodPhotoCaptureModal
+          open={showPhotoCapture}
+          onClose={() => setShowPhotoCapture(false)}
+          onCapture={handlePhotoCapture}
+          onPickLibrary={() => { setShowPhotoCapture(false); photoInputRef.current?.click(); }}
         />
       </ErrorBoundary>
 
