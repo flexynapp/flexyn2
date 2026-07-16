@@ -336,7 +336,7 @@ function OrgHub({ org, isAdmin, onLeave, onNewChallenge }) {
             <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-muted-foreground" /></div>
           ) : analytics.cohort_too_small ? (
             <p className="text-xs text-muted-foreground py-2">
-              Need at least {analytics.min_cohort} members before engagement stats unlock — this protects individual privacy in small teams. ({analytics.members} so far.)
+              Need at least {analytics.min_cohort} members before engagement stats unlock — this protects individual privacy in small teams. ({analytics.members} member{analytics.members === 1 ? '' : 's'} so far.)
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-3">

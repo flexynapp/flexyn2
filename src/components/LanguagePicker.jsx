@@ -80,8 +80,7 @@ export default function LanguagePicker({ variant = 'inline', onSelect, iconOnly 
           className="flex items-center gap-0.5 justify-center px-2 h-8 rounded-lg border border-border hover:bg-secondary transition-colors"
           title="Change language"
         >
-          <span className="text-base leading-none">🗣️</span>
-          <span className="text-base leading-none">{currentLanguage.flag}</span>
+          <span className="text-base leading-none">🌐</span>
         </button>
       ) : (
         <button

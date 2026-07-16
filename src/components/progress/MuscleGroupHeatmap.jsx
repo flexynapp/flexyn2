@@ -337,7 +337,7 @@ export default function MuscleGroupHeatmap({ logs }) {
           <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.16em', color: empty ? 'hsl(var(--muted-foreground))' : 'hsl(var(--primary))' }}>{empty ? '○ NO DATA' : '● LIVE'}</span>
         </div>
         <h1 style={{ margin: 0, fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 30, letterSpacing: '-0.035em', lineHeight: 1.02, color: 'hsl(var(--foreground))' }}>
-          {empty ? <>Your muscle<br />heat map.</> : mode === 'recovery' ? <>{headline} muscle{headline === 1 ? '' : 's'}<br />need recovery.</> : <>Where your<br />work landed.</>}
+          {empty ? <>Your muscle<br />heat map.</> : mode === 'recovery' ? <>{headline} muscle{headline === 1 ? '' : 's'}<br />need{headline === 1 ? 's' : ''} recovery.</> : <>Where your<br />work landed.</>}
         </h1>
         <p style={{ margin: '10px 0 0', fontSize: 12.5, lineHeight: 1.45, color: 'hsl(var(--muted-foreground))', maxWidth: 320 }}>
           {empty

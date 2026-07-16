@@ -279,7 +279,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 }
 
 // ── Main planner modal ────────────────────────────────────────────────
-export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
+export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding, onLogMeal }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
@@ -439,20 +439,27 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
       return;
     }
     const r = res.result || {};
-    upsertMutation.mutate({
-      user,
-      planDate: target.date,
-      mealType: target.mealType,
-      foodSnapshot: {
-        name:      (typeof r.food_name === 'string' && r.food_name.trim()) || 'Meal',
-        calories:  finiteOr(r.calories,  0),
-        protein_g: finiteOr(r.protein_g, 0),
-        carbs_g:   finiteOr(r.carbs_g,   0),
-        fat_g:     finiteOr(r.fat_g,     0),
-        fiber_g:   finiteOr(r.fiber_g,   0),
-      },
-    });
+    const snapshot = {
+      name:      (typeof r.food_name === 'string' && r.food_name.trim()) || 'Meal',
+      calories:  finiteOr(r.calories,  0),
+      protein_g: finiteOr(r.protein_g, 0),
+      carbs_g:   finiteOr(r.carbs_g,   0),
+      fat_g:     finiteOr(r.fat_g,     0),
+      fiber_g:   finiteOr(r.fiber_g,   0),
+    };
+    upsertMutation.mutate({ user, planDate: target.date, mealType: target.mealType, foodSnapshot: snapshot });
+    logToDiaryIfToday(target.date, snapshot, target.mealType);
     toast.success(`Added: ${r.food_name || 'meal'}`);
+  };
+
+  // A meal planned for TODAY is a meal eaten today — mirror it into the
+  // nutrition diary so it counts toward the day's calories, macros, and the
+  // dashboard rings. Delegates to the page's proven log mutation (onLogMeal)
+  // so invalidation + quest/celebration credit match a normal meal log.
+  // Future-dated plans stay plan-only.
+  const logToDiaryIfToday = (planDate, snap, mealType) => {
+    if (!snap || planDate !== isoDay(new Date())) return;
+    onLogMeal?.({ ...snap, meal_type: mealType });
   };
 
   const handleManualSave = (snapshot) => {
@@ -463,6 +470,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
       mealType: manualSlot.mealType,
       foodSnapshot: snapshot,
     });
+    logToDiaryIfToday(manualSlot.date, snapshot, manualSlot.mealType);
     setManualSlot(null);
   };
 

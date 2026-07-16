@@ -110,7 +110,7 @@ function LeaderboardRow({ entry, maxScore, isAuthed, onGymPress, delay }) {
           </span>
           <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
             <Dumbbell className="w-2.5 h-2.5" />
-            {entry.workout_count} workouts
+            {entry.workout_count} workout{entry.workout_count === 1 ? '' : 's'}
           </span>
         </div>
       </div>

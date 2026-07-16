@@ -655,7 +655,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             onClick={() => {
               if (!logs?.length) { toast.error('No workout data to export.'); return; }
               exportWorkoutsCSV(logs, weightUnit);
-              toast.success(`Exported ${logs.length} workouts`);
+              toast.success(`Exported ${logs.length} workout${logs.length === 1 ? '' : 's'}`);
             }}
           >
             <Dumbbell className="w-4 h-4 text-primary shrink-0" />
@@ -678,7 +678,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <Scale className="w-4 h-4 text-emerald-500 shrink-0" />
             <div className="text-start">
               <p className="text-sm font-semibold">Body Metrics</p>
-              <p className="text-xs text-muted-foreground">{bodyMetrics?.length || 0} entries · weight, measurements</p>
+              <p className="text-xs text-muted-foreground">{bodyMetrics?.length || 0} entr{(bodyMetrics?.length || 0) === 1 ? 'y' : 'ies'} · weight, measurements</p>
             </div>
             <Download className="w-3.5 h-3.5 text-muted-foreground ml-auto" />
           </Button>

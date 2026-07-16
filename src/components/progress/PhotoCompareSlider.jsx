@@ -122,7 +122,7 @@ export default function PhotoCompareSlider({ photos, onClose }) {
           <h2 className="font-heading font-bold text-sm">Compare Photos</h2>
           {daysDiff !== null && daysDiff > 0 && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-semibold">
-              {daysDiff} days apart
+              {daysDiff} day{daysDiff === 1 ? '' : 's'} apart
             </span>
           )}
         </div>

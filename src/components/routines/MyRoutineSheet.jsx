@@ -198,7 +198,7 @@ export default function MyRoutineSheet({ open, onClose }) {
                       className="rounded-2xl border border-border bg-card p-3 text-start hover:border-primary/50 transition-colors disabled:opacity-40">
                       <p className="font-heading font-bold text-sm">{t.name}</p>
                       <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {t.days.filter(d => !d.isRest).length} days · add your lifts
+                        {t.days.filter(d => !d.isRest).length} day{t.days.filter(d => !d.isRest).length === 1 ? '' : 's'} · add your lifts
                       </p>
                     </button>
                   ))}
