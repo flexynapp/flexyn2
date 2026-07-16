@@ -15,7 +15,7 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -1145,7 +1145,7 @@ export default function Nutrition() {
           {/* Right — Photo-AI hidden file input + Scanner History toggle.
               The orange "Scan Food" and purple "Photo-AI" buttons were
               removed; those actions now live in the quick-access row. */}
-          <div className="flex items-center shrink-0">
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
             {/* Photo-AI recognition trigger — hidden file input behind
                 the quick-access card. No `capture` attr so iOS surfaces
                 both "Take photo" and "Choose from library". */}
@@ -1168,6 +1168,14 @@ export default function Nutrition() {
                 </span>
               )}
               {showScanHistory ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            </button>
+            {/* Re-run nutrition onboarding to reset goals + dietary prefs. */}
+            <button
+              onClick={openGoalsEditor}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+            >
+              <Target className="w-3.5 h-3.5" />
+              Edit Goals
             </button>
           </div>
         </div>
