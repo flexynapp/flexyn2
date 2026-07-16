@@ -241,7 +241,7 @@ export default function CardioDetailModal({ log, open, onOpenChange, onEdit }) {
           />
           <DetailRow
             label={t('cardio.field.calories')}
-            value={log.calories ? `${log.calories} kcal` : null}
+            value={log.calories ? `${log.calories} cal` : null}
           />
           <DetailRow
             label={t('cardio.field.incline')}

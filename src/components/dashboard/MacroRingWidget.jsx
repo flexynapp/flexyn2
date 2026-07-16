@@ -60,7 +60,7 @@ function Ring({ r, strokeWidth, pct, color, delay = 0 }) {
 }
 
 const MACROS = [
-  { key: 'calories',  label: 'Cal',  unit: 'kcal', color: '#F97316', goalKey: 'calories',  r: 50, sw: 9  },
+  { key: 'calories',  label: 'Cal',  unit: 'cal', color: '#F97316', goalKey: 'calories',  r: 50, sw: 9  },
   { key: 'protein_g', label: 'Pro',  unit: 'g',    color: '#EF4444', goalKey: 'protein_g', r: 40, sw: 8  },
   { key: 'carbs_g',   label: 'Carb', unit: 'g',    color: '#F59E0B', goalKey: 'carbs_g',   r: 30, sw: 7  },
   { key: 'fat_g',     label: 'Fat',  unit: 'g',    color: '#3B82F6', goalKey: 'fat_g',     r: 20, sw: 6  },
@@ -161,7 +161,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
                 {Math.round(totals.calories)}
               </text>
               <text x="60" y="70" textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 9 }}>
-                kcal
+                cal
               </text>
             </svg>
           </div>
@@ -183,7 +183,7 @@ export default function MacroRingWidget({ userProfile = {} }) {
                     />
                   </div>
                   <span className="text-[11px] font-semibold w-16 text-end tabular-nums">
-                    {consumed}{m.unit !== 'kcal' ? `/${goal}${m.unit}` : ''}
+                    {consumed}{m.unit !== 'cal' ? `/${goal}${m.unit}` : ''}
                   </span>
                 </div>
               );

@@ -10,7 +10,7 @@ import { containsProfanity } from '@/lib/profanityFilter';
 import { toast } from 'sonner';
 
 const NUTRIENT_FIELDS = [
-  { key: 'calories',      label: 'Calories',     unit: 'kcal', color: '#f97316', required: true },
+  { key: 'calories',      label: 'Calories',     unit: 'cal', color: '#f97316', required: true },
   { key: 'protein_g',     label: 'Protein',       unit: 'g',    color: '#ef4444' },
   { key: 'carbs_g',       label: 'Carbohydrates', unit: 'g',    color: '#3b82f6' },
   { key: 'fat_g',         label: 'Total Fat',     unit: 'g',    color: '#eab308' },

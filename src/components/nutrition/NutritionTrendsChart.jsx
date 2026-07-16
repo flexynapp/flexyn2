@@ -104,7 +104,7 @@ export default function NutritionTrendsChart({ entries = [], userProfile = {}, d
             avg <span className="font-bold text-foreground">{avgCal.toLocaleString()}</span> / {goalCal.toLocaleString()} cal
           </p>
         </div>
-        <div className="text-orange-500"><MiniSeries label="Calories" values={cal}     goal={goalCal}             color="currentColor" unit="kcal" /></div>
+        <div className="text-orange-500"><MiniSeries label="Calories" values={cal}     goal={goalCal}             color="currentColor" unit="cal" /></div>
         <div className="text-red-500 mt-3"><MiniSeries label="Protein"  values={protein} goal={dv?.protein_g || 0} color="currentColor" /></div>
         <div className="text-blue-500 mt-3"><MiniSeries label="Carbs"   values={carbs}   goal={dv?.carbs_g   || 0} color="currentColor" /></div>
         <div className="text-yellow-500 mt-3"><MiniSeries label="Fat"   values={fat}     goal={dv?.fat_g     || 0} color="currentColor" /></div>

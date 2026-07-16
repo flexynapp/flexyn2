@@ -406,7 +406,7 @@ export default function CardioLiveTrackerIndoor({ mode, env, onCancel, onSaved, 
         <div className="grid grid-cols-3 gap-3 mb-8">
           <StatCard label={t('cardio.field.avgPace')} value={formatPace(pace, distanceUnit)} />
           <StatCard label={t('cardio.field.avgSpeed')} value={speedDisplay} />
-          <StatCard label={t('cardio.field.calories')} value={`${Math.round(calories)} kcal`} />
+          <StatCard label={t('cardio.field.calories')} value={`${Math.round(calories)} cal`} />
         </div>
         {env === 'treadmill' && incline != null && (
           <p className="text-center text-sm text-muted-foreground mb-6">

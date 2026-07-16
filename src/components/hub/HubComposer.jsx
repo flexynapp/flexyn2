@@ -172,7 +172,7 @@ const summarize = {
     return parts.join(' · ');
   },
   meal: (m) => {
-    const cal = m.calories != null ? `${Math.round(m.calories)} kcal` : '';
+    const cal = m.calories != null ? `${Math.round(m.calories)} cal` : '';
     return [m.food_name, cal].filter(Boolean).join(' · ');
   },
   goal: (g) => g.exercise_name || g.goal_type || 'Goal',
@@ -979,7 +979,7 @@ export default function HubComposer({ onClose }) {
       <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Macros (optional)</label>
       <div className="grid grid-cols-4 gap-2 mb-3">
         {[
-          { key: 'calories',  label: 'Calories', unit: 'kcal', color: 'text-orange-600' },
+          { key: 'calories',  label: 'Calories', unit: 'cal', color: 'text-orange-600' },
           { key: 'protein_g', label: 'Protein',  unit: 'g',    color: 'text-red-600' },
           { key: 'carbs_g',   label: 'Carbs',    unit: 'g',    color: 'text-blue-600' },
           { key: 'fat_g',     label: 'Fat',      unit: 'g',    color: 'text-yellow-600' },

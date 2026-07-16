@@ -1319,7 +1319,7 @@ export default function Nutrition() {
                           <p className="text-sm font-semibold leading-tight truncate">{item.name}</p>
                           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                             {cal != null && (
-                              <span className="text-[11px] text-orange-500 font-medium">{Math.round(cal)} kcal</span>
+                              <span className="text-[11px] text-orange-500 font-medium">{Math.round(cal)} cal</span>
                             )}
                             {pro != null && (
                               <span className="text-[11px] text-muted-foreground">P {Math.round(pro)}g</span>
@@ -1886,7 +1886,7 @@ export default function Nutrition() {
                   <div className="flex-1">
                     <p className="font-medium">{entry.food_name}</p>
                     <p className="text-sm text-muted-foreground space-x-2">
-                      <span>{entry.calories} kcal</span>
+                      <span>{entry.calories} cal</span>
                       {entry.protein_g > 0 && <span>• P: {entry.protein_g}g</span>}
                       {entry.carbs_g > 0 && <span>• C: {entry.carbs_g}g</span>}
                       {entry.fat_g > 0 && <span>• F: {entry.fat_g}g</span>}

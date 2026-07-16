@@ -252,9 +252,9 @@ export default function CardioManualForm({
       const maxCal = getMaxRealisticCalories(durationSeconds, userProfile);
       if (Number(calories) > maxCal) {
         toast.error(
-          `That calorie count (${Math.round(Number(calories))} kcal) seems too high for a ${
+          `That calorie count (${Math.round(Number(calories))} cal) seems too high for a ${
             Math.round(durationSeconds / 60)
-          }-minute session. Maximum realistic is ${maxCal} kcal.`
+          }-minute session. Maximum realistic is ${maxCal} cal.`
         );
         setSaving(false);
         return;
@@ -726,7 +726,7 @@ export default function CardioManualForm({
                   className="pe-14"
                   placeholder="0"
                 />
-                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">kcal</span>
+                <span className="absolute end-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">cal</span>
               </div>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={handleEstimate} className="shrink-0">

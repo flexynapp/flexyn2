@@ -559,7 +559,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
                   <Card className="p-3 bg-orange-500/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.calories')}</p>
                     <p className="font-heading font-bold text-2xl text-orange-600">{preview.calories}</p>
-                    <p className="text-[10px] text-muted-foreground">kcal/day</p>
+                    <p className="text-[10px] text-muted-foreground">cal/day</p>
                   </Card>
                   <Card className="p-3 bg-red-500/5">
                     <p className="text-xs text-muted-foreground">{t('nutrition.macros.protein')}</p>

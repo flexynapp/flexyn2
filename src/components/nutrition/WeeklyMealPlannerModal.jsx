@@ -42,7 +42,7 @@ const MEAL_SLOTS = [
 // Full nutrient set for manual meal entry — mirrors LogMealForm so the
 // planner can capture any nutrient, not just the four headline macros.
 const MANUAL_MACRO_FIELDS = [
-  { key: 'calories',       label: 'Calories',    unit: 'kcal', color: 'text-orange-600' },
+  { key: 'calories',       label: 'Calories',    unit: 'cal', color: 'text-orange-600' },
   { key: 'protein_g',      label: 'Protein',     unit: 'g',    color: 'text-red-600' },
   { key: 'carbs_g',        label: 'Carbs',       unit: 'g',    color: 'text-blue-600' },
   { key: 'fat_g',          label: 'Fat',         unit: 'g',    color: 'text-yellow-600' },

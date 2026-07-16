@@ -5,7 +5,7 @@ import { X, CheckCircle2, Flame, Beef, Wheat, Droplets, Activity } from 'lucide-
 import { useLanguage } from '@/lib/LanguageContext';
 
 const MACRO_ROWS = [
-  { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'kcal', color: '#f97316', bg: 'rgba(249,115,22,0.1)',  icon: Flame },
+  { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'cal', color: '#f97316', bg: 'rgba(249,115,22,0.1)',  icon: Flame },
   { key: 'protein_g',      labelKey: 'nutrition.macros.protein',     unit: 'g',    color: '#ef4444', bg: 'rgba(239,68,68,0.1)',   icon: Beef },
   { key: 'carbs_g',        labelKey: 'nutrition.macros.carbs',       unit: 'g',    color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  icon: Wheat },
   { key: 'fat_g',          labelKey: 'nutrition.macros.fat',         unit: 'g',    color: '#eab308', bg: 'rgba(234,179,8,0.1)',   icon: Droplets },
@@ -132,7 +132,7 @@ export default function BarcodeResultModal({ product, onCancel, onLog, isLogging
               <p className="text-xs text-muted-foreground">{t('nutrition.macros.calories')}</p>
               <p className="font-heading font-bold text-3xl" style={{ color: '#f97316' }}>
                 {n.calories != null ? Math.round(n.calories) : '—'}
-                <span className="text-base text-muted-foreground font-normal ms-1">kcal</span>
+                <span className="text-base text-muted-foreground font-normal ms-1">cal</span>
               </p>
             </div>
             <div className="ms-auto text-end shrink-0">

@@ -55,7 +55,7 @@ function DaySection({ dateStr, entries }) {
           <div className="flex items-center gap-1.5">
             <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
               <Flame className="w-3 h-3 text-orange-400" />
-              {Math.round(totals.calories)} kcal
+              {Math.round(totals.calories)} cal
             </span>
             <span className="text-muted-foreground/40 text-xs">·</span>
             <span className="text-xs text-muted-foreground">{entries.length} item{entries.length !== 1 ? 's' : ''}</span>
@@ -107,7 +107,7 @@ function DaySection({ dateStr, entries }) {
                   </div>
                   <div className="ms-3 text-end shrink-0">
                     <p className="text-sm font-heading font-bold">{Math.round(entry.calories || 0)}</p>
-                    <p className="text-[10px] text-muted-foreground">kcal</p>
+                    <p className="text-[10px] text-muted-foreground">cal</p>
                   </div>
                 </motion.div>
               ))}
@@ -193,7 +193,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
               <h2 className="font-heading font-bold text-xl tracking-tight">Meal History</h2>
               {!isLoading && mealLogs.length > 0 && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {mealLogs.length} entries · {fmt(Math.round(allTimeCalories))} kcal total
+                  {mealLogs.length} entries · {fmt(Math.round(allTimeCalories))} cal total
                 </p>
               )}
             </div>
@@ -211,7 +211,7 @@ export default function MealHistoryModal({ open, onClose, userProfile }) {
               {[
                 { label: 'Days logged', value: grouped.length },
                 { label: 'Meals logged', value: mealLogs.length },
-                { label: 'Avg kcal/day', value: grouped.length > 0 ? Math.round(allTimeCalories / grouped.length) : 0 },
+                { label: 'Avg cal/day', value: grouped.length > 0 ? Math.round(allTimeCalories / grouped.length) : 0 },
               ].map(stat => (
                 <div key={stat.label} className="text-center">
                   <p className="font-heading font-bold text-lg leading-none">{fmt(stat.value)}</p>

@@ -244,7 +244,7 @@ function CardioBlock({ snap }) {
         <Stat icon={TrendingUp}  label={t('cardio.field.avgPace')}
               value={snap.pace_seconds_per_km ? formatPace(snap.pace_seconds_per_km, distanceUnit) : '—'} />
         <Stat icon={Flame}       label={t('cardio.field.calories')}
-              value={snap.calories ? `${snap.calories} kcal` : '—'} />
+              value={snap.calories ? `${snap.calories} cal` : '—'} />
       </div>
     </>
   );

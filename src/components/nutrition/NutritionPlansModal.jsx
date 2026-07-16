@@ -78,7 +78,7 @@ function PlanCard({ plan, scaled, onSelect, colors }) {
             <div className="flex items-center gap-1 text-xs text-muted-foreground">
               <Flame className="w-3 h-3" />
               <span className="font-heading font-bold text-foreground">{kcal}</span>
-              <span>kcal/day</span>
+              <span>cal/day</span>
             </div>
             <div className="flex gap-1 text-[10px] text-muted-foreground">
               <span className="text-red-500 font-medium">{macros.protein}g P</span>
@@ -113,7 +113,7 @@ function MealRow({ meal, colors }) {
             <span className="text-[10px] text-muted-foreground">{meal.time}</span>
             <span className="text-[10px] text-muted-foreground">·</span>
             <Flame className="w-3 h-3 text-orange-500" />
-            <span className="text-[10px] font-medium text-orange-600">{meal.kcal} kcal</span>
+            <span className="text-[10px] font-medium text-orange-600">{meal.kcal} cal</span>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -247,7 +247,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
             <div className="flex items-center gap-1.5">
               <Flame className="w-4 h-4 text-orange-500" />
               <span className="font-heading font-bold text-lg">{kcal}</span>
-              <span className="text-xs text-muted-foreground">kcal/day</span>
+              <span className="text-xs text-muted-foreground">cal/day</span>
             </div>
             <div className="flex gap-2">
               <MacroPill label="Protein" value={macros.protein} color="bg-red-500/15 text-red-600 dark:text-red-400" />
@@ -397,7 +397,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
               <Flame className="w-4 h-4 text-orange-500 shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">Scaled to your target:</span>{' '}
-                {targetCalories} kcal/day — all macros adjusted proportionally
+                {targetCalories} cal/day — all macros adjusted proportionally
               </p>
             </div>
           )}

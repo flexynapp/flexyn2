@@ -443,7 +443,7 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
             <div className="flex items-end gap-3">
               <div>
                 <p className="font-heading font-black text-3xl text-orange-500">{tdee.totalTDEE.toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">kcal / day estimated</p>
+                <p className="text-xs text-muted-foreground mt-0.5">cal / day estimated</p>
               </div>
             </div>
 
@@ -463,11 +463,11 @@ export default function InsightsTab({ logs, cardioLogs, bodyMetrics, userProfile
 
             <div className="grid grid-cols-2 gap-2 pt-1 border-t border-border/50">
               <div className="text-center">
-                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 0.85).toLocaleString()} kcal</p>
+                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 0.85).toLocaleString()} cal</p>
                 <p className="text-[10px] text-muted-foreground">Cut (−15%)</p>
               </div>
               <div className="text-center">
-                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 1.1).toLocaleString()} kcal</p>
+                <p className="text-xs font-semibold text-foreground">{Math.round(tdee.totalTDEE * 1.1).toLocaleString()} cal</p>
                 <p className="text-[10px] text-muted-foreground">Bulk (+10%)</p>
               </div>
             </div>

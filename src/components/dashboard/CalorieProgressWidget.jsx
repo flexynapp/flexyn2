@@ -146,7 +146,7 @@ export default function CalorieProgressWidget({ userProfile = {} }) {
             {overBudget ? '+' : ''}{overBudget ? Math.round(totals.calories - calorieGoal) : remaining}
           </span>
           <span className="text-sm text-muted-foreground">
-            {overBudget ? tFallback('calories.overBudget', 'over budget') : tFallback('calories.remaining', 'kcal remaining')}
+            {overBudget ? tFallback('calories.overBudget', 'over budget') : tFallback('calories.remaining', 'cal remaining')}
           </span>
         </div>
 

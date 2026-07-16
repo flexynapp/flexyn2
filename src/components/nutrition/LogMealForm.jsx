@@ -13,7 +13,7 @@ import { loadSavedMeals, removeSavedMeal } from '@/lib/savedMeals';
 // TABS are built inside the component to support t()
 
 const NUTRIENT_FIELDS = [
-  { key: 'calories',       labelKey: 'nutrition.macros.calories',    placeholder: '0', unit: 'kcal', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
+  { key: 'calories',       labelKey: 'nutrition.macros.calories',    placeholder: '0', unit: 'cal', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
   { key: 'protein_g',      labelKey: 'nutrition.macros.protein',     placeholder: '0', unit: 'g',    textColor: 'text-red-600',    bgColor: 'bg-red-50 dark:bg-red-950/20' },
   { key: 'carbs_g',        labelKey: 'nutrition.macros.carbs',       placeholder: '0', unit: 'g',    textColor: 'text-blue-600',   bgColor: 'bg-blue-50 dark:bg-blue-950/20' },
   { key: 'fat_g',          labelKey: 'nutrition.macros.fat',         placeholder: '0', unit: 'g',    textColor: 'text-yellow-600', bgColor: 'bg-yellow-50 dark:bg-yellow-950/20' },
@@ -290,7 +290,7 @@ export default function LogMealForm({ newEntry, setNewEntry, onPhotoAI, isRecogn
                               {/* Macro pills */}
                               <div className="flex flex-wrap gap-1.5 mt-1.5">
                                 {meal.calories > 0 && (
-                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} kcal</span>
+                                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-600 dark:text-orange-400">{Math.round(meal.calories)} cal</span>
                                 )}
                                 {meal.protein_g > 0 && (
                                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500/15 text-red-600 dark:text-red-400">{Math.round(meal.protein_g)}g P</span>

@@ -834,7 +834,7 @@ export default function CardioLiveTrackerOutside({ mode, onCancel, onSaved, user
         <div className="grid grid-cols-3 gap-3 mb-8">
           <StatCard label={t('cardio.field.avgPace')} value={formatPace(pace, distanceUnit)} />
           <StatCard label={t('cardio.field.avgSpeed')} value={speedDisplay} />
-          <StatCard label={t('cardio.field.calories')} value={`${Math.round(calories)} kcal`} />
+          <StatCard label={t('cardio.field.calories')} value={`${Math.round(calories)} cal`} />
         </div>
         <div className="flex gap-3">
           <Button

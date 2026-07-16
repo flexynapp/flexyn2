@@ -7,7 +7,7 @@ import { useSettings } from '@/lib/SettingsContext';
 import NutrientRing from './NutrientRing';
 
 const MACROS = [
-  { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'kcal', color: 'from-orange-400 to-orange-600', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
+  { key: 'calories',       labelKey: 'nutrition.macros.calories',    unit: 'cal', color: 'from-orange-400 to-orange-600', textColor: 'text-orange-600', bgColor: 'bg-orange-50 dark:bg-orange-950/20' },
   { key: 'protein_g',      labelKey: 'nutrition.macros.protein',     unit: 'g',    color: 'from-red-400 to-red-600',       textColor: 'text-red-600',    bgColor: 'bg-red-50 dark:bg-red-950/20' },
   { key: 'carbs_g',        labelKey: 'nutrition.macros.carbs',       unit: 'g',    color: 'from-blue-400 to-blue-600',     textColor: 'text-blue-600',   bgColor: 'bg-blue-50 dark:bg-blue-950/20' },
   { key: 'fat_g',          labelKey: 'nutrition.macros.fat',         unit: 'g',    color: 'from-yellow-400 to-yellow-600', textColor: 'text-yellow-600', bgColor: 'bg-yellow-50 dark:bg-yellow-950/20' },
