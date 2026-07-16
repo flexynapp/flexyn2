@@ -119,6 +119,16 @@
     overscroll-behavior: none;
     overflow-x: hidden;
   }
+  /* Every internal scroll region (modals, sheets, dropdowns, side panels,
+     lists) contains its own overscroll by default: a menu can't rubber-band
+     past its own content, and its bounce never chains to the page behind it.
+     Kept in @layer base so any component that sets an explicit overscroll-*
+     utility (e.g. overscroll-none) still overrides this. */
+  .overflow-y-auto,
+  .overflow-auto,
+  .overflow-y-scroll {
+    overscroll-behavior: contain;
+  }
 }
 
 @layer utilities {
