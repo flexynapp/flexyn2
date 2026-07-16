@@ -146,7 +146,8 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
 
   it('a collegiate runner (sub-10 mile, broadly fit) gets an advanced program, not 3x10', () => {
     const assessment = { mile_under10: 'yes', bench_bw: 'yes', squat_bw15: 'yes', pullups_10: 'yes' };
-    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 5, assessment });
+    // daysCount 4 → no days volume adjustment, so the advanced 5-set scheme shows verbatim.
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 4, assessment });
     expect(r.exercises[0].target_sets).toBe(5); // advanced scheme (5 sets)
     expect(r.description).toContain('advanced');
   });
@@ -218,6 +219,77 @@ describe('buildStarterRegimen — training days → scope', () => {
     for (let i = 1; i < counts.length; i++) {
       expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1]);
     }
+  });
+});
+
+describe('buildStarterRegimen — training days → per-session volume (inverse)', () => {
+  it('fewer training days → MORE sets per session', () => {
+    const two = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 2 });
+    const four = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 4 });
+    const six = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 6 });
+    expect(two.exercises[0].target_sets).toBe(5);  // 4 base + 1
+    expect(four.exercises[0].target_sets).toBe(4);  // 4 base + 0
+    expect(six.exercises[0].target_sets).toBe(3);  // 4 base - 1
+  });
+
+  it('per-session volume never drops below the 2-set floor', () => {
+    // A 7-day newbie: 3 base - 1 = 2, still >= floor.
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'newbie', daysCount: 7 });
+    expect(r.exercises[0].target_sets).toBe(2);
+  });
+
+  it('the days volume adjustment is capped by the age recovery cap', () => {
+    // 55+ lifter training 2 days would be 5+1=6, but the age cap holds it to 4.
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'advanced', daysCount: 2, age: 58 });
+    expect(r.exercises[0].target_sets).toBe(4);
+  });
+});
+
+describe('buildStarterRegimen — sex-aware reps', () => {
+  it('female gets slightly higher reps in the hypertrophy range (fatigue resistance)', () => {
+    const male = buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: 4, gender: 'male' });
+    const female = buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: 4, gender: 'female' });
+    // consistent = 8 reps; female +2 → 10 on the first (non-cardio) lift.
+    expect(male.exercises[0].target_reps).toBe(8);
+    expect(female.exercises[0].target_reps).toBe(10);
+  });
+
+  it('female rep bump does NOT apply to the max-strength (≤5 rep) scheme', () => {
+    const female = buildStarterRegimen({ goals: ['strength'], level: 'advanced', daysCount: 4, gender: 'female' });
+    expect(female.exercises[0].target_reps).toBe(5); // advanced 5×5 stays 5 reps
+  });
+
+  it("'other' and unset sex are treated as the male baseline (no rep bump)", () => {
+    const other = buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: 4, gender: 'other' });
+    const unset = buildStarterRegimen({ goals: ['muscle'], level: 'consistent', daysCount: 4 });
+    expect(other.exercises[0].target_reps).toBe(8);
+    expect(unset.exercises[0].target_reps).toBe(8);
+  });
+});
+
+describe('buildStarterRegimen — weight/BMI awareness', () => {
+  // 100 kg @ 170 cm → BMI ≈ 34.6 (high); 70 kg @ 178 cm → BMI ≈ 22 (normal).
+  it('a high-BMI strength user gets a conditioning move (via height+weight)', () => {
+    const lean = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3, weightKg: 70, heightCm: 178 });
+    const heavy = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3, weightKg: 100, heightCm: 170 });
+    expect(lean.exercises.map(e => e.name)).not.toContain('Mountain Climbers');
+    expect(heavy.exercises.map(e => e.name)).toContain('Mountain Climbers');
+  });
+
+  it('a high-BMI beginner gets an achievable rep target on bodyweight lifts', () => {
+    // muscle pool includes Pull-Up; newbie base reps = 10, capped to 8 at high BMI.
+    const heavy = buildStarterRegimen({ goals: ['muscle'], level: 'newbie', daysCount: 4, weightKg: 110, heightCm: 172 });
+    const pullUp = heavy.exercises.find(e => e.name === 'Pull-Up');
+    expect(pullUp).toBeTruthy();
+    expect(pullUp.target_reps).toBeLessThanOrEqual(8);
+    // A normal-BMI newbie keeps the full 10.
+    const lean = buildStarterRegimen({ goals: ['muscle'], level: 'newbie', daysCount: 4, weightKg: 68, heightCm: 178 });
+    expect(lean.exercises.find(e => e.name === 'Pull-Up').target_reps).toBe(10);
+  });
+
+  it('missing height or weight leaves the plan unaffected (no BMI)', () => {
+    const noHeight = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 3, weightKg: 100 });
+    expect(noHeight.exercises.map(e => e.name)).not.toContain('Mountain Climbers');
   });
 });
 

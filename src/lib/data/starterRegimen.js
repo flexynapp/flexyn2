@@ -89,6 +89,27 @@ function ageSetsCap(age) {
   return Infinity;
 }
 
+// Training days → per-session VOLUME, inversely. Weekly work is roughly fixed;
+// spreading it over fewer sessions means each session must carry more (an extra
+// set), and over more sessions means each is lighter (a set less). This is the
+// counterpart to targetExerciseCount: days widen the plan's *scope* but thin
+// its *per-session* volume, so a 2-day full-body hit stays potent and a 6-day
+// schedule doesn't overreach on any single day.
+function daysVolumeAdjust(daysCount) {
+  const d = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
+  if (d <= 2) return +1;
+  if (d >= 5) return -1;
+  return 0;
+}
+
+// BMI from the onboarding height + weight (both always captured). Null when we
+// can't compute it. Used for humane, achievable targets — not judgement.
+function bmiFrom(weightKg, heightCm) {
+  if (!Number.isFinite(weightKg) || !Number.isFinite(heightCm) || heightCm <= 0) return null;
+  const m = heightCm / 100;
+  return weightKg / (m * m);
+}
+
 // Sets/reps by experience level. Newbies and returning lifters share a
 // program (3×10) to keep the on-ramp gentle.
 const LEVEL_SETS_REPS = {
@@ -138,6 +159,11 @@ function effectiveLevel(level, assessment, goalKey) {
 const CARDIO_NAMES = new Set(['Running', 'Cycling', 'Jump Rope', 'Rowing']);
 const CARDIO_HIGH_REP_NAMES = new Set(['Mountain Climbers', 'Plank', 'Side Plank']);
 
+// Bodyweight-ratio movements — reps are gated by how much mass you move. A
+// heavier beginner is given an achievable rep target on these rather than a
+// demoralising one they can't hit on day one.
+const BODYWEIGHT_RATIO_NAMES = new Set(['Pull-Up', 'Push-Up']);
+
 // ── Pre-flight: assert every named exercise resolves. Runs at import time. ──
 Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
 
@@ -150,7 +176,8 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  * @param {string[]} input.goals       - Goal IDs; goals[0] drives the core pool,
  *                                       secondary goals add one accessory each.
  * @param {string|null} input.level    - 'newbie'|'returning'|'consistent'|'advanced'.
- * @param {number} input.daysCount     - Training days/week — sets the plan's scope.
+ * @param {number} input.daysCount     - Training days/week — widens the plan's
+ *                                       scope but thins per-session volume.
  * @param {Object} [input.assessment]  - Fitness self-assessment (mig 129); raises
  *                                       the effective level for capable athletes.
  * @param {string} [input.cardioPreference] - running|cycling|jump_rope (endurance).
@@ -159,9 +186,13 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  * @param {number} [input.age]         - Caps volume for older lifters (55+ / 65+).
  * @param {number} [input.bodyFatPct]  - High BF on a strength/muscle goal adds
  *                                       a conditioning exercise.
+ * @param {string} [input.gender]      - 'male'|'female'|'other'; female's greater
+ *                                       fatigue-resistance nudges hypertrophy reps up.
+ * @param {number} [input.weightKg]    - With height → BMI (conditioning + reps).
+ * @param {number} [input.heightCm]    - With weight → BMI (conditioning + reps).
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries, age, bodyFatPct } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries, age, bodyFatPct, gender, weightKg, heightCm } = {}) {
   const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
   const primary = goalList[0] || 'strength';
   const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
@@ -204,8 +235,12 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   exerciseNames = exerciseNames.slice(0, targetExerciseCount(safeDays));
 
   // ── Extras: one accessory per SECONDARY goal (so a strength+mobility plan
-  // shows both), plus a conditioning nudge when body fat is high on a
-  // strength/muscle goal. Injury-safe, deduped, capped at 8.
+  // shows both), plus a conditioning nudge when adiposity is high (body fat OR
+  // BMI) on a strength/muscle goal. Injury-safe, deduped, capped at 8.
+  const bmi = bmiFrom(weightKg, heightCm);
+  const highAdiposity =
+    (Number.isFinite(bodyFatPct) && bodyFatPct >= 25) ||
+    (Number.isFinite(bmi) && bmi >= 30);
   const addExtra = (name) => {
     if (!name || exerciseNames.includes(name) || trains(name, excludeSet) || exerciseNames.length >= 8) return;
     exerciseNames = [...exerciseNames, name];
@@ -213,21 +248,38 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   for (const g of goalList.slice(1)) {
     if (g !== goalKey) addExtra(GOAL_ACCESSORY[g]);
   }
-  if (Number.isFinite(bodyFatPct) && bodyFatPct >= 25 && (goalKey === 'strength' || goalKey === 'muscle')) {
+  if (highAdiposity && (goalKey === 'strength' || goalKey === 'muscle')) {
     addExtra('Mountain Climbers');
   }
 
-  // ── Volume: effective level (assessment-aware) with an age recovery cap.
+  // ── Volume. Base scheme from the effective (assessment-aware) level, then the
+  // INVERSE days adjustment (fewer days → more per session, more days → less),
+  // then the age recovery cap — with a floor so a starter plan never dips below
+  // 2 working sets.
   const effLevel = effectiveLevel(level, assessment, goalKey);
   const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
-  const sets = Math.min(setsReps.sets, ageSetsCap(age));
+  let sets = setsReps.sets + daysVolumeAdjust(safeDays);
+  sets = Math.min(sets, ageSetsCap(age));
+  sets = Math.max(2, sets);
   const reps = setsReps.reps;
+  const female = gender === 'female';
 
   const exercises = exerciseNames.map(name => {
     const libEntry = EX(name);
     let targetReps = reps;
     if (CARDIO_NAMES.has(name)) targetReps = 30;
     else if (CARDIO_HIGH_REP_NAMES.has(name)) targetReps = 20;
+    else {
+      // Female average fatigue-resistance → a touch more reps, but only in
+      // hypertrophy/endurance ranges (≥8); never in the ≤5 max-strength scheme,
+      // which would blur its purpose.
+      if (female && targetReps >= 8) targetReps += 2;
+      // Heavier (high-BMI) beginners get an achievable target on bodyweight-
+      // ratio lifts instead of a rep count they can't reach on day one.
+      if (Number.isFinite(bmi) && bmi >= 30 && BODYWEIGHT_RATIO_NAMES.has(name)) {
+        targetReps = Math.min(targetReps, 8);
+      }
+    }
     const cautionMuscle = libEntry.muscles.find(m => cautionSet.has(m));
     return {
       name,

@@ -2792,8 +2792,11 @@ export default function Onboarding() {
       injuries: data.onboardingInjuries || [],
       age: data.stats?.age,
       bodyFatPct: data.bodyBaseline?.bodyFatPct,
+      gender: data.stats?.gender,
+      weightKg: data.stats?.weightKg,
+      heightCm: data.stats?.heightCm,
     }),
-    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct]
+    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -3165,6 +3168,9 @@ export default function Onboarding() {
             injuries: data.onboardingInjuries || [],
             age: data.stats?.age,
             bodyFatPct: data.bodyBaseline?.bodyFatPct,
+            gender: data.stats?.gender,
+            weightKg: data.stats?.weightKg,
+            heightCm: data.stats?.heightCm,
           },
         }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
