@@ -1326,12 +1326,14 @@ export default function Nutrition() {
         initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         className="mb-6"
       >
-        {/* Date first, then title — matches the Dashboard header order. */}
-        <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
-          {format(new Date(), 'EEEE, MMMM d')}
-        </p>
         <div className="flex items-start justify-between gap-4">
-          {/* Left — title + customize toggle */}
+          {/* Left column — date, then title. The row top-aligns (items-start)
+              so the right column's Scanner History sits level with the date. */}
+          <div className="min-w-0">
+          {/* Date first, then title — matches the Dashboard header order. */}
+          <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+            {format(new Date(), 'EEEE, MMMM d')}
+          </p>
           <div className="flex items-center gap-2 flex-wrap min-w-0">
             <h1 className="font-heading text-3xl md:text-4xl font-bold tracking-tight leading-tight">{t('nutrition.title')}</h1>
             <div className="flex items-center gap-1.5">
@@ -1373,6 +1375,7 @@ export default function Nutrition() {
                 </button>
               )}
             </div>
+          </div>
           </div>
 
           {/* Right — Photo-AI hidden file input + Scanner History toggle.

@@ -91,7 +91,7 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
       </div>
 
       {/* Battery / lava-lamp gauge — drains from full toward empty */}
-      <div className="relative h-5 w-full rounded-full bg-secondary overflow-hidden">
+      <div className="relative h-4 w-full rounded-full bg-secondary overflow-hidden">
         <motion.div
           className="absolute inset-y-0 left-0 rounded-full overflow-hidden"
           style={{ background: fillGradient }}
