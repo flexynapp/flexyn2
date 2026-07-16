@@ -24,6 +24,12 @@ const PLAN_COLORS = {
 };
 export { PLAN_COLORS };
 
+// NOTE: `excludedFor` must list EVERY restriction a plan violates,
+// including ingredient-level ones — if any meal contains dairy, the plan
+// must list 'dairy_free'; if any meal contains wheat/bread, 'gluten_free';
+// tree nuts/peanuts, 'nut_free'; etc. filterPlans() hides a plan whenever
+// an active restriction appears here, so an incomplete list leaks
+// off-limits foods to the user (e.g. cottage cheese to a dairy-free user).
 export const PLAN_TEMPLATES = [
   {
     id: 'lean_muscle',
@@ -32,7 +38,8 @@ export const PLAN_TEMPLATES = [
     icon: '💪',
     color: 'orange',
     goalFit: ['gain', 'maintain'],
-    excludedFor: ['vegetarian', 'vegan', 'keto'],
+    // Contains dairy (Greek Yogurt, Cottage Cheese) + grains/potato → not paleo.
+    excludedFor: ['vegetarian', 'vegan', 'keto', 'dairy_free', 'paleo'],
     baseCalories: 2000,
     baseMacros: { protein: 180, carbs: 200, fat: 55 },
     meals: [
@@ -98,7 +105,8 @@ export const PLAN_TEMPLATES = [
     icon: '🔥',
     color: 'red',
     goalFit: ['lose'],
-    excludedFor: ['vegetarian', 'vegan', 'keto'],
+    // Dairy (String/Cottage Cheese) + wheat toast + almond butter + quinoa.
+    excludedFor: ['vegetarian', 'vegan', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'paleo'],
     baseCalories: 2000,
     baseMacros: { protein: 190, carbs: 160, fat: 60 },
     meals: [
@@ -166,7 +174,9 @@ export const PLAN_TEMPLATES = [
     icon: '🌱',
     color: 'green',
     goalFit: ['lose', 'maintain', 'gain'],
-    excludedFor: ['keto'],
+    // Vegan (dairy- & nut-free already), but has granola + whole-grain bread
+    // (gluten) and grains/legumes (not paleo).
+    excludedFor: ['keto', 'gluten_free', 'paleo'],
     baseCalories: 2000,
     baseMacros: { protein: 140, carbs: 240, fat: 62 },
     meals: [
@@ -238,7 +248,8 @@ export const PLAN_TEMPLATES = [
     icon: '🥑',
     color: 'purple',
     goalFit: ['lose', 'maintain'],
-    excludedFor: ['vegetarian', 'vegan', 'dairy_free', 'halal', 'kosher'],
+    // Adds macadamia nuts (nut_free) + dairy/processed meats (not paleo).
+    excludedFor: ['vegetarian', 'vegan', 'dairy_free', 'halal', 'kosher', 'nut_free', 'paleo'],
     baseCalories: 2000,
     baseMacros: { protein: 150, carbs: 20, fat: 155 },
     meals: [
@@ -306,7 +317,9 @@ export const PLAN_TEMPLATES = [
     icon: '🫒',
     color: 'blue',
     goalFit: ['maintain', 'lose'],
-    excludedFor: ['vegan', 'keto'],
+    // Fish (not vegetarian) + dairy (yogurt/feta/cheese) + wheat toast/crackers
+    // (gluten) + walnuts/almond butter (nuts) + grains (not paleo).
+    excludedFor: ['vegan', 'keto', 'vegetarian', 'dairy_free', 'gluten_free', 'nut_free', 'paleo'],
     baseCalories: 2000,
     baseMacros: { protein: 130, carbs: 225, fat: 72 },
     meals: [

@@ -578,6 +578,15 @@ export default function Nutrition() {
     setShowGoalsOnboarding(true);
   };
 
+  // Launched from the Nutrition Plans gate when the user hasn't completed
+  // nutrition onboarding yet — close the plan surfaces and open setup.
+  const startNutritionOnboarding = () => {
+    setShowNutritionPlans(false);
+    setShowWeeklyPlanner(false);
+    setGoalsModalManuallyOpened(true);
+    setShowGoalsOnboarding(true);
+  };
+
   const { data: rawLogs = EMPTY_LOGS, isLoading: logsLoading } = useQuery({
     queryKey: ['nutritionLogs', user?.email, date],
     queryFn: () => db.entities.NutritionLog.filter({ created_by: user.email, date }),
@@ -1832,6 +1841,7 @@ export default function Nutrition() {
           open={showNutritionPlans}
           onClose={() => setShowNutritionPlans(false)}
           userProfile={userProfile}
+          onStartOnboarding={startNutritionOnboarding}
         />
       </ErrorBoundary>
 
@@ -1841,6 +1851,7 @@ export default function Nutrition() {
           open={showWeeklyPlanner}
           onClose={() => setShowWeeklyPlanner(false)}
           userProfile={userProfile}
+          onStartOnboarding={startNutritionOnboarding}
         />
       </ErrorBoundary>
     </motion.div>

@@ -1,7 +1,7 @@
 // src/components/nutrition/NutritionPlansModal.jsx
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, CheckCircle2, AlertCircle, ClipboardList } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, filterPlans, loadRestrictions } from '@/lib/nutritionPlans';
 
@@ -262,8 +262,19 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
  * the standalone modal AND as a tab inside the Weekly Planner. Manages its
  * own selected-plan state. Wrap it in a container with `px-4 sm:px-6` +
  * top padding so PlanDetail's negative-margin hero bleeds correctly. */
-export function NutritionPlansPanel({ userProfile }) {
+export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
   const [selected, setSelected] = useState(null);
+
+  // Plans are tailored to goals + dietary restrictions, both captured in
+  // nutrition onboarding. Until that's done we don't know the user's
+  // restrictions, so surfacing plans would show off-limits foods (e.g.
+  // dairy to a dairy-free user). Gate the whole panel on completion.
+  const hasOnboarded = useMemo(() => {
+    if (userProfile?.nutrition_onboarding_complete) return true;
+    try {
+      return localStorage.getItem(`flexyn.nutritionOnboarded.${userProfile?.id || 'anon'}`) === 'true';
+    } catch { return false; }
+  }, [userProfile?.nutrition_onboarding_complete, userProfile?.id]);
 
   const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
   const targetCalories = userProfile?.daily_calorie_target || userProfile?.calories || null;
@@ -280,6 +291,30 @@ export function NutritionPlansPanel({ userProfile }) {
     () => scaledPlans.find(e => e.plan.id === selected),
     [scaledPlans, selected]
   );
+
+  // Onboarding gate — shown before any plan is generated.
+  if (!hasOnboarded) {
+    return (
+      <div className="text-center py-12 px-4">
+        <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+          <ClipboardList className="w-7 h-7 text-primary" />
+        </div>
+        <p className="font-heading font-bold text-lg">Set up your nutrition first</p>
+        <p className="text-sm text-muted-foreground mt-1.5 max-w-xs mx-auto leading-snug">
+          Meal plans are built around your goals and dietary restrictions. Finish your nutrition setup and we'll only show plans that actually fit you.
+        </p>
+        {onStartOnboarding && (
+          <button
+            onClick={onStartOnboarding}
+            className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-bold text-sm hover:opacity-90 transition-opacity"
+          >
+            Start nutrition setup
+            <ChevronRight className="w-4 h-4 rtl:scale-x-[-1]" />
+          </button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <AnimatePresence mode="wait">
@@ -352,7 +387,7 @@ export function NutritionPlansPanel({ userProfile }) {
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function NutritionPlansModal({ open, onClose, userProfile }) {
+export default function NutritionPlansModal({ open, onClose, userProfile, onStartOnboarding }) {
   const handleClose = () => {
     onClose();
   };
@@ -396,7 +431,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile }) {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-6">
-              <NutritionPlansPanel userProfile={userProfile} />
+              <NutritionPlansPanel userProfile={userProfile} onStartOnboarding={onStartOnboarding} />
             </div>
           </motion.div>
         </>

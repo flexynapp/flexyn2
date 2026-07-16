@@ -279,7 +279,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
 }
 
 // ── Main planner modal ────────────────────────────────────────────────
-export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
+export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onStartOnboarding }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
@@ -514,7 +514,7 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
             /* Nutrition Plans — folded in from the old standalone modal.
                px-4/pt-4 so PlanDetail's negative-margin hero bleeds right. */
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pt-4 pb-6">
-              <NutritionPlansPanel userProfile={userProfile} />
+              <NutritionPlansPanel userProfile={userProfile} onStartOnboarding={onStartOnboarding} />
             </div>
           ) : (
           <>
