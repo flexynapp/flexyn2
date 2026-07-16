@@ -3,30 +3,31 @@
 // All meal macros are defined at a 2000 kcal baseline and scaled
 // proportionally to the user's actual calorie target.
 
+// Lifestyle / dietary-pattern choices. Free-from allergens (milk, wheat,
+// nuts, etc.) live in ALLERGENS below so a person with an ALLERGY finds them
+// under "Allergies," not buried as a lifestyle diet.
 export const DIETARY_RESTRICTIONS = [
   { id: 'vegetarian', label: 'Vegetarian', emoji: '🥬', desc: 'No meat or seafood' },
   { id: 'vegan',      label: 'Vegan',      emoji: '🌱', desc: 'No animal products' },
-  { id: 'gluten_free', label: 'Gluten-Free', emoji: '🌾', desc: 'No wheat, barley, or rye' },
-  { id: 'dairy_free',  label: 'Dairy-Free',  emoji: '🥛', desc: 'No milk, cheese, or dairy' },
-  { id: 'nut_free',    label: 'Nut-Free',    emoji: '🥜', desc: 'No tree nuts or peanuts' },
-  { id: 'keto',        label: 'Keto',        emoji: '🥑', desc: 'Very low carb, high fat' },
-  { id: 'paleo',       label: 'Paleo',       emoji: '🦴', desc: 'No grains, legumes, or dairy' },
-  { id: 'halal',       label: 'Halal',       emoji: '☪️',  desc: 'Halal certified only' },
-  { id: 'kosher',      label: 'Kosher',      emoji: '✡️',  desc: 'Kosher certified only' },
+  { id: 'keto',       label: 'Keto',       emoji: '🥑', desc: 'Very low carb, high fat' },
+  { id: 'paleo',      label: 'Paleo',      emoji: '🦴', desc: 'No grains, legumes, or dairy' },
+  { id: 'halal',      label: 'Halal',      emoji: '☪️',  desc: 'Halal certified only' },
+  { id: 'kosher',     label: 'Kosher',     emoji: '✡️',  desc: 'Kosher certified only' },
 ];
 
-// Food allergens — hard safety exclusions, kept separate from lifestyle diets
-// so onboarding can present them as a distinct "allergies" step. nut / dairy /
-// gluten allergies are already covered by the Nut-Free / Dairy-Free /
-// Gluten-Free diet options above; these are the remaining Big-9 allergens.
-// Selected allergen ids are stored alongside dietary restrictions and fed to
-// the same substitution engine (which guarantees they never appear).
+// The FDA "Big 9" food allergens — the complete set, presented as one
+// allergies/intolerances step so nothing is missed. Milk / wheat / nuts reuse
+// the dairy_free / gluten_free / nut_free ids (same substitution tags), so
+// existing saved data keeps working and the engine's guarantee applies to all.
 export const ALLERGENS = [
-  { id: 'egg',       label: 'Egg',       emoji: '🥚', desc: 'No eggs' },
-  { id: 'soy',       label: 'Soy',       emoji: '🫛', desc: 'No soy, tofu, tempeh, or tamari' },
-  { id: 'fish',      label: 'Fish',      emoji: '🐟', desc: 'No finned fish' },
-  { id: 'shellfish', label: 'Shellfish', emoji: '🦐', desc: 'No shrimp, crab, lobster, etc.' },
-  { id: 'sesame',    label: 'Sesame',    emoji: '🌰', desc: 'No sesame seeds or tahini' },
+  { id: 'dairy_free',  label: 'Milk / Dairy',        emoji: '🥛', desc: 'No milk, cheese, butter, or whey' },
+  { id: 'egg',         label: 'Egg',                 emoji: '🥚', desc: 'No eggs' },
+  { id: 'nut_free',    label: 'Peanut & Tree Nut',   emoji: '🥜', desc: 'No peanuts or tree nuts' },
+  { id: 'gluten_free', label: 'Wheat / Gluten',      emoji: '🌾', desc: 'No wheat, barley, or rye' },
+  { id: 'soy',         label: 'Soy',                 emoji: '🫛', desc: 'No soy, tofu, tempeh, or tamari' },
+  { id: 'fish',        label: 'Fish',                emoji: '🐟', desc: 'No finned fish' },
+  { id: 'shellfish',   label: 'Shellfish',           emoji: '🦐', desc: 'No shrimp, crab, lobster, etc.' },
+  { id: 'sesame',      label: 'Sesame',              emoji: '🌰', desc: 'No sesame seeds or tahini' },
 ];
 export const ALLERGEN_IDS = ALLERGENS.map(a => a.id);
 

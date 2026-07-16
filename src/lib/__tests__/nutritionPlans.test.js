@@ -12,6 +12,7 @@ import {
   classifyIngredient,
   adaptIngredient,
   adaptPlan,
+  ALLERGENS,
 } from '@/lib/nutritionPlans';
 
 // Which tags each restriction must eliminate — mirrors RESTRICTION_TAGS in
@@ -152,6 +153,23 @@ describe('adaptPlan — no restriction leaks', () => {
     for (const template of PLAN_TEMPLATES) {
       const adapted = adaptPlan(template, allergens);
       expect(leaksFor(adapted, allergens)).toEqual([]);
+    }
+  });
+
+  it('offers the complete FDA Big-9 as selectable allergens', () => {
+    const ids = new Set(ALLERGENS.map(a => a.id));
+    // milk, egg, peanut+tree-nut, wheat, soy, fish, shellfish, sesame
+    for (const id of ['dairy_free', 'egg', 'nut_free', 'gluten_free', 'soy', 'fish', 'shellfish', 'sesame']) {
+      expect(ids.has(id)).toBe(true);
+    }
+  });
+
+  it('every listed allergen actually eliminates its ingredient across all plans', () => {
+    for (const a of ALLERGENS) {
+      for (const template of PLAN_TEMPLATES) {
+        const adapted = adaptPlan(template, [a.id]);
+        expect(leaksFor(adapted, [a.id])).toEqual([]);
+      }
     }
   });
 

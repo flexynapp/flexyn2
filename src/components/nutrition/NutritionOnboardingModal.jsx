@@ -408,10 +408,10 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
               >
                 <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
                   <ShieldCheck className="w-5 h-5" />
-                  Dietary Restrictions
+                  Diet &amp; Lifestyle
                 </h2>
-                <p className="text-sm text-muted-foreground mb-1">Select all that apply — or skip if you have none.</p>
-                <p className="text-xs text-muted-foreground mb-4">We'll adapt every nutrition plan to fit your restrictions.</p>
+                <p className="text-sm text-muted-foreground mb-1">Follow a particular way of eating? Select all that apply.</p>
+                <p className="text-xs text-muted-foreground mb-4">Food allergies come next — we'll adapt every plan to fit both.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {DIETARY_RESTRICTIONS.map(r => {
                     const selected = dietaryRestrictions.includes(r.id);
@@ -449,12 +449,12 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
               >
                 <h2 className="font-heading font-bold text-xl mb-1 flex items-center gap-2">
                   <AlertTriangle className="w-5 h-5 text-rose-500" />
-                  Food Allergies
+                  Allergies &amp; Intolerances
                 </h2>
                 <p className="text-sm text-muted-foreground mb-1">
-                  Select any allergies — we'll make sure these <span className="font-semibold text-foreground">never</span> appear in a plan.
+                  Select any that apply — we'll make sure these <span className="font-semibold text-foreground">never</span> appear in a plan.
                 </p>
-                <p className="text-xs text-muted-foreground mb-4">Nut, dairy &amp; gluten allergies are on the previous step.</p>
+                <p className="text-xs text-muted-foreground mb-4">The complete set of major food allergens.</p>
                 <div className="grid grid-cols-2 gap-2">
                   {ALLERGENS.map(a => {
                     const selected = allergens.includes(a.id);
