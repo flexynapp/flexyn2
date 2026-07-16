@@ -315,6 +315,29 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
     setPickerSlot(null);
   };
 
+  // Drag-to-scroll for mouse / trackpad. Touch keeps native horizontal
+  // panning (touch-action: pan-x below), so we skip touch pointers here.
+  // `moved` lets the meal-slot buttons ignore the click that ends a drag.
+  const drag = useRef({ down: false, moved: false, startX: 0, startScroll: 0 });
+
+  const onGridPointerDown = (e) => {
+    if (e.pointerType === 'touch') return;
+    const c = scrollRef.current;
+    if (!c) return;
+    drag.current = { down: true, moved: false, startX: e.clientX, startScroll: c.scrollLeft };
+  };
+  const onGridPointerMove = (e) => {
+    const d = drag.current;
+    if (!d.down) return;
+    const c = scrollRef.current;
+    if (!c) return;
+    const dx = e.clientX - d.startX;
+    if (!d.moved && Math.abs(dx) < 5) return; // let small movements stay a click
+    d.moved = true;
+    c.scrollLeft = d.startScroll - dx;
+  };
+  const endGridDrag = () => { drag.current.down = false; };
+
   // Recompute the custom scroll-indicator geometry from the container.
   const updateScrollMeta = () => {
     const c = scrollRef.current;
@@ -472,7 +495,16 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
           {/* Grid — horizontal scroll on mobile, grid on desktop.
               Native scrollbar hidden; a centered custom indicator below
               reflects scroll position. */}
-          <div ref={scrollRef} onScroll={updateScrollMeta} className="flex-1 overflow-y-auto scrollbar-hide p-3">
+          <div
+            ref={scrollRef}
+            onScroll={updateScrollMeta}
+            onPointerDown={onGridPointerDown}
+            onPointerMove={onGridPointerMove}
+            onPointerUp={endGridDrag}
+            onPointerLeave={endGridDrag}
+            style={{ touchAction: 'pan-x' }}
+            className="flex-1 overflow-x-auto overflow-y-auto scrollbar-hide p-3 cursor-grab active:cursor-grabbing select-none"
+          >
             {isLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -501,6 +533,8 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile }) {
                             <button
                               key={slot.key}
                               onClick={() => {
+                                // Ignore the click that ends a drag-scroll.
+                                if (drag.current.moved) { drag.current.moved = false; return; }
                                 if (plan) {
                                   if (confirm('Remove this meal?')) removeMutation.mutate(plan.id);
                                 } else {
