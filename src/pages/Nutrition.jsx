@@ -1305,6 +1305,10 @@ export default function Nutrition() {
         initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         className="mb-6"
       >
+        {/* Date first, then title — matches the Dashboard header order. */}
+        <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-muted-foreground mb-1.5">
+          {format(new Date(), 'EEEE, MMMM d')}
+        </p>
         <div className="flex items-center justify-between gap-4">
           {/* Left — title + customize toggle */}
           <div className="flex items-center gap-2 flex-wrap min-w-0">
@@ -1387,8 +1391,6 @@ export default function Nutrition() {
             </button>
           </div>
         </div>
-
-        <p className="text-muted-foreground mt-1 text-sm">{format(new Date(), 'EEEE, MMMM d')}</p>
       </motion.div>
 
       {/* ── Scanner history panel ──────────────────────────────────────────── */}
