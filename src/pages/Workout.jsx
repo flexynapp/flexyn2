@@ -278,9 +278,10 @@ export default function Workout() {
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
-  // Gauntlet + Crew Wars intentionally omitted — reachable from the hero
-  // slideshow next to Freestyle Workout, so they don't need a grid tile.
-  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis','formcoach'];
+  // Gauntlet + Crew Wars: reachable from the hero slideshow.
+  // Form Coach: now a button inside the active workout (Freestyle/Regimen).
+  // None need a grid tile.
+  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis'];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
       const s = localStorage.getItem('wkt-card-order');
@@ -1918,29 +1919,9 @@ export default function Workout() {
       </motion.div>
     );
 
-    if (id === 'formcoach') return (
-      <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
-        <Card role="button" tabIndex={0} aria-label="Form Coach"
-          className={`${cardBase} border-yellow-400/55 hover:border-yellow-400/75 hover:shadow-[0_0_14px_rgba(234,179,8,0.30)]`}
-          style={{ background:'linear-gradient(135deg,rgba(234,179,8,0.32) 0%,rgba(251,191,36,0.22) 100%)' }}
-          onClick={() => setFormCoachOpen(true)}
-          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setFormCoachOpen(true);} }}>
-          <InfoBtn bid="formcoach" />
-          <div className="flex flex-col items-center text-center gap-1.5">
-            <div className="w-10 h-10 rounded-xl bg-yellow-400/22 border border-yellow-400/35 flex items-center justify-center shrink-0">
-              <Camera className="w-5 h-5 text-yellow-500" />
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-1.5">
-                <p className="font-heading font-bold text-sm leading-tight">{tFallback('formcoach.title','Form Coach')}</p>
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 rounded bg-yellow-400/20 text-yellow-600">{tFallback('formcoach.beta','Beta')}</span>
-              </div>
-              <InfoText bid="formcoach" text="AI form feedback on your lifts — record a set and get instant coaching." />
-            </div>
-          </div>
-        </Card>
-      </motion.div>
-    );
+    // Form Coach moved out of the grid — it's now a button inside the
+    // active workout view (next to the plate calculator).
+
 
     if (id === 'crew') return (
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
@@ -2794,15 +2775,26 @@ export default function Workout() {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
-        {/* Plate calculator — type any weight, see what to load per side. */}
-        <button
-          type="button"
-          onClick={() => setPlateCalcOpen(true)}
-          className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-        >
-          <Calculator className="w-4 h-4" />
-          {tFallback('workout.plateCalc', 'Plate calculator')}
-        </button>
+        {/* In-workout utilities: plate calculator + AI Form Coach. */}
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            onClick={() => setPlateCalcOpen(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-semibold text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+          >
+            <Calculator className="w-4 h-4" />
+            {tFallback('workout.plateCalc', 'Plate calculator')}
+          </button>
+          <button
+            type="button"
+            onClick={() => setFormCoachOpen(true)}
+            aria-label={tFallback('formcoach.title', 'Form Coach')}
+            className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-yellow-400/40 text-sm font-semibold text-yellow-600 dark:text-yellow-400 hover:bg-yellow-400/10 transition-colors"
+          >
+            <Camera className="w-4 h-4" />
+            {tFallback('formcoach.title', 'Form Coach')}
+          </button>
+        </div>
       </Card>
 
       {(() => {
