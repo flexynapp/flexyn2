@@ -11,11 +11,11 @@
 // custom nutrient. Prep directions and community publishing round it
 // out. Totals computed live via sumIngredients (pure helper).
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Loader2, Save, ChefHat, ChevronDown } from 'lucide-react';
+import { X, Plus, Trash2, Loader2, Save, ChefHat, ChevronDown, ImagePlus, Camera } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -75,7 +75,10 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
   const [directions, setDirections] = useState('');
   const [micros, setMicros] = useState([]);       // [{ key, label, amount, unit, custom }]
   const [microsOpen, setMicrosOpen] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [saving, setSaving] = useState(false);
+  const fileInputRef = useRef(null);
 
   // Resync deeply from editingRecipe when its contents change, not just
   // its id. Previously the deps `[open, editingRecipe?.id]` meant that
@@ -100,6 +103,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       const loadedMicros = Array.isArray(editingRecipe.micros) ? editingRecipe.micros : [];
       setMicros(loadedMicros.map(m => ({ ...m, amount: m.amount ?? '' })));
       setMicrosOpen(loadedMicros.length > 0);
+      setImageUrl(editingRecipe.image_url || '');
     } else {
       setName('');
       setServings('1');
@@ -107,8 +111,24 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
       setDirections('');
       setMicros([]);
       setMicrosOpen(false);
+      setImageUrl('');
     }
   }, [open, editingRecipe?.id, editingRecipe?.name, editingRecipe?.ingredients?.length]);
+
+  const handlePickImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-picking the same file
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const { file_url } = await db.integrations.Core.UploadFile({ file, bucket: 'uploads' });
+      setImageUrl(file_url);
+    } catch (err) {
+      toast.error(err?.message || "Couldn't upload that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const updateIngredient = (i, patch) => {
     setIngredients(curr => curr.map((row, idx) => idx === i ? { ...row, ...patch } : row));
@@ -167,6 +187,7 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
         ingredients:  cleanIngredients,
         directions,
         micros,
+        imageUrl,
       });
       queryClient.invalidateQueries({ queryKey: ['nutritionRecipes', user?.id] });
       toast.success(editingRecipe ? 'Recipe updated.' : 'Recipe saved.');
@@ -233,6 +254,49 @@ export default function RecipeBuilderModal({ open, onClose, editingRecipe = null
           </div>
 
           <div className="flex-1 overflow-y-auto px-4">
+            {/* Food image */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePickImage}
+            />
+            {imageUrl ? (
+              <div className="relative mb-3 rounded-lg overflow-hidden border border-border">
+                <img src={imageUrl} alt="Recipe" className="w-full h-40 object-cover" />
+                <div className="absolute top-2 end-2 flex gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    aria-label="Change photo"
+                    className="w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
+                  >
+                    <Camera className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageUrl('')}
+                    aria-label="Remove photo"
+                    className="w-8 h-8 rounded-full bg-black/55 text-white flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploadingImage}
+                className="w-full flex items-center justify-center gap-2 h-16 mb-3 rounded-lg border border-dashed border-border text-sm font-semibold text-muted-foreground hover:bg-secondary/40"
+              >
+                {uploadingImage
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Uploading…</>
+                  : <><ImagePlus className="w-4 h-4" /> Add food photo</>}
+              </button>
+            )}
+
             <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2">Ingredients</p>
             <div className="space-y-2">
               {ingredients.map((ing, i) => (

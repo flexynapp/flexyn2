@@ -165,7 +165,7 @@ export async function listPublic({ excludeUserId = null, limit = 60 } = {}) {
   return data ?? [];
 }
 
-export async function upsert({ id, user, name, servings, ingredients, directions, micros }) {
+export async function upsert({ id, user, name, servings, ingredients, directions, micros, imageUrl }) {
   if (!user?.id || !name?.trim()) throw new Error('user + name required');
   const totals = sumIngredients(ingredients);
   const row = {
@@ -177,6 +177,7 @@ export async function upsert({ id, user, name, servings, ingredients, directions
     totals,
     directions:  directions?.trim() || null,
     micros:      normalizeMicros(micros),
+    image_url:   imageUrl || null,
     updated_at:  new Date().toISOString(),
   };
   if (id) row.id = id;
@@ -223,6 +224,7 @@ export async function saveCopy({ user, recipe }) {
     totals:      recipe.totals ?? sumIngredients(recipe.ingredients ?? []),
     directions:  recipe.directions ?? null,
     micros:      normalizeMicros(recipe.micros),
+    image_url:   recipe.image_url ?? null,
     is_public:   false,
     author_username: null,
     published_at:    null,

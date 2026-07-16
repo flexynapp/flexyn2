@@ -17,7 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import {
   X, Plus, Trash2, Loader2, ChefHat, Globe, Lock, Download,
-  ChevronDown, Utensils,
+  ChevronDown, Utensils, ImageIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
@@ -36,6 +36,17 @@ function macroLine(recipe) {
   const c = Math.round((Number(t.carbs_g) || 0) / s);
   const f = Math.round((Number(t.fat_g) || 0) / s);
   return `${p}P · ${c}C · ${f}F`;
+}
+
+// Square thumbnail — the recipe photo, or a fork/knife placeholder.
+function RecipeThumb({ recipe, className = 'w-12 h-12' }) {
+  return recipe?.image_url ? (
+    <img src={recipe.image_url} alt="" className={`${className} rounded-md object-cover shrink-0`} />
+  ) : (
+    <div className={`${className} rounded-md bg-secondary flex items-center justify-center shrink-0`}>
+      <ImageIcon className="w-4 h-4 text-muted-foreground/50" />
+    </div>
+  );
 }
 
 function RecipeDetails({ recipe }) {
@@ -86,6 +97,7 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
   const [editingRecipe, setEditingRecipe] = useState(null);
   const [expanded, setExpanded] = useState(null);   // recipe id whose details are open
   const [busyId, setBusyId] = useState(null);       // row-level pending action
+  const [showPostPicker, setShowPostPicker] = useState(false); // "+ post to Discover" sheet
 
   const mine = useQuery({
     queryKey: ['nutritionRecipes', user?.id],
@@ -143,8 +155,25 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
       await recipes.saveCopy({ user, recipe });
       invalidateMine();
       toast.success('Saved to My Recipes.');
+      setTab('mine'); // jump to My Recipes so the user sees the clone land
     } catch (err) {
       toast.error(`Couldn't save: ${err?.message || 'try again'}`);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Post a chosen saved recipe to Discover from the "+" picker.
+  const handlePost = async (recipe) => {
+    setBusyId(recipe.id);
+    try {
+      await recipes.setPublished({ id: recipe.id, isPublic: true, authorUsername: userProfile?.username || null });
+      invalidateMine();
+      invalidateDiscover();
+      setShowPostPicker(false);
+      toast.success('Posted to Discover.');
+    } catch (err) {
+      toast.error(`Couldn't post: ${err?.message || 'try again'}`);
     } finally {
       setBusyId(null);
     }
@@ -222,15 +251,18 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                       {myRecipes.map(recipe => (
                         <div key={recipe.id} className="rounded-lg border border-border p-3">
                           <div className="flex items-start gap-2">
-                            <button className="flex-1 text-start" onClick={() => openEdit(recipe)}>
-                              <p className="font-semibold text-sm leading-tight flex items-center gap-1.5">
-                                {recipe.name}
-                                {recipe.is_public && <Globe className="w-3 h-3 text-emerald-500 shrink-0" />}
-                              </p>
-                              <p className="text-[11px] text-muted-foreground mt-0.5">
-                                {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
-                                {Number(recipe.servings) > 1 ? ` · ${recipe.servings} servings` : ''}
-                              </p>
+                            <button className="flex-1 flex items-center gap-2.5 text-start" onClick={() => openEdit(recipe)}>
+                              <RecipeThumb recipe={recipe} />
+                              <span className="min-w-0">
+                                <span className="font-semibold text-sm leading-tight flex items-center gap-1.5">
+                                  <span className="truncate">{recipe.name}</span>
+                                  {recipe.is_public && <Globe className="w-3 h-3 text-emerald-500 shrink-0" />}
+                                </span>
+                                <span className="block text-[11px] text-muted-foreground mt-0.5">
+                                  {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
+                                  {Number(recipe.servings) > 1 ? ` · ${recipe.servings} servings` : ''}
+                                </span>
+                              </span>
                             </button>
                             <div className="flex items-center gap-0.5 shrink-0">
                               <button
@@ -261,13 +293,60 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                 </>
               ) : (
                 <>
+                  {/* + Post one of your saved recipes to Discover */}
+                  <button
+                    type="button"
+                    onClick={() => setShowPostPicker(v => !v)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 mb-3 rounded-lg bg-primary text-primary-foreground text-sm font-bold"
+                  >
+                    <Plus className="w-4 h-4" /> Post a recipe
+                  </button>
+
+                  {showPostPicker && (() => {
+                    const postable = myRecipes.filter(r => !r.is_public);
+                    return (
+                      <div className="mb-3 rounded-lg border border-border p-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground px-1 mb-1.5">
+                          Choose a recipe to post
+                        </p>
+                        {postable.length === 0 ? (
+                          <p className="text-xs text-muted-foreground px-1 py-2">
+                            {myRecipes.length === 0
+                              ? 'Create a recipe first, then post it here.'
+                              : 'All your recipes are already posted.'}
+                          </p>
+                        ) : (
+                          <div className="space-y-1">
+                            {postable.map(recipe => (
+                              <button
+                                key={recipe.id}
+                                onClick={() => handlePost(recipe)}
+                                disabled={busyId === recipe.id}
+                                className="w-full flex items-center gap-2.5 p-1.5 rounded-md hover:bg-secondary/50 text-start"
+                              >
+                                <RecipeThumb recipe={recipe} className="w-9 h-9" />
+                                <span className="flex-1 min-w-0">
+                                  <span className="block text-sm font-semibold truncate">{recipe.name}</span>
+                                  <span className="block text-[11px] text-muted-foreground">{perServingCals(recipe)} cal/serving</span>
+                                </span>
+                                {busyId === recipe.id
+                                  ? <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                                  : <Plus className="w-4 h-4 text-primary" />}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {discover.isLoading ? (
                     <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
                   ) : publicRecipes.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground">
                       <Globe className="w-8 h-8 mx-auto mb-2 opacity-40" />
                       <p className="text-sm font-semibold">No community recipes yet</p>
-                      <p className="text-xs mt-1">Publish one of yours to get Discover started.</p>
+                      <p className="text-xs mt-1">Tap “Post a recipe” to share one of yours.</p>
                     </div>
                   ) : (
                     <div className="space-y-2">
@@ -276,12 +355,15 @@ export default function RecipesHubModal({ open, onClose, userProfile }) {
                         return (
                           <div key={recipe.id} className="rounded-lg border border-border p-3">
                             <div className="flex items-start gap-2">
-                              <button className="flex-1 text-start" onClick={() => setExpanded(isOpen ? null : recipe.id)}>
-                                <p className="font-semibold text-sm leading-tight">{recipe.name}</p>
-                                <p className="text-[11px] text-muted-foreground mt-0.5">
-                                  {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
-                                  {recipe.author_username ? ` · by ${recipe.author_username}` : ''}
-                                </p>
+                              <button className="flex-1 flex items-center gap-2.5 text-start" onClick={() => setExpanded(isOpen ? null : recipe.id)}>
+                                <RecipeThumb recipe={recipe} />
+                                <span className="min-w-0">
+                                  <span className="block font-semibold text-sm leading-tight truncate">{recipe.name}</span>
+                                  <span className="block text-[11px] text-muted-foreground mt-0.5">
+                                    {perServingCals(recipe)} cal/serving · {macroLine(recipe)}
+                                    {recipe.author_username ? ` · by ${recipe.author_username}` : ''}
+                                  </span>
+                                </span>
                               </button>
                               <div className="flex items-center gap-0.5 shrink-0">
                                 <button
