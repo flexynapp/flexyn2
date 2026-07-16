@@ -65,7 +65,7 @@ function StatRow({ icon: Icon, label, userVal, rivalVal, userWins }) {
   );
 }
 
-export default function GymRivalMenu({ open, onClose, assignment, currentUserId, onReroll, rerolling, onChallenge }) {
+export default function GymRivalMenu({ open, onClose, assignment, currentUserId, onReroll, rerolling, onDecline, declining, onChallenge }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { distanceUnit } = useDistanceUnit();
@@ -329,10 +329,16 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     Waiting for @{rival?.username || 'your rival'} to accept…
                   </div>
                 )}
-                <button onClick={onReroll} disabled={rerolling} className="w-full mt-2 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
-                  {rerolling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                  {rerolling ? 'Finding someone…' : 'Decline & reroll'}
-                </button>
+                <div className="flex gap-2 mt-2">
+                  <button onClick={onDecline} disabled={declining || rerolling} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
+                    {declining ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                    Decline
+                  </button>
+                  <button onClick={onReroll} disabled={rerolling || declining} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-bold border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
+                    {rerolling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+                    Reroll
+                  </button>
+                </div>
               </motion.div>
             ) : (
               // ── Active — live comparison ────────────────────────────
@@ -402,15 +408,11 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <p className="text-[10px] text-muted-foreground mt-3 text-center">Higher net rating when the week ends takes the prize.</p>
                 </div>
 
-                <div className="space-y-2">
-                  <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 active:scale-[0.98] transition-all">
-                    <Swords className="w-4 h-4" /> Challenge @{rival?.username || 'rival'} to a duel
-                  </button>
-                  <button onClick={onReroll} disabled={rerolling} className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground hover:bg-secondary/60 disabled:opacity-50 transition-colors">
-                    {rerolling ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-                    {rerolling ? 'Finding someone…' : 'Reroll rival'}
-                  </button>
-                </div>
+                {/* Once live (both accepted) the match is locked — no
+                    decline or reroll, only the duel challenge. */}
+                <button onClick={onChallenge} className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-rose-500 text-white font-black text-sm hover:bg-rose-600 active:scale-[0.98] transition-all">
+                  <Swords className="w-4 h-4" /> Challenge @{rival?.username || 'rival'} to a duel
+                </button>
               </motion.div>
             )}
           </AnimatePresence>

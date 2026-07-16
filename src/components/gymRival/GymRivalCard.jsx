@@ -9,7 +9,7 @@ import { AnimatePresence } from 'framer-motion';
 import { Target, Loader2, ChevronRight, Clock, AlertTriangle, Trophy, Swords, Dumbbell, Footprints } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { getMyGymRival, getRivalProfile, rollGymRival, isThisWeek, msUntilNextWeekStart } from '@/lib/data/gymRival';
+import { getMyGymRival, getRivalProfile, rollGymRival, declineGymRival, isThisWeek, msUntilNextWeekStart } from '@/lib/data/gymRival';
 import { reportError } from '@/lib/reportError';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -66,6 +66,16 @@ export default function GymRivalCard({ currentUserId }) {
     },
   });
 
+  const declineMut = useMutation({
+    mutationFn: () => declineGymRival(assignment.id),
+    onSuccess: () => {
+      setMenuOpen(false);
+      qc.invalidateQueries({ queryKey: ['myGymRival'] });
+      toast.success('Challenge declined.');
+    },
+    onError: () => toast.error('Could not decline. Try again.'),
+  });
+
   const name  = profile?.username;
   const level = profile?.current_level;
 
@@ -89,6 +99,8 @@ export default function GymRivalCard({ currentUserId }) {
         currentUserId={currentUserId}
         onReroll={() => rollMut.mutate(assignment?.rival_type || 'gym')}
         rerolling={rollMut.isPending}
+        onDecline={() => declineMut.mutate()}
+        declining={declineMut.isPending}
         onChallenge={() => { setMenuOpen(false); setShowDuel(true); }}
       />
       <AnimatePresence>

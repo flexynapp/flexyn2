@@ -55,6 +55,13 @@ export async function confirmGymRival(assignmentId) {
   return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
 
+/** Decline a pending match (cancels it for both, no reroll). */
+export async function declineGymRival(assignmentId) {
+  const { data, error } = await supabase.rpc('gym_rival_decline', { p_assignment_id: assignmentId });
+  if (error) throw error;
+  return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
+}
+
 /**
  * Lazily void a stale (AFK) match: if 48h have passed since acceptance and
  * either party logged no workout, the server voids it. Safe to call on
