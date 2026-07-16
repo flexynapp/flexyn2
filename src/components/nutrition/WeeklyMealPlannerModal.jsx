@@ -221,7 +221,7 @@ function ManualMealModal({ open, mealLabel, onSave, onClose }) {
         className="w-full sm:max-w-md bg-card border border-border rounded-2xl shadow-2xl flex flex-col max-h-[85vh]"
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-          <h3 className="font-heading font-bold text-sm">Add {mealLabel?.toLowerCase() || 'meal'} manually</h3>
+          <h3 className="font-heading font-bold text-sm">Add {mealLabel || 'Meal'} Manually</h3>
           <button onClick={onClose} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center">
             <X className="w-3.5 h-3.5" />
           </button>
