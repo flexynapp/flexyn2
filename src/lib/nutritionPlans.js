@@ -527,7 +527,7 @@ export const PLAN_TEMPLATES = [
 // meal at module load (below) so scalePlan/adaptPlan carry them through.
 const MEAL_DIRECTIONS = {
   // ── Lean Muscle Builder ──
-  'lean_muscle:breakfast': ['Cook the oats with water over medium heat until creamy, ~5 min.', 'Scramble or fry the eggs in a nonstick pan.', 'Top the oats with sliced banana; serve the eggs alongside with black coffee.'],
+  'lean_muscle:breakfast': ['Cook the ¾ cup oats with 1½ cups water over medium heat until creamy, ~5 min.', 'Scramble or fry the eggs in a nonstick pan.', 'Top the oats with sliced banana; serve the eggs alongside with black coffee.'],
   'lean_muscle:lunch':     ['Season the chicken and grill or pan-sear ~6 min per side until 165°F.', 'Cook the rice; steam the broccoli until bright green.', 'Slice the chicken, plate over rice with broccoli, and drizzle with olive oil.'],
   'lean_muscle:snack1':    ['Spoon the Greek yogurt into a bowl.', 'Top with blueberries and a drizzle of honey.'],
   'lean_muscle:dinner':    ['Salt the steak and sear 3–4 min per side to your liking; rest 5 min.', 'Roast the red potatoes and asparagus with minced garlic at 425°F, ~20 min.', 'Slice the steak against the grain and plate with the vegetables.'],
@@ -539,8 +539,8 @@ const MEAL_DIRECTIONS = {
   'fat_loss:dinner':       ['Season the salmon and bake at 400°F for 12–15 min.', 'Sauté the cauliflower rice; steam the green beans.', 'Plate the salmon over cauliflower rice with a squeeze of lemon.'],
   'fat_loss:snack2':       ['Spoon the cottage cheese into a bowl.', 'Top with sliced cucumber and a sprinkle of everything bagel seasoning.'],
   // ── Plant Power ──
-  'plant_power:breakfast': ['Blend the frozen banana, protein powder, and berries with a splash of water until thick.', 'Pour into a bowl.', 'Top with granola and chia seeds.'],
-  'plant_power:lunch':     ['Simmer the rinsed lentils with the diced tomatoes and spices, ~20 min.', 'Stir in the spinach until wilted.', 'Serve with toasted whole-grain bread.'],
+  'plant_power:breakfast': ['Blend the frozen banana, protein powder, and berries with ¼ cup water (or plant milk) until thick.', 'Pour into a bowl.', 'Top with granola and chia seeds.'],
+  'plant_power:lunch':     ['Simmer the rinsed lentils with the diced tomatoes, 3 cups water, and spices until tender, ~20 min.', 'Stir in the spinach until wilted.', 'Serve with toasted whole-grain bread.'],
   'plant_power:snack1':    ['Slice the cucumber, bell pepper, and carrots into sticks.', 'Serve with hummus for dipping.'],
   'plant_power:dinner':    ['Press and cube the tofu, then pan-fry until golden.', 'Stir-fry the vegetables; add tamari and toasted sesame oil.', 'Serve over brown rice.'],
   'plant_power:snack2':    ['Combine the pumpkin and sunflower seeds with dried mango.', 'Add the dark chocolate chips and enjoy as trail mix.'],
@@ -557,14 +557,14 @@ const MEAL_DIRECTIONS = {
   'mediterranean:dinner':    ['Season the sea bass with herbs and grill ~4 min per side.', 'Roast the vegetables at 425°F until tender.', 'Serve over brown rice with a drizzle of olive oil.'],
   'mediterranean:snack2':    ['Slice the apple.', 'Serve with mixed nuts and a spoon of almond butter.'],
   // ── Mass Builder ──
-  'mass_builder:breakfast':  ['Cook the oats in milk until creamy; stir in the peanut butter.', 'Scramble the eggs.', 'Top the oats with banana and serve with the eggs.'],
+  'mass_builder:breakfast':  ['Cook the 1 cup oats in the 1 cup milk plus 1 cup water until creamy; stir in the peanut butter.', 'Scramble the eggs.', 'Top the oats with banana and serve with the eggs.'],
   'mass_builder:lunch':      ['Brown and season the ground beef.', 'Cook the rice and warm the black beans.', 'Build a bowl of rice, beef, and beans; top with sliced avocado.'],
   'mass_builder:snack1':     ['Add the protein, milk, and frozen berries to a blender.', 'Add honey and blend until smooth.'],
   'mass_builder:dinner':     ['Roast the chicken at 400°F until 165°F, ~22 min.', 'Bake the sweet potato; sauté the green beans in olive oil.', 'Plate together.'],
   'mass_builder:snack2':     ['Spoon the Greek yogurt into a bowl.', 'Top with granola and chopped almonds.'],
   // ── Vegetarian Strength ──
   'veg_strength:breakfast':  ['Scramble the eggs with spinach.', 'Combine the oats and yogurt (overnight or quick-soak).', 'Top the yogurt-oats with blueberries; serve with the eggs.'],
-  'veg_strength:lunch':      ['Simmer the rinsed lentils until tender; cook the quinoa.', 'Combine lentils, quinoa, and wilted spinach.', 'Top with crumbled feta and a drizzle of olive oil.'],
+  'veg_strength:lunch':      ['Simmer the rinsed lentils in 3 cups water until tender, ~20 min; cook the quinoa (¼ cup dry in ½ cup water).', 'Combine lentils, quinoa, and wilted spinach.', 'Top with crumbled feta and a drizzle of olive oil.'],
   'veg_strength:snack1':     ['Spoon the cottage cheese into a bowl.', 'Top with diced pineapple.'],
   'veg_strength:dinner':     ['Scramble the eggs; warm the wrap.', 'Fill the wrap with eggs, shredded cheddar, and seasoned black beans.', 'Top with salsa, fold, and serve.'],
   'veg_strength:snack2':     ['Spoon the Greek yogurt into a bowl.', 'Top with chopped almonds and a drizzle of honey.'],
