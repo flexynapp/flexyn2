@@ -143,4 +143,22 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     const r = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 4, cardioPreference: 'cycling' });
     expect(r.exercises.map(e => e.name)).not.toContain('Cycling');
   });
+
+  it('a collegiate runner (sub-10 mile, broadly fit) gets an advanced program, not 3x10', () => {
+    const assessment = { mile_under10: 'yes', bench_bw: 'yes', squat_bw15: 'yes', pullups_10: 'yes' };
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 5, assessment });
+    expect(r.exercises[0].target_sets).toBe(5); // advanced scheme (5 sets)
+    expect(r.description).toContain('advanced');
+  });
+
+  it('a fit runner (sub-10 mile only) is at least consistent, not newbie', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'newbie', daysCount: 4, assessment: { mile_under10: 'yes' } });
+    expect(r.exercises[0].target_sets).toBe(4); // consistent scheme
+  });
+
+  it('assessment does not demote a true beginner with no capability', () => {
+    const r = buildStarterRegimen({ goals: ['strength'], level: 'newbie', daysCount: 3, assessment: {} });
+    expect(r.exercises[0].target_sets).toBe(3);
+    expect(r.exercises[0].target_reps).toBe(10);
+  });
 });

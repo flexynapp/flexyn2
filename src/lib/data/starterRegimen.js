@@ -80,6 +80,27 @@ function advancedIndex(assessment) {
   return n;
 }
 
+// Promote the self-reported experience level using what the fitness
+// self-assessment actually reveals, so a genuinely capable athlete gets a
+// real program instead of a beginner 3×10. Goal-aware: the assessment is
+// strength-biased, so for an endurance goal a sub-10-min mile (a real runner)
+// carries the weight it deserves — otherwise a collegiate runner who can't
+// bench bodyweight would be mislabelled a newbie.
+const LEVEL_ORDER = ['newbie', 'returning', 'consistent', 'advanced'];
+function effectiveLevel(level, assessment, goalKey) {
+  let idx = Math.max(0, LEVEL_ORDER.indexOf(level));
+  const a = assessment && typeof assessment === 'object' ? assessment : {};
+  const adv = advancedIndex(a);
+  if (goalKey === 'endurance') {
+    if (a.mile_under10 === 'yes') idx = Math.max(idx, 2);          // fit runner → consistent
+    if (a.mile_under10 === 'yes' && adv >= 3) idx = LEVEL_ORDER.length - 1; // + broadly fit → advanced
+  } else {
+    if (adv >= 4) idx = LEVEL_ORDER.length - 1;                    // aces everything → advanced
+    else if (adv >= 2) idx = Math.max(idx, 2);                     // solid → consistent
+  }
+  return LEVEL_ORDER[idx];
+}
+
 // Cardio + breath-heavy exercises don't take a literal rep target the way
 // barbell lifts do; we set a higher placeholder so the displayed regimen
 // reads sensibly ("3 × 30") instead of "3 × 5". Logging is still flexible.
@@ -118,14 +139,13 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     exerciseNames = [lead, ...exerciseNames.filter(n => n !== lead && !otherModalities.includes(n))];
   }
 
-  const baseSetsReps = LEVEL_SETS_REPS[level] || LEVEL_SETS_REPS.newbie;
-  const advIdx = advancedIndex(assessment);
-  // 3+ "yes" answers = bump sets by 1 (more volume). 4/4 = bump by 2.
-  // Reps stay constant — adding sets is the cleaner volume lever for
-  // an automated plan. Never exceed 6 sets per exercise (matches the
-  // per-exercise cap in realisticLimits).
-  const sets = Math.min(6, baseSetsReps.sets + (advIdx >= 3 ? 1 : 0) + (advIdx >= 4 ? 1 : 0));
-  const reps = baseSetsReps.reps;
+  // Effective level factors in the fitness self-assessment (goal-aware), so
+  // the program matches real capability — an assessed athlete gets the
+  // advanced scheme even if they modestly self-reported "consistent".
+  const effLevel = effectiveLevel(level, assessment, goalKey);
+  const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
+  const sets = setsReps.sets;
+  const reps = setsReps.reps;
 
   const exercises = exerciseNames.map(name => {
     const libEntry = EX(name);
@@ -152,7 +172,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
 
   return {
     name: `Your Starter Plan — ${goalTitle}`,
-    description: `${level || 'newbie'} · ${safeDays}×/week · auto-generated from onboarding`,
+    description: `${effLevel} · ${safeDays}×/week · auto-generated from onboarding`,
     exercises,
     is_public: false,
   };
