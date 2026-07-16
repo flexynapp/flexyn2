@@ -10,18 +10,18 @@
 //
 // The fill is coloured (a soft) green → yellow → red by how much is left (hue
 // scales with the remaining %), with tiny solid colour specks continuously
-// flowing left → right across the filled part.
+// flowing right → left across the filled part (the way the gauge drains).
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
-// Tiny specks scattered across the fill, each flowing left→right on its own
+// Tiny specks scattered across the fill, each flowing right→left on its own
 // stagger so the stream is continuous. Positions/timings are derived
 // deterministically from the index (no per-render randomness → stable motion).
 // `top` scatters them vertically; `left` is the static (reduced-motion)
-// position — the animation drives `left` from off-screen-left to past the
-// right edge, so specks always traverse the full fill width even as it drains.
+// position — the animation drives `left` from past the right edge to off-screen
+// left, so specks always traverse the full fill width even as it drains.
 const SPECKS = Array.from({ length: 28 }, (_, i) => ({
   top:    (i * 29) % 82,                // vertical scatter 0–81%
   left:   (i * 37) % 100,               // static scatter across the width
@@ -33,10 +33,10 @@ const SPECKS = Array.from({ length: 28 }, (_, i) => ({
 
 const SPECK_KEYFRAMES = `
 @keyframes ctbFlow {
-  0%   { left: -8px; opacity: 0; }
+  0%   { left: calc(100% + 8px); opacity: 0; }
   15%  { opacity: 0.95; }
   85%  { opacity: 0.95; }
-  100% { left: calc(100% + 8px); opacity: 0; }
+  100% { left: -8px; opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ctb-speck { animation: none !important; opacity: 0.6 !important; }
