@@ -1,58 +1,24 @@
 // supabase/functions/recognize-meal/index.ts
 //
-// Photo-AI meal recognition. Accepts a base64 image, asks Claude
-// Vision to identify the meal and estimate macros, returns a
-// structured JSON payload the client can use to prefill the meal
-// log form.
+// Photo-AI meal recognition. verify_jwt is FALSE at the gateway so the
+// browser CORS preflight (OPTIONS, no Authorization) isn't rejected; auth
+// is enforced inside the function (Bearer JWT + client.auth.getUser()).
 //
-// ── SETUP (one-time) ─────────────────────────────────────────────────
-//
-//   1. Get an Anthropic API key from https://console.anthropic.com
-//
-//   2. Store it as a Supabase function secret:
-//
-//        supabase secrets set ANTHROPIC_API_KEY="sk-ant-..."
-//
-//   3. Deploy:
-//
-//        supabase functions deploy recognize-meal
-//
-// ── Request shape ────────────────────────────────────────────────────
-//   POST  Authorization: Bearer <user JWT>
-//   {
-//     "image_base64": "/9j/4AAQ...",   // raw bytes, no data URI prefix
-//     "media_type":   "image/jpeg"     // optional, defaults to jpeg
-//   }
-//
-// ── Response shape ──────────────────────────────────────────────────
-//   {
-//     "ok": true,
-//     "result": {
-//       "food_name":       "Grilled chicken with rice and broccoli",
-//       "portion_estimate":"1 plate (~450 g)",
-//       "calories":        540,
-//       "protein_g":       45,
-//       "carbs_g":         50,
-//       "fat_g":           18,
-//       "fiber_g":         6,
-//       "confidence":      "high" | "medium" | "low",
-//       "notes":           "Chicken breast ~180g, white rice ~150g, broccoli ~120g."
-//     }
-//   }
-//
-//   { "ok": false, "error": "NOT_FOOD" }     // image isn't food
-//   { "ok": false, "error": "UNAUTHORIZED" } // no JWT
-//   { "ok": false, "error": "RATE_LIMIT" }   // soft rate limit hit
-//   { "ok": false, "error": "API_ERROR" }    // Anthropic upstream failed
-//
-// Macros are ESTIMATES. The client should treat them as a starting
-// point — let the user edit before saving.
+// Setup: supabase secrets set ANTHROPIC_API_KEY="sk-ant-..."
 
 // @ts-ignore — Deno runtime
 import { createClient } from 'jsr:@supabase/supabase-js@2';
 
-const MODEL = 'claude-sonnet-4-6';  // good vision quality, fast enough for interactive
-const MAX_IMG_BYTES = 5 * 1024 * 1024; // 5MB hard cap
+const MODEL = 'claude-sonnet-4-6';
+const MAX_IMG_BYTES = 5 * 1024 * 1024;
+
+// supabase-js sends apikey + x-client-info on every browser invoke; the CORS
+// preflight fails unless they're allowed here alongside authorization.
+const CORS = {
+  'Access-Control-Allow-Origin':  '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
 
 const SYSTEM_PROMPT = `You are a nutrition expert analyzing a photograph of a meal, like the Cal AI app.
 
@@ -90,21 +56,12 @@ interface AnthropicResponse {
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, {
-      headers: {
-        'Access-Control-Allow-Origin':  '*',
-        'Access-Control-Allow-Methods': 'POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'authorization, content-type',
-      },
-    });
+    return new Response(null, { headers: CORS });
   }
   if (req.method !== 'POST') {
     return json({ ok: false, error: 'METHOD_NOT_ALLOWED' }, 405);
   }
 
-  // Auth check — function is invoked through Supabase client which
-  // injects the user's JWT; verify it before consuming an Anthropic
-  // API call.
   const auth = req.headers.get('authorization') || '';
   if (!auth.startsWith('Bearer ')) {
     return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
@@ -122,28 +79,17 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'UNAUTHORIZED' }, 401);
   }
 
-  // Per-user rate limit (2026-06 audit, blocker C22). Each call sends a
-  // multi-MB image to Claude Vision (real money); without a cap one
-  // authenticated account — including a zero-friction guest — can loop
-  // this endpoint and drain the Anthropic budget for everyone. The
-  // counter lives in a SECURITY DEFINER RPC (migration 174) that atomically
-  // increments a per-user/day row and returns false once the cap is hit.
-  // Fails OPEN only on an unexpected RPC error so a counter outage doesn't
-  // take the feature down — but a clean "limit reached" returns 429.
+  // Per-user daily quota (migration 174 / 229). Fails OPEN on RPC error so a
+  // counter outage can't take the feature down; a clean cap-reached is 429.
   try {
     const { data: allowed, error: rlErr } = await client.rpc('consume_recognize_meal_quota');
     if (!rlErr && allowed === false) {
       return json({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
-  } catch (_e) {
-    // fall through — never hard-fail the feature on a limiter outage
-  }
+  } catch (_e) { /* fall through */ }
 
-  // Restrict to formats Claude Vision actually accepts; HEIC/other inputs
-  // are downscaled+re-encoded to JPEG client-side before upload.
   const ACCEPTED_MEDIA = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
-  // Parse body.
   let body: { image_base64?: string; media_type?: string } | null = null;
   try {
     body = await req.json();
@@ -153,7 +99,6 @@ Deno.serve(async (req: Request) => {
   if (!body?.image_base64) {
     return json({ ok: false, error: 'MISSING_IMAGE' }, 400);
   }
-  // Soft size check via base64 length (~33% larger than raw bytes).
   if (body.image_base64.length > MAX_IMG_BYTES * 1.5) {
     return json({ ok: false, error: 'IMAGE_TOO_LARGE' }, 413);
   }
@@ -162,7 +107,6 @@ Deno.serve(async (req: Request) => {
     return json({ ok: false, error: 'UNSUPPORTED_MEDIA_TYPE' }, 415);
   }
 
-  // Call Anthropic.
   const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
   if (!apiKey) {
     return json({ ok: false, error: 'SERVER_MISCONFIGURED' }, 500);
@@ -178,8 +122,6 @@ Deno.serve(async (req: Request) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        // Headroom for the portion breakdown in `notes` + the component list;
-        // the JSON itself is small, so this caps runaway output cheaply.
         max_tokens: 800,
         system: SYSTEM_PROMPT,
         messages: [
@@ -193,12 +135,10 @@ Deno.serve(async (req: Request) => {
         ],
       }),
     });
-  } catch (e) {
+  } catch (_e) {
     return json({ ok: false, error: 'API_ERROR' }, 502);
   }
   if (!upstream.ok) {
-    // 429 from Anthropic → surface as RATE_LIMIT so the client can
-    // show a friendlier "try again in a moment" toast.
     if (upstream.status === 429) {
       return json({ ok: false, error: 'RATE_LIMIT' }, 429);
     }
@@ -221,9 +161,6 @@ Deno.serve(async (req: Request) => {
 function json(obj: unknown, status = 200) {
   return new Response(JSON.stringify(obj), {
     status,
-    headers: {
-      'Content-Type':                'application/json',
-      'Access-Control-Allow-Origin': '*',
-    },
+    headers: { 'Content-Type': 'application/json', ...CORS },
   });
 }
