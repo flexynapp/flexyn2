@@ -31,9 +31,9 @@ export default function GymRivalCard({ currentUserId }) {
   });
 
   const { data: profile, isLoading: profileLoading } = useQuery({
-    queryKey:  ['gymRivalProfile', assignment?.nemesis_id],
-    queryFn:   () => getRivalProfile(assignment?.nemesis_id),
-    enabled:   !!assignment?.nemesis_id,
+    queryKey:  ['gymRivalProfile', assignment?.rival_id],
+    queryFn:   () => getRivalProfile(assignment?.rival_id),
+    enabled:   !!assignment?.rival_id,
     staleTime: 5 * 60_000,
   });
 
@@ -230,7 +230,7 @@ export default function GymRivalCard({ currentUserId }) {
       <AnimatePresence>
         {showDuel && (
           <CreateDuelModal
-            opponentId={assignment.nemesis_id}
+            opponentId={assignment.rival_id}
             opponentUsername={name}
             onClose={() => setShowDuel(false)}
             onCreated={() => setShowDuel(false)}

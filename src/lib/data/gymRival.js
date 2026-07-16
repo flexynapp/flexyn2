@@ -1,11 +1,13 @@
 // src/lib/data/gymRival.js
 // Gym Rival System — auto-assigned rival around the user's level.
 //
-// NOTE (rename in progress): the DB objects are still named nemesis_*
-// (table public.nemesis_assignments, column nemesis_id, user_profiles
-// .nemesis_opt_out, RPCs notify_nemesis_*). The user-facing feature is
-// "Gym Rival"; the DB rename lands in a follow-up migration. Keep the
-// DB string literals below in sync with whatever the deployed schema is.
+// DB names (see migration 221): table public.gym_rival_assignments,
+// column rival_id, RPCs notify_gym_rival_*. Two things are intentionally
+// still named nemesis_* and MUST stay that way here to match the schema:
+//   • user_profiles.nemesis_opt_out (kept — the public_profiles view
+//     exposes it; renaming would force a view recreation)
+//   • notification type strings 'nemesis_assigned' / 'nemesis_overthrown'
+//     (kept — category-mapped + on historical rows; users only see text)
 
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
@@ -18,7 +20,7 @@ export async function getMyGymRival() {
   if (!user) return null;
 
   const { data, error } = await supabase
-    .from('nemesis_assignments')
+    .from('gym_rival_assignments')
     .select('*')
     .eq('user_id', user.id)
     .eq('status', 'active')
@@ -97,18 +99,18 @@ export async function assignGymRival({ sendNotification = false } = {}) {
 
   // Archive the old active rival (if any)
   await supabase
-    .from('nemesis_assignments')
+    .from('gym_rival_assignments')
     .update({ status: 'reassigned' })
     .eq('user_id', user.id)
     .eq('status', 'active');
 
   // Insert the new one
   const { data, error } = await supabase
-    .from('nemesis_assignments')
+    .from('gym_rival_assignments')
     .insert({
-      user_id:    user.id,
-      nemesis_id: chosen.id,
-      status:     'active',
+      user_id:  user.id,
+      rival_id: chosen.id,
+      status:   'active',
     })
     .select()
     .single();
@@ -121,8 +123,8 @@ export async function assignGymRival({ sendNotification = false } = {}) {
   // isn't deployed. Push fanout fires on any notifications INSERT.
   if (sendNotification) {
     try {
-      const { error: rpcErr } = await supabase.rpc('notify_nemesis_assigned_for', {
-        p_nemesis_id: chosen.id,
+      const { error: rpcErr } = await supabase.rpc('notify_gym_rival_assigned_for', {
+        p_rival_id: chosen.id,
       });
       if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
         await supabase.from('notifications').insert({
@@ -130,13 +132,13 @@ export async function assignGymRival({ sendNotification = false } = {}) {
           user_email: user.email,
           type:       'nemesis_assigned',
           title:      `🎯 Meet your Gym Rival: ${chosen.username || 'a rival'}`,
-          body:       'They\'re a step above you. Out-train them this week to win.',
+          body:       'They\'re around your level. Out-train them this week to win.',
           icon:       '🎯',
           link_url:   '/dashboard',
-          metadata:   { nemesis_id: chosen.id, nemesis_name: chosen.username },
+          metadata:   { rival_id: chosen.id, rival_name: chosen.username },
         });
       } else if (rpcErr) {
-        console.warn('[gymRival] notify_nemesis_assigned_for failed:', rpcErr);
+        console.warn('[gymRival] notify_gym_rival_assigned_for failed:', rpcErr);
       }
     } catch (e) {
       console.warn('[gymRival] notification dispatch threw:', e?.message || e);
@@ -225,7 +227,7 @@ export async function performOverthrow(assignmentId) {
   // Order matters: status must flip to 'overthrown' BEFORE the
   // notification RPC fires (the RPC checks the row's status server-side).
   await supabase
-    .from('nemesis_assignments')
+    .from('gym_rival_assignments')
     .update({ status: 'overthrown', overthrown_at: new Date().toISOString() })
     .eq('id', assignmentId);
 
@@ -244,13 +246,13 @@ export async function performOverthrow(assignmentId) {
   // Self-targeted celebration push (renders in the user's language,
   // looks up the dethroned user's name server-side). Fire-and-forget.
   try {
-    const { error: rpcErr } = await supabase.rpc('notify_nemesis_overthrown_for', {
+    const { error: rpcErr } = await supabase.rpc('notify_gym_rival_overthrown_for', {
       p_assignment_id: assignmentId,
     });
     if (rpcErr && (rpcErr.code === '42883' || rpcErr.code === '42P01')) {
-      console.warn('[gymRival] notify_nemesis_overthrown_for unavailable:', rpcErr.code);
+      console.warn('[gymRival] notify_gym_rival_overthrown_for unavailable:', rpcErr.code);
     } else if (rpcErr) {
-      console.warn('[gymRival] notify_nemesis_overthrown_for failed:', rpcErr);
+      console.warn('[gymRival] notify_gym_rival_overthrown_for failed:', rpcErr);
     }
   } catch (e) {
     console.warn('[gymRival] overthrow notification failed:', e?.message || e);
