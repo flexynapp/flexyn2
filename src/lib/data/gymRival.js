@@ -72,10 +72,19 @@ export async function getRivalProfile(rivalId) {
   // email is included so the card can deep-link to the person's Hub
   // profile (?profile=<id>) — the avatar / @handle area is tappable.
   const { data, error } = await selectProfiles((from) => from
-    .select('id, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak')
+    .select('id, username, avatar_url, current_level, total_xp, total_volume_lbs, workout_streak, total_distance_meters')
     .eq('id', rivalId)
     .single());
   return error ? null : data;
+}
+
+/** A user's Gym Rival win/loss record (server-side; works cross-user). */
+export async function getGymRivalRecord(userId) {
+  if (!userId) return { wins: 0, losses: 0 };
+  const { data, error } = await supabase.rpc('gym_rival_record', { p_uid: userId });
+  if (error) return { wins: 0, losses: 0 };
+  const row = Array.isArray(data) ? data[0] : data;
+  return { wins: row?.wins ?? 0, losses: row?.losses ?? 0 };
 }
 
 /**

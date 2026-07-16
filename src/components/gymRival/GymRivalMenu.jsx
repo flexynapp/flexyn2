@@ -9,13 +9,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Flame, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award, Zap } from 'lucide-react';
+import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Flame, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
   getRivalProfile, getWeeklyRivalStats, msUntilWeekEnd, msUntilNextWeekStart,
-  isThisWeek, computeRivalReward, confirmGymRival, voidStaleGymRival,
+  isThisWeek, computeRivalReward, confirmGymRival, voidStaleGymRival, getGymRivalRecord,
 } from '@/lib/data/gymRival';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
@@ -25,6 +25,8 @@ import { useNumberFormatter } from '@/lib/intl';
 
 // Higher of two numbers: true = user wins, false = rival, null = tie.
 const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x === y ? null : x > y; };
+// Win rate from a {wins, losses} record (0 when no games played).
+const winRate = (rec) => { const w = rec?.wins || 0, l = rec?.losses || 0; return (w + l) ? w / (w + l) : 0; };
 
 const revealedKey = (id) => `flexyn.gymRival.revealed.${id}`;
 
@@ -100,6 +102,18 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
     queryFn:  () => getWeeklyRivalStats(currentUserId, otherId),
     enabled:  open && status === 'active' && !!currentUserId && !!otherId,
     staleTime: 60_000,
+  });
+  const { data: myRecord } = useQuery({
+    queryKey: ['gymRivalRecord', currentUserId],
+    queryFn:  () => getGymRivalRecord(currentUserId),
+    enabled:  open && !!currentUserId,
+    staleTime: 5 * 60_000,
+  });
+  const { data: rivalRecord } = useQuery({
+    queryKey: ['gymRivalRecord', otherId],
+    queryFn:  () => getGymRivalRecord(otherId),
+    enabled:  open && !!otherId,
+    staleTime: 5 * 60_000,
   });
 
   // Lazy AFK void check when opening an active match.
@@ -280,9 +294,9 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-rose-500 truncate">@{rival?.username || 'Rival'}</span>
                   </div>
                   <StatRow icon={Award} label="Level" userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
-                  <StatRow icon={Zap} label="Total XP" userVal={fmt(me?.total_xp || 0)} rivalVal={fmt(rival?.total_xp || 0)} userWins={cmp(me?.total_xp, rival?.total_xp)} />
+                  <StatRow icon={Swords} label="W – L" userVal={`${myRecord?.wins ?? 0}–${myRecord?.losses ?? 0}`} rivalVal={`${rivalRecord?.wins ?? 0}–${rivalRecord?.losses ?? 0}`} userWins={cmp(winRate(myRecord), winRate(rivalRecord))} />
                   <StatRow icon={Dumbbell} label="Volume" userVal={formatWeight(me?.total_volume_lbs || 0, weightUnit)} rivalVal={formatWeight(rival?.total_volume_lbs || 0, weightUnit)} userWins={cmp(me?.total_volume_lbs, rival?.total_volume_lbs)} />
-                  <StatRow icon={Flame} label="Streak" userVal={`${me?.workout_streak || 0}d`} rivalVal={`${rival?.workout_streak || 0}d`} userWins={cmp(me?.workout_streak, rival?.workout_streak)} />
+                  <StatRow icon={Footprints} label="Distance" userVal={dist(me?.total_distance_meters)} rivalVal={dist(rival?.total_distance_meters)} userWins={cmp(me?.total_distance_meters, rival?.total_distance_meters)} />
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4 text-center">
