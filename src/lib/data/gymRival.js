@@ -14,7 +14,12 @@ import { selectProfiles } from '@/lib/data/users';
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-/** Get the current user's active gym-rival assignment */
+/**
+ * Get the user's current match — the latest row where they're either side
+ * (initiator or rival) that is pending / active / recently void. The
+ * caller decides how to treat a 'void' (a void from a past week means the
+ * user is free to roll again; see weekStart checks in the UI).
+ */
 export async function getMyGymRival() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
@@ -22,11 +27,43 @@ export async function getMyGymRival() {
   const { data, error } = await supabase
     .from('gym_rival_assignments')
     .select('*')
-    .eq('user_id', user.id)
-    .eq('status', 'active')
+    .or(`user_id.eq.${user.id},rival_id.eq.${user.id}`)
+    .in('status', ['pending', 'active', 'void'])
+    .order('assigned_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   return error ? null : data;
+}
+
+/**
+ * Roll a new weekly match server-side. Excludes users inactive >7 days or
+ * already matched, creates a PENDING row (both sides must confirm), and
+ * notifies the rival. Returns the new row, or null if no rival is
+ * available right now.
+ */
+export async function rollGymRival() {
+  const { data, error } = await supabase.rpc('gym_rival_roll');
+  if (error) throw error;
+  return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
+}
+
+/** Confirm the caller's participation in a pending match. */
+export async function confirmGymRival(assignmentId) {
+  const { data, error } = await supabase.rpc('gym_rival_confirm', { p_assignment_id: assignmentId });
+  if (error) throw error;
+  return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
+}
+
+/**
+ * Lazily void a stale (AFK) match: if 48h have passed since acceptance and
+ * either party logged no workout, the server voids it. Safe to call on
+ * every menu open; a no-op when nothing is due.
+ */
+export async function voidStaleGymRival(assignmentId) {
+  const { data, error } = await supabase.rpc('gym_rival_void_stale', { p_assignment_id: assignmentId });
+  if (error) return null;
+  return Array.isArray(data) ? (data[0] ?? null) : (data ?? null);
 }
 
 /** Get a rival's public profile (username, avatar, total_xp, current_level) */
@@ -269,6 +306,29 @@ export function msUntilWeekEnd(now = new Date()) {
   end.setDate(now.getDate() + daysToSunEnd);
   end.setHours(23, 59, 59, 999);
   return end.getTime() - now.getTime();
+}
+
+/** Start of the ISO week (Monday 00:00) containing `date`. */
+export function weekStartOf(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diffToMonday);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+/** Ms until the NEXT ISO week starts (next Monday 00:00) — the reset point. */
+export function msUntilNextWeekStart(now = new Date()) {
+  const next = weekStartOf(now);
+  next.setDate(next.getDate() + 7);
+  return next.getTime() - now.getTime();
+}
+
+/** True if `date` falls in the same ISO week as now (i.e. still current). */
+export function isThisWeek(date, now = new Date()) {
+  if (!date) return false;
+  return weekStartOf(date).getTime() === weekStartOf(now).getTime();
 }
 
 // ── Weekly-win reward scaling ───────────────────────────────────────────────────
