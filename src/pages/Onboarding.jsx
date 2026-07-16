@@ -2540,6 +2540,10 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
     <div className="flex flex-col h-full">
       <Confetti pieces={28} />
       <div className="flex-1 overflow-y-auto pb-4 pt-2 pe-2">
+        <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05, duration: 0.4 }}
+          className="mb-5">
+          <FlexynLogo className="h-7" />
+        </motion.div>
         <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
           className="font-mono text-[11px] font-bold tracking-[0.18em] text-primary uppercase mb-4">
           Plan ready · 100%
