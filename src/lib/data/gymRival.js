@@ -192,6 +192,103 @@ export async function getWeeklyComparison(userId, rivalId) {
   return { user: userStats, rival: rivalStats };
 }
 
+// ── Net rating (weekly competition score) ──────────────────────────────────────
+//
+// Combines the three tracked dimensions into one comparable number so the
+// two rivals can be ranked. Weights are chosen so a typical week's volume,
+// workout count, and distance land in the same order of magnitude:
+//   • volume (lbs lifted)  → ÷100      (e.g. 20,000 lbs → 200 pts)
+//   • workouts (sessions)  → ×100      (e.g. 4 workouts → 400 pts)
+//   • distance (km)        → ×20       (e.g. 15 km      → 300 pts)
+// Higher net rating wins the week.
+export function computeNetRating({ volume = 0, sessions = 0, distanceMeters = 0 } = {}) {
+  const volumePts   = volume / 100;
+  const sessionsPts = sessions * 100;
+  const distancePts = (distanceMeters / 1000) * 20;
+  return Math.round(volumePts + sessionsPts + distancePts);
+}
+
+/**
+ * Full weekly stats for user vs rival: volume + sessions (workout_logs)
+ * and distance (cardio_logs), plus each side's computed net rating.
+ * Returns { user, rival } each { volume, sessions, distanceMeters, netRating }.
+ *
+ * NOTE: reads the rival's logs client-side (same pattern as
+ * getWeeklyComparison). The authoritative weekly settlement in Phase 3
+ * runs server-side (SECURITY DEFINER) so it isn't subject to per-row RLS.
+ */
+export async function getWeeklyRivalStats(userId, rivalId) {
+  if (!userId || !rivalId) return null;
+
+  const now = new Date();
+  const day = now.getDay();
+  const diffToMonday = (day === 0 ? -6 : 1 - day);
+  const weekStart = new Date(now);
+  weekStart.setDate(now.getDate() + diffToMonday);
+  weekStart.setHours(0, 0, 0, 0);
+  const since = weekStart.toISOString();
+  const sinceDate = since.slice(0, 10); // cardio_logs.date is a DATE
+
+  const fetchStats = async (uid) => {
+    const [{ data: logs }, { data: cardio }] = await Promise.all([
+      supabase.from('workout_logs')
+        .select('exercises, created_at')
+        .eq('user_id', uid)
+        .gte('created_at', since),
+      supabase.from('cardio_logs')
+        .select('distance_meters, date')
+        .eq('user_id', uid)
+        .gte('date', sinceDate),
+    ]);
+
+    const sessions = (logs ?? []).length;
+    let volume = 0;
+    for (const log of logs ?? []) {
+      for (const ex of log.exercises || []) {
+        for (const s of ex.sets || []) {
+          volume += (Number(s.weight) || 0) * (Number(s.reps) || 0);
+        }
+      }
+    }
+    let distanceMeters = 0;
+    for (const c of cardio ?? []) distanceMeters += Number(c.distance_meters) || 0;
+
+    const stat = { volume, sessions, distanceMeters };
+    return { ...stat, netRating: computeNetRating(stat) };
+  };
+
+  const [user, rival] = await Promise.all([fetchStats(userId), fetchStats(rivalId)]);
+  return { user, rival };
+}
+
+/** Ms until the current ISO week (Mon-start) ends. */
+export function msUntilWeekEnd(now = new Date()) {
+  const day = now.getDay(); // 0=Sun..6=Sat
+  const daysToSunEnd = day === 0 ? 0 : 7 - day;
+  const end = new Date(now);
+  end.setDate(now.getDate() + daysToSunEnd);
+  end.setHours(23, 59, 59, 999);
+  return end.getTime() - now.getTime();
+}
+
+// ── Weekly-win reward scaling ───────────────────────────────────────────────────
+//
+// Base prize for winning the week, scaled up when you beat a HIGHER-level
+// rival: +15% per level the rival is above you (never below the base).
+export const GYM_RIVAL_REWARD_BASE = { xp: 5000, coins: 500, capsules: 5 };
+
+export function computeRivalReward(userLevel = 1, rivalLevel = 1) {
+  const levelGap = Math.max(0, (Number(rivalLevel) || 1) - (Number(userLevel) || 1));
+  const mult = 1 + 0.15 * levelGap;
+  return {
+    multiplier: mult,
+    levelGap,
+    xp:       Math.round(GYM_RIVAL_REWARD_BASE.xp * mult),
+    coins:    Math.round(GYM_RIVAL_REWARD_BASE.coins * mult),
+    capsules: Math.round(GYM_RIVAL_REWARD_BASE.capsules * mult),
+  };
+}
+
 /**
  * Check if the user has overtaken their rival this week.
  * Wins on 2 of 3: volume, sessions, XP. Returns true if so.
