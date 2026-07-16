@@ -96,7 +96,6 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
                   <p className={`font-heading font-bold text-sm ${macro.textColor} mt-2`}>
                     {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{t('nutrition.macros.dv')}</p>
                 </div>
               ) : (
                 /* ── Bar view (default) ── */
@@ -105,7 +104,7 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
                   <p className={`font-heading font-bold text-lg ${macro.textColor}`}>
                     {actual.toFixed(macro.key === 'calories' ? 0 : 1)}{macro.unit}
                   </p>
-                  <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}% {t('nutrition.macros.dv')}</p>
+                  <p className="text-xs text-muted-foreground mt-1 mb-2">{Math.round(percentOfDaily)}%</p>
                   <div className="w-full h-1.5 bg-black/10 rounded-full overflow-hidden">
                     <motion.div
                       className={`h-full ${macro.textColor.replace('text-', 'bg-')}`}
