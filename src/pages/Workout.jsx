@@ -1872,22 +1872,23 @@ export default function Workout() {
     );
 
     if (id === 'nemesis') return (
-      <div className="rounded-xl border-2 border-rose-500/60 bg-card overflow-hidden shadow-[0_0_18px_rgba(239,68,68,0.14)]">
-        <div className="relative">
-          <button type="button"
-            onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
-            className="absolute top-2 end-2 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
-            <span className="text-[8px] font-bold leading-none italic">i</span>
-          </button>
-          {activeInfo==='nemesis' && (
-            <p className="absolute top-7 end-2 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[180px] leading-tight shadow-sm">
-              Your auto-assigned rival — beat their stats to dethrone them.
-            </p>
-          )}
-          <ErrorBoundary label="GymRivalCard">
-            <GymRivalCard currentUserId={user?.id} />
-          </ErrorBoundary>
-        </div>
+      // GymRivalCard renders its own bordered card per state, so this
+      // wrapper is just a positioning context for the info button — no
+      // border/bg of its own (that produced a double rose outline).
+      <div className="relative">
+        <button type="button"
+          onClick={(ev) => { ev.stopPropagation(); setActiveInfo(activeInfo==='nemesis'?null:'nemesis'); }}
+          className="absolute top-3 end-3 w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors z-20">
+          <span className="text-[8px] font-bold leading-none italic">i</span>
+        </button>
+        {activeInfo==='nemesis' && (
+          <p className="absolute top-9 end-3 z-20 text-[11px] text-muted-foreground bg-background/95 border border-border/60 rounded-lg px-2 py-1.5 max-w-[190px] leading-tight shadow-sm">
+            Weekly Rivals — you're matched with someone at your level. Out-train them to win rewards.
+          </p>
+        )}
+        <ErrorBoundary label="GymRivalCard">
+          <GymRivalCard currentUserId={user?.id} />
+        </ErrorBoundary>
       </div>
     );
 
