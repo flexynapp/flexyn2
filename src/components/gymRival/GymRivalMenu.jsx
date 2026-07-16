@@ -130,7 +130,6 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
           <div className="flex items-center gap-2">
             <Target className="w-4 h-4 text-rose-500" />
             <h2 className="font-heading font-black text-base">Gym Rival</h2>
-            <span className="text-[11px] font-semibold text-muted-foreground">· {countdown}</span>
           </div>
           <button onClick={onClose} aria-label="Close" className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-secondary transition-colors">
             <X className="w-5 h-5" />
@@ -197,6 +196,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                   <div className="flex flex-col items-center justify-center shrink-0">
                     <span className="font-heading font-black text-lg text-muted-foreground">VS</span>
                     <Swords className="w-4 h-4 text-rose-500 mt-1" />
+                    <span className="mt-1 text-[10px] font-bold text-muted-foreground text-center tabular-nums whitespace-nowrap">{countdown}</span>
                   </div>
                   <button
                     type="button"
