@@ -1,9 +1,9 @@
 // src/components/nutrition/NutritionPlansModal.jsx
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, CheckCircle2, AlertCircle, ClipboardList } from 'lucide-react';
+import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef, Pill, ClipboardList, Sparkles, ArrowLeftRight } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, filterPlans, loadRestrictions } from '@/lib/nutritionPlans';
+import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -56,12 +56,18 @@ function PlanCard({ plan, scaled, onSelect, colors }) {
           </div>
 
           {/* Goal badges */}
-          <div className="flex gap-1.5 mt-2.5 flex-wrap">
+          <div className="flex gap-1.5 mt-2.5 flex-wrap items-center">
             {plan.goalFit.map(g => (
               <span key={g} className={`text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full ${colors.badge}`}>
                 {g}
               </span>
             ))}
+            {plan.swapCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <Sparkles className="w-2.5 h-2.5" />
+                adapted for you
+              </span>
+            )}
           </div>
         </div>
 
@@ -142,11 +148,17 @@ function MealRow({ meal, colors }) {
               <div className="space-y-1.5 pt-2">
                 {meal.ingredients.map((ing, i) => (
                   <div key={i} className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary/60 mt-1.5 shrink-0" />
+                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ing.swapped ? 'bg-emerald-500' : 'bg-primary/60'}`} />
                     <div className="flex-1 flex items-baseline gap-1.5 flex-wrap">
                       <span className="text-sm font-medium">{ing.name}</span>
                       <span className={`text-xs font-semibold ${colors.badge.split(' ')[1] || 'text-primary'}`}>{ing.amount}</span>
                       {ing.note && <span className="text-xs text-muted-foreground">— {ing.note}</span>}
+                      {ing.swapped && (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                          <ArrowLeftRight className="w-2.5 h-2.5" />
+                          swapped from {ing.swappedFrom}
+                        </span>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -279,12 +291,18 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
   const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
   const targetCalories = userProfile?.daily_calorie_target || userProfile?.calories || null;
 
-  const availablePlans = useMemo(() => filterPlans(restrictions), [restrictions]);
-  const filteredOut    = PLAN_TEMPLATES.length - availablePlans.length;
-
+  // Every plan is offered — adapted to the user's restrictions by swapping
+  // off-limits ingredients for compliant, nutrient-matched alternatives.
   const scaledPlans = useMemo(
-    () => availablePlans.map(p => ({ plan: p, scaled: scalePlan(p, targetCalories) })),
-    [availablePlans, targetCalories]
+    () => PLAN_TEMPLATES.map(p => {
+      const adapted = adaptPlan(p, restrictions);
+      return { plan: adapted, scaled: scalePlan(adapted, targetCalories) };
+    }),
+    [restrictions, targetCalories]
+  );
+  const totalSwaps = useMemo(
+    () => scaledPlans.reduce((n, e) => n + (e.plan.swapCount || 0), 0),
+    [scaledPlans]
   );
 
   const selectedEntry = useMemo(
@@ -327,17 +345,19 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
           transition={{ duration: 0.18 }}
         >
           <p className="text-xs text-muted-foreground mb-4">
-            {availablePlans.length} plan{availablePlans.length !== 1 ? 's' : ''} match your profile
-            {filteredOut > 0 && ` · ${filteredOut} filtered by restrictions`}
+            {PLAN_TEMPLATES.length} plans · every one tailored to you
           </p>
 
-          {/* Restriction notice */}
+          {/* Adaptation notice — plans are swapped, not hidden. */}
           {restrictions.length > 0 && (
-            <div className="mb-4 px-3 py-2.5 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
-              <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <div className="mb-4 px-3 py-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
               <p className="text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Filtered for your restrictions:</span>{' '}
+                <span className="font-semibold text-foreground">Adapted for your diet:</span>{' '}
                 {restrictions.join(', ').replace(/_/g, '-')}
+                {totalSwaps > 0 && (
+                  <> — {totalSwaps} ingredient{totalSwaps !== 1 ? 's' : ''} swapped for compliant, nutrient-matched picks.</>
+                )}
               </p>
             </div>
           )}
@@ -353,25 +373,17 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
             </div>
           )}
 
-          {availablePlans.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertCircle className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-              <p className="font-heading font-semibold">No plans match your restrictions</p>
-              <p className="text-sm text-muted-foreground mt-1">Try adjusting your dietary restrictions in Edit Goals.</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {scaledPlans.map(({ plan, scaled }) => (
-                <PlanCard
-                  key={plan.id}
-                  plan={plan}
-                  scaled={scaled}
-                  colors={PLAN_COLORS[plan.color]}
-                  onSelect={() => setSelected(plan.id)}
-                />
-              ))}
-            </div>
-          )}
+          <div className="space-y-3">
+            {scaledPlans.map(({ plan, scaled }) => (
+              <PlanCard
+                key={plan.id}
+                plan={plan}
+                scaled={scaled}
+                colors={PLAN_COLORS[plan.color]}
+                onSelect={() => setSelected(plan.id)}
+              />
+            ))}
+          </div>
         </motion.div>
       ) : selectedEntry ? (
         <PlanDetail

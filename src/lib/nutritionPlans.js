@@ -432,3 +432,237 @@ export function loadRestrictions(userProfile) {
 export function persistRestrictions(restrictions) {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(restrictions)); } catch {}
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INGREDIENT SUBSTITUTION ENGINE
+
+   Rather than hide plans that clash with a user's diet, we ADAPT them —
+   swapping each off-limits ingredient for a compliant one that keeps the
+   meal's role (protein / carb / fat) and stays genuinely tasty and
+   nutrient-dense. A dairy-free user still gets Lean Muscle Builder, but its
+   cottage cheese becomes whipped silken tofu, its Greek yogurt becomes
+   high-protein soy yogurt, and so on.
+
+   Design:
+   • classifyIngredient(name) tags an ingredient (dairy, gluten, nuts, meat,
+     fish, egg, pork, grain, legume, starch, sugar, honey).
+   • RESTRICTION_TAGS says which tags each restriction must eliminate.
+   • Building-block swap maps (DAIRY_SWAPS, MEAT_SWAPS, …) hold curated,
+     appetising replacements keyed by the exact ingredient name.
+   • SWAPS composes them per restriction (vegan = meat + fish + dairy + egg +
+     honey, etc.). GENERIC_SWAPS is a tasteful fallback for any future
+     ingredient a specific map doesn't cover.
+   • adaptIngredient / adaptPlan apply the swaps and tag what changed so the
+     UI can show "was cottage cheese".
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+// Lower-case keyword detection. Careful with false positives: plant "milks"
+// and nut/seed "butters" are NOT dairy; "coconut"/"nutmeg" are NOT tree nuts.
+export function classifyIngredient(name) {
+  const s = String(name).toLowerCase();
+  const tags = new Set();
+  const has = (...kw) => kw.some(k => s.includes(k));
+  // Compliant markers — words that appear on our SWAP TARGETS. They keep the
+  // classifier from re-flagging an already-compliant swap (e.g. "Soy Yogurt"
+  // isn't dairy, "GF Oats" isn't gluten, "Portobello Steak" isn't meat), which
+  // matters when a user stacks multiple restrictions.
+  const plantDairy   = /coconut|soy|almond|oat|cashew|hemp|rice|flax|pea|vegan|dairy-free|plant-based|nutritional yeast/.test(s);
+  const glutenFree   = /gluten-free|grain-free|\bgf\b|certified gf|almond-flour|cauliflower|seed cracker|cucumber|sweet potato/.test(s);
+  const plantProtein = /tofu|tempeh|portobello|seitan|mushroom|plant-based|lentil|chickpea|\bvegan\b/.test(s);
+  // Seed/nut "butters" are not dairy.
+  const nonDairyButter = /(almond|peanut|cashew|sunflower|seed|cocoa|apple|shea|nut)[\s-]*butter/.test(s);
+
+  // Dairy
+  if (!plantDairy && (
+      has('cheese', 'yogurt', 'yoghurt', 'whey', 'casein', 'custard', 'ghee') ||
+      has('milk') || has('cream') || (has('butter') && !nonDairyButter))) tags.add('dairy');
+  // Egg
+  if (/\begg/.test(s)) tags.add('egg');
+  // Gluten (oats flagged: commonly cross-contaminated). Quinoa is NOT gluten.
+  // `toast` via word boundary so "toasted [seeds]" isn't read as bread.
+  if (!glutenFree && (has('wheat', 'barley', 'rye', 'bread', 'cracker', 'pasta', 'flour', 'couscous', 'bagel', 'oats', 'granola') || /\btoast\b/.test(s))) tags.add('gluten');
+  // Tree nuts / peanuts (coconut, nutmeg, water chestnut, nut-free excluded)
+  if (!s.includes('nut-free') && (
+      /\b(almond|walnut|pecan|cashew|pistachio|macadamia|hazelnut|peanut|brazil nut)\b/.test(s) ||
+      (s.includes('nut') && !/coconut|nutmeg|water chestnut|butternut|nutrition/.test(s)))) tags.add('nuts');
+  // Animal flesh — skipped for plant-protein swap targets.
+  if (!plantProtein) {
+    if (has('chicken', 'turkey', 'duck')) { tags.add('meat'); tags.add('poultry'); }
+    if (has('beef', 'steak', 'sirloin', 'lamb', 'veal', 'bison')) { tags.add('meat'); tags.add('redmeat'); }
+    if (has('bacon', 'pepperoni', 'ham', 'pork', 'sausage', 'prosciutto', 'salami') && !has('turkey', 'beef')) { tags.add('meat'); tags.add('pork'); }
+    if (has('salmon', 'tuna', 'tilapia', 'sea bass', 'cod', 'sardine', 'mackerel', 'trout', 'halibut') || /\bfish\b/.test(s)) tags.add('fish');
+    if (has('shrimp', 'prawn', 'crab', 'lobster', 'oyster', 'clam', 'mussel', 'scallop')) tags.add('shellfish');
+  }
+  if (has('honey')) tags.add('honey');
+  // Carb sources (for keto / paleo)
+  if (!glutenFree && (has('rice', 'oats', 'quinoa', 'bread', 'granola', 'cracker', 'wheat', 'couscous', 'pasta', 'corn', 'barley') || /\btoast\b/.test(s))) tags.add('grain');
+  if (has('lentil', 'bean', 'chickpea', 'hummus', 'tofu', 'tempeh', 'edamame', 'soy') && !has('soy sauce', 'soy milk')) tags.add('legume');
+  if (has('potato') && !has('sweet potato')) tags.add('starch');
+  if (has('banana', 'honey', 'dried mango', 'maple')) tags.add('sugar');
+  return tags;
+}
+
+const RESTRICTION_TAGS = {
+  vegetarian:  ['meat', 'fish', 'shellfish'],
+  vegan:       ['meat', 'fish', 'shellfish', 'dairy', 'egg', 'honey'],
+  dairy_free:  ['dairy'],
+  gluten_free: ['gluten'],
+  nut_free:    ['nuts'],
+  halal:       ['pork'],
+  kosher:      ['pork', 'shellfish'],
+  paleo:       ['grain', 'legume', 'dairy'],
+  // No blanket 'legume' for keto — tofu/soy are low-carb & keto-friendly;
+  // the high-carb legumes (lentils, beans) have their own specific swaps.
+  keto:        ['grain', 'starch', 'sugar'],
+};
+
+// ── Curated building blocks (keyed by exact ingredient name, lower-case) ──
+const DAIRY_SWAPS = {
+  'greek yogurt':   { name: 'High-Protein Soy Yogurt', note: 'unsweetened, plant-based' },
+  'cottage cheese': { name: 'Whipped Silken Tofu',     note: 'blended with lemon & sea salt — creamy, high-protein' },
+  'string cheese':  { name: 'Coconut Mozzarella Stick', note: 'melty, dairy-free' },
+  'feta cheese':    { name: 'Marinated Tofu Feta',     note: 'lemon, oregano & olive oil' },
+  'cheddar cheese': { name: 'Dairy-Free Cheddar Shreds', note: 'coconut-oil based' },
+  'sour cream':     { name: 'Coconut Sour Cream',      note: 'coconut cream + lime' },
+  'hard cheese':    { name: 'Aged Coconut Cheese',     note: 'sharp, dairy-free' },
+  'heavy cream':    { name: 'Coconut Cream',           note: 'full-fat, silky' },
+  'parmesan':       { name: 'Nutritional Yeast',       note: 'nutty, cheesy, B12-rich' },
+  'butter':         { name: 'Vegan Butter',            note: 'plant-based, rich' },
+};
+const MEAT_SWAPS = {
+  'chicken breast':  { name: 'Marinated Tempeh',   note: 'grilled — high-protein, savory' },
+  'sirloin steak':   { name: 'Portobello Steak',   note: 'balsamic-marinated, seared' },
+  'ground beef':     { name: 'Lentil-Mushroom Crumble', note: 'seasoned, umami-rich' },
+  'bacon':           { name: 'Smoky Tempeh Bacon', note: 'maple-glazed, crisp' },
+  'pepperoni slices':{ name: 'Plant-Based Pepperoni', note: 'pea-protein, spiced' },
+};
+const FISH_SWAPS = {
+  'atlantic salmon':    { name: 'Nori-Wrapped Tofu Steak', note: 'seared — sea flavor, omega-rich' },
+  'canned tuna':        { name: 'Chickpea Smash',          note: 'mashed chickpeas + seaweed flakes' },
+  'sea bass or tilapia':{ name: 'Marinated Tofu Fillet',   note: 'herb-grilled' },
+};
+const EGG_SWAPS = {
+  'whole eggs': { name: 'Scrambled Tofu',        note: 'turmeric + black salt for eggy flavor' },
+  'egg whites': { name: 'Chickpea Flour Scramble', note: 'fluffy, high-protein' },
+};
+const HONEY_SWAPS = { 'honey': { name: 'Maple Syrup', note: 'pure, plant-based' } };
+const NUT_SWAPS = {
+  'almond butter':  { name: 'Sunflower Seed Butter', note: 'creamy, nut-free' },
+  'walnuts':        { name: 'Toasted Pumpkin Seeds', note: 'crunchy, nut-free' },
+  'mixed nuts':     { name: 'Mixed Seeds',           note: 'pumpkin, sunflower & hemp' },
+  'macadamia nuts': { name: 'Roasted Pumpkin Seeds', note: 'buttery, nut-free' },
+};
+const GLUTEN_SWAPS = {
+  'rolled oats':          { name: 'Certified GF Rolled Oats', note: 'gluten-free' },
+  'whole wheat toast':    { name: 'Gluten-Free Seeded Toast', note: 'toasted' },
+  'whole grain bread':    { name: 'Gluten-Free Whole-Grain Bread', note: 'seeded' },
+  'whole grain toast':    { name: 'Gluten-Free Seeded Toast', note: 'toasted' },
+  'whole grain crackers': { name: 'Seed Crackers',           note: 'gluten-free' },
+  'granola':              { name: 'Gluten-Free Granola',      note: 'certified GF oats' },
+};
+const PORK_SWAPS = {
+  'bacon':            { name: 'Turkey Bacon',   note: 'pork-free' },
+  'pepperoni slices': { name: 'Beef Pepperoni', note: 'pork-free' },
+};
+const PALEO_SWAPS = {
+  'rolled oats':          { name: 'Coconut Chia Porridge', note: 'grain-free, warming' },
+  'white rice':           { name: 'Cauliflower Rice',      note: 'riced & sautéed' },
+  'brown rice':           { name: 'Cauliflower Rice',      note: 'riced & sautéed' },
+  'quinoa':               { name: 'Cauliflower Rice',      note: 'grain-free' },
+  'whole wheat toast':    { name: 'Sweet Potato Toast',    note: 'roasted slabs' },
+  'whole grain bread':    { name: 'Sweet Potato Toast',    note: 'roasted slabs' },
+  'whole grain toast':    { name: 'Sweet Potato Toast',    note: 'roasted slabs' },
+  'whole grain crackers': { name: 'Cucumber Rounds',       note: 'crisp, grain-free' },
+  'granola':              { name: 'Grain-Free Granola',    note: 'nuts & seeds' },
+  'red lentils':          { name: 'Cauliflower & Mushroom Base', note: 'hearty, grain-free' },
+  'hummus':               { name: 'Baba Ganoush',          note: 'roasted eggplant dip' },
+  'extra firm tofu':      { name: 'Grilled Chicken',       note: 'or portobello — grain/legume-free' },
+  'greek yogurt':         { name: 'Coconut Yogurt',        note: 'dairy-free, paleo' },
+  'cottage cheese':       { name: 'Coconut Yogurt Bowl',   note: 'dairy-free' },
+  'butter':               { name: 'Coconut Oil',           note: 'paleo cooking fat' },
+};
+const KETO_SWAPS = {
+  'rolled oats':       { name: 'Cauliflower Porridge', note: 'low-carb, cinnamon' },
+  'banana':            { name: 'Mixed Berries',        note: '½ cup — lower sugar' },
+  'white rice':        { name: 'Cauliflower Rice',     note: 'low-carb' },
+  'brown rice':        { name: 'Cauliflower Rice',     note: 'low-carb' },
+  'quinoa':            { name: 'Cauliflower Rice',      note: 'low-carb' },
+  'red potatoes':      { name: 'Roasted Radishes',     note: 'crispy, low-carb' },
+  'honey':             { name: 'Monk Fruit Drops',     note: 'zero-carb sweetener' },
+  'granola':           { name: 'Keto Nut & Seed Clusters', note: 'grain-free, crunchy' },
+  'whole wheat toast': { name: 'Almond-Flour Bread',   note: 'low-carb' },
+  'whole grain bread': { name: 'Almond-Flour Bread',   note: 'low-carb' },
+  'red lentils':       { name: 'Cauliflower Base',     note: 'low-carb' },
+};
+
+const SWAPS = {
+  vegetarian:  { ...MEAT_SWAPS, ...FISH_SWAPS },
+  vegan:       { ...MEAT_SWAPS, ...FISH_SWAPS, ...DAIRY_SWAPS, ...EGG_SWAPS, ...HONEY_SWAPS },
+  dairy_free:  { ...DAIRY_SWAPS },
+  gluten_free: { ...GLUTEN_SWAPS },
+  nut_free:    { ...NUT_SWAPS },
+  halal:       { ...PORK_SWAPS },
+  kosher:      { ...PORK_SWAPS },
+  paleo:       { ...PALEO_SWAPS },
+  keto:        { ...KETO_SWAPS },
+};
+
+// Tasteful fallback if a future ingredient has no specific swap.
+const GENERIC_SWAPS = {
+  dairy:  { name: 'Plant-Based Dairy Swap', note: 'coconut- or soy-based' },
+  meat:   { name: 'Plant Protein',          note: 'tofu, tempeh or seitan' },
+  fish:   { name: 'Marinated Tofu',         note: 'sea-seasoned' },
+  egg:    { name: 'Tofu Scramble',          note: 'black salt for eggy flavor' },
+  honey:  { name: 'Maple Syrup',            note: 'plant-based' },
+  nuts:   { name: 'Seed Mix',               note: 'pumpkin & sunflower' },
+  gluten: { name: 'Gluten-Free Swap',       note: 'certified GF' },
+  grain:  { name: 'Cauliflower Rice',       note: 'grain-free' },
+  legume: { name: 'Cauliflower Base',       note: 'legume-free' },
+  starch: { name: 'Roasted Radishes',       note: 'low-carb' },
+  sugar:  { name: 'Fresh Berries',          note: 'lower sugar' },
+  pork:   { name: 'Turkey or Beef',         note: 'pork-free' },
+};
+
+// Order matters only when several restrictions target the same ingredient;
+// broadest patterns first so their curated swap wins.
+const RESTRICTION_ORDER = ['vegan', 'vegetarian', 'paleo', 'keto', 'dairy_free', 'gluten_free', 'nut_free', 'halal', 'kosher'];
+
+/** Adapt a single ingredient for the active restrictions. Returns a new
+ *  object; when swapped it carries `swapped` + `swappedFrom` for the UI. */
+export function adaptIngredient(ing, restrictions = []) {
+  if (!restrictions.length) return ing;
+  let cur = { ...ing };
+  let original = null;
+  for (const r of RESTRICTION_ORDER) {
+    if (!restrictions.includes(r)) continue;
+    const key = cur.name.toLowerCase().trim();
+    let rep = SWAPS[r]?.[key];
+    if (!rep) {
+      const tags = classifyIngredient(cur.name);
+      const hit = (RESTRICTION_TAGS[r] || []).find(t => tags.has(t));
+      if (hit) rep = GENERIC_SWAPS[hit];
+    }
+    if (rep && rep.name.toLowerCase() !== cur.name.toLowerCase()) {
+      if (original === null) original = cur.name;
+      cur = { ...cur, name: rep.name, note: rep.note ?? cur.note };
+    }
+  }
+  if (original !== null) { cur.swapped = true; cur.swappedFrom = original; }
+  return cur;
+}
+
+/** Adapt a whole plan for the user's restrictions — swaps offending
+ *  ingredients across every meal and records how many were changed. */
+export function adaptPlan(plan, restrictions = []) {
+  if (!restrictions.length) return plan;
+  let swapCount = 0;
+  const meals = plan.meals.map(meal => ({
+    ...meal,
+    ingredients: meal.ingredients.map(ing => {
+      const next = adaptIngredient(ing, restrictions);
+      if (next.swapped) swapCount += 1;
+      return next;
+    }),
+  }));
+  return { ...plan, meals, adaptedFor: restrictions, swapCount };
+}
