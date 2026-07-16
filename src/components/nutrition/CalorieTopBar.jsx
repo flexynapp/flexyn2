@@ -10,29 +10,33 @@
 //
 // The fill is coloured (a soft) green → yellow → red by how much is left (hue
 // scales with the remaining %), with tiny solid colour specks continuously
-// falling top → bottom across the filled part.
+// flowing left → right across the filled part.
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
 
-// Tiny specks scattered across the fill, each falling top→bottom on its own
+// Tiny specks scattered across the fill, each flowing left→right on its own
 // stagger so the stream is continuous. Positions/timings are derived
 // deterministically from the index (no per-render randomness → stable motion).
+// `top` scatters them vertically; `left` is the static (reduced-motion)
+// position — the animation drives `left` from off-screen-left to past the
+// right edge, so specks always traverse the full fill width even as it drains.
 const SPECKS = Array.from({ length: 28 }, (_, i) => ({
-  left:   (i * 37) % 100,               // spread across the width
+  top:    (i * 29) % 82,                // vertical scatter 0–81%
+  left:   (i * 37) % 100,               // static scatter across the width
   size:   2 + (i % 3),                  // 2–4px solid dots
-  dur:    2.2 + ((i * 7) % 18) / 10,    // 2.2–3.9s fall
-  delay:  -(((i * 13) % 36) / 10),      // negative → already mid-fall on mount
+  dur:    2.4 + ((i * 7) % 18) / 10,    // 2.4–4.1s traverse
+  delay:  -(((i * 13) % 40) / 10),      // negative → already mid-flow on mount
   hueOff: ((i * 17) % 28) - 14,         // −14..+13 offset shade
 }));
 
 const SPECK_KEYFRAMES = `
-@keyframes ctbFall {
-  0%   { transform: translateY(-7px); opacity: 0; }
-  20%  { opacity: 0.95; }
-  80%  { opacity: 0.95; }
-  100% { transform: translateY(24px); opacity: 0; }
+@keyframes ctbFlow {
+  0%   { left: -8px; opacity: 0; }
+  15%  { opacity: 0.95; }
+  85%  { opacity: 0.95; }
+  100% { left: calc(100% + 8px); opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ctb-speck { animation: none !important; opacity: 0.6 !important; }
@@ -83,7 +87,7 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
           animate={{ width: `${remainingPct}%` }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
         >
-          {/* Tiny solid specks falling top → bottom across the fill */}
+          {/* Tiny solid specks flowing left → right across the fill */}
           {SPECKS.map((s, i) => (
             <span
               key={i}
@@ -91,11 +95,11 @@ export default function CalorieTopBar({ entries = [], userProfile = {} }) {
               style={{
                 width: s.size,
                 height: s.size,
-                top: 0,
+                top: `${s.top}%`,
                 left: `${s.left}%`,
                 background: `hsl(${Math.max(0, Math.min(140, hue + s.hueOff))} 60% 74%)`,
-                animation: `ctbFall ${s.dur}s linear ${s.delay}s infinite`,
-                willChange: 'transform, opacity',
+                animation: `ctbFlow ${s.dur}s linear ${s.delay}s infinite`,
+                willChange: 'left, opacity',
               }}
             />
           ))}
