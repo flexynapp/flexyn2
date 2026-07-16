@@ -9,7 +9,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Flame, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle } from 'lucide-react';
+import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Flame, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -19,7 +19,12 @@ import {
 } from '@/lib/data/gymRival';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';
+import { useWeightUnit } from '@/lib/WeightUnitContext';
+import { formatWeight } from '@/lib/weightUnit';
 import { useNumberFormatter } from '@/lib/intl';
+
+// Higher of two numbers: true = user wins, false = rival, null = tie.
+const cmp = (a, b) => { const x = Number(a) || 0, y = Number(b) || 0; return x === y ? null : x > y; };
 
 const revealedKey = (id) => `flexyn.gymRival.revealed.${id}`;
 
@@ -62,6 +67,7 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { distanceUnit } = useDistanceUnit();
+  const { weightUnit } = useWeightUnit();
   const fmt = useNumberFormatter();
 
   // Which side am I, and who's my rival?
@@ -264,6 +270,19 @@ export default function GymRivalMenu({ open, onClose, assignment, currentUserId,
                     <p className="mt-2 text-sm font-black truncate max-w-full">@{rival?.username || '—'}</p>
                     <p className={`text-[10px] font-bold ${otherConfirmed ? 'text-emerald-500' : 'text-muted-foreground'}`}>{otherConfirmed ? '✓ Ready' : 'Not yet'}</p>
                   </div>
+                </div>
+
+                {/* Size up the matchup before accepting */}
+                <div className="rounded-2xl border border-border bg-card px-4 py-2 mb-4 divide-y divide-border/60">
+                  <div className="flex items-center gap-2 pb-1">
+                    <span className="flex-1 text-end text-[10px] font-black uppercase tracking-wider text-emerald-500">You</span>
+                    <span className="w-28" />
+                    <span className="flex-1 text-start text-[10px] font-black uppercase tracking-wider text-rose-500 truncate">@{rival?.username || 'Rival'}</span>
+                  </div>
+                  <StatRow icon={Award} label="Level" userVal={me?.current_level ?? '—'} rivalVal={rival?.current_level ?? '—'} userWins={cmp(me?.current_level, rival?.current_level)} />
+                  <StatRow icon={Zap} label="Total XP" userVal={fmt(me?.total_xp || 0)} rivalVal={fmt(rival?.total_xp || 0)} userWins={cmp(me?.total_xp, rival?.total_xp)} />
+                  <StatRow icon={Dumbbell} label="Volume" userVal={formatWeight(me?.total_volume_lbs || 0, weightUnit)} rivalVal={formatWeight(rival?.total_volume_lbs || 0, weightUnit)} userWins={cmp(me?.total_volume_lbs, rival?.total_volume_lbs)} />
+                  <StatRow icon={Flame} label="Streak" userVal={`${me?.workout_streak || 0}d`} rivalVal={`${rival?.workout_streak || 0}d`} userWins={cmp(me?.workout_streak, rival?.workout_streak)} />
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card p-4 mb-4 text-center">
