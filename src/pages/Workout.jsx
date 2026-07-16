@@ -280,8 +280,9 @@ export default function Workout() {
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
   // Gauntlet + Crew Wars: reachable from the hero slideshow.
   // Form Coach: now a button inside the active workout (Freestyle/Regimen).
-  // None need a grid tile.
-  const CARD_ORDER_DEFAULT = ['generate','explore','duels','bounties','regimens','saved','cardio','goals','nemesis'];
+  // None need a grid tile. Order per user request; the full-width Rival
+  // card ('nemesis') stays last.
+  const CARD_ORDER_DEFAULT = ['generate','regimens','cardio','explore','duels','bounties','goals','saved','nemesis'];
   const [cardOrder, setCardOrder] = useState(() => {
     try {
       const s = localStorage.getItem('wkt-card-order');
