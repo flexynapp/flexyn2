@@ -15,7 +15,7 @@ import { XP_REWARDS } from '@/lib/xpSystem';
 import { toast } from 'sonner';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
-import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target } from 'lucide-react';
+import { Trash2, TrendingUp, Loader2, Droplet, X, Beaker, History, ScanLine, ChevronDown, ChevronUp, Plus, Clock, ChevronRight, ChefHat, Calendar, ListChecks, GripVertical, LayoutGrid, RotateCcw, CheckCircle2, Save, Repeat, Eye, EyeOff, Target, Flashlight, FlashlightOff } from 'lucide-react';
 import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import MacroNutrientBox from '@/components/nutrition/MacroNutrientBox';
 import MineralsVitaminsBox from '@/components/nutrition/MineralsVitaminsBox';
@@ -38,6 +38,8 @@ import { fireFirstMealCelebration } from '@/lib/firstMealCelebration';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { lookupBarcode } from '@/lib/foodLookup';
+import { buildBarcodeHints } from '@/lib/barcodeHints';
+import { decodeCanvasMultiOrientation } from '@/lib/barcodeScan';
 import { recognizeMealPhoto } from '@/lib/data/photoMealRecognition';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 // @zxing/browser is ~80 KB gzip. Most Nutrition sessions never open
@@ -337,6 +339,11 @@ export default function Nutrition() {
   const [scannerError, setScannerError] = useState(null);
   const [scannedProduct, setScannedProduct] = useState(null);
   const [notFoundBarcode, setNotFoundBarcode] = useState(null);
+  // Torch/flashlight — only offered when the active camera track supports it
+  // (Android Chrome yes; desktop + iOS Safari no). Helps cut glare on shiny
+  // packaging like a metallic seltzer can.
+  const [torchAvailable, setTorchAvailable] = useState(false);
+  const [torchOn, setTorchOn] = useState(false);
 
   // Scan history — persisted to localStorage; updated every time a barcode resolves.
   // Per-user namespace per CLAUDE.md `flexyn.<feature>.<userId>` convention.
@@ -398,10 +405,13 @@ export default function Nutrition() {
   });
   const videoRef = useRef(null);
   const readerRef = useRef(null);
-  const controlsRef = useRef(null);
+  const streamRef = useRef(null);        // the getUserMedia MediaStream
+  const scanLoopRef = useRef(null);      // setInterval id for the frame-decode loop
+  const scanCanvasRef = useRef(null);    // offscreen canvas frames are drawn to
+  const videoTrackRef = useRef(null);    // active video track (for torch)
   const lastBarcodeRef = useRef(null);
   // Set by stopScanner/unmount so an in-flight startScanner (which has
-  // several awaits before controlsRef is assigned) can tell the user
+  // several awaits before the stream is assigned) can tell the user
   // already closed and tear down the just-created camera stream
   // instead of leaving it running with no owner (camera light stuck on).
   const scanCancelledRef = useRef(false);
@@ -821,64 +831,99 @@ export default function Nutrition() {
       // Dynamic-import the barcode reader on first scan. The module is
       // cached by the browser after the initial fetch, so subsequent
       // scans don't re-download. Keeps ~80 KB out of the entry chunk.
-      const { BrowserMultiFormatReader } = await import('@zxing/browser');
+      // @zxing/library carries the DecodeHintType/BarcodeFormat enums used
+      // to build the hints — imported alongside so nothing leaks into the
+      // eager bundle.
+      const [{ BrowserMultiFormatReader }, { DecodeHintType, BarcodeFormat }] = await Promise.all([
+        import('@zxing/browser'),
+        import('@zxing/library'),
+      ]);
       if (scanCancelledRef.current) return;
-      const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-      if (scanCancelledRef.current) return;
 
-      readerRef.current = new BrowserMultiFormatReader();
-      setScannerStatus('scanning');
-
-      const onDecode = async (result) => {
-        if (!result || scanCancelledRef.current) return;
-        const barcode = result.getText();
-        if (barcode === lastBarcodeRef.current) return;
-        lastBarcodeRef.current = barcode;
-        setScannerStatus('looking-up');
-        controlsRef.current?.stop();
-        await lookupAndShow(barcode);
-      };
-
-      // Before camera permission is granted, enumerateDevices returns
-      // devices with EMPTY labels (or, on some browsers, an empty
-      // list), so the back/rear/environment label test can never match
-      // and devices[0] — often the FRONT camera — won. In that case
-      // let the browser pick the rear camera via the facingMode
-      // constraint instead of a deviceId. If there's genuinely no
-      // camera, getUserMedia inside decodeFromConstraints throws and
-      // parseCameraError surfaces it.
-      const labeled = devices.filter((d) => d.label);
-      let controls;
-      if (labeled.length === 0) {
-        controls = await readerRef.current.decodeFromConstraints(
-          { video: { facingMode: 'environment' } },
-          videoRef.current,
-          onDecode,
-        );
-      } else {
-        const rearCamera = labeled.find((d) => /back|rear|environment/i.test(d.label));
-        const deviceId = rearCamera?.deviceId || devices[0].deviceId;
-        controls = await readerRef.current.decodeFromVideoDevice(
-          deviceId,
-          videoRef.current,
-          onDecode,
-        );
+      // Acquire the rear camera ourselves (rather than letting zxing's
+      // decodeFromVideoDevice own the stream) so we control frame capture and
+      // torch. Prefer an explicit environment-facing device when labels are
+      // available (post-permission); otherwise fall back to the facingMode
+      // constraint. Then retry once unconstrained if the exact device is busy.
+      let stream;
+      try {
+        const devices = await BrowserMultiFormatReader.listVideoInputDevices();
+        const rear = devices.filter(d => d.label).find(d => /back|rear|environment/i.test(d.label));
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: rear ? { deviceId: { exact: rear.deviceId } } : { facingMode: { ideal: 'environment' } },
+        });
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } } });
       }
-      // Close/unmount can land while decodeFrom* was still awaiting —
-      // controlsRef.current was null then, so stopScanner had nothing
-      // to stop. Kill the just-created stream here instead of leaving
-      // the camera running with no owner.
       if (scanCancelledRef.current) {
-        try { controls?.stop(); } catch { /* already stopped */ }
+        stream.getTracks().forEach(tr => { try { tr.stop(); } catch {} });
         return;
       }
-      controlsRef.current = controls;
+      streamRef.current = stream;
+      videoTrackRef.current = stream.getVideoTracks()[0] || null;
+
+      // Show the stream in the preview element.
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.setAttribute('playsinline', 'true');
+      await video.play().catch(() => {}); // autoplay may reject; frames still flow
+
+      // Torch — driven directly off the track. Only Android Chrome exposes it.
+      const caps = videoTrackRef.current?.getCapabilities?.() || {};
+      setTorchAvailable('torch' in caps);
+      setTorchOn(false);
+
+      // TRY_HARDER scans the full frame (helps glare-broken / low-contrast
+      // codes on shiny cans); POSSIBLE_FORMATS narrows to retail UPC/EAN for
+      // faster, more reliable frames. Rotation itself is handled by us, per
+      // frame, because zxing's built-in rotate can't resize the canvas source.
+      const hints = buildBarcodeHints(DecodeHintType, BarcodeFormat);
+      readerRef.current = new BrowserMultiFormatReader(hints);
+      scanCanvasRef.current = document.createElement('canvas');
+      setScannerStatus('scanning');
+
+      // Frame-decode loop: draw the current video frame, then try to decode it
+      // upright and rotated 90°/270° so a sideways can reads. ~6 fps is plenty
+      // for barcodes and keeps the multi-orientation decode affordable.
+      scanLoopRef.current = setInterval(() => {
+        if (scanCancelledRef.current || !readerRef.current) return;
+        const v = videoRef.current;
+        const canvas = scanCanvasRef.current;
+        if (!v || !canvas || v.readyState < 2 || !v.videoWidth) return;
+        canvas.width = v.videoWidth;
+        canvas.height = v.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+        let text = null;
+        try {
+          text = decodeCanvasMultiOrientation(readerRef.current, canvas);
+        } catch { /* decoder hiccup on a frame — try the next */ }
+        if (text && text !== lastBarcodeRef.current) {
+          lastBarcodeRef.current = text;
+          setScannerStatus('looking-up');
+          stopScanLoop();
+          lookupAndShow(text);
+        }
+      }, 160);
     } catch (e) {
       // User closed the scanner mid-init — don't resurrect the error UI.
       if (scanCancelledRef.current) return;
       setScannerError(parseCameraError(e, t));
       setScannerStatus('error');
     }
+  };
+
+  // Stop just the decode loop + release the camera, without tearing down the
+  // modal UI (so the "looking-up" spinner can show while we fetch nutrition).
+  const stopScanLoop = () => {
+    if (scanLoopRef.current) { clearInterval(scanLoopRef.current); scanLoopRef.current = null; }
+    try { videoTrackRef.current?.applyConstraints?.({ advanced: [{ torch: false }] }); } catch {}
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(tr => { try { tr.stop(); } catch {} });
+      streamRef.current = null;
+    }
+    videoTrackRef.current = null;
+    if (videoRef.current) { try { videoRef.current.srcObject = null; } catch {} }
   };
 
   const lookupAndShow = async (barcode) => {
@@ -899,12 +944,26 @@ export default function Nutrition() {
     }
   };
 
+  const toggleTorch = async () => {
+    const next = !torchOn;
+    try {
+      await videoTrackRef.current?.applyConstraints({ advanced: [{ torch: next }] });
+      setTorchOn(next);
+    } catch {
+      // Some tracks advertise torch but reject applyConstraints — degrade
+      // quietly and hide the toggle so we don't keep offering a dead button.
+      setTorchAvailable(false);
+    }
+  };
+
   const stopScanner = () => {
     scanCancelledRef.current = true;
-    try { controlsRef.current?.stop(); } catch {}
-    controlsRef.current = null;
+    stopScanLoop();  // clears the interval, kills torch + camera tracks
     readerRef.current = null;
+    scanCanvasRef.current = null;
     lastBarcodeRef.current = null;
+    setTorchAvailable(false);
+    setTorchOn(false);
     setScannerStatus('idle');
     setScannerError(null);
     setShowScanner(false);
@@ -919,8 +978,10 @@ export default function Nutrition() {
   useEffect(() => {
     return () => {
       scanCancelledRef.current = true;
-      try { controlsRef.current?.stop(); } catch {}
+      // Release the camera + torch + decode loop on unmount so nothing leaks.
+      stopScanLoop();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /* ========================================================= */
@@ -1311,9 +1372,25 @@ export default function Nutrition() {
                   </p>
                 </div>
               )}
+              {/* Torch — only rendered when the camera track supports it. */}
+              {scannerStatus === 'scanning' && torchAvailable && (
+                <button
+                  type="button"
+                  onClick={toggleTorch}
+                  aria-label={torchOn ? 'Turn off flashlight' : 'Turn on flashlight'}
+                  aria-pressed={torchOn}
+                  className={`absolute top-2 end-2 w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                    torchOn ? 'bg-primary text-primary-foreground' : 'bg-black/50 text-white'
+                  }`}
+                >
+                  {torchOn ? <Flashlight className="w-5 h-5" /> : <FlashlightOff className="w-5 h-5" />}
+                </button>
+              )}
             </div>
             {scannerStatus === 'scanning' && (
-              <p className="text-xs text-muted-foreground text-center mb-3">{t('nutrition.pointCamera')}</p>
+              <p className="text-xs text-muted-foreground text-center mb-3">
+                {t('nutrition.pointCamera')} · {tFallback('nutrition.scanRotateHint', 'reads sideways codes too — rotate a shiny can to cut glare')}
+              </p>
             )}
             {scannerStatus === 'error' && scannerError && (
               <div className="mb-3 p-3 rounded-md bg-destructive/10 border border-destructive/30">
