@@ -164,6 +164,21 @@ function MealRow({ meal, colors }) {
                   </div>
                 ))}
               </div>
+
+              {/* Step-by-step directions */}
+              {meal.directions?.length > 0 && (
+                <div className="mt-3 pt-2.5 border-t border-border/40">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Directions</p>
+                  <ol className="space-y-1.5">
+                    {meal.directions.map((step, i) => (
+                      <li key={i} className="flex gap-2 text-xs text-foreground/80 leading-snug">
+                        <span className={`font-bold shrink-0 ${colors.badge.split(' ')[1] || 'text-primary'}`}>{i + 1}.</span>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
