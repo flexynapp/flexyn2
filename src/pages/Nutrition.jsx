@@ -881,11 +881,17 @@ export default function Nutrition() {
       sodium_mg: Number(entry.sodium_mg) || 0,
     };
     const foodName = (entry.food_name || 'Meal').trim();
+    // Prefer the (possibly edited) ingredient list from the modal so meals the
+    // user added an ingredient to persist that change; fall back to the raw
+    // recognition items.
+    const items = Array.isArray(entry.items) ? entry.items
+                : Array.isArray(src.items)   ? src.items
+                : [];
     const aiMeta = {
       source:           'photo_ai',
       portion_estimate: src.portion_estimate || null,
       confidence:       ['high', 'medium', 'low'].includes(src.confidence) ? src.confidence : null,
-      items:            Array.isArray(src.items) ? src.items : [],
+      items,
       notes:            src.notes || null,
       sugar_g:          macros.sugar_g,
     };

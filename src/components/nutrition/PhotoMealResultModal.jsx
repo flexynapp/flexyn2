@@ -15,7 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
-import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2 } from 'lucide-react';
+import { X, Pencil, Check, Save, Loader2, Sparkles, Utensils, Trash2, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 const num = (v) => {
@@ -52,6 +52,10 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState('');
   const [vals, setVals] = useState({});
+  // Editable copy of the per-ingredient breakdown. When it holds any rows the
+  // core macros (calories/protein/carbs/fat) are the SUM of the ingredients —
+  // so adding a missing ingredient in Edit mode makes the totals grow.
+  const [editItems, setEditItems] = useState([]);
   const [slide, setSlide] = useState(0);
   const trackRef = useRef(null);
 
@@ -70,18 +74,96 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
       sugar_g:   result.sugar_g   ?? '',
       sodium_mg: result.sodium_mg ?? '',
     });
+    setEditItems(
+      Array.isArray(result.items)
+        ? result.items.map((it) => ({
+            name:      it?.name   || '',
+            amount:    it?.amount || '',
+            calories:  it?.calories  ?? '',
+            protein_g: it?.protein_g ?? '',
+            carbs_g:   it?.carbs_g   ?? '',
+            fat_g:     it?.fat_g     ?? '',
+          }))
+        : [],
+    );
   }, [open, result]);
+
+  // While editing, keep the core-macro totals in lockstep with the ingredient
+  // list (the ingredients are the source of truth once there's at least one).
+  useEffect(() => {
+    if (!editing || editItems.length === 0) return;
+    setVals((prev) => ({
+      ...prev,
+      calories:  editItems.reduce((s, it) => s + num(it.calories),  0),
+      protein_g: editItems.reduce((s, it) => s + num(it.protein_g), 0),
+      carbs_g:   editItems.reduce((s, it) => s + num(it.carbs_g),   0),
+      fat_g:     editItems.reduce((s, it) => s + num(it.fat_g),     0),
+    }));
+  }, [editItems, editing]);
 
   if (!open || !result) return null;
 
-  const items = Array.isArray(result.items) ? result.items : [];
   const confidence = ['high', 'medium', 'low'].includes(result.confidence) ? result.confidence : null;
   const confColor = confidence === 'high' ? 'bg-emerald-500' : confidence === 'low' ? 'bg-amber-500' : 'bg-sky-500';
   const setVal = (k, v) => setVals((p) => ({ ...p, [k]: v }));
 
+  // Ingredients drive the core macros when present, so those tiles are read-only
+  // in Edit mode (you change them by editing the ingredients). Fiber/sugar/sodium
+  // aren't itemised, so they stay directly editable.
+  const hasItems = editItems.length > 0;
+  const coreEditable = editing && !hasItems;
+
+  const blankItem = () => ({ name: '', amount: '', calories: '', protein_g: '', carbs_g: '', fat_g: '' });
+  const updateItem = (i, k, v) => setEditItems((prev) => prev.map((it, idx) => (idx === i ? { ...it, [k]: v } : it)));
+  const removeItem = (i) => setEditItems((prev) => prev.filter((_, idx) => idx !== i));
+  const addItem = () => setEditItems((prev) => {
+    // Seeding the first row from the current totals keeps a meal that has no
+    // itemised breakdown (e.g. a manual entry) from losing its macros the
+    // moment the ingredient list becomes the source of truth.
+    if (prev.length === 0) {
+      const base = {
+        name:      (name || 'Meal').trim() || 'Meal',
+        amount:    result.portion_estimate || '',
+        calories:  num(vals.calories),
+        protein_g: num(vals.protein_g),
+        carbs_g:   num(vals.carbs_g),
+        fat_g:     num(vals.fat_g),
+      };
+      const baseHasMacros = base.calories || base.protein_g || base.carbs_g || base.fat_g;
+      return baseHasMacros ? [base, blankItem()] : [blankItem()];
+    }
+    return [...prev, blankItem()];
+  });
+
   const handleSave = () => {
+    const cleanItems = editItems
+      .map((it) => ({
+        name:      (it.name || '').trim(),
+        amount:    (it.amount || '').trim(),
+        calories:  num(it.calories),
+        protein_g: num(it.protein_g),
+        carbs_g:   num(it.carbs_g),
+        fat_g:     num(it.fat_g),
+      }))
+      // Drop fully-empty rows (a stray "Add ingredient" the user didn't fill in).
+      .filter((it) => it.name || it.calories || it.protein_g || it.carbs_g || it.fat_g);
+
     const entry = { food_name: (name || 'Meal').trim() };
-    for (const k of MACRO_KEYS) entry[k] = num(vals[k]);
+    if (cleanItems.length > 0) {
+      entry.calories  = cleanItems.reduce((s, it) => s + it.calories,  0);
+      entry.protein_g = cleanItems.reduce((s, it) => s + it.protein_g, 0);
+      entry.carbs_g   = cleanItems.reduce((s, it) => s + it.carbs_g,   0);
+      entry.fat_g     = cleanItems.reduce((s, it) => s + it.fat_g,     0);
+    } else {
+      entry.calories  = num(vals.calories);
+      entry.protein_g = num(vals.protein_g);
+      entry.carbs_g   = num(vals.carbs_g);
+      entry.fat_g     = num(vals.fat_g);
+    }
+    entry.fiber_g   = num(vals.fiber_g);
+    entry.sugar_g   = num(vals.sugar_g);
+    entry.sodium_mg = num(vals.sodium_mg);
+    entry.items     = cleanItems;
     onSave?.(entry);
   };
 
@@ -172,12 +254,17 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               style={{ scrollbarWidth: 'none' }}
             >
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
-                <Tile big label="Calories" unit="" color="text-orange-500" editing={editing} value={vals.calories} onChange={(v) => setVal('calories', v)} />
+                <Tile big label="Calories" unit="" color="text-orange-500" editing={coreEditable} value={vals.calories} onChange={(v) => setVal('calories', v)} />
                 <div className="mt-2 grid grid-cols-3 gap-2">
-                  <Tile label="Protein" unit="g" color="text-red-500"    editing={editing} value={vals.protein_g} onChange={(v) => setVal('protein_g', v)} />
-                  <Tile label="Carbs"   unit="g" color="text-blue-500"   editing={editing} value={vals.carbs_g}   onChange={(v) => setVal('carbs_g', v)} />
-                  <Tile label="Fat"     unit="g" color="text-yellow-500" editing={editing} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
+                  <Tile label="Protein" unit="g" color="text-red-500"    editing={coreEditable} value={vals.protein_g} onChange={(v) => setVal('protein_g', v)} />
+                  <Tile label="Carbs"   unit="g" color="text-blue-500"   editing={coreEditable} value={vals.carbs_g}   onChange={(v) => setVal('carbs_g', v)} />
+                  <Tile label="Fat"     unit="g" color="text-yellow-500" editing={coreEditable} value={vals.fat_g}     onChange={(v) => setVal('fat_g', v)} />
                 </div>
+                {editing && hasItems && (
+                  <p className="mt-2 text-[10px] text-muted-foreground text-center">
+                    Calories, protein, carbs &amp; fat total up from your ingredients below.
+                  </p>
+                )}
               </div>
               <div className="snap-center shrink-0 basis-full min-w-full px-4 pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-2 text-center">More nutrients</p>
@@ -198,26 +285,85 @@ export default function PhotoMealResultModal({ open, imageUrl, result, saving, o
               <p className="text-[10px] text-muted-foreground text-center mt-1">Swipe for fiber, sugar &amp; sodium →</p>
             )}
 
-            {/* Per-ingredient breakdown */}
-            {items.length > 0 && (
+            {/* Per-ingredient breakdown. In Edit mode every row is editable and
+                you can add/remove ingredients; the core macros re-total live. */}
+            {(editing || editItems.length > 0) && (
               <div className="px-4 pt-4">
                 <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Ingredients</p>
-                <div className="space-y-1.5">
-                  {items.map((it, i) => (
-                    <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold truncate">{it.name || 'Item'}</p>
-                        {it.amount && <p className="text-[11px] text-muted-foreground">{it.amount}</p>}
+
+                {editing ? (
+                  <div className="space-y-2">
+                    {editItems.map((it, i) => (
+                      <div key={i} className="rounded-lg border border-border/70 p-2 space-y-2">
+                        <div className="flex items-center gap-2">
+                          <Input
+                            value={it.name}
+                            onChange={(e) => updateItem(i, 'name', e.target.value.slice(0, 60))}
+                            placeholder="Ingredient name"
+                            className="h-8 flex-1 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeItem(i)}
+                            aria-label="Remove ingredient"
+                            className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <Input
+                          value={it.amount}
+                          onChange={(e) => updateItem(i, 'amount', e.target.value.slice(0, 40))}
+                          placeholder="Amount / unit — e.g. 1 cup, 100 g"
+                          className="h-8 w-full text-sm"
+                        />
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { k: 'calories',  lbl: 'Cal', color: 'text-orange-500' },
+                            { k: 'protein_g', lbl: 'P',   color: 'text-red-500' },
+                            { k: 'carbs_g',   lbl: 'C',   color: 'text-blue-500' },
+                            { k: 'fat_g',     lbl: 'F',   color: 'text-yellow-500' },
+                          ].map(({ k, lbl, color }) => (
+                            <div key={k} className="flex flex-col items-center">
+                              <label className={`text-[9px] font-bold uppercase tracking-wide ${color}`}>{lbl}</label>
+                              <Input
+                                type="number" inputMode="decimal" min="0"
+                                value={it[k]}
+                                onChange={(e) => updateItem(i, k, e.target.value)}
+                                placeholder="0"
+                                className="h-8 w-full text-center text-sm tabular-nums px-1"
+                              />
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="text-end shrink-0">
-                        <p className="text-sm font-bold tabular-nums text-orange-500">{num(it.calories)}<span className="text-[10px] ms-0.5">cal</span></p>
-                        <p className="text-[10px] text-muted-foreground tabular-nums">
-                          {num(it.protein_g)}P · {num(it.carbs_g)}C · {num(it.fat_g)}F
-                        </p>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={addItem}
+                      className="w-full h-10 rounded-lg border border-dashed border-primary/50 text-primary text-sm font-bold flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-4 h-4" /> Add ingredient
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {editItems.map((it, i) => (
+                      <div key={i} className="flex items-center justify-between gap-2 rounded-lg border border-border/70 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold truncate">{it.name || 'Item'}</p>
+                          {it.amount && <p className="text-[11px] text-muted-foreground">{it.amount}</p>}
+                        </div>
+                        <div className="text-end shrink-0">
+                          <p className="text-sm font-bold tabular-nums text-orange-500">{num(it.calories)}<span className="text-[10px] ms-0.5">cal</span></p>
+                          <p className="text-[10px] text-muted-foreground tabular-nums">
+                            {num(it.protein_g)}P · {num(it.carbs_g)}C · {num(it.fat_g)}F
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
