@@ -1818,26 +1818,23 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
     setDraftWeight('');
   };
 
-  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'x', pxPerUnit: PX });
+  // The circular gauge (the "dial" users are naturally drawn to) IS the input
+  // now — drag vertically on it to set weight (up = heavier). The old
+  // horizontal scrubber was missed by most users, so it's gone.
+  const { ref, onPointerDown, onPointerMove, onPointerUp, isDragging } = useDragValue({ value, onChange: setValue, min: range[0], max: range[1], axis: 'y', pxPerUnit: PX });
 
-  const [trackW, setTrackW] = useState(300);
-  useEffect(() => {
-    const update = () => { if (ref.current) setTrackW(ref.current.offsetWidth); };
-    update();
-    window.addEventListener('resize', update); return () => window.removeEventListener('resize', update);
-  }, [ref]);
-  const offsetX = -value * PX + trackW / 2;
+  // Tap vs drag on the gauge: a near-stationary press opens tap-to-type; a real
+  // drag sets the value. Track max vertical travel so a drag never opens typing.
+  const gaugeStartY = useRef(0);
+  const gaugeMoved = useRef(0);
+  const onGaugeDown = (e) => { if (editingWeight) return; gaugeStartY.current = e.clientY; gaugeMoved.current = 0; onPointerDown(e); };
+  const onGaugeMove = (e) => { gaugeMoved.current = Math.max(gaugeMoved.current, Math.abs(e.clientY - gaugeStartY.current)); onPointerMove(e); };
+  const onGaugeUp = (e) => { onPointerUp(e); if (!editingWeight && gaugeMoved.current < 6) handleWeightTap(); };
 
   const pct = (value - range[0]) / (range[1] - range[0]);
   const circumference = 2 * Math.PI * 82;
   const dash = pct * circumference;
   const valueKg = unit === 'kg' ? value : kgFromLb(value);
-
-  const ticks = useMemo(() => {
-    const arr = []; const s = unit === 'kg' ? 1 : 2;
-    for (let v = range[0]; v <= range[1]; v += s) arr.push(v);
-    return arr;
-  }, [range[0], range[1], unit]);
 
   return (
     <div className="flex flex-col h-full">
@@ -1857,8 +1854,10 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
           <PillUnitToggle options={[{id:'lb',label:'lb'},{id:'kg',label:'kg'}]} value={unit} onChange={setUnit} />
         </div>
 
-        {/* Circular gauge */}
-        <div className="flex flex-col items-center" style={{ position: 'relative' }}>
+        {/* Circular gauge — draggable dial (vertical drag sets weight, tap to type) */}
+        <div ref={ref} onPointerDown={onGaugeDown} onPointerMove={onGaugeMove} onPointerUp={onGaugeUp} onPointerCancel={onGaugeUp}
+          className="flex flex-col items-center select-none"
+          style={{ position: 'relative', cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}>
           <div style={{ position: 'absolute', width: 240, height: 240, borderRadius: '50%', background: 'hsl(var(--primary))', opacity: 0.1, filter: 'blur(50px)', animation: 'stat-glow-pulse 3s ease-in-out infinite' }} />
           <svg width="220" height="220" viewBox="0 0 200 200" style={{ position: 'relative' }}>
             <defs>
@@ -1897,11 +1896,11 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
                 style={{ width: 130, fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 48, lineHeight: 1, textAlign: 'center', background: 'transparent', border: 'none', borderBottom: '2px solid hsl(var(--primary))', color: 'hsl(var(--foreground))', outline: 'none' }}
               />
             ) : (
-              <button onClick={handleWeightTap} style={{ background: 'none', border: 'none', cursor: 'text', padding: 0 }}>
-                <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
-                  <NumberReel value={value} digits={String(range[1]).length} size={64} />
-                </div>
-              </button>
+              // Not a <button>: the gauge captures pointer events, so its own
+              // tap-vs-drag handler opens type mode. Tapping here bubbles up.
+              <div style={{ fontFamily: 'var(--font-heading, sans-serif)', fontWeight: 800, fontSize: 64, lineHeight: 0.9, letterSpacing: '-0.05em', color: 'hsl(var(--foreground))', transform: isDragging ? 'scale(0.96)' : 'scale(1)', transition: 'transform 0.15s' }}>
+                <NumberReel value={value} digits={String(range[1]).length} size={64} />
+              </div>
             )}
             <div className="font-mono text-[11px] font-bold tracking-[0.3em] uppercase text-primary mt-1">{unit === 'kg' ? 'KG' : 'LBS'}</div>
             <div className="font-mono text-[9px] text-muted-foreground mt-1">≈ {unit === 'kg' ? `${lbFromKg(value)} lb` : `${kgFromLb(value)} kg`}</div>
@@ -1911,42 +1910,20 @@ function WeightStep({ stats, onChange, onNext, onBack, step, total }) {
         {/* Barbell */}
         <BarbellVisualizer kg={valueKg} />
 
-        {/* Drag-here hint — subtle bouncing chevrons above the scrubber
-            so users discover the horizontal drag gesture. The gauge looks
-            tappable but is actually scrub-by-drag, and the screenshot
-            feedback flagged that users miss the gesture entirely.
-            (Onboarding screenshot feedback, 2026-06.) */}
-        <div className="flex items-center justify-center gap-1.5 mt-2 mb-1" aria-hidden="true">
+        {/* Dial hint — the gauge above is the input: drag it up/down to set,
+            tap the number to type. Replaces the old horizontal scrubber. */}
+        <div className="flex items-center justify-center gap-1.5 mt-3 mb-1" aria-hidden="true">
           <motion.span
-            animate={{ x: [-3, 0, -3] }}
+            animate={{ y: [-2, 1, -2] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
             className="text-primary/70 font-bold text-sm leading-none"
-          >‹</motion.span>
-          <span className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag to set</span>
+          >⌃</motion.span>
+          <span className="font-mono text-[10px] font-semibold tracking-[0.18em] uppercase text-muted-foreground/80">Drag dial to set · tap to type</span>
           <motion.span
-            animate={{ x: [3, 0, 3] }}
+            animate={{ y: [2, -1, 2] }}
             transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
             className="text-primary/70 font-bold text-sm leading-none"
-          >›</motion.span>
-        </div>
-
-        {/* Horizontal scrubber */}
-        <div ref={ref} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
-          style={{ position: 'relative', height: 44, marginTop: 4, cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none', userSelect: 'none', overflow: 'hidden', maskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)', WebkitMaskImage: 'linear-gradient(90deg, transparent, black 8%, black 92%, transparent)' }}>
-          <div style={{ position: 'absolute', inset: 0, transform: `translateX(${offsetX}px)`, transition: isDragging ? 'none' : 'transform 0.2s cubic-bezier(0.16,1,0.3,1)' }}>
-            {ticks.map(v => {
-              const isMajor = unit === 'kg' ? v % 10 === 0 : v % 25 === 0;
-              const isMid = unit === 'kg' ? v % 5 === 0 && !isMajor : v % 10 === 0 && !isMajor;
-              const isActive = v === value;
-              return (
-                <span key={v}>
-                  <span style={{ position: 'absolute', left: v * PX, top: '50%', transform: 'translate(-50%,-50%)', width: 1.5, height: isMajor ? 20 : isMid ? 12 : 6, background: isActive ? 'hsl(var(--primary))' : isMajor ? 'hsl(var(--foreground)/0.5)' : 'hsl(var(--muted-foreground)/0.25)' }} />
-                  {isMajor && <span style={{ position: 'absolute', left: v * PX, top: '75%', transform: 'translateX(-50%)', fontFamily: 'ui-monospace,monospace', fontSize: 9, fontWeight: 600, color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))' }}>{v}</span>}
-                </span>
-              );
-            })}
-          </div>
-          <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, marginLeft: -1, background: 'linear-gradient(180deg, hsl(var(--primary)), transparent)', boxShadow: '0 0 10px hsl(var(--primary))', pointerEvents: 'none' }} />
+          >⌄</motion.span>
         </div>
 
         {/* ± Fine-tune buttons — always reachable even if drag doesn't work */}
