@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { motion } from 'framer-motion';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
@@ -20,6 +20,7 @@ const MACROS = [
 export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
   const { t } = useLanguage();
   const { nutrientRingView } = useSettings();
+  const [netCarbsInfo, setNetCarbsInfo] = useState(false);
   const totals = useMemo(() => {
     return entries.reduce(
       (acc, entry) => ({
@@ -122,13 +123,28 @@ export default function MacroNutrientBox({ entries = [], userProfile = {} }) {
       {/* Net carbs — carbs minus fiber. Standard for keto / low-carb
           tracking. Quiet single-line label so users who don't care
           about the metric aren't distracted. */}
-      <div className="mt-3 pt-3 border-t border-border/40 flex items-center justify-between">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-          Net carbs <span className="font-normal normal-case opacity-70">(carbs − fiber)</span>
-        </span>
-        <span className="text-xs font-bold tabular-nums text-blue-600">
-          {Math.max(0, totals.carbs_g - totals.fiber_g).toFixed(1)} g
-        </span>
+      <div className="mt-3 pt-3 border-t border-border/40">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+            Net carbs <span className="font-normal normal-case opacity-70">(carbs − fiber)</span>
+            <button
+              type="button"
+              onClick={() => setNetCarbsInfo((v) => !v)}
+              aria-label="What are net carbs?"
+              className="w-4 h-4 rounded-full border border-border/60 bg-background/80 flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:border-border transition-colors shrink-0"
+            >
+              <span className="text-[8px] font-bold leading-none italic">i</span>
+            </button>
+          </span>
+          <span className="text-xs font-bold tabular-nums text-blue-600">
+            {Math.max(0, totals.carbs_g - totals.fiber_g).toFixed(1)} g
+          </span>
+        </div>
+        {netCarbsInfo && (
+          <p className="text-[11px] text-foreground/70 mt-2 leading-snug">
+            Net carbs = total carbs − fiber. Fiber isn't digested or absorbed, so it doesn't raise blood sugar — subtracting it leaves the carbs your body actually uses for energy. It's the standard metric for keto and low-carb tracking.
+          </p>
+        )}
       </div>
     </Card>
   );
