@@ -33,6 +33,8 @@ import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
 import PhotoMealResultModal from '@/components/nutrition/PhotoMealResultModal';
 import FoodPhotoCaptureModal from '@/components/nutrition/FoodPhotoCaptureModal';
+import PhotoAiLimitModal from '@/components/nutrition/PhotoAiLimitModal';
+import { getPhotoAiUsedToday, PHOTO_AI_DAILY_CAP } from '@/lib/data/photoAiQuota';
 import WeeklyMealPlannerModal from '@/components/nutrition/WeeklyMealPlannerModal';
 import FastingTrackerCard from '@/components/nutrition/FastingTrackerCard';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -405,6 +407,10 @@ export default function Nutrition() {
   // Guided in-app camera for Photo-AI (framing overlay) — the primary capture
   // entry; the hidden file input is the "choose from library" fallback.
   const [showPhotoCapture, setShowPhotoCapture] = useState(false);
+  // Out-of-scans upsell: { used, cap } when the daily Photo-AI allotment is
+  // spent, null otherwise. `purchasingUnlimited` guards the IAP button.
+  const [photoLimit, setPhotoLimit] = useState(null);
+  const [purchasingUnlimited, setPurchasingUnlimited] = useState(false);
   // Photo-AI result pop-out — the recognized meal + the photo the user took.
   const [showPhotoResult, setShowPhotoResult] = useState(false);
   const [photoResult, setPhotoResult] = useState(null);
@@ -818,7 +824,17 @@ export default function Nutrition() {
       // PIPELINE_MISSING = function not deployed; SERVER_MISCONFIGURED = deployed
       // but the Anthropic key isn't set. Both mean "not fully set up" to a user.
       else if (err === 'PIPELINE_MISSING' || err === 'SERVER_MISCONFIGURED') toast.error(tFallback('nutrition.photoAi.notEnabled', "Photo recognition isn't enabled yet."));
-      else if (err === 'RATE_LIMIT') toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit — try again in a moment.'));
+      // Server signalled the daily cap explicitly (if the Edge Function sends
+      // it) — go straight to the out-of-scans upsell.
+      else if (err === 'DAILY_LIMIT') setPhotoLimit({ used: PHOTO_AI_DAILY_CAP, cap: PHOTO_AI_DAILY_CAP });
+      // RATE_LIMIT is shared by the daily cap AND a transient upstream 429 —
+      // distinguish by the user's actual count: at/over the cap → out-of-scans
+      // upsell; otherwise it's a momentary blip → retry toast.
+      else if (err === 'RATE_LIMIT') {
+        const used = await getPhotoAiUsedToday(user?.id);
+        if (used >= PHOTO_AI_DAILY_CAP) setPhotoLimit({ used, cap: PHOTO_AI_DAILY_CAP });
+        else toast.error(tFallback('nutrition.photoAi.rateLimit', 'Hit the rate limit — try again in a moment.'));
+      }
       // 'TOO_LARGE' was the old client-side code; the server has always
       // sent 'IMAGE_TOO_LARGE'. Accept both so neither path falls
       // through to the generic toast.
@@ -852,7 +868,32 @@ export default function Nutrition() {
     setShowPhotoCapture(false);
     processPhotoFile(file);
   };
-  const openPhotoCapture = () => setShowPhotoCapture(true);
+
+  // Open the Photo-AI camera — but if the user has already spent today's scans,
+  // show the out-of-scans upsell instead (saves a wasted capture + round-trip).
+  // Fails OPEN: any error reading the counter just opens the camera.
+  const openPhotoCapture = async () => {
+    try {
+      const used = await getPhotoAiUsedToday(user?.id);
+      if (used >= PHOTO_AI_DAILY_CAP) {
+        setPhotoLimit({ used, cap: PHOTO_AI_DAILY_CAP });
+        return;
+      }
+    } catch { /* fail open */ }
+    setShowPhotoCapture(true);
+  };
+
+  // "$2.99 unlimited" — integration point for the native in-app purchase
+  // (App Store / Play Store). No payment is collected in-app here.
+  const handlePurchaseUnlimited = () => {
+    if (purchasingUnlimited) return;
+    setPurchasingUnlimited(true);
+    // TODO(iap): trigger the store purchase flow, then unlock on success.
+    setTimeout(() => {
+      setPurchasingUnlimited(false);
+      toast(tFallback('nutrition.photoAi.unlimitedSoon', 'Unlimited Photo-AI is coming soon — hang tight!'));
+    }, 500);
+  };
 
   // Close + tidy up the photo-result modal (revoke the object URL).
   const closePhotoResult = () => {
@@ -2090,6 +2131,18 @@ export default function Nutrition() {
           onClose={() => setShowPhotoCapture(false)}
           onCapture={handlePhotoCapture}
           onPickLibrary={() => { setShowPhotoCapture(false); photoInputRef.current?.click(); }}
+        />
+      </ErrorBoundary>
+
+      {/* Out-of-scans upsell — shown when the daily Photo-AI allotment is spent. */}
+      <ErrorBoundary label="PhotoAiLimitModal">
+        <PhotoAiLimitModal
+          open={!!photoLimit}
+          used={photoLimit?.used ?? PHOTO_AI_DAILY_CAP}
+          cap={photoLimit?.cap ?? PHOTO_AI_DAILY_CAP}
+          purchasing={purchasingUnlimited}
+          onClose={() => setPhotoLimit(null)}
+          onPurchase={handlePurchaseUnlimited}
         />
       </ErrorBoundary>
 
