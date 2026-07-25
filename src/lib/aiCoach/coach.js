@@ -13,15 +13,36 @@
 
 import { detectIntent, INTENTS } from './intents';
 import { respond } from './responders';
+import { buildCoachPlan } from './planBuilder';
 
 const LLM_TIMEOUT_MS = 8000;
 
 /**
  * Ask the coach something. Returns:
- *   { reply: string, intent: { id, score, params }, source: 'rules' | 'llm' }
+ *   { reply: string, intent, source: 'rules' | 'llm' | 'plan', plan? }
+ * When the user asks for a tailored workout/plan, `plan` carries a saveable
+ * payload the chat renders as an interactive card.
  */
 export async function askCoach(user, message) {
   const intent = detectIntent(message);
+
+  // Workout/plan generation short-circuits the advice pipeline: we build a
+  // concrete plan locally and attach it to the reply. No LLM needed — the plan
+  // is deterministic; the intro text is friendly on its own.
+  if (intent.id === INTENTS.GENERATE_PLAN) {
+    try {
+      const { reply, plan } = await buildCoachPlan({ user, message });
+      return { reply, intent, source: 'plan', plan };
+    } catch (err) {
+      console.warn('[aiCoach] plan generation failed:', err);
+      return {
+        reply: "I couldn't build that plan just now — try rephrasing the goal (e.g. \"train for a faster 5K\" or \"help me PR my bench\").",
+        intent,
+        source: 'rules',
+      };
+    }
+  }
+
   const baseReply = await respond({ user, intent });
 
   // Try to enhance with LLM if configured. On any error, return the

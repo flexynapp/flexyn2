@@ -1,5 +1,6 @@
 ﻿import React, { useState, useEffect, useMemo, useRef, lazy, Suspense } from 'react';
 import { filterAfterReset } from '@/lib/accountReset';
+import { readPendingWorkout, clearPendingWorkout } from '@/lib/pendingWorkout';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
@@ -1384,6 +1385,20 @@ export default function Workout() {
     }
   };
 
+  // "Start workout" from the AI Coach / Quick generator hands a session off via
+  // sessionStorage (the two routes are separate chunks). Consume it once on
+  // mount and load it into the live workout form.
+  useEffect(() => {
+    const pending = readPendingWorkout();
+    if (!pending) return;
+    startFromGeneratedWorkout(pending);
+    // Clear AFTER the mount sticks. Under StrictMode the first mount's cleanup
+    // cancels this timer, so only the surviving mount clears the cache — and
+    // the cache (not sessionStorage) is what the surviving mount reads.
+    const t = setTimeout(clearPendingWorkout, 0);
+    return () => clearTimeout(t);
+  }, []);
+
   // SHARED save-as-regimen handler for the AI generator modal — used at
   // both mount points so they can't drift.
   const saveGeneratedAsRegimen = async (workout) => {
@@ -1724,8 +1739,8 @@ export default function Workout() {
       <motion.div whileHover={{ y:-2 }} whileTap={{ scale:0.98 }} transition={{ type:'spring', stiffness:380, damping:22 }}>
         <Card role="button" tabIndex={0} aria-label="Generate Workout"
           className={cardBase} style={{ background: pal.background }}
-          onClick={() => setGeneratorOpen(true)}
-          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();setGeneratorOpen(true);} }}>
+          onClick={() => navigate('/coach?generate=1')}
+          onKeyDown={(e) => { if (e.key==='Enter'||e.key===' '){e.preventDefault();navigate('/coach?generate=1');} }}>
           <InfoBtn bid="generate" />
           <div className="flex flex-col items-center text-center gap-1.5">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-red-500 via-primary to-amber-400 flex items-center justify-center shrink-0 shadow-[0_2px_8px_rgba(239,68,68,0.3)]">
@@ -1733,7 +1748,7 @@ export default function Workout() {
             </div>
             <div>
               <p className="font-heading font-bold text-sm leading-tight">{tFallback('generator.title','Generate Workout')}</p>
-              <InfoText bid="generate" text="AI builds a personalised session from your history and goals." />
+              <InfoText bid="generate" text="Tell the AI Coach your goal — or tap Quick pick — and it builds a session or plan." />
             </div>
           </div>
         </Card>

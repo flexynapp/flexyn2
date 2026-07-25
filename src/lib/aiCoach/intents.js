@@ -25,6 +25,7 @@ export const INTENTS = {
   PLATEAU:          'plateau',
   RECOVERY_CHECK:   'recovery_check', // NEW — combines sleep + soreness + recency
   SLEEP_LOG:        'sleep_log',      // NEW — user wants to log/check sleep
+  GENERATE_PLAN:    'generate_plan',  // NEW — build a tailored workout/plan from a goal
   GREETING:         'greeting',
   HELP:             'help',
   UNKNOWN:          'unknown',
@@ -176,6 +177,37 @@ export function detectIntent(message) {
     /\bsleep (log|hours|quality)\b/,
     /\bi slept\b/,
   ]) if (re.test(m)) candidates.push({ id: INTENTS.SLEEP_LOG, score: 8 });
+
+  // Generate a tailored workout / plan from a goal. Scored 12 — above every
+  // advice intent — because these are explicit "build me something" asks that
+  // must win over the coincidental keyword overlap with CARDIO_SUGGEST ("run"),
+  // PRS ("pr"), SHOULD_INCREASE ("stronger"), etc. The phrasing here is
+  // generation-specific, so it won't hijack "what are my PRs" or "how much
+  // should I run".
+  for (const re of [
+    // explicit "make me a workout/plan/program/routine/regimen"
+    /\b(make|give|build|generate|create|design|put together|whip up|come up with)\b[\s\S]{0,24}\b(workout|plan|program|routine|regimen|session)\b/,
+    /\b(workout|plan|program|routine|regimen)\s+for me\b/,
+    // training toward an event / goal
+    /\btrain(ing)?\s+for\b/,
+    /\b(get|getting) ready for\b/,
+    /\bprepare\s+for\b/,
+    // "I want to <goal>"
+    /\bi\s*(want|wanna|would like|'?d like|need|am trying)\s*to\b[\s\S]{0,30}\b(pr|run|bench|squat|deadlift|press|build|gain|lose|get (faster|stronger|leaner|bigger|fit)|train|prep)/,
+    // PR a specific lift — goal phrasing only, so "can't break my squat PR"
+    // (a plateau complaint) is NOT hijacked here.
+    /\bpr\s+(my|a|the)?\s*(bench|squat|deadlift|press|lift|clean)\b/,
+    /\b(hit|land|get|chase|chasing|want|aiming for|going for|score)\b[\s\S]{0,16}\b(new\s+)?(bench|squat|deadlift|press)?\s*pr\b/,
+    // cardio targets
+    /\b(faster|sub[-\s]?\d+)\s*(5\s*k|10\s*k|mile|marathon|half)\b/,
+    /\bcouch\s*to\s*5\s*k\b/,
+    /\bfirst\s+(5\s*k|10\s*k|half|marathon)\b/,
+    // standalone body-composition / strength goals
+    /\b(build|gain)\s+muscle\b/,
+    /\blose\s+(weight|fat)\b/,
+    /\bget\s+(stronger|faster|leaner|bigger|ripped|shredded|in shape)\b/,
+    /\bbulk(ing)?\s*up\b/,
+  ]) if (re.test(m)) candidates.push({ id: INTENTS.GENERATE_PLAN, score: 12 });
 
   if (candidates.length === 0) {
     return { id: INTENTS.UNKNOWN, score: 0, params: { raw: message } };

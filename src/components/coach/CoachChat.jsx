@@ -12,6 +12,8 @@ import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
+import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
+import CoachPlanCard from '@/components/coach/CoachPlanCard';
 import { toast } from '@/lib/toast';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -59,9 +61,10 @@ const SPEECH_LANG_BY_APP_LANG = {
   hi: 'hi-IN', ru: 'ru-RU', tr: 'tr-TR', pl: 'pl-PL', nl: 'nl-NL',
 };
 
-export default function CoachChat() {
+export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   const { user } = useAuth();
   const { tFallback, language } = useLanguage();
+  const generateMode = mode === 'generate';
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState('');
   // Voice dictation state — the Mic icon swaps to MicOff with a pulse
@@ -173,7 +176,15 @@ export default function CoachChat() {
 
     try {
       const result = await askCoach(user, text);
-      const reply = { role: 'coach', text: result.reply, ts: Date.now(), source: result.source };
+      const reply = {
+        role: 'coach',
+        text: result.reply,
+        ts: Date.now(),
+        source: result.source,
+        // A generated workout/plan rides along as a structured payload the
+        // chat renders as an interactive, saveable card.
+        plan: result.plan || null,
+      };
       setMessages(prev => [...prev, reply]);
     } catch (err) {
       console.error('[CoachChat] askCoach threw:', err);
@@ -244,11 +255,20 @@ export default function CoachChat() {
         className="flex-1 min-h-0 overflow-y-auto overscroll-contain pe-1"
       >
         {isEmpty ? (
-          <CoachWelcome onPick={handleSend} tFallback={tFallback} />
+          <CoachWelcome onPick={handleSend} tFallback={tFallback} generateMode={generateMode} />
         ) : (
           <>
             {messages.map((m, i) => (
-              <MessageBubble key={i} m={m} />
+              <React.Fragment key={i}>
+                <MessageBubble m={m} />
+                {m.plan && (
+                  <CoachPlanCard
+                    plan={m.plan}
+                    onSaveRegimen={onSaveRegimen}
+                    onStartWorkout={onStartWorkout}
+                  />
+                )}
+              </React.Fragment>
             ))}
             {thinking && (
               <div className="flex mb-2 justify-start">
@@ -268,7 +288,11 @@ export default function CoachChat() {
           welcome card is gone, so keep the prompts reachable as a
           horizontally-scrollable strip with arrow controls. */}
       {!isEmpty && (
-        <PromptStrip prompts={SUGGESTED_PROMPTS} onPick={handleSend} disabled={thinking} />
+        <PromptStrip
+          prompts={generateMode ? GENERATE_PROMPTS : SUGGESTED_PROMPTS}
+          onPick={handleSend}
+          disabled={thinking}
+        />
       )}
 
       {/* Composer */}
@@ -425,20 +449,23 @@ function PromptStrip({ prompts, onPick, disabled }) {
   );
 }
 
-function CoachWelcome({ onPick, tFallback }) {
+function CoachWelcome({ onPick, tFallback, generateMode }) {
+  const prompts = generateMode ? GENERATE_PROMPTS : SUGGESTED_PROMPTS;
+  const title = generateMode
+    ? tFallback('coach.generate.title', 'What are you training for?')
+    : tFallback('coach.welcome.title', 'Your personal coach');
+  const desc = generateMode
+    ? tFallback('coach.generate.desc', 'Tell me your goal and I’ll build a workout or a full plan you can save — try "train for a faster 5K" or "help me PR my bench."')
+    : tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.");
   return (
     <div className="flex flex-col items-center justify-center text-center pt-8 pb-4 px-2">
       <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary via-fuchsia-500 to-violet-500 flex items-center justify-center mb-4">
         <Sparkles className="w-7 h-7 text-white" />
       </div>
-      <h2 className="font-heading font-bold text-lg mb-1">
-        {tFallback('coach.welcome.title', 'Your personal coach')}
-      </h2>
-      <p className="text-sm text-muted-foreground mb-5 max-w-xs">
-        {tFallback('coach.welcome.desc', "Ask me anything about your training. I read your actual workout data to give you specific advice.")}
-      </p>
+      <h2 className="font-heading font-bold text-lg mb-1">{title}</h2>
+      <p className="text-sm text-muted-foreground mb-5 max-w-xs">{desc}</p>
       <div className="space-y-1.5 w-full max-w-sm">
-        {SUGGESTED_PROMPTS.map(p => (
+        {prompts.map(p => (
           <button
             key={p.id}
             onClick={() => onPick(p.text)}
