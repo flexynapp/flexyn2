@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Mock sonner toast before importing the module under test
-vi.mock('sonner', () => ({
+vi.mock('@/lib/toast', () => ({
   toast: { success: vi.fn() },
 }));
 
@@ -15,7 +15,7 @@ vi.mock('canvas-confetti', () => ({
   default: vi.fn(),
 }));
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 import confetti from 'canvas-confetti';
 import { fireGoalCelebration } from '../goalCelebration';

@@ -17,7 +17,7 @@ import * as users from '@/lib/data/users';
 import * as dmRxns from '@/lib/data/dmMessageReactions';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { compressImage } from '@/lib/imageCompress';
 import TradeOfferCard, { parseTradeOffer, parseTradeResponse } from './TradeOfferCard';

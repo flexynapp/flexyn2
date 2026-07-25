@@ -10,7 +10,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Swords, Copy, Share2, Loader2, Check, Link as LinkIcon } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { createInviteLink, buildInviteUrl } from '@/lib/data/duelInvites';
 import { useDateFormatter } from '@/lib/intl';
 

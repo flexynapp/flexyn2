@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Pencil, Trash2, Heart, Zap, Waves, Wind, Map } from 'lucide-react';
 import { vo2maxTier } from '@/lib/cardioVO2max';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';

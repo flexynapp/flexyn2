@@ -15,7 +15,7 @@ import { motion } from 'framer-motion';
 import { format, subDays } from 'date-fns';
 import { Dumbbell, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ── Comeback session generator ────────────────────────────────────────────────
 // Pulls exercises the user has done before from the 30 days prior to absence.

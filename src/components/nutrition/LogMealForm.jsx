@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import { useProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // TABS are built inside the component to support t()
 

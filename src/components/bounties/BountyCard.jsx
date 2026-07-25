@@ -7,7 +7,7 @@ import { Zap, Clock, Loader2, Lock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { claimBounty, DIFFICULTY_CONFIG, bountyDescription } from '@/lib/data/bounties';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';

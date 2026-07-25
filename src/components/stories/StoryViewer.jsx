@@ -26,7 +26,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star, StarOff, Download, Clock } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import StoryReactionPicker from './StoryReactionPicker';
 import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';

@@ -23,7 +23,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldAlert, Check, Trash2, X, ChevronLeft, AlertTriangle, Bug } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { listReports, resolveReport, deleteReportedContent, listBugReports, resolveBugReport } from '@/lib/data/admin';

@@ -31,7 +31,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { differenceInYears } from 'date-fns';
 import { usePushSubscription } from '@/lib/usePushSubscription';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 export default function SettingsPanel() {
   const { t, tFallback } = useLanguage();

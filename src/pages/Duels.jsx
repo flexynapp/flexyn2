@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Swords, Trophy, Plus, Dumbbell, Timer, Crown, ArrowLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { listMyDuels, cancelDuel } from '@/lib/data/duels';
 import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';

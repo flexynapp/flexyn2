@@ -22,7 +22,7 @@ import {
   BarChart3, Clock, Flame, Footprints, TrendingUp, Zap,
 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';

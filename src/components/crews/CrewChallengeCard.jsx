@@ -11,7 +11,7 @@ import { motion } from 'framer-motion';
 import { Target, Plus, Loader2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { listChallengesForCrew, createChallenge, VALID_METRICS } from '@/lib/data/crewChallenges';

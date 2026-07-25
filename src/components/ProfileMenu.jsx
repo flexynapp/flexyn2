@@ -8,7 +8,7 @@ import { clearFirstLaunch } from '@/lib/firstLaunch';
 import { requestOpenBag } from '@/lib/inventoryFlow';
 import * as capsules from '@/lib/data/capsules';
 import LevelBar from './LevelBar';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import ThemePicker from './ThemePicker';
 import LanguagePicker from './LanguagePicker';

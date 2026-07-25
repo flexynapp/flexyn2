@@ -17,7 +17,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowRightLeft, Check, X, Coins, Info } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { RARITY } from '@/lib/lootCatalog';
 import { sendMessage } from '@/lib/data/hubMessages';
 

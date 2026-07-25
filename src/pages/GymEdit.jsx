@@ -17,7 +17,7 @@ import { AMENITY_META, AMENITY_SLUGS } from '@/lib/gymAmenities';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { supabase } from '@/api/supabaseClient';
 import EmptyState from '@/components/EmptyState';

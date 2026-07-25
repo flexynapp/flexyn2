@@ -42,7 +42,7 @@ import * as achievements from '@/lib/data/achievements';
 import * as regimens from '@/lib/data/regimens';
 import { loadProgressPhotos } from '@/components/progress/ProgressPhotoCapture';
 import { db } from '@/api/db';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { NoWorkoutsIllustration } from '@/components/emptyStateIllustrations';
 import CharCountIndicator from '@/components/ui/CharCountIndicator';
 import { compressImage } from '@/lib/imageCompress';

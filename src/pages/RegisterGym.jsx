@@ -16,7 +16,7 @@ import { motion } from 'framer-motion';
 import { Building2, MapPin, Loader2, CheckCircle2, ArrowLeft, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
 import {

@@ -14,7 +14,7 @@ import { createDuel, getFrequentOpponents, sendDuelDM } from '@/lib/data/duels';
 import { supabase } from '@/api/supabaseClient';
 import { selectProfiles } from '@/lib/data/users';
 import { useAuth } from '@/lib/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ── Duel type config ──────────────────────────────────────────────────────────
 

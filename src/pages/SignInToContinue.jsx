@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, ArrowLeft, Mail, Loader2, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { db } from '@/api/db';
 
 // Inline SVG glyphs for the OAuth buttons — keeps us off of brand-asset

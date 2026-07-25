@@ -24,7 +24,7 @@ const GymAboutCard          = lazy(() => import('@/components/gyms/GymAboutCard'
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';

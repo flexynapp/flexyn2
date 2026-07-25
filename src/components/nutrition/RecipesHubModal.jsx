@@ -19,7 +19,7 @@ import {
   X, Plus, Trash2, Loader2, ChefHat, Globe, Lock, Download,
   ChevronDown, Utensils, ImageIcon,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
 import RecipeBuilderModal from './RecipeBuilderModal';

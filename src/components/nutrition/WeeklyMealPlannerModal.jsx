@@ -23,7 +23,7 @@ import {
   X, ChevronLeft, ChevronRight, ChevronDown, Loader2, Plus,
   CalendarDays, Camera, ChefHat, Pencil, ChevronRight as ChevRight,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import * as mealPlans from '@/lib/data/mealPlans';

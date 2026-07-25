@@ -5,7 +5,7 @@
 // nice toast. Pure (no React) so it can be fired from anywhere; the tap
 // detection lives at the call site.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // Rotated at random on every trigger — cheeky, but kind.
 const MESSAGES = [

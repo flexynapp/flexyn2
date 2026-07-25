@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, History } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import SetRow from './SetRow';
 import { getRecentSessionsForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';

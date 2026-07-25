@@ -45,7 +45,7 @@ import { isPrestigeEligible } from '@/lib/data/prestige';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { setLayoutDefault } from '@/lib/data/layoutDefaults';
 import { checkAndCelebrate as checkTrophies } from '@/lib/data/trophies';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import { filterAfterReset } from '@/lib/accountReset';
 import { useLanguage } from '@/lib/LanguageContext';

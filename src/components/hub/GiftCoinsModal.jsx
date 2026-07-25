@@ -12,7 +12,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { X, Coins, Send, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { giftCoins } from '@/lib/data/coinGifts';
 import { useNumberFormatter } from '@/lib/intl';

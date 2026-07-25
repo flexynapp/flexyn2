@@ -9,7 +9,7 @@
 // Distinct from goal-completion + first-workout vocabulary so a
 // returning user can tell which milestone fired.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 // Slightly different palette from first-workout so the haptic + color

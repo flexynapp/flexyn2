@@ -8,7 +8,7 @@ import React, { useState } from 'react';
 import { Swords, Dumbbell, Timer, Trophy, Check, X, Loader2 } from 'lucide-react';
 import { acceptDuel, declineDuel } from '@/lib/data/duels';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ── Protocol helpers (imported by HubChat) ────────────────────────────────────
 

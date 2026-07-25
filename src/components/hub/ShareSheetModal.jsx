@@ -19,7 +19,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
 import { getMyCrews, sendCrewMessage } from '@/lib/data/crews';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ── Twitter/X SVG icon ───────────────────────────────────────────────────────
 function XIcon({ size = 16 }) {

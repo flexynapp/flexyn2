@@ -14,7 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import StarRating from './StarRating';
 import * as reviews from '@/lib/data/regimenReviews';
 

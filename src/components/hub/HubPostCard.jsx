@@ -20,7 +20,7 @@ import PostActivityBlock from './PostActivityBlock';
 import ReportDialog from './ReportDialog';
 import StickerDisplay from './StickerDisplay';
 import StickerPanel from './StickerPanel';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { isMealSaved, saveMeal, removeSavedMeal } from '@/lib/savedMeals';
 import { translateText, isLikelyAlreadyInLanguage } from '@/lib/translate';
 import * as hubSavedPosts from '@/lib/data/hubSavedPosts';

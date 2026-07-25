@@ -12,7 +12,7 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { LOOT_THEMES } from '@/lib/lootThemes';
 import * as inventory from '@/lib/data/inventory';
 import { isVerified } from '@/lib/verifiedUsers';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // Rarity colour tokens
 const RARITY_COLORS = {

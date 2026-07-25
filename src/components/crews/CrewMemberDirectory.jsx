@@ -7,7 +7,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { X, ShieldCheck, Shield, Trash2, Loader2 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as crewsData from '@/lib/data/crews';
 import { useQueryClient } from '@tanstack/react-query';
 

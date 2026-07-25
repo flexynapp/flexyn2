@@ -30,7 +30,7 @@
 // indirection lets the React-free celebration helper hand off to a
 // React component without coupling them at the import level.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 /**

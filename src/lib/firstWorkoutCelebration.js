@@ -13,7 +13,7 @@
 // + Sentry breadcrumb. Different copy and a bigger confetti volume so
 // the moment feels distinct.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 const CONFETTI_COLORS = ['#f97316', '#fb923c', '#fbbf24', '#22c55e', '#3b82f6', '#a855f7'];

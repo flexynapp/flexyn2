@@ -18,7 +18,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Shield, ShieldCheck, Loader2, X, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { listFactors, enrollTotp, verifyEnrollment, unenroll } from '@/lib/data/twoFactor';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,

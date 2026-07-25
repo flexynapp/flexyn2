@@ -18,7 +18,7 @@ import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Loader2, Save, ChefHat, ChevronDown, ImagePlus, Camera } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import * as recipes from '@/lib/data/nutritionRecipes';
 import {

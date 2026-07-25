@@ -15,7 +15,7 @@ import { ChevronLeft, Share2, Loader2, Trophy, Zap, RefreshCw } from 'lucide-rea
 import { listDebriefs, generateWeeklyDebrief, currentWeekStart, prevWeekStart } from '@/lib/data/debriefs';
 import WeeklyDebriefCard from './WeeklyDebriefCard';
 import { reportError } from '@/lib/reportError';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useNumberFormatter } from '@/lib/intl';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 

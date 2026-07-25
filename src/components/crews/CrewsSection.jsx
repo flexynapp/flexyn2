@@ -13,7 +13,7 @@ import * as crewsData from '@/lib/data/crews';
 import { getActiveWarForCrew, getCrewWarHistory, getWarScore, getOpponentScore, joinWarMatchmaking } from '@/lib/data/crewWars';
 import { formatDistanceToNow } from 'date-fns';
 import { useNumberFormatter } from '@/lib/intl';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewWarPanel from './CrewWarPanel';

@@ -11,7 +11,7 @@ import {
   ArrowUpDown, Gift, Package, Heart, Star,
 } from 'lucide-react';
 import CoinShopModal from './CoinShopModal';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';

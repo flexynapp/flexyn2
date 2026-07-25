@@ -8,7 +8,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Loader2, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';

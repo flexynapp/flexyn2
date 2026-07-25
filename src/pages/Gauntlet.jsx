@@ -10,7 +10,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useDateFormatter } from '@/lib/intl';
 import { reportError } from '@/lib/reportError';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';

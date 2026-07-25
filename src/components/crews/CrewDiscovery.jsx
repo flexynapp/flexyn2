@@ -10,7 +10,7 @@ import { Search, Globe2, Users, Plus, Loader2, ArrowLeft, Shield } from 'lucide-
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
   const memberCount = crew._memberCount ?? '…';

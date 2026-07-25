@@ -9,11 +9,11 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('sonner', () => ({ toast: { success: vi.fn() } }));
+vi.mock('@/lib/toast', () => ({ toast: { success: vi.fn() } }));
 vi.mock('@sentry/react', () => ({ addBreadcrumb: vi.fn() }));
 vi.mock('canvas-confetti', () => ({ default: vi.fn() }));
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 import { firePRCelebration } from '../prCelebration';
 

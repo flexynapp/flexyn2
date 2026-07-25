@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';
 import { compressImage } from '@/lib/imageCompress';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { getAvatarGradient } from '@/lib/avatarGradient';
 
 /**

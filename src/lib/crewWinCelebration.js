@@ -15,7 +15,7 @@
 // Mirrors the shape of the existing fireFirstWorkoutCelebration etc.
 // helpers so a future contributor can extend the family the same way.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 import { formatNumber } from '@/lib/intl';
 

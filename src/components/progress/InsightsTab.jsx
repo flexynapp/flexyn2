@@ -21,7 +21,7 @@ import {
 import { format, differenceInDays, differenceInWeeks, addDays } from 'date-fns';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { fromLbs, formatWeight } from '@/lib/weightUnit';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // ── Push/pull/legs muscle categorization ──────────────────────────────────────
 

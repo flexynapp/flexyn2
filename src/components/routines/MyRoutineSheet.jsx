@@ -13,7 +13,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   X as XIcon, Plus, ArrowLeft, Trash2, Star, Dumbbell, Moon, GripVertical,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import ExerciseAutocomplete from '@/components/regimens/ExerciseAutocomplete';
 import {

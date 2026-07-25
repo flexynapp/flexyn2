@@ -14,7 +14,7 @@ import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link2, Link2Off, Loader2, Smartphone, Watch } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const WEARABLES = [
   {

@@ -15,7 +15,7 @@ import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
 import { getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const ALL_MUSCLE_GROUPS = ['Chest', 'Back', 'Shoulders', 'Biceps', 'Triceps', 'Legs', 'Glutes', 'Core', 'Full Body', 'Cardio'];
 

@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Trophy, X, Flame, Gauge, MessageCircle, Minus, Plus } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '../../lib/weightUnit';

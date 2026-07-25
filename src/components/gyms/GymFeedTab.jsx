@@ -22,7 +22,7 @@ import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import {
   Send, Image as ImageIcon, Loader2, Heart, MessageCircle, Pin, MoreHorizontal,

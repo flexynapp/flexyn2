@@ -19,7 +19,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import {
   Plus, Trash2, Dumbbell, Save, FolderOpen, PenLine,
   Globe, Lock, Send, Copy, Search, Users,

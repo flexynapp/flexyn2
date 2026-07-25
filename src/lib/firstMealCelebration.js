@@ -10,7 +10,7 @@
 // first session feels each one as its own moment rather than five
 // identical celebrations.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 // Warm fruit/vegetable palette — visually nutrition-coded so the

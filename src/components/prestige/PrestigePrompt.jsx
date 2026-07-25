@@ -13,7 +13,7 @@ import {
   PRESTIGE_ROMAN,
   prestigeCoins,
 } from '@/lib/data/prestige';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { useNumberFormatter } from '@/lib/intl';
 

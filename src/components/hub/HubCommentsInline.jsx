@@ -16,7 +16,7 @@ import * as hubComments from '@/lib/data/hubComments';
 import * as hubCommentLikes from '@/lib/data/hubCommentLikes';
 import { handle } from '@/lib/userDisplay';
 import ReportDialog from './ReportDialog';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 // Orange 3-pronged crown badge for verified admins — defined after all imports
 // so Rollup sees a clean import-first module boundary (avoids TDZ risk).

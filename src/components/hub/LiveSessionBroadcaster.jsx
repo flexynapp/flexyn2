@@ -13,7 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { supabase } from '@/api/supabaseClient';
 import * as hubLiveSessions from '@/lib/data/hubLiveSessions';
 import { db } from '@/api/db';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 
 export default function LiveSessionBroadcaster({ onClose }) {

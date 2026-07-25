@@ -14,7 +14,7 @@
 // that don't expose navigator.clipboard (rare).
 
 import React from 'react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 
 export default function TapToCopy({ value, label = 'value', children, className = '' }) {

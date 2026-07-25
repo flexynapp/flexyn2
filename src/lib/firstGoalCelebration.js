@@ -10,7 +10,7 @@
 // distinguishable from goal-completion + first-workout + first-regimen
 // so a returning user feels each milestone as its own moment.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 // Blue/teal palette — distinct from other first-X celebrations

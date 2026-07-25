@@ -28,7 +28,7 @@ import React, { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Camera, Dumbbell, Bell, Package, X, ArrowRight } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '@/components/ui/card';
 import { useAuth } from '@/lib/AuthContext';

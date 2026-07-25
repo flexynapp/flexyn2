@@ -9,7 +9,7 @@ import { useKeyboardInset } from '@/hooks/useKeyboardInset';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 import { create as createFoodItem } from '@/lib/data/foodItems';
 import { containsProfanity } from '@/lib/profanityFilter';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const NUTRIENT_FIELDS = [
   { key: 'calories',      label: 'Calories',     unit: 'cal', color: '#f97316', required: true },

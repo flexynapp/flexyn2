@@ -10,7 +10,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { differenceInCalendarDays, format, addDays } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import * as injuries from '@/lib/data/injuries';
 

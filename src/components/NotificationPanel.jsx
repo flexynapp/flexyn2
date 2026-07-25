@@ -23,7 +23,7 @@ import { motion, AnimatePresence, useDragControls } from 'framer-motion';
 import { X, Bell as BellIcon, CheckCheck, Trash2, AlertCircle, RotateCw, Inbox } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { reportError } from '@/lib/reportError';

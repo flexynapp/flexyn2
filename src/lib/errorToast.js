@@ -27,7 +27,7 @@
 // The `retry` action is rendered automatically when a callback is
 // provided. Omit `retry` for non-recoverable errors.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 /**
  * @param {object} opts

@@ -16,7 +16,7 @@ import {
   Plus, Trash2, CheckCircle2, CalendarDays, Clock
 } from 'lucide-react';
 import { format, parseISO, isPast, isToday } from 'date-fns';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useDistanceUnit } from '@/lib/DistanceUnitContext';
 import { formatDistance } from '@/lib/distanceUnit';

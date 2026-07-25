@@ -13,7 +13,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { Users, X, Loader2, Search } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { handle } from '@/lib/userDisplay';
 import * as hubFollows from '@/lib/data/hubFollows';

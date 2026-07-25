@@ -6,7 +6,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Shield, Loader2, Check } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as crews from '@/lib/data/crews';
 
 export const CREW_INVITE_PREFIX = '[CREW_INVITE_V1]';

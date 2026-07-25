@@ -22,7 +22,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Pipette, Smile, X as XIcon, Pencil, Type, Trash2, Undo2, Move } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const EMOJI_PALETTE = [
   '🔥','💪','🏋️','🏃','🥇','🎯','⚡','🚀',

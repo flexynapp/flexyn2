@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Target, Swords, RefreshCw, Loader2, Dumbbell, Footprints, Trophy, Coins, Package, Check, Clock, AlertTriangle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import {
   getRivalProfile, getWeeklyRivalStats, msUntilWeekEnd, msUntilNextWeekStart,
   isThisWeek, computeRivalReward, confirmGymRival, voidStaleGymRival, getGymRivalRecord, computeNetRating,

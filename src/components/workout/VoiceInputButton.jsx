@@ -21,7 +21,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Mic, MicOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 

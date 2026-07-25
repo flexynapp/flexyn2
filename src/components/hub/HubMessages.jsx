@@ -14,7 +14,7 @@ import * as hubFollows from '@/lib/data/hubFollows';
 import HubChat from './HubChat';
 import CrewChat from '@/components/crews/CrewChat';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
 import { partitionConversations } from '@/lib/data/conversationRequests';
 import NewGroupDMModal from './NewGroupDMModal';

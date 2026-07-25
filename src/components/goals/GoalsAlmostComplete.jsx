@@ -5,7 +5,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Target, Zap, Trophy } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import GoalProgressBar from './GoalProgressBar';
 import { useLanguage } from '@/lib/LanguageContext';

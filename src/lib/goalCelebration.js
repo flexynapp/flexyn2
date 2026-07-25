@@ -9,7 +9,7 @@
 // confetti, no XP toast, no breadcrumb. For a feature literally called
 // "Goals", that's the most under-rewarded moment in the app.
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import * as Sentry from '@sentry/react';
 
 const CONFETTI_COLORS = ['#22c55e', '#10b981', '#facc15', '#fb923c', '#a855f7'];

@@ -17,7 +17,7 @@ import {
   Clock, Eye, Plus, BarChart3, PinOff, Megaphone, MessageCircle, Shield, Upload,
 } from 'lucide-react';
 import EmptyState from '@/components/EmptyState';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
 import * as usersData from '@/lib/data/users';

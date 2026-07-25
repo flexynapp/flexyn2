@@ -14,7 +14,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Timer, Play, StopCircle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import {
   readState,

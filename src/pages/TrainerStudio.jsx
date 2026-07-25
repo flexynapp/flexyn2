@@ -17,7 +17,7 @@ import {
   TrendingUp, CreditCard, CheckCircle2, AlertCircle, Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { db } from '@/api/db';
 import EmptyState from '@/components/EmptyState';

@@ -15,7 +15,7 @@ import {
   DIFFICULTY_CONFIG,
 } from '@/lib/data/bounties';
 import BountyCard from './BountyCard';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { formatDistanceToNow } from 'date-fns';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';

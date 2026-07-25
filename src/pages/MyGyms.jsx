@@ -17,7 +17,7 @@ import { Plus, MapPin, Loader2, Building2, QrCode, Users, ArrowRight, ScanLine }
 const QrCodeScanner = lazy(() => import('@/components/gyms/QrCodeScanner'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import EmptyState from '@/components/EmptyState';
 import { listMyGyms, joinByCode, getGymsInBbox } from '@/lib/data/gymBusinesses';

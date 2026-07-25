@@ -19,7 +19,7 @@ import {
   ChevronLeft, ChevronRight, Book, List, Bold, Mic, MicOff,
   Paperclip, X, Loader2, History, FileText,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { startDictation, isVoiceInputSupported } from '@/lib/voiceInput';
 import {

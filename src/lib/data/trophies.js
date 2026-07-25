@@ -11,7 +11,7 @@
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { getTrophy } from '@/lib/trophyDefinitions';
 
 export async function listEarned(userIdOrEmail, byEmail = false) {
