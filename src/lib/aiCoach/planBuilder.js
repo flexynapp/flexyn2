@@ -200,6 +200,91 @@ function sessionToView(workout) {
   });
 }
 
+// ── Cardio (Quick-pick "Cardio" type) ────────────────────────────────────────
+
+export const CARDIO_STYLES = [
+  { id: 'easy',      label: 'Easy Run' },
+  { id: 'intervals', label: 'Intervals' },
+  { id: 'tempo',     label: 'Tempo Run' },
+  { id: 'long',      label: 'Long Run' },
+];
+
+const MI = 1609;
+const LEVEL_FACTOR = { beginner: 0.75, intermediate: 1, advanced: 1.2 };
+
+/**
+ * Build a single cardio session for the Quick-pick "Cardio" type. Returns a
+ * `plan` payload with a cardio exercise. It's Save-only (no `workout`, so
+ * CoachPlanCard hides "Start workout") — cardio is logged via the Cardio
+ * tracker, and saving drops it into the user's Regimens.
+ */
+export function buildCardioSession({ style = 'easy', durationMinutes = 45, skillLevel = 'intermediate' } = {}) {
+  const f = LEVEL_FACTOR[skillLevel] || 1;
+  const label = (CARDIO_STYLES.find((s) => s.id === style) || CARDIO_STYLES[0]).label;
+
+  let detail;
+  let target_duration_s = null;
+  let target_distance_m = null;
+  if (style === 'intervals') {
+    const reps = Math.min(10, Math.max(4, Math.round((durationMinutes / 6) * f)));
+    detail = `${reps} × 400 m · hard efforts, full recovery`;
+  } else if (style === 'tempo') {
+    const mins = Math.max(12, Math.round((durationMinutes - 12) * f));
+    detail = `${mins} min · comfortably hard`;
+    target_duration_s = mins * 60;
+  } else if (style === 'long') {
+    const miles = Math.max(3, Math.round((durationMinutes / 9) * f));
+    detail = `${miles} mi · easy, build distance weekly`;
+    target_distance_m = miles * MI;
+  } else {
+    detail = `${durationMinutes} min · conversational pace`;
+    target_duration_s = durationMinutes * 60;
+  }
+
+  const exercise = {
+    name: 'Running',
+    displayName: label,
+    kind: 'cardio',
+    detail,
+    target_sets: 1,
+    target_reps: 1,
+    target_duration_s,
+    target_distance_m,
+    muscle_groups: ['Quads', 'Hamstrings', 'Calves', 'Core'],
+    muscle_group: 'Quads',
+    notes: '',
+  };
+
+  return {
+    kind: 'session',
+    cardio: true,
+    title: `${label} · ${durationMinutes} min`,
+    subtitle: detail,
+    exercises: [exercise],
+    regimenPayload: {
+      name: label,
+      description: `Cardio — ${detail}`,
+      exercises: [exercise],
+      is_public: false,
+    },
+    workout: null, // no strength-logger handoff; run it from the Cardio tracker
+    goal: 'endurance',
+    label: 'run',
+  };
+}
+
+/**
+ * Build a bodyweight/conditioning circuit for the Quick-pick "HIIT" type:
+ * a full-body session with minimal rest. Startable + saveable like any session.
+ */
+export async function buildHiitSession({ user, durationMinutes = 30, equipment = 'bodyweight', skillLevel = 'intermediate', bodyweightLbs = 165 } = {}) {
+  const workout = await generateWorkout({
+    user, focus: 'full_body', durationMinutes, equipment, skillLevel, bodyweightLbs, seed: Date.now(),
+  });
+  const exercises = (workout.exercises || []).map((ex) => ({ ...ex, restSec: 30 }));
+  return sessionToPlan({ ...workout, exercises, title: `HIIT Circuit · ${durationMinutes} min`, focus: 'hiit' });
+}
+
 /**
  * Normalize a generateWorkout() session into the same `plan` payload shape the
  * chat produces, so the Quick-pick tab can reuse CoachPlanCard (Start / Save).

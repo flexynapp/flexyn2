@@ -20,6 +20,9 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
 
   if (!plan) return null;
   const isSession = plan.kind === 'session';
+  // Cardio sessions have no strength-logger handoff (plan.workout is null) —
+  // they're logged via the Cardio tracker, so only "Save as regimen" applies.
+  const startable = isSession && !!plan.workout && !!onStartWorkout;
 
   const handleSave = async () => {
     if (saved || saving || !onSaveRegimen) return;
@@ -54,7 +57,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
       />
 
       <div className="mt-3 flex gap-2">
-        {isSession && onStartWorkout && (
+        {startable && (
           <button
             type="button"
             onClick={() => onStartWorkout(plan.workout)}
@@ -70,7 +73,7 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
           disabled={saving || saved}
           className={[
             'inline-flex items-center justify-center gap-1.5 rounded-xl font-semibold text-sm py-2.5 transition-colors',
-            isSession ? 'flex-1' : 'w-full',
+            startable ? 'flex-1' : 'w-full',
             saved
               ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
               : 'bg-secondary text-foreground hover:bg-secondary/80 disabled:opacity-60',

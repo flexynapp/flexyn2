@@ -19,13 +19,19 @@ vi.mock('@/api/db', () => ({
 }));
 
 describe('Generator option exports', () => {
-  it('exposes 7 focus options', () => {
-    expect(FOCUS_OPTIONS).toHaveLength(7);
+  it('exposes the expanded focus options (incl. muscle splits)', () => {
+    expect(FOCUS_OPTIONS.length).toBeGreaterThanOrEqual(11);
     const ids = FOCUS_OPTIONS.map(o => o.id);
     expect(ids).toContain('full_body');
     expect(ids).toContain('upper');
     expect(ids).toContain('lower');
     expect(ids).toContain('legs');
+    expect(ids).toContain('chest');
+    expect(ids).toContain('back');
+    expect(ids).toContain('shoulders');
+    expect(ids).toContain('arms');
+    // every focus has a human label
+    expect(FOCUS_OPTIONS.every(o => o.label && o.label !== o.id)).toBe(true);
   });
 
   it('exposes 4 equipment options', () => {

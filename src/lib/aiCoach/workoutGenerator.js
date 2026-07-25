@@ -79,7 +79,26 @@ const FOCUS_TO_GROUPS = {
   push:      ['chest', 'shoulders', 'arms'],
   pull:      ['back', 'arms'],
   legs:      ['legs', 'core'],
+  chest:     ['chest', 'arms'],
+  back:      ['back', 'arms'],
+  shoulders: ['shoulders', 'arms'],
+  arms:      ['arms'],
   core:      ['core'],
+};
+
+// Display labels for each focus (keeps FOCUS_OPTIONS readable as the list grows).
+const FOCUS_LABELS = {
+  full_body: 'Full Body',
+  upper:     'Upper Body',
+  lower:     'Lower Body',
+  push:      'Push',
+  pull:      'Pull',
+  legs:      'Legs',
+  chest:     'Chest',
+  back:      'Back',
+  shoulders: 'Shoulders',
+  arms:      'Arms',
+  core:      'Core',
 };
 
 // Equipment expansion: a user with a "gym" picks gym + dumbbells + minimal +
@@ -338,18 +357,8 @@ export async function generateWorkout({
     };
   });
 
-  const titleByFocus = {
-    full_body: 'Full Body',
-    upper:     'Upper Body',
-    lower:     'Lower Body',
-    push:      'Push Day',
-    pull:      'Pull Day',
-    legs:      'Leg Day',
-    core:      'Core Focus',
-  };
-
   return {
-    title:            `${titleByFocus[focus] || 'Workout'} · ${durationMinutes} min`,
+    title:            `${FOCUS_LABELS[focus] || 'Workout'} · ${durationMinutes} min`,
     focus,
     duration_minutes: durationMinutes,
     exercises,
@@ -358,13 +367,7 @@ export async function generateWorkout({
 
 export const FOCUS_OPTIONS = Object.keys(FOCUS_TO_GROUPS).map(id => ({
   id,
-  label: id === 'full_body' ? 'Full Body'
-       : id === 'upper'     ? 'Upper Body'
-       : id === 'lower'     ? 'Lower Body'
-       : id === 'push'      ? 'Push'
-       : id === 'pull'      ? 'Pull'
-       : id === 'legs'      ? 'Legs'
-       : 'Core',
+  label: FOCUS_LABELS[id] || id,
 }));
 
 export const EQUIPMENT_OPTIONS = [
