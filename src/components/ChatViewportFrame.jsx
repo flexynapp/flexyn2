@@ -14,23 +14,26 @@
 
 import { useLayoutEffect, useRef, useState } from 'react';
 
-// Matches the bottom-nav clearance baked into Layout's <main>
-// (`pb-[calc(4rem+env(safe-area-inset-bottom))]`).
+// Fallback clearance if the bottom nav can't be measured (matches Layout's
+// <main> pb of 4rem). Normally we reserve the nav's REAL height instead —
+// Layout's <main> pb (64px) is shorter than the actual labeled tab bar
+// (~81px incl. the iOS safe-area inset), so a fixed-height chat frame that
+// trusted the 64px number left its composer tucked under the nav.
 const NAV_CLEARANCE_PX = 64;
 
-// env(safe-area-inset-bottom) isn't readable directly in JS — probe it once
-// per measurement with a throwaway fixed element.
-function readSafeAreaBottom() {
+// How much the fixed bottom nav actually covers at the bottom of the viewport.
+// We read the real element's height (which already includes its safe-area
+// padding) so the composer clears it exactly. Returns 0 on the desktop
+// side-nav layout (nav is `lg:hidden`) or any full-screen chat with no nav.
+function readBottomNavClearance() {
   try {
-    const probe = document.createElement('div');
-    probe.style.cssText =
-      'position:fixed;bottom:0;left:0;width:0;height:env(safe-area-inset-bottom,0px);pointer-events:none;visibility:hidden;';
-    document.body.appendChild(probe);
-    const h = probe.getBoundingClientRect().height;
-    document.body.removeChild(probe);
-    return Number.isFinite(h) ? h : 0;
+    const nav = document.querySelector('nav.fixed.bottom-0');
+    if (!nav) return 0;
+    if (getComputedStyle(nav).display === 'none') return 0; // desktop / hidden
+    const h = nav.offsetHeight; // stable even while the nav is transiently translated off-screen
+    return h > 0 ? h : NAV_CLEARANCE_PX;
   } catch {
-    return 0;
+    return NAV_CLEARANCE_PX;
   }
 }
 
@@ -45,7 +48,7 @@ export default function ChatViewportFrame({ className = '', minHeight = 360, chi
     const compute = () => {
       const top = el.getBoundingClientRect().top; // viewport-relative
       const vh = window.visualViewport?.height || window.innerHeight;
-      const avail = vh - top - (NAV_CLEARANCE_PX + readSafeAreaBottom());
+      const avail = vh - top - readBottomNavClearance();
       setHeight(Math.max(minHeight, Math.round(avail)));
     };
 
