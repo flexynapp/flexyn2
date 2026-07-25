@@ -8,7 +8,7 @@
 // Both tabs share the same actions: Save a plan to Regimens, or Start a single
 // session (handed off to the Workout page via sessionStorage).
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { MessageSquare, SlidersHorizontal } from 'lucide-react';
@@ -30,6 +30,11 @@ export default function Coach() {
   const generate = !!searchParams.get('generate');
 
   const [tab, setTab] = useState(0); // 0 = chat, 1 = quick pick
+
+  // Arriving from a scrolled-down page (e.g. the Workout "Generate Workout"
+  // card lives partway down that page) would otherwise land mid-page, with the
+  // tabs + welcome scrolled off the top. Snap to the top on mount.
+  useEffect(() => { window.scrollTo(0, 0); }, []);
 
   // Persist a generated plan to the user's Regimens. Payload is already in the
   // regimens shape (from planBuilder / buildStarterRegimen).
