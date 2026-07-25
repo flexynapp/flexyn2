@@ -62,11 +62,22 @@ describe('buildStarterRegimen — per-level set/rep targets', () => {
   });
 });
 
-describe('buildStarterRegimen — cardio + hold-style overrides', () => {
-  it('cardio exercises get a higher target_reps (30)', () => {
-    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3 });
-    const running = r.exercises.find(e => e.name === 'Running');
-    expect(running.target_reps).toBe(30);
+describe('buildStarterRegimen — cardio sessions', () => {
+  it('cardio goals generate real running sessions (kind cardio, with a detail)', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3, cardioEvent: '10k' });
+    const cardio = r.exercises.filter(e => e.kind === 'cardio');
+    expect(cardio.length).toBeGreaterThan(0);
+    expect(cardio.every(e => e.name === 'Running')).toBe(true);
+    expect(cardio.every(e => typeof e.detail === 'string' && e.detail.length > 0)).toBe(true);
+    // "Run further" always includes a long run.
+    expect(cardio.some(e => /long/i.test(e.displayName))).toBe(true);
+  });
+
+  it('"Run faster" adds interval + tempo sessions', () => {
+    const r = buildStarterRegimen({ goals: ['speed'], level: 'consistent', daysCount: 3, cardioEvent: '5k' });
+    const names = r.exercises.filter(e => e.kind === 'cardio').map(e => e.displayName);
+    expect(names).toContain('Interval Run');
+    expect(names).toContain('Tempo Run');
   });
 
   it('Plank / Mountain Climbers / Side Plank get the moderate-high target (20)', () => {
@@ -86,8 +97,10 @@ describe('buildStarterRegimen — naming + description', () => {
       .toBe('Your Starter Plan — Add Muscle');
     expect(buildStarterRegimen({ goals: ['lose'], level: 'consistent', daysCount: 3 }).name)
       .toBe('Your Starter Plan — Lose Fat');
+    expect(buildStarterRegimen({ goals: ['speed'], level: 'consistent', daysCount: 3 }).name)
+      .toBe('Your Starter Plan — Run Faster');
     expect(buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3 }).name)
-      .toBe('Your Starter Plan — Build Endurance');
+      .toBe('Your Starter Plan — Run Further');
     expect(buildStarterRegimen({ goals: ['mobility'], level: 'consistent', daysCount: 3 }).name)
       .toBe('Your Starter Plan — Move Better');
   });
@@ -132,29 +145,24 @@ describe('buildStarterRegimen — edge cases / defaults', () => {
     expect(names).not.toContain('Cycling');
   });
 
-  it('respects a cyclist\'s preference: leads with Cycling, drops Running', () => {
-    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 4, cardioPreference: 'cycling' });
-    const names = r.exercises.map(e => e.name);
-    expect(names[0]).toBe('Cycling');
-    expect(names).not.toContain('Running');
-  });
-
-  it('cardioPreference only affects the endurance goal', () => {
-    const r = buildStarterRegimen({ goals: ['strength'], level: 'consistent', daysCount: 4, cardioPreference: 'cycling' });
-    expect(r.exercises.map(e => e.name)).not.toContain('Cycling');
+  it('a cardio-only plan leads with running sessions', () => {
+    const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 4, cardioEvent: '10k' });
+    expect(r.exercises[0].kind).toBe('cardio');
   });
 
   it('a collegiate runner (sub-10 mile, broadly fit) gets an advanced program, not 3x10', () => {
     const assessment = { mile_under10: 'yes', bench_bw: 'yes', squat_bw15: 'yes', pullups_10: 'yes' };
     // daysCount 4 → no days volume adjustment, so the advanced 5-set scheme shows verbatim.
     const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 4, assessment });
-    expect(r.exercises[0].target_sets).toBe(5); // advanced scheme (5 sets)
+    const firstStrength = r.exercises.find(e => e.kind === 'strength');
+    expect(firstStrength.target_sets).toBe(5); // advanced scheme (5 sets)
     expect(r.description).toContain('advanced');
   });
 
   it('a fit runner (sub-10 mile only) is at least consistent, not newbie', () => {
     const r = buildStarterRegimen({ goals: ['endurance'], level: 'newbie', daysCount: 4, assessment: { mile_under10: 'yes' } });
-    expect(r.exercises[0].target_sets).toBe(4); // consistent scheme
+    const firstStrength = r.exercises.find(e => e.kind === 'strength');
+    expect(firstStrength.target_sets).toBe(4); // consistent scheme
   });
 
   it('assessment does not demote a true beginner with no capability', () => {
@@ -385,6 +393,7 @@ describe('buildStarterRegimen — body-fat conditioning nudge', () => {
   it('does not add conditioning for an endurance goal (already cardio-heavy)', () => {
     const r = buildStarterRegimen({ goals: ['endurance'], level: 'consistent', daysCount: 3, bodyFatPct: 32 });
     // endurance already leads with cardio; the strength/muscle-only nudge doesn't fire an extra add
-    expect(r.name).toContain('Build Endurance');
+    expect(r.name).toContain('Run Further');
+    expect(r.exercises.map(e => e.name)).not.toContain('Mountain Climbers');
   });
 });

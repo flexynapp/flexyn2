@@ -32,9 +32,13 @@ const GOAL_TITLES = {
   strength:  'Build Strength',
   muscle:    'Add Muscle',
   lose:      'Lose Fat',
-  endurance: 'Build Endurance',
+  speed:     'Run Faster',
+  endurance: 'Run Further',
   mobility:  'Move Better',
 };
+
+// Cardio goal IDs — these drive real running sessions (not sets×reps).
+const CARDIO_GOALS = new Set(['speed', 'endurance']);
 
 // Exercise picks per goal. Verified at module load against EXERCISE_LIBRARY.
 // The endurance goal ("Run further") is RUNNING-first with running-support
@@ -47,6 +51,9 @@ const GOAL_EXERCISES = {
   lose:      ['Goblet Squat', 'Push-Up', 'Dumbbell Row', 'Dumbbell Lunge', 'Plank', 'Mountain Climbers'],
   endurance: ['Running', 'Jump Rope', 'Mountain Climbers', 'Body Weight Lunge', 'Glute Bridge', 'Plank'],
   mobility:  ['Body Weight Lunge', 'Push-Up', 'Plank', 'Side Plank', 'Glute Bridge'],
+  // Runner-support strength (posterior chain + core) for a cardio-only user, so
+  // "Run faster/further" still ships a couple of injury-proofing lifts.
+  run_support: ['Glute Bridge', 'Body Weight Lunge', 'Plank', 'Side Plank', 'Push-Up'],
 };
 
 // Preferred-cardio → the exercise that leads an endurance plan. Only modalities
@@ -167,6 +174,60 @@ const BODYWEIGHT_RATIO_NAMES = new Set(['Pull-Up', 'Push-Up']);
 // ── Pre-flight: assert every named exercise resolves. Runs at import time. ──
 Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
 
+// ── Cardio session library ──────────────────────────────────────────────────
+// Real running sessions scaled by the user's target event + intent (faster vs
+// further) + level. Sessions keep the real modality name ('Running') so they
+// stay loggable, but carry a displayName + `detail` that describe the actual
+// workout (distance / pace / intervals) instead of a meaningless "3 × 30".
+const MI_TO_M = 1609.34;
+const CARDIO_EVENT_SCALE = {
+  '5k':       { label: '5K',             easyMi: 2.5, longMi: 4,  tempoMin: 15, interval: '6 × 400 m' },
+  '10k':      { label: '10K',            easyMi: 3.5, longMi: 6,  tempoMin: 20, interval: '5 × 800 m' },
+  'half':     { label: 'Half Marathon',  easyMi: 4,   longMi: 9,  tempoMin: 25, interval: '4 × 1 mi'  },
+  'marathon': { label: 'Marathon',       easyMi: 5,   longMi: 14, tempoMin: 30, interval: '5 × 1 km'  },
+  'general':  { label: 'General fitness', easyMi: 3,  longMi: 5,  tempoMin: 18, interval: '8 × 200 m' },
+};
+
+function cardioSession(displayName, detail, { meters = null, minutes = null } = {}) {
+  const lib = EX('Running');
+  return {
+    name: 'Running',
+    displayName,
+    kind: 'cardio',
+    detail,
+    target_distance_m: meters ? Math.round(meters) : null,
+    target_duration_s: minutes ? Math.round(minutes * 60) : null,
+    // Loggable placeholder so the regimen still renders in older list views.
+    target_sets: 1,
+    target_reps: 1,
+    muscle_groups: lib.muscles,
+    muscle_group: lib.muscles[0],
+    notes: '',
+  };
+}
+
+// Build the week's running sessions. `speed` (Run faster) adds intervals +
+// tempo; `distance` (Run further) adds a long run; a long target event (half /
+// marathon) always includes a long run.
+function buildCardioSessions({ event, speed, distance, level } = {}) {
+  const scale = CARDIO_EVENT_SCALE[event] || CARDIO_EVENT_SCALE.general;
+  const factor = (level === 'newbie' || level === 'returning') ? 0.7
+    : level === 'advanced' ? 1.15 : 1;
+  const mi = (m) => Math.max(1, Math.round(m * factor * 2) / 2); // nearest 0.5 mi, min 1
+  const sessions = [cardioSession('Easy Run', `${mi(scale.easyMi)} mi · conversational pace`, { meters: mi(scale.easyMi) * MI_TO_M })];
+  if (speed) {
+    sessions.push(cardioSession('Interval Run', `${scale.interval} · hard efforts, full recovery`));
+    sessions.push(cardioSession('Tempo Run', `${Math.round(scale.tempoMin * factor)} min · comfortably hard`, { minutes: Math.round(scale.tempoMin * factor) }));
+  }
+  if (distance || event === 'half' || event === 'marathon') {
+    sessions.push(cardioSession('Long Run', `${mi(scale.longMi)} mi · easy, add distance weekly`, { meters: mi(scale.longMi) * MI_TO_M }));
+  }
+  if (sessions.length < 2) {
+    sessions.push(cardioSession('Steady Run', `${mi(scale.easyMi)} mi · steady effort`, { meters: mi(scale.easyMi) * MI_TO_M }));
+  }
+  return sessions;
+}
+
 /**
  * Build a deterministic regimen payload from the user's onboarding inputs.
  * Pure function — no I/O. The returned object is ready to hand to
@@ -192,20 +253,28 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
  * @param {number} [input.heightCm]    - With weight → BMI (conditioning + reps).
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioPreference, injuries, age, bodyFatPct, gender, weightKg, heightCm } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioEvent, strengthFocus, injuries, age, bodyFatPct, gender, weightKg, heightCm } = {}) {
   const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
   const primary = goalList[0] || 'strength';
-  const goalKey = GOAL_EXERCISES[primary] ? primary : 'strength';
-  const goalTitle = GOAL_TITLES[goalKey];
-  let exerciseNames = GOAL_EXERCISES[goalKey];
+  const goalTitle = GOAL_TITLES[primary] || GOAL_TITLES.strength;
 
-  // ── Preferred cardio (endurance) — lead with the chosen modality (running by
-  // default) so a runner is never handed cycling, and vice-versa.
-  if (goalKey === 'endurance' && CARDIO_MODALITY[cardioPreference]) {
-    const lead = CARDIO_MODALITY[cardioPreference];
-    const otherModalities = Object.values(CARDIO_MODALITY).filter(m => m !== lead);
-    exerciseNames = [lead, ...exerciseNames.filter(n => n !== lead && !otherModalities.includes(n))];
-  }
+  // Cardio (Run faster / Run further) is generated as real running sessions;
+  // everything else drives the strength block.
+  const cardioWanted = goalList.some(g => CARDIO_GOALS.has(g));
+  const speedWanted = goalList.includes('speed');
+  const distanceWanted = goalList.includes('endurance');
+
+  // Strength pool: first non-cardio goal, else runner-support calisthenics for a
+  // cardio-only user (so a pure runner still gets injury-proofing work).
+  const strengthGoals = goalList.filter(g => !CARDIO_GOALS.has(g) && GOAL_EXERCISES[g]);
+  const goalKey = strengthGoals[0] || (cardioWanted ? 'run_support' : 'strength');
+  let exerciseNames = [...GOAL_EXERCISES[goalKey]];
+
+  // Strength focus (onboarding "sharpen") → lead the pool with the user's picks.
+  const focus = Array.isArray(strengthFocus)
+    ? strengthFocus.filter(n => EXERCISE_LIBRARY.some(e => e.name === n))
+    : [];
+  if (focus.length) exerciseNames = [...focus, ...exerciseNames.filter(n => !focus.includes(n))];
 
   // ── Injuries. Severity-aware: MODERATE/SERIOUS regions are excluded outright
   // (the injury step promises we work around them); MILD regions stay but get a
@@ -232,7 +301,9 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // days = broader scope / more weekly volume. Trim keeps the compound-first
   // ordering of each pool.
   const safeDays = Number.isFinite(daysCount) && daysCount > 0 ? daysCount : 3;
-  exerciseNames = exerciseNames.slice(0, targetExerciseCount(safeDays));
+  // Keep the strength block leaner when cardio sessions also fill the week.
+  const strengthCap = cardioWanted ? Math.min(4, targetExerciseCount(safeDays)) : targetExerciseCount(safeDays);
+  exerciseNames = exerciseNames.slice(0, strengthCap);
 
   // ── Extras: one accessory per SECONDARY goal (so a strength+mobility plan
   // shows both), plus a conditioning nudge when adiposity is high (body fat OR
@@ -241,12 +312,16 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const highAdiposity =
     (Number.isFinite(bodyFatPct) && bodyFatPct >= 25) ||
     (Number.isFinite(bmi) && bmi >= 30);
+  // Keep the strength block small when cardio sessions also fill the week, so
+  // the combined plan never blows past 8 items.
+  const maxStrength = cardioWanted ? 4 : 8;
   const addExtra = (name) => {
-    if (!name || exerciseNames.includes(name) || trains(name, excludeSet) || exerciseNames.length >= 8) return;
+    if (!name || exerciseNames.includes(name) || trains(name, excludeSet) || exerciseNames.length >= maxStrength) return;
     exerciseNames = [...exerciseNames, name];
   };
   for (const g of goalList.slice(1)) {
-    if (g !== goalKey) addExtra(GOAL_ACCESSORY[g]);
+    if (CARDIO_GOALS.has(g) || g === goalKey) continue; // cardio goals become sessions
+    addExtra(GOAL_ACCESSORY[g]);
   }
   if (highAdiposity && (goalKey === 'strength' || goalKey === 'muscle')) {
     addExtra('Mountain Climbers');
@@ -256,7 +331,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // INVERSE days adjustment (fewer days → more per session, more days → less),
   // then the age recovery cap — with a floor so a starter plan never dips below
   // 2 working sets.
-  const effLevel = effectiveLevel(level, assessment, goalKey);
+  const effLevel = effectiveLevel(level, assessment, cardioWanted ? 'endurance' : goalKey);
   const setsReps = LEVEL_SETS_REPS[effLevel] || LEVEL_SETS_REPS.newbie;
   let sets = setsReps.sets + daysVolumeAdjust(safeDays);
   sets = Math.min(sets, ageSetsCap(age));
@@ -264,7 +339,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   const reps = setsReps.reps;
   const female = gender === 'female';
 
-  const exercises = exerciseNames.map(name => {
+  const strengthExercises = exerciseNames.map(name => {
     const libEntry = EX(name);
     let targetReps = reps;
     if (CARDIO_NAMES.has(name)) targetReps = 30;
@@ -284,6 +359,7 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     return {
       name,
       displayName: name,
+      kind: 'strength',
       muscle_groups: libEntry.muscles,
       // RegimenForm sets muscle_group to the first of muscle_groups for
       // backwards-compat with older renderers that read the singular field.
@@ -294,10 +370,27 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
     };
   });
 
+  // Real running sessions for cardio goals, scaled by target event + level.
+  // Injury-safe: a moderate/serious injury to a muscle running works (legs,
+  // core) drops the running block — the injury step promises we work around it,
+  // so the runner-support strength stands in instead of pounding a hurt knee.
+  const cardioSafe = !(excludeSet.size && trains('Running', excludeSet));
+  const cardioExercises = cardioWanted && cardioSafe
+    ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel })
+    : [];
+
+  // Cardio leads the plan for a runner; strength leads for a lifter.
+  const exercises = cardioWanted && !strengthGoals.length
+    ? [...cardioExercises, ...strengthExercises]
+    : cardioWanted
+      ? [...strengthExercises, ...cardioExercises]
+      : strengthExercises;
+
   const recoveryNote = Number.isFinite(age) && age >= 55 ? ' · recovery-adjusted' : '';
+  const scopeNote = cardioWanted && strengthGoals.length ? ' · strength + cardio' : cardioWanted ? ' · cardio-led' : '';
   return {
     name: `Your Starter Plan — ${goalTitle}`,
-    description: `${effLevel} · ${safeDays}×/week${recoveryNote} · auto-generated from onboarding`,
+    description: `${effLevel} · ${safeDays}×/week${recoveryNote}${scopeNote} · auto-generated from onboarding`,
     exercises,
     is_public: false,
   };

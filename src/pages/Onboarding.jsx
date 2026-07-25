@@ -19,6 +19,8 @@ import { markReturningUser } from '@/lib/firstLaunch';
 import { containsProfanity } from '@/lib/profanityFilter';
 import { grantWelcomeCapsule } from '@/lib/data/capsules';
 import { buildStarterRegimen, ensureStarterRegimen } from '@/lib/data/starterRegimen';
+import { ensureOnboardingCardioGoal } from '@/lib/data/onboardingCardioGoal';
+import StarterPlanView from '@/components/workout/StarterPlanView';
 import { reportError } from '@/lib/reportError';
 import { isDuplicateUsernameError, isProfaneUsernameError } from '@/lib/onboardingErrors';
 import { todayLocalDateString } from '@/lib/dateUtils';
@@ -31,7 +33,8 @@ const GOALS = [
   { id: 'strength',  title: 'Build strength',   sub: 'Compound lifts. Heavy. Honest.',                        icon: 'dumbbell',      accent: 'hsl(26 95% 56%)'  },
   { id: 'muscle',    title: 'Add muscle',        sub: 'Hypertrophy program, smart volume.',                    icon: 'flame',         accent: 'hsl(14 92% 56%)'  },
   { id: 'lose',      title: 'Lose fat',          sub: 'Recomp without losing the gains.',                      icon: 'trending-down', accent: 'hsl(160 64% 45%)' },
-  { id: 'endurance', title: 'Run further',       sub: "Cardio plans that don't feel like punishment.",         icon: 'activity',      accent: 'hsl(217 91% 60%)' },
+  { id: 'speed',     title: 'Run faster',        sub: 'Sharpen your pace — intervals & tempo.',                icon: 'zap',           accent: 'hsl(45 93% 55%)'  },
+  { id: 'endurance', title: 'Run further',       sub: 'Build distance without burning out.',                   icon: 'activity',      accent: 'hsl(217 91% 60%)' },
   { id: 'mobility',  title: 'Move better',       sub: 'Mobility, flexibility, longevity.',                     icon: 'wind',          accent: 'hsl(280 60% 60%)' },
 ];
 
@@ -39,9 +42,14 @@ const GOAL_TAILORS = {
   strength:  ['Heavier compounds', 'Anti-cheat: bar speed', '+15 g protein/day'],
   muscle:    ['Hypertrophy volume', 'Heatmap: chest / back / legs', '+25 g protein/day'],
   lose:      ['Calorie target −350', 'Cardio finishers', 'Anti-cheat: rest timer'],
-  endurance: ['VO₂ blocks', 'Cardio heatmap', 'Carb-forward macros'],
+  speed:     ['Interval sessions', 'Tempo runs', 'Pace tracking'],
+  endurance: ['Easy-run base', 'Weekly long run', 'Carb-forward macros'],
   mobility:  ['Daily mobility flow', 'Form-check anti-cheat', 'Recovery weighting'],
 };
+
+// Goals that are cardio/running — used to decide whether the "sharpen your plan"
+// step asks the cardio follow-ups.
+const CARDIO_GOAL_IDS = ['speed', 'endurance'];
 
 const LEVELS = [
   { id: 'newbie',     label: 'New',        sub: 'Less than 6 months lifting',      bars: 1, desc: "We'll start light, build form first." },
@@ -245,6 +253,7 @@ function Icon({ name, size = 22, strokeWidth = 2.2, color = 'currentColor' }) {
     case 'flame':         return <svg {...p}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>;
     case 'trending-down': return <svg {...p}><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>;
     case 'activity':      return <svg {...p}><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>;
+    case 'zap':           return <svg {...p}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
     case 'wind':          return <svg {...p}><path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2"/></svg>;
     case 'check':         return <svg {...p}><polyline points="20 6 9 17 4 12"/></svg>;
     case 'arrow-right':   return <svg {...p}><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>;
@@ -660,6 +669,144 @@ function GoalStep({ value, onChange, onNext, onBack, step, total }) {
             : selectedIds.length === 1 ? 'Continue'
             : `Continue with ${selectedIds.length}`}
           <Icon name="arrow-right" size={18} strokeWidth={2.5} />
+        </PrimaryBtn>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   STEP 2b: SHARPEN YOUR PLAN (goal-aware follow-ups)
+═══════════════════════════════════════════════════════════════ */
+
+const CARDIO_EVENTS = [
+  { id: '5k', label: '5K' }, { id: '10k', label: '10K' },
+  { id: 'half', label: 'Half' }, { id: 'marathon', label: 'Marathon' },
+  { id: 'general', label: 'General' },
+];
+const FOCUS_LIFTS = ['Bench Press', 'Squat', 'Deadlift', 'Overhead Press', 'Pull-Up'];
+const TIME_DISTANCES = [{ id: '1mi', label: '1 mi' }, { id: '5k', label: '5K' }, { id: '10k', label: '10K' }];
+
+function Chip({ children, active, accent = 'hsl(var(--primary))', small, onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`rounded-full font-semibold transition-all cursor-pointer ${small ? 'px-3 py-1 text-[12px]' : 'px-3.5 py-1.5 text-[13px]'}`}
+      style={{
+        border: `1.5px solid ${active ? accent : 'hsl(var(--border))'}`,
+        background: active ? accent.replace(')', ' / 0.12)') : 'hsl(var(--card))',
+        color: active ? accent : 'hsl(var(--foreground))',
+      }}>
+      {children}
+    </button>
+  );
+}
+
+function SectionLabel({ title, accent }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: accent }} />
+      <span className="font-heading font-bold text-[15px]">{title}</span>
+    </div>
+  );
+}
+
+function TimeInput({ value, onChange, placeholder, max = 99 }) {
+  return (
+    <input type="number" inputMode="numeric" min="0" max={max} placeholder={placeholder}
+      value={value ?? ''}
+      onChange={e => onChange(e.target.value.replace(/[^0-9]/g, '').slice(0, 2))}
+      className="w-16 h-10 rounded-xl border border-border bg-card text-center text-[15px] font-bold tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/40" />
+  );
+}
+
+function SharpenStep({ goals, value, onChange, onNext, onBack, step, total }) {
+  const g = Array.isArray(goals) ? goals : [];
+  const wantsCardio = g.some(x => CARDIO_GOAL_IDS.includes(x));
+  const wantsStrength = g.some(x => x === 'strength' || x === 'muscle');
+  const s = value || {};
+  const set = (patch) => onChange({ ...s, ...patch });
+
+  const focus = Array.isArray(s.strengthFocus) ? s.strengthFocus : [];
+  const toggleFocus = (name) => set({ strengthFocus: focus.includes(name) ? focus.filter(n => n !== name) : [...focus, name] });
+
+  const cur = s.cardioCurrent || {};
+  const setCurrent = (patch) => {
+    const nextCur = { ...cur, ...patch };
+    nextCur.timeSec = (Number(nextCur.min) || 0) * 60 + (Number(nextCur.sec) || 0);
+    set({ cardioCurrent: nextCur, cardioDefer: false });
+  };
+
+  const nothingToAsk = !wantsCardio && !wantsStrength;
+
+  return (
+    <div className="flex flex-col h-full">
+      <StepHeader step={step} total={total} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto space-y-5 pb-4 pe-2">
+        <KineticHeading kicker="Sharpen · 02" text="Let's sharpen your plan." accentWord="sharpen" />
+        <p className="text-sm text-muted-foreground -mt-1">A few quick details make your starter plan spot-on — all optional.</p>
+
+        {wantsCardio && (
+          <div className="space-y-3">
+            <SectionLabel accent="hsl(45 93% 55%)" title="What are you training for?" />
+            <div className="flex flex-wrap gap-2">
+              {CARDIO_EVENTS.map(e => (
+                <Chip key={e.id} active={s.cardioEvent === e.id} accent="hsl(45 93% 55%)" onClick={() => set({ cardioEvent: e.id })}>{e.label}</Chip>
+              ))}
+            </div>
+
+            <div className="rounded-2xl border border-border bg-card p-3.5 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-[13px] font-semibold">Know a recent time?</span>
+                <button type="button"
+                  onClick={() => set({ cardioDefer: !s.cardioDefer, cardioCurrent: s.cardioDefer ? cur : null })}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors ${s.cardioDefer ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:bg-secondary'}`}>
+                  I&apos;ll set it later
+                </button>
+              </div>
+              {!s.cardioDefer && (
+                <>
+                  <div className="flex flex-wrap gap-2">
+                    {TIME_DISTANCES.map(d => (
+                      <Chip key={d.id} small active={cur.distance === d.id} accent="hsl(217 91% 60%)" onClick={() => setCurrent({ distance: d.id })}>{d.label}</Chip>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <TimeInput placeholder="min" value={cur.min} onChange={v => setCurrent({ min: v })} />
+                    <span className="text-muted-foreground font-bold">:</span>
+                    <TimeInput placeholder="sec" value={cur.sec} onChange={v => setCurrent({ sec: v })} max={59} />
+                    <span className="text-[11px] text-muted-foreground">for your {TIME_DISTANCES.find(d => d.id === cur.distance)?.label || 'run'}</span>
+                  </div>
+                </>
+              )}
+              <p className="text-[11px] text-muted-foreground">Don&apos;t know it? No worries — log a run in the Cardio tab anytime and we&apos;ll dial it in.</p>
+            </div>
+          </div>
+        )}
+
+        {wantsStrength && (
+          <div className="space-y-3">
+            <SectionLabel accent="hsl(26 95% 56%)" title="Which lifts matter most?" />
+            <div className="flex flex-wrap gap-2">
+              {FOCUS_LIFTS.map(n => (
+                <Chip key={n} active={focus.includes(n)} accent="hsl(26 95% 56%)" onClick={() => toggleFocus(n)}>{n}</Chip>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground">We&apos;ll lead your plan with the lifts you pick.</p>
+          </div>
+        )}
+
+        {nothingToAsk && (
+          <div className="rounded-2xl border border-border bg-card p-5 text-center">
+            <div className="text-2xl mb-1">✅</div>
+            <p className="font-heading font-bold text-[15px]">You&apos;re all set</p>
+            <p className="text-[13px] text-muted-foreground mt-1">We&apos;ve got what we need — your plan&apos;s ready to build.</p>
+          </div>
+        )}
+      </div>
+
+      <div className="pt-4 shrink-0">
+        <PrimaryBtn onClick={onNext}>
+          Continue <Icon name="arrow-right" size={18} strokeWidth={2.5} />
         </PrimaryBtn>
       </div>
     </div>
@@ -2505,13 +2652,11 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
   const extraGoalCount = Math.max(0, goalIds.length - 1);
   const level = LEVELS.find(l => l.id === data.level) || LEVELS[0];
   const daysCount = data.days.length;
-  const weeklyVol = Math.round(80 + (level?.bars || 1) * 30 + daysCount * 12 + extraGoalCount * 14);
   const weeks = (level?.bars || 1) >= 3 ? 12 : 8;
 
   // Real exercises from the regimen we'll persist on submit. Falls back to
   // an empty list if the generator wasn't passed in (legacy / unit-test path).
   const previewExercises = previewRegimen?.exercises ?? [];
-  const totalSets = previewExercises.reduce((s, ex) => s + (ex.target_sets || 0), 0);
 
   return (
     <div className="flex flex-col h-full">
@@ -2541,50 +2686,21 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
           <strong className="text-foreground">{daysCount} days</strong>.
         </motion.p>
 
-        {/* Stat grid */}
-        <div className="grid grid-cols-2 gap-3 mb-3">
-          {[
-            { label: 'Block length', value: weeks, unit: 'weeks', delay: 0.7 },
-            { label: 'Weekly volume', value: weeklyVol, unit: 'sets', delay: 0.78 },
-          ].map(({ label, value, unit, delay }) => (
-            <motion.div key={label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay }}
-              className="rounded-2xl border bg-card p-4">
-              <div className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground mb-2">{label}</div>
-              <div className="font-heading font-bold text-2xl tracking-tight text-foreground">
-                {value}<span className="text-muted-foreground text-[13px] font-semibold ms-1">{unit}</span>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        {/* Your starter plan — the exercises we'll actually save to your Regimens */}
+        {/* Your starter plan — sectioned + explorable (Cardio / Strength) */}
         {previewExercises.length > 0 && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.86 }}
-            className="rounded-2xl border bg-card p-4">
-            <div className="flex items-center justify-between mb-2">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7 }}
+            className="space-y-2.5">
+            <div className="flex items-center justify-between">
               <span className="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase text-muted-foreground">Your starter plan</span>
               <span className="font-mono text-[10px] font-bold text-emerald-500">● READY</span>
             </div>
-            <div className="font-heading font-bold text-[17px] tracking-tight text-foreground">{previewRegimen?.name || `${primaryGoal.title} starter`}</div>
-            <div className="flex items-center gap-3 mt-1 text-[12px] text-muted-foreground">
-              <span>{previewExercises.length} lifts</span>
-              <span>· {totalSets} sets</span>
-              <span>· saved to Workout → Regimens</span>
+            <div className="font-heading font-bold text-[18px] tracking-tight text-foreground leading-tight">
+              {previewRegimen?.name || `${primaryGoal.title} starter`}
             </div>
-            <ul className="mt-3 grid grid-cols-1 gap-1.5">
-              {previewExercises.slice(0, 6).map((ex, i) => (
-                <motion.li
-                  key={ex.name}
-                  initial={{ opacity: 0, x: -8 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.9 + i * 0.04, ease: [0.16, 1, 0.3, 1] }}
-                  className="flex items-center justify-between text-[13px]"
-                >
-                  <span className="font-medium text-foreground truncate pe-2">{ex.name}</span>
-                  <span className="font-mono text-[11px] text-muted-foreground shrink-0">{ex.target_sets} × {ex.target_reps}</span>
-                </motion.li>
-              ))}
-            </ul>
+            <div className="text-[12px] text-muted-foreground -mt-0.5 mb-1">
+              {daysCount || '—'} days/week · tap a section to explore · saved to Workout → Regimens
+            </div>
+            <StarterPlanView regimen={previewRegimen} />
           </motion.div>
         )}
       </div>
@@ -2610,14 +2726,15 @@ function RevealStep({ data, onNext, saving = false, previewRegimen = null }) {
    MAIN ONBOARDING ORCHESTRATOR
 ═══════════════════════════════════════════════════════════════ */
 
-const STEPS = ['welcome', 'goal', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history', 'loading', 'reveal'];
-const FORM_STEP_NAMES = ['goal', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history'];
+const STEPS = ['welcome', 'goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history', 'loading', 'reveal'];
+const FORM_STEP_NAMES = ['goal', 'sharpen', 'experience', 'age', 'height', 'weight', 'body_baseline', 'days', 'assessment', 'injury_history'];
 const TOTAL_FORM = FORM_STEP_NAMES.length;
 
 // Per-step theatrical transition flavors — variety = wow factor
 const STEP_TRANSITIONS = {
   welcome:       null,
   goal:          'curtain',
+  sharpen:       'tilt',
   experience:    'tilt',
   age:           'fwd',
   height:        'flip',
@@ -2724,6 +2841,10 @@ export default function Onboarding() {
     // V2 optional steps — all nullable/empty means step was skipped
     bodyBaseline: { waistCm: null, chestCm: null, hipCm: null, bodyFatPct: null },
     onboardingInjuries: [], // [{ muscleGroup, severity }]
+    // "Sharpen your plan" follow-ups — all optional; drives the starter plan +
+    // a real cardio goal. cardioEvent: 5k|10k|half|marathon|general;
+    // cardioCurrent: { distance, timeSec }; strengthFocus: [exercise names].
+    sharpen: { cardioEvent: null, cardioCurrent: null, cardioDefer: false, strengthFocus: [] },
   };
 
   const [data, setData] = useState(() => {
@@ -2789,6 +2910,8 @@ export default function Onboarding() {
       level: data.level,
       daysCount: Array.isArray(data.days) ? data.days.length : 0,
       assessment: data.assessment || null,
+      cardioEvent: data.sharpen?.cardioEvent,
+      strengthFocus: data.sharpen?.strengthFocus,
       injuries: data.onboardingInjuries || [],
       age: data.stats?.age,
       bodyFatPct: data.bodyBaseline?.bodyFatPct,
@@ -2796,7 +2919,7 @@ export default function Onboarding() {
       weightKg: data.stats?.weightKg,
       heightCm: data.stats?.heightCm,
     }),
-    [data.goal, data.level, data.days, data.assessment, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
+    [data.goal, data.level, data.days, data.assessment, data.sharpen?.cardioEvent, data.sharpen?.strengthFocus, data.onboardingInjuries, data.stats?.age, data.bodyBaseline?.bodyFatPct, data.stats?.gender, data.stats?.weightKg, data.stats?.heightCm]
   );
 
   // Force Iron Orange theme during onboarding so new/reset users always see
@@ -3165,6 +3288,8 @@ export default function Onboarding() {
             level: data.level,
             daysCount: Array.isArray(data.days) ? data.days.length : 0,
             assessment: data.assessment || null,
+            cardioEvent: data.sharpen?.cardioEvent,
+            strengthFocus: data.sharpen?.strengthFocus,
             injuries: data.onboardingInjuries || [],
             age: data.stats?.age,
             bodyFatPct: data.bodyBaseline?.bodyFatPct,
@@ -3175,6 +3300,14 @@ export default function Onboarding() {
         }).catch(sideErr => {
           reportError(sideErr, { feature: 'onboarding.starter-regimen', level: 'warning', userEmail: user?.email });
         });
+
+        // Cardio goal — if the user picked a running goal + a target event,
+        // create a real, trackable cardio goal (shows in the Cardio tab +
+        // dashboard). Idempotent-ish + fire-and-forget; never blocks onboarding.
+        ensureOnboardingCardioGoal({ user, goals: data.goal, sharpen: data.sharpen })
+          .catch(sideErr => {
+            reportError(sideErr, { feature: 'onboarding.cardio-goal', level: 'warning', userEmail: user?.email });
+          });
 
         // Body baseline (mig 133) — only if user filled bodyBaseline
         // step. weight_lbs left NULL unless user actually touched the
@@ -3283,6 +3416,13 @@ export default function Onboarding() {
                   // effect immediately bounces back to `goal`. The button
                   // would look broken. Pass null → StepHeader hides it.
                   onBack={isAuthenticated ? null : back} />
+              )}
+
+              {stepName === 'sharpen' && (
+                <SharpenStep step={formStep} total={TOTAL_FORM}
+                  goals={data.goal}
+                  value={data.sharpen} onChange={v => setData(d => ({ ...d, sharpen: v }))}
+                  onNext={next} onBack={back} />
               )}
 
               {stepName === 'experience' && (
