@@ -21,17 +21,21 @@ import { useLayoutEffect, useRef, useState } from 'react';
 // trusted the 64px number left its composer tucked under the nav.
 const NAV_CLEARANCE_PX = 64;
 
-// How much the fixed bottom nav actually covers at the bottom of the viewport.
-// We read the real element's height (which already includes its safe-area
-// padding) so the composer clears it exactly. Returns 0 on the desktop
-// side-nav layout (nav is `lg:hidden`) or any full-screen chat with no nav.
+// Small breathing gap so the composer doesn't sit flush against the nav.
+const NAV_BREATHING_GAP_PX = 12;
+
+// How much the fixed bottom nav actually covers at the bottom of the viewport,
+// plus a little breathing room. We read the real element's height (which
+// already includes its safe-area padding) so the composer clears it exactly.
+// Returns 0 on the desktop side-nav layout (nav is `lg:hidden`) or any
+// full-screen chat with no nav.
 function readBottomNavClearance() {
   try {
     const nav = document.querySelector('nav.fixed.bottom-0');
     if (!nav) return 0;
     if (getComputedStyle(nav).display === 'none') return 0; // desktop / hidden
     const h = nav.offsetHeight; // stable even while the nav is transiently translated off-screen
-    return h > 0 ? h : NAV_CLEARANCE_PX;
+    return (h > 0 ? h : NAV_CLEARANCE_PX) + NAV_BREATHING_GAP_PX;
   } catch {
     return NAV_CLEARANCE_PX;
   }
