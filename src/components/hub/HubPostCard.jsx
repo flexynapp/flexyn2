@@ -875,24 +875,31 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
                 {author.signatureTrophy}
               </span>
             )}
+          </div>
+          {/* Equipped title moved OFF the username line and onto the meta row.
+              It was `shrink-0` next to a `truncate` handle, so the badge always
+              won the space and long usernames collapsed to "@…". Down here it
+              reads as metadata (title · time · privacy), the handle gets the
+              full width, and the wrapping row keeps it tidy on narrow cards. */}
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
             {author.equippedTitleId && (() => {
               const title = getLootTitleById(author.equippedTitleId);
               if (!title) return null;
               return (
-                <span
-                  className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                  style={{
-                    background: 'hsl(var(--primary) / 0.12)',
-                    color: 'hsl(var(--primary))',
-                  }}
-                  title={title.description}
-                >
-                  {title.emoji} {title.name}
-                </span>
+                <>
+                  <span
+                    className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
+                    style={{
+                      background: 'hsl(var(--primary) / 0.12)',
+                      color: 'hsl(var(--primary))',
+                    }}
+                    title={title.description}
+                  >
+                    {title.emoji} {title.name}
+                  </span>
+                </>
               );
             })()}
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
             <span>{timeLabel}</span>
             <span>·</span>
             {post.privacy === 'public' ? (

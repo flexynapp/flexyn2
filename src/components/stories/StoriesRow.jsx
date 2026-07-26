@@ -216,11 +216,17 @@ function StoryAvatarButton({
         )}
 
         {/* ── Avatar ring + image ── */}
+        {/* Geometry is IDENTICAL whether or not a ring is drawn: a 60px outer
+            box, 2.5px ring band, 2px background gap, and the avatar filling the
+            rest. Previously the no-ring branch made the avatar the full 60px
+            while a ringed one shrank to 51px, so the grey circle changed size
+            between users and the ring looked mismatched. The ring band is just
+            transparent when there's no story. */}
         <div
           className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
-          style={hasRing ? { ...ringStyle, padding: '2.5px' } : {}}
+          style={{ padding: '2.5px', ...(hasRing ? ringStyle : {}) }}
         >
-          <div className={`rounded-full overflow-hidden bg-background ${hasRing ? 'w-full h-full p-[2px]' : 'w-[60px] h-[60px]'}`}>
+          <div className="rounded-full overflow-hidden bg-background w-full h-full p-[2px]">
             <div className="w-full h-full rounded-full overflow-hidden">
               {isUploading ? (
                 <div className="w-full h-full rounded-full bg-secondary flex items-center justify-center">
