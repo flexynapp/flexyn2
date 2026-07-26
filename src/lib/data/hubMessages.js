@@ -132,7 +132,13 @@ export const findOrCreateConversation = async (myEmail, other) => {
     if (fromRpc.length > 0) return fromRpc[0];
   }
   if (rpcError && rpcError.code !== '42883' && rpcError.code !== '42P01') {
+    // The RPC is a GATE, not just a convenience — it enforces the
+    // request block (mig 234's dm_request_blocks). Falling through to
+    // the legacy client insert on a refusal would let a blocked sender
+    // create the conversation anyway, so anything other than
+    // "function not deployed" has to stop here.
     reportError(rpcError, { feature: 'dm.startConversation', level: 'warning' });
+    throw rpcError;
   }
 
   const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);

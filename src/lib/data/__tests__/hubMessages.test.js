@@ -170,6 +170,23 @@ describe('findOrCreateConversation', () => {
     expect(_convState.createCalls[0].participant_emails).toEqual([me, them]);
   });
 
+  it('does NOT fall back to a client insert when the RPC refuses', async () => {
+    // The request-block gate lives inside start_dm_conversation. If a
+    // refusal fell through to the legacy find-then-insert path, a
+    // blocked sender could create the conversation anyway — the whole
+    // point of the gate. Anything other than "function not deployed"
+    // has to propagate.
+    _sbState.rpcByName.start_dm_conversation = {
+      data: null,
+      error: { code: '42501', message: 'conversation_unavailable' },
+    };
+    _convState.filterByConditions = () => [];
+
+    await expect(hubMessages.findOrCreateConversation(me, them))
+      .rejects.toMatchObject({ message: 'conversation_unavailable' });
+    expect(_convState.createCalls).toHaveLength(0);
+  });
+
   it('returns null for a self-DM without touching the RPC', async () => {
     const row = await hubMessages.findOrCreateConversation(me, 'ME@x.com');
     expect(row).toBeNull();

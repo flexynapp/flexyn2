@@ -180,6 +180,56 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // purges so the thread goes with it.
   const [requestBusyId, setRequestBusyId] = useState(null);
 
+  // Two-tap confirm on Delete. The purge is irreversible AND takes the
+  // sender's copy with it, so the first tap only ARMS the row — the
+  // button row swaps into a confirm/cancel pair, mirroring
+  // EditWorkoutModal's confirmDelete state. Only one row can be armed at
+  // a time (arming another replaces it), and it disarms on outside tap,
+  // scroll, window blur, or a 5s timeout.
+  const [armedDeleteId, setArmedDeleteId] = useState(null);
+  const armTimerRef = useRef(null);
+  const confirmRef = useRef(null);
+
+  const disarmDelete = useCallback(() => {
+    if (armTimerRef.current) {
+      clearTimeout(armTimerRef.current);
+      armTimerRef.current = null;
+    }
+    setArmedDeleteId(null);
+  }, []);
+
+  const armDelete = useCallback((convId) => {
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+    setArmedDeleteId(convId);
+    armTimerRef.current = setTimeout(() => setArmedDeleteId(null), 5000);
+  }, []);
+
+  useEffect(() => {
+    if (!armedDeleteId) return;
+    // Same outside-tap shape as the three-dot menu handler above: taps
+    // INSIDE the confirm cluster must not disarm it before the click
+    // resolves.
+    const outside = (e) => {
+      if (!confirmRef.current?.contains(e.target)) disarmDelete();
+    };
+    const away = () => disarmDelete();
+    document.addEventListener('mousedown', outside);
+    document.addEventListener('touchstart', outside, { passive: true });
+    window.addEventListener('scroll', away, { passive: true, capture: true });
+    window.addEventListener('blur', away);
+    return () => {
+      document.removeEventListener('mousedown', outside);
+      document.removeEventListener('touchstart', outside);
+      window.removeEventListener('scroll', away, { capture: true });
+      window.removeEventListener('blur', away);
+    };
+  }, [armedDeleteId, disarmDelete]);
+
+  // Don't leak the arm timer if the component unmounts while armed.
+  useEffect(() => () => {
+    if (armTimerRef.current) clearTimeout(armTimerRef.current);
+  }, []);
+
   const refreshConversations = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
   }, [queryClient, user?.email]);
@@ -211,6 +261,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
 
   const handleDeleteRequest = useCallback(async (convId) => {
     if (!convId) return;
+    disarmDelete();
     setRequestBusyId(convId);
     try {
       await purgeMessageRequest(convId);
@@ -222,10 +273,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     } finally {
       setRequestBusyId(null);
     }
-  }, [dropConversationFromCache, refreshConversations, tFallback]);
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
 
   const handleBlockRequest = useCallback(async (convId, otherEmail) => {
     if (!convId || !otherEmail) return;
+    disarmDelete();
     setRequestBusyId(convId);
     try {
       await blockUserFull(otherEmail);
@@ -240,7 +292,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     } finally {
       setRequestBusyId(null);
     }
-  }, [dropConversationFromCache, refreshConversations, tFallback]);
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
 
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.
@@ -644,32 +696,57 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         writes a per-viewer decline tombstone, Block runs the
                         full-block RPC and then hides the thread. */}
                     {dmView === 'requests' && (
-                      <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
-                        <button
-                          disabled={requestBusyId === c.id}
-                          onClick={(e) => { e.stopPropagation(); handleAcceptRequest(c.id); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 transition-opacity"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          {tFallback('hub.messages.request.accept', 'Accept')}
-                        </button>
-                        <button
-                          disabled={requestBusyId === c.id}
-                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(c.id); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold disabled:opacity-50 transition-opacity"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          {tFallback('hub.messages.request.delete', 'Delete')}
-                        </button>
-                        <button
-                          disabled={requestBusyId === c.id || !otherEmail}
-                          onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-500/10 text-xs font-semibold disabled:opacity-50 transition-colors"
-                        >
-                          <Ban className="w-3.5 h-3.5" />
-                          {tFallback('hub.messages.request.block', 'Block')}
-                        </button>
-                      </div>
+                      armedDeleteId === c.id ? (
+                        // Armed state. Deleting is irreversible and removes
+                        // the sender's copy too, so the second tap is a
+                        // deliberate one.
+                        <div ref={confirmRef} className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                          <button
+                            disabled={requestBusyId === c.id}
+                            onClick={(e) => { e.stopPropagation(); handleDeleteRequest(c.id); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50 transition-opacity"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {tFallback('common.confirmDelete', 'Confirm delete')}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); disarmDelete(); }}
+                            className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold transition-colors"
+                          >
+                            {tFallback('common.cancel', 'Cancel')}
+                          </button>
+                          <span className="text-[11px] text-muted-foreground">
+                            {tFallback('hub.messages.request.deleteWarning', 'Deletes it for both of you.')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                          <button
+                            disabled={requestBusyId === c.id}
+                            onClick={(e) => { e.stopPropagation(); handleAcceptRequest(c.id); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 transition-opacity"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            {tFallback('hub.messages.request.accept', 'Accept')}
+                          </button>
+                          <button
+                            disabled={requestBusyId === c.id}
+                            onClick={(e) => { e.stopPropagation(); armDelete(c.id); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold disabled:opacity-50 transition-opacity"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            {tFallback('hub.messages.request.delete', 'Delete')}
+                          </button>
+                          <button
+                            disabled={requestBusyId === c.id || !otherEmail}
+                            onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-500/10 text-xs font-semibold disabled:opacity-50 transition-colors"
+                          >
+                            <Ban className="w-3.5 h-3.5" />
+                            {tFallback('hub.messages.request.block', 'Block')}
+                          </button>
+                        </div>
+                      )
                     )}
                     {/* Desktop three-dot menu — lg only */}
                     <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">

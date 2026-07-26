@@ -277,6 +277,24 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     conversation, user?.email, myMessageCount
   );
 
+  // Shared guard for every send path. handleSend is not the only one —
+  // stickers, GIFs and voice memos each insert their own hub_messages
+  // row, so each is subject to mig 234's one-message cap. Without this
+  // they'd hit the RESTRICTIVE policy and surface a raw 42501. The voice
+  // path especially: it uploads BEFORE inserting, so an ungated attempt
+  // would also leave an orphan blob in storage.
+  //
+  // Note what is NOT gated: the FIRST message may carry an image, video,
+  // sticker, GIF or voice memo. The cap counts message rows, not media.
+  const blockPendingSend = useCallback(() => {
+    if (!pendingSendBlocked) return false;
+    toast.error(tFallback(
+      'hub.messages.request.waitToSend',
+      'Message request sent. You can send more once they accept.'
+    ));
+    return true;
+  }, [pendingSendBlocked, tFallback]);
+
   // Keep the poll window in sync with what's loaded (persisted rows only —
   // temps don't exist server-side). Reset to the initial window on switch.
   loadedCountRef.current = Math.max(rawMessages.length, INITIAL_WINDOW);
@@ -685,6 +703,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // next refetch (already 5s polling).
   const handleSendSticker = useCallback(async (stickerId) => {
     if (!stickerId || !conversation?.id) return;
+    if (blockPendingSend()) return;
     try {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
@@ -698,10 +717,11 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       toast.error(`Could not send sticker: ${err?.message || 'try again'}`);
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
   const handleSendGif = useCallback(async ({ url, alt }) => {
     if (!url || !conversation?.id) return;
+    if (blockPendingSend()) return;
     try {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
@@ -715,10 +735,12 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       toast.error(`Could not send GIF: ${err?.message || 'try again'}`);
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
   const handleSendVoice = useCallback(async ({ blob, durationMs }) => {
     if (!blob || !conversation?.id) return;
+    // Guard BEFORE the upload — an ungated attempt would orphan the blob.
+    if (blockPendingSend()) return;
     try {
       // Upload via the existing Core.UploadFile (same path image
       // attachments take in handleSend above).
@@ -739,7 +761,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       toast.error(`Could not send voice memo: ${err?.message || 'try again'}`);
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
   // ── Polls ───────────────────────────────────────────────────────────────
   // A poll is a [POLL_V1] message; votes are [POLL_VOTE_V1] control messages
@@ -747,6 +769,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   // migration. Tally is computed client-side from the vote messages.
   const handleSendPoll = useCallback(async ({ question, options }) => {
     if (!conversation?.id) return;
+    if (blockPendingSend()) return;
     const body = buildPollBody({ question, options });
     if (!body) return;
     setPollComposerOpen(false);
@@ -761,10 +784,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       toast.error(`Could not create poll: ${err?.message || 'try again'}`);
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
   const handleVotePoll = useCallback(async (pollId, optionIndex) => {
     if (!conversation?.id || !pollId) return;
+    // A vote is a [POLL_VOTE_V1] control message — still a hub_messages
+    // row, so still subject to the pending-request cap.
+    if (blockPendingSend()) return;
     try {
       await hubMessages.sendMessage({
         conversationId: conversation.id,
@@ -776,7 +802,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     } catch (err) {
       toast.error(`Could not record vote: ${err?.message || 'try again'}`);
     }
-  }, [conversation?.id, user?.email, otherUser?.email, queryClient]);
+  }, [conversation?.id, user?.email, otherUser?.email, queryClient, blockPendingSend]);
 
   // ── Scheduled send (mig 114) ────────────────────────────────────────────
   // Currently-pending scheduled messages for this conversation. Refetch
@@ -915,13 +941,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (!trimmed && !attachmentFile) return;
     if (sending || uploading || sendingRef.current) return;
     if (!conversation?.id) { toast.error(t('hub.messages.sendError')); return; }
-    if (pendingSendBlocked) {
-      toast.error(tFallback(
-        'hub.messages.request.waitToSend',
-        'Message request sent. You can send more once they accept.'
-      ));
-      return;
-    }
+    if (blockPendingSend()) return;
     sendingRef.current = true;
     // Primary-action haptic — sending a DM is the most frequent
     // primary action in the messaging surface. The centralized util
@@ -1723,16 +1743,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
         <button
           onClick={() => fileInputRef.current?.click()}
+          disabled={pendingSendBlocked}
           aria-label="Attach image"
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Paperclip className="w-4 h-4" />
         </button>
         {/* Sticker picker — uses inventory stickers (mig 115). */}
         <button
           onClick={() => setStickerPickerOpen(true)}
+          disabled={pendingSendBlocked}
           aria-label="Send sticker"
-          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0"
+          className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <Smile className="w-4 h-4" />
         </button>
@@ -1742,8 +1764,9 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         {GIF_ENABLED && (
           <button
             onClick={() => setGifPickerOpen(true)}
+            disabled={pendingSendBlocked}
             aria-label="Send GIF"
-            className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border"
+            className="px-2 py-1.5 rounded-lg text-[10px] font-extrabold text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shrink-0 border border-border disabled:opacity-40 disabled:cursor-not-allowed"
           >
             GIF
           </button>
@@ -1771,7 +1794,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         />
         {/* Voice memo — hold-to-record. Hidden when there's already a
             draft so the send-button doesn't fight for the same space. */}
-        {!draft.trim() && !attachmentFile && (
+        {!draft.trim() && !attachmentFile && !pendingSendBlocked && (
           <VoiceMemoRecorder
             onComplete={handleSendVoice}
             onError={(msg) => toast.error(msg || 'Recording failed.')}

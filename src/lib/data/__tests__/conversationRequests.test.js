@@ -292,4 +292,17 @@ describe('isPendingRequestSendBlocked', () => {
     expect(isPendingRequestSendBlocked(null, me, 5)).toBe(false);
     expect(isPendingRequestSendBlocked(pending, null, 5)).toBe(false);
   });
+
+  // The cap counts MESSAGE ROWS, never media. A request's single allowed
+  // message may carry an image / video / sticker / GIF / voice memo, and
+  // an image message uses up that one slot exactly like a text message.
+  it('lets the first message carry media', () => {
+    expect(isPendingRequestSendBlocked(pending, me, 0)).toBe(false);
+  });
+
+  it('counts an image message as the one allowed message', () => {
+    // The caller derives myMessageCount from the thread; whether that
+    // one row was text or an attachment is irrelevant to the rule.
+    expect(isPendingRequestSendBlocked(pending, me, 1)).toBe(true);
+  });
 });

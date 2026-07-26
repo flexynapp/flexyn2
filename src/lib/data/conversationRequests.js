@@ -32,6 +32,16 @@ export async function acceptConversation(convId) {
  * reactions, DM polls, poll votes), so nothing is left orphaned. Both
  * participants lose the thread — the sender's copy goes too.
  *
+ * Attachment blobs are cleaned up SERVER-side, inside the same RPC. They
+ * can't be cleaned up from here: the storage object lives under the
+ * SENDER's user-id folder, and the uploads bucket's delete policy (mig
+ * 008) only lets a user remove their own files — while the participant
+ * running the purge is always the recipient.
+ *
+ * The purge also records a pair-keyed request block so the same person
+ * can't immediately open a fresh request. That block is cleared if the
+ * blocker later follows them or starts a conversation with them.
+ *
  * The server refuses to purge anything that isn't still a pending
  * request for the caller: it must be a 2-person, non-group thread the
  * caller participates in and has NOT accepted. An accepted conversation

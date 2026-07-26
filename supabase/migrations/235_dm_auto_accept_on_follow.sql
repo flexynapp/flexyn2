@@ -19,6 +19,12 @@
 -- Group conversations are skipped: following one member of a group is
 -- not consent to hear from the rest of it.
 --
+-- The trigger also clears any pair-keyed request block the follower
+-- holds on the followee (mig 234's dm_request_blocks). Deleting
+-- someone's message request quietly blocks them from opening a new one;
+-- choosing to follow that person is an unambiguous reversal of that, so
+-- the block must not outlive it.
+--
 -- Idempotent: CREATE OR REPLACE FUNCTION + DROP TRIGGER IF EXISTS. The
 -- backfill at the bottom is an append-if-absent, so re-running is a
 -- no-op.
@@ -37,6 +43,11 @@ BEGIN
   IF v_follower = '' OR v_followee = '' OR v_follower = v_followee THEN
     RETURN NEW;
   END IF;
+
+  -- Following someone reverses any request block placed on them.
+  DELETE FROM public.dm_request_blocks
+   WHERE blocker_email = v_follower
+     AND blocked_email = v_followee;
 
   UPDATE public.hub_conversations
      SET accepted_emails = array_append(
