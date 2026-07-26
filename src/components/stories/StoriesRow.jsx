@@ -6,9 +6,13 @@
 //   1. "Add Story" dashed circle — always first when own story exists
 //   2. Own avatar (Your Story) — orange ring if has story, "+" badge if not
 //   3. Friends WITH active stories or notes (unseen → orange, seen → gray)
-//   4. Friends WITHOUT active stories or notes (faded, no ring)
-//   5. Thin vertical divider  (only when ≤1 friend)
-//   6. Quick Add recommendations (friend-of-friend or recent profiles)
+//   4. Thin vertical divider  (only when ≤1 friend)
+//   5. Quick Add recommendations (friend-of-friend or recent profiles)
+//
+// Followed users with NO story and NO note are not rendered at all. They
+// used to appear faded, which turned a content strip into a follow list —
+// see src/lib/storiesRowVisibility.js for the rule and the reasoning.
+// A short row is the honest state; nothing is padded in to fill it.
 //
 // Upload flow:
 //   tap Add Story / own "+" → file picker → preview sheet (with filters, text)
@@ -28,6 +32,7 @@ import * as storiesData from '@/lib/data/stories';
 import * as statusNotesData from '@/lib/data/statusNotes';
 import * as crewsData from '@/lib/data/crews';
 import { isVerified } from '@/lib/verifiedUsers';
+import { filterVisibleStoryGroups } from '@/lib/storiesRowVisibility';
 import StoryViewer from './StoryViewer';
 import StoryPreviewSheet from './StoryPreviewSheet';
 import StatusNoteEditor from './StatusNoteEditor';
@@ -56,20 +61,22 @@ function checkVideoDuration(file) {
 
 // ── Avatar image ──────────────────────────────────────────────────────────────
 
-function AvatarImage({ avatarUrl, username, faded }) {
+// No `faded` variant any more: an avatar only reaches this component if
+// it has a story or a note, so there is nothing left to dim.
+function AvatarImage({ avatarUrl, username }) {
   const initials = (username || '?').slice(0, 2).toUpperCase();
   if (avatarUrl) {
     return (
       <img loading="lazy" src={avatarUrl}
         alt={username}
-        className={`w-full h-full object-cover rounded-full transition-opacity ${faded ? 'opacity-40' : 'opacity-100'}`}
+        className="w-full h-full object-cover rounded-full"
         draggable={false}
       />
     );
   }
   return (
     <div
-      className={`w-full h-full rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground select-none transition-opacity ${faded ? 'opacity-40' : 'opacity-100'}`}
+      className="w-full h-full rounded-full bg-secondary flex items-center justify-center text-sm font-bold text-muted-foreground select-none"
     >
       {initials}
     </div>
@@ -134,7 +141,6 @@ function StoryAvatarButton({
 }) {
   const { tFallback } = useLanguage();
   const noStory     = group.stories.length === 0;
-  const faded       = !group.isOwn && noStory && !group.note;
   const hasUnseen   = group.hasUnseen && !noStory;
   const hasSeenOnly = !group.hasUnseen && !noStory;
 
@@ -237,7 +243,7 @@ function StoryAvatarButton({
                   <Loader2 className="w-5 h-5 text-primary animate-spin" />
                 </div>
               ) : (
-                <AvatarImage avatarUrl={group.avatarUrl} username={group.username} faded={faded} />
+                <AvatarImage avatarUrl={group.avatarUrl} username={group.username} />
               )}
             </div>
           </div>
@@ -263,7 +269,7 @@ function StoryAvatarButton({
       </div>
 
       <span
-        className={`text-[10px] font-medium w-[68px] text-center truncate leading-tight ${faded ? 'text-muted-foreground/45' : 'text-muted-foreground'}`}
+        className="text-[10px] font-medium w-[68px] text-center truncate leading-tight text-muted-foreground"
       >
         {group.isOwn ? tFallback('stories.yourStory', 'Your Story') : group.username}
       </span>
@@ -558,6 +564,13 @@ export default function StoriesRow({ onViewProfile } = {}) {
   const visibleQaList  = qaList.filter(p => !followingSet.has(p.id));
   const storyGroups = groups.filter(g => g.stories.length > 0);
 
+  // Avatars actually rendered: own slot + anyone with a story or a note.
+  // Followed users with neither are dropped rather than dimmed. Derived
+  // from `groups` (not the reverse) so `storyGroups` — which indexes the
+  // story viewer — keeps its original positions; every story-haver is
+  // visible, so the two lists stay in agreement.
+  const visibleGroups = filterVisibleStoryGroups(groups);
+
   const showQuickAdd = !qaDismissed && qaHadItems;
 
   const uploadMutation = useMutation({
@@ -769,8 +782,12 @@ export default function StoriesRow({ onViewProfile } = {}) {
                 className="flex flex-col items-center gap-1 shrink-0 focus:outline-none"
                 style={{ minWidth: 68 }}
               >
+                {/* INTEGER 3px band, matching StoryAvatarButton. A
+                    fractional 2.5px rounds to 2px on one side and 3px on
+                    the other at device pixel ratios other than 2, which
+                    is the uneven-ring bug the friend avatars already fixed. */}
                 <div
-                  className="w-[60px] h-[60px] rounded-full flex items-center justify-center p-[2.5px]"
+                  className="w-[60px] h-[60px] rounded-full flex items-center justify-center p-[3px]"
                   style={{ background: 'linear-gradient(135deg, #FF6600 0%, #FFAA00 100%)' }}
                 >
                   <div className="w-full h-full rounded-full overflow-hidden bg-background p-[2px]">
@@ -797,8 +814,8 @@ export default function StoriesRow({ onViewProfile } = {}) {
             );
           })}
 
-          {/* Slots 2+: Own avatar + friends */}
-          {groups.map(group => (
+          {/* Slots 2+: Own avatar + friends with a story or a note */}
+          {visibleGroups.map(group => (
             <StoryAvatarButton
               key={group.user_id}
               group={group}
