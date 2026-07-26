@@ -173,9 +173,15 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
   const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
   const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
 
+  // upsert:false — an upsert makes Storage check for an existing row, which
+  // needs a SELECT policy on storage.objects. Migration 185 dropped the
+  // uploads bucket's SELECT policy (to stop enumeration), so upsert uploads
+  // started failing with "403: new row violates row-level security policy".
+  // The path is already unique (user id + ms timestamp), so there is nothing
+  // to overwrite and a plain insert is the correct semantic.
   const { error: upErr } = await supabase.storage
     .from('uploads')
-    .upload(path, file, { upsert: true, contentType: file.type });
+    .upload(path, file, { upsert: false, contentType: file.type });
 
   if (upErr) { console.warn('[stories] upload failed:', upErr); return { ok: false, error: upErr }; }
 

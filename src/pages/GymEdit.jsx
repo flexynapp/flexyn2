@@ -131,7 +131,9 @@ export default function GymEdit() {
       // Pin contentType to the safe MIME derived from the extension,
       // NOT the client-supplied file.type — which a tampered client
       // can lie about.
-      .upload(path, file, { upsert: true, contentType: SAFE_MIMES[ext] });
+      // upsert:false — see stories.js / db.js: an upsert needs a SELECT policy
+      // on storage.objects, and the path is already unique (ms timestamp).
+      .upload(path, file, { upsert: false, contentType: SAFE_MIMES[ext] });
     if (error) {
       toast.error(`Upload failed: ${error.message}`);
       return null;

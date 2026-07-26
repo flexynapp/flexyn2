@@ -959,7 +959,12 @@ async function _uploadFile({ file, bucket = 'uploads' }) {
   const { error: uploadError } = await supabase.storage
     .from(bucket)
     .upload(path, file, {
-      upsert: true,
+      // upsert:false — an upsert makes Storage check for an existing row,
+      // which needs a SELECT policy on storage.objects. Migration 185 dropped
+      // the uploads bucket's SELECT policy (anti-enumeration), so every
+      // upsert upload started failing with a 403 RLS violation. The path is
+      // unique (user id + ms timestamp), so a plain insert is correct.
+      upsert: false,
       // Pin to the safe MIME derived from extension, NOT the
       // client-supplied file.type which a tampered client can lie about.
       contentType: SAFE_MIMES[ext],
