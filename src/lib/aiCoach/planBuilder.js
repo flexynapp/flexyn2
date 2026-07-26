@@ -19,6 +19,7 @@
 import { buildStarterRegimen } from '@/lib/data/starterRegimen';
 import { generateWorkout } from './workoutGenerator';
 import { runningTargets, fiveKSplits, formatPace, formatClock } from '@/lib/running/paces';
+import { weeklyRunningLoad } from '@/lib/running/fueling';
 
 // Default 5K baseline when the runner hasn't told us their time — a mid
 // recreational ~28:00. We flag it as an estimate and invite them to share
@@ -413,6 +414,9 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
       gender: profile.gender,
       current5kSec,
     });
+    // Fuel: training load → diet adjustment (carbs/kcal on run days). Attached
+    // so the card can show the nutrition implication and deep-link to Plans.
+    const fuel = weeklyRunningLoad(payload.exercises, Number(profile.weight_lbs) || 165);
     const plan = {
       kind: 'plan',
       title: payload.name,
@@ -422,6 +426,7 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
       workout: null,
       goal: parsed.goal,
       label: parsed.label,
+      fuel: fuel.runDays > 0 ? fuel : null,
     };
     // Running targets power the goal-splits line in the reply. If the runner
     // stated a goal ("sub 24"), honor it; otherwise project a realistic one.

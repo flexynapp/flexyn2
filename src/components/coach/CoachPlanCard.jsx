@@ -10,11 +10,13 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Play, Save, Check, Loader2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Play, Save, Check, Loader2, Flame, ChevronRight } from 'lucide-react';
 import StarterPlanView from '@/components/workout/StarterPlanView';
 import { toast } from '@/lib/toast';
 
 export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
+  const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -55,6 +57,27 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
         cardioDefaultOpen
         strengthDefaultOpen={isSession}
       />
+
+      {/* Training-load → nutrition: what this plan costs to fuel. Deep-links to
+          the Nutrition Plans section to tune the diet plan around it. */}
+      {plan.fuel && plan.fuel.runDays > 0 && (
+        <button
+          type="button"
+          onClick={() => navigate('/nutrition?plans=1')}
+          className="mt-2.5 w-full flex items-center gap-2.5 rounded-xl border border-amber-500/25 bg-amber-500/5 px-3 py-2.5 text-start transition-colors hover:bg-amber-500/10"
+        >
+          <span className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+            <Flame className="w-4 h-4" />
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block text-[13px] font-semibold leading-tight">Fuel your training</span>
+            <span className="block text-[11px] text-muted-foreground mt-0.5">
+              ~+{plan.fuel.perRunDayKcal} kcal · +{plan.fuel.addCarbsG}g carbs on run days
+            </span>
+          </span>
+          <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+        </button>
+      )}
 
       <div className="mt-3 flex gap-2">
         {startable && (

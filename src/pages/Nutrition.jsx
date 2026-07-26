@@ -28,6 +28,7 @@ import NutritionOnboardingModal from '@/components/nutrition/NutritionOnboarding
 import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
+import { weeklyRunningLoad } from '@/lib/running/fueling';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
@@ -310,6 +311,17 @@ export default function Nutrition() {
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 80);
   }, [location?.state?.openLogMeal, location.search]);
+
+  // Deep-link from the AI Coach running plan ("Fuel your training") opens the
+  // Nutrition Plans sheet, where the training-fuel banner lives.
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('plans') !== '1') return;
+    setShowNutritionPlans(true);
+    params.delete('plans');
+    const search = params.toString();
+    window.history.replaceState({}, document.title, '/nutrition' + (search ? '?' + search : ''));
+  }, [location.search]);
   // Date is always today's local date — Nutrition no longer supports
   // past-day viewing. Held in state with a minute tick (same pattern
   // as MoodLogCard) instead of a per-mount const: a PWA left open
@@ -540,6 +552,20 @@ export default function Nutrition() {
     queryFn: () => db.auth.me(),
     enabled: !!user?.email
   });
+
+  // Training-load fuel: estimate the weekly running load from the user's saved
+  // regimens (only when the Plans sheet is open, to keep the page light) so the
+  // diet plan can be tuned around what they're actually training. Feeds the
+  // "Fuel your training" banner in NutritionPlansModal.
+  const { data: regimensForFuel = [] } = useQuery({
+    queryKey: ['regimens', user?.email],
+    queryFn: () => db.entities.Regimen.filter({ created_by: user.email }, '-created_date', 50),
+    enabled: !!user?.email && showNutritionPlans,
+  });
+  const trainingFuel = useMemo(() => {
+    const cardio = (regimensForFuel || []).flatMap(r => (r.exercises || []).filter(e => e?.kind === 'cardio'));
+    return weeklyRunningLoad(cardio, Number(userProfile?.weight_lbs) || 165);
+  }, [regimensForFuel, userProfile?.weight_lbs]);
 
   const [showGoalsOnboarding, setShowGoalsOnboarding] = useState(false);
   const [goalsModalManuallyOpened, setGoalsModalManuallyOpened] = useState(false);
@@ -2200,6 +2226,8 @@ export default function Nutrition() {
           onClose={() => setShowNutritionPlans(false)}
           userProfile={userProfile}
           onStartOnboarding={startNutritionOnboarding}
+          trainingFuel={trainingFuel}
+          onApplyFuel={() => { setShowNutritionPlans(false); setShowCalorieCycling(true); }}
         />
       </ErrorBoundary>
 

@@ -296,7 +296,7 @@ function PlanDetail({ plan, scaled, onBack, colors }) {
  * the standalone modal AND as a tab inside the Weekly Planner. Manages its
  * own selected-plan state. Wrap it in a container with `px-4 sm:px-6` +
  * top padding so PlanDetail's negative-margin hero bleeds correctly. */
-export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
+export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
   const [selected, setSelected] = useState(null);
 
   // Plans are tailored to goals + dietary restrictions, both captured in
@@ -377,6 +377,40 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
             {PLAN_TEMPLATES.length} plans · every one tailored to you
           </p>
 
+          {/* Training-fuel banner — ties the running plan's load to the diet:
+              how many extra calories/carbs to add on run days, applied via
+              calorie cycling. Only shows when the user is actually running. */}
+          {trainingFuel && trainingFuel.runDays > 0 && (
+            <div className="mb-4 rounded-2xl border border-amber-500/25 bg-gradient-to-br from-amber-500/10 to-orange-500/5 p-3.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="w-8 h-8 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 flex items-center justify-center shrink-0">
+                  <Flame className="w-4 h-4" />
+                </span>
+                <div className="min-w-0">
+                  <p className="font-heading font-bold text-sm leading-tight">Fuel your training</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    ~{trainingFuel.runDays} run{trainingFuel.runDays === 1 ? '' : 's'}/week · ≈{trainingFuel.weeklyKcal.toLocaleString()} kcal burned
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-foreground/80 leading-snug">
+                Add <b className="text-amber-600 dark:text-amber-400">+{trainingFuel.perRunDayKcal} kcal</b> and{' '}
+                <b className="text-amber-600 dark:text-amber-400">+{trainingFuel.addCarbsG}g carbs</b> on run days so you
+                fuel the work and recover — protein and fat stay put.
+              </p>
+              {onApplyFuel && (
+                <button
+                  type="button"
+                  onClick={onApplyFuel}
+                  className="mt-2.5 w-full inline-flex items-center justify-center gap-1.5 rounded-xl bg-amber-500 text-white font-semibold text-sm py-2.5 hover:bg-amber-500/90 transition-colors"
+                >
+                  <ArrowLeftRight className="w-4 h-4" />
+                  Set training-day fuel
+                </button>
+              )}
+            </div>
+          )}
+
           {/* Adaptation notice — plans are swapped, not hidden. */}
           {restrictions.length > 0 && (
             <div className="mb-4 px-3 py-2.5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 flex items-start gap-2">
@@ -428,7 +462,7 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding }) {
 }
 
 /* ─── Main modal ─────────────────────────────────────────────────────────── */
-export default function NutritionPlansModal({ open, onClose, userProfile, onStartOnboarding }) {
+export default function NutritionPlansModal({ open, onClose, userProfile, onStartOnboarding, trainingFuel, onApplyFuel }) {
   const handleClose = () => {
     onClose();
   };
@@ -472,7 +506,7 @@ export default function NutritionPlansModal({ open, onClose, userProfile, onStar
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 sm:px-6 pb-6">
-              <NutritionPlansPanel userProfile={userProfile} onStartOnboarding={onStartOnboarding} />
+              <NutritionPlansPanel userProfile={userProfile} onStartOnboarding={onStartOnboarding} trainingFuel={trainingFuel} onApplyFuel={onApplyFuel} />
             </div>
           </motion.div>
         </>
