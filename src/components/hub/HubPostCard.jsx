@@ -834,8 +834,12 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
       </AnimatePresence>
       {/* Header */}
       <div className="relative flex items-start gap-3 p-3">
+        {/* self-center (not the row's items-start) so the avatar stays visually
+            centered against the name block whether it's 2 lines (name + meta)
+            or 3 (name + title pill + meta). The row keeps items-start so the
+            mute/block/flag actions stay pinned to the top-right. */}
         <div
-          className="relative w-9 h-9 shrink-0 pointer-events-none"
+          className="relative w-9 h-9 shrink-0 self-center pointer-events-none"
         >
           <div
             className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center font-heading font-bold text-primary text-sm overflow-hidden"
