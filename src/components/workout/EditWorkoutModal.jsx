@@ -13,6 +13,7 @@ import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { toLbs, formatWeightNumber } from '@/lib/weightUnit';
 import { getExerciseDisplay } from '@/lib/exerciseTranslations';
+import { TagSelector } from '@/components/workout/WorkoutTags';
 
 // Weight cell with focused-draft state. While focused it holds the raw
 // keystrokes verbatim; on blur it parses → converts to canonical lbs →
@@ -128,11 +129,13 @@ function SetEditor({ sets, onChange, exerciseName = '', userProfile = {} }) {
 }
 
 export default function EditWorkoutModal({ log, userProfile = {}, logs = [], cardioLogs = [], open, onClose, onSave, onDelete }) {
-  const { t, language } = useLanguage();
+  const { t, language, tFallback } = useLanguage();
   const [exercises, setExercises] = useState(log?.exercises || []);
   const [date, setDate] = useState(log?.date || '');
   const [duration, setDuration] = useState(log?.duration_minutes || '');
   const [notes, setNotes] = useState(log?.notes || '');
+  const [name, setName] = useState(log?.regimen_name || '');
+  const [tags, setTags] = useState(log?.tags || []);
   const notesGuard = useProfanityGuard(setNotes);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -152,6 +155,8 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     setDate(log.date || '');
     setDuration(log.duration_minutes || '');
     setNotes(log.notes || '');
+    setName(log.regimen_name || '');
+    setTags(log.tags || []);
     setConfirmDelete(false);
     setCheatWarningData(null);
     setImplausibleWarning(null);
@@ -297,7 +302,7 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     }
 
     setSaving(true);
-    await onSave(log.id, { exercises: finalExercises, date, duration_minutes: duration ? parseInt(duration) : null, notes });
+    await onSave(log.id, { exercises: finalExercises, date, duration_minutes: duration ? parseInt(duration) : null, notes, regimen_name: name.trim() || log?.regimen_name || null, tags });
     setSaving(false);
     onClose();
   };
@@ -313,10 +318,18 @@ export default function EditWorkoutModal({ log, userProfile = {}, logs = [], car
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading">{log?.regimen_name || t('workout.freestyle')}</DialogTitle>
+          <DialogTitle className="font-heading">{name || log?.regimen_name || t('workout.freestyle')}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1 block">{tFallback('workout.nameLabel', 'Workout name')}</label>
+            <Input value={name} onChange={e => setName(e.target.value.slice(0, 60))} maxLength={60} placeholder={t('workout.freestyle')} />
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground mb-1.5 block">{tFallback('workout.tagsLabel', 'Tags')}</label>
+            <TagSelector value={tags} onChange={setTags} />
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.date')}</label>

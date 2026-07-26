@@ -12,10 +12,11 @@ import { format, parseISO, subDays } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
 import { triggerHaptic } from '@/lib/haptic';
 import { playSound, SOUND } from '@/lib/playSound';
-import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, LayoutGrid, Shield } from 'lucide-react';
+import { Play, Save, Plus, Dumbbell, Trash2, Target, Pause, AlertTriangle, Activity, ArrowRight, History, Camera, Sparkles, Globe, Swords, Zap, Trophy, Link2, Calculator, CalendarDays, ChevronDown, LayoutGrid, Shield, Search } from 'lucide-react';
 import PlateCalculatorModal from '@/components/workout/PlateCalculatorModal';
 import { useMultiProfanityGuard, hasAnyProfanity } from '@/lib/useProfanityGuard';
 import ProfanityWarningDialog from '@/components/ProfanityWarningDialog';
@@ -30,6 +31,7 @@ import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
 import CardioLogger, { CARDIO_ACTIVITIES, activityEmoji } from '@/components/workout/CardioLogger';
+import { TagSelector } from '@/components/workout/WorkoutTags';
 import LiveVolumePill from '@/components/workout/LiveVolumePill';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
@@ -88,6 +90,8 @@ import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
 const WorkoutGeneratorModal = lazy(() => import('@/components/workout/WorkoutGeneratorModal'));
 const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
+const CardioSavedList      = lazy(() => import('@/components/cardio/CardioSavedList'));
+const CardioDetailModal    = lazy(() => import('@/components/cardio/CardioDetailModal'));
 const ProgressPhotoCapture = lazy(() => import('@/components/progress/ProgressPhotoCapture'));
 const InjuryForm           = lazy(() => import('@/components/workout/InjuryForm'));
 const PRShareCard          = lazy(() => import('@/components/workout/PRShareCard'));
@@ -265,6 +269,8 @@ export default function Workout() {
   const [rollingDay, setRollingDay] = useState(false);
   const [duration, setDuration] = useState('');
   const [notes, setNotes] = useState('');
+  const [workoutName, setWorkoutName] = useState('');
+  const [workoutTags, setWorkoutTags] = useState([]);
   const [newExName, setNewExName] = useState('');
   const [newExCanonical, setNewExCanonical] = useState('');
   const [newExMuscles, setNewExMuscles] = useState([]);
@@ -278,6 +284,9 @@ export default function Workout() {
   const [generatorOpen, setGeneratorOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
+  const [historyTab, setHistoryTab] = useState('gym'); // 'gym' | 'cardio'
+  const [historySearch, setHistorySearch] = useState('');
+  const [cardioDetailLog, setCardioDetailLog] = useState(null);
   const [activeInfo, setActiveInfo] = useState(null); // which card's ⓘ tooltip is open
   const [todayExpanded, setTodayExpanded] = useState(false); // Today chip → expands RoutineTodayCard
   // Gauntlet + Crew Wars: reachable from the hero slideshow.
@@ -1667,11 +1676,13 @@ export default function Workout() {
 
     const pendingPayload = {
       regimen_id: selectedRegimen?.id || '',
-      regimen_name: selectedRegimen?.name || t('workout.freestyle'),
+      // User-given name wins; else the regimen name; else Freestyle.
+      regimen_name: workoutName.trim() || selectedRegimen?.name || t('workout.freestyle'),
       date,
       duration_minutes: effectiveDuration,
       exercises: pendingExercises,
       notes,
+      tags: workoutTags,
       idempotency_key: idempotencyKey,
     };
 
@@ -1737,6 +1748,8 @@ export default function Workout() {
     setExercises([]);
     setDuration('');
     setNotes('');
+    setWorkoutName('');
+    setWorkoutTags([]);
   };
 
   const itemVariants = {
@@ -1897,8 +1910,8 @@ export default function Workout() {
               <History className="w-5 h-5 text-orange-400" />
             </div>
             <div>
-              <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.savedWorkouts','Recent Workouts')}</p>
-              <InfoText bid="saved" text="Replay past workouts with your previous weights pre-filled." />
+              <p className="font-heading font-bold text-sm leading-tight">{tFallback('workout.allWorkouts','All Workouts')}</p>
+              <InfoText bid="saved" text="Browse, search, and replay every workout — gym and cardio." />
             </div>
           </div>
         </Card>
@@ -2644,14 +2657,83 @@ export default function Workout() {
             <DialogHeader>
               <DialogTitle className="font-heading flex items-center gap-2">
                 <History className="w-5 h-5 text-accent" />
-                {tFallback('workout.savedWorkouts', 'Recent Workouts')}
+                {tFallback('workout.allWorkouts', 'All Workouts')}
               </DialogTitle>
             </DialogHeader>
-            <div className="mt-2">
-              <WorkoutSavedList onSelectLog={(log) => { setSavedWorkoutsOpen(false); setEditingLog(log); }} />
+
+            {/* Gym / Cardio tabs — tap or swipe the panel below. */}
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-secondary/50 p-1 mt-1">
+              {[
+                { id: 'gym', label: tFallback('workout.tab.gym', 'Gym'), emoji: '🏋️' },
+                { id: 'cardio', label: tFallback('workout.tab.cardio', 'Cardio'), emoji: '🏃' },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setHistoryTab(tab.id)}
+                  aria-pressed={historyTab === tab.id}
+                  className={`inline-flex items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-semibold transition-colors ${
+                    historyTab === tab.id ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  <span>{tab.emoji}</span> {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Search by name or date */}
+            <div className="relative mt-3">
+              <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <input
+                type="text"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                placeholder={tFallback('workout.searchWorkouts', 'Search by name or date…')}
+                className="w-full h-10 ps-9 pe-3 rounded-xl bg-secondary/40 border border-border text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              />
+            </div>
+
+            <div className="relative overflow-hidden mt-3">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={historyTab}
+                  initial={{ opacity: 0, x: historyTab === 'gym' ? -24 : 24 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: historyTab === 'gym' ? 24 : -24 }}
+                  transition={{ duration: 0.18, ease: 'easeOut' }}
+                  drag="x"
+                  dragDirectionLock
+                  dragConstraints={{ left: 0, right: 0 }}
+                  dragElastic={0.18}
+                  onDragEnd={(_e, info) => {
+                    if (info.offset.x < -60 && historyTab === 'gym') setHistoryTab('cardio');
+                    else if (info.offset.x > 60 && historyTab === 'cardio') setHistoryTab('gym');
+                  }}
+                >
+                  {historyTab === 'gym' ? (
+                    <WorkoutSavedList search={historySearch} onSelectLog={(log) => { setSavedWorkoutsOpen(false); setEditingLog(log); }} />
+                  ) : (
+                    <Suspense fallback={<div className="py-8 text-center text-sm text-muted-foreground">Loading…</div>}>
+                      <CardioSavedList search={historySearch} onSelectLog={(log) => setCardioDetailLog(log)} />
+                    </Suspense>
+                  )}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Cardio detail (from the Cardio history tab) */}
+        {cardioDetailLog && (
+          <Suspense fallback={null}>
+            <CardioDetailModal
+              log={cardioDetailLog}
+              open={!!cardioDetailLog}
+              onOpenChange={(o) => { if (!o) setCardioDetailLog(null); }}
+              onEdit={() => setCardioDetailLog(null)}
+            />
+          </Suspense>
+        )}
 
         {editingLog && (
           <Suspense fallback={null}>
@@ -3061,6 +3143,28 @@ export default function Workout() {
           </ErrorBoundary>
         );
       })()}
+
+      {/* Name this workout */}
+      <div className="mb-4">
+        <label htmlFor="workout-name" className="text-xs font-medium text-muted-foreground mb-1 block">
+          {tFallback('workout.nameLabel', 'Workout name')}
+        </label>
+        <Input
+          id="workout-name"
+          value={workoutName}
+          onChange={(e) => setWorkoutName(e.target.value.slice(0, 60))}
+          placeholder={selectedRegimen?.name || tFallback('workout.namePlaceholder', 'e.g. Push Day A')}
+          maxLength={60}
+        />
+      </div>
+
+      {/* Tags — colored pills for muscle groups / session type */}
+      <div className="mb-4">
+        <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
+          {tFallback('workout.tagsLabel', 'Tags')}
+        </label>
+        <TagSelector value={workoutTags} onChange={setWorkoutTags} />
+      </div>
 
       <div className="mb-4">
         <label htmlFor="workout-notes" className="text-xs font-medium text-muted-foreground mb-1 block">{t('workout.notes')}</label>

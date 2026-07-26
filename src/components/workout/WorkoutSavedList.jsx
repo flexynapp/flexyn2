@@ -19,6 +19,7 @@ import { useNumberFormatter } from '@/lib/intl';
 // the rest of the app for the same workout because it ignored the
 // user's bar-weight inclusion preference. (Audit 09 #H-6.)
 import { totalVolume as computeTotalVolume } from '@/lib/workoutVolume';
+import { TagPillRow } from './WorkoutTags';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -30,7 +31,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function WorkoutSavedList({ onSelectLog }) {
+export default function WorkoutSavedList({ onSelectLog, search = '' }) {
   const { t, tFallback, language } = useLanguage();
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
@@ -46,12 +47,22 @@ export default function WorkoutSavedList({ onSelectLog }) {
     navigate('/workout', { state: { repeatFromLog: log } });
   };
 
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: allLogs = [], isLoading } = useQuery({
     queryKey: ['workoutLogs', user?.email],
     queryFn: () => db.entities.WorkoutLog.filter(
-      { created_by: user.email }, '-date', 50
+      { created_by: user.email }, '-date', 500
     ),
     enabled: !!user?.email,
+  });
+
+  // Search by name or date (raw ISO + human-formatted words like "July", "Mon").
+  const q = (search || '').trim().toLowerCase();
+  const logs = !q ? allLogs : allLogs.filter((l) => {
+    const name = (l.regimen_name || 'freestyle').toLowerCase();
+    let dateWords = l.date || '';
+    try { if (l.date) dateWords += ' ' + format(parseISO(l.date), 'EEEE MMMM d yyyy'); } catch { /* ignore */ }
+    const tags = (l.tags || []).join(' ').toLowerCase();
+    return name.includes(q) || dateWords.toLowerCase().includes(q) || tags.includes(q);
   });
 
   // Read the user's bar-weight inclusion preference so the volume math
@@ -77,7 +88,9 @@ export default function WorkoutSavedList({ onSelectLog }) {
       <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
         <Dumbbell className="w-8 h-8 text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          {tFallback('workout.noSavedWorkouts', 'No recent workouts yet')}
+          {allLogs.length === 0
+            ? tFallback('workout.noSavedWorkouts', 'No workouts yet')
+            : tFallback('workout.noMatches', 'No workouts match your search')}
         </p>
       </Card>
     );
@@ -136,6 +149,9 @@ export default function WorkoutSavedList({ onSelectLog }) {
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-sm truncate">{title}</p>
                   <p className="text-xs text-muted-foreground truncate">{subtitle}</p>
+                  {Array.isArray(log.tags) && log.tags.length > 0 && (
+                    <TagPillRow tags={log.tags} className="mt-1.5" />
+                  )}
                 </div>
                 {/* Repeat — pre-fills Workout with this log's exercise
                     list (weights/reps blanked) so the user can run the

@@ -32,18 +32,27 @@ function typeIcon(type) {
   return Activity;
 }
 
-export default function CardioSavedList({ onSelectLog }) {
+export default function CardioSavedList({ onSelectLog, search = '' }) {
   const { t, language } = useLanguage();
   const { user } = useAuth();
   const { distanceUnit } = useDistanceUnit();
   const dateLocale = getDateLocale(language);
 
-  const { data: logs = [], isLoading } = useQuery({
+  const { data: allLogs = [], isLoading } = useQuery({
     queryKey: ['cardioLogs', user?.email],
     queryFn: () => db.entities.CardioLog.filter(
-      { created_by: user.email }, '-date', 50
+      { created_by: user.email }, '-date', 500
     ),
     enabled: !!user?.email,
+  });
+
+  // Search by activity type or date (raw + human-formatted).
+  const q = (search || '').trim().toLowerCase();
+  const logs = !q ? allLogs : allLogs.filter((l) => {
+    const type = String(l.type || '').replace(/_/g, ' ').toLowerCase();
+    let dateWords = l.date || '';
+    try { if (l.date) dateWords += ' ' + format(parseISO(l.date), 'EEEE MMMM d yyyy'); } catch { /* ignore */ }
+    return type.includes(q) || dateWords.toLowerCase().includes(q);
   });
 
   if (isLoading) {
@@ -58,7 +67,9 @@ export default function CardioSavedList({ onSelectLog }) {
     return (
       <Card className="p-8 border-dashed flex flex-col items-center gap-3 text-center">
         <Activity className="w-8 h-8 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">{t('cardio.noSavedWorkouts')}</p>
+        <p className="text-sm text-muted-foreground">
+          {allLogs.length === 0 ? t('cardio.noSavedWorkouts') : 'No cardio matches your search'}
+        </p>
       </Card>
     );
   }
