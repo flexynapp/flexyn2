@@ -15,6 +15,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Download, Share2, Loader2 } from 'lucide-react';
+import { loadTwemoji } from '@/lib/twemoji';
 import { format } from 'date-fns';
 
 const CANVAS_W = 1080;
@@ -30,7 +31,7 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, unit }) {
+function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, unit }, fireIcon = null) {
   const W = CANVAS_W;
   const H = CANVAS_H;
 
@@ -93,7 +94,17 @@ function drawCard(ctx, { username, topLifts, tonnage, streak, recentWorkouts, un
     ctx.fill();
     ctx.fillStyle = '#fb923c';
     ctx.font = 'bold 28px sans-serif';
-    ctx.fillText(`🔥 ${streak}-day streak`, chipX + 26, chipY + 38);
+    // Draw the flame from BUNDLED Twemoji artwork rather than ctx.fillText('🔥').
+    // fillText would bake the device's own emoji font — Apple Color Emoji on
+    // iOS — into a PNG we then save and share, i.e. redistributing Apple's
+    // proprietary glyphs. If the asset didn't decode we render the text alone;
+    // we never fall back to the OS glyph.
+    if (fireIcon) {
+      ctx.drawImage(fireIcon, chipX + 22, chipY + 14, 28, 28);
+      ctx.fillText(`${streak}-day streak`, chipX + 58, chipY + 38);
+    } else {
+      ctx.fillText(`${streak}-day streak`, chipX + 26, chipY + 38);
+    }
   }
 
   // ── Top lifts ──────────────────────────────────────────────────────
@@ -168,15 +179,23 @@ export default function ProfileShareCard({ open, onClose, profile }) {
     if (!open || !canvasRef.current) return;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    drawCard(ctx, profile);
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      setImgUrl(prev => {
-        if (prev) URL.revokeObjectURL(prev);
-        return url;
-      });
-    }, 'image/png', 0.95);
+    let cancelled = false;
+    // Decode the bundled Twemoji flame first so the rasterized card never
+    // contains the device's own emoji glyphs. Null on failure — drawCard then
+    // renders the streak text without an icon.
+    loadTwemoji('fire').then((fireIcon) => {
+      if (cancelled) return;
+      drawCard(ctx, profile, fireIcon);
+      canvas.toBlob((blob) => {
+        if (!blob || cancelled) return;
+        const url = URL.createObjectURL(blob);
+        setImgUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      }, 'image/png', 0.95);
+    });
+    return () => { cancelled = true; };
   }, [open, profile]);
 
   useEffect(() => () => {
