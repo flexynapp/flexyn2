@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, Trash2, Ban } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -16,7 +16,8 @@ import CrewChat from '@/components/crews/CrewChat';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { toast } from '@/lib/toast';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
-import { partitionConversations } from '@/lib/data/conversationRequests';
+import { partitionConversations, acceptConversation, declineConversation } from '@/lib/data/conversationRequests';
+import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
@@ -168,6 +169,65 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     enabled: !!user?.email,
     refetchInterval: 15000,
   });
+
+  // ── Message-request actions (Accept / Delete / Block) ──────────────────────
+  // Accept appends the viewer's email to accepted_emails (mig 113's
+  // accept_conversation RPC), which is all it takes to move the thread
+  // to the Inbox — the partition is computed from that column, so there
+  // is no row to migrate. Delete writes a per-viewer decline tombstone
+  // (mig 234) rather than deleting the SHARED conversation row out from
+  // under the sender. Block runs the existing full-block RPC first, then
+  // declines so the thread disappears too.
+  const [requestBusyId, setRequestBusyId] = useState(null);
+
+  const refreshConversations = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+  }, [queryClient, user?.email]);
+
+  const handleAcceptRequest = useCallback(async (convId) => {
+    if (!convId) return;
+    setRequestBusyId(convId);
+    try {
+      await acceptConversation(convId);
+      refreshConversations();
+      toast.success(tFallback('hub.messages.request.accepted', 'Moved to your inbox.'));
+    } catch {
+      toast.error(tFallback('hub.messages.request.error', 'Could not update that request. Try again.'));
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [refreshConversations, tFallback]);
+
+  const handleDeleteRequest = useCallback(async (convId) => {
+    if (!convId) return;
+    setRequestBusyId(convId);
+    try {
+      await declineConversation(convId);
+      refreshConversations();
+      toast.success(tFallback('hub.messages.request.deleted', 'Request deleted.'));
+    } catch {
+      toast.error(tFallback('hub.messages.request.error', 'Could not update that request. Try again.'));
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [refreshConversations, tFallback]);
+
+  const handleBlockRequest = useCallback(async (convId, otherEmail) => {
+    if (!convId || !otherEmail) return;
+    setRequestBusyId(convId);
+    try {
+      await blockUserFull(otherEmail);
+      // Best-effort — the block already stops delivery; hiding the thread
+      // is cosmetic, so a failure here shouldn't read as "block failed".
+      await declineConversation(convId).catch(() => {});
+      refreshConversations();
+      toast.success(tFallback('hub.messages.request.blocked', 'Blocked. They can no longer message you.'));
+    } catch {
+      toast.error(tFallback('hub.messages.request.blockError', 'Could not block that user. Try again.'));
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [refreshConversations, tFallback]);
 
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.
@@ -368,7 +428,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   dmView === 'inbox' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
                 }`}
               >
-                <Inbox className="w-3.5 h-3.5" /> Inbox
+                <Inbox className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.inbox', 'Inbox')}
                 {inboxConvs.length > 0 && <span className="opacity-70">({inboxConvs.length})</span>}
               </button>
               {/* Requests is always visible so message requests are never
@@ -384,8 +444,19 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     : 'text-muted-foreground hover:bg-secondary'
                 }`}
               >
-                <Mail className="w-3.5 h-3.5" /> Requests
-                {requestConvs.length > 0 && <span className="opacity-90">({requestConvs.length})</span>}
+                <Mail className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.requests', 'Requests')}
+                {requestConvs.length > 0 && (
+                  <span
+                    aria-label={`${requestConvs.length} pending message requests`}
+                    className={`min-w-[1.15rem] px-1 h-[1.15rem] inline-flex items-center justify-center rounded-full text-[10px] font-bold leading-none ${
+                      dmView === 'requests'
+                        ? 'bg-primary-foreground/25 text-primary-foreground'
+                        : 'bg-amber-500 text-white'
+                    }`}
+                  >
+                    {requestConvs.length > 99 ? '99+' : requestConvs.length}
+                  </span>
+                )}
               </button>
               {archivedConvs.length > 0 && (
                 <button
@@ -394,7 +465,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     dmView === 'archived' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
                   }`}
                 >
-                  <Archive className="w-3.5 h-3.5" /> Archived
+                  <Archive className="w-3.5 h-3.5" /> {tFallback('hub.messages.view.archived', 'Archived')}
                 </button>
               )}
               <button
@@ -415,11 +486,18 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             <EmptyState
               icon={MessageCircle}
               title={dmView === 'requests'
-                ? 'No requests'
+                ? tFallback('hub.messages.requests.empty.title', 'No message requests')
                 : dmView === 'archived'
-                ? 'No archived conversations'
+                ? tFallback('hub.messages.archived.empty.title', 'No archived conversations')
                 : t('hub.messages.empty.title')}
-              body={dmView === 'inbox' ? t('hub.messages.empty.desc') : null}
+              body={dmView === 'inbox'
+                ? t('hub.messages.empty.desc')
+                : dmView === 'requests'
+                ? tFallback(
+                    'hub.messages.requests.empty.desc',
+                    'People you don’t follow have to request before they can message you. Their requests show up here.'
+                  )
+                : null}
               action={dmView === 'inbox' ? {
                 label: 'Start a group',
                 onClick: () => setNewGroupOpen(true),
@@ -546,6 +624,40 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         </div>
                       </div>
                     </button>
+
+                    {/* Request actions. Only rendered in the Requests view —
+                        Accept moves the thread to Inbox by appending the
+                        viewer to accepted_emails (no row migration), Delete
+                        writes a per-viewer decline tombstone, Block runs the
+                        full-block RPC and then hides the thread. */}
+                    {dmView === 'requests' && (
+                      <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                        <button
+                          disabled={requestBusyId === c.id}
+                          onClick={(e) => { e.stopPropagation(); handleAcceptRequest(c.id); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold disabled:opacity-50 transition-opacity"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          {tFallback('hub.messages.request.accept', 'Accept')}
+                        </button>
+                        <button
+                          disabled={requestBusyId === c.id}
+                          onClick={(e) => { e.stopPropagation(); handleDeleteRequest(c.id); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold disabled:opacity-50 transition-opacity"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          {tFallback('hub.messages.request.delete', 'Delete')}
+                        </button>
+                        <button
+                          disabled={requestBusyId === c.id || !otherEmail}
+                          onClick={(e) => { e.stopPropagation(); handleBlockRequest(c.id, otherEmail); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-red-500 hover:bg-red-500/10 text-xs font-semibold disabled:opacity-50 transition-colors"
+                        >
+                          <Ban className="w-3.5 h-3.5" />
+                          {tFallback('hub.messages.request.block', 'Block')}
+                        </button>
+                      </div>
+                    )}
                     {/* Desktop three-dot menu — lg only */}
                     <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button

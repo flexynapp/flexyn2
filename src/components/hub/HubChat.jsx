@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
-import { acceptConversation } from '@/lib/data/conversationRequests';
+import { acceptConversation, isPendingRequestSendBlocked } from '@/lib/data/conversationRequests';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
 import DMStickerPicker from './DMStickerPicker';
 import GifPicker, { GIF_ENABLED } from './GifPicker';
@@ -262,6 +262,21 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
   });
 
   const messages = dedupeMessages(rawMessages);
+
+  // ── Pending message-request send cap ──────────────────────────────────────
+  // Until the recipient accepts, a request sender gets exactly ONE message.
+  // The database is the enforcement point (mig 234's RESTRICTIVE INSERT
+  // policy on hub_messages); this mirror exists so the composer can
+  // disable itself and say why, instead of the user typing a paragraph
+  // into a 42501. Declared here — above handleSend and every deps array
+  // that reads it — per the TDZ rule in CLAUDE.md.
+  const myMessageCount = messages.filter(
+    m => (m.sender_email || '').toLowerCase() === myEmailLc
+  ).length;
+  const pendingSendBlocked = isPendingRequestSendBlocked(
+    conversation, user?.email, myMessageCount
+  );
+
   // Keep the poll window in sync with what's loaded (persisted rows only —
   // temps don't exist server-side). Reset to the initial window on switch.
   loadedCountRef.current = Math.max(rawMessages.length, INITIAL_WINDOW);
@@ -900,6 +915,13 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
     if (!trimmed && !attachmentFile) return;
     if (sending || uploading || sendingRef.current) return;
     if (!conversation?.id) { toast.error(t('hub.messages.sendError')); return; }
+    if (pendingSendBlocked) {
+      toast.error(tFallback(
+        'hub.messages.request.waitToSend',
+        'Message request sent. You can send more once they accept.'
+      ));
+      return;
+    }
     sendingRef.current = true;
     // Primary-action haptic — sending a DM is the most frequent
     // primary action in the messaging surface. The centralized util
@@ -1010,6 +1032,18 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
       const msg = `${err?.message || ''} ${err?.hint || ''}`;
       if (/message_profanity/i.test(msg) || err?.code === '23514') {
         toast.error('Message contains prohibited content. Edit it and try again.');
+      } else if (
+        err?.code === '42501'
+        // Passing 1 asks "is this thread still a pending request for me?"
+        // — the count argument is the only thing separating "allowed one
+        // more" from "already used it". A 42501 on a pending thread is
+        // mig 234's send cap, not a block.
+        && isPendingRequestSendBlocked(conversation, user?.email, 1)
+      ) {
+        toast.error(tFallback(
+          'hub.messages.request.waitToSend',
+          'Message request sent. You can send more once they accept.'
+        ));
       } else if (/dm_blocked/i.test(msg) || err?.code === '42501') {
         toast.error("You can't send messages to this user.");
       } else {
@@ -1670,6 +1704,20 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         </div>
       )}
 
+      {/* Pending-request notice. The one-message cap is enforced by mig
+          234's RESTRICTIVE INSERT policy; this explains it rather than
+          letting the user compose into a 42501. */}
+      {pendingSendBlocked && (
+        <div className="mt-2 shrink-0 px-3 py-2 rounded-lg bg-secondary/50 border border-border">
+          <p className="text-[11px] text-muted-foreground text-center">
+            {tFallback(
+              'hub.messages.request.waitToSend',
+              'Message request sent. You can send more once they accept.'
+            )}
+          </p>
+        </div>
+      )}
+
       {/* Composer */}
       <div className="flex items-end gap-1 pt-2 border-t border-border shrink-0">
         <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFilePick} />
@@ -1743,7 +1791,7 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
         )}
         <button
           onClick={handleSend}
-          disabled={sending || uploading || (!draft.trim() && !attachmentFile)}
+          disabled={sending || uploading || pendingSendBlocked || (!draft.trim() && !attachmentFile)}
           aria-label="Send"
           className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
         >
