@@ -112,6 +112,30 @@ describe('sessionToPlan', () => {
   });
 });
 
+describe('running paces in faster-5K plans', () => {
+  it('parses a current 5K time and a stated goal from the message', () => {
+    const p = parseWorkoutGoal('train for a faster 5k, I run 24:30 now, want sub 23');
+    expect(p.current5kSec).toBe(24 * 60 + 30);
+    expect(p.goalFiveKSec).toBe(23 * 60);
+  });
+
+  it('embeds real per-mile / per-rep paces in the cardio sessions', async () => {
+    const { reply, plan } = await buildCoachPlan({ user: { email: 'a@b.com' }, message: 'train for a faster 5k, I run 24:30' });
+    const cardio = plan.exercises.filter((e) => e.kind === 'cardio');
+    const easy = cardio.find((e) => e.displayName === 'Easy Run');
+    const interval = cardio.find((e) => e.displayName === 'Interval Run');
+    expect(easy.detail).toMatch(/@ \d+:\d\d\/mi/);            // paced easy run
+    expect(interval.detail).toMatch(/× 400 m @ \d+:\d\d\/rep/); // paced 400m reps
+    expect(reply).toMatch(/🎯 Goal: sub-\d+:\d\d 5K/);
+    expect(reply).toMatch(/\/400m/);
+  });
+
+  it('falls back to an estimated 5K and says so when no time is given', async () => {
+    const { reply } = await buildCoachPlan({ user: { email: 'a@b.com' }, message: 'train for a faster 5k' });
+    expect(reply).toMatch(/Paces assume a ~28:00 5K/);
+  });
+});
+
 describe('buildCardioSession (Quick-pick Cardio)', () => {
   it('exposes cardio styles', () => {
     expect(CARDIO_STYLES.map((s) => s.id)).toEqual(['easy', 'intervals', 'tempo', 'long']);

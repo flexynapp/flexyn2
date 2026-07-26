@@ -18,6 +18,12 @@
 
 import { buildStarterRegimen } from '@/lib/data/starterRegimen';
 import { generateWorkout } from './workoutGenerator';
+import { runningTargets, fiveKSplits, formatPace, formatClock } from '@/lib/running/paces';
+
+// Default 5K baseline when the runner hasn't told us their time — a mid
+// recreational ~28:00. We flag it as an estimate and invite them to share
+// their real time for exact paces.
+const DEFAULT_5K_SEC = 28 * 60;
 
 // ── Goal prompts shown on the generate-mode welcome ──────────────────────────
 export const GENERATE_PROMPTS = [
@@ -111,6 +117,14 @@ export function parseWorkoutGoal(message) {
 
   const lift = detectLift(m);
   const event = detectEvent(m);
+
+  // Current 5K time ("24:30", "I run 25:00 now") and an optional stated goal
+  // ("sub 24", "sub 22:30"). mm:ss is unambiguous for a race time; we strip a
+  // "sub …" goal first so it isn't also read as the current time.
+  const subM = m.match(/\bsub[-\s]?(\d{1,2})(?::(\d{2}))?\b/);
+  const goalFiveKSec = subM ? Number(subM[1]) * 60 + Number(subM[2] || 0) : null;
+  const timeM = m.replace(/\bsub[-\s]?\d{1,2}(?::\d{2})?\b/, '').match(/\b(\d{1,2}):(\d{2})\b/);
+  const current5kSec = timeM && Number(timeM[2]) < 60 ? Number(timeM[1]) * 60 + Number(timeM[2]) : null;
   const isRun = /run|jog|5\s*k|10\s*k|marathon|mile|sprint|pace|race|cardio/.test(m);
   const faster = /faster|quicker|speed|sprint|sub[-\s]?\d|pace|pr (my |a )?(5|10)/.test(m);
   const further = /further|longer|distance|endurance|go the distance|first (5k|10k|marathon|half)|finish (a|my)|complete (a|my)/.test(m);
@@ -164,6 +178,8 @@ export function parseWorkoutGoal(message) {
     durationMinutes: detectDuration(m),
     focus: lift ? (LIFT_TO_FOCUS[lift] || 'full_body') : sessionFocusForGoal(goal),
     label,
+    current5kSec,
+    goalFiveKSec,
   };
 }
 
@@ -322,15 +338,24 @@ function sessionToRegimenPayload(workout) {
 
 // ── Intro copy ───────────────────────────────────────────────────────────────
 
-function planReply({ parsed, payload }) {
+function planReply({ parsed, payload, targets, estimated5k }) {
   const cardio = (payload.exercises || []).filter((e) => e.kind === 'cardio');
   const strength = (payload.exercises || []).filter((e) => e.kind !== 'cardio');
   if (parsed.goal === 'speed' || parsed.goal === 'endurance') {
-    return [
+    const lines = [
       `Here's a plan to ${parsed.label} 🏃`,
       '',
-      `${cardio.length} running session${cardio.length === 1 ? '' : 's'} a week drive the goal, with ${strength.length} supporting lift${strength.length === 1 ? '' : 's'} to keep you powerful and injury-proof. Build the easy miles first, keep the hard days hard, and add a little each week. Save it as a regimen and I'll track it for you.`,
-    ].join('\n');
+      `${cardio.length} running session${cardio.length === 1 ? '' : 's'} a week drive the goal, with ${strength.length} supporting lift${strength.length === 1 ? '' : 's'} to keep you powerful and injury-proof. Each session below carries your target pace — build the easy miles first, keep the hard days hard, and add a little each week.`,
+    ];
+    if (targets && targets.goalFiveKSeconds > 0) {
+      const g = targets.goalSplits;
+      lines.push('', `🎯 Goal: sub-${formatClock(targets.goalFiveKSeconds)} 5K — ${formatPace(g.perKm)}/km · ${formatPace(g.perMile)}/mi · ${formatClock(g.per400)}/400m.`);
+      if (estimated5k) {
+        lines.push(`(Paces assume a ~${formatClock(targets.currentFiveKSeconds)} 5K — reply with your recent time, e.g. "24:30", and I'll re-dial them exactly.)`);
+      }
+    }
+    lines.push('', 'Save it as a regimen and I\'ll track it for you.');
+    return lines.join('\n');
   }
   if (parsed.goal === 'strength' && parsed.lift) {
     return [
@@ -374,14 +399,19 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
 
   if (parsed.wantsPlan) {
     const goals = parsed.goal === 'general' ? ['strength'] : [parsed.goal];
+    const isRun = parsed.goal === 'speed' || parsed.goal === 'endurance';
+    const current5kSec = isRun ? (parsed.current5kSec || DEFAULT_5K_SEC) : undefined;
     const payload = buildStarterRegimen({
       goals,
-      level: profile.level || 'intermediate',
+      // starterRegimen levels are newbie|returning|consistent|advanced —
+      // 'consistent' is the intermediate-equivalent default.
+      level: profile.level || 'consistent',
       daysCount: profile.daysCount || 4,
       cardioEvent: parsed.event,
       strengthFocus: parsed.lift ? [parsed.lift] : [],
       age: profile.age,
       gender: profile.gender,
+      current5kSec,
     });
     const plan = {
       kind: 'plan',
@@ -393,7 +423,17 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
       goal: parsed.goal,
       label: parsed.label,
     };
-    return { reply: planReply({ parsed, payload }), plan };
+    // Running targets power the goal-splits line in the reply. If the runner
+    // stated a goal ("sub 24"), honor it; otherwise project a realistic one.
+    const targets = isRun ? runningTargets(current5kSec) : null;
+    if (targets && parsed.goalFiveKSec) {
+      targets.goalFiveKSeconds = parsed.goalFiveKSec;
+      targets.goalSplits = fiveKSplits(parsed.goalFiveKSec);
+    }
+    return {
+      reply: planReply({ parsed, payload, targets, estimated5k: isRun && !parsed.current5kSec }),
+      plan,
+    };
   }
 
   // Single session

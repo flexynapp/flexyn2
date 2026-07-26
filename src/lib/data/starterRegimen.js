@@ -15,6 +15,7 @@
 
 import { db } from '@/api/db';
 import { EXERCISE_LIBRARY } from '@/components/regimens/ExerciseAutocomplete';
+import { runningTargets, formatPace, formatClock, repTime } from '@/lib/running/paces';
 
 // Throw-on-typo lookup. Called at module init below for every exercise
 // the generator can ever pick.
@@ -181,11 +182,12 @@ Object.values(GOAL_EXERCISES).forEach(list => list.forEach(EX));
 // workout (distance / pace / intervals) instead of a meaningless "3 × 30".
 const MI_TO_M = 1609.34;
 const CARDIO_EVENT_SCALE = {
-  '5k':       { label: '5K',             easyMi: 2.5, longMi: 4,  tempoMin: 15, interval: '6 × 400 m' },
-  '10k':      { label: '10K',            easyMi: 3.5, longMi: 6,  tempoMin: 20, interval: '5 × 800 m' },
-  'half':     { label: 'Half Marathon',  easyMi: 4,   longMi: 9,  tempoMin: 25, interval: '4 × 1 mi'  },
-  'marathon': { label: 'Marathon',       easyMi: 5,   longMi: 14, tempoMin: 30, interval: '5 × 1 km'  },
-  'general':  { label: 'General fitness', easyMi: 3,  longMi: 5,  tempoMin: 18, interval: '8 × 200 m' },
+  //                                                                            reps × repMeters @ zone
+  '5k':       { label: '5K',             easyMi: 2.5, longMi: 4,  tempoMin: 15, interval: '6 × 400 m', reps: 6, repMeters: 400,  intervalZone: 'interval' },
+  '10k':      { label: '10K',            easyMi: 3.5, longMi: 6,  tempoMin: 20, interval: '5 × 800 m', reps: 5, repMeters: 800,  intervalZone: 'interval' },
+  'half':     { label: 'Half Marathon',  easyMi: 4,   longMi: 9,  tempoMin: 25, interval: '4 × 1 mi',  reps: 4, repMeters: 1609, intervalZone: 'threshold' },
+  'marathon': { label: 'Marathon',       easyMi: 5,   longMi: 14, tempoMin: 30, interval: '5 × 1 km',  reps: 5, repMeters: 1000, intervalZone: 'threshold' },
+  'general':  { label: 'General fitness', easyMi: 3,  longMi: 5,  tempoMin: 18, interval: '8 × 200 m', reps: 8, repMeters: 200,  intervalZone: 'rep' },
 };
 
 function cardioSession(displayName, detail, { meters = null, minutes = null } = {}) {
@@ -208,22 +210,40 @@ function cardioSession(displayName, detail, { meters = null, minutes = null } = 
 
 // Build the week's running sessions. `speed` (Run faster) adds intervals +
 // tempo; `distance` (Run further) adds a long run; a long target event (half /
-// marathon) always includes a long run.
-function buildCardioSessions({ event, speed, distance, level } = {}) {
+// marathon) always includes a long run. When `targets` (from
+// runningTargets(current5kSec)) is present, each session carries the runner's
+// real pace for that zone — otherwise the detail stays effort-based (which is
+// what onboarding/tests without a known 5K time expect).
+function buildCardioSessions({ event, speed, distance, level, targets } = {}) {
   const scale = CARDIO_EVENT_SCALE[event] || CARDIO_EVENT_SCALE.general;
   const factor = (level === 'newbie' || level === 'returning') ? 0.7
     : level === 'advanced' ? 1.15 : 1;
   const mi = (m) => Math.max(1, Math.round(m * factor * 2) / 2); // nearest 0.5 mi, min 1
-  const sessions = [cardioSession('Easy Run', `${mi(scale.easyMi)} mi · conversational pace`, { meters: mi(scale.easyMi) * MI_TO_M })];
+  const z = targets?.zones;
+  const at = (zone) => (z ? ` @ ${formatPace(z[zone].perMile)}/mi` : ''); // e.g. " @ 8:05/mi"
+
+  const easyMi = mi(scale.easyMi);
+  const sessions = [cardioSession('Easy Run', `${easyMi} mi${at('easy')} · conversational pace`, { meters: easyMi * MI_TO_M })];
   if (speed) {
-    sessions.push(cardioSession('Interval Run', `${scale.interval} · hard efforts, full recovery`));
-    sessions.push(cardioSession('Tempo Run', `${Math.round(scale.tempoMin * factor)} min · comfortably hard`, { minutes: Math.round(scale.tempoMin * factor) }));
+    let intervalDetail;
+    if (z) {
+      const zoneKey = scale.intervalZone || 'interval';
+      const perKm = z[zoneKey].perKm;
+      intervalDetail = `${scale.reps} × ${scale.repMeters} m @ ${formatClock(repTime(perKm, scale.repMeters))}/rep · full recovery`;
+    } else {
+      intervalDetail = `${scale.interval} · hard efforts, full recovery`;
+    }
+    sessions.push(cardioSession('Interval Run', intervalDetail));
+    const tempoMin = Math.round(scale.tempoMin * factor);
+    sessions.push(cardioSession('Tempo Run', `${tempoMin} min${at('threshold')} · comfortably hard`, { minutes: tempoMin }));
   }
   if (distance || event === 'half' || event === 'marathon') {
-    sessions.push(cardioSession('Long Run', `${mi(scale.longMi)} mi · easy, add distance weekly`, { meters: mi(scale.longMi) * MI_TO_M }));
+    const longMi = mi(scale.longMi);
+    sessions.push(cardioSession('Long Run', `${longMi} mi${at('long')} · easy, add distance weekly`, { meters: longMi * MI_TO_M }));
   }
   if (sessions.length < 2) {
-    sessions.push(cardioSession('Steady Run', `${mi(scale.easyMi)} mi · steady effort`, { meters: mi(scale.easyMi) * MI_TO_M }));
+    const em = mi(scale.easyMi);
+    sessions.push(cardioSession('Steady Run', `${em} mi${at('easy')} · steady effort`, { meters: em * MI_TO_M }));
   }
   return sessions;
 }
@@ -253,7 +273,7 @@ function buildCardioSessions({ event, speed, distance, level } = {}) {
  * @param {number} [input.heightCm]    - With weight → BMI (conditioning + reps).
  * @returns {Object} regimen payload
  */
-export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioEvent, strengthFocus, injuries, age, bodyFatPct, gender, weightKg, heightCm } = {}) {
+export function buildStarterRegimen({ goals, level, daysCount, assessment, cardioEvent, strengthFocus, injuries, age, bodyFatPct, gender, weightKg, heightCm, current5kSec } = {}) {
   const goalList = Array.isArray(goals) ? goals.filter(Boolean) : (goals ? [goals] : []);
   const primary = goalList[0] || 'strength';
   const goalTitle = GOAL_TITLES[primary] || GOAL_TITLES.strength;
@@ -375,8 +395,9 @@ export function buildStarterRegimen({ goals, level, daysCount, assessment, cardi
   // core) drops the running block — the injury step promises we work around it,
   // so the runner-support strength stands in instead of pounding a hurt knee.
   const cardioSafe = !(excludeSet.size && trains('Running', excludeSet));
+  const cardioTargets = current5kSec > 0 ? runningTargets(current5kSec) : null;
   const cardioExercises = cardioWanted && cardioSafe
-    ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel })
+    ? buildCardioSessions({ event: cardioEvent, speed: speedWanted, distance: distanceWanted, level: effLevel, targets: cardioTargets })
     : [];
 
   // Cardio leads the plan for a runner; strength leads for a lifter.
