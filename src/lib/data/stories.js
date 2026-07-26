@@ -171,7 +171,9 @@ export async function createStory(user, file, overlayStyle = null, privacy = 'fr
   const ext       = (file.name || 'story').split('.').pop() || 'jpg';
   const path      = `${user.id}/stories/${Date.now()}.${ext}`;
   const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
-  const expiresAt = new Date(Date.now() + 25 * 60 * 60 * 1000).toISOString();
+  // Stories live exactly 24 hours, then they stop being served (the feed
+  // query filters on expires_at) and get cleaned up.
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
   // upsert:false — an upsert makes Storage check for an existing row, which
   // needs a SELECT policy on storage.objects. Migration 185 dropped the

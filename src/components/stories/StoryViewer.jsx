@@ -24,14 +24,13 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Trash2, Heart, Eye, Camera, Loader2, Send, Star, StarOff, Download, Clock } from 'lucide-react';
+import { X, Trash2, Heart, Eye, Send, Flag, MessageCircle, Loader2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { toast } from '@/lib/toast';
 import StoryReactionPicker from './StoryReactionPicker';
+import ReportDialog from '@/components/hub/ReportDialog';
 import AddToHighlightModal from './AddToHighlightModal';
 import * as storiesData from '@/lib/data/stories';
-import { formatTimeUntil } from '@/lib/timeUntil';
-import { downloadMedia } from '@/lib/downloadMedia';
 import { cdnImageUrl, cdnFallbackSrc } from '@/lib/imageCdn';
 import StoryOverlayRenderer from './StoryOverlayRenderer';
 
@@ -210,7 +209,6 @@ export default function StoryViewer({
 }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [downloading, setDownloading] = useState(false);
   // Re-render every 60s so the expiration countdown ticks down.
   const [, setCountdownTick] = useState(0);
   useEffect(() => {
@@ -224,6 +222,9 @@ export default function StoryViewer({
   const [tick,          setTick]          = useState(0);
   const [insightsOpen,  setInsightsOpen]  = useState(false);
   const [deletePrompt,  setDeletePrompt]  = useState(false);
+  const [reportOpen,    setReportOpen]    = useState(false);
+  // Reply box is hidden until the viewer taps the comment button.
+  const [commentOpen,   setCommentOpen]   = useState(false);
   const [highlightPickerOpen, setHighlightPickerOpen] = useState(false);
   const [localLiked,    setLocalLiked]    = useState(new Set());
   const [reply,         setReply]         = useState('');
@@ -554,29 +555,21 @@ export default function StoryViewer({
                   <p className="text-white font-semibold text-sm leading-tight drop-shadow-md">
                     {currentGroup.isOwn ? 'Your Story' : currentGroup.username}
                   </p>
+                  {/* Just how long ago it was posted (seconds / minutes /
+                      hours / days). The expiry countdown that used to sit
+                      beside this was noise — stories always last 24h. */}
                   <div className="flex items-center gap-1.5">
                     <p className="text-white/70 text-[10px] leading-tight">{timeAgo}</p>
-                    {/* Expiration countdown — rendered when expires_at is
-                        within the next 24h and not yet elapsed. The 60s
-                        re-render interval above keeps this fresh. */}
-                    {(() => {
-                      const left = formatTimeUntil(currentStory.expires_at);
-                      if (!left) return null;
-                      return (
-                        <span className="flex items-center gap-0.5 text-white/70 text-[10px] leading-tight tabular-nums">
-                          <Clock className="w-3 h-3" aria-hidden="true" />
-                          {left}
-                        </span>
-                      );
-                    })()}
                   </div>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                {currentGroup.isOwn && (
-                  <button onClick={(e) => { e.stopPropagation(); onAddStory?.(); }}
-                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add another story">
-                    <Camera className="w-4 h-4" />
+                {/* Report — viewers only (you can't report your own story).
+                    Mirrors the flag affordance on post cards. */}
+                {!currentGroup.isOwn && (
+                  <button onClick={(e) => { e.stopPropagation(); setReportOpen(true); }}
+                    className="w-8 h-8 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Report story">
+                    <Flag className="w-4 h-4" />
                   </button>
                 )}
                 <button
@@ -594,65 +587,18 @@ export default function StoryViewer({
             <div className="absolute bottom-0 start-0 end-0 h-40 pointer-events-none"
               style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.65) 0%, transparent 100%)' }} />
 
-            {/* ── Bottom bar — own stories ─────────────────────────────── */}
+            {/* ── Bottom bar — own stories ──────────────────────────────
+                Insights + delete only. You can't like your own story, and the
+                save actions (add-to-highlight, download) were removed — a
+                story lives 24h and then it's gone. */}
             {currentGroup.isOwn && (
-              <div className="absolute bottom-0 start-0 end-0 flex items-end justify-between px-4"
+              <div className="absolute bottom-0 start-0 end-0 flex items-end justify-center gap-10 px-4"
                 style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
-                {/* Like (own — for testing) */}
-                <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center" aria-label={isLiked ? 'Unlike' : 'Like'}>
-                  <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                </motion.button>
-
                 {/* View Insights */}
                 <button onClick={(e) => { e.stopPropagation(); setInsightsOpen(v => !v); }}
                   className="flex flex-col items-center gap-0.5 text-white/80" aria-label="View insights">
                   <Eye className="w-4 h-4" />
                   <span className="text-[10px] font-medium">View Insights</span>
-                </button>
-
-                {/* Add to highlight (mig 099). Tap → modal to pick
-                    an existing album or create a new one. Pinned
-                    stories survive the 24-hour TTL. In album-viewing
-                    mode this becomes "remove from THIS album" instead —
-                    the context-appropriate star action. */}
-                {onRemoveFromHighlight ? (
-                  <button onClick={(e) => { e.stopPropagation(); handleRemoveFromHighlight(); }}
-                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Remove from this album">
-                    <StarOff className="w-4 h-4" />
-                  </button>
-                ) : (
-                  <button onClick={(e) => { e.stopPropagation(); setHighlightPickerOpen(true); }}
-                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white" aria-label="Add to highlight">
-                    <Star className="w-4 h-4" />
-                  </button>
-                )}
-
-                {/* Download — save my own story to the device. iOS
-                    Safari opens the URL in a new tab so the user can
-                    long-press → Save Image (the platform-native flow);
-                    other browsers get a real <a download> blob save. */}
-                <button
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    if (downloading) return;
-                    setDownloading(true);
-                    const ext = currentStory.image_url?.match(/\.(mp4|mov|webm)(\?|$)/i) ? 'mp4' : 'jpg';
-                    const res = await downloadMedia(
-                      currentStory.image_url,
-                      `flexyn-story-${currentStory.id}.${ext}`
-                    );
-                    setDownloading(false);
-                    if (res.ok && !res.opened) toast.success('Saved to your device.');
-                    else if (!res.ok)          toast.error('Could not download — try again.');
-                  }}
-                  className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center text-white disabled:opacity-50"
-                  aria-label="Download story"
-                  disabled={downloading}
-                >
-                  {downloading
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <Download className="w-4 h-4" />}
                 </button>
 
                 {/* Delete */}
@@ -695,13 +641,26 @@ export default function StoryViewer({
                   <StoryReactionPicker storyId={currentStory?.id} />
                 </div>
 
-                {/* Like + reply row */}
-                <div className="flex items-center gap-2">
-                  <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
-                    className="w-11 h-11 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
-                    <Heart className={`w-5 h-5 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
-                  </motion.button>
+                {/* Two centered actions: like + comment. The reply box only
+                    appears once the user taps comment, so the default view
+                    stays clean. */}
+                {!commentOpen && (
+                  <div className="flex items-center justify-center gap-10">
+                    <motion.button whileTap={{ scale: 0.82 }} onClick={handleLike}
+                      className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label={isLiked ? 'Unlike' : 'Like'}>
+                      <Heart className={`w-6 h-6 transition-colors ${isLiked ? 'fill-red-500 text-red-500' : 'text-white'}`} />
+                    </motion.button>
+                    {!currentGroup.storyDmsDisabled && (
+                      <motion.button whileTap={{ scale: 0.82 }}
+                        onClick={(e) => { e.stopPropagation(); setCommentOpen(true); setTimeout(() => replyInputRef.current?.focus(), 60); }}
+                        className="w-12 h-12 rounded-full bg-black/40 flex items-center justify-center shrink-0" aria-label="Comment">
+                        <MessageCircle className="w-6 h-6 text-white" />
+                      </motion.button>
+                    )}
+                  </div>
+                )}
 
+                <div className={commentOpen ? 'flex items-center gap-2' : 'hidden'}>
                   {!currentGroup.storyDmsDisabled && (
                     <div className="flex-1 flex items-center gap-2 bg-black/40 rounded-full px-4 py-2.5 border border-white/25 min-w-0"
                       onClick={e => e.stopPropagation()}>
@@ -772,6 +731,19 @@ export default function StoryViewer({
                 onClose={() => setHighlightPickerOpen(false)}
                 storyId={currentStory?.id}
               />
+            )}
+
+            {/* Report a story — viewers only. */}
+            {reportOpen && !currentGroup.isOwn && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <ReportDialog
+                  open={reportOpen}
+                  onClose={() => setReportOpen(false)}
+                  reportedType="story"
+                  reportedId={currentStory?.id}
+                  reportedAuthorEmail={currentGroup?.email || null}
+                />
+              </div>
             )}
           </div>
         </motion.div>

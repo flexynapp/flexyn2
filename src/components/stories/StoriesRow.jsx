@@ -224,7 +224,11 @@ function StoryAvatarButton({
             transparent when there's no story. */}
         <div
           className="w-[60px] h-[60px] rounded-full flex items-center justify-center"
-          style={{ padding: '2.5px', ...(hasRing ? ringStyle : {}) }}
+          // INTEGER padding: a fractional band (2.5px) rounds to 2px on one
+          // edge and 3px on the other at non-integer device pixel ratios, so
+          // the ring looked thicker on one side. 3px keeps every layer on a
+          // whole pixel (60 → 54 → 50).
+          style={{ padding: '3px', ...(hasRing ? ringStyle : {}) }}
         >
           <div className="rounded-full overflow-hidden bg-background w-full h-full p-[2px]">
             <div className="w-full h-full rounded-full overflow-hidden">
