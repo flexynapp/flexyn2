@@ -88,7 +88,6 @@ import { seedSetsForExercise } from '@/lib/seedRegimenSets';
 // in particular pulls vendor-pose / vendor-tfjs through its
 // detectorPrewarm chain; static import would defeat tree-shaking.
 const FormCoachModal       = lazy(() => import('@/components/formcoach/FormCoachModal'));
-const WorkoutGeneratorModal = lazy(() => import('@/components/workout/WorkoutGeneratorModal'));
 const EditWorkoutModal     = lazy(() => import('@/components/workout/EditWorkoutModal'));
 const CardioSavedList      = lazy(() => import('@/components/cardio/CardioSavedList'));
 const CardioDetailModal    = lazy(() => import('@/components/cardio/CardioDetailModal'));
@@ -281,7 +280,6 @@ export default function Workout() {
   const [storeOpen, setStoreOpen] = useState(false);
   const [cardioOpen, setCardioOpen] = useState(false);
   const [formCoachOpen, setFormCoachOpen] = useState(false);
-  const [generatorOpen, setGeneratorOpen] = useState(false);
   const [shareCardWorkout, setShareCardWorkout] = useState(null);
   const [savedWorkoutsOpen, setSavedWorkoutsOpen] = useState(false);
   const [historyTab, setHistoryTab] = useState('gym'); // 'gym' | 'cardio'
@@ -1388,7 +1386,6 @@ export default function Workout() {
     setDuration(String(workout?.duration_minutes || ''));
     setNotes(workout?.title || '');
     setStarted(true);
-    setGeneratorOpen(false);
     setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
     if (clampedSomething) {
       toast.success('Workout loaded — some sets were trimmed to realistic limits.');
@@ -1410,47 +1407,6 @@ export default function Workout() {
     const t = setTimeout(clearPendingWorkout, 0);
     return () => clearTimeout(t);
   }, []);
-
-  // SHARED save-as-regimen handler for the AI generator modal — used at
-  // both mount points so they can't drift.
-  const saveGeneratedAsRegimen = async (workout) => {
-    try {
-      // Description previously had a mojibake "·" (UTF-8 byte-pair
-      // displayed as two chars) in place of the intended middle-dot ·.
-      // Cleaned up to a plain ASCII " — ". Also fall back the focus
-      // label so an undefined `workout.focus` doesn't read as
-      // "AI undefined session". (Screenshot feedback.)
-      const focusLabel = workout?.focus ? `${workout.focus} ` : '';
-      const mins = workout?.duration_minutes;
-      const description = `AI ${focusLabel}session${mins ? ` — ${mins} min` : ''}`.trim();
-      await regimens.create({
-        name: workout.title || 'AI-Generated Workout',
-        description,
-        exercises: (workout.exercises || []).map(ex => ({
-          name: ex.name,
-          target_sets: ex.sets?.length || 3,
-          target_reps: ex.sets?.[0]?.reps ?? null,
-          target_weight: ex.sets?.[0]?.weight ?? null,
-          rest_seconds: ex.restSec ?? 90,
-        })),
-        is_public: false,
-      });
-      queryClient.invalidateQueries({ queryKey: ['regimens', user?.email] });
-      toast.success('Saved to your Regimens!');
-    } catch (err) {
-      reportError(err, { feature: 'workout.save-regimen', userEmail: user?.email });
-      // Surface the underlying error so beta testers can report something
-      // specific. Profanity-filter rejection is the most common false
-      // positive (AI titles occasionally trip the username profanity check
-      // even on benign words), so flag that case explicitly.
-      const reason = err?.code === 'PROFANITY'
-        ? 'The AI-generated title was rejected by our filter — try regenerating for a different name.'
-        : err?.message
-          ? `Could not save regimen: ${err.message}`
-          : 'Could not save regimen. Try again.';
-      toast.error(reason);
-    }
-  };
 
   const handleResumeSession = (sessionId) => {
     const session = resumeWorkout(sessionId);
@@ -2792,18 +2748,6 @@ export default function Workout() {
           </Suspense>
         </ErrorBoundary>
 
-        <ErrorBoundary label="WorkoutGenerator">
-          <Suspense fallback={null}>
-            <WorkoutGeneratorModal
-              open={generatorOpen}
-              onClose={() => setGeneratorOpen(false)}
-              userProfile={userProfile}
-              onUseWorkout={startFromGeneratedWorkout}
-              onSaveAsRegimen={saveGeneratedAsRegimen}
-            />
-          </Suspense>
-        </ErrorBoundary>
-
         {/* Injury Form overlay */}
         <AnimatePresence>
           {injuryFormOpen && (
@@ -3385,18 +3329,6 @@ export default function Workout() {
           pathCompleted={gauntletStatsModal.pathCompleted}
         />
       )}
-
-      <ErrorBoundary label="WorkoutGenerator">
-        <Suspense fallback={null}>
-          <WorkoutGeneratorModal
-            open={generatorOpen}
-            onClose={() => setGeneratorOpen(false)}
-            userProfile={userProfile}
-            onUseWorkout={startFromGeneratedWorkout}
-            onSaveAsRegimen={saveGeneratedAsRegimen}
-          />
-        </Suspense>
-      </ErrorBoundary>
 
       {editingLog && (
         <Suspense fallback={null}>
