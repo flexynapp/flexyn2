@@ -559,17 +559,31 @@ export default function StoriesRow({ onViewProfile } = {}) {
         cleanupPreview();
         return;
       }
-      if (!result?.ok) { toast.error(tFallback('stories.postFailed', 'Could not post story — try again.')); return; }
+      if (!result?.ok) {
+        // Surface the REAL failure (code + message) instead of a generic
+        // "try again", and report it to Sentry — so a broken story post is
+        // diagnosable from the toast and collected for the team.
+        const e = result?.error;
+        const code = e?.code || e?.statusCode || e?.status || '';
+        const msg = e?.message || e?.error_description || (typeof e === 'string' ? e : '') || 'unknown error';
+        reportError(e instanceof Error ? e : new Error(`story post failed: ${code} ${msg}`), {
+          feature: 'story.post', userEmail: user?.email, code, raw: (() => { try { return JSON.stringify(e).slice(0, 600); } catch { return String(e); } })(),
+        });
+        toast.error(`Couldn't post story — ${code ? code + ': ' : ''}${msg}`.slice(0, 160), { duration: 9000 });
+        cleanupPreview();
+        return;
+      }
       queryClient.invalidateQueries({ queryKey: ['storiesFeed'] });
       cleanupPreview();
       toast.success("Story's up.");
     },
-    onError: () => {
+    onError: (err) => {
       // Revoke the preview's object URL before clearing — previously this
       // path left the URL dangling, so each retry on a flaky network would
       // leak another blob into memory.
       cleanupPreview();
-      toast.error(tFallback('stories.uploadFailed', 'Upload failed — try again.'));
+      reportError(err, { feature: 'story.post', userEmail: user?.email });
+      toast.error(`Upload failed — ${err?.message || err?.code || 'try again'}`.slice(0, 160), { duration: 9000 });
     },
   });
 
