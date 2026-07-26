@@ -537,7 +537,7 @@ export default function ExerciseAutocomplete({ value, onChange, onSelect, placeh
           dumbbells today" without typing the equipment into the
           search box. */}
       {(open || equipmentFilter !== 'all') && (
-        <div className="absolute z-50 top-full mt-1 start-0 end-0 flex gap-1 overflow-x-auto px-1 pb-2 no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+        <div className="absolute z-50 top-full mt-1 start-0 end-0 flex gap-1 overflow-x-auto px-1 pb-2 scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
           {EQUIPMENT_FILTERS.map(f => (
             <button
               key={f.id}

@@ -127,7 +127,7 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
           </button>
         )}
       </div>
-      <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 no-scrollbar">
+      <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
         {rows.map((row) => (
           <Badge
             key={row.id}

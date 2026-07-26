@@ -339,7 +339,7 @@ export default function RegimenTemplateStore({ open, onClose }) {
               onChange={e => setSearch(e.target.value)}
             />
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
             {muscleGroups.map(m => (
               <Button
                 key={m}

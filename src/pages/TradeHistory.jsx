@@ -62,7 +62,7 @@ export default function TradeHistory() {
       />
 
       {/* Filter pills */}
-      <div className="flex gap-1.5 mb-4 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
         {FILTERS.map(f => (
           <button
             key={f.id}

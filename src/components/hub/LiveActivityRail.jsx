@@ -104,7 +104,7 @@ export default function LiveActivityRail() {
               : tFallback('liveActivity.nActive', '{count} friends training', { count: actives.length })}
           </span>
         </div>
-        <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 no-scrollbar">
+        <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
           {actives.map((u) => (
             <ActiveAvatar
               key={u.user_id}

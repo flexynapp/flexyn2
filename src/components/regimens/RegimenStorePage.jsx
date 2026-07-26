@@ -395,7 +395,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
       {/* ── Muscle group filter chips ─────────────────────────────────────── */}
       <div
         ref={chipRowRef}
-        className="flex gap-1.5 overflow-x-auto pb-2 mb-4 no-scrollbar"
+        className="flex gap-1.5 overflow-x-auto pb-2 mb-4 scrollbar-hide"
         style={{ scrollbarWidth: 'none' }}
       >
         {['All', ...ALL_MUSCLE_GROUPS].map(group => {
@@ -419,7 +419,7 @@ export default function RegimenStorePage({ onBack, onPublish }) {
       </div>
 
       {/* ── Difficulty filter chips (mig 120) ───────────────────────────── */}
-      <div className="flex gap-1.5 pb-2 mb-4 overflow-x-auto no-scrollbar" style={{ scrollbarWidth: 'none' }}>
+      <div className="flex gap-1.5 pb-2 mb-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
         {[
           { id: 'All',          label: 'Any level' },
           { id: 'beginner',     label: 'Beginner' },

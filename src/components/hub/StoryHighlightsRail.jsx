@@ -109,7 +109,7 @@ export default function StoryHighlightsRail({ userEmail, isOwn, onOpenAlbum }) {
       transition={{ duration: 0.35 }}
       className="mb-4"
     >
-      <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 no-scrollbar">
+      <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
         {isOwn && (
           <button
             onClick={() => setComposeOpen(true)}

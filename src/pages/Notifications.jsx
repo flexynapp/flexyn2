@@ -201,7 +201,7 @@ export default function Notifications() {
       />
 
       {/* Tabs */}
-      <div className="flex gap-1 overflow-x-auto mb-4 px-1 -mx-1 no-scrollbar">
+      <div className="flex gap-1 overflow-x-auto mb-4 px-1 -mx-1 scrollbar-hide">
         {TABS.map(t => (
           <button
             key={t.id}

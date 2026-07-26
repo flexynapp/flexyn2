@@ -159,7 +159,7 @@ export default function CrewSuggestionRail() {
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="flex gap-2.5 overflow-x-auto pb-1 px-1 -mx-1 no-scrollbar">
+        <div className="flex gap-2.5 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">
           {suggestions.map((c) => (
             <SuggestedCrewCard
               key={c.id}

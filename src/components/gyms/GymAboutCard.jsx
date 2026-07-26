@@ -77,7 +77,7 @@ export default function GymAboutCard({ gym }) {
 
         {/* Photo gallery — horizontal scroll rail with snap. */}
         {showPhotos && (
-          <div className="-mx-4 px-4 overflow-x-auto no-scrollbar">
+          <div className="-mx-4 px-4 overflow-x-auto scrollbar-hide">
             <div className="flex gap-2 snap-x snap-mandatory">
               {photos.map((url, i) => (
                 <button
