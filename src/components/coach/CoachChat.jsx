@@ -145,7 +145,12 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     const ta = textareaRef.current;
     if (!ta) return;
     ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+    const full = ta.scrollHeight;
+    ta.style.height = Math.min(full, 140) + 'px';
+    // Only show a scrollbar once the content actually exceeds the max height.
+    // Otherwise border-box rounding makes scrollHeight edge just past the
+    // client height and a 1–2px scrollbar renders as a stray vertical line.
+    ta.style.overflowY = full > 140 ? 'auto' : 'hidden';
   }, []);
   useEffect(() => { resizeTextarea(); }, [draft, resizeTextarea]);
 
@@ -295,53 +300,58 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
         />
       )}
 
-      {/* Composer */}
-      <div className="flex items-end gap-2 pt-2 border-t border-border shrink-0">
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
-          }}
-          placeholder={tFallback('coach.placeholder', 'Ask Coach anything…')}
-          maxLength={500}
-          rows={1}
-          className="flex-1 px-3 py-2 bg-secondary/40 border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none leading-snug"
-          style={{ maxHeight: 140 }}
-        />
-        {/* Voice dictation — hidden when Web Speech API isn't available
-            (Firefox, some embedded browsers). Captures one phrase per
-            tap and appends it to the draft so the user can review +
-            edit before sending. */}
-        {isVoiceInputSupported() && (
+      {/* Composer — a single rounded "shell" so the focus highlight wraps the
+          whole control (textarea + buttons), not just the text field. The
+          textarea itself is transparent/borderless with no inner ring or
+          scrollbar so it never draws a stray line. */}
+      <div className="pt-2 shrink-0">
+        <div className="flex items-end gap-1 rounded-2xl border border-border bg-secondary/40 ps-3 pe-1.5 py-1.5 transition-colors focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/40">
+          <textarea
+            ref={textareaRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSend();
+              }
+            }}
+            placeholder={tFallback('coach.placeholder', 'Ask Coach anything…')}
+            maxLength={500}
+            rows={1}
+            className="flex-1 min-w-0 bg-transparent border-0 outline-none focus:outline-none focus:ring-0 resize-none overflow-hidden text-sm leading-snug py-1.5 caret-primary"
+            style={{ maxHeight: 140 }}
+          />
+          {/* Voice dictation — hidden when Web Speech API isn't available
+              (Firefox, some embedded browsers). Captures one phrase per
+              tap and appends it to the draft so the user can review +
+              edit before sending. */}
+          {isVoiceInputSupported() && (
+            <button
+              type="button"
+              onClick={handleVoiceTap}
+              disabled={thinking}
+              aria-label={voiceListening ? 'Stop listening' : 'Dictate your question'}
+              aria-pressed={voiceListening}
+              className={[
+                'p-2 rounded-xl transition-colors shrink-0',
+                voiceListening
+                  ? 'bg-rose-500/15 text-rose-500'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-background/60',
+              ].join(' ')}
+            >
+              {voiceListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+            </button>
+          )}
           <button
-            type="button"
-            onClick={handleVoiceTap}
-            disabled={thinking}
-            aria-label={voiceListening ? 'Stop listening' : 'Dictate your question'}
-            aria-pressed={voiceListening}
-            className={[
-              'p-2 rounded-lg transition-colors shrink-0',
-              voiceListening
-                ? 'bg-rose-500/15 text-rose-500'
-                : 'bg-secondary text-muted-foreground hover:text-foreground',
-            ].join(' ')}
+            onClick={() => handleSend()}
+            disabled={thinking || !draft.trim()}
+            aria-label="Send"
+            className="p-2 rounded-xl bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
           >
-            {voiceListening ? <MicOff className="w-4 h-4 animate-pulse" /> : <Mic className="w-4 h-4" />}
+            <Send className="w-4 h-4" />
           </button>
-        )}
-        <button
-          onClick={() => handleSend()}
-          disabled={thinking || !draft.trim()}
-          aria-label="Send"
-          className="p-2 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed transition-opacity shrink-0"
-        >
-          <Send className="w-4 h-4" />
-        </button>
+        </div>
       </div>
 
       {/* Clear chat confirmation. Replaces native confirm() so the
