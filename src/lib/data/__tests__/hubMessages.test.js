@@ -10,6 +10,18 @@ const _msgState = {
   filterReturn: [],
 };
 
+// findOrCreateConversation goes through db.entities.HubConversation.
+// `filterByConditions` lets a test stage a different result per lookup
+// shape ({ id: … } after the RPC vs { participant_key: … } on the
+// pre-migration fallback path).
+const _convState = {
+  filterCalls: [],
+  filterByConditions: null, // (conditions) => rows
+  filterReturn: [],
+  createCalls: [],
+  createReturn: { id: 'legacy-conv' },
+};
+
 vi.mock('@/api/db', () => ({
   db: {
     entities: {
@@ -21,7 +33,19 @@ vi.mock('@/api/db', () => ({
           return _msgState.filterReturn;
         }),
       },
-      HubConversation: {},
+      HubConversation: {
+        filter: vi.fn(async (conditions) => {
+          _convState.filterCalls.push(conditions);
+          if (_convState.filterByConditions) {
+            return _convState.filterByConditions(conditions) ?? [];
+          }
+          return _convState.filterReturn;
+        }),
+        create: vi.fn(async (payload) => {
+          _convState.createCalls.push(payload);
+          return _convState.createReturn;
+        }),
+      },
     },
   },
 }));
@@ -39,6 +63,8 @@ const _sbState = {
   nextData: [],
   nextError: null,
   lastRpc: null,
+  rpcCalls: [],
+  rpcByName: {},
   rpcReturn: { data: null, error: null },
 };
 
@@ -60,6 +86,10 @@ vi.mock('@/api/supabaseClient', () => ({
     },
     rpc: vi.fn(async (name, args) => {
       _sbState.lastRpc = { name, args };
+      _sbState.rpcCalls.push({ name, args });
+      if (Object.prototype.hasOwnProperty.call(_sbState.rpcByName, name)) {
+        return _sbState.rpcByName[name];
+      }
       return _sbState.rpcReturn;
     }),
   },
@@ -84,8 +114,67 @@ beforeEach(() => {
   _sbState.nextData = [];
   _sbState.nextError = null;
   _sbState.lastRpc = null;
+  _sbState.rpcCalls = [];
+  _sbState.rpcByName = {};
   _sbState.rpcReturn = { data: null, error: null };
+  _convState.filterCalls = [];
+  _convState.filterByConditions = null;
+  _convState.filterReturn = [];
+  _convState.createCalls = [];
+  _convState.createReturn = { id: 'legacy-conv' };
   localStorage.clear();
+});
+
+describe('findOrCreateConversation', () => {
+  const me = 'me@x.com';
+  const them = 'them@x.com';
+
+  it('creates through the start_dm_conversation RPC and returns that row', async () => {
+    _sbState.rpcByName.start_dm_conversation = { data: 'conv-99', error: null };
+    _convState.filterByConditions = (conditions) =>
+      (conditions.id === 'conv-99'
+        ? [{ id: 'conv-99', participant_emails: [me, them], accepted_emails: [me] }]
+        : []);
+
+    const row = await hubMessages.findOrCreateConversation(me, them);
+
+    expect(row).toMatchObject({ id: 'conv-99' });
+    // Only the PEER is sent — caller identity is resolved server-side.
+    expect(_sbState.rpcCalls.find(c => c.name === 'start_dm_conversation').args)
+      .toEqual({ p_other_email: them });
+    // The RPC is idempotent, so no client-side insert should happen.
+    expect(_convState.createCalls).toHaveLength(0);
+  });
+
+  it('lower-cases the peer email before handing it to the RPC', async () => {
+    _sbState.rpcByName.start_dm_conversation = { data: 'conv-99', error: null };
+    _convState.filterByConditions = () => [{ id: 'conv-99' }];
+
+    await hubMessages.findOrCreateConversation('Me@X.com', 'THEM@X.com');
+
+    expect(_sbState.rpcCalls.find(c => c.name === 'start_dm_conversation').args)
+      .toEqual({ p_other_email: them });
+  });
+
+  it('falls back to the legacy client insert when the RPC is missing (42883)', async () => {
+    _sbState.rpcByName.start_dm_conversation = {
+      data: null,
+      error: { code: '42883', message: 'function does not exist' },
+    };
+    _convState.filterByConditions = () => []; // nothing exists yet
+
+    const row = await hubMessages.findOrCreateConversation(me, them);
+
+    expect(row).toMatchObject({ id: 'legacy-conv' });
+    expect(_convState.createCalls).toHaveLength(1);
+    expect(_convState.createCalls[0].participant_emails).toEqual([me, them]);
+  });
+
+  it('returns null for a self-DM without touching the RPC', async () => {
+    const row = await hubMessages.findOrCreateConversation(me, 'ME@x.com');
+    expect(row).toBeNull();
+    expect(_sbState.rpcCalls).toHaveLength(0);
+  });
 });
 
 describe('listMessages', () => {

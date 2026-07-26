@@ -78,6 +78,23 @@ export const createGroupConversation = async (emails, title = null) => {
 /**
  * Find or create a 1:1 conversation between two users.
  * Idempotent — returns the existing conversation if one exists.
+ *
+ * Creation runs through mig 234's `start_dm_conversation` RPC so the
+ * request-vs-direct decision is made SERVER-SIDE, from the follow graph,
+ * at the moment the row is inserted:
+ *
+ *   • recipient already follows the sender → accepted_emails holds BOTH
+ *     participants, so the thread lands directly in the recipient's Inbox
+ *   • otherwise → accepted_emails holds only the sender, so the thread
+ *     lands in the recipient's Requests folder and the sender is capped
+ *     at one message until it's accepted (RESTRICTIVE RLS policy).
+ *
+ * The RPC is also what clears a stale "declined" tombstone when the
+ * decliner later starts the conversation themselves.
+ *
+ * Pre-234 hosts (RPC missing, 42883/42P01) fall through to the legacy
+ * client-side find-then-insert path below so a partial deploy doesn't
+ * break messaging.
  */
 export const findOrCreateConversation = async (myEmail, other) => {
   if (!myEmail || !other) return null;
@@ -104,6 +121,20 @@ export const findOrCreateConversation = async (myEmail, other) => {
   const me = String(myEmail).toLowerCase();
   const otherLc = String(otherEmail).toLowerCase();
   const key = buildKey(me, otherLc);
+
+  // Server-authoritative create/find. Only the PEER is passed — the
+  // caller's identity comes from auth.uid()/auth.email() inside the RPC,
+  // never from a client-supplied email (mig 108's lesson).
+  const { data: rpcConvId, error: rpcError } = await supabase
+    .rpc('start_dm_conversation', { p_other_email: otherLc });
+  if (!rpcError && rpcConvId) {
+    const fromRpc = await conv().filter({ id: rpcConvId }, '-last_message_at', 1).catch(() => []);
+    if (fromRpc.length > 0) return fromRpc[0];
+  }
+  if (rpcError && rpcError.code !== '42883' && rpcError.code !== '42P01') {
+    reportError(rpcError, { feature: 'dm.startConversation', level: 'warning' });
+  }
+
   const existing = await conv().filter({ participant_key: key }, '-last_message_at', 1).catch(() => []);
   if (existing.length > 0) return existing[0];
   try {

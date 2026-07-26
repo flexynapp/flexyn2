@@ -24,6 +24,53 @@ export async function acceptConversation(convId) {
 }
 
 /**
+ * Decline (delete) a message request. The conversation row is SHARED by
+ * both participants, so a hard delete would also wipe the sender's copy —
+ * mig 234's decline_conversation instead appends the caller's email to
+ * `declined_emails`, which hides the thread for them only.
+ *
+ * Cleared again if they accept it later, start the conversation
+ * themselves, or follow the other person (mig 235).
+ */
+export async function declineConversation(convId) {
+  if (!convId) throw new Error('convId required');
+  const { error } = await supabase.rpc('decline_conversation', { p_conv_id: convId });
+  if (error) throw error;
+}
+
+/**
+ * Mirror of mig 234's `dm_pending_send_allowed` RLS check, for UI only.
+ *
+ * A pending sender gets exactly ONE message until the recipient accepts.
+ * The database is the enforcement point (a RESTRICTIVE INSERT policy on
+ * hub_messages); this exists so the composer can disable itself and
+ * explain why instead of letting the user type into a wall.
+ *
+ * Returns true when the viewer is BLOCKED from sending.
+ *
+ * @param {object} conversation        row with participant_emails + accepted_emails
+ * @param {string} myEmail
+ * @param {number} myMessageCount      messages the viewer already has in the thread
+ */
+export function isPendingRequestSendBlocked(conversation, myEmail, myMessageCount) {
+  if (!conversation || !myEmail) return false;
+  // Groups are exempt server-side — a creator legitimately talks into a
+  // group whose members haven't accepted yet (mig 116).
+  if (conversation.is_group) return false;
+  const participants = Array.isArray(conversation.participant_emails)
+    ? conversation.participant_emails.map(e => String(e).toLowerCase())
+    : [];
+  if (participants.length !== 2) return false;
+  const myLc = String(myEmail).toLowerCase();
+  const accepted = Array.isArray(conversation.accepted_emails)
+    ? conversation.accepted_emails.map(e => String(e).toLowerCase())
+    : [];
+  const pending = participants.filter(e => e !== myLc && !accepted.includes(e));
+  if (pending.length === 0) return false;
+  return Number(myMessageCount || 0) >= 1;
+}
+
+/**
  * Partition a fetched conversation list into requests + inbox based on
  * the viewer's email + the conversation's accepted_emails array AND
  * the viewer's follow graph.
@@ -34,6 +81,10 @@ export async function acceptConversation(convId) {
  *
  * The second condition is what makes this "stranger filtering" — DMs
  * from accounts you already follow skip Requests even on first send.
+ *
+ * Conversations the viewer has DECLINED (mig 234's declined_emails)
+ * are dropped from both lists — a decline hides the thread for the
+ * decliner without destroying the sender's copy of the shared row.
  *
  * @param {Array} conversations  fetched list (each with participant_emails + accepted_emails)
  * @param {string} myEmail
@@ -52,6 +103,10 @@ export function partitionConversations(conversations, myEmail, followingEmails) 
   const inbox = [];
   const requests = [];
   for (const c of conversations) {
+    const declined = Array.isArray(c.declined_emails)
+      ? c.declined_emails.map(e => String(e).toLowerCase())
+      : [];
+    if (declined.includes(myLc)) continue;
     const accepted = Array.isArray(c.accepted_emails)
       ? c.accepted_emails.map(e => String(e).toLowerCase())
       : [];

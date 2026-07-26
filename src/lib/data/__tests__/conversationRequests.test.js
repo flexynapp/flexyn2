@@ -9,7 +9,12 @@ vi.mock('@/api/supabaseClient', () => ({
   supabase: { rpc: (...args) => rpcSpy(...args) },
 }));
 
-const { acceptConversation, partitionConversations } = await import('../conversationRequests');
+const {
+  acceptConversation,
+  declineConversation,
+  partitionConversations,
+  isPendingRequestSendBlocked,
+} = await import('../conversationRequests');
 
 beforeEach(() => {
   rpcSpy.mockReset();
@@ -110,5 +115,105 @@ describe('partitionConversations', () => {
 
   it('returns empty arrays for null conversations', () => {
     expect(partitionConversations(null, me, [])).toEqual({ inbox: [], requests: [] });
+  });
+
+  it('drops a conversation the viewer declined from BOTH lists', () => {
+    const { inbox, requests } = partitionConversations(
+      [{
+        id: 'c1',
+        participant_emails: [me, 'stranger@x.com'],
+        accepted_emails: [],
+        declined_emails: [me],
+      }],
+      me,
+      []
+    );
+    expect(inbox).toHaveLength(0);
+    expect(requests).toHaveLength(0);
+  });
+
+  it('keeps a conversation the OTHER participant declined', () => {
+    const { requests } = partitionConversations(
+      [{
+        id: 'c1',
+        participant_emails: [me, 'stranger@x.com'],
+        accepted_emails: [],
+        declined_emails: ['stranger@x.com'],
+      }],
+      me,
+      []
+    );
+    expect(requests).toHaveLength(1);
+  });
+});
+
+describe('declineConversation', () => {
+  it('throws when convId is missing', async () => {
+    await expect(declineConversation(null)).rejects.toThrow(/convId/);
+  });
+
+  it('calls the decline_conversation RPC with the id', async () => {
+    rpcSpy.mockResolvedValueOnce({ error: null });
+    await declineConversation('c1');
+    expect(rpcSpy).toHaveBeenCalledWith('decline_conversation', { p_conv_id: 'c1' });
+  });
+
+  it('throws when the RPC returns an error', async () => {
+    rpcSpy.mockResolvedValueOnce({ error: { code: '42501', message: 'unauthenticated' } });
+    await expect(declineConversation('c1')).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('isPendingRequestSendBlocked', () => {
+  const me = 'me@example.com';
+  const them = 'them@example.com';
+  const pending = { participant_emails: [me, them], accepted_emails: [me] };
+
+  it('allows the first message into a pending request', () => {
+    expect(isPendingRequestSendBlocked(pending, me, 0)).toBe(false);
+  });
+
+  it('blocks the second message into a pending request', () => {
+    expect(isPendingRequestSendBlocked(pending, me, 1)).toBe(true);
+    expect(isPendingRequestSendBlocked(pending, me, 7)).toBe(true);
+  });
+
+  it('never blocks once the recipient has accepted', () => {
+    const accepted = { participant_emails: [me, them], accepted_emails: [me, them] };
+    expect(isPendingRequestSendBlocked(accepted, me, 25)).toBe(false);
+  });
+
+  it('never blocks the RECIPIENT of a pending request from replying', () => {
+    // `them` sent the request, so only `them` is in accepted_emails.
+    // From `me`'s side every other participant has accepted → not gated.
+    const inbound = { participant_emails: [me, them], accepted_emails: [them] };
+    expect(isPendingRequestSendBlocked(inbound, me, 3)).toBe(false);
+  });
+
+  it('exempts group conversations', () => {
+    const group = {
+      is_group: true,
+      participant_emails: [me, them, 'c@x.com'],
+      accepted_emails: [me],
+    };
+    expect(isPendingRequestSendBlocked(group, me, 9)).toBe(false);
+  });
+
+  it('exempts conversations without exactly two participants', () => {
+    const odd = { participant_emails: [me], accepted_emails: [] };
+    expect(isPendingRequestSendBlocked(odd, me, 9)).toBe(false);
+  });
+
+  it('is case-insensitive on participant + accepted emails', () => {
+    const mixed = {
+      participant_emails: ['ME@Example.com', 'Them@Example.com'],
+      accepted_emails: ['Me@example.COM'],
+    };
+    expect(isPendingRequestSendBlocked(mixed, me, 1)).toBe(true);
+  });
+
+  it('returns false for missing inputs', () => {
+    expect(isPendingRequestSendBlocked(null, me, 5)).toBe(false);
+    expect(isPendingRequestSendBlocked(pending, null, 5)).toBe(false);
   });
 });
