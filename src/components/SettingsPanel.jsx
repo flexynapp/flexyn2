@@ -1337,6 +1337,30 @@ export default function SettingsPanel() {
         {buildLabel()}
       </button>
 
+      {/* Credits — CC-BY 4.0 requires attribution wherever the artwork is
+          distributed, and we bake Twemoji into shared images (see
+          src/lib/twemoji.js + ATTRIBUTIONS.md). */}
+      <p className="py-1 text-[10px] text-muted-foreground/70 leading-relaxed">
+        {tFallback('settings.credits.twemoji', 'Emoji artwork in shared images by')}{' '}
+        <a
+          href="https://github.com/jdecked/twemoji"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-muted-foreground transition-colors"
+        >
+          Twemoji
+        </a>
+        {' '}© Twitter, Inc and other contributors, licensed under{' '}
+        <a
+          href="https://creativecommons.org/licenses/by/4.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-muted-foreground transition-colors"
+        >
+          CC-BY 4.0
+        </a>.
+      </p>
+
       {/* Blocked users — full-scope blocks from mig 106. Shows the
           unblock control. story_blocks live in a separate Settings
           section already (handled elsewhere in this file). */}
