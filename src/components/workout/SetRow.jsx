@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Trophy, X, Flame, Gauge, MessageCircle, Minus, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Flame, Gauge, MessageCircle, Minus, Plus, Check, Trash2, MoreHorizontal } from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import { getMaxRealisticWeight, getMaxRealisticReps } from '@/lib/realisticLimits';
 import { useWeightUnit } from '../../lib/WeightUnitContext';
@@ -86,6 +85,20 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   // rest of the exercise without retyping.
   const [feelOpen, setFeelOpen] = useState(hasFeelData || !!prevFeelNote);
 
+  // Secondary tags (warmup / failed / feel / RPE / delete) live behind a single
+  // "⋯" disclosure so the row shows one clear action instead of a wall of icons.
+  const [moreOpen, setMoreOpen] = useState(false);
+
+  // Completion — the lifter taps ✓ Done when a set is actually finished. This
+  // is the primary per-set action; it drives the exercise-completion gate.
+  const completed = !!set.completed;
+  const toggleComplete = () => {
+    triggerHaptic?.(completed ? 'light' : 'success');
+    onChange({ ...set, completed: !completed });
+    if (completed) return;
+    setMoreOpen(false); // collapse the tag drawer once a set is locked in
+  };
+
   // Auto-advance: confirming the weight (Enter / keyboard "next") jumps
   // focus to reps so the logging flow keeps moving when hands are sweaty.
   const repsRef = React.useRef(null);
@@ -126,8 +139,8 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
   }, [isPRSet]);
 
   return (
-    <div className="relative">
-    <div className="flex items-center gap-2">
+    <div className={['relative rounded-lg transition-colors', completed ? 'bg-emerald-500/[0.06]' : ''].join(' ')}>
+    <div className={['flex items-center gap-2 transition-opacity', completed ? 'opacity-95' : ''].join(' ')}>
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
       <div className="flex-1 flex items-center gap-0.5">
         {/* Stepper buttons for progressive overload — one-tap bumps
@@ -315,80 +328,76 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           <Trophy className="w-3.5 h-3.5" />
         </motion.span>
       )}
-      {/* Warmup toggle — stored on the set object as is_warmup so the
-          XP calculator / volume math can down-weight these. Visual:
-          empty flame icon = working set, filled = warmup. */}
+      {/* Active-tag chips — keep set state readable at a glance while the
+          warmup/failed/feel/RPE controls live behind the ⋯ drawer. */}
+      {!moreOpen && (set.is_warmup || set.is_failed || hasFeelData || hasEffortData) && (
+        <div className="flex items-center gap-1 shrink-0">
+          {set.is_warmup && <TagDot className="bg-orange-500/15 text-orange-500"><Flame className="w-3 h-3" /></TagDot>}
+          {set.is_failed && <TagDot className="bg-red-500/15 text-red-500 text-[11px] font-extrabold">✗</TagDot>}
+          {hasFeelData && <TagDot className="bg-purple-500/15 text-purple-400 text-xs">{set.feel_emoji || <MessageCircle className="w-3 h-3" />}</TagDot>}
+          {hasEffortData && <TagDot className="bg-blue-500/15 text-blue-500 text-[10px] font-bold">{set.rpe != null ? set.rpe : set.rir}</TagDot>}
+        </div>
+      )}
+      {/* ⋯ — secondary options drawer (warmup / failed / feel / RPE / delete) */}
       <button
         type="button"
-        onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })}
+        onClick={() => setMoreOpen(o => !o)}
+        aria-label="More set options"
+        aria-expanded={moreOpen}
         className={[
-          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors',
-          set.is_warmup
-            ? 'bg-orange-500/15 text-orange-500'
-            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+          'h-8 w-8 rounded-lg flex items-center justify-center shrink-0 transition-colors',
+          moreOpen ? 'bg-secondary text-foreground' : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
         ].join(' ')}
-        aria-label={set.is_warmup ? 'Mark as working set' : 'Mark as warmup'}
-        aria-pressed={!!set.is_warmup}
-        title={set.is_warmup ? 'Warmup set (lower XP)' : 'Toggle warmup'}
       >
-        <Flame className={`w-3.5 h-3.5 ${set.is_warmup ? 'fill-orange-500' : ''}`} />
+        <MoreHorizontal className="w-4 h-4" />
       </button>
-      {/* Failed-set marker — for honest tracking when the user
-          attempted but didn't complete the prescribed reps. Excluded
-          from PR detection (see SetRow's isPRSet computation above) so
-          a missed lift doesn't claim a fake record. */}
+      {/* ✓ Done — the primary per-set action. Fills green with a spring pop. */}
       <button
         type="button"
-        onClick={() => onChange({ ...set, is_failed: !set.is_failed })}
+        onClick={toggleComplete}
+        aria-label={completed ? 'Mark set not done' : 'Complete set'}
+        aria-pressed={completed}
         className={[
-          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors text-xs font-extrabold',
-          set.is_failed
-            ? 'bg-red-500/15 text-red-500'
-            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
-        ].join(' ')}
-        aria-label={set.is_failed ? 'Mark as completed' : 'Mark set as failed'}
-        aria-pressed={!!set.is_failed}
-        title={set.is_failed ? 'Failed set' : 'Mark as failed'}
-      >
-        ✗
-      </button>
-      {/* Feel/note toggle — opens an inline emoji-picker + short text
-          row. Active tint when either field has a value. */}
-      <button
-        type="button"
-        onClick={() => setFeelOpen(o => !o)}
-        aria-label={feelOpen ? 'Hide feel row' : 'Show feel row'}
-        title="How did this set feel?"
-        className={[
-          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors text-sm',
-          hasFeelData
-            ? 'bg-purple-500/15 text-purple-400'
-            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
+          'h-9 w-9 rounded-xl flex items-center justify-center shrink-0 transition-all',
+          completed
+            ? 'bg-emerald-500 text-white shadow-sm shadow-emerald-500/30'
+            : 'border-2 border-border text-muted-foreground/40 hover:border-emerald-500/50 hover:text-emerald-500',
         ].join(' ')}
       >
-        {set.feel_emoji || <MessageCircle className="w-3.5 h-3.5" />}
+        <motion.span key={completed ? 'on' : 'off'} initial={{ scale: 0.4, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ type: 'spring', stiffness: 500, damping: 17 }}>
+          <Check className="w-4 h-4" strokeWidth={3} />
+        </motion.span>
       </button>
-      {/* Effort tracking toggle — opens an inline RPE/RIR row. Active
-          (tinted) when any effort field has a value so the user sees
-          at-a-glance which sets carry effort data. */}
-      <button
-        type="button"
-        onClick={() => setEffortOpen(o => !o)}
-        aria-label={effortOpen ? 'Hide effort fields' : 'Show effort fields'}
-        title="RPE / RIR"
-        className={[
-          'h-8 w-8 rounded-md flex items-center justify-center shrink-0 transition-colors',
-          hasEffortData
-            ? 'bg-blue-500/15 text-blue-500'
-            : 'text-muted-foreground/50 hover:text-foreground hover:bg-secondary',
-        ].join(' ')}
-      >
-        <Gauge className="w-3.5 h-3.5" />
-      </button>
-      <Button type="button" variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={onRemove}>
-        <X className="w-3.5 h-3.5 text-muted-foreground" />
-      </Button>
     </div>
+
+    {/* Secondary tag drawer — the relocated warmup/failed/feel/RPE/delete
+        controls, now labeled so the standalone icon legend isn't needed. */}
+    <AnimatePresence initial={false}>
+      {moreOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.18 }}
+          style={{ overflow: 'hidden' }}
+        >
+          <div className="flex items-center gap-1.5 mt-2 ps-8 pe-1">
+            <TagButton active={!!set.is_warmup} onClick={() => onChange({ ...set, is_warmup: !set.is_warmup })} activeCls="bg-orange-500/15 text-orange-500" icon={<Flame className="w-3.5 h-3.5" />} label="Warmup" />
+            <TagButton active={!!set.is_failed} onClick={() => onChange({ ...set, is_failed: !set.is_failed })} activeCls="bg-red-500/15 text-red-500" icon={<span className="text-xs font-extrabold leading-none">✗</span>} label="Failed" />
+            <TagButton active={hasFeelData} onClick={() => setFeelOpen(o => !o)} activeCls="bg-purple-500/15 text-purple-400" icon={set.feel_emoji ? <span className="text-sm leading-none">{set.feel_emoji}</span> : <MessageCircle className="w-3.5 h-3.5" />} label="Feel" />
+            <TagButton active={hasEffortData} onClick={() => setEffortOpen(o => !o)} activeCls="bg-blue-500/15 text-blue-500" icon={<Gauge className="w-3.5 h-3.5" />} label="RPE" />
+            <button
+              type="button"
+              onClick={onRemove}
+              aria-label="Delete set"
+              className="h-8 w-8 ms-auto rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10 transition-colors shrink-0"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
     {/* RPE / RIR inline row — optional per-set effort data. RPE is the
         canonical "1-10 how hard was that?" scale; RIR is its mirror
         ("how many more reps could you have done"). Standard in
@@ -493,5 +502,33 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
       <PlateDiagram plates={plates} barLbs={getActiveBarLbs()} />
     )}
     </div>
+  );
+}
+
+// Tiny at-a-glance tag indicator shown on the collapsed row.
+function TagDot({ className = '', children }) {
+  return (
+    <span className={`h-5 min-w-[20px] px-1 rounded-md flex items-center justify-center leading-none ${className}`}>
+      {children}
+    </span>
+  );
+}
+
+// Labeled toggle inside the ⋯ drawer — the label removes the need for a
+// separate icon legend.
+function TagButton({ active, onClick, activeCls, icon, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        'h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold transition-colors shrink-0',
+        active ? activeCls : 'text-muted-foreground hover:text-foreground hover:bg-secondary',
+      ].join(' ')}
+    >
+      <span className="flex items-center justify-center w-4 h-4">{icon}</span>
+      {label}
+    </button>
   );
 }

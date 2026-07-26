@@ -2,8 +2,12 @@ import React, { useRef, useMemo, useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, History } from 'lucide-react';
+import { Plus, History, CheckCircle2, Check, Pencil } from 'lucide-react';
 import { toast } from '@/lib/toast';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import SetRow from './SetRow';
 import { getRecentSessionsForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';
@@ -48,7 +52,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     () => suggestProgression(exercise.name || exercise.displayName, workoutLogs),
     [workoutLogs, exercise.name, exercise.displayName]
   );
-  const { t, language } = useLanguage();
+  const { t, language, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { start: startRestTimer, addTime: addRestTime, active: restActive } = useRestTimer();
   const sets = exercise.sets || [];
@@ -180,6 +184,56 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     onChange({ ...exercise, sets: sets.filter((_, i) => i !== index) });
   };
 
+  // ── Exercise completion ──────────────────────────────────────────────────
+  // Sets carry `completed` (the ✓ Done tap). The exercise is "complete" when
+  // the lifter locks it in — which collapses the card to a one-line summary so
+  // a long workout stops being a wall of open cards.
+  const doneCount = sets.filter(s => s.completed).length;
+  const allSetsDone = sets.length > 0 && doneCount === sets.length;
+  const isComplete = !!exercise.completed;
+  const [confirmOpen, setConfirmOpen] = useState(false);
+
+  const markComplete = () => {
+    triggerHaptic?.('success');
+    onChange({ ...exercise, completed: true });
+  };
+  const reopen = () => onChange({ ...exercise, completed: false });
+  const handleCompleteClick = () => {
+    if (allSetsDone) markComplete();
+    else setConfirmOpen(true); // gate: warn before finishing with unchecked sets
+  };
+
+  // Collapsed summary — shown once the exercise is complete.
+  if (isComplete) {
+    return (
+      <motion.div initial={{ opacity: 0.6 }} animate={{ opacity: 1 }}>
+        <Card className="p-3 border border-emerald-500/25 bg-emerald-500/[0.06] shadow-none">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+              <Check className="w-4 h-4" strokeWidth={3} />
+            </span>
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-sm leading-tight truncate">
+                {exercise.displayName || translateExerciseName(exercise.name, language)}
+              </p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                {sets.length} set{sets.length === 1 ? '' : 's'}
+                {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={reopen}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg hover:bg-secondary transition-colors shrink-0"
+            >
+              <Pencil className="w-3.5 h-3.5" /> Edit
+            </button>
+          </div>
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <Card className="p-4 border-none shadow-sm">
       <div className="flex items-center justify-between mb-3">
@@ -263,19 +317,6 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
             <span className="w-8"></span>
           </div>
         )}
-        {/* One-line legend for the per-set action icons. Screenshot
-            feedback flagged that the flame + X buttons inside each set
-            row had no visible label on mobile (titles only show on
-            desktop hover), so users couldn't tell what they did. This
-            sits once per exercise, beneath the column headers. */}
-        {sets.length > 0 && (
-          <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-[10px] text-muted-foreground/70 px-1 -mt-1 mb-1">
-            <span className="inline-flex items-center gap-1">🔥<span>Warmup</span></span>
-            <span className="inline-flex items-center gap-1">✗<span>Failed</span></span>
-            <span className="inline-flex items-center gap-1">💬<span>Feel</span></span>
-            <span className="inline-flex items-center gap-1">⏱<span>RPE</span></span>
-          </div>
-        )}
         <AnimatePresence initial={false}>
           {sets.map((set, i) => (
             <motion.div
@@ -310,12 +351,53 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
         </Button>
       </motion.div>
 
+      {/* Complete exercise — the gate. Turns solid green once every set is
+          checked; tapping with sets still open warns before finishing. */}
+      {sets.length > 0 && (
+        <motion.button
+          type="button"
+          whileTap={{ scale: 0.98 }}
+          onClick={handleCompleteClick}
+          className={[
+            'mt-2 w-full inline-flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold transition-colors',
+            allSetsDone
+              ? 'bg-emerald-500 text-white hover:bg-emerald-500/90'
+              : 'border border-border text-foreground hover:bg-secondary',
+          ].join(' ')}
+        >
+          <CheckCircle2 className="w-4 h-4" />
+          {tFallback('workout.completeExercise', 'Complete exercise')}
+          <span className={['text-xs font-bold tabular-nums rounded-full px-1.5 py-0.5', allSetsDone ? 'bg-white/20' : 'bg-secondary'].join(' ')}>
+            {doneCount}/{sets.length}
+          </span>
+        </motion.button>
+      )}
+
       {/* Per-exercise tempo + notes — both optional, both hidden behind
           a single collapsed chevron so the default ExerciseLogger
           stays compact. Each persists onto the exercise object via
           the existing onChange path and lands in the JSONB exercises
           column on save. */}
       <ExerciseExtras exercise={exercise} onChange={onChange} />
+
+      {/* Override warning — finish the exercise with sets still unchecked. */}
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish this exercise?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {sets.length - doneCount} of {sets.length} set{sets.length - doneCount === 1 ? " isn't" : "s aren't"} checked off yet.
+              You can still complete the exercise — those sets just won't be marked done.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep going</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setConfirmOpen(false); markComplete(); }}>
+              Complete anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
