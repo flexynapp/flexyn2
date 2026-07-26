@@ -31,13 +31,30 @@ export const DM_STATUS_DELIVERED = 'delivered';
 export const DM_STATUS_READ      = 'read';
 
 /**
+ * RECIPROCITY (mig 238): a viewer who has turned read receipts OFF also
+ * stops SEEING other people's read state. Otherwise the setting is a
+ * one-way mirror — you harvest everyone's read status while hiding your
+ * own — which is the deal WhatsApp and iMessage both refuse to offer.
+ *
+ * The suppression falls back to 'delivered' rather than 'sent': the
+ * message demonstrably reached them, and read implies delivered, so
+ * downgrading all the way to a grey check would understate what we
+ * honestly know. Only the read/eye state is withheld.
+ *
  * @param {object|null} message       the conversation's latest message row
  * @param {string} myEmail            the viewer's email
  * @param {object} [opts]
  * @param {boolean} [opts.isGroup]    suppress ticks on group threads
+ * @param {boolean} [opts.readReceiptsEnabled]  the VIEWER's own setting;
+ *   false withholds the read state. Defaults true so a pre-238 host, a
+ *   loading profile, or a missing column behaves exactly as before.
  * @returns {'sent'|'delivered'|'read'|null}
  */
-export function deriveDeliveryStatus(message, myEmail, { isGroup = false } = {}) {
+export function deriveDeliveryStatus(
+  message,
+  myEmail,
+  { isGroup = false, readReceiptsEnabled = true } = {},
+) {
   if (!message || !myEmail) return null;
   if (isGroup) return null;
 
@@ -50,7 +67,10 @@ export function deriveDeliveryStatus(message, myEmail, { isGroup = false } = {})
   const senderLc = String(message.sender_email || message.created_by || '').toLowerCase();
   if (!senderLc || senderLc !== myLc) return null;
 
-  if (message.read_at) return DM_STATUS_READ;
+  if (message.read_at) {
+    // Reciprocity: receipts off means no eye, in either direction.
+    return readReceiptsEnabled ? DM_STATUS_READ : DM_STATUS_DELIVERED;
+  }
   if (message.delivered_at) return DM_STATUS_DELIVERED;
   return DM_STATUS_SENT;
 }

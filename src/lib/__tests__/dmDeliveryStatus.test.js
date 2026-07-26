@@ -69,6 +69,45 @@ describe('deriveDeliveryStatus', () => {
     expect(deriveDeliveryStatus(mine({ read_at: 'x' }), me, { isGroup: true })).toBeNull();
   });
 
+  // Reciprocity (mig 238). Turning receipts off must also stop the
+  // viewer SEEING read state — otherwise it's a one-way mirror.
+  describe('with the viewer’s read receipts disabled', () => {
+    const off = { readReceiptsEnabled: false };
+
+    it('withholds the read state and falls back to delivered', () => {
+      expect(deriveDeliveryStatus(
+        mine({ delivered_at: '2026-07-26T10:00:00Z', read_at: '2026-07-26T10:05:00Z' }),
+        me,
+        off,
+      )).toBe('delivered');
+    });
+
+    it('still reports delivered when only delivered_at is set', () => {
+      expect(deriveDeliveryStatus(
+        mine({ delivered_at: '2026-07-26T10:00:00Z' }), me, off
+      )).toBe('delivered');
+    });
+
+    // read implies delivered, so a read message on a pre-237 row (no
+    // delivered_at) must not be downgraded all the way to a grey check.
+    it('does not downgrade a read-but-not-stamped message to sent', () => {
+      expect(deriveDeliveryStatus(mine({ read_at: '2026-07-26T10:05:00Z' }), me, off))
+        .toBe('delivered');
+    });
+
+    it('leaves plain sent alone', () => {
+      expect(deriveDeliveryStatus(mine(), me, off)).toBe('sent');
+    });
+  });
+
+  // Opt-OUT: anything other than an explicit false behaves as before.
+  it('treats an omitted setting as enabled', () => {
+    expect(deriveDeliveryStatus(mine({ read_at: 'x' }), me)).toBe('read');
+    expect(deriveDeliveryStatus(mine({ read_at: 'x' }), me, {})).toBe('read');
+    expect(deriveDeliveryStatus(mine({ read_at: 'x' }), me, { readReceiptsEnabled: true }))
+      .toBe('read');
+  });
+
   it('returns null for missing message or viewer', () => {
     expect(deriveDeliveryStatus(null, me)).toBeNull();
     expect(deriveDeliveryStatus(mine(), null)).toBeNull();

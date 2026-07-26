@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation, isPendingRequestSendBlocked } from '@/lib/data/conversationRequests';
+import { useReadReceiptsEnabled } from '@/hooks/useReadReceiptsEnabled';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
 import DMStickerPicker from './DMStickerPicker';
 import GifPicker, { GIF_ENABLED } from './GifPicker';
@@ -156,6 +157,8 @@ function SwipeableDmMessage({ children, isMine, isOptimistic, onDelete }) {
 
 export default function HubChat({ conversation, otherUser = null, onBack }) {
   const { t, tFallback } = useLanguage();
+  // Declared before every read, including the deps arrays below.
+  const readReceiptsEnabled = useReadReceiptsEnabled();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
@@ -1269,7 +1272,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
               !(m.body || m.content || '').trim() &&
               !m.deleted_at;
             const ts = msgTime(m);
-            const isRead = !!m.read_at;
+            // Reciprocity (mig 238): a viewer who turned read receipts
+            // off doesn't get to see other people's read state either,
+            // so the "Read · 5m" line collapses back to "Sent".
+            const isRead = !!m.read_at && readReceiptsEnabled;
             const rxnGroups = getReactionGroups(m.id);
             return (
               <div key={m.id} id={`dm-msg-${m.id}`}>

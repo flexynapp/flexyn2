@@ -325,6 +325,18 @@ export default function SettingsPanel() {
     if (profile?.hide_from_search !== undefined) setHideFromSearch(!!profile.hide_from_search);
   }, [profile?.is_private, profile?.hide_from_search]);
 
+  // ── Read receipts (mig 238) ─────────────────────────────────────────
+  // Opt-OUT: default true, so an absent column (pre-238 host) or a
+  // still-loading profile behaves exactly as it did before. Turning it
+  // off stops mark_message_read writing read_at at all — the icon isn't
+  // merely hidden, the data is never recorded.
+  const [readReceiptsEnabled, setReadReceiptsEnabled] = useState(true);
+  useEffect(() => {
+    if (profile?.read_receipts_enabled !== undefined) {
+      setReadReceiptsEnabled(profile.read_receipts_enabled !== false);
+    }
+  }, [profile?.read_receipts_enabled]);
+
   // ── Gym Rival opt-out ───────────────────────────────────────────────
   // The backend honors nemesis_opt_out (assignGymRival filters it — DB
   // column still named nemesis_opt_out pending the rename migration).
@@ -344,8 +356,13 @@ export default function SettingsPanel() {
   };
 
   const togglePrivacy = async (column, next) => {
-    const setLocal = column === 'is_private' ? setIsPrivate : setHideFromSearch;
-    const prev = column === 'is_private' ? isPrivate : hideFromSearch;
+    const slots = {
+      is_private:            [setIsPrivate,           isPrivate],
+      hide_from_search:      [setHideFromSearch,      hideFromSearch],
+      read_receipts_enabled: [setReadReceiptsEnabled, readReceiptsEnabled],
+    };
+    const [setLocal, prev] = slots[column] || [];
+    if (!setLocal) return;
     setLocal(next); // optimistic
     try {
       const { error } = await supabase.from('user_profiles').update({ [column]: next }).eq('id', user.id);
@@ -1285,6 +1302,24 @@ export default function SettingsPanel() {
             checked={hideFromSearch}
             onChange={(next) => togglePrivacy('hide_from_search', next)}
             labelledBy="settings-hidesearch-label"
+          />
+        </div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p id="settings-read-receipts-label" className="text-xs text-foreground">
+              {tFallback('settings.readReceipts.title', 'Read receipts')}
+            </p>
+            <p className="text-[10px] text-muted-foreground">
+              {tFallback(
+                'settings.readReceipts.desc',
+                'Let people see when you’ve read their message. If you turn this off, you won’t see when others have read your messages either. Delivery ticks still work both ways.'
+              )}
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={readReceiptsEnabled}
+            onChange={(next) => togglePrivacy('read_receipts_enabled', next)}
+            labelledBy="settings-read-receipts-label"
           />
         </div>
         <div className="flex items-center justify-between gap-3">

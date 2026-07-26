@@ -256,6 +256,37 @@ describe('listOlderMessages', () => {
   });
 });
 
+describe('markRead', () => {
+  // The read-receipt opt-out (mig 238) is enforced INSIDE
+  // mark_message_read, which reads the flag from user_profiles keyed on
+  // auth.uid(). The client must therefore keep calling the RPC
+  // unconditionally — if it ever started gating the call on a local
+  // setting, that would be the client asserting its own preference,
+  // which is exactly the bypass the server-side check exists to
+  // prevent. This test pins that the client stays dumb here.
+  it('always calls mark_message_read and never passes a receipts flag', async () => {
+    _msgState.filterReturn = [
+      { id: 'm1', conversation_id: 'c1', sender_email: 'other@x.com', read_at: null },
+    ];
+    _sbState.rpcByName.mark_message_read = { data: null, error: null };
+
+    await hubMessages.markRead('c1', 'me@x.com');
+
+    const call = _sbState.rpcCalls.find(c => c.name === 'mark_message_read');
+    expect(call).toBeTruthy();
+    expect(call.args).toEqual({ p_message_id: 'm1' });
+  });
+
+  it('clears the local unread marker even when the server skips the stamp', async () => {
+    // Receipts-off users still need their OWN unread badge to clear.
+    // markRead writes the per-device marker before the RPC, so a
+    // server-side no-op cannot leave the reader stuck at unread.
+    _msgState.filterReturn = [];
+    await hubMessages.markRead('conv-xyz', 'me@x.com');
+    expect(localStorage.getItem('fn-conv-read-conv-xyz')).toBeTruthy();
+  });
+});
+
 describe('unreadCountFor', () => {
   it('uses the dm_unread_count RPC and passes localStorage last-reads', async () => {
     localStorage.setItem('fn-conv-read-conv-abc', '1752500000000');

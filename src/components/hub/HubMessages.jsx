@@ -24,6 +24,7 @@ import {
   isOutgoingPendingRequest,
 } from '@/lib/data/conversationRequests';
 import { deriveDeliveryStatus } from '@/lib/dmDeliveryStatus';
+import { useReadReceiptsEnabled } from '@/hooks/useReadReceiptsEnabled';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 
@@ -47,6 +48,9 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  // Reciprocity (mig 238): with receipts off, the viewer stops seeing
+  // other people's read state too. Declared here, above every use.
+  const readReceiptsEnabled = useReadReceiptsEnabled();
   const [activeConv, setActiveConv] = useState(null);
   const [openOtherUser, setOpenOtherUser] = useState(null);
   const [activeCrew, setActiveCrew] = useState(null); // crew object for crew chat
@@ -683,6 +687,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 const deliveryStatus = deriveDeliveryStatus(lastMsg, user?.email, {
                   isGroup: !!c.is_group
                     || (Array.isArray(c.participant_emails) && c.participant_emails.length > 2),
+                  readReceiptsEnabled,
                 });
                 const isMuted = mutedConvIds.has(c.id);
                 const isPinned = pinnedConvIds.has(c.id);
