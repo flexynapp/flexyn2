@@ -1205,6 +1205,15 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             const isLastSent = isMine && m.id === lastSentMsgId;
             const showDivider = shouldShowDivider(visibleMessages, i);
             const isOptimistic = !!m._optimistic;
+            // Image / GIF / video with no caption → render the media bare,
+            // without the chat bubble's padding and colored fill (that fill
+            // read as a thick frame around the picture). Declared here, before
+            // the JSX that reads it, per the TDZ rule in CLAUDE.md.
+            const mediaOnly =
+              ['image', 'gif', 'video'].includes(m.message_type) &&
+              !!m.attachment_url &&
+              !(m.body || m.content || '').trim() &&
+              !m.deleted_at;
             const ts = msgTime(m);
             const isRead = !!m.read_at;
             const rxnGroups = getReactionGroups(m.id);
@@ -1329,10 +1338,17 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
                           onTouchStart={(e) => !isOptimistic && startLongPress(m, e)}
                           onTouchEnd={cancelLongPress}
                           onTouchMove={moveLongPress}
-                          className={`max-w-[75%] px-3 py-2 rounded-2xl text-sm transition-opacity cursor-pointer select-none-ui ${
-                            isMine
-                              ? 'bg-primary text-primary-foreground rounded-br-sm'
-                              : 'bg-secondary text-foreground rounded-bl-sm'
+                          className={`max-w-[75%] rounded-2xl text-sm transition-opacity cursor-pointer select-none-ui ${
+                            // A media-only message (image / GIF / video, no
+                            // caption) renders bare — the bubble's padding +
+                            // colored fill was showing up as a thick frame
+                            // around the picture. With a caption we keep the
+                            // bubble so the text still has its backdrop.
+                            mediaOnly
+                              ? 'p-0 bg-transparent overflow-hidden'
+                              : `px-3 py-2 ${isMine
+                                  ? 'bg-primary text-primary-foreground rounded-br-sm'
+                                  : 'bg-secondary text-foreground rounded-bl-sm'}`
                           } ${isOptimistic ? 'opacity-70' : 'opacity-100'}`}
                           style={{ wordBreak: 'break-word', overflowWrap: 'break-word', whiteSpace: 'pre-wrap' }}
                         >
