@@ -142,7 +142,9 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
     <div className={['relative rounded-lg transition-colors', completed ? 'bg-emerald-500/[0.06]' : ''].join(' ')}>
     <div className={['flex items-center gap-2 transition-opacity', completed ? 'opacity-95' : ''].join(' ')}>
       <span className="text-xs text-muted-foreground w-6 text-center font-medium">{index + 1}</span>
-      <div className="flex-1 flex items-center gap-0.5">
+      {/* Weight column gets extra flex weight — it houses the −/+ steppers plus
+          the field, so an equal split with reps left the number cramped. */}
+      <div className="flex-[1.6] flex items-center gap-0.5">
         {/* Stepper buttons for progressive overload — one-tap bumps
             of the unit-appropriate small plate (5 lb / 2.5 kg). The
             kg increment matches the smallest standard plate pair.
@@ -232,7 +234,7 @@ export default function SetRow({ set, index, onChange, onRemove, exerciseName = 
           }}
           enterKeyHint="next"
           placeholder={isBodyweight ? `+ ${weightUnit}` : weightUnit}
-          className={`h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
+          className={`flex-1 min-w-0 h-9 text-center transition-shadow ${isPRSet ? 'ring-2 ring-amber-400/60 shadow-[0_0_12px_rgba(251,191,36,0.4)]' : ''}`}
           aria-label={isBodyweight ? 'Added weight (bodyweight exercise)' : `Weight in ${weightUnit}`}
         />
         {(() => {

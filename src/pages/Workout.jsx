@@ -29,7 +29,7 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
-import CardioLogger, { CARDIO_ACTIVITIES } from '@/components/workout/CardioLogger';
+import CardioLogger, { CARDIO_ACTIVITIES, activityEmoji } from '@/components/workout/CardioLogger';
 import LiveVolumePill from '@/components/workout/LiveVolumePill';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
@@ -2766,19 +2766,14 @@ export default function Workout() {
         />
       )}
 
-      <div className="flex items-center justify-between mb-2">
-        <div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight">
-              {selectedRegimen?.name || t('workout.freestyle')}
-            </h1>
-            {/* Live elapsed timer — counts up from session start. The
-                chip clears on workout reset / save (startedAt nulls). */}
-            <WorkoutElapsedChip startedAt={startedAt} />
-          </div>
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <div className="min-w-0">
+          <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight truncate">
+            {selectedRegimen?.name || t('workout.freestyle')}
+          </h1>
           <p className="text-muted-foreground text-sm mt-0.5">{t('workout.logSetsReps')}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => setConfirmDiscard(true)}>{t('common.cancel')}</Button>
+        <Button variant="outline" size="sm" className="shrink-0" onClick={() => setConfirmDiscard(true)}>{t('common.cancel')}</Button>
       </div>
 
       {/* Discard-workout confirmation. Cancel destroys the active session
@@ -2804,10 +2799,11 @@ export default function Workout() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Live volume pill — ticks up as the user types each set.
-          Cheap dopamine — every great fitness app has a live number
-          somewhere the user watches. */}
-      <div className="mb-6">
+      {/* Live session stats — elapsed timer + volume, grouped so the two
+          watch-me numbers sit together cleanly (the timer used to crowd the
+          title next to Cancel). */}
+      <div className="flex items-center gap-2 mb-6">
+        <WorkoutElapsedChip startedAt={startedAt} />
         <LiveVolumePill exercises={exercises} includeBarWeight={!!userProfile?.include_bar_in_volume} />
       </div>
 
@@ -2851,7 +2847,9 @@ export default function Workout() {
             className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-blue-500/40 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
           >
             <Plus className="w-4 h-4" /> {tFallback('workout.addCardio', 'Cardio')}
-            <span className="text-base leading-none">🚶 🏃 🚴</span>
+            <span className="text-base leading-none">
+              {activityEmoji('walking', userProfile?.gender)} {activityEmoji('running', userProfile?.gender)} {activityEmoji('cycling', userProfile?.gender)}
+            </span>
           </button>
           <AnimatePresence>
             {cardioMenuOpen && (
@@ -2869,7 +2867,7 @@ export default function Workout() {
                     onClick={() => addCardio(a.id)}
                     className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary transition-colors"
                   >
-                    <span className="text-2xl leading-none">{a.emoji}</span>
+                    <span className="text-2xl leading-none">{activityEmoji(a.id, userProfile?.gender)}</span>
                     <span className="text-xs font-semibold">{a.label}</span>
                   </button>
                 ))}
@@ -2981,6 +2979,7 @@ export default function Workout() {
                     <CardioLogger
                       exercise={ex}
                       onChange={(updated) => updateExercise(i, updated)}
+                      gender={userProfile?.gender}
                     />
                   ) : (
                     <ExerciseLogger

@@ -25,6 +25,19 @@ export const CARDIO_ACTIVITIES = [
   { id: 'swimming', label: 'Swim', emoji: '🏊', name: 'Swimming' },
 ];
 
+// Gendered emoji variants so the little figure matches the athlete — female if
+// they picked "female" in onboarding, male if "male", neutral otherwise.
+const EMOJI_BY_GENDER = {
+  walking:  { female: '🚶‍♀️', male: '🚶‍♂️', neutral: '🚶' },
+  running:  { female: '🏃‍♀️', male: '🏃‍♂️', neutral: '🏃' },
+  cycling:  { female: '🚴‍♀️', male: '🚴‍♂️', neutral: '🚴' },
+  swimming: { female: '🏊‍♀️', male: '🏊‍♂️', neutral: '🏊' },
+};
+export function activityEmoji(id, gender) {
+  const set = EMOJI_BY_GENDER[id] || EMOJI_BY_GENDER.running;
+  return set[gender] || set.neutral;
+}
+
 const newSegKey = () => `cs_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 
 // Read segments, migrating a legacy single duration_s/distance_m entry.
@@ -33,9 +46,10 @@ function readSegments(exercise) {
   return [{ _key: newSegKey(), duration_s: exercise.duration_s ?? null, distance_m: exercise.distance_m ?? null }];
 }
 
-export default function CardioLogger({ exercise, onChange }) {
+export default function CardioLogger({ exercise, onChange, gender }) {
   const { distanceUnit } = useDistanceUnit();
   const activity = CARDIO_ACTIVITIES.find(a => a.id === exercise.activity) || CARDIO_ACTIVITIES[1];
+  const emoji = activityEmoji(activity.id, gender);
   const segments = readSegments(exercise);
   const completed = !!exercise.completed;
 
@@ -70,7 +84,7 @@ export default function CardioLogger({ exercise, onChange }) {
               <Check className="w-4 h-4" strokeWidth={3} />
             </span>
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm leading-tight truncate">{activity.emoji} {activity.name}</p>
+              <p className="font-medium text-sm leading-tight truncate">{emoji} {activity.name}</p>
               {summary && <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{summary}</p>}
             </div>
             <button
@@ -88,10 +102,11 @@ export default function CardioLogger({ exercise, onChange }) {
 
   // ── Full card ────────────────────────────────────────────────────────────
   return (
-    <Card className="p-4 border border-blue-500/20 bg-blue-500/[0.03] shadow-sm">
-      {/* Activity switcher */}
+    <Card className="p-4 pt-6 border border-blue-500/20 bg-blue-500/[0.03] shadow-sm">
+      {/* Activity switcher — extra top padding above so the reorder drag handle
+          (top-center grip) has breathing room above the buttons. */}
       <div className="flex items-center gap-2 mb-3 pe-8">
-        <span className="text-2xl leading-none shrink-0">{activity.emoji}</span>
+        <span className="text-2xl leading-none shrink-0">{emoji}</span>
         <div className="flex gap-1 flex-1">
           {CARDIO_ACTIVITIES.map(a => (
             <button
