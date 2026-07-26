@@ -77,11 +77,15 @@ export default function FriendLeaderboardPanel() {
       transition={{ duration: 0.35 }}
       className="rounded-2xl border border-border bg-card overflow-hidden mb-4"
     >
-      <button
-        type="button"
+      {/* Header is a clickable div (not a <button>) so the mode-toggle buttons
+          can nest inside it without invalid button-in-button DOM. */}
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setExpanded(v => !v)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setExpanded(v => !v); } }}
         aria-expanded={expanded}
-        className={`w-full px-4 py-2 flex items-center justify-between text-start ${expanded ? 'border-b border-border' : ''}`}
+        className={`w-full px-4 py-2 flex items-center justify-between text-start cursor-pointer select-none ${expanded ? 'border-b border-border' : ''}`}
       >
         <div className="flex items-center gap-2">
           <Users className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
@@ -111,7 +115,7 @@ export default function FriendLeaderboardPanel() {
             aria-hidden="true"
           />
         </div>
-      </button>
+      </div>
 
       {expanded && (
       <div className="px-3 py-2">

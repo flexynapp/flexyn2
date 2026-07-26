@@ -16,7 +16,6 @@ import HubSearchOverlay from '@/components/hub/HubSearchOverlay';
 import FollowerActivityBanner from '@/components/hub/FollowerActivityBanner';
 import LiveActivityRail from '@/components/hub/LiveActivityRail';
 import FollowSuggestionRail from '@/components/hub/FollowSuggestionRail';
-import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
 import StoriesRow from '@/components/stories/StoriesRow';
 import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -301,10 +300,9 @@ export default function Hub() {
         />
       )}
 
-      {/* Friends-only weekly leaderboard (migration 093). XP / Volume /
-          Sessions toggle. Now sits below stories — was above, swapped per
-          user feedback. */}
-      {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && <FriendLeaderboardPanel />}
+      {/* Friends-only weekly leaderboard (migration 093) moved to the
+          Dashboard ("Friends this week" section) so it's a quick stats
+          check on the home screen. */}
 
       {/* Marketplace + New Post row — shown on feed tabs, not crews.
           Both buttons match in height via min-h-[68px] so the row stays

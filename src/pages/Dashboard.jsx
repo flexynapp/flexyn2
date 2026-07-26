@@ -38,6 +38,7 @@ import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
 import PushOptInBanner from '@/components/dashboard/PushOptInBanner';
 import IosInstallBanner from '@/components/dashboard/IosInstallBanner';
 import LeagueCard from '@/components/dashboard/LeagueCard';
+import FriendLeaderboardPanel from '@/components/hub/FriendLeaderboardPanel';
 import DiscoveryCards from '@/components/dashboard/DiscoveryCards';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import PrestigePrompt from '@/components/prestige/PrestigePrompt';
@@ -414,6 +415,7 @@ const SECTION_LABELS = {
   challenges:   (tF) => tF('dashboard.section.challenges',   'Challenges'),
   chest:        (tF) => tF('dashboard.section.chest',        'Daily chest'),
   league:       (tF) => tF('dashboard.section.league',       'Weekly rank'),
+  friends:      (tF) => tF('dashboard.section.friends',      'Friends this week'),
   progress:     (tF) => tF('dashboard.section.progress',     'Your progress'),
   actions:      (tF, t) => t('dashboard.quickActions'),
   discover:     (tF) => tF('dashboard.section.discover',     'Discover'),
@@ -482,6 +484,7 @@ export default function Dashboard() {
   const [editMode, setEditMode] = useState(false);
   const defaultWidgetOrder = [
     'readiness', 'league',   // small square + wide rank, directly under hero
+    'friends',               // quick friends-this-week stats check
     'challenges', 'actions', // hotdog pair: quests next to quick actions
     'chest',
     'recovery',
@@ -1205,6 +1208,13 @@ export default function Dashboard() {
         <React.Fragment key="league">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="h-full">
             <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
+          </motion.div>
+        </React.Fragment>
+      );
+      case 'friends': return (
+        <React.Fragment key="friends">
+          <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.12 }}>
+            <ErrorBoundary label="FriendLeaderboard"><FriendLeaderboardPanel /></ErrorBoundary>
           </motion.div>
         </React.Fragment>
       );
