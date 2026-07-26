@@ -75,13 +75,22 @@ export default function Particles({ type, burst = false }) {
     ? ['#c084fc', '#818cf8', '#a78bfa', '#e879f9']
     : ['#60a5fa', '#34d399', '#a78bfa', '#f87171'];
 
+  // The ambient floaters loop forever. Driving that with framer-motion means a
+  // JS rAF tick per dot, per frame — and this component renders in several
+  // places at once (profile + level bar), so it stacked up and janked the UI.
+  // Hand the loop to a GPU-composited CSS keyframe instead (transform + opacity
+  // only) → zero main-thread work. (Same fix as the theme-scene refactor.)
+  const dotAnim = type === 'golden' ? 'fx-dot-golden 1.8s'
+    : type === 'sparkle' ? 'fx-dot-sparkle 1.3s'
+    : 'fx-dot-default 2.4s';
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-3xl">
-      {/* Floating ambient dots */}
+      {/* Floating ambient dots — CSS-animated (see .fx-dot in index.css). */}
       {dots.map((dot, i) => (
-        <motion.div
+        <div
           key={i}
-          className="absolute rounded-full"
+          className="fx-dot absolute rounded-full"
           style={{
             left: dot.x,
             top: dot.y,
@@ -89,19 +98,7 @@ export default function Particles({ type, burst = false }) {
             height: dot.size,
             backgroundColor: dot.color,
             boxShadow: `0 0 ${dot.size * 2}px ${dot.color}`,
-          }}
-          animate={
-            type === 'golden'
-              ? { opacity: [0, 0.9, 0], scale: [0.4, 1.8, 0.4], y: [0, -10, 0] }
-              : type === 'sparkle'
-              ? { opacity: [0, 1, 0], scale: [0, 1.4, 0], rotate: [0, 45, 0] }
-              : { opacity: [0.2, 0.9, 0.2], scale: [1, 1.6, 1] }
-          }
-          transition={{
-            duration: type === 'golden' ? 1.8 : type === 'sparkle' ? 1.3 : 2.4,
-            delay: dot.delay,
-            repeat: Infinity,
-            ease: 'easeInOut',
+            animation: `${dotAnim} ${dot.delay}s infinite ease-in-out`,
           }}
         />
       ))}

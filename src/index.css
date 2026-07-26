@@ -102,6 +102,25 @@
   }
 }
 
+/* Ambient particle floaters (Particles.jsx) — GPU-composited so the loop costs
+   the main thread nothing, even when several instances render at once. */
+@keyframes fx-dot-golden {
+  0%, 100% { opacity: 0;   transform: translateY(0) scale(0.4); }
+  50%      { opacity: 0.9; transform: translateY(-10px) scale(1.8); }
+}
+@keyframes fx-dot-sparkle {
+  0%, 100% { opacity: 0; transform: rotate(0deg) scale(0); }
+  50%      { opacity: 1; transform: rotate(45deg) scale(1.4); }
+}
+@keyframes fx-dot-default {
+  0%, 100% { opacity: 0.2; transform: scale(1); }
+  50%      { opacity: 0.9; transform: scale(1.6); }
+}
+.fx-dot { will-change: transform, opacity; }
+@media (prefers-reduced-motion: reduce) {
+  .fx-dot { animation: none !important; opacity: 0.5; }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
