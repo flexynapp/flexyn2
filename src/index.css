@@ -106,6 +106,20 @@
   * {
     @apply border-border outline-ring/50;
   }
+  /* Text inputs render a 1–2px scrollbar sliver as a stray black line on some
+     platforms (border-box rounding pushes scrollHeight just past clientHeight
+     on short/auto-resizing fields). Hide the scrollbar chrome on all text
+     fields app-wide — content still scrolls, the black bar never appears. */
+  textarea,
+  input {
+    scrollbar-width: none;
+  }
+  textarea::-webkit-scrollbar,
+  input::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
+  }
   /* Kill scroll chaining / rubber-band overscroll on every surface so the
      page can't be dragged up or down past its content (iOS bounce, trackpad
      over-scroll). Set on html AND body — body alone doesn't stop the

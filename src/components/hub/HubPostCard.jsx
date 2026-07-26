@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, memo } from 'react';
 import { isVerified } from '@/lib/verifiedUsers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ThumbsUp, ThumbsDown, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Sticker, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown } from 'lucide-react';
+import { ThumbsUp, MessageCircle, Lock, Globe2, Trash2, Bookmark, Flag, Languages, Loader2, BarChart3, Heart, Share2, VolumeX, Ban, Pencil, Repeat2, Check, X, Clock, Film, BarChart2, Users, Volume2, ImageIcon, ChevronDown } from 'lucide-react';
 import { supabase } from '@/api/supabaseClient';
 import ContentWarningGate from './ContentWarningGate';
 import { muteUser } from '@/lib/data/userMutes';
@@ -1216,31 +1216,12 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
           onClick={() => handleReact('like')}
         />
         <ActionButton
-          icon={ThumbsDown}
-          count={dislikeCount}
-          active={displayedReaction === 'dislike'}
-          activeColor="text-destructive"
-          onClick={() => handleReact('dislike')}
-        />
-        <ActionButton
           icon={MessageCircle}
           count={post.comment_count || 0}
           active={commentsOpen}
           activeColor="text-primary"
           onClick={() => setCommentsOpen(o => !o)}
         />
-        <motion.button
-          whileTap={{ scale: 0.92 }}
-          onClick={() => setStickerPanelOpen(o => !o)}
-          className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors ${
-            stickerPanelOpen || stickerRxns.length > 0
-              ? 'text-primary bg-secondary'
-              : 'text-muted-foreground hover:bg-secondary'
-          }`}
-        >
-          <Sticker className="w-4 h-4" />
-          {stickerRxns.length > 0 && <span>{stickerRxns.length}</span>}
-        </motion.button>
         {/* Save meal (meal-specific: also saves to meal library) */}
         {isMealPost && (
           <motion.button
@@ -1252,17 +1233,6 @@ function HubPostCard({ post, onAuthorClick = null, onHashtagClick = null }) {
             <Bookmark className={`w-4 h-4 ${mealSaved ? 'fill-current' : ''}`} />
           </motion.button>
         )}
-        {/* Universal bookmark (all posts) */}
-        <motion.button
-          whileTap={{ scale: 0.88 }}
-          onClick={handleToggleSave}
-          disabled={saveLoading}
-          className={`p-2 rounded-md transition-colors disabled:opacity-40 ${postSaved ? 'text-amber-500' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
-          aria-label={postSaved ? tFallback('hub.post.unsave', 'Remove from saved') : tFallback('hub.post.save', 'Save post')}
-          title={postSaved ? tFallback('hub.post.unsave', 'Remove from saved') : tFallback('hub.post.save', 'Save post')}
-        >
-          <Bookmark className={`w-4 h-4 ${postSaved ? 'fill-current' : ''}`} />
-        </motion.button>
         {/* Creator analytics — own posts only */}
         {isMine && (
           <motion.button

@@ -2,7 +2,13 @@ import { useState, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2 } from 'lucide-react';
+import { Send, Trash2, ThumbsUp, X, Flag, Languages, Loader2, Smile } from 'lucide-react';
+
+// Quick emoji/stickers for comments — moved here from the post reaction row.
+const COMMENT_EMOJIS = [
+  '🔥','💪','👏','🙌','💯','😂','😍','🤩','😮','😭','❤️','👍',
+  '🎉','⚡','🏆','👀','😤','🤝','🙏','✨','😎','🥇','💥','🚀',
+];
 import { isVerified } from '@/lib/verifiedUsers';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
@@ -41,6 +47,7 @@ export default function HubCommentsInline({ post, open, onClose }) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState('');
+  const [emojiOpen, setEmojiOpen] = useState(false);
   const draftGuard = useMultiProfanityGuard();
   const [posting, setPosting] = useState(false);
   const [replyTarget, setReplyTarget] = useState(null);
@@ -53,6 +60,17 @@ export default function HubCommentsInline({ post, open, onClose }) {
 
   // ── @mention autocomplete ─────────────────────────────────────────────────
   const inputRef = useRef(null);
+  const insertEmoji = (em) => {
+    const el = inputRef.current;
+    const pos = el?.selectionStart ?? draft.length;
+    setDraft((prev) => (prev.slice(0, pos) + em + prev.slice(pos)).slice(0, 500));
+    setEmojiOpen(false);
+    requestAnimationFrame(() => {
+      el?.focus?.();
+      const p = pos + em.length;
+      try { el?.setSelectionRange?.(p, p); } catch { /* ignore */ }
+    });
+  };
   const [mentionQuery, setMentionQuery] = useState(''); // text after the @
   const [mentionActive, setMentionActive] = useState(false);
 
@@ -391,7 +409,40 @@ export default function HubCommentsInline({ post, open, onClose }) {
           )}
         </AnimatePresence>
 
-        <div className="flex items-center gap-2">
+        <div className="relative flex items-center gap-2">
+          {/* Emoji / stickers for comments — moved here from the post row. */}
+          <AnimatePresence>
+            {emojiOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                transition={{ duration: 0.15 }}
+                className="absolute bottom-full start-0 mb-2 z-20 grid grid-cols-6 gap-1 p-2 rounded-xl border border-border bg-card shadow-lg"
+              >
+                {COMMENT_EMOJIS.map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => insertEmoji(em)}
+                    className="w-9 h-9 rounded-lg text-xl flex items-center justify-center hover:bg-secondary active:scale-90 transition-transform"
+                    aria-label={`Add ${em}`}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <button
+            type="button"
+            onClick={() => setEmojiOpen((o) => !o)}
+            aria-label="Add emoji"
+            aria-expanded={emojiOpen}
+            className={`p-2 rounded-lg transition-colors shrink-0 ${emojiOpen ? 'bg-secondary text-primary' : 'text-muted-foreground hover:bg-secondary hover:text-foreground'}`}
+          >
+            <Smile className="w-5 h-5" />
+          </button>
           <input
             ref={inputRef}
             value={draft}
