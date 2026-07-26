@@ -20,6 +20,7 @@ import BackToTopButton from './BackToTopButton';
 import TabQuickActionMenu from './TabQuickActionMenu';
 import { useLongPress } from '@/hooks/useLongPress';
 import { triggerHaptic } from '@/lib/haptic';
+import { NavVisibilityContext } from '@/lib/NavVisibilityContext';
 import OneShotTooltip from './OneShotTooltip';
 import { TOOLTIP } from '@/lib/tooltipRegistry';
 
@@ -281,6 +282,7 @@ export default function Layout() {
   };
 
   return (
+    <NavVisibilityContext.Provider value={navHidden}>
     <div
       data-app-shell
       className="min-h-[100dvh] bg-background font-body overscroll-y-none"
@@ -496,5 +498,6 @@ export default function Layout() {
         />
       )}
     </div>
+    </NavVisibilityContext.Provider>
   );
 }

@@ -21,6 +21,7 @@ import CrewsSection from '@/components/crews/CrewsSection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useStartConversation } from '@/lib/hubMessaging';
 import { markHubVisited } from '@/hooks/useHubUnreadDot';
+import { useNavHidden } from '@/lib/NavVisibilityContext';
 
 // ─── Ember particle data for the marketplace button ───────────────────────────
 const EMBERS = [
@@ -67,6 +68,7 @@ export default function Hub() {
   );
   const [feedTab, setFeedTab] = useState('pump');
   const [composerOpen, setComposerOpen] = useState(false);
+  const navHidden = useNavHidden();
   const [searchOpen, setSearchOpen] = useState(false);
   const [profileTarget, setProfileTarget] = useState(
     paramToProfileTarget(initialProfileEmail)
@@ -403,7 +405,15 @@ export default function Hub() {
       {section === 'feed' && feedTab !== 'crews' && feedTab !== 'activity' && (
         <div
           className="lg:hidden fixed inset-x-0 z-40 pointer-events-none"
-          style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom))' }}
+          style={{
+            // Sit above the nav; when the nav hides on scroll-down, glide down
+            // to the wall. Matches the nav's 220ms transition so they move as
+            // one. Slides back up when the nav reappears.
+            bottom: navHidden
+              ? 'calc(1.25rem + env(safe-area-inset-bottom))'
+              : 'calc(6.5rem + env(safe-area-inset-bottom))',
+            transition: 'bottom 220ms ease-in-out',
+          }}
         >
           <div className="max-w-3xl mx-auto px-4 md:px-6 flex justify-end">
             <motion.button
