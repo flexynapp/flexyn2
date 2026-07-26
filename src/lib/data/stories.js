@@ -68,6 +68,47 @@ export async function getStoriesFeedData(user, followingIds = []) {
 
   const stories        = storiesRes.data  ?? [];
   const profiles       = profilesRes.data ?? [];
+
+  // ── Public discovery ───────────────────────────────────────────────────
+  // Stories from accounts you DON'T follow, shown only when both are true:
+  //   1. the story itself was posted as 'public' (the author opted in), and
+  //   2. the author's profile is public (is_private = false).
+  // A private account's stories therefore stay follow-only, which is the
+  // whole rule: public profiles are viewable by anyone, private ones aren't.
+  const discovered = { stories: [], profiles: [], ids: [] };
+  try {
+    const { data: pubStories } = await supabase
+      .from('stories')
+      .select('*')
+      .eq('privacy', 'public')
+      .is('crew_id', null)     // crew stories never leak into the personal feed
+      .gt('expires_at', now)
+      .order('created_at', { ascending: true })
+      .limit(200);
+
+    const candidateIds = [...new Set((pubStories ?? [])
+      .map(s => s.user_id)
+      .filter(id => id && !allIds.includes(id) && !blockedByIds.has(id)))];
+
+    if (candidateIds.length) {
+      const { data: pubProfiles } = await safeSelect({
+        columns: ['id', 'username', 'avatar_url', 'story_dms_disabled', 'default_story_privacy', 'is_private'],
+        build: (cols) => selectProfiles((from) => from.select(cols).in('id', candidateIds)),
+      });
+      // Only PUBLIC profiles. If is_private is missing on this host, treat the
+      // account as private — fail closed, never expose a story by accident.
+      const publicOnly = (pubProfiles ?? []).filter(p => p?.is_private === false);
+      discovered.profiles = publicOnly;
+      discovered.ids      = publicOnly.map(p => p.id);
+      const visible       = new Set(discovered.ids);
+      discovered.stories  = (pubStories ?? []).filter(s => visible.has(s.user_id));
+    }
+  } catch {
+    // Discovery is additive — a failure here must never break the own/following
+    // feed, so fall through with an empty discovery set.
+  }
+  stories.push(...discovered.stories);
+  profiles.push(...discovered.profiles);
   const viewedIds      = new Set((viewsRes.data  ?? []).map(r => r.story_id));
   const likedIds       = new Set((likesRes.data  ?? []).map(r => r.story_id));
   const notes          = notesRes.data    ?? [];
@@ -106,7 +147,8 @@ export async function getStoriesFeedData(user, followingIds = []) {
     storyMap.get(story.user_id).push(story);
   }
 
-  const groups = allIds
+  // Own + following, then any public accounts surfaced by discovery.
+  const groups = [...allIds, ...discovered.ids.filter(id => !allIds.includes(id))]
     .filter(id => id === user.id || !blockedByIds.has(id))
     .map(id => {
       const profile     = profileById[id] ?? {};
