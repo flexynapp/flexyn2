@@ -5,19 +5,47 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const rpcSpy = vi.fn();
+
+// Chainable select mock — acceptPendingRequestsFrom looks the pair's
+// conversation up by participant_key through safeSelect.
+const _sel = {
+  lastTable: null,
+  lastColumns: null,
+  lastEq: null,
+  nextData: [],
+  nextError: null,
+};
+
 vi.mock('@/api/supabaseClient', () => ({
-  supabase: { rpc: (...args) => rpcSpy(...args) },
+  supabase: {
+    rpc: (...args) => rpcSpy(...args),
+    from: (table) => {
+      _sel.lastTable = table;
+      const chain = {
+        select: (cols) => { _sel.lastColumns = cols; return chain; },
+        eq: (col, val) => { _sel.lastEq = { col, val }; return chain; },
+        limit: () => Promise.resolve({ data: _sel.nextData, error: _sel.nextError }),
+      };
+      return chain;
+    },
+  },
 }));
 
 const {
   acceptConversation,
   declineConversation,
+  acceptPendingRequestsFrom,
   partitionConversations,
   isPendingRequestSendBlocked,
 } = await import('../conversationRequests');
 
 beforeEach(() => {
   rpcSpy.mockReset();
+  _sel.lastTable = null;
+  _sel.lastColumns = null;
+  _sel.lastEq = null;
+  _sel.nextData = [];
+  _sel.nextError = null;
 });
 
 describe('acceptConversation', () => {
@@ -161,6 +189,55 @@ describe('declineConversation', () => {
   it('throws when the RPC returns an error', async () => {
     rpcSpy.mockResolvedValueOnce({ error: { code: '42501', message: 'unauthenticated' } });
     await expect(declineConversation('c1')).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('acceptPendingRequestsFrom', () => {
+  const follower = 'me@example.com';
+  const followee = 'them@example.com';
+
+  it('accepts the pending 1:1 thread, looked up by the sorted pair key', async () => {
+    _sel.nextData = [{ id: 'c1', accepted_emails: [followee] }];
+    rpcSpy.mockResolvedValueOnce({ error: null });
+
+    const flipped = await acceptPendingRequestsFrom(follower, followee);
+
+    expect(flipped).toBe(true);
+    expect(_sel.lastTable).toBe('hub_conversations');
+    expect(_sel.lastEq).toEqual({
+      col: 'participant_key',
+      val: 'me@example.com|them@example.com',
+    });
+    expect(rpcSpy).toHaveBeenCalledWith('accept_conversation', { p_conv_id: 'c1' });
+  });
+
+  it('builds the same key regardless of argument order or case', async () => {
+    _sel.nextData = [];
+    await acceptPendingRequestsFrom('THEM@example.com', 'Me@Example.com');
+    expect(_sel.lastEq).toEqual({
+      col: 'participant_key',
+      val: 'me@example.com|them@example.com',
+    });
+  });
+
+  it('is a no-op when the follower already accepted the thread', async () => {
+    _sel.nextData = [{ id: 'c1', accepted_emails: [followee, 'ME@example.com'] }];
+    const flipped = await acceptPendingRequestsFrom(follower, followee);
+    expect(flipped).toBe(false);
+    expect(rpcSpy).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when the pair has no conversation', async () => {
+    _sel.nextData = [];
+    expect(await acceptPendingRequestsFrom(follower, followee)).toBe(false);
+    expect(rpcSpy).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op for a self-follow or missing emails', async () => {
+    expect(await acceptPendingRequestsFrom(follower, follower)).toBe(false);
+    expect(await acceptPendingRequestsFrom(null, followee)).toBe(false);
+    expect(await acceptPendingRequestsFrom(follower, null)).toBe(false);
+    expect(_sel.lastTable).toBeNull();
   });
 });
 

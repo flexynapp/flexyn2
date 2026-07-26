@@ -1,6 +1,7 @@
 // src/lib/data/hubFollows.js
 import { db } from '@/api/db';
 import { notifyFriendFollow } from './notifications';
+import { acceptPendingRequestsFrom } from './conversationRequests';
 import * as users from './users';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
@@ -145,6 +146,24 @@ export const follow = async (follower, followee, { t } = {}) => {
     }
     throw err;
   }
+  // "Once they are following them, messages are then direct" — applied
+  // retroactively. Any pending message request the followee already sent
+  // flips to accepted, so it moves out of Requests and into the Inbox.
+  //
+  // Mig 235's AFTER INSERT trigger on hub_follows is the authority here;
+  // this call makes the flip land before the next 15s inbox poll and
+  // covers hosts running the new frontend against un-pasted SQL. Both
+  // paths are idempotent. Non-blocking — a DM bookkeeping failure must
+  // never fail the follow itself.
+  (async () => {
+    try {
+      await acceptPendingRequestsFrom(
+        created?.follower_email,
+        created?.followee_email,
+      );
+    } catch { /* swallow */ }
+  })();
+
   // Notify the followee — non-blocking, fire and forget.
   //
   // Uses the follow row's own ids instead of scanning users.list() and

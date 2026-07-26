@@ -12,6 +12,7 @@
 // trg_auto_accept_on_send trigger appends the sender).
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 /**
  * Explicitly accept a conversation (move it from Requests to inbox).
@@ -36,6 +37,48 @@ export async function declineConversation(convId) {
   if (!convId) throw new Error('convId required');
   const { error } = await supabase.rpc('decline_conversation', { p_conv_id: convId });
   if (error) throw error;
+}
+
+/**
+ * Following someone is consent to hear from them, so any pending request
+ * they already sent should move straight to the Inbox. Accepts the 1:1
+ * conversation between the two emails if the follower hasn't accepted it
+ * yet; a no-op otherwise.
+ *
+ * Mig 235's trg_dm_accept_conversations_on_follow does this server-side.
+ * This client mirror exists for two reasons: it makes the flip instant
+ * instead of waiting on the 15s inbox poll, and it keeps the behaviour
+ * working on a host that has the frontend deployed but hasn't had the
+ * SQL pasted in yet. Both paths are idempotent, so running both is safe.
+ *
+ * @returns {Promise<boolean>} true when a conversation was accepted
+ */
+export async function acceptPendingRequestsFrom(followerEmail, followeeEmail) {
+  if (!followerEmail || !followeeEmail) return false;
+  const me   = String(followerEmail).toLowerCase();
+  const them = String(followeeEmail).toLowerCase();
+  if (me === them) return false;
+
+  // Same stable pair key findOrCreateConversation builds.
+  const key = [me, them].sort().join('|');
+  const { data } = await safeSelect({
+    columns: ['id', 'accepted_emails'],
+    build: (cols) => supabase
+      .from('hub_conversations')
+      .select(cols)
+      .eq('participant_key', key)
+      .limit(1),
+  });
+  const row = (data ?? [])[0];
+  if (!row?.id) return false;
+
+  const accepted = Array.isArray(row.accepted_emails)
+    ? row.accepted_emails.map(e => String(e).toLowerCase())
+    : [];
+  if (accepted.includes(me)) return false;
+
+  await acceptConversation(row.id);
+  return true;
 }
 
 /**
