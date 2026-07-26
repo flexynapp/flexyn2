@@ -41,8 +41,6 @@ BEGIN
   UPDATE public.hub_conversations
      SET accepted_emails = array_append(
            coalesce(accepted_emails, ARRAY[]::text[]), v_follower),
-         declined_emails = array_remove(
-           coalesce(declined_emails, ARRAY[]::text[]), v_follower),
          updated_at = now()
    WHERE coalesce(is_group, FALSE) = FALSE
      AND coalesce(array_length(participant_emails, 1), 0) = 2
@@ -107,8 +105,6 @@ BEGIN
     UPDATE public.hub_conversations
        SET accepted_emails = array_append(
              coalesce(accepted_emails, ARRAY[]::text[]), v_follower),
-           declined_emails = array_remove(
-             coalesce(declined_emails, ARRAY[]::text[]), v_follower),
            updated_at = now()
      WHERE coalesce(is_group, FALSE) = FALSE
        AND coalesce(array_length(participant_emails, 1), 0) = 2

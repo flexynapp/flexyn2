@@ -16,7 +16,7 @@ import CrewChat from '@/components/crews/CrewChat';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { toast } from '@/lib/toast';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
-import { partitionConversations, acceptConversation, declineConversation } from '@/lib/data/conversationRequests';
+import { partitionConversations, acceptConversation, purgeMessageRequest } from '@/lib/data/conversationRequests';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 
@@ -174,14 +174,25 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // Accept appends the viewer's email to accepted_emails (mig 113's
   // accept_conversation RPC), which is all it takes to move the thread
   // to the Inbox — the partition is computed from that column, so there
-  // is no row to migrate. Delete writes a per-viewer decline tombstone
-  // (mig 234) rather than deleting the SHARED conversation row out from
-  // under the sender. Block runs the existing full-block RPC first, then
-  // declines so the thread disappears too.
+  // is no row to migrate. Delete is a real destructive purge (mig 234):
+  // the conversation row and every message under it are deleted for both
+  // participants. Block runs the existing full-block RPC first, then
+  // purges so the thread goes with it.
   const [requestBusyId, setRequestBusyId] = useState(null);
 
   const refreshConversations = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
+  }, [queryClient, user?.email]);
+
+  // Drop a purged row from the cached list immediately. The refetch that
+  // follows would remove it anyway, but not before the next poll tick —
+  // without this the row lingers for up to a second after the tap, which
+  // reads as "Delete didn't work".
+  const dropConversationFromCache = useCallback((convId) => {
+    queryClient.setQueryData(
+      ['hubConversations', user?.email],
+      (rows) => (Array.isArray(rows) ? rows.filter(r => r?.id !== convId) : rows),
+    );
   }, [queryClient, user?.email]);
 
   const handleAcceptRequest = useCallback(async (convId) => {
@@ -202,24 +213,26 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     if (!convId) return;
     setRequestBusyId(convId);
     try {
-      await declineConversation(convId);
+      await purgeMessageRequest(convId);
+      dropConversationFromCache(convId);
       refreshConversations();
       toast.success(tFallback('hub.messages.request.deleted', 'Request deleted.'));
     } catch {
-      toast.error(tFallback('hub.messages.request.error', 'Could not update that request. Try again.'));
+      toast.error(tFallback('hub.messages.request.error', 'Could not delete that request. Try again.'));
     } finally {
       setRequestBusyId(null);
     }
-  }, [refreshConversations, tFallback]);
+  }, [dropConversationFromCache, refreshConversations, tFallback]);
 
   const handleBlockRequest = useCallback(async (convId, otherEmail) => {
     if (!convId || !otherEmail) return;
     setRequestBusyId(convId);
     try {
       await blockUserFull(otherEmail);
-      // Best-effort — the block already stops delivery; hiding the thread
-      // is cosmetic, so a failure here shouldn't read as "block failed".
-      await declineConversation(convId).catch(() => {});
+      // Best-effort — the block already stops delivery, so a purge
+      // failure here shouldn't read as "block failed".
+      await purgeMessageRequest(convId).catch(() => {});
+      dropConversationFromCache(convId);
       refreshConversations();
       toast.success(tFallback('hub.messages.request.blocked', 'Blocked. They can no longer message you.'));
     } catch {
@@ -227,7 +240,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     } finally {
       setRequestBusyId(null);
     }
-  }, [refreshConversations, tFallback]);
+  }, [dropConversationFromCache, refreshConversations, tFallback]);
 
   // Follow graph — needed to partition strangers into Message Requests.
   // Stale-time generous; new follows refresh on next mount.

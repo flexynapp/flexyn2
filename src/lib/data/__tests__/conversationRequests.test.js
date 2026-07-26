@@ -33,7 +33,7 @@ vi.mock('@/api/supabaseClient', () => ({
 
 const {
   acceptConversation,
-  declineConversation,
+  purgeMessageRequest,
   acceptPendingRequestsFrom,
   partitionConversations,
   isPendingRequestSendBlocked,
@@ -145,50 +145,49 @@ describe('partitionConversations', () => {
     expect(partitionConversations(null, me, [])).toEqual({ inbox: [], requests: [] });
   });
 
-  it('drops a conversation the viewer declined from BOTH lists', () => {
+  it('routes a self-DM / orphaned conversation to inbox, never Requests', () => {
     const { inbox, requests } = partitionConversations(
-      [{
-        id: 'c1',
-        participant_emails: [me, 'stranger@x.com'],
-        accepted_emails: [],
-        declined_emails: [me],
-      }],
+      [{ id: 'c1', participant_emails: [me], accepted_emails: [] }],
       me,
       []
     );
-    expect(inbox).toHaveLength(0);
+    expect(inbox).toHaveLength(1);
     expect(requests).toHaveLength(0);
-  });
-
-  it('keeps a conversation the OTHER participant declined', () => {
-    const { requests } = partitionConversations(
-      [{
-        id: 'c1',
-        participant_emails: [me, 'stranger@x.com'],
-        accepted_emails: [],
-        declined_emails: ['stranger@x.com'],
-      }],
-      me,
-      []
-    );
-    expect(requests).toHaveLength(1);
   });
 });
 
-describe('declineConversation', () => {
+describe('purgeMessageRequest', () => {
   it('throws when convId is missing', async () => {
-    await expect(declineConversation(null)).rejects.toThrow(/convId/);
+    await expect(purgeMessageRequest(null)).rejects.toThrow(/convId/);
   });
 
-  it('calls the decline_conversation RPC with the id', async () => {
-    rpcSpy.mockResolvedValueOnce({ error: null });
-    await declineConversation('c1');
-    expect(rpcSpy).toHaveBeenCalledWith('decline_conversation', { p_conv_id: 'c1' });
+  it('calls the purge_message_request RPC and reports the delete', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: true, error: null });
+    const purged = await purgeMessageRequest('c1');
+    expect(purged).toBe(true);
+    expect(rpcSpy).toHaveBeenCalledWith('purge_message_request', { p_conv_id: 'c1' });
   });
 
-  it('throws when the RPC returns an error', async () => {
-    rpcSpy.mockResolvedValueOnce({ error: { code: '42501', message: 'unauthenticated' } });
-    await expect(declineConversation('c1')).rejects.toMatchObject({ code: '42501' });
+  it('returns false when the row was already gone (double-tap)', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: false, error: null });
+    expect(await purgeMessageRequest('c1')).toBe(false);
+  });
+
+  it('propagates the server refusal to purge an accepted conversation', async () => {
+    rpcSpy.mockResolvedValueOnce({
+      data: null,
+      error: { code: '42501', message: 'conversation_already_accepted' },
+    });
+    await expect(purgeMessageRequest('c1'))
+      .rejects.toMatchObject({ message: 'conversation_already_accepted' });
+  });
+
+  it('propagates a non-participant refusal', async () => {
+    rpcSpy.mockResolvedValueOnce({
+      data: null,
+      error: { code: '42501', message: 'not_a_participant' },
+    });
+    await expect(purgeMessageRequest('c1')).rejects.toMatchObject({ code: '42501' });
   });
 });
 

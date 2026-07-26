@@ -25,18 +25,27 @@ export async function acceptConversation(convId) {
 }
 
 /**
- * Decline (delete) a message request. The conversation row is SHARED by
- * both participants, so a hard delete would also wipe the sender's copy —
- * mig 234's decline_conversation instead appends the caller's email to
- * `declined_emails`, which hides the thread for them only.
+ * Delete a message request — a REAL destructive purge, not a hide.
  *
- * Cleared again if they accept it later, start the conversation
- * themselves, or follow the other person (mig 235).
+ * mig 234's purge_message_request drops the hub_conversations row, which
+ * cascades to hub_messages and everything hanging off them (DM emoji
+ * reactions, DM polls, poll votes), so nothing is left orphaned. Both
+ * participants lose the thread — the sender's copy goes too.
+ *
+ * The server refuses to purge anything that isn't still a pending
+ * request for the caller: it must be a 2-person, non-group thread the
+ * caller participates in and has NOT accepted. An accepted conversation
+ * raises `conversation_already_accepted` rather than being destroyed out
+ * from under the other person; Archive is the affordance for those.
+ *
+ * @returns {Promise<boolean>} true when a row was actually deleted;
+ *   false when it was already gone (treated as success by callers).
  */
-export async function declineConversation(convId) {
+export async function purgeMessageRequest(convId) {
   if (!convId) throw new Error('convId required');
-  const { error } = await supabase.rpc('decline_conversation', { p_conv_id: convId });
+  const { data, error } = await supabase.rpc('purge_message_request', { p_conv_id: convId });
   if (error) throw error;
+  return !!data;
 }
 
 /**
@@ -125,10 +134,6 @@ export function isPendingRequestSendBlocked(conversation, myEmail, myMessageCoun
  * The second condition is what makes this "stranger filtering" — DMs
  * from accounts you already follow skip Requests even on first send.
  *
- * Conversations the viewer has DECLINED (mig 234's declined_emails)
- * are dropped from both lists — a decline hides the thread for the
- * decliner without destroying the sender's copy of the shared row.
- *
  * @param {Array} conversations  fetched list (each with participant_emails + accepted_emails)
  * @param {string} myEmail
  * @param {Set<string>|string[]} followingEmails  emails the viewer follows
@@ -146,10 +151,6 @@ export function partitionConversations(conversations, myEmail, followingEmails) 
   const inbox = [];
   const requests = [];
   for (const c of conversations) {
-    const declined = Array.isArray(c.declined_emails)
-      ? c.declined_emails.map(e => String(e).toLowerCase())
-      : [];
-    if (declined.includes(myLc)) continue;
     const accepted = Array.isArray(c.accepted_emails)
       ? c.accepted_emails.map(e => String(e).toLowerCase())
       : [];
