@@ -202,6 +202,25 @@ export const listMyConversations = async (myEmail, limit = 50) => {
   const allMyMessages = myConvIds.length > 0
     ? await msg().filter({ conversation_id: myConvIds }, '-created_date', 200).catch(() => [])
     : [];
+
+  // Delivery receipts (mig 237). Pulling the rows above IS the delivery
+  // event — the messages are now on this device — so stamp delivered_at
+  // for whatever we just downloaded and didn't send ourselves. The RPC
+  // re-derives membership from auth.uid()/auth.email() and only touches
+  // rows where delivered_at IS NULL, so it's one write per message ever
+  // and a no-op once a thread is caught up.
+  //
+  // Fire-and-forget: a failure here costs a tick, never the inbox.
+  if (myConvIds.length > 0) {
+    supabase
+      .rpc('mark_messages_delivered', { p_conv_ids: myConvIds.slice(0, 200) })
+      .then(({ error }) => {
+        // 42883 = pre-237 host, RPC not deployed yet. Expected, stay quiet.
+        if (error && error.code !== '42883' && error.code !== '42P01') {
+          reportError(error, { feature: 'dm.markDelivered', level: 'warning' });
+        }
+      }, () => {});
+  }
   const messagesByConvId = new Map();
   for (const m of allMyMessages) {
     const cid = m.conversation_id;

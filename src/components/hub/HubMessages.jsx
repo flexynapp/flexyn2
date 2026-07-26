@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, Trash2, Ban, Undo2 } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, CheckCheck, Eye, Trash2, Ban, Undo2 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -23,6 +23,7 @@ import {
   unsendMessageRequest,
   isOutgoingPendingRequest,
 } from '@/lib/data/conversationRequests';
+import { deriveDeliveryStatus } from '@/lib/dmDeliveryStatus';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 
@@ -677,6 +678,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 // there's nowhere to take it back from.
                 const outgoingPending = dmView === 'inbox'
                   && isOutgoingPendingRequest(c, user?.email);
+                // Grey check / green check / green eye on MY last
+                // message. Declared before the JSX that reads it.
+                const deliveryStatus = deriveDeliveryStatus(lastMsg, user?.email, {
+                  isGroup: !!c.is_group
+                    || (Array.isArray(c.participant_emails) && c.participant_emails.length > 2),
+                });
                 const isMuted = mutedConvIds.has(c.id);
                 const isPinned = pinnedConvIds.has(c.id);
                 // Muted conversations DON'T count toward the unread dot.
@@ -710,11 +717,6 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <p className={`font-heading text-sm truncate flex items-center gap-1.5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
                             {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label="Pinned" />}
                             <span className="truncate">{handle}</span>
-                            {outgoingPending && (
-                              <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-500">
-                                {tFallback('hub.messages.request.sentChip', 'Request sent')}
-                              </span>
-                            )}
                             {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label="Muted" />}
                           </p>
                         </div>
@@ -723,6 +725,28 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             {preview}
                             {timeStr && <span className="text-muted-foreground font-normal"> · {timeStr}</span>}
                           </p>
+                          {/* Delivery status for MY last message, right
+                              edge of the timestamp line. Never rendered
+                              on a message I received — you don't show
+                              read state for someone else's message —
+                              so this and the unread dot are mutually
+                              exclusive by construction. */}
+                          {deliveryStatus === 'read' ? (
+                            <Eye
+                              className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                              aria-label={tFallback('hub.messages.status.read', 'Read')}
+                            />
+                          ) : deliveryStatus === 'delivered' ? (
+                            <CheckCheck
+                              className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                              aria-label={tFallback('hub.messages.status.delivered', 'Delivered')}
+                            />
+                          ) : deliveryStatus === 'sent' ? (
+                            <Check
+                              className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
+                              aria-label={tFallback('hub.messages.status.sent', 'Sent')}
+                            />
+                          ) : null}
                           {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
                         </div>
                       </div>
