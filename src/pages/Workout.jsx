@@ -29,6 +29,7 @@ import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion
 import WorkoutSavedList from '@/components/workout/WorkoutSavedList';
 import { Skeleton } from '@/components/ui/skeleton';
 import ExerciseLogger, { isBodyweightExercise } from '@/components/workout/ExerciseLogger';
+import CardioLogger, { CARDIO_ACTIVITIES } from '@/components/workout/CardioLogger';
 import LiveVolumePill from '@/components/workout/LiveVolumePill';
 import { buildPRIndex } from '@/lib/data/personalRecords';
 import { recordWorkoutExercises } from '@/lib/recentExerciseUsage';
@@ -305,9 +306,11 @@ export default function Workout() {
   const [gauntletStatsModal, setGauntletStatsModal] = useState(null);
   const [implausibleWarning, setImplausibleWarning] = useState(null);
   const [missingDataWarning, setMissingDataWarning] = useState(null);
+  const [incompleteWarnOpen, setIncompleteWarnOpen] = useState(false);
   const [cardioPageTitle, setCardioPageTitle] = useState(null);
   const [injuryFormOpen, setInjuryFormOpen] = useState(false);
   const [plateCalcOpen, setPlateCalcOpen] = useState(false);
+  const [cardioMenuOpen, setCardioMenuOpen] = useState(false);
   // Discard-confirmation gate for the "Cancel" button — destroying an
   // in-flight workout is irreversible, so we route it through a Radix
   // AlertDialog instead of firing resetWorkout() on the first tap.
@@ -1481,6 +1484,44 @@ export default function Workout() {
     setExercises(newExercises);
   };
 
+  // Add a cardio entry (walk / run / bike) to the active workout. Stored as a
+  // kind:'cardio' "exercise" so it rides along in the workout's JSONB on save.
+  const addCardio = (activityId = 'running') => {
+    const a = CARDIO_ACTIVITIES.find(x => x.id === activityId) || CARDIO_ACTIVITIES[1];
+    setExercises([...exercises, {
+      kind: 'cardio',
+      activity: a.id,
+      name: a.name,
+      displayName: a.name,
+      segments: [{ duration_s: null, distance_m: null }],
+      sets: [],
+    }]);
+    setCardioMenuOpen(false);
+  };
+
+  // True if a cardio entry has any duration/distance logged (across splits).
+  const cardioHasData = (ex) => {
+    const segs = Array.isArray(ex.segments) ? ex.segments : [{ duration_s: ex.duration_s, distance_m: ex.distance_m }];
+    return segs.some(s => Number(s.duration_s) > 0 || Number(s.distance_m) > 0);
+  };
+
+  // Count logged-but-unchecked items for the finish nudge. Returns 0 when the
+  // lifter hasn't used ✓ Done at all, so people who don't use it never get nagged.
+  const uncheckedOnFinish = () => {
+    const engaged = exercises.some(ex => ex.completed || (ex.sets || []).some(s => s.completed));
+    if (!engaged) return 0;
+    let n = 0;
+    for (const ex of exercises) {
+      if (ex.completed) continue;
+      if (ex.kind === 'cardio') {
+        if (cardioHasData(ex)) n += 1;
+      } else {
+        n += (ex.sets || []).filter(s => (s.weight != null || s.reps != null) && !s.completed).length;
+      }
+    }
+    return n;
+  };
+
   const saveWorkout = (forceIgnoreMissing = false) => {
     // Guard against double-tap. saveMutation.isPending isn't true during the
     // warning-dialog detour, so a fast double-tap on "Save anyway" could fire
@@ -1504,6 +1545,14 @@ export default function Workout() {
     if (!forceIgnoreMissing) {
       const missing = [];
       exercises.forEach((ex) => {
+        // Cardio entries have no sets — validity is distance/duration, so flag
+        // only when BOTH are empty (never as "no sets").
+        if (ex.kind === 'cardio') {
+          if (!cardioHasData(ex)) {
+            missing.push({ exName: ex.displayName || ex.name || 'Cardio', reason: 'no distance or duration' });
+          }
+          return;
+        }
         const sets = ex.sets || [];
         if (sets.length === 0) {
           missing.push({ exName: ex.name || 'Unnamed exercise', reason: 'no sets' });
@@ -2791,6 +2840,43 @@ export default function Workout() {
             <Plus className="w-4 h-4" />
           </Button>
         </div>
+        {/* + Cardio — log a walk / run / bike inside the workout. Tapping opens
+            a tiny activity picker; choosing one drops a cardio card into the
+            list. */}
+        <div className="relative mt-2">
+          <button
+            type="button"
+            onClick={() => setCardioMenuOpen(o => !o)}
+            aria-expanded={cardioMenuOpen}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-blue-500/40 text-sm font-semibold text-blue-600 dark:text-blue-400 hover:bg-blue-500/10 transition-colors"
+          >
+            <Plus className="w-4 h-4" /> {tFallback('workout.addCardio', 'Cardio')}
+            <span className="text-base leading-none">🚶 🏃 🚴</span>
+          </button>
+          <AnimatePresence>
+            {cardioMenuOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.98 }}
+                transition={{ duration: 0.14 }}
+                className="absolute z-20 top-full mt-1.5 inset-x-0 grid grid-cols-3 gap-1.5 p-1.5 rounded-xl border border-border bg-card shadow-lg"
+              >
+                {CARDIO_ACTIVITIES.map(a => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => addCardio(a.id)}
+                    className="flex flex-col items-center gap-1 py-2.5 rounded-lg hover:bg-secondary transition-colors"
+                  >
+                    <span className="text-2xl leading-none">{a.emoji}</span>
+                    <span className="text-xs font-semibold">{a.label}</span>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
         {/* In-workout utilities: plate calculator + AI Form Coach. */}
         <div className="mt-3 flex gap-2">
           <button
@@ -2891,20 +2977,28 @@ export default function Workout() {
                   value={item.key}
                   className="relative"
                 >
-                  <ExerciseLogger
-                    exercise={ex}
-                    onChange={(updated) => updateExercise(i, updated)}
-                    userProfile={userProfile}
-                    prIndex={prIndex}
-                    workoutLogs={rawLogs}
-                  />
+                  {ex.kind === 'cardio' ? (
+                    <CardioLogger
+                      exercise={ex}
+                      onChange={(updated) => updateExercise(i, updated)}
+                    />
+                  ) : (
+                    <ExerciseLogger
+                      exercise={ex}
+                      onChange={(updated) => updateExercise(i, updated)}
+                      userProfile={userProfile}
+                      prIndex={prIndex}
+                      workoutLogs={rawLogs}
+                    />
+                  )}
                 <div className="absolute top-3 end-3 flex items-center gap-1">
                   {/* Group with previous as a superset — one-tap pairing
                       that fills in group_id on both exercises so the
                       GroupBlock renderer picks them up on next render.
                       Only meaningful when the previous exercise exists
-                      AND neither is already in a group. */}
-                  {i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && (
+                      AND neither is already in a group. Cardio entries
+                      can't superset. */}
+                  {ex.kind !== 'cardio' && i > 0 && !ex.group_id && !exercises[i - 1]?.group_id && (
                     <button
                       type="button"
                       onClick={() => {
@@ -2981,13 +3075,34 @@ export default function Workout() {
       <motion.div whileTap={{ scale: 0.97 }} whileHover={{ scale: 1.01 }} transition={{ type: 'spring', stiffness: 400, damping: 20 }} className="mt-6">
         <Button
           className="w-full h-12 font-heading font-bold text-base mb-8"
-          onClick={() => saveWorkout()}
+          onClick={() => { if (uncheckedOnFinish() > 0) setIncompleteWarnOpen(true); else saveWorkout(); }}
           disabled={exercises.length === 0 || saveMutation.isPending}
         >
           <Save className="w-5 h-5 me-2" />
           {saveMutation.isPending ? t('workout.saving') : t('workout.saveWorkout')}
         </Button>
       </motion.div>
+
+      {/* Finish-workout completeness nudge — only fires once the lifter has
+          started checking sets off (so people who don't use ✓ Done never get
+          nagged), and counts logged-but-unchecked sets + incomplete cardio. */}
+      <AlertDialog open={incompleteWarnOpen} onOpenChange={setIncompleteWarnOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finish your workout?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You still have {uncheckedOnFinish()} item{uncheckedOnFinish() === 1 ? '' : 's'} that {uncheckedOnFinish() === 1 ? "isn't" : "aren't"} checked off.
+              You can finish now — they just won't be marked done.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep going</AlertDialogCancel>
+            <AlertDialogAction onClick={() => { setIncompleteWarnOpen(false); saveWorkout(); }}>
+              Finish anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
 
 
