@@ -506,8 +506,11 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
       className="fixed inset-0 z-[9999] bg-black flex flex-col"
     >
       {/* Top controls */}
-      <div className="absolute top-0 start-0 end-0 z-30 flex items-center justify-between px-4"
-        style={{ paddingTop: 'max(16px, env(safe-area-inset-top))' }}>
+      {/* Offset = frame's top inset (max(8px, safe-area)) + 12px so the round
+          buttons float just inside the rounded frame on browser AND installed
+          PWA alike, instead of clipping its top corners. */}
+      <div className="absolute top-0 start-0 end-0 z-30 flex items-center justify-between px-5"
+        style={{ paddingTop: 'max(20px, calc(env(safe-area-inset-top) + 12px))' }}>
         <button onClick={onCancel} className="w-10 h-10 rounded-full bg-black/55 flex items-center justify-center border border-white/15 backdrop-blur-sm text-white" aria-label="Cancel">
           <XIcon className="w-4 h-4" />
         </button>
@@ -538,10 +541,11 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
           container is `relative` so the font/color bar can float at the
           bottom as an absolute overlay — that keeps the frame size constant
           when text/draw toggles instead of reflowing the photo. */}
-      <div className="flex-1 flex items-center justify-center overflow-hidden relative">
+      <div className="flex-1 flex items-center justify-center overflow-hidden relative px-2 pb-2"
+        style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}>
         <div
           ref={frameRef}
-          className="relative overflow-hidden bg-black"
+          className="relative overflow-hidden bg-black rounded-3xl ring-1 ring-white/10 shadow-2xl"
           style={{ aspectRatio: '9 / 16', height: '100%', maxWidth: '100%', maxHeight: '100%', touchAction: 'none' }}
         >
           {isVideo ? (
@@ -551,6 +555,12 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             <img loading="lazy" ref={mediaElRef} src={dataUrl} alt="Story preview" draggable={false}
               className="absolute inset-0 w-full h-full object-contain" style={{ filter: FILTERS[filterIdx].css }} />
           )}
+
+          {/* Legibility scrims — soft gradients behind the floating controls
+              (top) and the filter dots (bottom) so they stay readable over
+              bright photos. Pointer-events-none: purely cosmetic. */}
+          <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/45 to-transparent pointer-events-none" />
+          <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-black/40 to-transparent pointer-events-none" />
 
           {/* Committed + live drawings */}
           {(strokes.length > 0 || liveStroke) && (
@@ -573,7 +583,7 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="absolute bottom-3 start-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          <div className="absolute bottom-4 start-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
             {FILTERS.map((_, i) => (
               <div key={i} className="rounded-full" style={{ width: i === filterIdx ? 16 : 5, height: 5, backgroundColor: i === filterIdx ? '#fff' : 'rgba(255,255,255,0.45)' }} />
             ))}
@@ -812,10 +822,10 @@ export default function StoryPreviewSheet({ dataUrl, isVideo, uploading, onConfi
             onCancel?.();
           }}
           disabled={uploading}
-          className="flex-1 py-3 rounded-2xl border border-white/25 text-white text-sm font-semibold disabled:opacity-40"
+          className="flex-1 py-3.5 rounded-full bg-white/10 border border-white/15 text-white text-sm font-semibold disabled:opacity-40 active:bg-white/15 transition-colors"
         >Cancel</button>
         <motion.button whileTap={{ scale: 0.96 }} onClick={handleConfirm} disabled={uploading}
-          className="flex-1 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+          className="flex-1 py-3.5 rounded-full bg-primary text-primary-foreground text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2 shadow-lg shadow-primary/25">
           {uploading ? <><Loader2 className="w-4 h-4 animate-spin" />Posting…</> : 'Post Story'}
         </motion.button>
       </div>
