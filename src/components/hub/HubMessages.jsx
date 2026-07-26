@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, Trash2, Ban } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, Trash2, Ban, Undo2 } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -16,7 +16,13 @@ import CrewChat from '@/components/crews/CrewChat';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import { toast } from '@/lib/toast';
 import { partitionByArchive, archive as archiveConv, unarchive as unarchiveConv, isArchived } from '@/lib/conversationArchive';
-import { partitionConversations, acceptConversation, purgeMessageRequest } from '@/lib/data/conversationRequests';
+import {
+  partitionConversations,
+  acceptConversation,
+  purgeMessageRequest,
+  unsendMessageRequest,
+  isOutgoingPendingRequest,
+} from '@/lib/data/conversationRequests';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 
@@ -270,6 +276,27 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       toast.success(tFallback('hub.messages.request.deleted', 'Request deleted.'));
     } catch {
       toast.error(tFallback('hub.messages.request.error', 'Could not delete that request. Try again.'));
+    } finally {
+      setRequestBusyId(null);
+    }
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
+
+  // Withdraw your OWN outgoing request. Lives in the Inbox, not
+  // Requests — you accepted the thread by creating it — so this is the
+  // only affordance the sender ever gets for taking a message back.
+  // Unlike Delete it records NO block: withdrawing a message is not
+  // blocking the person you were trying to reach.
+  const handleUnsendRequest = useCallback(async (convId) => {
+    if (!convId) return;
+    disarmDelete();
+    setRequestBusyId(convId);
+    try {
+      await unsendMessageRequest(convId);
+      dropConversationFromCache(convId);
+      refreshConversations();
+      toast.success(tFallback('hub.messages.request.unsent', 'Request withdrawn.'));
+    } catch {
+      toast.error(tFallback('hub.messages.request.unsendError', 'Could not withdraw that request. Try again.'));
     } finally {
       setRequestBusyId(null);
     }
@@ -644,6 +671,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                   const skipYouPrefix = isDuelInvite || isCrewInvite;
                   preview = (isMine && !skipYouPrefix) ? `You: ${displayText}` : displayText;
                 }
+                // Your own request, still un-actioned by the recipient.
+                // It sits in YOUR inbox (you accepted it by creating it),
+                // so without a marker it reads as a normal thread and
+                // there's nowhere to take it back from.
+                const outgoingPending = dmView === 'inbox'
+                  && isOutgoingPendingRequest(c, user?.email);
                 const isMuted = mutedConvIds.has(c.id);
                 const isPinned = pinnedConvIds.has(c.id);
                 // Muted conversations DON'T count toward the unread dot.
@@ -677,6 +710,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                           <p className={`font-heading text-sm truncate flex items-center gap-1.5 ${unread ? 'font-bold text-foreground' : 'font-semibold text-foreground'}`}>
                             {isPinned && <Pin className="w-3 h-3 text-primary shrink-0" aria-label="Pinned" />}
                             <span className="truncate">{handle}</span>
+                            {outgoingPending && (
+                              <span className="shrink-0 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide bg-amber-500/15 text-amber-500">
+                                {tFallback('hub.messages.request.sentChip', 'Request sent')}
+                              </span>
+                            )}
                             {isMuted && <BellOff className="w-3 h-3 text-muted-foreground shrink-0" aria-label="Muted" />}
                           </p>
                         </div>
@@ -695,6 +733,47 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         viewer to accepted_emails (no row migration), Delete
                         writes a per-viewer decline tombstone, Block runs the
                         full-block RPC and then hides the thread. */}
+                    {/* Unsend — same two-tap confirm as Delete, because
+                        it is the same irreversible destruction seen from
+                        the other side. */}
+                    {outgoingPending && (
+                      armedDeleteId === c.id ? (
+                        <div ref={confirmRef} className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                          <button
+                            disabled={requestBusyId === c.id}
+                            onClick={(e) => { e.stopPropagation(); handleUnsendRequest(c.id); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold disabled:opacity-50 transition-opacity"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            {tFallback('hub.messages.request.confirmUnsend', 'Confirm unsend')}
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); disarmDelete(); }}
+                            className="px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold transition-colors"
+                          >
+                            {tFallback('common.cancel', 'Cancel')}
+                          </button>
+                          <span className="text-[11px] text-muted-foreground">
+                            {tFallback('hub.messages.request.unsendWarning', 'Removes it for both of you.')}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 px-3 pb-3 -mt-1">
+                          <button
+                            disabled={requestBusyId === c.id}
+                            onClick={(e) => { e.stopPropagation(); armDelete(c.id); }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-secondary text-foreground text-xs font-semibold disabled:opacity-50 transition-opacity"
+                          >
+                            <Undo2 className="w-3.5 h-3.5" />
+                            {tFallback('hub.messages.request.unsend', 'Unsend request')}
+                          </button>
+                          <span className="text-[11px] text-muted-foreground">
+                            {tFallback('hub.messages.request.awaitingAccept', 'Waiting for them to accept.')}
+                          </span>
+                        </div>
+                      )
+                    )}
+
                     {dmView === 'requests' && (
                       armedDeleteId === c.id ? (
                         // Armed state. Deleting is irreversible and removes

@@ -34,6 +34,8 @@ vi.mock('@/api/supabaseClient', () => ({
 const {
   acceptConversation,
   purgeMessageRequest,
+  unsendMessageRequest,
+  isOutgoingPendingRequest,
   acceptPendingRequestsFrom,
   partitionConversations,
   isPendingRequestSendBlocked,
@@ -188,6 +190,87 @@ describe('purgeMessageRequest', () => {
       error: { code: '42501', message: 'not_a_participant' },
     });
     await expect(purgeMessageRequest('c1')).rejects.toMatchObject({ code: '42501' });
+  });
+});
+
+describe('unsendMessageRequest', () => {
+  it('throws when convId is missing', async () => {
+    await expect(unsendMessageRequest(null)).rejects.toThrow(/convId/);
+  });
+
+  it('calls the unsend_message_request RPC and reports the delete', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: true, error: null });
+    const done = await unsendMessageRequest('c1');
+    expect(done).toBe(true);
+    expect(rpcSpy).toHaveBeenCalledWith('unsend_message_request', { p_conv_id: 'c1' });
+  });
+
+  it('is a distinct RPC from the recipient-side purge', async () => {
+    // purge writes a request block, unsend must not — they can never be
+    // the same call.
+    rpcSpy.mockResolvedValueOnce({ data: true, error: null });
+    await unsendMessageRequest('c1');
+    expect(rpcSpy).not.toHaveBeenCalledWith('purge_message_request', expect.anything());
+  });
+
+  it('returns false when the row was already gone', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: false, error: null });
+    expect(await unsendMessageRequest('c1')).toBe(false);
+  });
+
+  it('propagates the server refusal on an accepted conversation', async () => {
+    rpcSpy.mockResolvedValueOnce({
+      data: null,
+      error: { code: '42501', message: 'conversation_already_accepted' },
+    });
+    await expect(unsendMessageRequest('c1'))
+      .rejects.toMatchObject({ message: 'conversation_already_accepted' });
+  });
+});
+
+describe('isOutgoingPendingRequest', () => {
+  const me = 'me@example.com';
+  const them = 'them@example.com';
+
+  it('is true for my own request the recipient has not acted on', () => {
+    expect(isOutgoingPendingRequest(
+      { participant_emails: [me, them], accepted_emails: [me] }, me
+    )).toBe(true);
+  });
+
+  it('is false once the recipient accepted', () => {
+    expect(isOutgoingPendingRequest(
+      { participant_emails: [me, them], accepted_emails: [me, them] }, me
+    )).toBe(false);
+  });
+
+  it('is false for an INBOUND request I have not accepted', () => {
+    // They sent it, so only they are accepted. This is a Requests-tab
+    // row — Delete territory, not Unsend.
+    expect(isOutgoingPendingRequest(
+      { participant_emails: [me, them], accepted_emails: [them] }, me
+    )).toBe(false);
+  });
+
+  it('is case-insensitive', () => {
+    expect(isOutgoingPendingRequest(
+      { participant_emails: ['ME@Example.com', 'Them@Example.com'], accepted_emails: ['me@EXAMPLE.com'] },
+      me
+    )).toBe(true);
+  });
+
+  it('is false for groups, non-pairs, non-participants and missing input', () => {
+    expect(isOutgoingPendingRequest(
+      { is_group: true, participant_emails: [me, them, 'c@x.com'], accepted_emails: [me] }, me
+    )).toBe(false);
+    expect(isOutgoingPendingRequest(
+      { participant_emails: [me], accepted_emails: [me] }, me
+    )).toBe(false);
+    expect(isOutgoingPendingRequest(
+      { participant_emails: ['a@x.com', them], accepted_emails: ['a@x.com'] }, me
+    )).toBe(false);
+    expect(isOutgoingPendingRequest(null, me)).toBe(false);
+    expect(isOutgoingPendingRequest({ participant_emails: [me, them] }, null)).toBe(false);
   });
 });
 

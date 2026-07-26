@@ -14,9 +14,10 @@ import BugReportDialog from './BugReportDialog';
 import { buildLabel, diagnosticString } from '@/lib/buildInfo';
 import { isAppAdmin } from '@/lib/adminRoles';
 import { Link } from 'react-router-dom';
-import { ShieldAlert, FileText, VolumeX, Ban } from 'lucide-react';
+import { ShieldAlert, FileText, VolumeX, Ban, MailX } from 'lucide-react';
 import { listMyReports } from '@/lib/data/hubReports';
 import * as userBlocksData from '@/lib/data/userBlocks';
+import * as dmRequestBlocksData from '@/lib/data/dmRequestBlocks';
 import * as userMutesData  from '@/lib/data/userMutes';
 import { getHapticsDisabled, setHapticsDisabled, triggerHaptic } from '@/lib/haptic';
 import { useTheme } from '@/lib/ThemeContext';
@@ -94,6 +95,31 @@ export default function SettingsPanel() {
     enabled: !!user?.id,
     staleTime: 60_000,
   });
+
+  // The QUIET blocks (mig 234). Deleting someone's message request
+  // records a pair so they can't immediately open a fresh one. Kept
+  // deliberately separate from the full block_user_full list above —
+  // they mean very different things and conflating them would let
+  // someone think they'd fully blocked a person when they hadn't.
+  const { data: myRequestBlocks = [] } = useQuery({
+    queryKey: ['dmRequestBlocks', user?.id],
+    queryFn: () => dmRequestBlocksData.listMyRequestBlocks(),
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+
+  const handleAllowRequestsAgain = async (email) => {
+    try {
+      await dmRequestBlocksData.removeRequestBlock(email);
+      queryClient.invalidateQueries({ queryKey: ['dmRequestBlocks', user.id] });
+      toast.success(tFallback(
+        'settings.requestBlock.removed',
+        'They can send you a message request again.'
+      ));
+    } catch (err) {
+      toast.error(`Could not update: ${err.message || 'try again'}`);
+    }
+  };
 
   const handleUnblockFull = async (email) => {
     try {
@@ -1381,6 +1407,41 @@ export default function SettingsPanel() {
                   className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary"
                 >
                   Unblock
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Declined message requests — the QUIET pair-keyed blocks from
+          mig 234. Sibling to "Blocked users" above, deliberately NOT
+          merged with it: this one only stops new message requests, and
+          it clears itself if you follow them or message them first.
+          Labelled so the difference is obvious at a glance. */}
+      {myRequestBlocks.length > 0 && (
+        <div className="mt-6 pt-4 border-t border-border">
+          <div className="flex items-center gap-2 mb-1">
+            <MailX className="w-3.5 h-3.5 text-muted-foreground" />
+            <h3 className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              {tFallback('settings.requestBlock.title', 'Declined message requests')}
+            </h3>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-2">
+            {tFallback(
+              'settings.requestBlock.desc',
+              'You deleted a message request from these accounts, so they can’t send you a new one. They are not blocked otherwise — following them or messaging them first clears this too.'
+            )}
+          </p>
+          <ul className="space-y-1.5">
+            {myRequestBlocks.map(b => (
+              <li key={b.blocked_email} className="flex items-center justify-between gap-2 text-xs p-2 rounded-lg bg-secondary/40">
+                <span className="text-foreground truncate">{maskEmail(b.blocked_email)}</span>
+                <button
+                  onClick={() => handleAllowRequestsAgain(b.blocked_email)}
+                  className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide border border-border hover:bg-secondary shrink-0"
+                >
+                  {tFallback('settings.requestBlock.allow', 'Allow requests')}
                 </button>
               </li>
             ))}

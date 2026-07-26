@@ -59,6 +59,55 @@ export async function purgeMessageRequest(convId) {
 }
 
 /**
+ * Withdraw your OWN outgoing message request — the sender-side mirror of
+ * purgeMessageRequest.
+ *
+ * purge is gated on "the CALLER has not accepted", which the sender can
+ * never satisfy (start_dm_conversation auto-accepts whoever opened the
+ * thread). mig 234's unsend_message_request is gated the other way: the
+ * OTHER party must not have accepted, so an un-actioned request can be
+ * taken back but a live conversation still can't be destroyed.
+ *
+ * It writes NO request block. Withdrawing a message is not blocking the
+ * person you were trying to reach — recording one here would silently
+ * stop THEM from ever opening a conversation with you.
+ *
+ * @returns {Promise<boolean>} true when a row was actually deleted;
+ *   false when it was already gone (treated as success by callers).
+ */
+export async function unsendMessageRequest(convId) {
+  if (!convId) throw new Error('convId required');
+  const { data, error } = await supabase.rpc('unsend_message_request', { p_conv_id: convId });
+  if (error) throw error;
+  return !!data;
+}
+
+/**
+ * True when `conversation` is the viewer's own outgoing request that the
+ * recipient has not acted on yet — i.e. exactly the case unsend covers.
+ *
+ * These live in the viewer's INBOX (they accepted it by creating it), so
+ * without this they look like any other thread and there is nowhere to
+ * offer "unsend".
+ */
+export function isOutgoingPendingRequest(conversation, myEmail) {
+  if (!conversation || !myEmail) return false;
+  if (conversation.is_group) return false;
+  const participants = Array.isArray(conversation.participant_emails)
+    ? conversation.participant_emails.map(e => String(e).toLowerCase())
+    : [];
+  if (participants.length !== 2) return false;
+  const myLc = String(myEmail).toLowerCase();
+  if (!participants.includes(myLc)) return false;
+  const accepted = Array.isArray(conversation.accepted_emails)
+    ? conversation.accepted_emails.map(e => String(e).toLowerCase())
+    : [];
+  // I accepted (I opened it) and the other side has not.
+  if (!accepted.includes(myLc)) return false;
+  return participants.some(e => e !== myLc && !accepted.includes(e));
+}
+
+/**
  * Following someone is consent to hear from them, so any pending request
  * they already sent should move straight to the Inbox. Accepts the 1:1
  * conversation between the two emails if the follower hasn't accepted it
