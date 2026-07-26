@@ -30,16 +30,28 @@
 //        supabase functions deploy storage-gc
 //
 //   4. Mirror the secret + URL onto the database so the 5-minute cron in
-//      migration 236 can authenticate (SQL Editor):
+//      migration 236 can authenticate. Use Supabase VAULT, not
+//      `ALTER DATABASE postgres SET …` — managed Supabase rejects that
+//      with `42501: permission denied to set parameter`, which is the
+//      reason migration 038 moved the push pipeline to Vault. Run in the
+//      SQL Editor:
 //
-//        ALTER DATABASE postgres SET app.storage_gc_url =
-//          'https://<project-ref>.functions.supabase.co/storage-gc';
-//        ALTER DATABASE postgres SET app.storage_gc_secret = '<same value>';
-//        SELECT pg_reload_conf();
+//        SELECT vault.create_secret(
+//          'https://<project-ref>.functions.supabase.co/storage-gc',
+//          'storage_gc_url'
+//        );
+//        SELECT vault.create_secret('<step-1 value>', 'storage_gc_secret');
+//
+//      To rotate later (same shape as the push secrets):
+//
+//        SELECT vault.update_secret(
+//          (SELECT id FROM vault.secrets WHERE name = 'storage_gc_secret'),
+//          '<new value>'
+//        );
 //
 //      Until this is done, kick_storage_gc() short-circuits and the queue
 //      simply accumulates — nothing breaks, and the backlog drains on the
-//      first tick after the settings land.
+//      first tick after the secrets land. Rotation needs no redeploy.
 //
 // ── AUTH ─────────────────────────────────────────────────────────────────────
 //

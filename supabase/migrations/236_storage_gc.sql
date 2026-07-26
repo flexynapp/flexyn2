@@ -33,14 +33,37 @@
 --   • a 5-minute cron that calls kick_storage_gc()
 --   • purge_expired_stories() re-created to enqueue instead of deleting
 --
+-- SECRETS — VAULT, NOT `ALTER DATABASE`
+--
+-- kick_storage_gc() resolves its URL + shared secret exactly the way
+-- migration 038 re-pointed the push trigger: Supabase Vault first
+-- (`vault.decrypted_secrets`), then `current_setting()` as a fallback
+-- for self-hosted / dev installs. `ALTER DATABASE postgres SET …` is
+-- NOT usable on managed Supabase — it fails with `42501: permission
+-- denied to set parameter`, because the database is owned by
+-- supabase_admin and the SQL editor's postgres role cannot mutate
+-- database-scoped GUCs. That is the whole reason 038 exists, and this
+-- function deliberately reuses its mechanism rather than inventing a
+-- second one.
+--
+-- Operator setup after running this migration:
+--
+--   SELECT vault.create_secret(
+--     'https://<project-ref>.functions.supabase.co/storage-gc',
+--     'storage_gc_url'
+--   );
+--   SELECT vault.create_secret(
+--     '<same value you set as STORAGE_GC_SECRET on the Edge Function>',
+--     'storage_gc_secret'
+--   );
+--
 -- SAFE DEGRADATION
 --
--- kick_storage_gc() short-circuits when `app.storage_gc_url` /
--- `app.storage_gc_secret` are unset, exactly like mig 034's push
--- trigger. If the Edge Function is never deployed, queue rows simply
--- accumulate and nothing else breaks; deploy it later and the backlog
--- drains on the next tick. Every pg_net call is wrapped so a dispatch
--- failure can never fail the caller.
+-- kick_storage_gc() short-circuits when either secret is missing from
+-- BOTH Vault and the GUCs. If the Edge Function is never deployed,
+-- queue rows simply accumulate and nothing else breaks; deploy it later
+-- and the backlog drains on the next tick. Every pg_net call is wrapped
+-- so a dispatch failure can never fail the caller.
 --
 -- IDEMPOTENT + RE-RUNNABLE
 --
@@ -53,6 +76,7 @@
 -- comparison operators in any statement body.
 
 CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+CREATE EXTENSION IF NOT EXISTS supabase_vault WITH SCHEMA vault;
 
 -- ─────────────────────────────────────────────────────────────────────
 -- claim_storage_cleanup — the batch the GC is allowed to delete
@@ -178,31 +202,68 @@ GRANT EXECUTE ON FUNCTION public.fail_storage_cleanup(UUID[], TEXT) TO service_r
 -- ─────────────────────────────────────────────────────────────────────
 -- kick_storage_gc — pg_net POST to the Edge Function
 -- ─────────────────────────────────────────────────────────────────────
--- Mirrors mig 034's notify_push_fanout: reads two runtime settings, is a
--- silent no-op when either is missing, and swallows every dispatch
--- error. Nothing about the queue depends on this succeeding.
+-- Secret resolution copies migration 038 EXACTLY, deliberately. 034
+-- originally used `ALTER DATABASE postgres SET app.send_push_url = …`,
+-- which fails on managed Supabase with `42501: permission denied to set
+-- parameter` — the database is owned by supabase_admin and the postgres
+-- role the SQL editor runs as cannot mutate database-scoped GUCs. 038
+-- moved that to Supabase Vault. This function has the same problem, so
+-- it gets the same solution rather than a second, different one:
+--
+--   • Vault first — SELECT decrypted_secret FROM vault.decrypted_secrets
+--   • current_setting() second — so self-hosted / dev installs that
+--     CAN set GUCs keep working
+--   • both wrapped in EXCEPTION blocks, and a missing value is a silent
+--     RETURN, never an error
+--
+-- Vault secret names mirror the GUC suffixes, as 038 does:
+-- `storage_gc_url` and `storage_gc_secret`.
+--
+-- Rotation takes effect on the next tick with no redeploy, same as push.
 CREATE OR REPLACE FUNCTION public.kick_storage_gc()
 RETURNS VOID
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path TO 'public', 'extensions'
+SET search_path = public, extensions, vault
 AS $$
 DECLARE
   v_url     TEXT;
   v_secret  TEXT;
   v_pending INTEGER := 0;
 BEGIN
+  -- Try Vault first. Wrapped so a missing extension / secret /
+  -- permissions issue silently degrades to no-op.
   BEGIN
-    v_url    := current_setting('app.storage_gc_url',    true);
-    v_secret := current_setting('app.storage_gc_secret', true);
+    SELECT decrypted_secret INTO v_url
+      FROM vault.decrypted_secrets
+     WHERE name = 'storage_gc_url'
+     LIMIT 1;
+    SELECT decrypted_secret INTO v_secret
+      FROM vault.decrypted_secrets
+     WHERE name = 'storage_gc_secret'
+     LIMIT 1;
   EXCEPTION WHEN OTHERS THEN
-    RETURN;
+    v_url := NULL; v_secret := NULL;
   END;
 
-  IF v_url IS NULL OR btrim(coalesce(v_url, '')) = '' THEN
-    RETURN;
+  -- Legacy / self-hosted fallback: honour the GUCs when they are set.
+  IF v_url IS NULL OR v_url = '' THEN
+    BEGIN
+      v_url := current_setting('app.storage_gc_url', true);
+    EXCEPTION WHEN OTHERS THEN
+      v_url := NULL;
+    END;
   END IF;
-  IF v_secret IS NULL OR btrim(coalesce(v_secret, '')) = '' THEN
+  IF v_secret IS NULL OR v_secret = '' THEN
+    BEGIN
+      v_secret := current_setting('app.storage_gc_secret', true);
+    EXCEPTION WHEN OTHERS THEN
+      v_secret := NULL;
+    END;
+  END IF;
+
+  IF v_url IS NULL OR v_url = '' OR v_secret IS NULL OR v_secret = '' THEN
+    -- Not configured yet → no-op. The queue simply accumulates.
     RETURN;
   END IF;
 
