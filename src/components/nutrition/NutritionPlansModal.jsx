@@ -5,6 +5,7 @@ import { X, ChevronRight, ChevronDown, ChevronUp, ArrowLeft, Clock, Flame, Beef,
 import { Card } from '@/components/ui/card';
 import { PLAN_TEMPLATES, PLAN_COLORS, scalePlan, adaptPlan, loadRestrictions } from '@/lib/nutritionPlans';
 import { calculateDailyValues } from '@/lib/nutritionDefaults';
+import { isNutritionOnboardingComplete } from '@/lib/nutritionOnboardingGate';
 
 /* ─── Macro bar ──────────────────────────────────────────────────────────── */
 function MacroBar({ protein, carbs, fat }) {
@@ -303,12 +304,13 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
   // nutrition onboarding. Until that's done we don't know the user's
   // restrictions, so surfacing plans would show off-limits foods (e.g.
   // dairy to a dairy-free user). Gate the whole panel on completion.
-  const hasOnboarded = useMemo(() => {
-    if (userProfile?.nutrition_onboarding_complete) return true;
-    try {
-      return localStorage.getItem(`flexyn.nutritionOnboarded.${userProfile?.id || 'anon'}`) === 'true';
-    } catch { return false; }
-  }, [userProfile?.nutrition_onboarding_complete, userProfile?.id]);
+  // NOTE: this gate reads the COMPLETION flag only. A session dismissal of
+  // the onboarding wizard must not unlock plans — the user still hasn't told
+  // us their restrictions.
+  const hasOnboarded = useMemo(
+    () => isNutritionOnboardingComplete(userProfile, userProfile?.id),
+    [userProfile],
+  );
 
   const restrictions   = useMemo(() => loadRestrictions(userProfile), [userProfile]);
   // Use the SAME goal-driven calorie target the rest of the nutrition UI shows

@@ -29,6 +29,11 @@ import MealHistoryModal from '@/components/nutrition/MealHistoryModal';
 import NutritionPlansModal from '@/components/nutrition/NutritionPlansModal';
 import CalorieCyclingModal from '@/components/nutrition/CalorieCyclingModal';
 import { weeklyRunningLoad } from '@/lib/running/fueling';
+import {
+  shouldAutoOpenNutritionOnboarding,
+  markNutritionOnboardingDismissed,
+  clearNutritionOnboardingDismissed,
+} from '@/lib/nutritionOnboardingGate';
 import MealTypePicker, { autoPickMealType } from '@/components/nutrition/MealTypePicker';
 import CalorieTopBar from '@/components/nutrition/CalorieTopBar';
 import RecipesHubModal from '@/components/nutrition/RecipesHubModal';
@@ -574,7 +579,8 @@ export default function Nutrition() {
   // Fall back to 'anon' before sign-in resolves so we don't error on
   // the read; the real user-keyed bucket takes over once auth lands.
   const scanHistoryKey = `flexyn.scanHistory.${user?.id || 'anon'}`;
-  const nutritionOnboardedKey = `flexyn.nutritionOnboarded.${user?.id || 'anon'}`;
+  // The nutrition-onboarding keys (completed / dismissed) are owned by
+  // `@/lib/nutritionOnboardingGate` — don't rebuild them inline here.
 
   const pushToScanHistory = (product) => {
     setScanHistory(prev => {
@@ -612,38 +618,54 @@ export default function Nutrition() {
 
   // Auto-open onboarding the first time the user lands on the Nutrition page,
   // but only after the user profile has loaded so we don't flash the modal at
-  // users who already onboarded.
+  // users who already onboarded. All the gating rules live in
+  // `@/lib/nutritionOnboardingGate` so they're unit-testable — including the
+  // session dismissal that makes ONE close stick.
   useEffect(() => {
-    if (!user?.email) return;
-    if (userProfile && Object.keys(userProfile).length === 0) return; // still loading
-    const localDone = (() => {
-      try {
-        // Check per-user key first; fall back to legacy un-namespaced.
-        return localStorage.getItem(nutritionOnboardedKey) === 'true'
-            || localStorage.getItem('fn-nutrition-onboarded') === 'true';
-      } catch { return false; }
-    })();
-    if (userProfile?.nutrition_onboarding_complete || localDone) return;
-    if (goalsModalManuallyOpened) return;
-    setShowGoalsOnboarding(true);
-  }, [user?.email, userProfile?.nutrition_onboarding_complete, goalsModalManuallyOpened, nutritionOnboardedKey]);
+    if (shouldAutoOpenNutritionOnboarding({
+      userEmail: user?.email,
+      userId: user?.id,
+      userProfile,
+      manuallyOpened: goalsModalManuallyOpened,
+    })) {
+      setShowGoalsOnboarding(true);
+    }
+  }, [user?.email, user?.id, userProfile, goalsModalManuallyOpened]);
 
+  // Finished (or explicitly skipped) — the modal has already persisted
+  // completion, so just close and refresh the profile.
   const handleOnboardingComplete = () => {
     setShowGoalsOnboarding(false);
     setGoalsModalManuallyOpened(false);
+    clearNutritionOnboardingDismissed(user?.id);
     queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
   };
 
+  // Closed via X / Esc / backdrop WITHOUT entering goals. Record a
+  // session-scoped dismissal — distinct from the completion flag, so the
+  // user is NOT falsely marked as onboarded (NutritionPlansPanel still
+  // shows its gate, and they get prompted again next session) but the
+  // wizard stays shut for the rest of this one.
+  const handleOnboardingDismiss = () => {
+    markNutritionOnboardingDismissed(user?.id);
+    setShowGoalsOnboarding(false);
+    setGoalsModalManuallyOpened(false);
+  };
+
   const openGoalsEditor = () => {
+    clearNutritionOnboardingDismissed(user?.id);
     setGoalsModalManuallyOpened(true);
     setShowGoalsOnboarding(true);
   };
 
   // Launched from the Nutrition Plans gate when the user hasn't completed
   // nutrition onboarding yet — close the plan surfaces and open setup.
+  // Clearing the dismissal is what keeps this entry point working after a
+  // user has already waved the auto-prompt away.
   const startNutritionOnboarding = () => {
     setShowNutritionPlans(false);
     setShowWeeklyPlanner(false);
+    clearNutritionOnboardingDismissed(user?.id);
     setGoalsModalManuallyOpened(true);
     setShowGoalsOnboarding(true);
   };
@@ -2216,6 +2238,7 @@ export default function Nutrition() {
           open={showGoalsOnboarding}
           userProfile={userProfile}
           onComplete={handleOnboardingComplete}
+          onDismiss={handleOnboardingDismiss}
         />
       </ErrorBoundary>
 

@@ -1,4 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import FlexynLogo from './FlexynLogo';
 import { Apple, LayoutDashboard, MessageCircle, Play, Plus, Sparkles, ScanLine, Droplet, TrendingUp, Users, Camera, Scale, ShoppingBag } from 'lucide-react';
@@ -402,9 +402,11 @@ export default function Layout() {
       <main className="lg:ms-64 flex flex-col pt-[56px] pb-[calc(4rem+env(safe-area-inset-bottom))] lg:pb-0 overscroll-y-none">
         <Header />
         <PullToRefresh>
-          <AnimatedRoutes resetNonce={tabResetNonce}>
-            <Outlet />
-          </AnimatedRoutes>
+          {/* AnimatedRoutes owns the <Outlet /> — it keys the routed page
+              for its enter transition and has to control that subtree's
+              identity. See the long note in AnimatedRoutes.jsx for why
+              the page must never be mounted more than once. */}
+          <AnimatedRoutes resetNonce={tabResetNonce} />
         </PullToRefresh>
       </main>
 

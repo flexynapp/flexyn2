@@ -14,6 +14,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useWeightUnit } from '@/lib/WeightUnitContext';
 import { DIETARY_RESTRICTIONS, ALLERGENS, ALLERGEN_IDS, parseCustomTerms, persistRestrictions } from '@/lib/nutritionPlans';
+import { nutritionOnboardedKey } from '@/lib/nutritionOnboardingGate';
 
 const GOALS = [
   { id: 'lose',     icon: TrendingDown, color: 'text-blue-500',   bg: 'bg-blue-500/10',   titleKey: 'nutritionOnboarding.goal.lose.title',     descKey: 'nutritionOnboarding.goal.lose.desc' },
@@ -101,7 +102,7 @@ function computePreview({ userProfile, goal, targetLbs, targetDate, activity }) 
   return { calories, protein_g, carbs_g, fat_g, weeklyRate, tdee: Math.round(tdee), warning };
 }
 
-export default function NutritionOnboardingModal({ open, userProfile, onComplete }) {
+export default function NutritionOnboardingModal({ open, userProfile, onComplete, onDismiss }) {
   const { t } = useLanguage();
   const { weightUnit } = useWeightUnit();
   const { user } = useAuth();
@@ -110,7 +111,7 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
   // wrote bare `fn-nutrition-onboarded` which meant User A completing
   // onboarding caused User B (on the same device) to never see the
   // modal. Wave 57 caught this.
-  const onboardedKey = `flexyn.nutritionOnboarded.${user?.id || 'anon'}`;
+  const onboardedKey = nutritionOnboardedKey(user?.id);
   const [step, setStep] = useState(0);
   const [goal, setGoal] = useState(null);
   const [targetWeight, setTargetWeight] = useState('');
@@ -252,14 +253,19 @@ export default function NutritionOnboardingModal({ open, userProfile, onComplete
     onComplete?.();
   };
 
-  // Dismiss WITHOUT marking complete — for accidental backdrop / Esc /
-  // top-right X taps. Previously every dismissal called handleSkip
-  // which permanently flipped nutrition_onboarding_complete=true, so a
-  // single misclick locked the user into the default 2000 kcal goals
-  // FOREVER with no path back to onboarding. The modal can re-open on
-  // next visit if completion never happened. (Audit 11 #1.)
+  // Dismiss WITHOUT marking complete — for backdrop / Esc / top-right X
+  // taps. Previously every dismissal called handleSkip which permanently
+  // flipped nutrition_onboarding_complete=true, so a single misclick
+  // locked the user into the default 2000 kcal goals FOREVER with no path
+  // back to onboarding. The modal can re-open on next visit if completion
+  // never happened. (Audit 11 #1.)
+  //
+  // `onDismiss` is what records the session-scoped "don't ask again this
+  // session" flag; it is deliberately a DIFFERENT callback from
+  // `onComplete` so the parent can tell "closed it" apart from "finished
+  // it". Falls back to onComplete for any caller that hasn't wired it.
   const handleDismissWithoutCompleting = () => {
-    onComplete?.();
+    (onDismiss || onComplete)?.();
   };
 
   return (
