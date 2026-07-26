@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile, BarChart3 } from 'lucide-react';
+import { ArrowLeft, Send, Lock, Paperclip, X, CornerUpLeft, Search, Clock, Smile } from 'lucide-react';
 import { highlightMatches, countMatches } from '@/lib/highlightMatches';
 import { acceptConversation } from '@/lib/data/conversationRequests';
 import { deleteMyMessage, scheduleMyMessage, listMyScheduled, cancelMyScheduledMessage } from '@/lib/data/dmLifecycle';
@@ -1684,15 +1684,10 @@ export default function HubChat({ conversation, otherUser = null, onBack }) {
             GIF
           </button>
         )}
-        {/* Poll — in-chat poll with live vote tally. */}
-        <button
-          onClick={() => setPollComposerOpen(v => !v)}
-          aria-label={tFallback('hub.poll.create', 'Create a poll')}
-          title={tFallback('hub.poll.create', 'Create a poll')}
-          className={`p-2 rounded-lg transition-colors shrink-0 ${pollComposerOpen ? 'bg-primary/15 text-primary' : 'text-muted-foreground hover:text-foreground hover:bg-secondary'}`}
-        >
-          <BarChart3 className="w-4 h-4" />
-        </button>
+        {/* Poll creation is intentionally NOT offered in 1:1 DMs — polls are a
+            group-audience feature, so they live on Hub posts and in Crew chats.
+            Existing poll messages still RENDER + accept votes here (PollBubble
+            below), so any poll sent before this change keeps working. */}
         <textarea
           ref={textareaRef}
           value={draft}
