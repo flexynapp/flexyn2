@@ -377,7 +377,7 @@ function AchievementBlock({ snap }) {
 
 // ─── Regimen: name + first 5 exercises ───
 function RegimenBlock({ snap, post }) {
-  const { t } = useLanguage();
+  const { t, tFallback } = useLanguage();
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [copying, setCopying] = useState(false);
@@ -445,7 +445,7 @@ function RegimenBlock({ snap, post }) {
           disabled={copying || showCopied}
           className="shrink-0 px-3 py-1.5 rounded-md bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 disabled:opacity-50 transition-colors"
         >
-          {copying ? t('hub.activity.copyingRegimen') : showCopied ? t('hub.activity.copiedRegimen') : t('hub.activity.copyRegimen')}
+          {copying ? tFallback('hub.activity.savingRegimen', 'Saving…') : showCopied ? tFallback('hub.activity.savedRegimen', 'Saved') : tFallback('hub.activity.saveRegimen', 'Save')}
         </button>
       </div>
       {exCount > 0 && (
