@@ -28,6 +28,7 @@ import { useReadReceiptsEnabled } from '@/hooks/useReadReceiptsEnabled';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
 import { filterConversationsByQuery } from '@/lib/dmSearch';
+import { reportError } from '@/lib/reportError';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -263,6 +264,28 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     );
   }, [queryClient, user?.email]);
 
+  // Postgres RAISEs from the request RPCs carry a meaningful message
+  // ('conversation_already_accepted', 'not_a_participant',
+  // 'not_a_message_request', 'unauthenticated'). Swallowing them behind a
+  // generic "try again" has now cost two separate diagnosis round-trips —
+  // the failing call was invisible from the toast and from Sentry. Surface
+  // the code and report it, same as the story-post path.
+  const describeRpcError = useCallback((err) => {
+    const code = err?.code || err?.status || '';
+    const msg = err?.message || err?.error_description || (typeof err === 'string' ? err : '') || 'unknown error';
+    return `${code ? code + ': ' : ''}${msg}`.slice(0, 140);
+  }, []);
+
+  const reportRequestFailure = useCallback((err, feature, convId) => {
+    reportError(err instanceof Error ? err : new Error(String(err?.message || err)), {
+      feature,
+      level: 'warning',
+      userEmail: user?.email,
+      convId,
+      code: err?.code || '',
+    });
+  }, [user?.email]);
+
   const handleAcceptRequest = useCallback(async (convId) => {
     if (!convId) return;
     setRequestBusyId(convId);
@@ -270,12 +293,16 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       await acceptConversation(convId);
       refreshConversations();
       toast.success(tFallback('hub.messages.request.accepted', 'Moved to your inbox.'));
-    } catch {
-      toast.error(tFallback('hub.messages.request.error', 'Could not update that request. Try again.'));
+    } catch (err) {
+      reportRequestFailure(err, 'dm.accept', convId);
+      toast.error(
+        `${tFallback('hub.messages.request.error', 'Could not update that request.')} ${describeRpcError(err)}`,
+        { duration: 9000 },
+      );
     } finally {
       setRequestBusyId(null);
     }
-  }, [refreshConversations, tFallback]);
+  }, [refreshConversations, tFallback, describeRpcError, reportRequestFailure]);
 
   const handleDeleteRequest = useCallback(async (convId) => {
     if (!convId) return;
@@ -286,12 +313,16 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       dropConversationFromCache(convId);
       refreshConversations();
       toast.success(tFallback('hub.messages.request.deleted', 'Request deleted.'));
-    } catch {
-      toast.error(tFallback('hub.messages.request.error', 'Could not delete that request. Try again.'));
+    } catch (err) {
+      reportRequestFailure(err, 'dm.purge', convId);
+      toast.error(
+        `${tFallback('hub.messages.request.error', 'Could not delete that request.')} ${describeRpcError(err)}`,
+        { duration: 9000 },
+      );
     } finally {
       setRequestBusyId(null);
     }
-  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback, describeRpcError, reportRequestFailure]);
 
   // Withdraw your OWN outgoing request. Lives in the Inbox, not
   // Requests — you accepted the thread by creating it — so this is the
@@ -307,12 +338,16 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
       dropConversationFromCache(convId);
       refreshConversations();
       toast.success(tFallback('hub.messages.request.unsent', 'Request withdrawn.'));
-    } catch {
-      toast.error(tFallback('hub.messages.request.unsendError', 'Could not withdraw that request. Try again.'));
+    } catch (err) {
+      reportRequestFailure(err, 'dm.unsend', convId);
+      toast.error(
+        `${tFallback('hub.messages.request.unsendError', 'Could not withdraw that request.')} ${describeRpcError(err)}`,
+        { duration: 9000 },
+      );
     } finally {
       setRequestBusyId(null);
     }
-  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback]);
+  }, [disarmDelete, dropConversationFromCache, refreshConversations, tFallback, describeRpcError, reportRequestFailure]);
 
   const handleBlockRequest = useCallback(async (convId, otherEmail) => {
     if (!convId || !otherEmail) return;
@@ -793,7 +828,14 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         setActiveConv(c);
                         setOpenOtherUser(profile ? { ...profile, email: otherEmail } : { id: otherId, email: otherEmail, username });
                       }}
-                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
+                      // lg:pe-12 reserves the strip the absolutely-positioned
+                      // three-dot menu occupies (32px button, inset end-2).
+                      // Without it the delivery-status icon — the last thing
+                      // on the timestamp line — runs right up against the
+                      // ellipsis, which is what "the eye and ellipses are too
+                      // close together" describes. Only on lg, since the menu
+                      // itself is hidden below that breakpoint.
+                      className="w-full flex items-center gap-3 p-3 lg:pe-12 rounded-xl hover:bg-secondary/40 active:bg-secondary/60 transition-colors text-start"
                     >
                       <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0 font-heading font-bold text-primary text-base overflow-hidden">
                         {profile?.avatar_url ? (
@@ -939,8 +981,20 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         </div>
                       )
                     )}
-                    {/* Desktop three-dot menu — lg only */}
-                    <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {/* Desktop three-dot menu — lg only.
+                        While THIS row's menu is open the container is pinned
+                        visible instead of riding on group-hover. The popover
+                        opens at top-10 and is ~120px tall, so most of it hangs
+                        below the row it belongs to; anything that breaks the
+                        hover relationship mid-interaction — the list
+                        reordering under the pointer on the 15s refetch, a
+                        re-render, or the pointer crossing a sibling row —
+                        dropped the whole container back to opacity-0 and the
+                        menu vanished before the click landed. Tying visibility
+                        to open state removes that entire class of failure. */}
+                    <div className={`hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 transition-opacity ${
+                      openMenuId === c.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                    }`}>
                       <button
                         onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === c.id ? null : c.id); }}
                         className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
@@ -1073,8 +1127,11 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
-                  {/* Desktop three-dot menu — lg only */}
-                  <div className="hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Desktop three-dot menu — lg only. Same open-state pin as
+                      the DM rows above, for the same reason. */}
+                  <div className={`hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 transition-opacity ${
+                    openMenuId === crew.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+                  }`}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === crew.id ? null : crew.id); }}
                       className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"

@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import * as hubMessages from '@/lib/data/hubMessages';
+import { reportError } from '@/lib/reportError';
 
 // Global unread DM count. Single source of truth — header and any
 // future surface should read from this hook. Cadence matches the
@@ -41,12 +42,32 @@ export function useStartConversation() {
       toast.error(tFallback('hub.messages.authNotReady', 'Still signing you in — try again in a moment.'));
       return;
     }
-    if (!targetUserObj?.email) {
-      console.error('[hubMessaging] start called without target email');
+    // Accept an id OR an email. Preferring the id removes a whole class of
+    // race: HubProfile resolves a target's email through an async
+    // resolve_profile_email query (email left the public_profiles view in
+    // mig 220), and its Message button was enabled BEFORE that query even
+    // started — so an early tap arrived with email still null and this
+    // guard returned in silence. findOrCreateConversation already accepts
+    // a uuid and resolves it server-side, so the id is the better key: it
+    // is present synchronously on every nav target.
+    const targetKey = targetUserObj?.id ?? targetUserObj?.email ?? null;
+    if (!targetKey) {
+      // Previously a bare console.error + return. A user-initiated tap
+      // that does NOTHING — no toast, no spinner, no navigation — is its
+      // own defect regardless of cause, so this is now loud in the UI and
+      // reported for diagnosis.
+      const err = new Error('startConversation called without a target id or email');
+      reportError(err, {
+        feature: 'dm.start',
+        level: 'warning',
+        userEmail: user?.email,
+        target: (() => { try { return JSON.stringify(targetUserObj)?.slice(0, 200); } catch { return String(targetUserObj); } })(),
+      });
+      toast.error(tFallback('hub.messages.startError', 'Could not start conversation. Try again.'));
       return;
     }
     try {
-      const conv = await hubMessages.findOrCreateConversation(user.email, targetUserObj.email);
+      const conv = await hubMessages.findOrCreateConversation(user.email, targetKey);
       if (!conv) {
         toast.error(tFallback('hub.messages.startError', 'Could not start conversation. Try again.'));
         throw new Error('no-conversation');

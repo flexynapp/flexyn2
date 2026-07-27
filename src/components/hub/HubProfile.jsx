@@ -7,6 +7,7 @@ import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
+import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
 import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink, Coins, Swords } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
@@ -639,33 +640,49 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     },
   });
 
+  // The target key handed to the conversation starter. `targetId` is
+  // available synchronously from the nav target; `email` is not — it comes
+  // from an async resolve_profile_email query, because email left the
+  // public_profiles view in mig 220. Preferring the id is what stops the
+  // Message button from depending on that round-trip at all.
+  const messageTargetKey = targetId || email || null;
+
   const startConversationMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.email || !email) {
-        throw new Error('missing-user');
-      }
-      if (!onStartConversation) {
-        throw new Error('no-handler');
-      }
-      await onStartConversation({ email, username: ownerUsername, avatar_url: avatarUrl });
+      if (!user?.email) throw new Error('missing-user');
+      if (!onStartConversation) throw new Error('no-handler');
+      if (!messageTargetKey) throw new Error('missing-target');
+      await onStartConversation({
+        id: targetId || null,
+        email,
+        username: ownerUsername,
+        avatar_url: avatarUrl,
+      });
     },
     onError: (err) => {
+      // Every branch surfaces something. This button used to be able to
+      // fail with no feedback whatsoever.
       if (err?.message === 'missing-user') {
         toast.error(t('hub.profile.messageNotReady'));
-      } else if (err?.message === 'no-handler') {
-        console.error('[HubProfile] message: no onStartConversation handler');
+        return;
       }
+      toast.error(t('hub.profile.messageNotReady'));
+      reportError(err instanceof Error ? err : new Error(String(err)), {
+        feature: 'dm.start',
+        level: 'warning',
+        userEmail: user?.email,
+        reason: err?.message || 'unknown',
+      });
     },
   });
 
   const handleMessage = () => {
-    // Defense in depth — the button itself is disabled in these states,
-    // but if a click somehow gets through (synthetic event, focus + Enter,
-    // etc.) we still bail rather than firing the mutation against a null user.
     if (startConversationMutation.isPending) return;
-    if (!user?.email) return;
-    if (!onStartConversation) return;
-    if (!email) return;
+    // Anything else that would have bailed silently now goes through the
+    // mutation so onError can speak. The old version returned early on
+    // four separate conditions with no toast, no log and no navigation —
+    // which is exactly what "nothing occurs, not even an error code"
+    // looked like from the outside.
     startConversationMutation.mutate();
   };
 
@@ -1737,7 +1754,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               //   1. Auth still loading           → spinner, not tappable
               //   2. Conversation start in flight → spinner + "Working..."
               //   3. Ready                        → MessageCircle + "Message"
-              const authReady = !!user?.email && !!onStartConversation;
+              // Readiness must include the TARGET, not just the viewer.
+              // Previously this was viewer-only, so the button rendered
+              // fully enabled while the target's email was still
+              // resolving — measured at ~1.5s on a fast connection, and
+              // the button was live before the lookup even started.
+              // Tapping in that window hit a silent early return.
+              // messageTargetKey is satisfied by the id, so this is
+              // usually true on first paint rather than after a wait.
+              const authReady = !!user?.email && !!onStartConversation && !!messageTargetKey;
               const inFlight = startConversationMutation.isPending;
               const disabled = !authReady || inFlight;
               return (
