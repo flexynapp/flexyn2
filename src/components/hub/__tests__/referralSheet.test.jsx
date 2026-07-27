@@ -135,6 +135,38 @@ describe('ReferralSheet — claim outcomes', () => {
   });
 });
 
+describe('ReferralSheet — already claimed', () => {
+  it('shows the code you joined with instead of an unusable field', () => {
+    renderSheet({ hasClaimed: true, claimedCode: 'XYZ789' });
+    expect(screen.queryByLabelText(/Got a friend/i)).toBeNull();
+    expect(screen.queryByRole('button', { name: /Redeem/i })).toBeNull();
+    expect(screen.getByText(/You joined with code XYZ789/i)).toBeTruthy();
+  });
+
+  it('falls back to a generic line when the claimed code is unknown', () => {
+    renderSheet({ hasClaimed: true, claimedCode: null });
+    expect(screen.getByText(/already used an invite code/i)).toBeTruthy();
+  });
+
+  it('still offers the field on a pre-249 database', () => {
+    // my_referral_stats without has_claimed → undefined → falsy. The field
+    // renders as before and the server remains the backstop.
+    renderSheet({ hasClaimed: undefined, claimedCode: undefined });
+    expect(screen.getByLabelText(/Got a friend/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Redeem/i })).toBeTruthy();
+  });
+
+  it('shows the fresh receipt, not the stale flag, right after claiming', async () => {
+    // hasClaimed is still false in the query cache for the moment between a
+    // successful claim and the refetch. The in-session receipt must win.
+    claimReferral.mockResolvedValue({ ok: true });
+    renderSheet({ hasClaimed: false });
+    fireEvent.change(input(), { target: { value: 'ABC123' } });
+    fireEvent.click(redeemBtn());
+    await waitFor(() => expect(screen.getByText(/Code applied/i)).toBeTruthy());
+  });
+});
+
 describe('ReferralSheet — restore', () => {
   it('offers a way back only when the card is hidden', () => {
     const { rerender } = renderSheet({ cardHidden: false });

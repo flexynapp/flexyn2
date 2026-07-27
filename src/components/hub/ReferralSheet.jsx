@@ -27,7 +27,10 @@ import { reportError } from '@/lib/reportError';
 // "abc 123" and "ABC-123" both work — people retype these from memory.
 const normaliseCode = (raw) => (raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
-export default function ReferralSheet({ open, onClose, code, count, coins, onCopy, onShare, copied, cardHidden, onRestoreCard }) {
+export default function ReferralSheet({
+  open, onClose, code, count, coins, onCopy, onShare, copied,
+  hasClaimed, claimedCode, cardHidden, onRestoreCard,
+}) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const queryClient = useQueryClient();
@@ -164,15 +167,33 @@ export default function ReferralSheet({ open, onClose, code, count, coins, onCop
                 </div>
               </section>
 
-              {/* ── Redeem someone else's ── */}
+              {/* ── Redeem someone else's ──
+                  `hasClaimed` comes from my_referral_stats (migration 249).
+                  Before it existed the field rendered enabled for everyone
+                  and a user who had already redeemed learned that only by
+                  submitting and being rejected. Now the state is visible
+                  before they type. `claimedOk` covers the same ground for a
+                  claim made in this session, where the flag is still stale
+                  in the query cache. */}
               <section className="pt-4 border-t border-border/50">
                 <label
                   htmlFor="referral-redeem"
                   className="block text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2"
                 >
-                  {tFallback('referral.redeem.label', 'Got a friend\'s code?')}
+                  {hasClaimed && !claimedOk
+                    ? tFallback('referral.redeem.usedLabel', 'Invite code')
+                    : tFallback('referral.redeem.label', 'Got a friend\'s code?')}
                 </label>
-                {claimedOk ? (
+                {hasClaimed && !claimedOk ? (
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-sm text-muted-foreground">
+                    <TicketCheck className="w-4 h-4 shrink-0 text-emerald-500" aria-hidden="true" />
+                    <span>
+                      {claimedCode
+                        ? tFallback('referral.redeem.usedWith', 'You joined with code {code}.').replace('{code}', claimedCode)
+                        : tFallback('referral.redeem.already', 'You\'ve already used an invite code.')}
+                    </span>
+                  </div>
+                ) : claimedOk ? (
                   <div className="flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5 text-sm text-emerald-600 dark:text-emerald-400">
                     <TicketCheck className="w-4 h-4 shrink-0" aria-hidden="true" />
                     {tFallback('referral.redeem.done', 'Code applied. Rewards are on their way.')}

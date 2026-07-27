@@ -68,6 +68,12 @@ export default function ReferralCard() {
   const code = stats?.code || null;
   const count = stats?.total_referrals ?? 0;
   const coins = stats?.total_coins_earned ?? 0;
+  // Migration 249. Absent on a client talking to a pre-249 database, in
+  // which case `undefined` is falsy and the redeem field simply renders
+  // enabled the way it did before — the server still rejects a second
+  // claim with 'already_claimed'.
+  const hasClaimed = stats?.has_claimed === true;
+  const claimedCode = stats?.claimed_code || null;
 
   const handleCopy = async () => {
     const url = shareUrlForCode(code);
@@ -117,6 +123,8 @@ export default function ReferralCard() {
       onCopy={handleCopy}
       onShare={handleShare}
       copied={copied}
+      hasClaimed={hasClaimed}
+      claimedCode={claimedCode}
       cardHidden={hidden}
       onRestoreCard={() => setHiddenPersisted(false)}
     />
@@ -215,15 +223,19 @@ export default function ReferralCard() {
 
         {/* Redeem entry point. The field itself lives in the sheet so there
             is exactly one implementation of the claim flow, reachable
-            whether or not the card is dismissed. */}
-        <button
-          type="button"
-          onClick={() => setSheetOpen(true)}
-          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-        >
-          {tFallback('referral.redeem.label', "Got a friend's code?")}
-          <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
-        </button>
+            whether or not the card is dismissed. Hidden once the viewer has
+            claimed — asking "got a code?" when they can't use one is a
+            prompt that leads nowhere. */}
+        {!hasClaimed && (
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {tFallback('referral.redeem.label', "Got a friend's code?")}
+            <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+          </button>
+        )}
 
         {/* Earnings strip */}
         {count > 0 && (
