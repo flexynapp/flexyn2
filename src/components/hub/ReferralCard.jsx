@@ -14,12 +14,19 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Gift, Copy, Share2, Check } from 'lucide-react';
+import { Gift, Copy, Share2, Check, X, ChevronRight } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import { getMyReferralStats } from '@/lib/data/referrals';
+import ReferralSheet from './ReferralSheet';
+
+// Per-device dismissal, matching the `flexyn.<feature>.<userId>` convention
+// (see CLAUDE.md and ProfileCompletionMeter). Per-user rather than global so
+// a shared device doesn't hide one person's card because the other dismissed
+// theirs.
+const LS_KEY = (userId) => `flexyn.referralCardHidden.${userId || 'anon'}`;
 
 function shareUrlForCode(code) {
   if (!code) return '';
@@ -35,6 +42,21 @@ export default function ReferralCard() {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [copied, setCopied] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  // Read once on mount — the flag only changes through this component, so
+  // there's nothing to subscribe to.
+  const [hidden, setHidden] = useState(() => {
+    try { return localStorage.getItem(LS_KEY(user?.id)) === '1'; }
+    catch { return false; }
+  });
+
+  const setHiddenPersisted = (next) => {
+    setHidden(next);
+    try {
+      if (next) localStorage.setItem(LS_KEY(user?.id), '1');
+      else localStorage.removeItem(LS_KEY(user?.id));
+    } catch { /* private mode — the in-memory state still applies this session */ }
+  };
 
   const { data: stats } = useQuery({
     queryKey: ['referralStats', user?.id],
@@ -85,6 +107,45 @@ export default function ReferralCard() {
 
   if (!user?.id) return null;
 
+  const sheet = (
+    <ReferralSheet
+      open={sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      code={code}
+      count={count}
+      coins={coins}
+      onCopy={handleCopy}
+      onShare={handleShare}
+      copied={copied}
+      cardHidden={hidden}
+      onRestoreCard={() => setHiddenPersisted(false)}
+    />
+  );
+
+  // ── Dismissed: a pill that opens the same surface as a sheet ──
+  // Everything the card offers stays one tap away, and the redeem field
+  // lives in the sheet in both states — so hiding the promo costs the user
+  // no capability, which is what makes it safe to offer.
+  if (hidden) {
+    return (
+      <>
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="w-full flex items-center gap-2 px-3.5 py-2.5 rounded-full border border-border text-sm font-semibold hover:bg-secondary transition-colors"
+        >
+          <Gift className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+          <span>{tFallback('referral.kicker', 'Invite friends')}</span>
+          {count > 0 && (
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">{count}</span>
+          )}
+          <ChevronRight className="w-4 h-4 text-muted-foreground ms-auto shrink-0" aria-hidden="true" />
+        </button>
+        {sheet}
+      </>
+    );
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
@@ -92,20 +153,31 @@ export default function ReferralCard() {
       transition={{ duration: 0.4 }}
       className="rounded-2xl border border-border overflow-hidden bg-gradient-to-br from-amber-500/5 via-transparent to-rose-500/5"
     >
-      <div className="px-4 py-3 flex items-center justify-between border-b border-border/40">
-        <div className="flex items-center gap-2">
-          <Gift className="w-4 h-4 text-amber-500" aria-hidden="true" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-500">
+      <div className="px-4 py-3 flex items-center justify-between gap-2 border-b border-border/40">
+        <div className="flex items-center gap-2 min-w-0">
+          <Gift className="w-4 h-4 text-amber-500 shrink-0" aria-hidden="true" />
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500 truncate">
             {tFallback('referral.kicker', 'Invite friends')}
           </span>
         </div>
-        {count > 0 && (
-          <span className="text-[11px] text-muted-foreground">
-            {count === 1
-              ? tFallback('referral.invited.one', '1 friend joined')
-              : tFallback('referral.invited.many', '{count} friends joined', { count })}
-          </span>
-        )}
+        <div className="flex items-center gap-1 shrink-0">
+          {count > 0 && (
+            <span className="text-xs text-muted-foreground">
+              {count === 1
+                ? tFallback('referral.invited.one', '1 friend joined')
+                : tFallback('referral.invited.many', '{count} friends joined', { count })}
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setHiddenPersisted(true)}
+            className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+            aria-label={tFallback('referral.hide', 'Hide invite friends')}
+            title={tFallback('referral.hide', 'Hide invite friends')}
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
       </div>
 
       <div className="px-4 py-3.5 space-y-3">
@@ -141,9 +213,21 @@ export default function ReferralCard() {
           </button>
         </div>
 
+        {/* Redeem entry point. The field itself lives in the sheet so there
+            is exactly one implementation of the claim flow, reachable
+            whether or not the card is dismissed. */}
+        <button
+          type="button"
+          onClick={() => setSheetOpen(true)}
+          className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {tFallback('referral.redeem.label', "Got a friend's code?")}
+          <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+        </button>
+
         {/* Earnings strip */}
         {count > 0 && (
-          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-[11px] text-muted-foreground">
+          <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs text-muted-foreground">
             <span>{tFallback('referral.lifetime', 'Lifetime')}</span>
             <span className="tabular-nums font-semibold text-amber-500">
               {fmt(coins)} {tFallback('referral.coins', 'coins')}
@@ -153,6 +237,8 @@ export default function ReferralCard() {
           </div>
         )}
       </div>
+
+      {sheet}
     </motion.div>
   );
 }
