@@ -16,7 +16,11 @@ import ProfileTrophies from '../ProfileTrophies';
 import ProfileTabs, { ProfileTabPanel } from '../ProfileTabs';
 import { TROPHIES } from '@/lib/trophyDefinitions';
 
-const LABELS = { posts: 'posts', followers: 'followers', following: 'following' };
+const FORMS = {
+  posts:     { one: 'post', other: 'posts' },
+  followers: { one: 'follower', other: 'followers' },
+  following: { other: 'following' },
+};
 const TIER = {
   name: 'Ruby',
   badge: 'from-red-400 via-rose-500 to-pink-500',
@@ -36,7 +40,7 @@ describe('ProfileMetrics', () => {
         postCount={47}
         followerCount={2300}
         followingCount={418}
-        labels={LABELS}
+        forms={FORMS}
         language="en"
       />
     );
@@ -53,7 +57,7 @@ describe('ProfileMetrics', () => {
         postCount={null}
         followerCount={undefined}
         followingCount={0}
-        labels={LABELS}
+        forms={FORMS}
         language="en"
       />
     );
@@ -69,7 +73,7 @@ describe('ProfileMetrics', () => {
         followingCount={3}
         onOpenFollowers={onFollowers}
         onOpenFollowing={vi.fn()}
-        labels={LABELS}
+        forms={FORMS}
         language="en"
       />
     );

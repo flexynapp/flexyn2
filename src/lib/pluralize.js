@@ -57,10 +57,33 @@ function fillN(template, formatted) {
  * @returns {string}
  */
 export function pluralize(count, forms, locale = FALLBACK_LOCALE) {
+  return fillN(pluralForm(count, forms, locale), String(count));
+}
+
+/**
+ * Pick the correct plural form and return it UNFILLED — no number
+ * prepended, no `{n}` substituted.
+ *
+ * `pluralize` and `formatCount` both bake the number into the string, which
+ * is what you want for "2,340 followers" in running text. It's not what you
+ * want when the number is its own element — a bolded count next to a muted
+ * noun, say — because you end up rendering the count twice. Use this to get
+ * just the noun and own the number yourself.
+ *
+ * @param {number} count
+ * @param {object} forms  { one, two, few, many, other, zero }; provide at minimum `other`.
+ * @param {string} [locale]
+ * @returns {string}
+ */
+export function pluralForm(count, forms, locale = FALLBACK_LOCALE) {
   const safeForms = forms || {};
   const category = pickCategory(count, locale);
   const template = safeForms[category] ?? safeForms.other ?? '';
-  return fillN(template, String(count));
+  // A template written for `pluralize` may carry the placeholder; strip it
+  // (and the space it leaves behind) rather than leaking "{n}" into the UI.
+  return typeof template === 'string'
+    ? template.replace(/\{n\}/g, '').trim()
+    : String(template ?? '');
 }
 
 /**

@@ -9,11 +9,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
-import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink, TrendingUp } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
-import { pluralize } from '@/lib/pluralize';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import { db } from '@/api/db';
@@ -1348,10 +1347,10 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           onOpenFollowers={() => setOpenModal('followers')}
           onOpenFollowing={() => setOpenModal('following')}
           language={language}
-          labels={{
-            posts: pluralize(posts.length, { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') }, language),
-            followers: pluralize(followerIds.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language),
-            following: tFallback('hub.profile.following', 'following'),
+          forms={{
+            posts: { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') },
+            followers: { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') },
+            following: { other: tFallback('hub.profile.following', 'following') },
           }}
         />
 
@@ -1541,36 +1540,60 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       <ProfileTabPanel id="stats" active={activeTab}>
         {/* Lift stats — top 3 1RM lifts + total tonnage + longest
             streak. Self-hides on cold accounts (zero workouts logged). */}
-        <ProfileLiftStats
-          userEmail={isSelf ? user?.email : targetUser?.email}
-          longestStreak={isSelf
-            ? user?.longest_workout_streak
-            : targetUser?.longest_workout_streak}
-          isOwn={isSelf}
-          username={displayUsername}
-        />
+        {/*
+          `peer` + `peer-empty:` handles the cold-account case. Every child
+          here self-hides when it has nothing to show — which used to be
+          invisible, because these were inline sections you'd simply never
+          see. Behind a *named tab* the same behaviour becomes a tab that
+          leads to a blank screen. When all of them return null this wrapper
+          is genuinely childless, `:empty` matches, and the fallback below
+          takes over. Declarative, so it re-resolves on its own when the
+          lift-stats query lands.
+        */}
+        <div className="peer">
+          <ProfileLiftStats
+            userEmail={isSelf ? user?.email : targetUser?.email}
+            longestStreak={isSelf
+              ? user?.longest_workout_streak
+              : targetUser?.longest_workout_streak}
+            isOwn={isSelf}
+            username={displayUsername}
+          />
 
-        {/* Recent badges — drives the "earn one more badge" identity
-            investment loop. Self-hides when there's nothing to flex. */}
-        <ProfileBadgeShowcase
-          userEmail={isSelf ? user?.email : targetUser?.email}
-          userId={isSelf ? user?.id : targetProfile?.id}
-          isOwn={isSelf}
-        />
+          {/* Recent badges — drives the "earn one more badge" identity
+              investment loop. Self-hides when there's nothing to flex. */}
+          <ProfileBadgeShowcase
+            userEmail={isSelf ? user?.email : targetUser?.email}
+            userId={isSelf ? user?.id : targetProfile?.id}
+            isOwn={isSelf}
+          />
 
-        {/* Profile completion meter — own profile only, dismissible
-            once at 100%. */}
-        {isSelf && (
-          <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
-        )}
+          {/* Profile completion meter — own profile only, dismissible
+              once at 100%. */}
+          {isSelf && (
+            <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
+          )}
 
-        {/* Referral card — own profile only. Every share is an unpaid
-            distribution opportunity. */}
-        {isSelf && (
-          <div className="mb-4">
-            <ReferralCard />
-          </div>
-        )}
+          {/* Referral card — own profile only. Every share is an unpaid
+              distribution opportunity. */}
+          {isSelf && (
+            <div className="mb-4">
+              <ReferralCard />
+            </div>
+          )}
+        </div>
+
+        <div className="hidden peer-empty:block">
+          <EmptyState
+            icon={TrendingUp}
+            title={isSelf
+              ? tFallback('hub.profile.noStatsSelfTitle', 'No stats yet')
+              : tFallback('hub.profile.noStatsTitle', 'Nothing logged yet')}
+            body={isSelf
+              ? tFallback('hub.profile.noStatsSelfBody', 'Log a workout and your best lifts, tonnage and streak show up here.')
+              : tFallback('hub.profile.noStatsBody', 'Their lifts and badges will appear here once they start training.')}
+          />
+        </div>
       </ProfileTabPanel>
 
       <ProfileTabPanel id="trophies" active={activeTab}>

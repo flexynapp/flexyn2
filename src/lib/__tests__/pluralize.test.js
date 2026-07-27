@@ -3,7 +3,7 @@
 // placeholder rules, and locale-aware number formatting via formatCount.
 
 import { describe, it, expect } from 'vitest';
-import { pluralize, formatCount } from '../pluralize';
+import { pluralize, pluralForm, formatCount } from '../pluralize';
 
 describe('pluralize', () => {
   const en = { one: '{n} follower', other: '{n} followers' };
@@ -65,5 +65,45 @@ describe('formatCount', () => {
     const result = formatCount(5, { one: '{n} item', other: '{n} items' }, 'nonsense-locale-tag');
     expect(typeof result).toBe('string');
     expect(result).toContain('item');
+  });
+});
+
+describe('pluralForm', () => {
+  const bare = { one: 'follower', other: 'followers' };
+  const templated = { one: '{n} follower', other: '{n} followers' };
+
+  it('returns the noun alone, with no number prepended', () => {
+    // This is the whole point: pluralize(0, bare) is "0 followers", which
+    // double-renders the count when the caller already shows the number in
+    // its own element. The profile metrics row hit exactly that.
+    expect(pluralize(0, bare, 'en')).toBe('0 followers');
+    expect(pluralForm(0, bare, 'en')).toBe('followers');
+    expect(pluralForm(1, bare, 'en')).toBe('follower');
+    expect(pluralForm(2300, bare, 'en')).toBe('followers');
+  });
+
+  it('strips a {n} placeholder rather than leaking it into the UI', () => {
+    expect(pluralForm(1, templated, 'en')).toBe('follower');
+    expect(pluralForm(5, templated, 'en')).toBe('followers');
+  });
+
+  it('picks complex plural categories the same way pluralize does', () => {
+    const pl = {
+      one: 'obserwujący',
+      few: 'obserwujących',
+      many: 'obserwujących',
+      other: 'obserwujących',
+    };
+    expect(pluralForm(1, pl, 'pl')).toBe('obserwujący');
+    expect(pluralForm(3, pl, 'pl')).toBe('obserwujących');
+  });
+
+  it('falls back to `other` when the category is absent', () => {
+    expect(pluralForm(1, { other: 'following' }, 'en')).toBe('following');
+  });
+
+  it('survives missing forms without throwing', () => {
+    expect(pluralForm(3, null, 'en')).toBe('');
+    expect(pluralForm(3, {}, 'en')).toBe('');
   });
 });

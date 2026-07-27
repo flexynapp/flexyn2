@@ -16,15 +16,22 @@
 // none of the reference apps bother with. Compact formatting is the better
 // spend: a user with 2,300 followers reads "2.3K".
 import { formatNumber } from '@/lib/intl';
+import { pluralForm } from '@/lib/pluralize';
 
-function Metric({ value, label, onClick, language }) {
-  // `?? 0` matters: formatNumber returns '' for null/undefined, which would
-  // render a bare label with no number while a count query is still in flight.
-  const formatted = formatNumber(value ?? 0, language, { notation: 'compact', maximumFractionDigits: 1 });
+function Metric({ value, forms, onClick, language }) {
+  // `?? 0` matters twice over: formatNumber returns '' for null/undefined,
+  // which would render a bare noun with no number while a count query is
+  // still in flight, and Intl.PluralRules needs a real number to pick a form.
+  const count = value ?? 0;
+  const formatted = formatNumber(count, language, { notation: 'compact', maximumFractionDigits: 1 });
+  // pluralForm, not pluralize — pluralize bakes the count into the string,
+  // so pairing it with a separate <span> for the number renders it twice.
+  const noun = pluralForm(count, forms, language);
+
   const content = (
     <>
       <span className="font-bold tabular-nums">{formatted}</span>{' '}
-      <span className="text-muted-foreground">{label}</span>
+      <span className="text-muted-foreground">{noun}</span>
     </>
   );
 
@@ -36,7 +43,7 @@ function Metric({ value, label, onClick, language }) {
       type="button"
       onClick={onClick}
       className="text-sm hover:underline underline-offset-2 decoration-muted-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-sm"
-      aria-label={`${value} ${label}`}
+      aria-label={`${count} ${noun}`}
     >
       {content}
     </button>
@@ -49,24 +56,24 @@ export default function ProfileMetrics({
   followingCount,
   onOpenFollowers,
   onOpenFollowing,
-  labels,
+  forms,
   language,
 }) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3">
       <Metric
         value={followerCount}
-        label={labels.followers}
+        forms={forms.followers}
         onClick={onOpenFollowers}
         language={language}
       />
       <Metric
         value={followingCount}
-        label={labels.following}
+        forms={forms.following}
         onClick={onOpenFollowing}
         language={language}
       />
-      <Metric value={postCount} label={labels.posts} language={language} />
+      <Metric value={postCount} forms={forms.posts} language={language} />
     </div>
   );
 }
