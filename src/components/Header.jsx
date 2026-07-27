@@ -76,7 +76,12 @@ export default function Header() {
   };
 
   return (
-    <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/80 backdrop-blur-md border-b border-border select-none-ui"
+    // bg-card/95, not /80: the profile's tier banner is a full-bleed
+    // saturated gradient, and at 80% opacity enough of it bled through while
+    // scrolling to tint the whole bar peach and drop the wordmark's contrast.
+    // Nothing else in the app was colourful enough to expose it. Still
+    // translucent + blurred, just no longer a colour cast.
+    <header className="lg:hidden fixed top-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-md border-b border-border select-none-ui"
       style={{ paddingTop: 'env(safe-area-inset-top)' }}
     >
       <div className="flex items-center h-14 px-3">

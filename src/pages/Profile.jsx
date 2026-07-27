@@ -40,7 +40,15 @@ export default function Profile() {
   };
 
   return (
-    <div className="px-4 md:px-8 max-w-3xl mx-auto py-4">
+    // Padding must match Hub.jsx's `px-4 md:px-6`, because HubProfile's tier
+    // banner reaches the screen edges by cancelling exactly that with
+    // `-mx-4 md:-mx-6`. This route used md:px-8, so on tablet and desktop the
+    // cover sat 8px inset on each side while the same component rendered
+    // flush under /hub.
+    //
+    // No top padding: the banner IS the top of the page and should meet the
+    // fixed header, the way a cover image does everywhere else.
+    <div className="px-4 md:px-6 max-w-3xl mx-auto pb-4">
       <ErrorBoundary label="Profile">
         <HubProfile
           onSelectUser={handleSelectUser}
