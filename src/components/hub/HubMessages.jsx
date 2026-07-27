@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import EmptyState from '@/components/EmptyState';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, CheckCheck, Eye, Trash2, Ban, Undo2 } from 'lucide-react';
+import { Loader2, MessageCircle, Lock, Shield, ChevronRight, Users, MoreHorizontal, Pin, BellOff, LogOut, Archive, ArchiveRestore, Inbox, Mail, UserPlus, Check, CheckCheck, Eye, Trash2, Ban, Undo2, Search, X } from 'lucide-react';
 import { format, parseISO, differenceInDays, formatDistanceToNowStrict } from 'date-fns';
 import { useAuth } from '@/lib/AuthContext';
 import { useDelayedLoading } from '@/hooks/useDelayedLoading';
@@ -27,6 +27,7 @@ import { deriveDeliveryStatus } from '@/lib/dmDeliveryStatus';
 import { useReadReceiptsEnabled } from '@/hooks/useReadReceiptsEnabled';
 import { blockUserFull } from '@/lib/data/userBlocks';
 import NewGroupDMModal from './NewGroupDMModal';
+import { filterConversationsByQuery } from '@/lib/dmSearch';
 
 // Instagram-style relative time: "5m", "2h", "Yesterday", "Mon", "May 1"
 function formatInboxTime(dateStr) {
@@ -59,6 +60,12 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // 'archived' (user-archived). Defaults to inbox.
   const [dmView, setDmView] = useState('inbox');
   const [newGroupOpen, setNewGroupOpen] = useState(false);
+  // Conversation-list search. Collapsed by default — the view switcher
+  // row is already busy, and a permanently-open field would cost vertical
+  // space on every visit to buy something used occasionally.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef(null);
 
   // Desktop three-dot quick-action state.
   //
@@ -443,6 +450,24 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
     staleTime: 60_000,
   });
 
+  // Search narrows the ACTIVE view's rows, so tab scoping is inherent:
+  // `visibleConvs` is already inbox / requests / archived, and filtering
+  // a list can only ever remove from it. Declared after `profilesById`
+  // because usernames are resolved through it.
+  const searchedConvs = useMemo(
+    () => filterConversationsByQuery(visibleConvs, searchQuery, {
+      profilesById,
+      selfId: user?.id,
+    }),
+    [visibleConvs, searchQuery, profilesById, user?.id],
+  );
+  const isSearching = searchQuery.trim().length > 0;
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    setSearchQuery('');
+  }, []);
+
   useEffect(() => {
     if (pendingChatTarget?.conversation?.id) {
       setActiveConv(pendingChatTarget.conversation);
@@ -566,11 +591,53 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                 </button>
               )}
               <button
+                onClick={() => {
+                  if (searchOpen) { closeSearch(); return; }
+                  setSearchOpen(true);
+                  // Focus after the field has mounted.
+                  requestAnimationFrame(() => searchInputRef.current?.focus());
+                }}
+                className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold transition-colors ${
+                  searchOpen ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-secondary'
+                }`}
+                aria-label={tFallback('hub.messages.search.toggle', 'Search conversations')}
+                aria-expanded={searchOpen}
+              >
+                <Search className="w-3.5 h-3.5" />
+              </button>
+              <button
                 onClick={() => setNewGroupOpen(true)}
-                className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary"
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full font-semibold text-primary hover:bg-secondary"
                 aria-label="Start a new group conversation"
               >
                 <UserPlus className="w-3.5 h-3.5" /> New group
+              </button>
+            </div>
+          )}
+
+          {/* Search field — styling mirrors the All Workouts modal's
+              inline filter (icon inset in a rounded secondary field),
+              since this is the same job: narrowing a list that is
+              already in memory. */}
+          {searchOpen && conversations.length > 0 && (
+            <div className="relative mb-3">
+              <Search className="w-4 h-4 absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Escape') closeSearch(); }}
+                placeholder={tFallback('hub.messages.search.placeholder', 'Search by name or message…')}
+                aria-label={tFallback('hub.messages.search.placeholder', 'Search by name or message…')}
+                className="w-full h-10 ps-9 pe-9 rounded-xl bg-secondary/40 border border-border text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                onClick={closeSearch}
+                className="absolute end-2 top-1/2 -translate-y-1/2 p-1 rounded-full text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
+                aria-label={tFallback('hub.messages.search.close', 'Close search')}
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           )}
@@ -579,6 +646,22 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             <div className="flex justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
             </div>
+          ) : isSearching && searchedConvs.length === 0 ? (
+            /* Distinct from "no conversations yet" — there ARE threads
+               here, the query just didn't match any of them, so the copy
+               points at the query rather than at an empty inbox. */
+            <EmptyState
+              icon={Search}
+              title={tFallback('hub.messages.search.empty.title', 'No matches')}
+              body={tFallback(
+                'hub.messages.search.empty.desc',
+                'No conversations in this view match that search. Try a different name or word.'
+              )}
+              action={{
+                label: tFallback('hub.messages.search.clear', 'Clear search'),
+                onClick: () => setSearchQuery(''),
+              }}
+            />
           ) : visibleConvs.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
@@ -602,7 +685,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
             />
           ) : (
             <div className="space-y-1">
-              {visibleConvs.map((c, i) => {
+              {searchedConvs.map((c, i) => {
                 const otherId = (c.participant_ids || []).find(id => id && id !== user?.id) || '';
                 const otherEmail = (c.participant_emails || []).find(e => e?.toLowerCase() !== user?.email?.toLowerCase()) || '';
                 const profile = profilesById[otherId];
