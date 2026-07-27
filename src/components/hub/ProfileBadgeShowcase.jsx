@@ -64,7 +64,7 @@ function Badge({ row, onTap, tappable }) {
       >
         <span aria-hidden="true">{icon}</span>
       </div>
-      <span className="text-[9px] text-muted-foreground text-center leading-tight line-clamp-2 max-w-[60px]">
+      <span className="text-xs text-muted-foreground text-center leading-tight line-clamp-2 max-w-[60px]">
         {/* Display name: prefer definition i18n key (Best for client
             lookup), fall back to denormalized row name, then to the
             achievement_id itself as a last-resort label. */}
@@ -114,14 +114,14 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
       <div className="flex items-center justify-between mb-2 px-1">
         <div className="flex items-center gap-1.5">
           <Trophy className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
-          <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-amber-500">
+          <span className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500">
             {tFallback('profileBadges.title', 'Recent badges')}
           </span>
         </div>
         {isOwn && rows.length >= MAX_BADGES && (
           <button
             onClick={requestOpenAchievements}
-            className="text-[10px] font-semibold text-muted-foreground hover:text-primary transition-colors"
+            className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
           >
             {tFallback('profileBadges.viewAll', 'See all')}
           </button>

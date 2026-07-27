@@ -78,7 +78,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       className="rounded-2xl border border-border bg-card px-3 py-2.5 mb-4"
     >
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <CheckCircle2 className="w-3 h-3 text-emerald-500" />
           {tFallback('profile.completion.title', 'Profile completion')}
         </div>
@@ -107,13 +107,13 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
         />
       </div>
       {pct < 100 && nextStep && (
-        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        <div className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
           <ArrowRight className="w-3 h-3 text-primary" />
           <span>{tFallback('profile.completion.nextLabel', 'Next:')} <span className="text-foreground font-medium">{nextStep.label}</span></span>
         </div>
       )}
       {pct === 100 && (
-        <p className="mt-2 text-[11px] text-emerald-500 font-medium">
+        <p className="mt-2 text-xs text-emerald-500 font-medium">
           {tFallback('profile.completion.allSet', 'Looking sharp — all set!')}
         </p>
       )}

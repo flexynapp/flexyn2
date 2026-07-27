@@ -79,7 +79,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
       {/* Tonnage + longest-streak row */}
       <div className="grid grid-cols-2 gap-2 mb-3">
         <div className="rounded-2xl border border-border bg-card px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <Activity className="w-3 h-3 text-emerald-500" aria-hidden="true" />
             {tFallback('profileLifts.tonnage', 'Total tonnage')}
           </div>
@@ -93,7 +93,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
           </TapToCopy>
         </div>
         <div className="rounded-2xl border border-border bg-card px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <Flame className="w-3 h-3 text-orange-500" aria-hidden="true" />
             {tFallback('profileLifts.longestStreak', 'Longest streak')}
           </div>
@@ -111,7 +111,7 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
       {/* Top 3 lifts */}
       {topLifts.length > 0 && (
         <div className="rounded-2xl border border-border bg-card px-3 py-2.5">
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5">
             <Trophy className="w-3 h-3 text-amber-500" aria-hidden="true" />
             {tFallback('profileLifts.topLifts', 'Top lifts')}
           </div>

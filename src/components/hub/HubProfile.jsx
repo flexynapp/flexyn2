@@ -9,14 +9,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { triggerHaptic } from '@/lib/haptic';
-import { User as UserIcon, Users as UsersIcon, FileText, X, Loader2, MessageCircle, Palette, MapPin, Heart, Plus, Pencil, Trophy, Link2, QrCode, Copy, ExternalLink, Coins, Swords } from 'lucide-react';
+import { User as UserIcon, FileText, X, Loader2, MapPin, Heart, Link2, Copy, ExternalLink } from 'lucide-react';
 import ThemeSelector from '@/components/ThemeSelector';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { pluralize } from '@/lib/pluralize';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
-import Particles from '@/components/Particles';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
@@ -32,10 +31,14 @@ import ProfileBadgeShowcase from './ProfileBadgeShowcase';
 import ProfileLiftStats from './ProfileLiftStats';
 import ProfileCompletionMeter from './ProfileCompletionMeter';
 import EmptyState from '@/components/EmptyState';
-import AnimatedNumber from '@/components/AnimatedNumber';
 import StoryHighlightsRail from './StoryHighlightsRail';
 import ThemedScope from '@/components/ThemedScope';
 import AvatarUploader from '@/components/AvatarUploader';
+import ProfileTierBanner from './profile/ProfileTierBanner';
+import ProfileMetrics from './profile/ProfileMetrics';
+import ProfileActions from './profile/ProfileActions';
+import ProfileTabs, { ProfileTabPanel } from './profile/ProfileTabs';
+import ProfileTrophies from './profile/ProfileTrophies';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
@@ -45,7 +48,6 @@ import StoryViewer from '@/components/stories/StoryViewer';
 import StatusNoteEditor from '@/components/stories/StatusNoteEditor';
 import * as storiesData from '@/lib/data/stories';
 import { listEarned as listEarnedTrophies } from '@/lib/data/trophies';
-import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
 import { safeExternalUrl } from '@/lib/safeUrl';
 
 const GiftCoinsModal = lazy(() => import('./GiftCoinsModal'));
@@ -328,6 +330,13 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const [sweatOpen, setSweatOpen] = useState(false);
   const [trophyPickerSlot, setTrophyPickerSlot] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
+  // Overflow ("…") sheet — absorbs Themes, Share, Duel, Gift and trophy
+  // visibility so the action row can stay at three controls.
+  const [menuOpen, setMenuOpen] = useState(false);
+  // Profile body tab. Resets to 'stats' when the viewed profile changes,
+  // otherwise navigating person → person would strand you on someone else's
+  // Posts tab with no visual explanation of why.
+  const [activeTab, setActiveTab] = useState('stats');
   const storyFileRef = useRef(null);
 
   // Always start a profile view at the top, regardless of where the user
@@ -336,6 +345,8 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // race with the layout shift of new content.
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'auto' });
+    setActiveTab('stats');
+    setMenuOpen(false);
   }, [targetKey]);
 
   // ── last_active_at: update on own profile open, display on others' ────────
@@ -970,187 +981,250 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         </>
       )}
 
-      {/* Header card — gets a steel tint when viewing @sean's profile */}
-      <motion.div
-        initial={{ opacity: 0, y: 12, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="bg-card border rounded-xl p-5 mb-4"
-        style={isAdminProfile ? {
-          borderColor: 'rgba(148,163,184,0.5)',
-          background: 'linear-gradient(135deg, rgba(148,163,184,0.08) 0%, rgba(30,41,59,0.12) 100%)',
-          boxShadow: '0 0 24px rgba(148,163,184,0.12), inset 0 1px 0 rgba(255,255,255,0.06)',
-        } : { borderColor: 'hsl(var(--border))' }}
-      >
-        <div className="flex items-start gap-4 mb-4">
-          {/* Avatar column */}
-          <div className="flex flex-col items-center shrink-0">
-            {/* Wrapper sized exactly to the avatar — so speech bubble centers on it precisely */}
-            <div className="relative" style={{ width: 64, height: 64 }}>
+      {/* ── Tier banner ─────────────────────────────────────────────────
+          The XP tier used to be an 84px card at 10% opacity, three items
+          down the page. xpTier.js hand-tunes ten gradients; this is what
+          they look like when you let them run. */}
+      <ProfileTierBanner
+        tier={tier}
+        level={level}
+        levelLabel={t('levelBar.level').replace('{n}', level)}
+        xpInLevel={xpInLevel}
+        xpNeeded={xpNeeded}
+        progressPercent={progressPercent}
+        isAdminProfile={isAdminProfile}
+      />
 
-              {/* Speech bubble note above avatar — centered on this 64px container */}
-              {activeNote && (
+      {/* ── Identity ────────────────────────────────────────────────────
+          One block. No card, no border, no fill — separation is whitespace
+          and type weight, which is what every reference implementation
+          does and what ten stacked bordered cards can't. */}
+      <div className="mb-5">
+        <div className="flex items-end justify-between gap-3" style={{ marginTop: -44 }}>
+
+          {/* Avatar overlapping the banner seam. The ring is the PAGE
+              BACKGROUND colour rather than a border colour — that's the
+              detail that makes it read as punched out of the banner
+              instead of placed on top of it. */}
+          <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+
+            {/* Status note — floats over the banner, sticker-style. */}
+            {activeNote && (
+              <div style={{
+                position: 'absolute',
+                bottom: 'calc(100% + 10px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                zIndex: 20,
+                maxWidth: 180,
+                minWidth: 80,
+                width: 'max-content',
+              }}>
                 <div style={{
-                  position: 'absolute',
-                  bottom: 'calc(100% + 8px)',
-                  left: '50%',
-                  transform: 'translateX(-50%)',
-                  zIndex: 20,
+                  background: 'hsl(var(--card))',
+                  border: '1px solid hsl(var(--border))',
+                  borderRadius: 12,
+                  padding: '6px 10px',
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.22)',
+                  textAlign: 'center',
+                  position: 'relative',
                   maxWidth: 180,
-                  minWidth: 80,
-                  width: 'max-content',
                 }}>
+                  {isSelf ? (
+                    <button type="button" onClick={() => setNoteEditorOpen(true)} className="block w-full">
+                      <p className="text-xs leading-snug text-foreground">{activeNote.text}</p>
+                    </button>
+                  ) : (
+                    <p className="text-xs leading-snug text-foreground">{activeNote.text}</p>
+                  )}
                   <div style={{
+                    position: 'absolute',
+                    bottom: -6,
+                    left: '50%',
+                    transform: 'translateX(-50%) rotate(45deg)',
+                    width: 10,
+                    height: 10,
                     background: 'hsl(var(--card))',
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: 12,
-                    padding: '5px 10px',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                    textAlign: 'center',
-                    position: 'relative',
-                    maxWidth: 180,
-                  }}>
-                    {isSelf ? (
-                      <button type="button" onClick={() => setNoteEditorOpen(true)} className="block w-full">
-                        <p style={{ fontSize: 10, lineHeight: 1.4, color: 'hsl(var(--foreground))' }}>{activeNote.text}</p>
-                      </button>
-                    ) : (
-                      <p style={{ fontSize: 10, lineHeight: 1.4, color: 'hsl(var(--foreground))' }}>{activeNote.text}</p>
-                    )}
-                    {/* Tail pointing down */}
-                    <div style={{
-                      position: 'absolute',
-                      bottom: -6,
-                      left: '50%',
-                      transform: 'translateX(-50%) rotate(45deg)',
-                      width: 10,
-                      height: 10,
-                      background: 'hsl(var(--card))',
-                      borderRight: '1px solid hsl(var(--border))',
-                      borderBottom: '1px solid hsl(var(--border))',
-                    }} />
-                  </div>
+                    borderRight: '1px solid hsl(var(--border))',
+                    borderBottom: '1px solid hsl(var(--border))',
+                  }} />
                 </div>
-              )}
-
-              {/* Avatar circle with story ring */}
-              <div
-                className="rounded-full overflow-hidden"
-                style={{
-                  width: 64,
-                  height: 64,
-                  cursor: profileStories.length > 0 ? 'pointer' : undefined,
-                  boxShadow: profileStories.length > 0
-                    ? '0 0 0 2.5px hsl(var(--primary)), 0 0 0 5px hsl(var(--background))'
-                    : 'none',
-                }}
-                onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
-              >
-                <AvatarUploader
-                  src={avatarUrl}
-                  initials={initials}
-                  editable={false}
-                  size={64}
-                  frameCss={equippedFrame?.css}
-                  frameAnimation={equippedFrame?.animation}
-                />
-                {/*
-                  editable is intentionally false: the profile edit pencil
-                  at the top-right of the card handles avatar swaps. Before,
-                  AvatarUploader's own edit-camera + the "Add to story"
-                  camera below collided on own-profile views with no
-                  stories — two near-identical green camera badges
-                  overlapping the avatar.
-                */}
               </div>
+            )}
 
-              {/* Admin crown — top-left, tilted as if resting on the head */}
-              {isVerifiedUser && (
-                <div style={{ position: 'absolute', top: -8, left: -8, lineHeight: 0, zIndex: 10, transform: 'rotate(-25deg)' }}>
-                  <CrownBadge size={22} />
-                </div>
-              )}
+            {/* Story ring sits OUTSIDE the punch-out ring so the two read
+                as separate signals rather than one thick band. */}
+            {profileStories.length > 0 && (
+              <div
+                aria-hidden="true"
+                className="absolute rounded-full pointer-events-none"
+                style={{ inset: -5, border: '2.5px solid hsl(var(--primary))' }}
+              />
+            )}
 
-              {/* Poop badge — replaces crown for special users */}
-              {isPoopUser && (
-                <div style={{ position: 'absolute', top: -10, left: -10, lineHeight: 0, zIndex: 10 }}>
-                  <PoopBadge size={24} />
-                </div>
-              )}
-
-              {/* Camera badge — own profile: tap to add a story */}
-              {isSelf && (
-                <>
-                  <input
-                    ref={storyFileRef}
-                    type="file"
-                    accept="image/*,video/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (!file) return;
-                      e.target.value = '';
-                      const result = await storiesData.createStory(user, file);
-                      if (result?.limitReached) {
-                        toast.error('Story limit reached (10 max)');
-                      } else if (!result?.ok) {
-                        toast.error('Could not upload story');
-                      } else {
-                        queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
-                        toast.success("Story's up.");
-                      }
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => storyFileRef.current?.click()}
-                    className="absolute w-6 h-6 rounded-full flex items-center justify-center"
-                    style={{
-                      bottom: -3,
-                      right: -3,
-                      background: 'hsl(var(--primary))',
-                      boxShadow: '0 0 0 2px hsl(var(--background))',
-                    }}
-                    aria-label="Add to story"
-                  >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
-                    </svg>
-                  </button>
-                </>
-              )}
+            <div
+              className="rounded-full overflow-hidden"
+              style={{
+                width: 88,
+                height: 88,
+                border: '3px solid hsl(var(--background))',
+                cursor: profileStories.length > 0 ? 'pointer' : undefined,
+              }}
+              onClick={profileStories.length > 0 ? () => setStoryViewerOpen(true) : undefined}
+            >
+              <AvatarUploader
+                src={avatarUrl}
+                initials={initials}
+                editable={false}
+                size={82}
+                frameCss={equippedFrame?.css}
+                frameAnimation={equippedFrame?.animation}
+              />
             </div>
 
-            {/* Add status note trigger — own profile, no active note */}
-            {isSelf && !activeNote && (
-              <button
-                type="button"
-                onClick={() => setNoteEditorOpen(true)}
-                className="mt-1.5 text-[9px] font-semibold text-muted-foreground hover:text-primary transition-colors leading-none"
-              >
-                + note
-              </button>
+            {isVerifiedUser && (
+              <div style={{ position: 'absolute', top: -6, left: -8, lineHeight: 0, zIndex: 10, transform: 'rotate(-25deg)' }}>
+                <CrownBadge size={22} />
+              </div>
+            )}
+            {isPoopUser && (
+              <div style={{ position: 'absolute', top: -8, left: -10, lineHeight: 0, zIndex: 10 }}>
+                <PoopBadge size={24} />
+              </div>
+            )}
+
+            {isSelf && (
+              <>
+                <input
+                  ref={storyFileRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    e.target.value = '';
+                    const result = await storiesData.createStory(user, file);
+                    if (result?.limitReached) {
+                      toast.error('Story limit reached (10 max)');
+                    } else if (!result?.ok) {
+                      toast.error('Could not upload story');
+                    } else {
+                      queryClient.invalidateQueries({ queryKey: ['profileStories', email] });
+                      toast.success("Story's up.");
+                    }
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={() => storyFileRef.current?.click()}
+                  className="absolute w-7 h-7 rounded-full flex items-center justify-center"
+                  style={{
+                    bottom: 0,
+                    insetInlineEnd: 0,
+                    background: 'hsl(var(--primary))',
+                    boxShadow: '0 0 0 2.5px hsl(var(--background))',
+                  }}
+                  aria-label="Add to story"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>
+                  </svg>
+                </button>
+              </>
             )}
           </div>
 
-          {/* Identity stack — vertical rhythm tuned for breathing room.
-              Each row gets its own dedicated top margin so the card
-              doesn't collapse into one dense block. The username +
-              handle stay tight (they're one logical unit), then meta
-              rows (status / title / location / bio) each get mt-1.5
-              for clear separation. */}
-          <div className="flex-1 min-w-0">
-            {/* Username (main profile name) + signature trophy */}
-            <h2 className="font-heading font-bold text-xl leading-tight truncate">
+          {/* Actions — on the avatar's baseline, ~700px earlier than they
+              used to be. Exactly one primary; the rest behind "…". */}
+          <ProfileActions
+            isSelf={isSelf}
+            isFollowingNow={isFollowingNow}
+            theyFollowMe={theyFollowMe === true}
+            followStatusReady={followStatusReady}
+            followBusy={followBusy}
+            onFollow={handleFollow}
+            onMessage={handleMessage}
+            messageReady={!!user?.email && !!onStartConversation && !!messageTargetKey}
+            messageInFlight={startConversationMutation.isPending}
+            menuOpen={menuOpen}
+            onOpenMenu={() => setMenuOpen(true)}
+            onCloseMenu={() => setMenuOpen(false)}
+            onEditProfile={() => {
+              setCityDraft(city);
+              setBioDraft(bio);
+              setWebsiteUrlDraft(websiteUrl);
+              setEditProfileOpen(v => !v);
+            }}
+            onOpenThemes={() => setThemeOpen(true)}
+            onOpenQr={() => setQrOpen(true)}
+            onOpenDuel={() => setDuelOpen(true)}
+            onOpenGift={() => setGiftOpen(true)}
+            onToggleTrophyVisibility={handleTrophyVisibility}
+            trophyVisible={trophyVisible}
+            canDuelOrGift={!!targetProfile?.id}
+            hasUsername={!!displayUsername}
+            t={t}
+            tFallback={tFallback}
+          />
+        </div>
+
+        {/* Name + handle — one logical unit, tight vertical rhythm. */}
+        <div className="mt-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
               {displayUsername ? displayUsername.charAt(0).toUpperCase() + displayUsername.slice(1) : ''}
               {signatureTrophy && (
                 <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
               )}
             </h2>
-            {/* @handle row — visually paired with the username, no extra mt */}
-            <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
+
+            {/* 👾 Hidden easter-egg triggers — same per-user gates as before,
+                now inline with the name instead of floating in the old
+                button row. Still lazy-loaded. */}
+            {showSnakeEgg && (
+              <button
+                type="button"
+                onClick={() => setSnakeOpen(true)}
+                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+                title="???"
+                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span aria-hidden="true">👾</span>
+              </button>
+            )}
+            {showBirdEgg && (
+              <button
+                type="button"
+                onClick={() => setBirdOpen(true)}
+                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+                title="???"
+                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span aria-hidden="true">👾</span>
+              </button>
+            )}
+            {showSweatEgg && (
+              <button
+                type="button"
+                onClick={() => setSweatOpen(true)}
+                aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
+                title="???"
+                className="p-1 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <span aria-hidden="true">👾</span>
+              </button>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
+        </div>
+
+        {/* Pill row — activity, equipped title and mutual status were three
+            separate stacked rows. They're one wrapping line now. */}
+        {(activeLabel || equippedTitle || isMutualFollow || (isSelf && !activeNote)) && (
+          <div className="flex items-center flex-wrap gap-2 mt-2.5">
             {activeLabel && (
-              <span className={`inline-flex items-center gap-1.5 mt-2 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
                 activeLabel.text === 'Active now'
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                   : 'bg-muted/60 border-border/50 text-muted-foreground'
@@ -1168,24 +1242,73 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </span>
             )}
 
-            {/* Equipped title */}
             {equippedTitle && (
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className="text-sm leading-none">{equippedTitle.emoji}</span>
-                <span
-                  className="text-xs font-bold uppercase tracking-wider"
-                  style={{ color: titleRarity?.color }}
-                  title={equippedTitle.description}
-                >
-                  {equippedTitle.name}
-                </span>
-              </div>
+              <span
+                className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold border"
+                style={{
+                  color: titleRarity?.color,
+                  borderColor: `${titleRarity?.color}55`,
+                  background: `${titleRarity?.color}14`,
+                }}
+                title={equippedTitle.description}
+              >
+                <span aria-hidden="true">{equippedTitle.emoji}</span>
+                {equippedTitle.name}
+              </span>
             )}
 
-            {/* City + flag (Row 2) */}
+            {isMutualFollow && (
+              <span
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/25"
+                title={tFallback('hub.profile.mutualTooltip', 'You follow each other')}
+              >
+                <span aria-hidden="true">↔</span>
+                {tFallback('hub.profile.mutual', 'Friends')}
+              </span>
+            )}
+
+            {isSelf && !activeNote && (
+              <button
+                type="button"
+                onClick={() => setNoteEditorOpen(true)}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border border-dashed border-border text-muted-foreground hover:text-primary hover:border-primary/40 transition-colors"
+              >
+                + {tFallback('hub.profile.addNote', 'note')}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Bio — 12px → 14px. It's the one piece of copy the owner wrote. */}
+        {(isPoopUser || bio) && (
+          <p className="text-sm text-foreground/90 mt-3 leading-relaxed whitespace-pre-line">
+            {isPoopUser ? 'I eat poop 💩' : bio}
+          </p>
+        )}
+
+        {/* Link in bio — href still passes through safeExternalUrl so a
+            saved javascript:/data: value can't execute for viewers. */}
+        {websiteUrl && safeExternalUrl(websiteUrl) && (
+          <a
+            href={safeExternalUrl(websiteUrl)}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="inline-flex items-center gap-1 mt-2 text-sm font-medium text-primary hover:underline break-all"
+          >
+            <Link2 className="w-3.5 h-3.5 shrink-0" />
+            <span className="truncate max-w-[220px]">{websiteUrl.replace(/^https?:\/\//i, '')}</span>
+            <ExternalLink className="w-3 h-3 shrink-0 opacity-60" />
+          </a>
+        )}
+
+        {/* Location + anniversary — merged onto one line. Two facts about
+            where and how long, not two stacked rows. */}
+        {(city || countryFlag || (!isSelf && mutualSince)) && (
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2.5 text-sm text-muted-foreground">
             {(city || countryFlag) && (
-              <div className="flex items-center gap-1.5 mt-1.5 text-xs text-muted-foreground">
-                <MapPin className="w-3 h-3 shrink-0" />
+              <span className="inline-flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
                 {city && <span>{city}</span>}
                 {countryFlag && (
                   <img loading="lazy" src={flagUrl(codeToFlag(countryFlag))}
@@ -1193,495 +1316,231 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                     className="w-4 h-4 object-contain shrink-0"
                   />
                 )}
-              </div>
+              </span>
             )}
-
-            {/* Bio */}
-            {(isPoopUser || bio) && (
-              <p className="text-xs text-muted-foreground mt-2 line-clamp-3 leading-relaxed">
-                {isPoopUser ? 'I eat poop 💩' : bio}
-              </p>
-            )}
-
-            {/* Link in bio — href passes through safeExternalUrl so a saved
-                javascript:/data: value can't execute for viewers. */}
-            {websiteUrl && safeExternalUrl(websiteUrl) && (
-              <a
-                href={safeExternalUrl(websiteUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={e => e.stopPropagation()}
-                className="flex items-center gap-1 mt-1.5 text-xs text-primary hover:underline break-all"
-              >
-                <Link2 className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[180px]">{websiteUrl.replace(/^https?:\/\//i, '')}</span>
-                <ExternalLink className="w-2.5 h-2.5 shrink-0 opacity-60" />
-              </a>
-            )}
-
-            {/* Training-together anniversary — only renders for mutual
-                follows where the friendship is at least 30 days old. On
-                the actual anniversary day each year, gets a small 🎂.
-                Pure relationship warmth, Strava + Spotify Wrapped vibes. */}
             {!isSelf && mutualSince && (() => {
               const since = new Date(mutualSince);
               const now = new Date();
               const daysOld = Math.floor((now - since) / (1000 * 60 * 60 * 24));
               if (daysOld < 30) return null; // brand-new relationships read as noise
-              // Locale picked from the app language, not hardcoded en-US —
-              // a German user reading their own profile previously saw
-              // "October 2024" instead of "Oktober 2024".
               const monthLocale = language === 'zh' ? 'zh-CN' : language === 'ja' ? 'ja-JP' : language;
               const monthYear = since.toLocaleString(monthLocale, { month: 'long', year: 'numeric' });
-              // Anniversary glow: within 7 days of the month/day each year.
               const isAnniversaryWeek =
                 since.getMonth() === now.getMonth() &&
                 Math.abs(now.getDate() - since.getDate()) <= 7;
               return (
-                <p className="text-[11px] text-muted-foreground/80 italic mt-2">
-                  {isAnniversaryWeek && <span className="me-1" aria-hidden="true">🎂</span>}
+                <span className="inline-flex items-center gap-1">
+                  {(city || countryFlag) && <span aria-hidden="true" className="opacity-40">·</span>}
+                  {isAnniversaryWeek && <span aria-hidden="true">🎂</span>}
                   {tFallback('hub.profile.trainingSince', 'Training together since {month}').replace('{month}', monthYear)}
-                </p>
+                </span>
               );
             })()}
-
-          </div>
-
-          {/* 👾 Hidden easter-egg trigger — standalone button (NOT on the
-              avatar), only on the @sean admin profile. Opens Iron Snake. */}
-          {showSnakeEgg && (
-            <button
-              type="button"
-              onClick={() => setSnakeOpen(true)}
-              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-              title="???"
-              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <span aria-hidden="true">👾</span>
-            </button>
-          )}
-
-          {/* 👾 Hidden easter-egg trigger — only on the @keganbergeron
-              profile. Opens Heavy Bird. */}
-          {showBirdEgg && (
-            <button
-              type="button"
-              onClick={() => setBirdOpen(true)}
-              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-              title="???"
-              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <span aria-hidden="true">👾</span>
-            </button>
-          )}
-
-          {/* 👾 Hidden easter-egg trigger — only on the @calason44 profile.
-              Opens Sweat Jetpack. */}
-          {showSweatEgg && (
-            <button
-              type="button"
-              onClick={() => setSweatOpen(true)}
-              aria-label={tFallback('hub.profile.secretGame', 'Secret game')}
-              title="???"
-              className="p-1.5 rounded-md text-base leading-none opacity-70 hover:opacity-100 hover:scale-110 transition-transform shrink-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-            >
-              <span aria-hidden="true">👾</span>
-            </button>
-          )}
-
-          {/* Edit profile — single entry point, always visible for self so
-              bio / location / link / avatar are all editable even before
-              anything's been filled in. */}
-          {isSelf && (
-            <button
-              type="button"
-              onClick={() => { setCityDraft(city); setBioDraft(bio); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
-              className="p-1.5 rounded-md text-muted-foreground hover:bg-secondary transition-colors shrink-0"
-              aria-label={tFallback('hub.profile.editProfile', 'Edit profile')}
-            >
-              <Pencil className="w-3.5 h-3.5" />
-            </button>
-          )}
-        </div>
-
-        {/* Note like button — non-own profile, active note (bubble shown above avatar) */}
-        {!isSelf && activeNote && (
-          <div className="flex justify-end mb-2">
-            <button
-              type="button"
-              onClick={handleNoteLike}
-              className="flex items-center gap-1 text-muted-foreground"
-              aria-label={noteLiked ? 'Unlike note' : 'Like note'}
-            >
-              <Heart
-                className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-red-400'}`}
-              />
-              {activeNote.like_count > 0 && (
-                <span className="text-[9px] text-muted-foreground">{activeNote.like_count}</span>
-              )}
-            </button>
           </div>
         )}
 
-        {/* Edit profile panel */}
-        <AnimatePresence>
-          {isSelf && editProfileOpen && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.2, ease: 'easeOut' }}
-              style={{ overflow: 'hidden' }}
-              className="mb-3"
-            >
-              <div className="bg-secondary/30 rounded-xl p-3 space-y-3">
-                {/* Avatar upload — moved here from the inline avatar
-                    badge so it doesn't visually collide with the
-                    "Add to story" camera. The pencil is now the
-                    single edit-profile entry point. */}
-                <div className="flex items-center gap-3">
-                  <AvatarUploader
-                    src={avatarUrl}
-                    initials={initials}
-                    editable
-                    size={44}
-                  />
-                  <span className="text-xs text-muted-foreground">Tap to change avatar</span>
-                </div>
-                {/* Bio */}
-                <div className="flex items-start gap-2 pt-1 border-t border-border/40">
-                  <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1.5" />
-                  <div className="flex-1">
-                    <textarea
-                      value={bioDraft}
-                      onChange={e => setBioDraft(e.target.value.slice(0, 160))}
-                      placeholder={tFallback('hub.profile.bioPlaceholder', 'Write a short bio…')}
-                      rows={3}
-                      className="w-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50 resize-none leading-relaxed"
-                    />
-                    <div className="text-[10px] text-muted-foreground/60 text-end">{bioDraft.length}/160</div>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 pt-1 border-t border-border/40">
-                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    type="text"
-                    value={cityDraft}
-                    onChange={e => setCityDraft(e.target.value.slice(0, 40))}
-                    placeholder="Your city (e.g. Miami, FL)"
-                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
-                  />
-                </div>
-                {/* Link in bio */}
-                <div className="flex items-center gap-2 border-t border-border/40 pt-1">
-                  <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                  <input
-                    type="url"
-                    value={websiteUrlDraft}
-                    onChange={e => setWebsiteUrlDraft(e.target.value.slice(0, 200))}
-                    placeholder="yourwebsite.com"
-                    className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  {countryFlag
-                    ? <img loading="lazy" src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
-                    : <span className="text-sm shrink-0">🌍</span>
-                  }
-                  <button
-                    type="button"
-                    onClick={() => setFlagPickerOpen(true)}
-                    className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    {countryFlag ? 'Change flag' : 'Pick country flag →'}
-                  </button>
-                </div>
-                {/* Signature trophy — pin one trophy-case emoji next to
-                    your name on the feed + profile. */}
-                {trophyCase.some(tt => tt?.value) && (
-                  <div className="border-t border-border/40 pt-2">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Signature trophy</p>
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {trophyCase.filter(tt => tt?.value).map((tt, i) => {
-                        const active = signatureTrophy === tt.value;
-                        return (
-                          <button
-                            key={`${tt.value}-${i}`}
-                            type="button"
-                            onClick={() => handleSetSignature(tt.value)}
-                            aria-pressed={active}
-                            className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-colors ${
-                              active ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary/60 hover:bg-secondary'
-                            }`}
-                          >
-                            {tt.value}
-                          </button>
-                        );
-                      })}
-                    </div>
-                    <p className="text-[10px] text-muted-foreground/60 mt-1">Tap the active one to remove it.</p>
-                  </div>
-                )}
-                <div className="flex gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => setEditProfileOpen(false)}
-                    className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveProfile}
-                    disabled={savingProfile}
-                    className="flex-1 py-1.5 text-xs rounded-lg text-white font-semibold disabled:opacity-60"
-                    style={{ background: 'hsl(var(--primary))' }}
-                  >
-                    {savingProfile ? 'Saving…' : 'Save profile'}
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Rank/Level/XP Block */}
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className={`relative flex flex-col gap-3 p-4 rounded-lg mb-4 overflow-hidden ${tier.bg}`}
-        >
-          <Particles type={tier.particles} />
-          
-          <div className="relative flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`px-2 py-1 rounded-md bg-gradient-to-r ${tier.badge} shadow-sm`}>
-                <span className="text-xs font-bold text-white drop-shadow">{tier.name}</span>
-              </div>
-            </div>
-            <div className={`text-sm font-heading font-bold ${tier.text}`}>
-              {t('levelBar.level').replace('{n}', level)}
-            </div>
-          </div>
-
-          <div className="space-y-1.5">
-            <div className="w-full h-2.5 bg-border rounded-full overflow-hidden">
-              <motion.div
-                className={`h-full bg-gradient-to-r ${tier.bar} rounded-full`}
-                initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 0.6, ease: 'easeOut' }}
-              />
-            </div>
-            <div className="flex justify-between text-[11px] text-muted-foreground">
-              <span>
-                <AnimatedNumber value={Math.round(xpInLevel)} /> / {xpNeeded} XP
-              </span>
-            </div>
-          </div>
-        </motion.div>
-
-        {/* Earned Trophies — auto-awarded milestones. Separate from
-            the picker-driven Trophy Case below. */}
-        {(earnedTrophies.length > 0 || isSelf) && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-amber-500" />
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                  Earned Trophies
-                </span>
-                {earnedTrophies.length > 0 && (
-                  <span className="text-[10px] text-muted-foreground/70 tabular-nums">
-                    {earnedTrophies.length}/{TROPHIES.length}
-                  </span>
-                )}
-              </div>
-            </div>
-            {earnedTrophies.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-secondary/20 p-3 text-center">
-                <p className="text-[11px] text-muted-foreground">
-                  {isSelf ? 'Log your first workout to earn your first trophy.' : 'No trophies earned yet.'}
-                </p>
-              </div>
-            ) : (
-              <div className="rounded-xl border border-border bg-secondary/15 p-2.5">
-                <div className="grid grid-cols-5 gap-1.5">
-                  {earnedTrophies.slice(0, 10).map(row => {
-                    const t = getTrophy(row.trophy_id);
-                    if (!t) return null;
-                    const tierMeta = TROPHY_TIERS[t.tier] || TROPHY_TIERS.bronze;
-                    return (
-                      <div
-                        key={row.trophy_id}
-                        title={`${t.name} — ${t.description}`}
-                        className="aspect-square rounded-lg bg-card border flex flex-col items-center justify-center gap-0.5 p-1"
-                        style={{ borderColor: `${tierMeta.color}66` }}
-                      >
-                        <span className="text-lg leading-none" aria-hidden="true">{t.emoji}</span>
-                        <span
-                          className="text-[7px] font-bold uppercase tracking-wider leading-none"
-                          style={{ color: tierMeta.color }}
-                        >
-                          {tierMeta.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                {earnedTrophies.length > 10 && (
-                  <p className="text-[10px] text-muted-foreground text-center mt-2">
-                    + {earnedTrophies.length - 10} more
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Trophy Case */}
-        {(trophyCase.length > 0 || isSelf) && (
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Trophy Case</span>
-              </div>
-              {isSelf && (
-                <button
-                  type="button"
-                  onClick={handleTrophyVisibility}
-                  className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {trophyVisible ? 'Hide' : 'Show'}
-                </button>
-              )}
-            </div>
-            {/* Unified trophy card — 5 slots with orange dashed borders */}
-            <div className="rounded-xl border border-border bg-secondary/20 overflow-hidden">
-              <div className="flex">
-                {Array(5).fill(null).map((_, i) => {
-                  const slot = trophyCase[i] ?? null;
-                  const label = slot ? (TROPHY_LABELS[slot.value] || slot.value) : null;
-                  return (
-                    <motion.button
-                      key={i}
-                      type="button"
-                      onClick={isSelf ? () => setTrophyPickerSlot(i) : undefined}
-                      whileTap={isSelf ? { scale: 0.88 } : {}}
-                      className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-3 px-0.5 relative ${
-                        isSelf ? 'cursor-pointer hover:bg-secondary/40 active:bg-secondary/60' : 'cursor-default'
-                      } transition-colors`}
-                      style={i < 4 ? { borderRight: '1px dashed rgba(249,115,22,0.35)' } : {}}
-                      aria-label={slot ? `Slot ${i + 1}: ${slot.value}` : `Empty slot ${i + 1}`}
-                    >
-                      {slot ? (
-                        <>
-                          <span className="text-4xl leading-none">{slot.value}</span>
-                          <span className="text-xs text-neutral-500 leading-tight text-center truncate w-full mt-0.5">{label}</span>
-                        </>
-                      ) : isSelf ? (
-                        <div className="flex flex-col items-center justify-center gap-0.5 rounded-lg border border-dashed border-orange-400/50 w-9 h-9">
-                          <Plus className="w-4 h-4" style={{ color: 'hsl(var(--primary) / 0.5)' }} />
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground/25 text-lg">—</span>
-                      )}
-                    </motion.button>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <Stat icon={FileText}  label={pluralize(posts.length, { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') }, language)} value={posts.length} />
-          <AnimatedStatButton
-            onClick={() => setOpenModal('followers')}
-            icon={UsersIcon}
-            value={followerIds.length}
-            label={pluralize(followerIds.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language)}
-          />
-          <AnimatedStatButton
-            onClick={() => setOpenModal('following')}
-            icon={UserIcon}
-            value={followingIds.length}
-            label={tFallback('hub.profile.following', 'following')}
-          />
-        </div>
-
-        {/* Edit + Themes — inline side-by-side, own profile only */}
-        {isSelf && (
-          <motion.div
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.18 }}
-            className="flex gap-2 mb-4"
-          >
-            <button
-              onClick={() => { setCityDraft(city); setWebsiteUrlDraft(websiteUrl); setEditProfileOpen(v => !v); }}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
-            >
-              <Pencil className="w-4 h-4 text-muted-foreground" />
-              Edit
-            </button>
-            <button
-              onClick={() => setThemeOpen(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
-            >
-              <Palette className="w-4 h-4 text-primary" />
-              {tFallback('hub.profile.themes', 'Themes')}
-            </button>
-            {/* QR code button — own profile, shares /@username URL */}
-            {displayUsername && (
-              <button
-                onClick={() => setQrOpen(true)}
-                className="flex items-center justify-center gap-1 px-3 py-2 rounded-lg border border-border text-sm font-medium hover:bg-secondary transition-colors"
-                title={tFallback('hub.profile.qrCode', 'Profile QR code')}
-              >
-                <QrCode className="w-4 h-4 text-muted-foreground" />
-              </button>
-            )}
-          </motion.div>
-        )}
-
-        {/* Story highlights rail (mig 099). Own profile shows a
-            "+ New" tile + their albums; non-own only shows albums
-            (hides entirely if empty). Tap → opens the album viewer
-            (TODO: wire to existing StoryViewer with a custom story
-            list). Long-press / right-click an own album = delete. */}
-        <StoryHighlightsRail
-          userEmail={isSelf ? user?.email : targetUser?.email}
-          isOwn={isSelf}
-          onOpenAlbum={async (h) => {
-            // Lazy-import to keep the highlights surface out of the
-            // hub-profile entry chunk for users who never open one.
-            const { listItemsForHighlight } = await import('@/lib/data/storyHighlights');
-            const items = await listItemsForHighlight(h.id);
-            // Items come back joined with the underlying stories row;
-            // unwrap the nested `stories` and filter out any orphans
-            // (the parent story was deleted but the highlight item
-            // still points at the dangling id).
-            const stories = (items || [])
-              .map(it => it.stories)
-              .filter(Boolean);
-            if (stories.length === 0) {
-              toast.error(tFallback('highlight.empty', 'This album is empty.'));
-              return;
-            }
-            setActiveHighlight(h);
-            setActiveHighlightItems(stories);
+        {/* Metrics as text. Three bordered tiles and three 16ms count-up
+            timers used to live here. */}
+        <ProfileMetrics
+          postCount={posts.length}
+          followerCount={followerIds.length}
+          followingCount={followingIds.length}
+          onOpenFollowers={() => setOpenModal('followers')}
+          onOpenFollowing={() => setOpenModal('following')}
+          language={language}
+          labels={{
+            posts: pluralize(posts.length, { one: tFallback('hub.profile.post', 'post'), other: tFallback('hub.profile.posts', 'posts') }, language),
+            followers: pluralize(followerIds.length, { one: tFallback('hub.profile.follower', 'follower'), other: tFallback('hub.profile.followers', 'followers') }, language),
+            following: tFallback('hub.profile.following', 'following'),
           }}
         />
 
+        {/* Note like — non-own profile with an active note. */}
+        {!isSelf && activeNote && (
+          <button
+            type="button"
+            onClick={handleNoteLike}
+            className="flex items-center gap-1.5 mt-3 text-sm text-muted-foreground"
+            aria-label={noteLiked ? 'Unlike note' : 'Like note'}
+          >
+            <Heart
+              className={`w-4 h-4 transition-colors ${noteLiked ? 'fill-red-500 text-red-500' : 'text-muted-foreground hover:text-red-400'}`}
+            />
+            {activeNote.like_count > 0 && (
+              <span className="tabular-nums">{activeNote.like_count}</span>
+            )}
+          </button>
+        )}
+      </div>
+
+      {/* Edit profile panel */}
+      <AnimatePresence>
+        {isSelf && editProfileOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            style={{ overflow: 'hidden' }}
+            className="mb-3"
+          >
+            <div className="bg-secondary/30 rounded-xl p-3 space-y-3">
+              {/* Avatar upload — moved here from the inline avatar
+                  badge so it doesn't visually collide with the
+                  "Add to story" camera. The pencil is now the
+                  single edit-profile entry point. */}
+              <div className="flex items-center gap-3">
+                <AvatarUploader
+                  src={avatarUrl}
+                  initials={initials}
+                  editable
+                  size={44}
+                />
+                <span className="text-xs text-muted-foreground">Tap to change avatar</span>
+              </div>
+              {/* Bio */}
+              <div className="flex items-start gap-2 pt-1 border-t border-border/40">
+                <FileText className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-1.5" />
+                <div className="flex-1">
+                  <textarea
+                    value={bioDraft}
+                    onChange={e => setBioDraft(e.target.value.slice(0, 160))}
+                    placeholder={tFallback('hub.profile.bioPlaceholder', 'Write a short bio…')}
+                    rows={3}
+                    className="w-full bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50 resize-none leading-relaxed"
+                  />
+                  <div className="text-xs text-muted-foreground/60 text-end">{bioDraft.length}/160</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 pt-1 border-t border-border/40">
+                <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  type="text"
+                  value={cityDraft}
+                  onChange={e => setCityDraft(e.target.value.slice(0, 40))}
+                  placeholder="Your city (e.g. Miami, FL)"
+                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                />
+              </div>
+              {/* Link in bio */}
+              <div className="flex items-center gap-2 border-t border-border/40 pt-1">
+                <Link2 className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                <input
+                  type="url"
+                  value={websiteUrlDraft}
+                  onChange={e => setWebsiteUrlDraft(e.target.value.slice(0, 200))}
+                  placeholder="yourwebsite.com"
+                  className="flex-1 bg-transparent text-sm focus:outline-none placeholder:text-muted-foreground/50"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {countryFlag
+                  ? <img loading="lazy" src={flagUrl(countryFlag)} alt="flag" className="w-5 h-5 object-contain shrink-0" />
+                  : <span className="text-sm shrink-0">🌍</span>
+                }
+                <button
+                  type="button"
+                  onClick={() => setFlagPickerOpen(true)}
+                  className="flex-1 text-start text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {countryFlag ? 'Change flag' : 'Pick country flag →'}
+                </button>
+              </div>
+              {/* Signature trophy — pin one trophy-case emoji next to
+                  your name on the feed + profile. */}
+              {trophyCase.some(tt => tt?.value) && (
+                <div className="border-t border-border/40 pt-2">
+                  <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground mb-1.5">Signature trophy</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {trophyCase.filter(tt => tt?.value).map((tt, i) => {
+                      const active = signatureTrophy === tt.value;
+                      return (
+                        <button
+                          key={`${tt.value}-${i}`}
+                          type="button"
+                          onClick={() => handleSetSignature(tt.value)}
+                          aria-pressed={active}
+                          className={`w-9 h-9 rounded-lg text-lg flex items-center justify-center transition-colors ${
+                            active ? 'bg-primary/20 ring-2 ring-primary' : 'bg-secondary/60 hover:bg-secondary'
+                          }`}
+                        >
+                          {tt.value}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-xs text-muted-foreground/60 mt-1">Tap the active one to remove it.</p>
+                </div>
+              )}
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setEditProfileOpen(false)}
+                  className="flex-1 py-1.5 text-xs rounded-lg border border-border text-muted-foreground hover:bg-secondary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveProfile}
+                  disabled={savingProfile}
+                  className="flex-1 py-1.5 text-xs rounded-lg text-white font-semibold disabled:opacity-60"
+                  style={{ background: 'hsl(var(--primary))' }}
+                >
+                  {savingProfile ? 'Saving…' : 'Save profile'}
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Story highlights rail (mig 099). Own profile shows a
+          "+ New" tile + their albums; non-own only shows albums
+          (hides entirely if empty). */}
+      <StoryHighlightsRail
+        userEmail={isSelf ? user?.email : targetUser?.email}
+        isOwn={isSelf}
+        onOpenAlbum={async (h) => {
+          // Lazy-import to keep the highlights surface out of the
+          // hub-profile entry chunk for users who never open one.
+          const { listItemsForHighlight } = await import('@/lib/data/storyHighlights');
+          const items = await listItemsForHighlight(h.id);
+          // Items come back joined with the underlying stories row;
+          // unwrap the nested `stories` and filter out any orphans
+          // (the parent story was deleted but the highlight item
+          // still points at the dangling id).
+          const stories = (items || [])
+            .map(it => it.stories)
+            .filter(Boolean);
+          if (stories.length === 0) {
+            toast.error(tFallback('highlight.empty', 'This album is empty.'));
+            return;
+          }
+          setActiveHighlight(h);
+          setActiveHighlightItems(stories);
+        }}
+      />
+
+      {/* ── Body tabs ──────────────────────────────────────────────────
+          Lift stats, badges, completion, referral, two trophy blocks and
+          the post list were seven stacked sections. Three destinations
+          now, each with room to breathe. */}
+      <ProfileTabs
+        active={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { id: 'stats', label: tFallback('hub.profile.tabStats', 'Stats') },
+          { id: 'trophies', label: tFallback('hub.profile.tabTrophies', 'Trophies'), count: earnedTrophies.length },
+          { id: 'posts', label: tFallback('hub.profile.tabPosts', 'Posts'), count: posts.length },
+        ]}
+      />
+
+      <ProfileTabPanel id="stats" active={activeTab}>
         {/* Lift stats — top 3 1RM lifts + total tonnage + longest
-            streak. Read-only on friends' profiles, full-resolution
-            on own. Self-hides on cold accounts (zero workouts logged). */}
+            streak. Self-hides on cold accounts (zero workouts logged). */}
         <ProfileLiftStats
           userEmail={isSelf ? user?.email : targetUser?.email}
           longestStreak={isSelf
@@ -1691,119 +1550,75 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           username={displayUsername}
         />
 
-        {/* Recent badges showcase — visible on both own profile and
-            friends' profiles (read-only when viewing someone else's).
-            Self-hides when there's nothing to flex yet. Drives the
-            "earn one more badge" identity investment loop. */}
+        {/* Recent badges — drives the "earn one more badge" identity
+            investment loop. Self-hides when there's nothing to flex. */}
         <ProfileBadgeShowcase
           userEmail={isSelf ? user?.email : targetUser?.email}
           userId={isSelf ? user?.id : targetProfile?.id}
           isOwn={isSelf}
         />
 
-        {/* Profile completion meter — own profile only. Dismissible
-            once at 100%. Quietly nudges the user toward the next
-            identity-investment step (bio, city, first workout) without
-            gamifying with hard rewards. */}
+        {/* Profile completion meter — own profile only, dismissible
+            once at 100%. */}
         {isSelf && (
           <ProfileCompletionMeter user={user} targetProfile={targetProfile} />
         )}
 
-        {/* Referral card — own profile only. Renders the user's
-            shareable code + invite link + earnings strip. Acquisition
-            channel: every share is an unpaid distribution opportunity. */}
+        {/* Referral card — own profile only. Every share is an unpaid
+            distribution opportunity. */}
         {isSelf && (
           <div className="mb-4">
             <ReferralCard />
           </div>
         )}
+      </ProfileTabPanel>
 
-        {!isSelf && (
-          <div className="flex gap-2 items-center">
-            {/* Mutual-follow indicator — small "Friends" pill renders only
-                when both sides follow each other. Subtle reassurance that
-                the relationship is reciprocal. */}
-            {isMutualFollow && (
-              <span
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-primary/12 text-primary border border-primary/25"
-                title={tFallback('hub.profile.mutualTooltip', 'You follow each other')}
-              >
-                <span aria-hidden="true">↔</span>
-                {tFallback('hub.profile.mutual', 'Friends')}
-              </span>
-            )}
-            <button
-              onClick={handleFollow}
-              disabled={!followStatusReady || followBusy}
-              className={`flex-1 py-2 rounded-lg text-sm font-bold transition-colors flex items-center justify-center gap-1 disabled:cursor-not-allowed ${
-                isFollowingNow
-                  ? 'bg-secondary text-foreground hover:bg-destructive/10 hover:text-destructive'
-                  : 'bg-primary text-primary-foreground hover:opacity-90'
-              } ${!followStatusReady ? 'opacity-60' : ''}`}
-            >
-              {!followStatusReady || followBusy ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : isFollowingNow ? (
-                t('hub.profile.unfollow')
-              ) : (
-                t('hub.profile.follow')
-              )}
-            </button>
-            {(() => {
-              // Three states for the message button:
-              //   1. Auth still loading           → spinner, not tappable
-              //   2. Conversation start in flight → spinner + "Working..."
-              //   3. Ready                        → MessageCircle + "Message"
-              // Readiness must include the TARGET, not just the viewer.
-              // Previously this was viewer-only, so the button rendered
-              // fully enabled while the target's email was still
-              // resolving — measured at ~1.5s on a fast connection, and
-              // the button was live before the lookup even started.
-              // Tapping in that window hit a silent early return.
-              // messageTargetKey is satisfied by the id, so this is
-              // usually true on first paint rather than after a wait.
-              const authReady = !!user?.email && !!onStartConversation && !!messageTargetKey;
-              const inFlight = startConversationMutation.isPending;
-              const disabled = !authReady || inFlight;
-              return (
-                <button
-                  onClick={handleMessage}
-                  disabled={disabled}
-                  className={`flex-1 py-2 rounded-lg text-sm font-bold border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:cursor-not-allowed ${
-                    !authReady ? 'opacity-60' : ''
-                  } ${authReady && !inFlight ? '' : 'disabled:opacity-50'}`}
-                  aria-label={t('hub.profile.message')}
-                >
-                  {disabled
-                    ? <Loader2 className="w-4 h-4 animate-spin" />
-                    : <MessageCircle className="w-4 h-4" />}
-                  {inFlight
-                    ? t('hub.profile.working')
-                    : t('hub.profile.message')}
-                </button>
-              );
-            })()}
-            <button
-              onClick={() => setDuelOpen(true)}
-              disabled={!targetProfile?.id}
-              className="px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label={tFallback('hub.profile.duel', 'Challenge to a duel')}
-              title={tFallback('hub.profile.duel', 'Challenge to a duel')}
-            >
-              <Swords className="w-4 h-4 text-primary" />
-            </button>
-            <button
-              onClick={() => setGiftOpen(true)}
-              disabled={!targetProfile?.id}
-              className="px-3 py-2 rounded-lg border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-              aria-label={tFallback('hub.profile.gift', 'Send a coin gift')}
-              title={tFallback('hub.profile.gift', 'Send a coin gift')}
-            >
-              <Coins className="w-4 h-4 text-yellow-500" />
-            </button>
+      <ProfileTabPanel id="trophies" active={activeTab}>
+        <ProfileTrophies
+          isSelf={isSelf}
+          trophyCase={trophyCase}
+          trophyVisible={trophyVisible}
+          earnedTrophies={earnedTrophies}
+          onPickSlot={setTrophyPickerSlot}
+          trophyLabels={TROPHY_LABELS}
+          tFallback={tFallback}
+        />
+      </ProfileTabPanel>
+
+      <ProfileTabPanel id="posts" active={activeTab}>
+        {posts.length > 1 && (
+          <div className="flex items-center justify-end mb-3">
+            <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs font-bold">
+              <button type="button"
+                onClick={() => setProfilePostSort('newest')}
+                className={`px-3 py-1.5 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                New
+              </button>
+              <button type="button"
+                onClick={() => setProfilePostSort('popular')}
+                className={`px-3 py-1.5 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
+                Top
+              </button>
+            </div>
           </div>
         )}
-      </motion.div>
+        {sortedPosts.length === 0 ? (
+          <EmptyState
+            icon={FileText}
+            title={isSelf
+              ? tFallback('hub.profile.noPostsSelfTitle', 'No posts yet')
+              : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
+            body={isSelf
+              ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
+              : tFallback('hub.profile.noPostsBody', 'Check back later — new posts will appear here.')}
+          />
+        ) : (
+          <div className="space-y-3">
+            {sortedPosts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
+          </div>
+        )}
+      </ProfileTabPanel>
+
 
       {/* Duel challenge modal — opened by the Swords button above.
           Pre-filled with the profile's id + username so the user lands
@@ -1831,40 +1646,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
             }}
           />
         </Suspense>
-      )}
-
-      {/* Posts */}
-      <div className="flex items-center justify-between mb-2 px-1">
-        <h3 className="font-heading font-bold text-base">{t('hub.profile.recentPosts')}</h3>
-        {posts.length > 1 && (
-          <div className="flex items-center rounded-lg border border-border overflow-hidden text-[11px] font-bold">
-            <button type="button"
-              onClick={() => setProfilePostSort('newest')}
-              className={`px-2.5 py-1 transition-colors ${profilePostSort === 'newest' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              New
-            </button>
-            <button type="button"
-              onClick={() => setProfilePostSort('popular')}
-              className={`px-2.5 py-1 border-s border-border transition-colors ${profilePostSort === 'popular' ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}>
-              Top
-            </button>
-          </div>
-        )}
-      </div>
-      {sortedPosts.length === 0 ? (
-        <EmptyState
-          icon={FileText}
-          title={isSelf
-            ? tFallback('hub.profile.noPostsSelfTitle', 'No posts yet')
-            : tFallback('hub.profile.noPostsTitle', 'Nothing posted yet')}
-          body={isSelf
-            ? tFallback('hub.profile.noPostsSelfBody', 'Share a workout, PR, or progress photo to fill out your profile.')
-            : tFallback('hub.profile.noPostsBody', 'Check back later — new posts will appear here.')}
-        />
-      ) : (
-        <div className="space-y-3">
-          {sortedPosts.map(p => <HubPostCard key={p.id} post={p} onAuthorClick={onSelectUser} />)}
-        </div>
       )}
 
       {/* Story Viewer */}
@@ -2042,7 +1823,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
                         title={name}
                       >
                         <img loading="lazy" src={imgSrc} alt={name} className="w-6 h-6 object-contain" />
-                        <span className="text-[7px] text-muted-foreground leading-none">{code}</span>
+                        <span className="text-xs text-muted-foreground leading-none">{code}</span>
                       </motion.button>
                     );
                   })}
@@ -2279,7 +2060,7 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
                       <div className={`px-2 py-0.5 rounded-md bg-gradient-to-r ${u.tier.badge} shadow-sm`}>
                         <span className="text-xs font-bold text-white drop-shadow">Lv {u.levelData.level}</span>
                       </div>
-                      <span className={`text-[10px] font-bold uppercase tracking-widest ${u.tier.text}`}>{u.tier.name}</span>
+                      <span className={`text-xs font-bold uppercase tracking-widest ${u.tier.text}`}>{u.tier.name}</span>
                     </div>
                   )}
                 </motion.button>
@@ -2289,53 +2070,5 @@ function FollowingModal({ type, ids, onClose, onSelectUser }) {
         </div>
       </motion.div>
     </motion.div>
-  );
-}
-
-function AnimatedStatButton({ onClick, icon: Icon, value, label }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    if (!value) { setDisplay(0); return; }
-    let start = 0;
-    const duration = 600;
-    const step = 16;
-    const increment = value / (duration / step);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= value) { setDisplay(value); clearInterval(timer); }
-      else setDisplay(Math.floor(start));
-    }, step);
-    return () => clearInterval(timer);
-  }, [value]);
-  return (
-    <button onClick={onClick} className="bg-secondary/40 border border-border/60 rounded-lg p-2 text-center hover:bg-secondary/60 hover:border-border transition-colors">
-      <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-      <p className="font-heading font-bold text-base">{display}</p>
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
-    </button>
-  );
-}
-
-function Stat({ icon: Icon, label, value }) {
-  const [display, setDisplay] = useState(0);
-  useEffect(() => {
-    if (!value) { setDisplay(0); return; }
-    let start = 0;
-    const duration = 600;
-    const step = 16;
-    const increment = value / (duration / step);
-    const timer = setInterval(() => {
-      start += increment;
-      if (start >= value) { setDisplay(value); clearInterval(timer); }
-      else setDisplay(Math.floor(start));
-    }, step);
-    return () => clearInterval(timer);
-  }, [value]);
-  return (
-    <div className="bg-secondary/40 border border-border/60 rounded-lg p-2 text-center">
-      <Icon className="w-3.5 h-3.5 mx-auto text-muted-foreground mb-1" />
-      <p className="font-heading font-bold text-base">{display}</p>
-      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{label}</p>
-    </div>
   );
 }
