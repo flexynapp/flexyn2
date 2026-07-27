@@ -67,6 +67,10 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef(null);
+  // Bumped whenever archive state changes. Archive lives in localStorage,
+  // which no React state observes, so this is what tells the partition
+  // memo to re-run. See the memo below for why nothing else does.
+  const [archiveVersion, setArchiveVersion] = useState(0);
 
   // Desktop three-dot quick-action state.
   //
@@ -401,10 +405,21 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
   // archived even if it lives in Requests semantically — the user
   // explicitly told us to bury it.
   const { archivedConvs, inboxConvs, requestConvs } = useMemo(() => {
-    const { active, archived } = partitionByArchive(conversations);
+    const { active, archived } = partitionByArchive(conversations, user?.id);
     const { inbox, requests } = partitionConversations(active, user?.email, followingEmails);
     return { archivedConvs: archived, inboxConvs: inbox, requestConvs: requests };
-  }, [conversations, user?.email, followingEmails]);
+  // archiveVersion is a deliberate dependency, not noise. Archive state
+  // lives in localStorage, so archiving changes NOTHING this memo watches:
+  // `conversations` keeps its identity because React Query's structural
+  // sharing returns the same array reference when a refetch is
+  // structurally identical, which it is — archiving touches no server
+  // row. So the invalidate fired, the refetch ran, and the partition
+  // never re-ran; the row stayed in Inbox until a full reload.
+  //
+  // Pin and Mute were unaffected precisely because they hold their state
+  // in React (pinnedConvIds / mutedConvIds) and re-render on change,
+  // which is why only Archive was reported broken.
+  }, [conversations, user?.email, user?.id, followingEmails, archiveVersion]);
 
   // The list rendered in the current dmView. Pinned conversations sort
   // to the top within the inbox view (audit 10 #4 — pin used to be a
@@ -855,29 +870,6 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             {preview}
                             {timeStr && <span className="text-muted-foreground font-normal"> · {timeStr}</span>}
                           </p>
-                          {/* Delivery status for MY last message, right
-                              edge of the timestamp line. Never rendered
-                              on a message I received — you don't show
-                              read state for someone else's message —
-                              so this and the unread dot are mutually
-                              exclusive by construction. */}
-                          {deliveryStatus === 'read' ? (
-                            <Eye
-                              className="w-3.5 h-3.5 shrink-0 text-emerald-500"
-                              aria-label={tFallback('hub.messages.status.read', 'Read')}
-                            />
-                          ) : deliveryStatus === 'delivered' ? (
-                            <CheckCheck
-                              className="w-3.5 h-3.5 shrink-0 text-emerald-500"
-                              aria-label={tFallback('hub.messages.status.delivered', 'Delivered')}
-                            />
-                          ) : deliveryStatus === 'sent' ? (
-                            <Check
-                              className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
-                              aria-label={tFallback('hub.messages.status.sent', 'Sent')}
-                            />
-                          ) : null}
-                          {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
                         </div>
                       </div>
                     </button>
@@ -981,6 +973,45 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         </div>
                       )
                     )}
+                    {/* Right-hand rail: delivery status + the desktop menu,
+                        as siblings in ONE row-centered flex container.
+
+                        The status icon used to live at the end of the preview
+                        line while the three-dot button was centred on the row.
+                        Two different anchors, so they never lined up: measured
+                        at 11px apart (icon on text line 2 at y=311, button at
+                        the row centre y=300). Sharing one `items-center`
+                        parent makes the offset 0 by construction rather than
+                        by a magic margin, and it holds however many text lines
+                        the row grows to.
+
+                        Status is pointer-events-none so it never steals a tap
+                        from the row button underneath it. */}
+                    <div className="absolute end-2 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                      {/* Delivery status for MY last message. Never rendered on
+                          a message I received — you don't show read state for
+                          someone else's message — so this and the unread dot
+                          are mutually exclusive by construction. */}
+                      <span className="flex items-center pointer-events-none">
+                        {deliveryStatus === 'read' ? (
+                          <Eye
+                            className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                            aria-label={tFallback('hub.messages.status.read', 'Read')}
+                          />
+                        ) : deliveryStatus === 'delivered' ? (
+                          <CheckCheck
+                            className="w-3.5 h-3.5 shrink-0 text-emerald-500"
+                            aria-label={tFallback('hub.messages.status.delivered', 'Delivered')}
+                          />
+                        ) : deliveryStatus === 'sent' ? (
+                          <Check
+                            className="w-3.5 h-3.5 shrink-0 text-muted-foreground"
+                            aria-label={tFallback('hub.messages.status.sent', 'Sent')}
+                          />
+                        ) : null}
+                        {unread && <span className="w-2.5 h-2.5 rounded-full bg-primary shrink-0" aria-label="Unread" />}
+                      </span>
+
                     {/* Desktop three-dot menu — lg only.
                         While THIS row's menu is open the container is pinned
                         visible instead of riding on group-hover. The popover
@@ -992,7 +1023,7 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                         dropped the whole container back to opacity-0 and the
                         menu vanished before the click landed. Tying visibility
                         to open state removes that entire class of failure. */}
-                    <div className={`hidden lg:flex absolute end-2 top-1/2 -translate-y-1/2 transition-opacity ${
+                    <div className={`hidden lg:flex relative transition-opacity ${
                       openMenuId === c.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
                     }`}>
                       <button
@@ -1033,25 +1064,29 @@ export default function HubMessages({ pendingChatTarget = null, onPendingConsume
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                if (isArchived(c.id)) {
-                                  unarchiveConv(c.id);
+                                if (isArchived(c.id, user?.id)) {
+                                  unarchiveConv(c.id, user?.id);
                                   toast.success('Conversation unarchived.');
                                 } else {
-                                  archiveConv(c.id);
+                                  archiveConv(c.id, user?.id);
                                   toast.success('Conversation archived.');
                                 }
                                 setOpenMenuId(null);
+                                // The invalidate alone was never enough — see the
+                                // partition memo. This is what actually moves the row.
+                                setArchiveVersion(v => v + 1);
                                 queryClient.invalidateQueries({ queryKey: ['hubConversations', user?.email] });
                               }}
                               className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm hover:bg-secondary/60 transition-colors text-start"
                             >
-                              {isArchived(c.id)
+                              {isArchived(c.id, user?.id)
                                 ? <><ArchiveRestore className="w-4 h-4 text-muted-foreground" /> Unarchive</>
                                 : <><Archive className="w-4 h-4 text-muted-foreground" /> Archive</>}
                             </button>
                           </motion.div>
                         )}
                       </AnimatePresence>
+                    </div>
                     </div>
                   </motion.div>
                 );

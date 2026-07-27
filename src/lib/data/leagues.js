@@ -113,22 +113,27 @@ export async function recordWeeklyXp(user, amount) {
     }
   }
 
-  // Legacy fallback — non-atomic. Reach this on pre-migration hosts
-  // missing increment_league_xp. The race is documented; only stale
-  // deployments retain it.
-  const newXp = (ctx.member.weekly_xp || 0) + amount;
-  const { error } = await supabase
-    .from('league_members')
-    .update({ weekly_xp: newXp })
-    .eq('id', ctx.member.id);
-  if (error) {
-    reportError(error, {
-      feature: 'leagues.recordWeeklyXp.fallback',
-      level: 'warning',
-      userEmail: user.email,
-      amount,
-    });
-  }
+  // The legacy read-modify-write fallback that used to live here is gone.
+  //
+  // It did `UPDATE league_members SET weekly_xp = <read value + amount>`
+  // straight from the browser, which required a permissive user-facing
+  // UPDATE policy on the table. That policy constrained WHICH ROW you
+  // could touch (your own) but not WHICH COLUMNS, so any signed-in user
+  // could set their own weekly_xp to an arbitrary number and forge league
+  // standings — and league placement pays out through
+  // claim_league_resolution / distribute_league_rewards. Migration 245
+  // drops the policy and adds an update guard, so this path could no
+  // longer work anyway.
+  //
+  // Nothing is lost: it was only ever reached when increment_league_xp
+  // was missing (42883 / 42P01), and that RPC is deployed. XP now has
+  // exactly one writer, server-side and atomic.
+  reportError(new Error('increment_league_xp unavailable; weekly XP not recorded'), {
+    feature: 'leagues.recordWeeklyXp.rpc-missing',
+    level: 'warning',
+    userEmail: user.email,
+    amount,
+  });
 }
 
 /**
