@@ -25,7 +25,6 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Trophy } from 'lucide-react';
 import { useLanguage } from '@/lib/LanguageContext';
 import { db } from '@/api/db';
 import { ACHIEVEMENT_DEFINITIONS } from '@/lib/achievementDefinitions';
@@ -49,16 +48,17 @@ function Badge({ row, onTap, tappable }) {
       onClick={tappable ? onTap : undefined}
       disabled={!tappable}
       className={[
-        'shrink-0 flex flex-col items-center gap-1 w-16',
+        'shrink-0 flex flex-col items-center gap-1.5 w-16',
         tappable ? 'cursor-pointer' : 'cursor-default',
       ].join(' ')}
       aria-label={`Achievement: ${name}`}
     >
+      {/* Plain fill, no border, no gradient — matching the trophy grid in
+          ProfileTrophies so badges and trophies read as one collection
+          language rather than two competing treatments. */}
       <div
         className={[
-          'w-12 h-12 rounded-xl flex items-center justify-center text-xl',
-          'bg-gradient-to-br from-amber-500/15 via-amber-500/8 to-transparent',
-          'border border-amber-500/30',
+          'w-14 h-14 rounded-xl flex items-center justify-center text-2xl bg-secondary/40',
           tappable ? 'transition-transform hover:scale-105' : '',
         ].join(' ')}
       >
@@ -111,20 +111,22 @@ export default function ProfileBadgeShowcase({ userEmail, userId, isOwn }) {
       transition={{ duration: 0.35 }}
       className="mb-4"
     >
-      <div className="flex items-center justify-between mb-2 px-1">
-        <div className="flex items-center gap-1.5">
-          <Trophy className="w-3.5 h-3.5 text-amber-500" aria-hidden="true" />
-          <span className="text-xs font-bold uppercase tracking-[0.18em] text-amber-500">
-            {tFallback('profileBadges.title', 'Recent badges')}
-          </span>
-        </div>
-        {isOwn && rows.length >= MAX_BADGES && (
+      {/* Section label matches the rest of the profile — muted uppercase,
+          not amber. The amber was competing with the trophy section for
+          "this is the gold one" when they sit two tabs apart. */}
+      <div className="flex items-baseline justify-between mb-2.5">
+        <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          {tFallback('profileBadges.title', 'Recent badges')}
+        </span>
+        {isOwn && rows.length >= MAX_BADGES ? (
           <button
             onClick={requestOpenAchievements}
             className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors"
           >
             {tFallback('profileBadges.viewAll', 'See all')}
           </button>
+        ) : (
+          <span className="text-xs text-muted-foreground tabular-nums">{rows.length}</span>
         )}
       </div>
       <div className="flex gap-3 overflow-x-auto pb-1 px-1 -mx-1 scrollbar-hide">

@@ -75,9 +75,11 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="rounded-2xl border border-border bg-card px-3 py-2.5 mb-4"
+      // No card. This is a progress read-out, not an object — the bar and
+      // the label carry it, the way the XP rail does on the banner.
+      className="mb-6"
     >
-      <div className="flex items-center justify-between gap-2 mb-1.5">
+      <div className="flex items-center justify-between gap-2 mb-2">
         <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <CheckCircle2 className="w-3 h-3 text-emerald-500" />
           {tFallback('profile.completion.title', 'Profile completion')}
@@ -98,7 +100,7 @@ export default function ProfileCompletionMeter({ user, targetProfile }) {
           )}
         </div>
       </div>
-      <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+      <div className="h-1 w-full rounded-full bg-border overflow-hidden">
         <motion.div
           className="h-full bg-gradient-to-r from-emerald-400 to-emerald-500"
           initial={{ width: 0 }}

@@ -1502,9 +1502,18 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
 
       {/* Story highlights rail (mig 099). Own profile shows a
           "+ New" tile + their albums; non-own only shows albums
-          (hides entirely if empty). */}
+          (hides entirely if empty).
+
+          `email` — the RESOLVED value — not `targetUser?.email`. Since mig
+          220 dropped email from public_profiles, in-app navigation is
+          id-only, so the nav prop carries no email and these three
+          components were being handed undefined on every other-user
+          profile. Their queries sat disabled and the sections silently
+          rendered nothing, which reads as "this person has no data"
+          rather than as the bug it is. `email` falls back to the
+          resolve_profile_email RPC that this component already runs. */}
       <StoryHighlightsRail
-        userEmail={isSelf ? user?.email : targetUser?.email}
+        userEmail={email}
         isOwn={isSelf}
         onOpenAlbum={async (h) => {
           // Lazy-import to keep the highlights surface out of the
@@ -1556,7 +1565,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         */}
         <div className="peer">
           <ProfileLiftStats
-            userEmail={isSelf ? user?.email : targetUser?.email}
+            userEmail={email}
             longestStreak={isSelf
               ? user?.longest_workout_streak
               : targetUser?.longest_workout_streak}
@@ -1567,7 +1576,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           {/* Recent badges — drives the "earn one more badge" identity
               investment loop. Self-hides when there's nothing to flex. */}
           <ProfileBadgeShowcase
-            userEmail={isSelf ? user?.email : targetUser?.email}
+            userEmail={email}
             userId={isSelf ? user?.id : targetProfile?.id}
             isOwn={isSelf}
           />
