@@ -52,10 +52,10 @@
 -- rewarded_at makes the payout one-shot under a row lock, so two members
 -- syncing at the same instant cannot double-pay the crew.
 --
--- Paste-safe per repo convention: schema-qualified table names, no short
--- alias.column tokens, no record .id access, and no bare angle-bracket
--- comparison operators anywhere in a statement body (GREATEST / LEAST /
--- NOT (a = b) are used instead).
+-- Paste-safe per repo convention: schema-qualified table names, no
+-- short table-alias column tokens, no record field access, and no bare
+-- angle-bracket comparison operators anywhere in a statement body
+-- (GREATEST / LEAST / NOT (a = b) are used instead).
 
 -- ── 1. Completion bookkeeping columns ────────────────────────────────
 ALTER TABLE public.crew_challenges
@@ -176,6 +176,7 @@ DECLARE
   v_end       timestamptz;
   v_mine      numeric;
   v_cap       integer;
+  v_credit    integer;
   v_sum       bigint;
   v_total     integer;
   v_member    uuid;
@@ -201,7 +202,7 @@ BEGIN
      LIMIT 40
   LOOP
     -- Past the deadline: retire it and move on. Expiry is intentionally
-    -- silent (see the CLAUDE.md note -- a "you missed it" push scolds).
+    -- silent (see the working notes -- a "you missed it" push scolds).
     IF now() = GREATEST(now(), v_end) AND NOT (now() = v_end) THEN
       UPDATE public.crew_challenges
          SET status = 'expired'
@@ -255,14 +256,14 @@ BEGIN
     END;
     v_cap := LEAST(v_cap, v_target);
 
+    v_credit := LEAST(v_cap::numeric, GREATEST(0, FLOOR(COALESCE(v_mine, 0))))::integer;
+
     INSERT INTO public.crew_challenge_contributions
       (challenge_id, user_id, value, updated_at)
     VALUES
-      (v_chal, v_uid,
-       LEAST(v_cap::numeric, GREATEST(0, FLOOR(COALESCE(v_mine, 0))))::integer,
-       now())
+      (v_chal, v_uid, v_credit, now())
     ON CONFLICT (challenge_id, user_id)
-    DO UPDATE SET value = EXCLUDED.value, updated_at = now();
+    DO UPDATE SET value = v_credit, updated_at = now();
 
     -- Serialise the aggregate rewrite and the one-shot payout.
     PERFORM 1 FROM public.crew_challenges WHERE id = v_chal FOR UPDATE;

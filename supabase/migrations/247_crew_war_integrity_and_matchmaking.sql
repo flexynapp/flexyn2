@@ -55,10 +55,10 @@
 -- plus a partial unique index so a crew can hold at most one open queue
 -- entry no matter how many taps or sessions race.
 --
--- Paste-safe per repo convention: schema-qualified table names, no short
--- alias.column tokens, no record .id access, and no bare angle-bracket
--- comparison operators anywhere in a statement body (GREATEST / LEAST /
--- NOT (a = b) are used instead).
+-- Paste-safe per repo convention: schema-qualified table names, no
+-- short table-alias column tokens, no record field access, and no bare
+-- angle-bracket comparison operators anywhere in a statement body
+-- (GREATEST / LEAST / NOT (a = b) are used instead).
 
 -- ── 1. Payout bookkeeping ────────────────────────────────────────────
 ALTER TABLE public.crew_wars
