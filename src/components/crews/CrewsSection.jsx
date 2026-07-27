@@ -22,6 +22,8 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { useNumberFormatter } from '@/lib/intl';
 import { toast } from '@/lib/toast';
+import CrewLeaguePanel from '@/components/crews/CrewLeaguePanel';
+import { crewLevelProgress } from '@/lib/data/crewSeasons';
 import CrewChat from './CrewChat';
 import CrewCreationFlow from './CrewCreationFlow';
 import CrewWarPanel from './CrewWarPanel';
@@ -33,12 +35,14 @@ import ChatViewportFrame from '@/components/ChatViewportFrame';
 // ── Crew list card ────────────────────────────────────────────────────────────
 
 function CrewCard({ crew, onClick, currentUserId }) {
+  const fmt = useNumberFormatter();
   const { data: members = [] } = useQuery({
     queryKey: ['crewMembers', crew.id],
     queryFn:  () => crewsData.getCrewMembers(crew.id),
     staleTime: 30_000,
   });
 
+  const { pct: levelPct } = crewLevelProgress(crew);
   const myMember = members.find(m => m.user_id === currentUserId);
   const myRole = crew.is_admin ? 'leader'
     : (myMember?.role === 'moderator' ? 'moderator' : 'member');
@@ -74,6 +78,32 @@ function CrewCard({ crew, onClick, currentUserId }) {
             </span>
           )}
         </p>
+        {/* Crew progression (migration 248), rendered as text rather than
+            stat tiles — the profile research counted 21 bordered containers
+            on HubProfile and named the tile-with-an-icon-above-it pattern as
+            the thing that makes a screen read like settings. Weight and
+            colour carry the hierarchy instead. Absent on a pre-248 host, in
+            which case the line simply doesn't render. */}
+        {Number.isFinite(Number(crew.crew_level)) && (
+          <p className="text-xs text-muted-foreground mt-1">
+            <span className="font-bold text-foreground">Lvl {crew.crew_level}</span>
+            {Number.isFinite(Number(crew.trophies)) && (
+              <> · <span className="font-bold text-foreground">{fmt(crew.trophies)}</span> trophies</>
+            )}
+            {Number.isFinite(Number(crew.wars_won)) && (
+              <> · <span className="font-bold text-foreground">{crew.wars_won}</span>–<span className="font-bold text-foreground">{crew.wars_lost ?? 0}</span></>
+            )}
+          </p>
+        )}
+        {levelPct != null && (
+          <div className="mt-1.5 h-[3px] rounded-full bg-secondary overflow-hidden">
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${Math.round(levelPct * 100)}%`, background: 'hsl(var(--primary))' }}
+            />
+          </div>
+        )}
+
         {/* Overlapping avatar dots — humanizes the group. Reading "5
             members" doesn't convey community the way 5 little faces do. */}
         {members.length > 0 && (
@@ -298,7 +328,13 @@ function BattlesView({ myCrews, currentUserId }) {
         Each crew can enter one battle at a time. The crew that earns the most XP in 7 days wins.
       </p>
       {myCrews.map(crew => (
-        <BattleEntryRow key={crew.id} crew={crew} currentUserId={currentUserId} />
+        <React.Fragment key={crew.id}>
+          {/* Standings first, then the war entry — where you stand is the
+              context that makes "enter battle" mean something. Self-hides
+              until migration 248 seats the crew in a division. */}
+          <CrewLeaguePanel crewId={crew.id} crewName={crew.name} />
+          <BattleEntryRow crew={crew} currentUserId={currentUserId} />
+        </React.Fragment>
       ))}
     </motion.div>
   );
