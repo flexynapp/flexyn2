@@ -6,10 +6,12 @@
 
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, ShieldCheck, Shield, Trash2, Loader2 } from 'lucide-react';
+import { X, ShieldCheck, Shield, Trash2, Ban, Loader2 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import * as crewsData from '@/lib/data/crews';
+import { banMember } from '@/lib/data/crewMembership';
 import { useQueryClient } from '@tanstack/react-query';
+import CrewJoinRequests from './CrewJoinRequests';
 
 const ROLE_LABELS = {
   leader:    { label: 'Leader',    color: 'hsl(var(--primary))',   bg: 'hsl(var(--primary) / 0.12)' },
@@ -117,7 +119,8 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                 )}
               </div>
 
-              {/* Remove */}
+              {/* Remove — they can come straight back if the crew is
+                  public, which is the point of the separate Ban below. */}
               <button
                 onClick={() => doAction(
                   () => crewsData.removeMember(crewId, member.user_id),
@@ -127,6 +130,28 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
                 title="Remove from crew"
               >
                 <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Ban — removes AND blocks rejoining. Before migration 250
+                  "remove" was reversible by the person being removed, which
+                  made moderating a public crew impossible. Confirmed first
+                  because unbanning is a different screen. */}
+              <button
+                onClick={() => {
+                  if (!window.confirm(`Ban ${username}? They'll be removed and can't rejoin.`)) return;
+                  doAction(async () => {
+                    const res = await banMember(crewId, member.user_id);
+                    if (!res?.ok) {
+                      throw new Error(res?.reason === 'target_is_leader'
+                        ? 'Demote them first.'
+                        : 'Could not ban.');
+                    }
+                  }, `${username} was banned.`);
+                }}
+                className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center text-destructive/70 hover:text-destructive transition-colors"
+                title="Ban from crew"
+              >
+                <Ban className="w-3.5 h-3.5" />
               </button>
             </>
           )}
@@ -170,6 +195,11 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
           <X className="w-4 h-4" />
         </button>
       </div>
+
+      {/* Pending approvals sit above the roster: "who wants in" is the
+          only thing on this screen that's waiting on the leader. Self-hides
+          for non-leaders and when the queue is empty. */}
+      <CrewJoinRequests crewId={crewId} isLeader={currentUserRole === 'leader'} />
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 divide-y divide-border/50">

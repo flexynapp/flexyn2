@@ -140,14 +140,24 @@ export async function joinCrew(crewId, userId) {
   // deployments retain it.
   const { data, error } = await supabase.rpc('join_crew_atomic', { p_crew_id: crewId });
   if (!error) {
-    return data; // { success, already_member, crew_id }
+    // Migration 250 added `status`, which distinguishes what actually
+    // happened: 'joined', 'already_member', 'requested' (a private crew
+    // queued you for approval) or 'pending' (you'd already asked). Older
+    // hosts return only { success, already_member }, so default it.
+    return {
+      ...data,
+      status: data?.status ?? (data?.already_member ? 'already_member' : 'joined'),
+    };
   }
 
   // Distinct error codes:
   //   23514 = crew_full (RAISE EXCEPTION with that code in the RPC)
   //   22023 = crew not found
-  //   42501 = unauthenticated
+  //   42501 = unauthenticated, or banned (250)
   //   42883 / 42P01 = RPC not yet deployed → legacy fallback
+  if (/banned_from_crew/i.test(error.message || '')) {
+    throw Object.assign(new Error('You can\'t rejoin this Crew.'), { code: 'BANNED' });
+  }
   if (/crew_full/i.test(error.message || '') || error.code === '23514') {
     throw new Error('This Crew is full (max 16 members).');
   }

@@ -82,11 +82,26 @@ export default function CrewDiscovery({ onBack, onJoined }) {
   const joinMut = useMutation({
     mutationFn: (crewId) => crewsData.joinCrew(crewId, user.id),
     onMutate:   (crewId) => setJoiningId(crewId),
-    onSuccess:  (_, crewId) => {
+    onSuccess:  (res) => {
+      setJoiningId(null);
+      qc.invalidateQueries({ queryKey: ['crewDiscovery'] });
+
+      // Migration 250: a private crew queues you for approval instead of
+      // seating you. Claiming "you joined" and then showing no crew would
+      // read as a bug, so the three outcomes get three different messages.
+      if (res?.status === 'requested') {
+        toast.success('Request sent', {
+          description: 'A crew leader will approve or decline it.',
+        });
+        return;
+      }
+      if (res?.status === 'pending') {
+        toast.info('Your request is still waiting on a leader.');
+        return;
+      }
+
       toast.success('You joined the Crew! 🎉');
       qc.invalidateQueries({ queryKey: ['myCrews', user?.id] });
-      qc.invalidateQueries({ queryKey: ['crewDiscovery'] });
-      setJoiningId(null);
       onJoined?.();
     },
     onError: (err) => {
