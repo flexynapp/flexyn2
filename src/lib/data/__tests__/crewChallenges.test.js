@@ -26,8 +26,8 @@ vi.mock('@/lib/profanityFilter', () => ({
 
 const {
   createChallenge,
-  updateChallengeProgress,
-  setChallengeStatus,
+  syncMyCrewChallengeProgress,
+  getChallengeContributions,
   listChallengesForCrew,
   VALID_METRICS,
 } = await import('../crewChallenges');
@@ -40,14 +40,6 @@ function mockInsertSingle({ data, error }) {
   const insert = vi.fn().mockReturnValue({ select });
   fromSpy.mockReturnValue({ insert });
   return { insert, select, single };
-}
-
-// Helper: build a chainable update mock that returns { error } from .eq().
-function mockUpdateEq({ error }) {
-  const eq = vi.fn().mockResolvedValue({ error });
-  const update = vi.fn().mockReturnValue({ eq });
-  fromSpy.mockReturnValue({ update });
-  return { update, eq };
 }
 
 beforeEach(() => {
@@ -204,94 +196,92 @@ describe('createChallenge insert + notify', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// setChallengeStatus — only fires the notification on 'completed'
+// syncMyCrewChallengeProgress — the ONLY progress write path (mig 246)
+//
+// The contract that matters here is negative: the client must send no
+// numbers. Progress used to be written by updateChallengeProgress /
+// setChallengeStatus straight from the browser, which was both dead code
+// and a forgery vector. Those are gone; these tests pin the replacement
+// down to an argument-free RPC call.
 // ─────────────────────────────────────────────────────────────────────
 
-describe('setChallengeStatus', () => {
-  it('rejects invalid status values without hitting the DB', async () => {
-    const r = await setChallengeStatus('chal-1', 'bogus');
-    expect(r).toEqual({ ok: false, reason: 'invalid' });
+describe('syncMyCrewChallengeProgress', () => {
+  it('calls the RPC with no arguments at all', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: { updated: 2, completed: [] }, error: null });
+
+    await syncMyCrewChallengeProgress();
+
+    expect(rpcSpy).toHaveBeenCalledTimes(1);
+    expect(rpcSpy).toHaveBeenCalledWith('sync_my_crew_challenge_progress');
+    // No second argument — nothing for a crafted client to steer.
+    expect(rpcSpy.mock.calls[0]).toHaveLength(1);
+  });
+
+  it('never touches the crew_challenges table directly', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: { updated: 0, completed: [] }, error: null });
+
+    await syncMyCrewChallengeProgress();
+
     expect(fromSpy).not.toHaveBeenCalled();
   });
 
-  it('rejects when id is missing', async () => {
-    expect(await setChallengeStatus(null, 'completed')).toEqual({ ok: false, reason: 'invalid' });
-    expect(fromSpy).not.toHaveBeenCalled();
-  });
-
-  it('updates the row and fires the completed RPC when status=completed', async () => {
-    mockUpdateEq({ error: null });
-    rpcSpy.mockResolvedValueOnce({ data: 1, error: null });
-
-    const r = await setChallengeStatus('chal-1', 'completed');
-
-    expect(r).toEqual({ ok: true });
-    expect(fromSpy).toHaveBeenCalledWith('crew_challenges');
-    expect(rpcSpy).toHaveBeenCalledWith('notify_crew_challenge_completed_for', {
-      p_challenge_id: 'chal-1',
+  it('normalises the server payload', async () => {
+    rpcSpy.mockResolvedValueOnce({
+      data: { updated: 3, completed: ['chal-1', 'chal-2'] },
+      error: null,
     });
+
+    const r = await syncMyCrewChallengeProgress();
+    expect(r).toEqual({ ok: true, updated: 3, completed: ['chal-1', 'chal-2'] });
   });
 
-  it('does NOT fire the notification for status=expired (silent failure mode)', async () => {
-    mockUpdateEq({ error: null });
+  it('defaults missing payload fields rather than propagating undefined', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: null, error: null });
 
-    const r = await setChallengeStatus('chal-1', 'expired');
-    expect(r).toEqual({ ok: true });
-    expect(rpcSpy).not.toHaveBeenCalled();
+    const r = await syncMyCrewChallengeProgress();
+    expect(r).toEqual({ ok: true, updated: 0, completed: [] });
   });
 
-  it('does NOT fire the notification for status=active', async () => {
-    mockUpdateEq({ error: null });
+  it('maps a 42501 to unauthenticated and everything else to db_error', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: null, error: { code: '42501' } });
+    expect(await syncMyCrewChallengeProgress()).toEqual({
+      ok: false, reason: 'unauthenticated',
+    });
 
-    const r = await setChallengeStatus('chal-1', 'active');
-    expect(r).toEqual({ ok: true });
-    expect(rpcSpy).not.toHaveBeenCalled();
-  });
-
-  it('returns db_error on update failure and does NOT fire notification', async () => {
-    mockUpdateEq({ error: { code: 'XX', message: 'fail' } });
-
-    const r = await setChallengeStatus('chal-1', 'completed');
-    expect(r).toEqual({ ok: false, reason: 'db_error' });
-    expect(rpcSpy).not.toHaveBeenCalled();
-  });
-
-  it('returns ok even if the completion notification RPC throws', async () => {
-    mockUpdateEq({ error: null });
-    rpcSpy.mockRejectedValueOnce(new Error('network'));
-
-    const r = await setChallengeStatus('chal-1', 'completed');
-    expect(r).toEqual({ ok: true });
+    rpcSpy.mockResolvedValueOnce({ data: null, error: { code: '42883' } });
+    expect(await syncMyCrewChallengeProgress()).toEqual({
+      ok: false, reason: 'db_error',
+    });
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────
-// updateChallengeProgress — clamping + db error path
+// getChallengeContributions — read-side breakdown
 // ─────────────────────────────────────────────────────────────────────
 
-describe('updateChallengeProgress', () => {
-  it('returns no_id when id is falsy', async () => {
-    const r = await updateChallengeProgress(null, 100);
-    expect(r).toEqual({ ok: false, reason: 'no_id' });
-    expect(fromSpy).not.toHaveBeenCalled();
+describe('getChallengeContributions', () => {
+  it('short-circuits on a falsy id', async () => {
+    expect(await getChallengeContributions(null)).toEqual([]);
+    expect(rpcSpy).not.toHaveBeenCalled();
   });
 
-  it('clamps negative progress to 0 and rounds floats', async () => {
-    const { update } = mockUpdateEq({ error: null });
-    await updateChallengeProgress('chal-1', -5.7);
-    expect(update).toHaveBeenCalledWith({ current_value: 0 });
+  it('passes the challenge id through to the RPC', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: [{ user_id: 'u1', value: 10 }], error: null });
+
+    const rows = await getChallengeContributions('chal-1');
+
+    expect(rpcSpy).toHaveBeenCalledWith('get_crew_challenge_contributions', {
+      p_challenge_id: 'chal-1',
+    });
+    expect(rows).toEqual([{ user_id: 'u1', value: 10 }]);
   });
 
-  it('rounds non-integer progress', async () => {
-    const { update } = mockUpdateEq({ error: null });
-    await updateChallengeProgress('chal-1', 42.6);
-    expect(update).toHaveBeenCalledWith({ current_value: 43 });
-  });
+  it('returns [] on error and on a non-array payload', async () => {
+    rpcSpy.mockResolvedValueOnce({ data: null, error: { code: 'XX' } });
+    expect(await getChallengeContributions('chal-1')).toEqual([]);
 
-  it('returns db_error on failure', async () => {
-    mockUpdateEq({ error: { code: 'XX' } });
-    const r = await updateChallengeProgress('chal-1', 100);
-    expect(r).toEqual({ ok: false, reason: 'db_error' });
+    rpcSpy.mockResolvedValueOnce({ data: { nope: true }, error: null });
+    expect(await getChallengeContributions('chal-1')).toEqual([]);
   });
 });
 

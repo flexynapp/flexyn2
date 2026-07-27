@@ -91,42 +91,54 @@ export async function createChallenge({ crewId, title, metric, targetValue, ends
   return { ok: true, id: data?.id };
 }
 
-/** Update a challenge's progress (admin-only via RLS). */
-export async function updateChallengeProgress(id, currentValue) {
-  if (!id) return { ok: false, reason: 'no_id' };
-  const { error } = await supabase
-    .from('crew_challenges')
-    .update({ current_value: Math.max(0, Math.round(currentValue || 0)) })
-    .eq('id', id);
-  if (error) return { ok: false, reason: 'db_error' };
-  return { ok: true };
+/**
+ * Recompute MY contribution to every live challenge in every crew I'm in,
+ * and refresh each crew aggregate from the resulting ledger.
+ *
+ * Deliberately argument-free. Migration 246 derives everything — identity,
+ * crew membership, which challenges are live, and how much I've actually
+ * put in — from auth.uid() and my own workout_logs / action_xp_ledger rows
+ * inside a SECURITY DEFINER function. There is no number for a client to
+ * forge because the client sends no numbers.
+ *
+ * This replaced updateChallengeProgress / setChallengeStatus, which wrote
+ * current_value and status straight from the browser. Those were both dead
+ * (zero non-test call sites, so no challenge had ever moved off 0%) and
+ * forgeable (the FOR ALL admin policy let any crew admin write any value
+ * and fan out the "goal smashed" push). 246 revokes UPDATE on the table
+ * outright, so the old shape can't come back by accident.
+ *
+ * Fire-and-forget safe: returns a reason instead of throwing.
+ */
+export async function syncMyCrewChallengeProgress() {
+  const { data, error } = await supabase.rpc('sync_my_crew_challenge_progress');
+  if (error) {
+    // 42883 / 42P01 = RPC not deployed yet. Nothing to fall back to —
+    // a client-side recompute is exactly the forgery vector 246 closed.
+    console.warn('[crewChallenges] sync failed:', error);
+    return { ok: false, reason: error.code === '42501' ? 'unauthenticated' : 'db_error' };
+  }
+  return {
+    ok: true,
+    updated:   data?.updated ?? 0,
+    completed: Array.isArray(data?.completed) ? data.completed : [],
+  };
 }
 
-/** Mark a challenge completed or expired. */
-export async function setChallengeStatus(id, status) {
-  if (!id || !['active', 'completed', 'expired'].includes(status)) {
-    return { ok: false, reason: 'invalid' };
+/**
+ * Per-member contribution breakdown for one challenge, richest first.
+ *
+ * Server-gated on the caller's own crew membership, and returns display
+ * names in the same round trip so the UI doesn't have to join profiles.
+ */
+export async function getChallengeContributions(challengeId) {
+  if (!challengeId) return [];
+  const { data, error } = await supabase.rpc('get_crew_challenge_contributions', {
+    p_challenge_id: challengeId,
+  });
+  if (error) {
+    console.warn('[crewChallenges] contributions failed:', error);
+    return [];
   }
-  const { error } = await supabase
-    .from('crew_challenges')
-    .update({ status })
-    .eq('id', id);
-  if (error) return { ok: false, reason: 'db_error' };
-
-  // Fan out a per-member celebration push when the challenge just
-  // hit its goal. Expiry is intentionally silent — a "you missed
-  // your goal" push reads as scolding. Mig 104 RPC checks the
-  // status server-side and no-ops if not 'completed', so a benign
-  // double-call (e.g. expired then completed) doesn't push twice.
-  if (status === 'completed') {
-    try {
-      await supabase.rpc('notify_crew_challenge_completed_for', {
-        p_challenge_id: id,
-      });
-    } catch (e) {
-      console.warn('[crewChallenges] notify_crew_challenge_completed_for failed:', e?.message || e);
-    }
-  }
-
-  return { ok: true };
+  return Array.isArray(data) ? data : [];
 }

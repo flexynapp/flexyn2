@@ -5,16 +5,22 @@
 // live progress bar; admins additionally see a "+ New" button to post
 // a new one. Backed by mig 098's crew_challenges table.
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
-import { Target, Plus, Loader2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Target, Plus, Loader2, ChevronDown } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/lib/toast';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
-import { listChallengesForCrew, createChallenge, VALID_METRICS } from '@/lib/data/crewChallenges';
+import {
+  listChallengesForCrew,
+  createChallenge,
+  syncMyCrewChallengeProgress,
+  getChallengeContributions,
+  VALID_METRICS,
+} from '@/lib/data/crewChallenges';
 import { formatDistanceToNow } from 'date-fns';
 
 const METRIC_LABELS = {
@@ -153,11 +159,64 @@ function NewChallengeModal({ open, onClose, crewId, onCreated }) {
   );
 }
 
+// Per-member contribution breakdown. Collapsed by default — the point of
+// the card is the crew bar, and on a phone a 16-row list would bury it.
+function ContributionList({ challengeId, metric, open }) {
+  const { tFallback } = useLanguage();
+  const fmt = useNumberFormatter();
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['crewChallengeContrib', challengeId],
+    queryFn:  () => getChallengeContributions(challengeId),
+    enabled:  !!challengeId && open,
+    staleTime: 60_000,
+  });
+
+  if (!open) return null;
+
+  if (isLoading) {
+    return (
+      <div className="pt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+        <Loader2 className="w-3 h-3 animate-spin" aria-hidden="true" />
+        {tFallback('challenge.loadingContrib', 'Loading contributions…')}
+      </div>
+    );
+  }
+
+  const scoring = rows.filter(r => (r.value || 0) > 0);
+
+  if (scoring.length === 0) {
+    return (
+      <p className="pt-2 text-[10px] text-muted-foreground italic">
+        {tFallback('challenge.noContrib', 'Nobody has logged toward this yet.')}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="pt-2 space-y-1">
+      {scoring.map((r, i) => (
+        <li key={r.user_id} className="flex items-center gap-2 text-[10px]">
+          <span className="w-4 shrink-0 text-muted-foreground tabular-nums">{i + 1}</span>
+          <span className="truncate flex-1">
+            {r.username || r.full_name || tFallback('challenge.member', 'Member')}
+          </span>
+          <span className="shrink-0 tabular-nums font-semibold">
+            {fmt(r.value || 0)}
+            {metric === 'total_volume' ? ' lb' : ''}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function CrewChallengeCard({ crewId, isAdmin }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const qc = useQueryClient();
   const [composeOpen, setComposeOpen] = useState(false);
+  const [expandedId, setExpandedId] = useState(null);
 
   const { data: challenges = [] } = useQuery({
     queryKey: ['crewChallenges', crewId],
@@ -165,6 +224,27 @@ export default function CrewChallengeCard({ crewId, isAdmin }) {
     enabled: !!crewId,
     staleTime: 60_000,
   });
+
+  // Recompute my own contribution when the crew view opens, so a member
+  // who trained on another device still sees the bar move without having
+  // to save a workout first. The RPC only ever touches the caller's own
+  // ledger row and derives the number server-side, so calling it on mount
+  // is not a write the user can steer. Fire-and-forget: a failure leaves
+  // the previous, already-correct aggregate on screen.
+  const syncedRef = useRef(null);
+  useEffect(() => {
+    if (!crewId || syncedRef.current === crewId) return;
+    syncedRef.current = crewId;
+    let cancelled = false;
+    syncMyCrewChallengeProgress()
+      .then((res) => {
+        if (cancelled || !res?.ok) return;
+        qc.invalidateQueries({ queryKey: ['crewChallenges', crewId] });
+        qc.invalidateQueries({ queryKey: ['crewChallengeContrib'] });
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [crewId, qc]);
 
   if (!crewId) return null;
 
@@ -203,6 +283,7 @@ export default function CrewChallengeCard({ crewId, isAdmin }) {
             {challenges.map(c => {
               const pct = Math.max(0, Math.min(1, (c.current_value || 0) / Math.max(c.target_value, 1)));
               const remaining = formatDistanceToNow(new Date(c.ends_at), { addSuffix: true });
+              const open = expandedId === c.id;
               return (
                 <div key={c.id} className="rounded-lg border border-border bg-card px-3 py-2">
                   <div className="flex items-center justify-between gap-2 mb-1">
@@ -219,10 +300,35 @@ export default function CrewChallengeCard({ crewId, isAdmin }) {
                       transition={{ duration: 0.8, ease: 'easeOut' }}
                     />
                   </div>
-                  <div className="flex items-center justify-between text-[10px] text-muted-foreground tabular-nums">
-                    <span>{fmt(c.current_value || 0)} / {fmt(c.target_value)} {METRIC_LABELS[c.metric]?.toLowerCase()}</span>
-                    <span>{Math.round(pct * 100)}%</span>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setExpandedId(open ? null : c.id)}
+                    aria-expanded={open}
+                    className="w-full flex items-center justify-between text-[10px] text-muted-foreground tabular-nums"
+                  >
+                    <span className="text-start">
+                      {fmt(c.current_value || 0)} / {fmt(c.target_value)} {METRIC_LABELS[c.metric]?.toLowerCase()}
+                    </span>
+                    <span className="flex items-center gap-1 shrink-0">
+                      {Math.round(pct * 100)}%
+                      <ChevronDown
+                        className={`w-3 h-3 transition-transform ${open ? 'rotate-180' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {open && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <ContributionList challengeId={c.id} metric={c.metric} open={open} />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               );
             })}

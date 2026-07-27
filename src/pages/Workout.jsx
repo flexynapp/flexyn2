@@ -45,6 +45,7 @@ import { listActiveInjuries } from '@/lib/data/injuries';
 import { getActiveDuel } from '@/lib/data/duels';
 import { getMyCrews } from '@/lib/data/crews';
 import { getActiveWarForCrew, contributeWarXp } from '@/lib/data/crewWars';
+import { syncMyCrewChallengeProgress } from '@/lib/data/crewChallenges';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
 import GymRivalCard from '@/components/gymRival/GymRivalCard';
 import { getMyProgress as getGauntletProgress, checkGauntletProgress } from '@/lib/data/gauntlet';
@@ -1103,6 +1104,20 @@ export default function Workout() {
           })
           .catch(() => {});
       }
+
+      // Crew challenge progress — one call covers every crew and every
+      // live challenge the user is part of. Takes no arguments: the
+      // server recomputes this user's contribution from the workout_logs
+      // rows that were just written, then rewrites the crew aggregate.
+      // Nothing about the amount is client-supplied, so it's safe to
+      // fire-and-forget. Completions fan out their own push server-side.
+      syncMyCrewChallengeProgress()
+        .then((res) => {
+          if (!res?.ok) return;
+          queryClient.invalidateQueries({ queryKey: ['crewChallenges'] });
+          queryClient.invalidateQueries({ queryKey: ['crewChallengeContrib'] });
+        })
+        .catch(() => {});
 
       // Workout streak — milestone days celebrate with toast + confetti + invalidate profile
       workoutStreak.recordWorkoutDay(user)

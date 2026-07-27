@@ -68,96 +68,79 @@ export async function getActiveWars(limit = 20) {
  * does both writes via server-side delta arithmetic under a
  * FOR UPDATE lock on the war row.
  *
- * Pre-076 hosts fall through to the legacy RMW path so the feature
- * doesn't break on stale deployments; the race is the documented bug.
+ * The legacy read-modify-write fallback that used to sit under this call
+ * is gone. Migration 247 revokes INSERT/UPDATE/DELETE on crew_wars and
+ * crew_war_contributions from `authenticated`, because the old
+ * "crew_wars_update" policy let any member of either crew write
+ * crew_a_score directly and skip migration 180's clamp entirely. The RPC
+ * is now the only write path, so a fallback could only ever fail loudly —
+ * better to surface that than to pretend it worked.
  */
 export async function contributeWarXp(warId, crewId, xpToAdd) {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user || !warId || !crewId || !xpToAdd || xpToAdd <= 0) return;
+  if (!warId || !crewId || !xpToAdd || xpToAdd <= 0) return;
 
-  const { error: rpcErr } = await supabase.rpc('contribute_crew_war_xp', {
+  const { error } = await supabase.rpc('contribute_crew_war_xp', {
     p_war_id:  warId,
     p_crew_id: crewId,
     p_xp:      Math.floor(xpToAdd),
   });
-  if (!rpcErr) return;
-  if (rpcErr.code !== '42883' && rpcErr.code !== '42P01') {
-    // Real RPC failure (RLS, validation, network). Surface to caller
-    // via console at minimum; previously every failure mode landed
-    // silently because the entire function was no-await fire-and-forget
-    // for both legs of the dance.
-    console.warn('[crewWars] contribute_crew_war_xp failed:', rpcErr);
-    return;
-  }
-
-  // Pre-076 host fallback — legacy RMW. Race window is the documented bug.
-  const { data: existing } = await supabase
-    .from('crew_war_contributions')
-    .select('id, xp_contributed')
-    .eq('war_id', warId)
-    .eq('user_id', user.id)
-    .maybeSingle();
-
-  if (existing) {
-    await supabase
-      .from('crew_war_contributions')
-      .update({
-        xp_contributed: existing.xp_contributed + xpToAdd,
-        updated_at:     new Date().toISOString(),
-      })
-      .eq('id', existing.id);
-  } else {
-    await supabase
-      .from('crew_war_contributions')
-      .insert({
-        war_id:          warId,
-        user_id:         user.id,
-        crew_id:         crewId,
-        xp_contributed:  xpToAdd,
-      });
-  }
-
-  const { data: war } = await supabase
-    .from('crew_wars')
-    .select('crew_a_id, crew_a_score, crew_b_score')
-    .eq('id', warId)
-    .single();
-
-  if (war) {
-    const isCrewA = war.crew_a_id === crewId;
-    const scoreField = isCrewA ? 'crew_a_score' : 'crew_b_score';
-    const currentScore = isCrewA ? war.crew_a_score : war.crew_b_score;
-    await supabase
-      .from('crew_wars')
-      .update({ [scoreField]: currentScore + xpToAdd })
-      .eq('id', warId);
-  }
+  if (error) console.warn('[crewWars] contribute_crew_war_xp failed:', error);
 }
 
-/** Opt a crew into the war matchmaking queue (leader action) */
+/**
+ * Opt a crew into the war matchmaking queue (leader action).
+ *
+ * Pairs on arrival rather than waiting for a cron: if another crew is
+ * already queued, migration 247's RPC matches you against the one that
+ * has been waiting longest and flips the war straight to 'active'.
+ * Otherwise you become the waiting entry. Leader-gating, the two-member
+ * minimum, and the one-entry-per-crew rule are all enforced server-side
+ * on auth.uid() — the crew id alone is not a capability.
+ *
+ * Returns { status: 'matched' | 'queued' | 'already_queued', warId }.
+ */
 export async function joinWarMatchmaking(crewId) {
-  // Creates a 'matchmaking' war row as a queue entry (no opponent yet)
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  if (!crewId) throw new Error('No crew');
 
+  const { data, error } = await supabase.rpc('join_crew_war_queue', {
+    p_crew_id: crewId,
+  });
+  if (error) throw error;
+
+  return { status: data?.status ?? 'queued', warId: data?.war_id ?? null };
+}
+
+/** Withdraw a crew from the queue (leader action, unpaired entries only). */
+export async function leaveWarMatchmaking(crewId) {
+  if (!crewId) return { ok: false, removed: 0 };
+
+  const { data, error } = await supabase.rpc('leave_crew_war_queue', {
+    p_crew_id: crewId,
+  });
+  if (error) {
+    console.warn('[crewWars] leave_crew_war_queue failed:', error);
+    return { ok: false, removed: 0 };
+  }
+  return { ok: true, removed: data?.removed ?? 0 };
+}
+
+/** The crew's pending (unpaired) queue entry, if it has one. */
+export async function getQueuedWarForCrew(crewId) {
+  if (!crewId) return null;
   const { data, error } = await supabase
     .from('crew_wars')
-    .insert({
-      crew_a_id: crewId,
-      crew_b_id: null, // filled in by matchmaking cron when a rival is found
-      status:    'matchmaking',
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-  return data;
+    .select('id, crew_a_id, status, created_at')
+    .eq('crew_a_id', crewId)
+    .eq('status', 'matchmaking')
+    .is('crew_b_id', null)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  return error ? null : data;
 }
 
-/** Crew leader requests a rematch (sets a flag the cron will pick up) */
+/** Crew leader wants another go — re-enter the queue. */
 export async function requestRematch(warId, crewId) {
-  // We use a simple convention: store rematch request in a dedicated column
-  // For now, upsert a note via hub or re-enter matchmaking
   return joinWarMatchmaking(crewId);
 }
 

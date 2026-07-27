@@ -10,7 +10,15 @@ import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Trophy, Crown, Hist
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
-import { getActiveWarForCrew, getCrewWarHistory, getWarScore, getOpponentScore, joinWarMatchmaking } from '@/lib/data/crewWars';
+import {
+  getActiveWarForCrew,
+  getCrewWarHistory,
+  getWarScore,
+  getOpponentScore,
+  joinWarMatchmaking,
+  leaveWarMatchmaking,
+  getQueuedWarForCrew,
+} from '@/lib/data/crewWars';
 import { formatDistanceToNow } from 'date-fns';
 import { useNumberFormatter } from '@/lib/intl';
 import { toast } from '@/lib/toast';
@@ -101,23 +109,40 @@ function BattleEntryRow({ crew, currentUserId }) {
     staleTime: 5 * 60_000,
   });
 
-  // Synchronous double-tap guard. `enterMut.isPending` is async —
-  // fast double-tap (or two crew leaders in different sessions —
-  // though we can't catch the cross-session case here) fires
-  // joinWarMatchmaking twice. Without a UNIQUE partial index on
-  // (crew_a_id) WHERE status='matchmaking' on the server side,
-  // both inserts succeed and the cron matchmaker could pair the
-  // same crew into two simultaneous battles. The single-tap race
-  // is closed here; the cross-session case needs a server-side
-  // UNIQUE which is documented in mig 159's deferred list.
-  // Wave 57 (Crews audit) caught this.
+  // A crew waiting in the queue with no rival yet. Polls a little faster
+  // than the active-war query because the pairing can land at any moment
+  // — the RPC matches on arrival, so the wait ends when some other crew
+  // presses Enter Battle, not on a fixed schedule.
+  const { data: queued } = useQuery({
+    queryKey:  ['queuedWar', crew.id],
+    queryFn:   () => getQueuedWarForCrew(crew.id),
+    enabled:   !!crew.id,
+    staleTime: 15_000,
+    refetchInterval: 30_000,
+  });
+
+  // Synchronous double-tap guard. `enterMut.isPending` is async, so a
+  // fast double-tap fires joinWarMatchmaking twice. The cross-session
+  // case (two leaders, two devices) that this ref cannot see is now
+  // closed on the server: migration 247 adds a partial UNIQUE index on
+  // crew_wars (crew_a_id) WHERE crew_b_id IS NULL, and the RPC returns
+  // 'already_queued' rather than creating a second entry.
   const enteringRef = useRef(false);
   const enterMut = useMutation({
     mutationFn: () => joinWarMatchmaking(crew.id),
     onMutate: () => { enteringRef.current = true; },
-    onSuccess: () => {
-      toast.success('Entered matchmaking! We\'ll find you a rival crew.');
+    onSuccess: (res) => {
+      if (res?.status === 'matched') {
+        toast.success('Rival found — the battle is live!', {
+          description: 'Seven days. Most XP wins.',
+        });
+      } else if (res?.status === 'already_queued') {
+        toast.info('Already in the queue.');
+      } else {
+        toast.success('In the queue — we\'ll pair you with the next crew in.');
+      }
       qc.invalidateQueries({ queryKey: ['activeWar', crew.id] });
+      qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
     },
     onError: (err) => toast.error('Could not enter battle', { description: err.message }),
     onSettled: () => { enteringRef.current = false; },
@@ -126,6 +151,15 @@ function BattleEntryRow({ crew, currentUserId }) {
     if (enteringRef.current || enterMut.isPending) return;
     enterMut.mutate();
   };
+
+  const leaveMut = useMutation({
+    mutationFn: () => leaveWarMatchmaking(crew.id),
+    onSuccess: () => {
+      toast.success('Left the queue.');
+      qc.invalidateQueries({ queryKey: ['queuedWar', crew.id] });
+    },
+    onError: (err) => toast.error('Could not leave the queue', { description: err.message }),
+  });
 
   if (warLoading) {
     return (
@@ -156,21 +190,44 @@ function BattleEntryRow({ crew, currentUserId }) {
           <div className="w-12 h-12 rounded-2xl bg-rose-500/10 flex items-center justify-center mx-auto mb-3">
             <Swords className="w-6 h-6 text-rose-500" />
           </div>
-          <p className="text-sm font-bold mb-1">No Active Battle</p>
-          <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-            Enter matchmaking to get paired with a rival crew. Wars run for 7 days — most XP earned wins.
-          </p>
-          <button
-            onClick={handleEnter}
-            disabled={enterMut.isPending}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors"
-          >
-            {enterMut.isPending
-              ? <Loader2 className="w-4 h-4 animate-spin" />
-              : <Swords className="w-4 h-4" />
-            }
-            {enterMut.isPending ? 'Finding rival…' : 'Enter Battle'}
-          </button>
+          {queued ? (
+            <>
+              <p className="text-sm font-bold mb-1">Waiting for a rival</p>
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                You're in the queue. The next crew to enter gets matched against you,
+                and the battle starts the moment they do.
+              </p>
+              <button
+                onClick={() => leaveMut.mutate()}
+                disabled={leaveMut.isPending}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-border text-sm font-bold hover:bg-secondary disabled:opacity-50 transition-colors"
+              >
+                {leaveMut.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Swords className="w-4 h-4" />
+                }
+                Leave queue
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm font-bold mb-1">No Active Battle</p>
+              <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                Enter matchmaking to get paired with a rival crew. Wars run for 7 days — most XP earned wins.
+              </p>
+              <button
+                onClick={handleEnter}
+                disabled={enterMut.isPending}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-rose-500 text-white text-sm font-bold hover:bg-rose-600 disabled:opacity-50 transition-colors"
+              >
+                {enterMut.isPending
+                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                  : <Swords className="w-4 h-4" />
+                }
+                {enterMut.isPending ? 'Finding rival…' : 'Enter Battle'}
+              </button>
+            </>
+          )}
         </div>
 
         {history.length > 0 && (
