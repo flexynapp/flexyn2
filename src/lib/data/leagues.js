@@ -15,137 +15,54 @@
 // fine in theory, but UX-wise users expect "this week" to mean their week.
 
 import { supabase } from '@/api/supabaseClient';
-import { safeSelect } from '@/api/safeSelect';
-
-import { format, startOfWeek, endOfWeek } from 'date-fns';
-import {
-  TIERS,
-  MAX_LEAGUE_SIZE,
-  getTier,
-} from '@/lib/leagueTiers';
+import { getTier } from '@/lib/leagueTiers';
 import { notifyLeagueResolution } from './notifications';
 import { reportError } from '@/lib/reportError';
 
-/** ISO week boundaries: Mon 00:00:00 → Sun 23:59:59 in the local timezone. */
-function currentWeekRange() {
-  const now = new Date();
-  const monday = startOfWeek(now, { weekStartsOn: 1 });
-  const sunday = endOfWeek(now, { weekStartsOn: 1 });
-  return { start: monday, end: sunday };
-}
-
-const fmtDate = (d) => format(d, 'yyyy-MM-dd');
-
-/**
- * Find a league with capacity for the user's tier and current week, or create
- * a new one. Returns the league row.
- */
-async function _findOrCreateLeague(tier, weekStart, weekEnd) {
-  // Try to grab the most recently-created open league at this tier+week with
-  // room left.
-  const { data: existing, error } = await supabase
-    .from('leagues')
-    .select('*')
-    .eq('tier', tier)
-    .eq('week_start', fmtDate(weekStart))
-    .eq('is_resolved', false)
-    .lt('member_count', MAX_LEAGUE_SIZE)
-    .order('created_at', { ascending: false })
-    .limit(1);
-  if (!error && existing && existing.length > 0) return existing[0];
-
-  // Create one
-  const { data: created, error: createErr } = await supabase
-    .from('leagues')
-    .insert({
-      tier,
-      week_start: fmtDate(weekStart),
-      week_end:   fmtDate(weekEnd),
-      member_count: 0,
-      is_resolved:  false,
-    })
-    .select()
-    .single();
-  if (createErr) {
-    console.warn('[leagues] failed to create league:', createErr);
-    return null;
-  }
-  return created;
-}
+// The local-week helpers (currentWeekRange / fmtDate) and the
+// MAX_LEAGUE_SIZE / TIERS imports lived here to support the client-side
+// find-or-create that migration 242 moved into the database. Week
+// boundaries, capacity and tier are all decided server-side now, so
+// nothing in this module computes them any more.
 
 /**
  * Get (or create) the user's league for the current week. Returns:
  *   { league, member } — both rows. null if user is not authenticated.
+ *
+ * Runs entirely inside migration 242's `ensure_my_league` RPC.
+ *
+ * This used to do the find-or-create from the browser: SELECT an open
+ * league, INSERT one if none had room, then INSERT the membership row.
+ * The league INSERT returned 403 on every call and always had — `leagues`
+ * grants `authenticated` SELECT only, and its RLS has a read policy and
+ * no insert policy, so the write was blocked twice over. Both locks are
+ * deliberate: a `leagues` row is a competition bracket, and placement
+ * pays out through claim_league_resolution / distribute_league_rewards.
+ * Letting the client mint brackets would let anyone create a private
+ * league at any tier, sit in it alone and collect first place. So the
+ * call site was the bug, not the missing grant.
+ *
+ * The RPC derives every trust-bearing input from the session: the user
+ * from auth.uid(), the email from current_user_email() (mig 241, so
+ * guest sessions work), the TIER from user_profiles, and the WEEK from
+ * the database clock. None of those are parameters any more — a
+ * client-passed tier would let anyone drop into Legend, and a
+ * client-passed week would let anyone join a resolved bracket.
+ *
+ * Membership moved in too. `league_members` does grant INSERT under a
+ * `user_id = auth.uid()` policy, but that only checks WHO is joining —
+ * not which league_id they attach to or what weekly_xp they start with.
  */
 export async function ensureCurrentLeague(user) {
-  if (!user?.id || !user?.email) return null;
+  if (!user?.id) return null;
 
-  // Read the user's profile for their current tier
-  const { data: profile, error: pErr } = await safeSelect({
-    columns: ['league_tier'],
-    build: (cols) => supabase
-    .from('user_profiles')
-    .select(cols)
-    .eq('id', user.id)
-    .maybeSingle(),
-  });
-  if (pErr) {
-    console.warn('[leagues] failed to read profile:', pErr);
+  const { data, error } = await supabase.rpc('ensure_my_league');
+  if (error) {
+    console.warn('[leagues] ensure_my_league failed:', error);
     return null;
   }
-  const tier = profile?.league_tier || 'bronze';
-
-  const { start, end } = currentWeekRange();
-
-  // Is the user already in a league for this week?
-  const { data: existingMembership } = await supabase
-    .from('league_members')
-    .select('*, leagues!inner(*)')
-    .eq('user_id', user.id)
-    .eq('leagues.week_start', fmtDate(start))
-    .order('joined_at', { ascending: false })
-    .limit(1);
-  if (existingMembership && existingMembership.length > 0) {
-    const member = existingMembership[0];
-    const league = member.leagues;
-    delete member.leagues;
-    return { league, member };
-  }
-
-  // Find or create a league
-  const league = await _findOrCreateLeague(tier, start, end);
-  if (!league) return null;
-
-  // Insert membership. Migration 027 added a trigger that maintains
-  // leagues.member_count automatically — the client no longer bumps it
-  // (the old read-modify-write let two concurrent joins both increment
-  // off the same baseline, exceeding MAX_LEAGUE_SIZE).
-  const { data: member, error: mErr } = await supabase
-    .from('league_members')
-    .insert({
-      league_id:  league.id,
-      user_id:    user.id,
-      user_email: user.email,
-      weekly_xp:  0,
-    })
-    .select()
-    .single();
-  if (mErr) {
-    // Race: another tab inserted concurrently. Re-read.
-    if (mErr.code === '23505') {
-      const { data: refetch } = await supabase
-        .from('league_members')
-        .select('*')
-        .eq('league_id', league.id)
-        .eq('user_id', user.id)
-        .maybeSingle();
-      return refetch ? { league, member: refetch } : null;
-    }
-    console.warn('[leagues] insert membership failed:', mErr);
-    return null;
-  }
-
-  return { league, member };
+  if (!data?.league || !data?.member) return null;
+  return { league: data.league, member: data.member };
 }
 
 /**
