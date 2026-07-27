@@ -43,8 +43,7 @@ import ComebackScreen from '@/components/workout/ComebackScreen';
 import { useComebackProtocol } from '@/hooks/useComebackProtocol';
 import { listActiveInjuries } from '@/lib/data/injuries';
 import { getActiveDuel } from '@/lib/data/duels';
-import { getMyCrews } from '@/lib/data/crews';
-import { getActiveWarForCrew, contributeWarXp } from '@/lib/data/crewWars';
+import { syncMyCrewWarProgress } from '@/lib/data/crewWars';
 import { syncMyCrewChallengeProgress } from '@/lib/data/crewChallenges';
 import { getMyActiveClaim, listActiveBounties } from '@/lib/data/bounties';
 import GymRivalCard from '@/components/gymRival/GymRivalCard';
@@ -1084,23 +1083,28 @@ export default function Workout() {
         .then(() => queryClient.invalidateQueries({ queryKey: ['myLeague', user?.id] }))
         .catch(() => {});
 
-      // Crew War contribution — fire-and-forget for each crew the user is in.
-      // Shows a toast for the first active war found so the user knows their
-      // workout counted toward the battle.
-      if (user?.id && xpGained > 0) {
-        getMyCrews(user.id)
-          .then(async (myCrews) => {
-            for (const crew of (myCrews || [])) {
-              const war = await getActiveWarForCrew(crew.id).catch(() => null);
-              if (!war || war.status !== 'active') continue;
-              await contributeWarXp(war.id, crew.id, xpGained).catch(() => {});
-              toast.success(`⚔️ +${xpGained} XP → ${crew.name}'s war score!`, {
-                description: 'Your workout contributed to the Crew War.',
-                duration: 4000,
-              });
-              // Only notify for the first active war to avoid toast spam
-              break;
-            }
+      // Crew War contribution — one call, no arguments, no client numbers.
+      //
+      // Migration 249 recomputes the caller's contribution to every active
+      // war from the workout_logs rows that were just written, blending
+      // volume, sessions and days trained rather than counting XP. That
+      // replaced a three-round-trip dance (getMyCrews, then a war lookup
+      // per crew, then a contribute call carrying the browser's own XP
+      // figure) sitting inside the workout-save path.
+      //
+      // The toast no longer quotes a number, because the client no longer
+      // computes one — and an approximate figure that disagrees with the
+      // scoreboard a second later is worse than no figure at all.
+      if (user?.id) {
+        syncMyCrewWarProgress()
+          .then((res) => {
+            if (!res?.ok || !res.wars) return;
+            queryClient.invalidateQueries({ queryKey: ['activeWar'] });
+            queryClient.invalidateQueries({ queryKey: ['warBreakdown'] });
+            toast.success('Your session counted toward the Crew War', {
+              description: 'Volume, sessions and days trained all score.',
+              duration: 4000,
+            });
           })
           .catch(() => {});
       }

@@ -57,34 +57,89 @@ export async function getActiveWars(limit = 20) {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 /**
- * Add XP contribution for the current user in an active war.
+ * How a war score is built, mirrored from _crew_war_score in migration 249.
  *
- * Atomic via contribute_crew_war_xp RPC (migration 076). The previous
- * client-side implementation was a four-step read-modify-write dance:
- * read existing contribution → add delta → write back, then read war
- * row → add delta to crew_*_score → write back. Two simultaneous
- * crew members finishing workouts both read the same aggregate score
- * and the last writer's delta overwrote the first's. Now the RPC
- * does both writes via server-side delta arithmetic under a
- * FOR UPDATE lock on the war row.
- *
- * The legacy read-modify-write fallback that used to sit under this call
- * is gone. Migration 247 revokes INSERT/UPDATE/DELETE on crew_wars and
- * crew_war_contributions from `authenticated`, because the old
- * "crew_wars_update" policy let any member of either crew write
- * crew_a_score directly and skip migration 180's clamp entirely. The RPC
- * is now the only write path, so a fallback could only ever fail loudly —
- * better to surface that than to pretend it worked.
+ * The server is the authority; this exists so the war screen can show a
+ * breakdown that adds up to the score the server wrote. If the weights
+ * change in 249 they must change here too.
  */
-export async function contributeWarXp(warId, crewId, xpToAdd) {
-  if (!warId || !crewId || !xpToAdd || xpToAdd <= 0) return;
+export const CREW_WAR_WEIGHTS = {
+  volumePerPoint: 100,   // every 100 lb lifted is worth 1 point
+  perSession:     50,
+  perDayActive:   100,
+  caps: { volumeLbs: 200000, sessions: 28, daysActive: 7 },
+};
 
-  const { error } = await supabase.rpc('contribute_crew_war_xp', {
-    p_war_id:  warId,
-    p_crew_id: crewId,
-    p_xp:      Math.floor(xpToAdd),
+/** Recompute a score from its parts, matching the server's blend exactly. */
+export function crewWarScore({ volume_lbs = 0, sessions = 0, days_active = 0 } = {}) {
+  const { volumePerPoint, perSession, perDayActive, caps } = CREW_WAR_WEIGHTS;
+  const vol  = Math.min(caps.volumeLbs,  Math.max(0, Number(volume_lbs)  || 0));
+  const sess = Math.min(caps.sessions,   Math.max(0, Number(sessions)    || 0));
+  const days = Math.min(caps.daysActive, Math.max(0, Number(days_active) || 0));
+  return Math.floor(vol / volumePerPoint) + sess * perSession + days * perDayActive;
+}
+
+/**
+ * Recompute my crews' active war scores from my own training logs.
+ *
+ * Argument-free on purpose. Migration 249 derives everything — who I am,
+ * which wars I'm in, and how much I've actually put in — from auth.uid()
+ * and my own workout_logs inside a SECURITY DEFINER function. There is no
+ * number for a client to forge because the client sends none.
+ *
+ * This replaced contributeWarXp, which passed the XP the browser had just
+ * calculated. Migration 180 clamped that number and 247 removed the table
+ * writes around it, so it was bounded rather than open — but it was still
+ * the last place in the crew system where a client-chosen number reached a
+ * score. It was also wrong on the merits: XP rewards whoever grinds most,
+ * not the fittest crew, so scoring now blends volume, sessions and days
+ * trained, weighted so consistency beats one heroic session.
+ *
+ * One call now covers every crew and every active war. The old path ran
+ * getMyCrews, then getActiveWarForCrew per crew, then contributeWarXp —
+ * three round trips deep inside the workout-save path.
+ *
+ * Fire-and-forget safe: returns a reason instead of throwing.
+ */
+export async function syncMyCrewWarProgress() {
+  const { data, error } = await supabase.rpc('sync_my_crew_war_progress');
+  if (error) {
+    // 42883 / 42P01 = migration 249 not deployed on this host yet. The
+    // hourly recompute cron still settles the score, so there is nothing
+    // to fall back to and nothing lost by staying quiet.
+    if (error.code !== '42883' && error.code !== '42P01') {
+      console.warn('[crewWars] sync_my_crew_war_progress failed:', error);
+    }
+    return { ok: false, reason: error.code === '42501' ? 'unauthenticated' : 'db_error' };
+  }
+  return { ok: true, wars: data?.wars ?? 0 };
+}
+
+/**
+ * Per-metric totals for both sides plus my crew's ranked member list.
+ *
+ * Server-gated on the caller belonging to one of the two crews: the
+ * scoreboard is public, but which of your rivals trained on which day is
+ * not. Returns null when there's nothing to show.
+ */
+export async function getWarBreakdown(warId) {
+  if (!warId) return null;
+  const { data, error } = await supabase.rpc('get_crew_war_breakdown', {
+    p_war_id: warId,
   });
-  if (error) console.warn('[crewWars] contribute_crew_war_xp failed:', error);
+  if (error) {
+    if (error.code !== '42883' && error.code !== '42P01') {
+      console.warn('[crewWars] get_crew_war_breakdown failed:', error);
+    }
+    return null;
+  }
+  if (!data) return null;
+  return {
+    warId:    data.war_id ?? warId,
+    myCrewId: data.my_crew_id ?? null,
+    totals:   Array.isArray(data.totals)  ? data.totals  : [],
+    members:  Array.isArray(data.members) ? data.members : [],
+  };
 }
 
 /**

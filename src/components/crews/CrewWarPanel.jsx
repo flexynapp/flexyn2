@@ -3,9 +3,9 @@
 
 import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Flame, Shield, Clock, Crown, Trophy } from 'lucide-react';
+import { Shield, Clock, Crown, Trophy } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import { getActiveWarForCrew, getWarContributions, getWarScore, getOpponentScore } from '@/lib/data/crewWars';
+import { getActiveWarForCrew, getWarBreakdown, getWarScore, getOpponentScore } from '@/lib/data/crewWars';
 import { fireCrewWinCelebration } from '@/lib/crewWinCelebration';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -40,20 +40,71 @@ function ScoreBar({ myScore, theirScore }) {
   );
 }
 
-function ContribRow({ rank, userId, xp, isCurrentUser }) {
+// One member's contribution. The tint carries "this is you" and the
+// weight carries rank — no border, per docs/profile-ui-premium-research.md,
+// which counted borders-as-separators as the thing that makes a screen read
+// like settings. Names are real now: migration 249's breakdown RPC returns
+// them in the same round trip, so this stopped rendering "Member" for
+// everyone except the viewer.
+function ContribRow({ rank, row, isCurrentUser, isMvp }) {
   const fmt = useNumberFormatter();
+  const name = isCurrentUser
+    ? 'You'
+    : (row.username || row.full_name || 'Member');
+  const idle = (row.score || 0) === 0;
+
   return (
-    <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg ${isCurrentUser ? 'bg-primary/8 border border-primary/20' : ''}`}>
-      <span className={`text-xs font-black w-5 text-center ${rank === 1 ? 'text-yellow-500' : rank === 2 ? 'text-slate-400' : rank === 3 ? 'text-amber-700' : 'text-muted-foreground'}`}>
+    <div className={`flex items-center gap-2.5 py-2 px-2 -mx-2 rounded-lg ${isCurrentUser ? 'bg-primary/[0.07]' : ''}`}>
+      <span className="text-xs w-5 text-center tabular-nums text-muted-foreground">
         {rank}
       </span>
-      <div className="flex-1">
-        <p className="text-xs font-semibold truncate">{isCurrentUser ? 'You' : `Member`}</p>
-      </div>
-      <div className="flex items-center gap-1">
-        <Flame className="w-3 h-3 text-orange-500" />
-        <span className="text-xs font-bold tabular-nums">{fmt(xp)} XP</span>
-      </div>
+      <p className={`flex-1 min-w-0 truncate text-xs ${idle ? 'text-muted-foreground' : ''} ${isCurrentUser ? 'font-bold' : ''}`}>
+        {name}
+        {row.days_active > 0 && (
+          <span className="text-muted-foreground font-normal">
+            {' · '}{row.days_active}d · {row.sessions} {row.sessions === 1 ? 'session' : 'sessions'}
+          </span>
+        )}
+      </p>
+      {isMvp && (
+        <span className="text-xs font-bold text-yellow-500 shrink-0">MVP</span>
+      )}
+      <span className={`text-xs font-bold tabular-nums shrink-0 ${idle ? 'text-muted-foreground' : ''}`}>
+        {fmt(row.score || 0)}
+      </span>
+    </div>
+  );
+}
+
+// Where the points actually came from, for the viewer's own crew. Text
+// only — the metric name, how it's weighted, and what it produced.
+function MetricBreakdown({ totals, myCrewId }) {
+  const fmt  = useNumberFormatter();
+  const mine = (totals || []).find(t => t.crew_id === myCrewId);
+  if (!mine) return null;
+
+  const vol  = Number(mine.volume_lbs)  || 0;
+  const sess = Number(mine.sessions)    || 0;
+  const days = Number(mine.days_active) || 0;
+  if (vol === 0 && sess === 0 && days === 0) return null;
+
+  const lines = [
+    { label: 'Volume lifted',   detail: `${fmt(vol)} lb`, points: Math.floor(vol / 100) },
+    { label: 'Sessions logged', detail: fmt(sess),        points: sess * 50 },
+    { label: 'Days active',     detail: fmt(days),        points: days * 100 },
+  ];
+
+  return (
+    <div>
+      <p className="text-xs font-semibold mb-1">Where your points came from</p>
+      {lines.map(l => (
+        <div key={l.label} className="flex items-center gap-2 py-1 text-xs">
+          <span className="flex-1 text-muted-foreground">
+            {l.label} <span className="text-muted-foreground/70">· {l.detail}</span>
+          </span>
+          <span className="font-bold tabular-nums">{fmt(l.points)}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -126,12 +177,18 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
     refetchInterval: 120_000,
   });
 
-  const { data: contributions = [] } = useQuery({
-    queryKey:  ['warContributions', war?.id],
-    queryFn:   () => getWarContributions(war?.id),
+  // Migration 249's breakdown: per-side metric totals plus my crew's ranked
+  // members, with display names, in one round trip. The RPC deliberately
+  // returns only my own crew's member rows — the scoreboard is public, but
+  // which of your rivals trained on which day is not.
+  const { data: breakdown } = useQuery({
+    queryKey:  ['warBreakdown', war?.id],
+    queryFn:   () => getWarBreakdown(war?.id),
     enabled:   !!war?.id,
     staleTime: 60_000,
   });
+
+  const contributions = breakdown?.members ?? [];
 
   // Auto-fire the crew-win celebration the first time we see a
   // completed war this user's crew won. Per-device localStorage gate
@@ -144,12 +201,18 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
     if (war.status !== 'completed' || war.winner_crew_id !== crewId) return;
     const alreadyCelebrated = readCelebrated(user.id).has(war.id);
     if (alreadyCelebrated) return;
+    // 249 renamed the per-member figure: the breakdown RPC returns `score`
+    // (the volume/sessions/days blend), not the old raw `xp_contributed`.
+    // A member who was in the crew but never trained now has a row with a
+    // zero score, so "did you contribute" is a value test rather than a
+    // row-exists test — otherwise everyone gets the contributor toast.
     const myContribution = contributions.find(c => c.user_id === currentUserId);
+    const myScoreShare   = Number(myContribution?.score) || 0;
     fireCrewWinCelebration({
       crewName: war.winner_crew_name,
-      xpGained: myContribution?.xp_contributed ?? 0,
+      xpGained: myScoreShare,
       finalScore: getWarScore(war, crewId),
-      wasContributor: !!myContribution,
+      wasContributor: myScoreShare > 0,
       userEmail: user.email,
       language,
     });
@@ -223,8 +286,8 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
   const tied       = myScore === theirScore;
   const completed  = war.status === 'completed';
 
-  const myContribs    = contributions.filter(c => c.crew_id === crewId).sort((a, b) => b.xp_contributed - a.xp_contributed);
-  const theirContribs = contributions.filter(c => c.crew_id !== crewId).sort((a, b) => b.xp_contributed - a.xp_contributed);
+  // Already my crew only, and already ranked, server-side.
+  const myContribs = contributions;
 
   return (
     <motion.div
@@ -255,20 +318,25 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
         {/* Score bar */}
         <ScoreBar myScore={myScore} theirScore={theirScore} />
 
-        {/* My crew contribution leaderboard */}
+        {/* Where the points came from — the case for the new scoring. */}
+        <MetricBreakdown totals={breakdown?.totals} myCrewId={breakdown?.myCrewId ?? crewId} />
+
+        {/* My crew's ranked members */}
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Your Squad</p>
+          <p className="text-xs font-semibold mb-1">Who's carrying</p>
           {myContribs.length === 0 ? (
-            <p className="text-xs text-muted-foreground italic px-1">No contributions yet — complete a workout to score!</p>
+            <p className="text-xs text-muted-foreground">
+              Nobody has trained toward this yet — log a session to put your crew on the board.
+            </p>
           ) : (
-            <div className="space-y-1">
-              {myContribs.slice(0, 5).map((c, i) => (
+            <div>
+              {myContribs.slice(0, 6).map((c, i) => (
                 <ContribRow
                   key={c.user_id}
                   rank={i + 1}
-                  userId={c.user_id}
-                  xp={c.xp_contributed}
+                  row={c}
                   isCurrentUser={c.user_id === currentUserId}
+                  isMvp={completed && war.mvp_user_id === c.user_id}
                 />
               ))}
             </div>
@@ -277,8 +345,8 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
 
         {/* End date — only show while the war is in flight. */}
         {!completed && (
-          <p className="text-[10px] text-muted-foreground text-center">
-            War ends {formatDistanceToNow(new Date(war.ends_at), { addSuffix: true })} · XP earned this week counts
+          <p className="text-xs text-muted-foreground text-center">
+            Ends {formatDistanceToNow(new Date(war.ends_at), { addSuffix: true })} · volume, sessions and days trained all score
           </p>
         )}
       </div>

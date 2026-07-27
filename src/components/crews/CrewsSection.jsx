@@ -243,7 +243,8 @@ function BattleEntryRow({ crew, currentUserId }) {
             <>
               <p className="text-sm font-bold mb-1">No Active Battle</p>
               <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-                Enter matchmaking to get paired with a rival crew. Wars run for 7 days — most XP earned wins.
+                Enter matchmaking to get paired with a rival crew in your division. Wars run
+                for 7 days, scored on volume lifted, sessions logged and days trained.
               </p>
               <button
                 onClick={handleEnter}
