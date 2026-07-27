@@ -35,14 +35,31 @@ export async function createCrew(user, name) {
   return crew;
 }
 
+// Crew columns the app reads on the crews list. The progression half
+// (crew_level, crew_xp, trophies, the war record) arrives with migration
+// 248; the base half predates it. They're split so a host that hasn't run
+// 248 yet degrades to the base set instead of erroring the whole Crews tab
+// during the window between the Netlify deploy and the SQL being applied.
+const CREW_BASE_COLS = 'id, name, created_at, max_capacity, tag, avatar_url';
+const CREW_PROG_COLS = 'crew_level, crew_xp, trophies, wars_won, wars_lost, wars_drawn';
+
 export async function getMyCrews(userId) {
   if (!userId) return [];
-  const { data, error } = await supabase
+
+  const run = (crewCols) => supabase
     .from('crew_members')
-    .select('crew_id, is_admin, joined_at, crews(id, name, created_at, max_capacity)')
+    .select(`crew_id, is_admin, joined_at, crews(${crewCols})`)
     .eq('user_id', userId)
     .order('joined_at', { ascending: false });
+
+  // safeSelect can't help here: it strips from a flat column list and this
+  // read nests an embedded resource, so the retry is written out explicitly.
+  let { data, error } = await run(`${CREW_BASE_COLS}, ${CREW_PROG_COLS}`);
+  if (error) {
+    ({ data, error } = await run(CREW_BASE_COLS));
+  }
   if (error) return [];
+
   return (data ?? []).map(row => ({
     ...row.crews,
     is_admin:  row.is_admin,

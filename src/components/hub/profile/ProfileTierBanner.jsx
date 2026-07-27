@@ -156,10 +156,24 @@ export default function ProfileTierBanner({
         </span>
       </div>
 
-      {/* XP as the banner's bottom edge. aria-label carries the numbers the
-          old card printed underneath, so nothing is lost to screen readers. */}
+      {/*
+        XP as the banner's bottom edge. aria-label carries the numbers the old
+        card printed underneath, so nothing is lost to screen readers.
+
+        The start inset clears the avatar, which punches through this exact
+        edge on the left. Full-bleed it drew a 3px dark line straight across
+        the avatar's face — its z-10 beat the avatar's z-index:auto, so the
+        track won the paint order.
+
+        Insetting rather than re-stacking is deliberate: if the avatar simply
+        painted on top, the first ~22% of the bar would sit behind it, and a
+        level-1 user — everyone on day one — would see a progress bar that
+        never appears to start. The numbers are the container's padding
+        (16px / 24px at md, cancelled by this banner's -mx-4 md:-mx-6), plus
+        the 88px avatar, plus a 12px gap.
+      */}
       <div
-        className="absolute inset-x-0 bottom-0 z-10"
+        className="absolute end-0 bottom-0 z-10 start-[116px] md:start-[124px]"
         style={{ height: 3, background: 'rgba(0,0,0,0.28)' }}
         role="progressbar"
         aria-valuenow={Math.round(progressPercent)}

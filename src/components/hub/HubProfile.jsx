@@ -1005,7 +1005,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               BACKGROUND colour rather than a border colour — that's the
               detail that makes it read as punched out of the banner
               instead of placed on top of it. */}
-          <div className="relative shrink-0" style={{ width: 88, height: 88 }}>
+          {/* z-10 so the avatar always wins the paint order against the
+              banner's own positioned children. The XP rail is inset to clear
+              it, but the banner is `position: relative` and anything absolute
+              added inside it later would otherwise draw over this face. */}
+          <div className="relative shrink-0 z-10" style={{ width: 88, height: 88 }}>
 
             {/* Status note — floats over the banner, sticker-style. */}
             {activeNote && (
