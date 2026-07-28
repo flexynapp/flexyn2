@@ -41,7 +41,11 @@ function pickItemForRoll(category, rarity) {
 const CARD_W     = 130; // px
 const CARD_GAP   = 12;  // px
 const CARD_STRIDE = CARD_W + CARD_GAP;
-const WIN_INDEX  = 18;  // 0-based; winning item sits at position 18 in a 22-card reel
+// The winning slot is NOT a constant. It used to be: every reel was 22
+// cards with the win pinned at index 18, so every spin travelled exactly
+// the same distance and the only thing that changed between opens was the
+// easing curve. Users read that as "it's the same spin every time, just a
+// different item" — which it was. See buildReel.
 
 // ─── Spin variants ────────────────────────────────────────────────────────────
 // Five distinct "personas" the reel can take on. We pick one at random
@@ -80,13 +84,38 @@ function pickSpinVariant() {
 // its own RARITY_CARD map of Tailwind class names — a fourth private copy
 // of the same ladder that had to be edited by hand whenever a tier moved.
 
-// ─── Weighted random item for reel filler ─────────────────────────────────────
-const FILLER_WEIGHTS = { common: 40, uncommon: 30, rare: 15, epic: 10, legendary: 4, animated: 1 };
+// ─── Rarity ladder ────────────────────────────────────────────────────────────
+// Declared up here because buildReel's near-miss seeding reads it. Keeping
+// it below would trip no-use-before-define, which this repo treats as a
+// real hazard after the 2026-05-23 production TDZ crash.
+const RARITY_LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
+function rarityRank(r) {
+  const i = RARITY_LADDER.indexOf(r);
+  return i < 0 ? 0 : i;
+}
 
-function weightedRandomItem() {
-  const totalWeight = Object.values(FILLER_WEIGHTS).reduce((a, b) => a + b, 0);
+// ─── Weighted random item for reel filler ─────────────────────────────────────
+// Two tables instead of one. A "cold" reel is mostly commons and greys past
+// the window; a "hot" reel is stacked with epics and legendaries so the
+// run-up looks like it might be building to something. Each spin picks a
+// heat value and interpolates, so consecutive opens don't just differ in
+// speed — they differ in what streams past your eyes.
+const FILLER_COLD = { common: 52, uncommon: 30, rare: 12, epic: 5,  legendary: 1,  animated: 0 };
+const FILLER_HOT  = { common: 14, uncommon: 24, rare: 28, epic: 20, legendary: 10, animated: 4 };
+
+function fillerWeights(heat) {
+  const out = {};
+  for (const k of Object.keys(FILLER_COLD)) {
+    out[k] = FILLER_COLD[k] + (FILLER_HOT[k] - FILLER_COLD[k]) * heat;
+  }
+  return out;
+}
+
+function weightedRandomItem(weights) {
+  const w = weights || FILLER_COLD;
+  const totalWeight = Object.values(w).reduce((a, b) => a + b, 0);
   let roll = Math.random() * totalWeight;
-  for (const [rarity, weight] of Object.entries(FILLER_WEIGHTS)) {
+  for (const [rarity, weight] of Object.entries(w)) {
     roll -= weight;
     if (roll <= 0) {
       const pool = ITEMS.filter(i => i.type === 'sticker' && i.rarity === rarity);
@@ -96,32 +125,107 @@ function weightedRandomItem() {
   return ITEMS.find(i => i.type === 'sticker' && i.rarity === 'common');
 }
 
-// ─── Build a 22-card reel array ───────────────────────────────────────────────
-// Layout: [17 fillers] [mystery "???"] [winItem] [3 fillers after]
-function buildReel(winItem) {
-  const cards = [];
-  // Defensive fallback — if a corrupt catalog yields no fillers
-  // (weightedRandomItem returned undefined), substitute a placeholder
-  // so React doesn't render the row as `undefined` and crash on .id.
+/** A sticker one tier above the win, for seeding a near-miss. */
+function nearMissItem(winRarity) {
+  const idx = RARITY_LADDER.indexOf(winRarity);
+  for (let step = 1; step <= 2; step++) {
+    const target = RARITY_LADDER[idx + step];
+    if (!target) break;
+    const pool = ITEMS.filter(i => i.type === 'sticker' && i.rarity === target);
+    if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+  }
+  return null;
+}
+
+// ─── Build a reel ─────────────────────────────────────────────────────────────
+// Everything about the shape is rolled per spin. Previously this returned a
+// fixed 22-card array — [17 fillers][???][win][3 fillers] — which meant:
+//
+//   • the travel distance was byte-identical on every open, so the spin
+//     "felt" the same no matter which easing variant was picked;
+//   • the ??? card sat immediately before the prize EVERY time, so once
+//     you'd seen two opens you knew the next card after ??? was yours —
+//     the reveal was spoiled a full card early, every single time.
+//
+// Now the win index, the reel length, whether a ??? appears at all and
+// where, the filler heat, and whether a near-miss is seeded next to the
+// win are all independent rolls.
+//
+// Returns { cards, winIndex } — winIndex is no longer a constant, so the
+// caller must thread it through to both the scroll offset and the
+// highlight.
+export function buildReel(winItem) {
+  // 12..26 cards before the prize. At a 142px stride that's a ~2000px swing
+  // in travel between the shortest and longest reel — the same easing curve
+  // reads completely differently across that range.
+  const lead    = 12 + Math.floor(Math.random() * 15);
+  const trail   = 3 + Math.floor(Math.random() * 4);
+  const heat    = Math.random();
+  const weights = fillerWeights(heat);
+
   const placeholder = { id: '__filler__', emoji: '✨', name: '???', rarity: 'common', type: 'sticker' };
-  // Avoid back-to-back duplicates so the spinning reel doesn't look
-  // like the same card slid by twice — naive Math.random() repeats
-  // ~5% of the time and the visual jitter is obvious during a slow
-  // 'tease' variant. Up to 4 retries before accepting whatever the
-  // PRNG returned so a sparse catalog can't deadlock the loop.
+
+  // Avoid back-to-back duplicates so the reel doesn't look like the same
+  // card slid by twice — naive Math.random() repeats ~5% of the time and
+  // the jitter is obvious during a slow 'tease' spin. Bounded retries so a
+  // sparse catalog can't deadlock the loop.
   const safeFiller = (prev) => {
     for (let attempt = 0; attempt < 5; attempt++) {
-      const next = weightedRandomItem();
+      const next = weightedRandomItem(weights);
       if (!next) return placeholder;
       if (!prev || next.id !== prev.id) return next;
     }
     return placeholder;
   };
-  for (let i = 0; i < 17; i++) cards.push(safeFiller(cards[cards.length - 1]));
-  cards.push({ id: '__mystery__', emoji: '❓', name: '???', rarity: 'common', type: 'sticker' });
+
+  // 1. Run-up.
+  const cards = [];
+  for (let i = 0; i < lead; i++) cards.push(safeFiller(cards[cards.length - 1]));
+
+  // 2. The ??? teaser appears on ~55% of spins, and when it does it sits
+  //    1-4 slots back rather than always in the slot immediately before the
+  //    prize. Sometimes it's the last thing you see; sometimes it's long
+  //    gone by the time the reel stops.
+  if (Math.random() < 0.55) {
+    const at = lead - (1 + Math.floor(Math.random() * 4));
+    if (at >= 0) {
+      cards[at] = { id: '__mystery__', emoji: '❓', name: '???', rarity: 'common', type: 'sticker' };
+    }
+  }
+
+  // 3. Near miss: ~35% of spins park something RARER than the prize in the
+  //    slot right before it, so the reel looks briefly like it's landing on
+  //    better. Purely cosmetic — the server already decided the win.
+  const wantsNearMiss = Math.random() < 0.35;
+  if (wantsNearMiss && lead > 0) {
+    const tease = nearMissItem(winItem.rarity);
+    if (tease) cards[lead - 1] = tease;
+  }
+
+  // 4. The prize, then the run-out.
+  const winIndex = cards.length;
   cards.push(winItem);
-  for (let i = 0; i < 3; i++) cards.push(safeFiller(cards[cards.length - 1]));
-  return cards; // 22 cards total
+  for (let i = 0; i < trail; i++) cards.push(safeFiller(cards[cards.length - 1]));
+
+  // 5. Repair adjacent duplicates.
+  //
+  //    safeFiller only compares against the previous card AT GENERATION
+  //    TIME, but steps 2 and 3 overwrite slots after the fact — so the ???
+  //    teaser or the near-miss card can land next to an identical filler
+  //    and produce the exact "same card slid by twice" jitter safeFiller
+  //    exists to prevent. Caught by capsuleReel.test.js, not by eye.
+  //
+  //    The win slot is never touched: the server decided it.
+  for (let i = 1; i < cards.length; i++) {
+    if (i === winIndex || i - 1 === winIndex) continue;
+    let guard = 0;
+    while (cards[i].id === cards[i - 1].id && guard < 5) {
+      cards[i] = safeFiller(cards[i - 1]);
+      guard += 1;
+    }
+  }
+
+  return { cards, winIndex };
 }
 
 // ─── Rarity ranking + a single server-authoritative roll ──────────────────────
@@ -129,12 +233,6 @@ function buildReel(winItem) {
 // one roll path. Every roll is its own claim_capsule_loot call (migration
 // 028), which locks that capsule row and rolls server-side — batching is
 // purely a UI affordance, it does not touch how loot is decided.
-const RARITY_LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
-function rarityRank(r) {
-  const i = RARITY_LADDER.indexOf(r);
-  return i < 0 ? 0 : i;
-}
-
 async function rollOneCapsule(capsuleId) {
   const { data, error } = await supabase.rpc('claim_capsule_loot', { p_capsule_id: capsuleId });
   if (error) {
@@ -380,6 +478,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
   const [reel,    setReel]    = useState([]);
+  // Which slot the reel lands on. Varies per spin now, so it drives both
+  // the scroll offset and the highlight instead of a module constant.
+  const [winIndex, setWinIndex] = useState(0);
   const [catalogOpen, setCatalogOpen] = useState(false);
   // Crate-unlock burst flourish — plays over the reveal for any Rare+ item.
   const [showBurst, setShowBurst] = useState(false);
@@ -395,6 +496,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // variant. State alone would be stale by the time the double-RAF
   // fires — setReelRef has [] deps to keep its identity stable.
   const spinVariantRef = useRef(SPIN_VARIANTS[0]);
+  // Ref mirror for the same reason as spinVariantRef: setReelRef has empty
+  // deps, so its RAF closure can't read winIndex from state.
+  const winIndexRef = useRef(0);
 
   // ── Callback ref: fires the instant the reel div enters the DOM ─────────────
   // useEffect fires too early — with AnimatePresence mode="wait", the spinning
@@ -442,7 +546,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
         const rawWidth = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
         const containerWidth = (rawWidth >= 200 && rawWidth <= 1200) ? rawWidth : 400;
         const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
-        const winOffset      = WIN_INDEX * CARD_STRIDE - centerOffset;
+        const winOffset      = winIndexRef.current * CARD_STRIDE - centerOffset;
 
         // 1. Pin to start with no transition, then force a reflow so the
         //    browser has a concrete "from" state for the transition.
@@ -582,9 +686,13 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     // one payoff moment, and it should be the one worth watching.
     const best = ok.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a));
 
+    const { cards, winIndex: landedAt } = buildReel(best.item);
+    winIndexRef.current = landedAt;
+
     setResults(ok);
     setWonItem(best.item);
-    setReel(buildReel(best.item));
+    setWinIndex(landedAt);
+    setReel(cards);
     setPhase('spinning');
     // The CSS animation is kicked off by the reel's callback ref once the
     // element mounts.
@@ -789,7 +897,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                   style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
                 >
                   {reel.map((item, idx) => (
-                    <ItemCard key={`${item.id}-${idx}`} item={item} highlight={idx === WIN_INDEX} />
+                    <ItemCard key={`${item.id}-${idx}`} item={item} highlight={idx === winIndex} />
                   ))}
                 </div>
               </div>

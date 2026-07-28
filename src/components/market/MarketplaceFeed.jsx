@@ -67,9 +67,6 @@ export default function MarketplaceFeed() {
   // sheet is the read step, buyTarget is the commit step.
   const [detailTarget, setDetailTarget] = useState(null);
 
-  // Top-level view: 'browse' shows the full marketplace, 'saved' shows only
-  // the viewer's wishlist (heart-saved listings).
-  const [marketView, setMarketView] = useState('browse'); // 'browse' | 'saved'
 
   // ── Data fetching ──────────────────────────────────────────────────────────
   const [sortBy, sortDir] = SORT_TO_QUERY[filters.sort] ?? SORT_TO_QUERY.recent;
@@ -284,12 +281,12 @@ export default function MarketplaceFeed() {
     }
   }, [buyTarget, user, qc]);
 
-  // In "saved" view show only wishlisted listings. In "browse" view, exclude
-  // listings already shown inside a bundle card.
+  // Saved is a filter now, not a separate view. Bundled listings are always
+  // excluded from the grid because they're rendered as bundle cards above.
   const viewListings = useMemo(() => {
-    if (marketView === 'saved') return listings.filter(l => savedIds.has(l.id));
-    return listings.filter(l => !bundledListingIds.has(l.id));
-  }, [listings, savedIds, marketView, bundledListingIds]);
+    const base = listings.filter(l => !bundledListingIds.has(l.id));
+    return filters.saved ? base.filter(l => savedIds.has(l.id)) : base;
+  }, [listings, savedIds, filters.saved, bundledListingIds]);
 
   // …then narrow by the filter bar and float featured to the top.
   const visibleListings = useMemo(
@@ -316,26 +313,6 @@ export default function MarketplaceFeed() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Browse / Saved tab strip */}
-      <div className="flex gap-1 p-1 bg-secondary/40 rounded-xl">
-        {[
-          { id: 'browse', label: 'Browse' },
-          { id: 'saved',  label: `Saved${savedIds.size > 0 ? ` (${savedIds.size})` : ''}` },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setMarketView(tab.id)}
-            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
-              marketView === tab.id
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
       <MarketplaceHeader
         flexCoins={flexCoins}
         onRefresh={() => refetch()}
@@ -355,6 +332,7 @@ export default function MarketplaceFeed() {
         onChange={setFilters}
         resultCount={visibleListings.length}
         totalCount={viewListings.length}
+        savedCount={savedIds.size}
       />
 
       {/* Listings grid */}
@@ -370,7 +348,7 @@ export default function MarketplaceFeed() {
             Try again
           </button>
         </div>
-      ) : marketView === 'saved' && savedIds.size === 0 ? (
+      ) : filters.saved && savedIds.size === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
           <Heart className="w-12 h-12 text-muted-foreground/50" />
           <p className="font-heading font-bold">No saved listings yet</p>
@@ -378,7 +356,7 @@ export default function MarketplaceFeed() {
             Tap the ♥ on any listing to save it here.
           </p>
           <button
-            onClick={() => setMarketView('browse')}
+            onClick={() => setFilters(f => ({ ...f, saved: false }))}
             className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
           >
             Browse marketplace →
@@ -405,7 +383,7 @@ export default function MarketplaceFeed() {
         <>
           {/* Bundle deal rows (mig 134) — browse view only. Bundled items
               are excluded from the regular grid below. */}
-          {marketView === 'browse' && activeBundles.some(b => bundleMap.has(b.id)) && (
+          {!filters.saved && activeBundles.some(b => bundleMap.has(b.id)) && (
             <div className="mb-4">
               <div className="flex items-center gap-1.5 mb-2 px-1">
                 <Package className="w-3.5 h-3.5 text-amber-500" />

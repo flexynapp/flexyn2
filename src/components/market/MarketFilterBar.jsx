@@ -13,7 +13,7 @@
 // predicates into the query instead.
 
 import { useMemo } from 'react';
-import { SlidersHorizontal, X } from 'lucide-react';
+import { SlidersHorizontal, X, Heart } from 'lucide-react';
 import { RARITY } from '@/lib/lootCatalog';
 import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
 
@@ -21,6 +21,7 @@ export const DEFAULT_FILTERS = {
   type: 'all',        // 'all' | 'sale' | 'trade'
   rarities: [],       // [] = every rarity
   affordable: false,  // only listings the viewer can pay for
+  saved: false,       // only listings the viewer hearted
   sort: 'recent',     // 'recent' | 'price-asc' | 'price-desc'
 };
 
@@ -40,7 +41,8 @@ const SORTS = [
 export function activeFilterCount(f) {
   return (f.type !== 'all' ? 1 : 0)
     + (f.rarities.length > 0 ? 1 : 0)
-    + (f.affordable ? 1 : 0);
+    + (f.affordable ? 1 : 0)
+    + (f.saved ? 1 : 0);
 }
 
 /**
@@ -86,7 +88,7 @@ function byFeaturedThen(tiebreak) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function MarketFilterBar({ filters, onChange, resultCount, totalCount }) {
+export default function MarketFilterBar({ filters, onChange, resultCount, totalCount, savedCount = 0 }) {
   const activeCount = activeFilterCount(filters);
 
   // Only offer rarities that exist in the catalog, in ladder order.
@@ -138,6 +140,25 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           }`}
         >
           {COIN} Can afford
+        </button>
+
+        {/* Saved was a top-level Browse/Saved tab strip sitting ABOVE the
+            Marketplace banner — a whole row of chrome for what is just
+            another way of narrowing the same grid, on a page already
+            criticised for putting too much between the user and the
+            listings. It's a filter, so it lives with the filters. */}
+        <button
+          type="button"
+          onClick={() => set({ saved: !filters.saved })}
+          aria-pressed={filters.saved}
+          className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold transition-colors border ${
+            filters.saved
+              ? 'bg-red-500/15 text-red-500 border-red-400/40'
+              : 'bg-secondary text-muted-foreground hover:text-foreground border-transparent'
+          }`}
+        >
+          <Heart className={`w-3 h-3 ${filters.saved ? 'fill-current' : ''}`} />
+          Saved{savedCount > 0 ? ` (${savedCount})` : ''}
         </button>
 
         <select

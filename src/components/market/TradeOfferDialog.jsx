@@ -10,6 +10,7 @@ import { Zap, X } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import { findOrCreateConversation, sendMessage } from '@/lib/data/hubMessages';
+import * as tradeOffers from '@/lib/data/tradeOffers';
 import { RARITY } from '@/lib/lootCatalog';
 import { displayName } from '@/lib/userDisplay';
 import { RarityBadge, RarityFrame } from '@/components/loot/RarityVisuals';
@@ -24,8 +25,23 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
 
   const handleSend = async () => {
     if (!selectedOffer || !listing) return;
+    if (!listing.inventory_id) {
+      toast.error('This listing is missing its item — refresh and try again.');
+      return;
+    }
     setBusy(true);
     try {
+      // Create the REAL offer first. This escrows your item server-side
+      // (migration 253) before the recipient ever sees the message, so it
+      // can't also be sold or promised to someone else while they decide.
+      // If this throws, no DM is sent — the previous flow sent the message
+      // first and had nothing behind it either way.
+      const offerId = await tradeOffers.createOffer({
+        fromInventoryId: selectedOffer.id,
+        toInventoryId:   listing.inventory_id,
+        listingId:       listing.id,
+      });
+
       const conv = await findOrCreateConversation(user.email, listing.seller_email);
       if (!conv) throw new Error('Could not open conversation');
 
@@ -37,12 +53,10 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
       const tradePayload = {
         v: 1,
         type: 'trade_offer',
-        // Stable id so the receiver's TradeOfferCard can persist their
-        // response across chat re-mount. Without this the accept/decline
-        // buttons reappeared every time the chat scrolled.
-        offerId: (typeof crypto !== 'undefined' && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+        // The real public.trade_offers row id. The card resolves live
+        // status against it, so response state no longer depends on
+        // localStorage or on scanning the conversation for reply markers.
+        offerId,
         status: 'pending',
         fromEmail: user.email,
         fromName,
@@ -74,7 +88,7 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         `🔁 Trade Offer from ${fromName}`,
         `I'm offering: ${selectedOffer.item_emoji} ${selectedOffer.item_name} (${RARITY[selectedOffer.item_rarity]?.label ?? selectedOffer.item_rarity})`,
         `For your: ${listing.item_emoji} ${listing.item_name} listed in the Marketplace.`,
-        'Reply to accept or decline!',
+        'Accept in the app and the items swap instantly.',
       ].join('\n');
       await sendMessage({
         conversationId: conv.id,
@@ -82,14 +96,14 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
         recipientEmail: listing.seller_email,
         body,
       });
-      toast.success('Trade offer sent — watch your messages.');
+      toast.success('Trade offer sent — your item is held until they answer.');
       onClose();
     } catch (err) {
       reportError(err, {
         feature: 'marketplace.trade-offer', level: 'warning',
         userEmail: user?.email, listingId: listing?.id,
       });
-      toast.error('Could not send trade offer — try again.');
+      toast.error(tradeOffers.tradeErrorMessage(err));
     } finally {
       setBusy(false);
     }
@@ -131,7 +145,10 @@ export default function TradeOfferDialog({ open, listing, userItems, user, onClo
             </span>
           </div>
 
-          <p className="text-xs text-muted-foreground">Choose a sticker from your bag to offer:</p>
+          <p className="text-xs text-muted-foreground">
+            Choose a sticker from your bag to offer. It&apos;s held while they decide,
+            and swaps automatically if they accept.
+          </p>
 
           {eligibleItems.length === 0 ? (
             <p className="text-center text-muted-foreground text-sm py-4">

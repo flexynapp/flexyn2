@@ -1,44 +1,127 @@
 // src/pages/TradeHistory.jsx
 //
-// Consolidated trade timeline reconstructed from the user's DM stream.
-// Each row shows: counterparty, both items, status pill (pending /
-// accepted / declined), and the timestamp of the offer + response.
+// Every trade you've sent or received.
 //
-// No new DB; uses the existing TRADE_OFFER / TRADE_RESPONSE markers
-// already embedded in hub_messages. Reads through tradeHistory.js.
+// This page used to reconstruct its entire contents by string-parsing DM
+// bodies for [TRADE_OFFER_V1] / [TRADE_RESPONSE_V1] markers — so a trade
+// existed only as long as the conversation did, and the counterparty could
+// only ever be shown as a masked email, because a DM carries no user_id.
+//
+// Real offers now come from public.trade_offers (migration 253), which
+// carries user ids (→ real @usernames) and a real status. Legacy
+// DM-derived trades are still merged in and clearly marked, because
+// they're the only record of what happened before 253 — but they stay
+// read-only and keep saying nothing was transferred automatically, which
+// for them is true.
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { maskEmail } from '@/lib/userDisplay';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, ArrowRightLeft, Clock, Check, X as XIcon } from 'lucide-react';
+import { ArrowLeft, ArrowRightLeft, Clock, Check, X as XIcon, ShieldCheck, Ban } from 'lucide-react';
 import { formatDistanceToNowStrict } from 'date-fns';
+import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
+import { useAuthorsById, resolveAuthor } from '@/lib/data/useAuthors';
 import * as tradeHistory from '@/lib/data/tradeHistory';
+import * as tradeOffers from '@/lib/data/tradeOffers';
 import PageHeader from '@/components/PageHeader';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const FILTERS = [
-  { id: 'all',      label: 'All' },
-  { id: 'accepted', label: 'Accepted' },
-  { id: 'declined', label: 'Declined' },
-  { id: 'pending',  label: 'Pending' },
+  { id: 'all',       label: 'All' },
+  { id: 'pending',   label: 'Pending' },
+  { id: 'accepted',  label: 'Accepted' },
+  { id: 'declined',  label: 'Declined' },
+  { id: 'cancelled', label: 'Cancelled' },
 ];
+
+/** Normalize a public.trade_offers row into the shared row shape. */
+function fromOfferRow(row, myUserId) {
+  const iAmSender = row.from_user_id === myUserId;
+  return {
+    key: row.id,
+    offerId: row.id,
+    real: true,
+    iAmSender,
+    counterpartyId: iAmSender ? row.to_user_id : row.from_user_id,
+    counterpartyEmail: null,
+    status: row.status,
+    sentAt: row.created_at,
+    respondedAt: row.responded_at,
+    myItem:    { name: row.from_item_name, emoji: row.from_item_emoji, rarity: row.from_item_rarity },
+    theirItem: { name: row.to_item_name,   emoji: row.to_item_emoji,   rarity: row.to_item_rarity },
+  };
+}
+
+/** Normalize a legacy DM-derived trade into the same shape. */
+function fromLegacy(t) {
+  return {
+    key: `legacy-${t.offerId}`,
+    offerId: t.offerId,
+    real: false,
+    iAmSender: t.iAmSender,
+    counterpartyId: null,
+    counterpartyEmail: t.iAmSender ? t.toEmail : t.fromEmail,
+    status: t.status,
+    sentAt: t.sentAt,
+    respondedAt: t.respondedAt,
+    myItem: t.myItem,
+    theirItem: t.theirItem,
+  };
+}
 
 export default function TradeHistory() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
+  const authorsById = useAuthorsById();
   const [filter, setFilter] = useState('all');
+  const [busyId, setBusyId] = useState(null);
 
-  const { data: trades = [], isLoading } = useQuery({
-    queryKey: ['tradeHistory', user?.email],
+  const { data: offerRows = [], isLoading: loadingReal } = useQuery({
+    queryKey: ['tradeHistory', 'offers', user?.id],
+    queryFn:  () => tradeOffers.listMine(),
+    enabled:  !!user?.id,
+    staleTime: 30_000,
+  });
+
+  const { data: legacyRows = [], isLoading: loadingLegacy } = useQuery({
+    queryKey: ['tradeHistory', 'legacy', user?.email],
     queryFn:  () => tradeHistory.listMyTrades(user.email),
     enabled:  !!user?.email,
     staleTime: 60_000,
   });
 
+  const trades = useMemo(() => {
+    const real = offerRows.map(r => fromOfferRow(r, user?.id));
+    // A post-253 offer appears in BOTH sources: the table AND the DM that
+    // announced it. Drop the DM copy so it isn't listed twice.
+    const realIds = new Set(real.map(r => r.offerId));
+    const legacy = legacyRows
+      .filter(t => !realIds.has(t.offerId))
+      .map(fromLegacy);
+    return [...real, ...legacy]
+      .sort((a, b) => new Date(b.sentAt || 0) - new Date(a.sentAt || 0));
+  }, [offerRows, legacyRows, user?.id]);
+
   const visible = filter === 'all' ? trades : trades.filter(t => t.status === filter);
+  const isLoading = loadingReal || loadingLegacy;
+
+  const handleCancel = async (offerId) => {
+    setBusyId(offerId);
+    try {
+      await tradeOffers.cancel(offerId);
+      toast.success('Offer pulled back — your item is free again.');
+      qc.invalidateQueries({ queryKey: ['tradeHistory'] });
+      qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
+    } catch (err) {
+      toast.error(tradeOffers.tradeErrorMessage(err));
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   return (
     <motion.div
@@ -54,14 +137,8 @@ export default function TradeHistory() {
         <ArrowLeft className="w-4 h-4" /> Back
       </button>
 
-      <PageHeader
-        kicker="Marketplace"
-        title="Trade history"
-        icon={ArrowRightLeft}
-        hidePeriod
-      />
+      <PageHeader kicker="Marketplace" title="Trade history" icon={ArrowRightLeft} hidePeriod />
 
-      {/* Filter pills */}
       <div className="flex gap-1.5 mb-4 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
         {FILTERS.map(f => (
           <button
@@ -83,7 +160,7 @@ export default function TradeHistory() {
 
       {isLoading ? (
         <div className="space-y-3">
-          {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
+          {[1, 2, 3].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
         </div>
       ) : visible.length === 0 ? (
         <div className="text-center py-16">
@@ -97,39 +174,51 @@ export default function TradeHistory() {
         </div>
       ) : (
         <ul className="space-y-2">
-          {visible.map(t => <TradeRow key={t.offerId} trade={t} />)}
+          {visible.map(t => (
+            <TradeRow
+              key={t.key}
+              trade={t}
+              authorsById={authorsById}
+              onCancel={handleCancel}
+              busy={busyId === t.offerId}
+            />
+          ))}
         </ul>
       )}
     </motion.div>
   );
 }
 
-function TradeRow({ trade }) {
-  const counterparty = trade.iAmSender ? trade.toEmail : trade.fromEmail;
+function TradeRow({ trade, authorsById, onCancel, busy }) {
+  // Real trades resolve a live @username from the user id. Legacy trades
+  // only ever carried an email, so they stay masked — rendering a raw
+  // address (or even its local-part) would leak it.
+  const counterparty = trade.real
+    ? resolveAuthor(authorsById, trade.counterpartyId).handle
+    : (trade.counterpartyEmail ? maskEmail(trade.counterpartyEmail) : 'unknown');
+
   const youGive = trade.iAmSender ? trade.myItem    : trade.theirItem;
   const youGet  = trade.iAmSender ? trade.theirItem : trade.myItem;
 
   const statusMeta = {
-    pending:  { Icon: Clock,   color: 'text-amber-500',   bg: 'bg-amber-500/15',   label: 'Pending' },
-    accepted: { Icon: Check,   color: 'text-emerald-500', bg: 'bg-emerald-500/15', label: 'Accepted' },
-    declined: { Icon: XIcon,   color: 'text-red-500',     bg: 'bg-red-500/15',     label: 'Declined' },
+    pending:   { Icon: Clock, color: 'text-amber-500',          bg: 'bg-amber-500/15',   label: 'Pending' },
+    accepted:  { Icon: Check, color: 'text-emerald-500',        bg: 'bg-emerald-500/15', label: 'Accepted' },
+    declined:  { Icon: XIcon, color: 'text-red-500',            bg: 'bg-red-500/15',     label: 'Declined' },
+    cancelled: { Icon: Ban,   color: 'text-muted-foreground',   bg: 'bg-secondary',      label: 'Cancelled' },
   }[trade.status] || { Icon: Clock, color: 'text-muted-foreground', bg: 'bg-secondary', label: trade.status };
+
+  const canCancel = trade.real && trade.iAmSender && trade.status === 'pending';
 
   return (
     <li className="border border-border rounded-xl p-3 bg-card">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            {trade.iAmSender ? 'You offered' : `${counterparty ? maskEmail(counterparty) : 'Someone'} offered`}
+            {trade.iAmSender ? 'You offered' : `${counterparty} offered`}
           </p>
-          {/* Counterparty is only known by email here; mask it so no full
-              address (or raw local-part) is rendered. A user_profiles lookup
-              would let us show the actual @username — TODO. */}
-          <p className="text-xs text-muted-foreground truncate">
-            {counterparty ? maskEmail(counterparty) : 'unknown'}
-          </p>
+          <p className="text-xs text-muted-foreground truncate">{counterparty}</p>
         </div>
-        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${statusMeta.bg} ${statusMeta.color}`}>
+        <span className={`flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full shrink-0 ${statusMeta.bg} ${statusMeta.color}`}>
           <statusMeta.Icon className="w-3 h-3" /> {statusMeta.label}
         </span>
       </div>
@@ -140,12 +229,35 @@ function TradeRow({ trade }) {
         <ItemChip item={youGet} label="You get" />
       </div>
 
-      <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+      <div className="flex items-center justify-between text-[10px] text-muted-foreground gap-2">
         <span>{relTime(trade.sentAt)}</span>
-        {trade.respondedAt && (
-          <span>{trade.status === 'accepted' ? 'Accepted' : 'Declined'} {relTime(trade.respondedAt)}</span>
-        )}
+        <div className="flex items-center gap-2">
+          {trade.respondedAt && (
+            <span>{statusMeta.label} {relTime(trade.respondedAt)}</span>
+          )}
+          {trade.real ? (
+            <span
+              className="flex items-center gap-0.5 text-emerald-600 dark:text-emerald-400"
+              title="Items were swapped automatically"
+            >
+              <ShieldCheck className="w-3 h-3" /> escrow
+            </span>
+          ) : (
+            <span title="Sent before automatic trading — items were hand-delivered">manual</span>
+          )}
+        </div>
       </div>
+
+      {canCancel && (
+        <button
+          type="button"
+          onClick={() => onCancel(trade.offerId)}
+          disabled={busy}
+          className="mt-2 w-full py-1.5 rounded-lg text-[11px] font-bold text-red-600 dark:text-red-300 bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+        >
+          {busy ? 'Cancelling…' : 'Cancel offer · release my item'}
+        </button>
+      )}
     </li>
   );
 }

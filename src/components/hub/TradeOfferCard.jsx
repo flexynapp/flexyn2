@@ -5,21 +5,27 @@
 // prefix so clients that recognize it can show this card; clients that don't
 // fall through to the plain-text portion of the body that follows.
 //
-// NOTE on semantics — IMPORTANT:
-// Accept / Decline currently send a *text reply* into the chat. They do NOT
-// perform any inventory swap. Item delivery is intentionally manual today:
-// after the receiver accepts, the sender hand-delivers the item via DM /
-// in-person / however else. The UI labels and explanatory text below
-// reflect that — we do NOT lie about a swap that didn't happen. A future
-// migration will introduce a real backend trade-execution flow (escrow +
-// dual-confirm), at which point these buttons will be wired to it.
+// SEMANTICS — two modes, and the difference is load-bearing:
+//
+//   REAL (migration 253+): payload.offerId is a public.trade_offers UUID.
+//   Accept calls respond_to_trade_offer, which swaps the two inventory
+//   rows atomically. Status is read live from the table, so it's correct
+//   on every device and survives a cache clear.
+//
+//   LEGACY: offers sent before 253 carry a synthetic offerId and have no
+//   row behind them. Accept still just posts a text reply and the two
+//   users hand-deliver, exactly as before. Those cards keep the old
+//   "items aren't transferred automatically" disclaimer, because for them
+//   it's still true. Do NOT show real-trade copy on a legacy card.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRightLeft, Check, X, Coins, Info } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRightLeft, Check, X, Coins, Info, ShieldCheck } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { RARITY } from '@/lib/lootCatalog';
 import { sendMessage } from '@/lib/data/hubMessages';
+import * as tradeOffers from '@/lib/data/tradeOffers';
 
 // Local persistence key for "did the user already respond to this offer".
 // Without this, the buttons reappeared on chat re-mount and the user could
@@ -93,6 +99,7 @@ export function formatTradeResponseBody(offerId, accepted) {
  * @param {string} props.conversationId - conversation to send replies into
  */
 export default function TradeOfferCard({ payload, isMine, user, conversationId, conversationMessages = [] }) {
+  const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [responded, setResponded] = useState(null); // 'accepted' | 'declined' | null
 
@@ -105,6 +112,16 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
   //      "you replied" state instant even before the message round-trips.
   const offerId = payload?.offerId
     || `${payload?.fromEmail || ''}|${payload?.myItem?.name || ''}|${payload?.theirItem?.name || ''}`;
+  // Real offers resolve their status from the table. A UUID-shaped id is
+  // the discriminator: legacy ids were `${Date.now()}-${random}`.
+  const isReal = tradeOffers.isRealOfferId(payload?.offerId);
+  const { data: liveOffer } = useQuery({
+    queryKey: ['tradeOffer', payload?.offerId],
+    queryFn:  () => tradeOffers.getById(payload.offerId),
+    enabled:  isReal,
+    staleTime: 15_000,
+  });
+
   const serverResponse = useMemo(() => {
     for (const m of conversationMessages) {
       const parsed = parseTradeResponse(m?.body || m?.content || '');
@@ -113,6 +130,15 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
     return null;
   }, [conversationMessages, offerId]);
   useEffect(() => {
+    // For a real offer the TABLE is the truth — ignore chat markers and
+    // localStorage entirely. 'cancelled' surfaces as declined; from the
+    // recipient's side the practical outcome is the same.
+    if (isReal) {
+      if (!liveOffer) return;
+      setResponded(liveOffer.status === 'pending' ? null
+        : liveOffer.status === 'accepted' ? 'accepted' : 'declined');
+      return;
+    }
     if (serverResponse) {
       // Server already knows the answer — adopt it and mirror into local
       // storage so a quick re-mount before next fetch still feels instant.
@@ -125,7 +151,7 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
       const stored = localStorage.getItem(responseKey(conversationId, offerId));
       if (stored === 'accepted' || stored === 'declined') setResponded(stored);
     } catch { /* SSR / no localStorage */ }
-  }, [conversationId, offerId, serverResponse]);
+  }, [conversationId, offerId, serverResponse, isReal, liveOffer]);
 
   const myItem    = isMine ? payload.myItem : payload.theirItem;
   const theirItem = isMine ? payload.theirItem : payload.myItem;
@@ -135,6 +161,29 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
   const handleResponse = async (accept) => {
     if (busy || responded) return;
     setBusy(true);
+
+    // ── Real offer: the swap happens server-side, atomically. ──────────
+    if (isReal) {
+      try {
+        await tradeOffers.respond(payload.offerId, accept);
+        setResponded(accept ? 'accepted' : 'declined');
+        qc.invalidateQueries({ queryKey: ['tradeOffer', payload.offerId] });
+        qc.invalidateQueries({ queryKey: ['tradeHistory'] });
+        qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+        toast.success(accept ? 'Traded! Check your bag.' : 'Offer declined.');
+      } catch (err) {
+        toast.error(tradeOffers.tradeErrorMessage(err));
+        // Re-read: the failure usually means the offer is no longer
+        // pending, and the card should stop offering buttons for it.
+        qc.invalidateQueries({ queryKey: ['tradeOffer', payload.offerId] });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // ── Legacy offer: post a text reply, nothing moves. ────────────────
     try {
       // Reply body carries a [TRADE_RESPONSE_V1] marker so any device viewing
       // this conversation can recover the response state from the server.
@@ -224,7 +273,9 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
           <p className={`text-center text-[11px] font-bold uppercase tracking-wider ${
             responded === 'accepted' ? 'text-emerald-500' : 'text-muted-foreground'
           }`}>
-            {responded === 'accepted' ? '✓ You replied yes' : '✕ You replied no'}
+            {responded === 'accepted'
+              ? (isReal ? '✓ Traded' : '✓ You replied yes')
+              : (isReal ? '✕ Declined' : '✕ You replied no')}
           </p>
         ) : isMine ? (
           <p className="text-center text-[10px] text-muted-foreground">
@@ -250,13 +301,22 @@ export default function TradeOfferCard({ payload, isMine, user, conversationId, 
                 I'm in
               </button>
             </div>
-            <p className="flex items-start gap-1 mt-2 text-[9px] text-muted-foreground leading-snug">
-              <Info className="w-2.5 h-2.5 mt-0.5 shrink-0" />
-              <span>
-                This sends a reply in chat. You and {payload.fromName || 'the sender'} arrange
-                delivery yourselves — items aren't transferred automatically.
-              </span>
-            </p>
+            {isReal ? (
+              <p className="flex items-start gap-1 mt-2 text-[9px] text-emerald-600 dark:text-emerald-400 leading-snug">
+                <ShieldCheck className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                <span>
+                  Their item is already held. Accept and the two items swap instantly.
+                </span>
+              </p>
+            ) : (
+              <p className="flex items-start gap-1 mt-2 text-[9px] text-muted-foreground leading-snug">
+                <Info className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                <span>
+                  This sends a reply in chat. You and {payload.fromName || 'the sender'} arrange
+                  delivery yourselves — items aren&apos;t transferred automatically.
+                </span>
+              </p>
+            )}
           </>
         )}
       </div>
