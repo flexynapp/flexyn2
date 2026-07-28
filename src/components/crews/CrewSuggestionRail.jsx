@@ -27,6 +27,7 @@ import React, { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Shield, Users, Plus, X, Loader2 } from 'lucide-react';
+import { useNumberFormatter } from '@/lib/intl';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -44,12 +45,13 @@ function writeDismissed(userId) {
 }
 
 function SuggestedCrewCard({ crew, onJoin, joining }) {
+  const fmt = useNumberFormatter();
   const fullness = Math.min(1, (crew.member_count || 0) / (crew.max_capacity || 16));
   return (
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="shrink-0 w-44 rounded-2xl border border-border bg-card p-3 flex flex-col gap-2"
+      className="shrink-0 w-44 rounded-2xl bg-card p-3 flex flex-col gap-2"
     >
       <div className="flex items-start gap-2">
         <div className="w-9 h-9 rounded-lg bg-primary/12 flex items-center justify-center shrink-0">
@@ -57,11 +59,11 @@ function SuggestedCrewCard({ crew, onJoin, joining }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-heading font-bold text-sm leading-tight truncate">{crew.name}</p>
-          <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+          <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
             <Users className="w-3 h-3" aria-hidden="true" />
-            <span className="tabular-nums">{crew.member_count}</span>
+            <span className="tabular-nums">{fmt(crew.member_count || 0)}</span>
             <span>/</span>
-            <span className="tabular-nums">{crew.max_capacity}</span>
+            <span className="tabular-nums">{fmt(crew.max_capacity || 16)}</span>
           </p>
         </div>
       </div>
@@ -147,7 +149,7 @@ export default function CrewSuggestionRail() {
         <div className="flex items-center justify-between mb-2 px-1">
           <div className="flex items-center gap-2">
             <Shield className="w-3.5 h-3.5 text-primary" aria-hidden="true" />
-            <span className="text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+            <span className="text-xs font-bold text-primary">
               {tFallback('crewSuggestion.title', 'Suggested crews')}
             </span>
           </div>

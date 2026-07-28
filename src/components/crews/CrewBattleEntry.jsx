@@ -121,7 +121,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl border border-border bg-card overflow-hidden mb-4"
+      className="rounded-2xl bg-card overflow-hidden mb-4"
     >
       <div className="px-4 py-3 flex items-center gap-2 border-b border-border bg-secondary/30">
         <Shield className="w-4 h-4 text-muted-foreground" />
@@ -176,7 +176,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
 
         {history.length > 0 && (
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2">
+            <p className="text-xs font-semiboldr text-muted-foreground flex items-center gap-1.5 mb-2">
               <History className="w-3 h-3" />
               Past Battles
             </p>
@@ -199,7 +199,7 @@ export default function CrewBattleEntry({ crew, currentUserId }) {
                     <span className="text-xs tabular-nums text-muted-foreground">
                       {fmt(myScore)} – {fmt(theirScore)} XP
                     </span>
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-xs text-muted-foreground">
                       {formatDistanceToNow(new Date(w.ends_at), { addSuffix: true })}
                     </span>
                   </div>

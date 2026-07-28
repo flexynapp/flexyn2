@@ -214,7 +214,7 @@ export default function AvatarCropModal({ file, onCrop, onClose }) {
           <ZoomIn className="w-4 h-4 text-muted-foreground shrink-0" />
         </div>
 
-        <p className="text-[10px] text-muted-foreground text-center -mt-2">
+        <p className="text-xs text-muted-foreground text-center -mt-2">
           Drag to reposition · Slide to zoom
         </p>
 

@@ -17,7 +17,7 @@ import { displayName } from '@/lib/userDisplay';
 
 function StatCard({ icon, label, value, sub }) {
   return (
-    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-secondary/50 border border-border/50">
+    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-secondary/50">
       <div
         className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
         style={{ background: 'hsl(var(--primary) / 0.12)' }}
@@ -25,9 +25,9 @@ function StatCard({ icon, label, value, sub }) {
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+        <p className="text-xs font-semibold text-muted-foreground">{label}</p>
         <p className="text-sm font-bold text-foreground truncate">{value}</p>
-        {sub && <p className="text-[10px] text-muted-foreground truncate">{sub}</p>}
+        {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
       </div>
     </div>
   );
@@ -79,7 +79,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
         <div className="flex items-center gap-2">
           <BarChart3 className="w-4 h-4" style={{ color: 'hsl(var(--primary))' }} />
           <h3 className="font-heading font-bold text-base">Crew Stats</h3>
-          <span className="text-[10px] text-muted-foreground">(this week)</span>
+          <span className="text-xs text-muted-foreground">(this week)</span>
         </div>
         <button
           onClick={onClose}
@@ -120,7 +120,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                 so freshly-claimed firsts rise to the top. */}
             {firstAchievers && firstAchievers.length > 0 && (
               <div className="pt-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Award className="w-3 h-3 text-yellow-500" />
                   First to Achieve
                 </p>
@@ -136,7 +136,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                           <p className="text-xs font-semibold text-foreground truncate">
                             {def ? (t(def.nameKey) || def.nameKey) : row.achievementId}
                           </p>
-                          <p className="text-[10px] text-muted-foreground truncate">
+                          <p className="text-xs text-muted-foreground truncate">
                             @{name} · {fmtDate(row.unlockedAt)}
                           </p>
                         </div>
@@ -150,7 +150,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
             {/* Per-member breakdown */}
             {stats?.memberStats?.length > 0 && (
               <div className="pt-2">
-                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
                   <Users className="w-3 h-3" />
                   Member Breakdown
                 </p>
@@ -161,7 +161,7 @@ export default function CrewStatsPanel({ crewId, onClose }) {
                       const name = displayName(ms.profile, ms.userId.slice(0, 8));
                       return (
                         <div key={ms.userId} className="flex items-center gap-2 px-3 py-2 rounded-xl bg-secondary/30">
-                          <span className="text-[10px] font-bold text-muted-foreground w-4">{i + 1}</span>
+                          <span className="text-xs font-bold text-muted-foreground w-4">{i + 1}</span>
                           <span className="flex-1 text-xs font-semibold text-foreground truncate">@{name}</span>
                           <span className="text-xs tabular-nums text-muted-foreground">{fmtVolume(ms.volume)}</span>
                         </div>

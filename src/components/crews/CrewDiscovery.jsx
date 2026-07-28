@@ -11,9 +11,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
 import { toast } from '@/lib/toast';
+import { useNumberFormatter } from '@/lib/intl';
 
 function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
-  const memberCount = crew._memberCount ?? '…';
+  const fmt = useNumberFormatter();
+  const memberCount = typeof crew._memberCount === 'number' ? fmt(crew._memberCount) : '…';
   const max = crew.max_capacity ?? 16;
   const full = typeof crew._memberCount === 'number' && crew._memberCount >= max;
 
@@ -21,7 +23,7 @@ function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex items-center gap-3 p-3.5 rounded-2xl bg-card border border-border"
+      className="flex items-center gap-3 p-3.5 rounded-2xl bg-card"
     >
       <div
         className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -34,7 +36,7 @@ function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
         <div className="flex items-center gap-1.5">
           <p className="font-semibold text-sm text-foreground truncate">{crew.name}</p>
           {crew.tag && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium shrink-0">
+            <span className="text-xs px-1.5 py-0.5 rounded-full bg-secondary text-muted-foreground font-medium shrink-0">
               #{crew.tag}
             </span>
           )}
@@ -42,9 +44,9 @@ function CrewResult({ crew, onJoin, joining, alreadyJoining }) {
         {crew.description && (
           <p className="text-xs text-muted-foreground truncate leading-tight mt-0.5">{crew.description}</p>
         )}
-        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+        <p className="text-xs text-muted-foreground mt-0.5 flex items-center gap-1">
           <Users className="w-3 h-3" />
-          {memberCount} / {max} members
+          {memberCount} / {fmt(max)} members
           {full && <span className="text-rose-500 font-medium ms-1">Full</span>}
         </p>
       </div>

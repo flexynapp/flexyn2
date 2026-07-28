@@ -80,7 +80,7 @@ function RollCallComposer({ onSubmit, onCancel }) {
   const [question, setQuestion] = useState('Did you work out today?');
   return (
     <div className="absolute inset-x-0 bottom-0 z-10 bg-card border-t border-border px-4 py-4">
-      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Roll Call</p>
+      <p className="text-xs font-bold text-muted-foreground mb-2">Roll Call</p>
       <textarea
         value={question}
         onChange={e => setQuestion(e.target.value.slice(0, 120))}
@@ -130,20 +130,20 @@ function RegimenPicker({ userEmail, onShare, onAssign, canAssign, onCancel }) {
     <div className="absolute inset-x-0 bottom-0 z-10 bg-card border-t border-border max-h-72 overflow-y-auto">
       <div className="px-4 pt-3 pb-1 flex items-center justify-between sticky top-0 bg-card border-b border-border/50">
         <div className="flex items-center gap-2">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">
+          <p className="text-xs font-bold text-muted-foreground">
             {tab === 'assign' ? 'Assign to Crew' : 'Share a Regimen'}
           </p>
           {canAssign && (
             <div className="flex gap-1">
               <button
                 onClick={() => setTab('share')}
-                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors ${
+                className={`text-xs px-2 py-0.5 rounded-full font-semibold transition-colors ${
                   tab === 'share' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
                 }`}
               >Share</button>
               <button
                 onClick={() => setTab('assign')}
-                className={`text-[10px] px-2 py-0.5 rounded-full font-semibold transition-colors ${
+                className={`text-xs px-2 py-0.5 rounded-full font-semibold transition-colors ${
                   tab === 'assign' ? 'bg-primary/15 text-primary' : 'text-muted-foreground'
                 }`}
               >Assign</button>
@@ -197,9 +197,9 @@ function AssignedRegimenBanner({ crewId, isAdmin, onEquip }) {
     >
       <Dumbbell className="w-4 h-4 shrink-0" style={{ color: 'hsl(var(--primary))' }} />
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Crew Plan</p>
+        <p className="text-xs font-semibold text-muted-foreground">Crew Plan</p>
         <p className="text-sm font-bold text-foreground truncate">{regimen.name || 'Assigned Regimen'}</p>
-        <p className="text-[10px] text-muted-foreground">{exCount} exercise{exCount !== 1 ? 's' : ''}
+        <p className="text-xs text-muted-foreground">{exCount} exercise{exCount !== 1 ? 's' : ''}
           {top.note ? ` · ${top.note}` : ''}
         </p>
       </div>
@@ -243,7 +243,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
     >
       <Megaphone className="w-3.5 h-3.5 mt-0.5 shrink-0 text-amber-500" />
       <div className="flex-1 min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400 mb-0.5">
+        <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-0.5">
           📌 Announcement
         </p>
         <p className="text-xs text-foreground leading-relaxed line-clamp-3">

@@ -137,7 +137,7 @@ function Timestamp({ dateStr }) {
   if (!dateStr) return null;
   try {
     return (
-      <span className="text-[10px] text-muted-foreground/60 mt-0.5 block">
+      <span className="text-xs text-muted-foreground/60 mt-0.5 block">
         {formatDistanceToNow(new Date(dateStr), { addSuffix: true })}
       </span>
     );
@@ -285,7 +285,7 @@ function TextMessage({ msg, senderProfile, isOwn, currentUserId, isCurrentModera
         {!isOwn && <Avatar profile={senderProfile} />}
         <div className={`max-w-[72%] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
           {!isOwn && (
-            <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1">
+            <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1">
               {senderProfile?.username || 'member'}
             </span>
           )}
@@ -533,7 +533,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
   return (
     <div className="flex justify-center my-3 px-2">
       <div className="rounded-2xl border border-border bg-card px-4 py-3.5 max-w-xs w-full shadow-sm">
-        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+        <p className="text-xs font-bold text-muted-foreground mb-1.5 flex items-center gap-1.5">
           📣 Roll Call
         </p>
         <p className="text-sm font-semibold text-foreground mb-3 leading-snug">{question}</p>
@@ -542,7 +542,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
         {total > 0 && (
           <div className="space-y-1.5 mb-3">
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground w-16">👍 Yes</span>
+              <span className="text-xs text-muted-foreground w-16">👍 Yes</span>
               <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-green-500"
@@ -551,10 +551,10 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
                   transition={{ duration: 0.4 }}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground w-8 text-end">{results?.yes ?? 0}</span>
+              <span className="text-xs text-muted-foreground w-8 text-end">{results?.yes ?? 0}</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground w-16">👎 No</span>
+              <span className="text-xs text-muted-foreground w-16">👎 No</span>
               <div className="flex-1 h-1.5 rounded-full bg-secondary overflow-hidden">
                 <motion.div
                   className="h-full rounded-full bg-red-400"
@@ -563,7 +563,7 @@ function RollCallMessage({ msg, currentUserId, crewId }) {
                   transition={{ duration: 0.4 }}
                 />
               </div>
-              <span className="text-[11px] text-muted-foreground w-8 text-end">{results?.no ?? 0}</span>
+              <span className="text-xs text-muted-foreground w-8 text-end">{results?.no ?? 0}</span>
             </div>
           </div>
         )}
@@ -637,7 +637,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
       <div className="rounded-2xl border border-border bg-card px-4 py-3.5 max-w-xs w-full shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Dumbbell className="w-4 h-4 text-primary shrink-0" />
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Shared Regimen</p>
+          <p className="text-xs font-bold text-muted-foreground">Shared Regimen</p>
         </div>
         <p className="text-sm font-bold text-foreground mb-0.5">{meta.name || 'Untitled Regimen'}</p>
         <div className="flex items-center gap-2 mb-2">
@@ -650,7 +650,7 @@ function RegimenMessage({ msg, user, senderProfile }) {
         </div>
 
         {(meta.preview_exercises || []).slice(0, 3).map((ex, i) => (
-          <p key={i} className="text-[11px] text-muted-foreground truncate leading-tight">
+          <p key={i} className="text-xs text-muted-foreground truncate leading-tight">
             • {ex}
           </p>
         ))}
@@ -725,7 +725,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
       {!isOwn && <Avatar profile={senderProfile} />}
       <div className={`${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1 block">
+          <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
@@ -737,7 +737,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
             {!viewed ? (
               <div className="flex flex-col items-center gap-1 text-muted-foreground">
                 <Eye className="w-6 h-6" />
-                <span className="text-[10px] font-medium">Tap to view once</span>
+                <span className="text-xs font-medium">Tap to view once</span>
               </div>
             ) : open ? (
               <>
@@ -750,7 +750,7 @@ function OneTimeImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
             ) : (
               <div className="flex flex-col items-center gap-1 text-muted-foreground/50">
                 <EyeOff className="w-6 h-6" />
-                <span className="text-[10px]">Viewed</span>
+                <span className="text-xs">Viewed</span>
               </div>
             )}
           </button>
@@ -808,13 +808,13 @@ function TimedImageMessage({ msg, senderProfile, isOwn, currentUserId }) {
       {!isOwn && <Avatar profile={senderProfile} />}
       <div className={`max-w-[200px] ${isOwn ? 'items-end' : 'items-start'} flex flex-col`}>
         {!isOwn && (
-          <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 ms-1 block">
+          <span className="text-xs font-semibold text-muted-foreground mb-0.5 ms-1 block">
             @{senderProfile?.username || 'member'}
           </span>
         )}
         <div className="relative" onClick={handleTap}>
           <img loading="lazy" src={msg.media_url} className="rounded-2xl w-full" alt="" draggable={false} />
-          <div className="absolute top-2 end-2 bg-black/60 rounded-full px-2 py-0.5 text-[10px] text-white font-semibold">
+          <div className="absolute top-2 end-2 bg-black/60 rounded-full px-2 py-0.5 text-xs text-white font-semibold">
             1h
           </div>
           <AnimatePresence>

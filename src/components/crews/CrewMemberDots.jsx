@@ -52,7 +52,7 @@ export default function CrewMemberDots({ members = [], max = 5, size = 24, total
           initial={{ opacity: 0, scale: 0.6 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: i * 0.05, type: 'spring', stiffness: 380, damping: 25 }}
-          className="relative rounded-full overflow-hidden border-2 border-card flex items-center justify-center text-white text-[10px] font-bold select-none"
+          className="relative rounded-full overflow-hidden border-2 border-card flex items-center justify-center text-white text-xs font-bold select-none"
           style={{
             width: size,
             height: size,
@@ -77,7 +77,7 @@ export default function CrewMemberDots({ members = [], max = 5, size = 24, total
           initial={{ opacity: 0, scale: 0.6 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: visible.length * 0.05, type: 'spring', stiffness: 380, damping: 25 }}
-          className="relative rounded-full border-2 border-card flex items-center justify-center text-[10px] font-bold select-none bg-secondary text-foreground"
+          className="relative rounded-full border-2 border-card flex items-center justify-center text-xs font-bold select-none bg-secondary text-foreground"
           style={{
             width: size,
             height: size,

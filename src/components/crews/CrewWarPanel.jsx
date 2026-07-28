@@ -32,7 +32,7 @@ function ScoreBar({ myScore, theirScore }) {
           transition={{ duration: 0.8, ease: 'easeOut' }}
         />
       </div>
-      <div className="flex justify-between text-[10px] text-muted-foreground">
+      <div className="flex justify-between text-xs text-muted-foreground">
         <span>Your Crew</span>
         <span>Rival Crew</span>
       </div>
@@ -300,8 +300,8 @@ export default function CrewWarPanel({ crewId, currentUserId }) {
         <div className="flex items-center gap-2">
           <Shield className={`w-4 h-4 ${winning ? 'text-primary' : tied ? 'text-amber-500' : 'text-rose-500'}`} />
           <span className="font-black text-sm">Crew War</span>
-          {winning && <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Leading</span>}
-          {tied && !completed && <span className="text-[10px] font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Tied</span>}
+          {winning && <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full">Leading</span>}
+          {tied && !completed && <span className="text-xs font-bold text-amber-500 bg-amber-500/10 px-2 py-0.5 rounded-full">Tied</span>}
         </div>
         {/* Hide the running countdown on completed wars — otherwise
             "5h left" and "Victory!" both render simultaneously and

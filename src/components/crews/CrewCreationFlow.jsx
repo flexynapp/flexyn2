@@ -163,7 +163,7 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                   <button
                     key={p.id}
                     onClick={() => toggle(p)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold text-white gap-1"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold text-white gap-1"
                     style={{ background: 'hsl(var(--primary))' }}
                   >
                     {handle(p)}
@@ -279,11 +279,11 @@ export default function CrewCreationFlow({ onCreated, onClose }) {
                 after the fact, saving the team moderation work. The
                 Create button below is also disabled in this state. */}
             {crewName && containsProfanity(crewName) && (
-              <p className="text-[11px] text-destructive mt-1.5 px-1 text-center">
+              <p className="text-xs text-destructive mt-1.5 px-1 text-center">
                 Please choose a different name.
               </p>
             )}
-            <p className="text-end text-[10px] text-muted-foreground mt-1 pe-1">
+            <p className="text-end text-xs text-muted-foreground mt-1 pe-1">
               {crewName.length}/40
             </p>
 

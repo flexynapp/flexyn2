@@ -40,7 +40,7 @@ function CrewCard({ crew, onClick, currentUserId }) {
     <motion.button
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card border border-border text-start"
+      className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card text-start"
     >
       <div
         className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
@@ -55,13 +55,13 @@ function CrewCard({ crew, onClick, currentUserId }) {
           <Users className="w-3 h-3" />
           {members.length} / {crew.max_capacity ?? 16} members
           {crew.is_admin && (
-            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
               style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}>
               Leader
             </span>
           )}
           {!crew.is_admin && myRole === 'moderator' && (
-            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wide"
+            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
               style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
               Mod
             </span>
@@ -293,7 +293,7 @@ export default function CrewsSection({ initialCrewId }) {
       className="pt-2 lg:pb-6"
     >
       {/* Tab strip */}
-      <div className="flex gap-1 p-1 bg-secondary rounded-xl border border-border mb-4">
+      <div className="flex gap-1 p-1 bg-secondary rounded-xl mb-4">
         <button
           onClick={() => setWarTab('crews')}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-lg transition-colors ${

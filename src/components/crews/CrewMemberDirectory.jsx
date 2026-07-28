@@ -25,7 +25,7 @@ function RoleBadge({ role }) {
   if (!cfg?.label) return null;
   return (
     <span
-      className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
+      className="text-xs font-bold px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
       style={{ color: cfg.color, background: cfg.bg }}
     >
       <ShieldCheck className="w-2.5 h-2.5" />
@@ -84,7 +84,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
         <div className="flex items-center gap-1.5">
           <span className="text-sm font-semibold text-foreground truncate">@{username}</span>
           <RoleBadge role={memberRole} />
-          {isSelf && <span className="text-[10px] text-muted-foreground">(you)</span>}
+          {isSelf && <span className="text-xs text-muted-foreground">(you)</span>}
         </div>
       </div>
 
