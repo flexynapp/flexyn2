@@ -229,6 +229,23 @@ export function getItemById(id) {
 }
 
 /**
+ * Look up an item across BOTH catalogs — the core drop pool and the
+ * branded Daily Drop pool.
+ *
+ * `getItemById` only searches ITEMS, so a branded item (flx_*) always came
+ * back null. That's fine for the drop-roll code that owns it, but any
+ * surface that renders a MARKETPLACE listing needs this version: branded
+ * items are purchasable, therefore listable, therefore they show up in
+ * listings whose descriptions would otherwise be blank.
+ */
+export function findCatalogItem(id) {
+  if (!id) return null;
+  return ITEMS.find(i => i.id === id)
+    ?? BRANDED_ITEMS.find(i => i.id === id)
+    ?? null;
+}
+
+/**
  * Roll the capsule RNG and return the won item.
  * Uses the configured odds for the given capsule type.
  */

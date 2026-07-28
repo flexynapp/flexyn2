@@ -174,6 +174,58 @@ export async function purchaseBundle(bundleId) {
 }
 
 /**
+ * Price history for a single catalog item, built from completed sale
+ * listings. Powers the Item Detail sheet's "what does this go for?" block
+ * and the suggested-price hint when listing.
+ *
+ * CAVEAT worth knowing before you build on this: marketplace_listings has
+ * no sold_at / updated_at column, only created_at (when the item was
+ * LISTED). So `recent` is ordered by listing date, not sale date — close
+ * enough for a price hint, wrong if you ever need a true time series.
+ * Adding sold_at is the fix; it needs a migration.
+ *
+ * Returns null when there's no completed-sale history, so callers can
+ * hide the block rather than render an empty chart.
+ *
+ * @returns {Promise<null | {count:number, median:number, low:number,
+ *                           high:number, recent:number[]}>}
+ */
+export async function priceStatsForItem(itemId, limit = 20) {
+  if (!itemId) return null;
+  const { data, error } = await supabase
+    .from('marketplace_listings')
+    .select('asking_price, created_at')
+    .eq('item_id', itemId)
+    .eq('status', 'completed')
+    .eq('listing_type', 'sale')
+    .not('asking_price', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  // A missing price history is not worth surfacing as an error — the
+  // detail sheet just hides the block.
+  if (error) { throwReported(error, 'marketplace'); }
+
+  const prices = (data ?? [])
+    .map(r => Number(r.asking_price))
+    .filter(n => Number.isFinite(n) && n > 0);
+  if (prices.length === 0) return null;
+
+  const sorted = [...prices].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2
+    ? sorted[mid]
+    : Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+
+  return {
+    count:  prices.length,
+    median,
+    low:    sorted[0],
+    high:   sorted[sorted.length - 1],
+    recent: prices, // newest-first, as returned
+  };
+}
+
+/**
  * Mark a listing as completed (called after a successful purchase/trade).
  */
 export async function completeListing(listingId) {

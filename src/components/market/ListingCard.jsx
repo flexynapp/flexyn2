@@ -20,6 +20,7 @@ export default function ListingCard({
   boughtByMe = false,
   soldCount = 0,
   onSellerClick,
+  onOpenDetail,
   isSaved = false,
   onToggleSave,
 }) {
@@ -82,12 +83,22 @@ export default function ListingCard({
         </div>
       )}
 
-      {/* Item */}
-      <div className="flex flex-col items-center gap-1 relative z-10">
+      {/* Item — tapping opens the detail sheet. The explicit Buy / Offer
+          Trade buttons below stay a direct path to the commit step, so a
+          buyer who already knows what they want still gets there in one
+          tap; everyone else gets a screen that explains what they're
+          about to spend coins on. */}
+      <button
+        type="button"
+        onClick={() => onOpenDetail?.(listing)}
+        disabled={!onOpenDetail || recentlySold}
+        aria-label={`View details for ${listing.item_name}`}
+        className="flex flex-col items-center gap-1 relative z-10 rounded-lg -mx-1 px-1 py-0.5 enabled:hover:bg-foreground/5 transition-colors"
+      >
         <span className="text-4xl leading-none">{listing.item_emoji}</span>
         <span className="text-xs font-semibold text-center leading-tight">{listing.item_name}</span>
         <RarityBadge rarity={listing.item_rarity} size="sm" />
-      </div>
+      </button>
 
       {/* Seller — tap to open their HubProfile. Excludes own listings. */}
       <p className="text-muted-foreground text-[10px] text-center relative z-10">

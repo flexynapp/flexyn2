@@ -5,8 +5,8 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useQueryClient } from '@tanstack/react-query';
-import { ShoppingBag, X, ChevronLeft } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ShoppingBag, X, ChevronLeft, TrendingUp } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { reportError } from '@/lib/reportError';
 import * as marketplace from '@/lib/data/marketplace';
@@ -23,6 +23,16 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
   const [price, setPrice]             = useState('');
   const [tradeRarity, setTradeRarity] = useState('uncommon');
   const [busy, setBusy]               = useState(false);
+
+  // What this item has actually sold for. Sellers used to face a blank
+  // number field with no reference point at all, which is how you get
+  // identical stickers listed at 5 and at 5,000 on the same page.
+  const { data: priceStats } = useQuery({
+    queryKey: ['itemPriceStats', selectedItem?.item_id],
+    queryFn:  () => marketplace.priceStatsForItem(selectedItem.item_id),
+    enabled:  !!selectedItem?.item_id && step === 'configure',
+    staleTime: 5 * 60_000,
+  });
 
   const reset = () => {
     setStep('pick'); setSelected(null); setListingType('sale');
@@ -192,10 +202,33 @@ export default function ListItemDialog({ open, onClose, userItems, user, onSucce
                       min="1"
                       value={price}
                       onChange={e => setPrice(e.target.value)}
-                      placeholder="e.g. 50"
+                      placeholder={priceStats ? `e.g. ${priceStats.median}` : 'e.g. 50'}
                       className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
                     />
                   </div>
+
+                  {priceStats ? (
+                    <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+                      <TrendingUp className="w-3 h-3 text-muted-foreground shrink-0" />
+                      <span className="text-[11px] text-muted-foreground">
+                        Usually sells for {COIN} {priceStats.median}
+                        {priceStats.low !== priceStats.high && (
+                          <> ({priceStats.low}–{priceStats.high})</>
+                        )}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setPrice(String(priceStats.median))}
+                        className="text-[11px] font-bold text-primary hover:underline"
+                      >
+                        Use {priceStats.median}
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      No sale history yet — you set the going rate.
+                    </p>
+                  )}
                 </div>
               )}
 

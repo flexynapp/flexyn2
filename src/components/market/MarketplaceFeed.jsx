@@ -11,7 +11,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ShoppingBag, Heart, Package, Star } from 'lucide-react';
+import { ShoppingBag, Heart, Package, SearchX } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { reportError } from '@/lib/reportError';
@@ -23,12 +23,24 @@ import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import RecentlyViewedRail from '@/components/hub/RecentlyViewedRail';
 import MarketplaceHeader from './MarketplaceHeader';
-import DailyChestBlock from './DailyChestBlock';
+import TodayRail from './TodayRail';
+import MarketFilterBar, { DEFAULT_FILTERS, applyFilters, activeFilterCount } from './MarketFilterBar';
 import ListingCard from './ListingCard';
 import BundleCard from './BundleCard';
+import ItemDetailSheet from './ItemDetailSheet';
 import ListItemDialog from './ListItemDialog';
 import TradeOfferDialog from './TradeOfferDialog';
 import BuyConfirmDialog from './BuyConfirmDialog';
+
+// The filter bar's sort maps onto listActive's two params. Keeping the
+// SERVER order in sync with the chosen sort matters: listActive caps at 60
+// rows, so "price high→low" has to fetch the 60 most expensive listings,
+// not re-sort the 60 newest.
+const SORT_TO_QUERY = {
+  'recent':     ['recent', 'desc'],
+  'price-asc':  ['price',  'asc'],
+  'price-desc': ['price',  'desc'],
+};
 
 export default function MarketplaceFeed() {
   const { user } = useAuth();
@@ -49,14 +61,18 @@ export default function MarketplaceFeed() {
   const [boughtByMeIds, setBoughtByMeIds] = useState(() => new Set());
   const previousListingsRef = useRef([]);
 
-  const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
-  const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+
+  // The listing whose detail sheet is open. Distinct from buyTarget — the
+  // sheet is the read step, buyTarget is the commit step.
+  const [detailTarget, setDetailTarget] = useState(null);
 
   // Top-level view: 'browse' shows the full marketplace, 'saved' shows only
   // the viewer's wishlist (heart-saved listings).
   const [marketView, setMarketView] = useState('browse'); // 'browse' | 'saved'
 
   // ── Data fetching ──────────────────────────────────────────────────────────
+  const [sortBy, sortDir] = SORT_TO_QUERY[filters.sort] ?? SORT_TO_QUERY.recent;
   const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
     queryKey: ['marketplaceListings', sortBy, sortDir],
     queryFn:  () => marketplace.listActive(60, sortBy, sortDir),
@@ -157,13 +173,11 @@ export default function MarketplaceFeed() {
     }
   }, [user?.id, user?.email, qc]);
 
-  // Featured listings — derived from the already-fetched active list.
-  const featuredListings = useMemo(
-    () => listings.filter(l =>
-      l.is_featured && l.featured_until && new Date(l.featured_until) > new Date()
-    ),
-    [listings]
-  );
+  // Featured listings no longer get their own rail above the grid. They
+  // rendered there AND again in the grid below — every featured listing
+  // appeared twice, because the grid only excluded BUNDLED ids, never
+  // featured ones. applyFilters floats them to the top instead, and the
+  // card's own Featured ribbon does the signalling.
 
   // Detect listings that disappeared between the previous render and this
   // one — those are the just-sold (or cancelled) ones. Mark them for a 5s
@@ -272,10 +286,17 @@ export default function MarketplaceFeed() {
 
   // In "saved" view show only wishlisted listings. In "browse" view, exclude
   // listings already shown inside a bundle card.
-  const visibleListings = useMemo(() => {
+  const viewListings = useMemo(() => {
     if (marketView === 'saved') return listings.filter(l => savedIds.has(l.id));
     return listings.filter(l => !bundledListingIds.has(l.id));
   }, [listings, savedIds, marketView, bundledListingIds]);
+
+  // …then narrow by the filter bar and float featured to the top.
+  const visibleListings = useMemo(
+    () => applyFilters(viewListings, filters, flexCoins),
+    [viewListings, filters, flexCoins]
+  );
+  const filtersActive = activeFilterCount(filters) > 0;
 
   // Shared props for every ListingCard so the three render sites (featured
   // rail, main grid, sold-fade) can't drift apart.
@@ -287,6 +308,10 @@ export default function MarketplaceFeed() {
     onOfferTrade: (l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); },
     onSellerClick: handleSellerClick,
     onToggleSave: handleToggleSave,
+    onOpenDetail: (l) => {
+      if (user?.email) addRecentlyViewed(user.email, l);
+      setDetailTarget(l);
+    },
   };
 
   return (
@@ -317,65 +342,20 @@ export default function MarketplaceFeed() {
         onList={() => setShowListDialog(true)}
         onOpenTradeHistory={() => navigate('/market/trades')}
         listableCount={listableCount}
-        sortBy={sortBy}
-        sortDir={sortDir}
-        onSortByChange={setSortBy}
-        onSortDirToggle={() => {
-          // If the user is on Recent and taps the direction toggle, they
-          // expect SOMETHING to happen. It used to be disabled, so the tap
-          // silently dropped — reported as "the filter button doesn't do
-          // anything." Now: switch to Price and apply the direction.
-          if (sortBy !== 'price') {
-            setSortBy('price');
-            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
-          } else {
-            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
-          }
-        }}
       />
 
-      {user && (
-        <DailyChestBlock
-          user={user}
-          onClaimed={() => qc.invalidateQueries({ queryKey: ['userProfile', user.email] })}
-        />
-      )}
+      <TodayRail
+        user={user}
+        onClaimed={() => qc.invalidateQueries({ queryKey: ['userProfile', user.email] })}
+        onOpenShop={() => setShopOpen(true)}
+      />
 
-      {/* Buy More Capsules CTA */}
-      <motion.button
-        whileTap={{ scale: 0.97 }}
-        whileHover={{ scale: 1.01 }}
-        onClick={() => setShopOpen(true)}
-        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-primary/30 bg-card"
-        style={{
-          backgroundImage:
-            'linear-gradient(135deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0.06) 100%)',
-        }}
-      >
-        <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0">
-          <Package className="w-5 h-5 text-primary" />
-        </div>
-        <div className="flex-1 text-start">
-          <p className="text-sm font-bold leading-tight">Buy More Capsules</p>
-          <p className="text-[11px] text-muted-foreground leading-tight">Standard · Premium · Elite</p>
-        </div>
-      </motion.button>
-
-      {/* Recently viewed rail — the last few listings this user tapped into
-          but didn't buy. Empty history renders nothing. */}
-      {user?.email && (
-        <RecentlyViewedRail
-          userEmail={user.email}
-          listings={listings}
-          onSelect={(listing) => {
-            if (listing.seller_email !== user.email && listing.listing_type === 'sale') {
-              setBuyTarget(listing);
-            } else if (listing.listing_type === 'trade') {
-              setTradeTarget(listing);
-            }
-          }}
-        />
-      )}
+      <MarketFilterBar
+        filters={filters}
+        onChange={setFilters}
+        resultCount={visibleListings.length}
+        totalCount={viewListings.length}
+      />
 
       {/* Listings grid */}
       {loadingListings ? (
@@ -423,30 +403,6 @@ export default function MarketplaceFeed() {
         </div>
       ) : (
         <>
-          {/* Featured this week (mig 122) — quiet when empty so the page
-              doesn't grow a permanent header ribbon for nothing. */}
-          {featuredListings.length > 0 && (
-            <div className="mb-5">
-              <div className="flex items-center gap-1.5 mb-2 px-1">
-                <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
-                <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-500">
-                  Featured this week
-                </h3>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {featuredListings.map(listing => (
-                  <ListingCard
-                    key={`featured-${listing.id}`}
-                    listing={listing}
-                    soldCount={soldCountMap.get(listing.item_id) || 0}
-                    isSaved={savedIds.has(listing.id)}
-                    {...cardProps}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Bundle deal rows (mig 134) — browse view only. Bundled items
               are excluded from the regular grid below. */}
           {marketView === 'browse' && activeBundles.some(b => bundleMap.has(b.id)) && (
@@ -506,11 +462,64 @@ export default function MarketplaceFeed() {
                     onBuy={() => {}}
                     onCancel={() => {}}
                     onOfferTrade={() => {}}
+                    onOpenDetail={undefined}
                   />
                 ))}
             </AnimatePresence>
           </motion.div>
+
+          {/* Filtered everything out — distinct from "marketplace is quiet",
+              and the fix is one tap rather than "come back later". */}
+          {visibleListings.length === 0 && filtersActive && (
+            <div className="flex flex-col items-center justify-center py-14 gap-3 text-center">
+              <SearchX className="w-10 h-10 text-muted-foreground/50" />
+              <p className="font-heading font-bold">Nothing matches those filters</p>
+              <p className="text-muted-foreground text-sm max-w-xs">
+                {viewListings.length} listing{viewListings.length === 1 ? '' : 's'} available — try widening the search.
+              </p>
+              <button
+                type="button"
+                onClick={() => setFilters({ ...DEFAULT_FILTERS, sort: filters.sort })}
+                className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
+              >
+                Clear filters
+              </button>
+            </div>
+          )}
+
+          {/* Recently viewed — moved BELOW the grid. As a pre-grid rail it
+              was another band of chrome between the user and the listings,
+              and it's a "pick up where you left off" affordance, which is a
+              reasonable thing to find after you've scanned what's new. */}
+          {user?.email && (
+            <div className="mt-4">
+              <RecentlyViewedRail
+                userEmail={user.email}
+                listings={listings}
+                onSelect={(listing) => setDetailTarget(listing)}
+              />
+            </div>
+          )}
         </>
+      )}
+
+      {/* Item detail — the read step between the grid and any commit step.
+          It owns its own AnimatePresence inside the portal. */}
+      {detailTarget && (
+        <ItemDetailSheet
+          listing={detailTarget}
+          allListings={listings}
+          currentUser={user}
+          flexCoins={flexCoins}
+          isSaved={savedIds.has(detailTarget.id)}
+          onToggleSave={handleToggleSave}
+          onSellerClick={handleSellerClick}
+          onSelectListing={(l) => setDetailTarget(l)}
+          onBuy={(l) => { setDetailTarget(null); setBuyTarget(l); }}
+          onOfferTrade={(l) => { setDetailTarget(null); setTradeTarget(l); }}
+          onCancel={(l) => { setDetailTarget(null); handleCancel(l); }}
+          onClose={() => setDetailTarget(null)}
+        />
       )}
 
       {/* Dialogs */}

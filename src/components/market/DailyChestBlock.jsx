@@ -62,11 +62,15 @@ export default function DailyChestBlock({ user, onClaimed }) {
     }
   };
 
+  // Compact card — this used to be a full-width banner row. Together with
+  // the Buy Capsules banner below it, the two of them pushed the first
+  // actual listing most of a phone screen further down. They're a matched
+  // pair in TodayRail's two-column grid now.
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className="rounded-2xl p-4 flex items-center gap-4 relative overflow-hidden border border-primary/30 bg-card"
+      className="rounded-2xl p-3 flex flex-col gap-2 relative overflow-hidden border border-primary/30 bg-card"
       style={{
         backgroundImage:
           'linear-gradient(135deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0.06) 100%)',
@@ -74,27 +78,29 @@ export default function DailyChestBlock({ user, onClaimed }) {
     >
       <DriftParticles particles={CHEST_PARTICLES} />
 
-      <div className="shrink-0 w-12 h-12 rounded-xl bg-secondary border border-border flex items-center justify-center relative z-10">
-        <Gift className={`w-6 h-6 ${claimed ? 'text-amber-500/50' : 'text-amber-500'}`} />
-      </div>
-      <div className="flex-1 min-w-0 relative z-10">
-        <p className="font-heading font-bold text-sm">
-          {tFallback('marketplace.dailyChest.title', 'Daily Chest')}
-        </p>
-        <p className="text-muted-foreground font-medium text-xs mt-0.5">
-          {claimed
-            ? tFallback('marketplace.dailyChest.comeback', 'Come back tomorrow for another reward!')
-            : tFallback('marketplace.dailyChest.cta', 'Claim your free daily capsule + coins')}
-        </p>
+      <div className="flex items-center gap-2 relative z-10">
+        <div className="shrink-0 w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center">
+          <Gift className={`w-4.5 h-4.5 ${claimed ? 'text-amber-500/50' : 'text-amber-500'}`} />
+        </div>
+        <div className="min-w-0">
+          <p className="font-heading font-bold text-sm leading-tight">
+            {tFallback('marketplace.dailyChest.title', 'Daily Chest')}
+          </p>
+          <p className="text-muted-foreground text-[11px] leading-tight">
+            {claimed
+              ? tFallback('marketplace.dailyChest.comebackShort', 'Back tomorrow')
+              : tFallback('marketplace.dailyChest.ctaShort', 'Free capsule + coins')}
+          </p>
+        </div>
       </div>
       <button
         onClick={handleClaim}
         disabled={claimed || loading}
         className={[
-          'shrink-0 px-4 py-2 rounded-xl text-sm font-bold transition-all relative z-10',
+          'w-full py-1.5 rounded-lg text-xs font-bold transition-all relative z-10',
           claimed
             ? 'bg-secondary text-muted-foreground cursor-not-allowed border border-border'
-            : 'bg-primary text-primary-foreground hover:opacity-90 shadow-md',
+            : 'bg-primary text-primary-foreground hover:opacity-90 shadow-sm',
         ].join(' ')}
       >
         {loading

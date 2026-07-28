@@ -55,9 +55,11 @@ export function DriftParticles({ particles }) {
   ));
 }
 
+// Sort used to live here as two toggle buttons in a second row. It moved
+// to MarketFilterBar, next to the type/rarity/affordability controls it
+// belongs with — which also lets this banner shrink to a single row.
 export default function MarketplaceHeader({
-  flexCoins, onRefresh, onList, listableCount = 0,
-  sortBy, sortDir, onSortByChange, onSortDirToggle, onOpenTradeHistory,
+  flexCoins, onRefresh, onList, listableCount = 0, onOpenTradeHistory,
 }) {
   const fmt = useNumberFormatter();
   const bannerRef = useRef(null);
@@ -161,31 +163,6 @@ export default function MarketplaceHeader({
             )}
           </button>
         </div>
-      </div>
-
-      {/* Row 2: two-button sort — parameter toggle + directional toggle */}
-      <div className="flex items-center gap-2 relative z-10">
-        <button
-          onClick={() => onSortByChange(sortBy === 'recent' ? 'price' : 'recent')}
-          className="flex items-center gap-1.5 bg-secondary border border-border text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-secondary/70 active:scale-95 transition-all select-none"
-        >
-          {sortBy === 'recent' ? '🕐 Recent' : '🏷️ Price'}
-        </button>
-        {/* On Recent mode this auto-switches to Price and flips direction
-            (handled by the parent), so it's ALWAYS actionable — it used to
-            be disabled on Recent and a tap silently no-op'd, which users
-            read as "the filter button is broken." */}
-        <button
-          onClick={onSortDirToggle}
-          className={`flex items-center gap-1 border text-xs font-semibold rounded-full px-3.5 py-1.5 hover:bg-secondary/70 active:scale-95 transition-all select-none ${
-            sortBy === 'price'
-              ? 'bg-secondary border-border'
-              : 'bg-secondary/50 border-border text-muted-foreground'
-          }`}
-        >
-          <ArrowUpDown className="w-3 h-3" />
-          {sortDir === 'desc' ? 'High → Low' : 'Low → High'}
-        </button>
       </div>
     </div>
   );
