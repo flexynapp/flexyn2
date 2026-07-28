@@ -15,6 +15,7 @@ import { supabase } from '@/api/supabaseClient';
 import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
 import CapsuleRarityOdds from './CapsuleRarityOdds';
+import CapsuleStreak from './CapsuleStreak';
 
 // The capsule's "what's in here?" link now opens the same Collection
 // surface as the Marketplace and the Bag, so the odds you just read
@@ -121,6 +122,45 @@ function buildReel(winItem) {
   cards.push(winItem);
   for (let i = 0; i < 3; i++) cards.push(safeFiller(cards[cards.length - 1]));
   return cards; // 22 cards total
+}
+
+// ─── Rarity ranking + a single server-authoritative roll ──────────────────────
+// Pulled out of handleOpen so one capsule and ten capsules share exactly
+// one roll path. Every roll is its own claim_capsule_loot call (migration
+// 028), which locks that capsule row and rolls server-side — batching is
+// purely a UI affordance, it does not touch how loot is decided.
+const RARITY_LADDER = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
+function rarityRank(r) {
+  const i = RARITY_LADDER.indexOf(r);
+  return i < 0 ? 0 : i;
+}
+
+async function rollOneCapsule(capsuleId) {
+  const { data, error } = await supabase.rpc('claim_capsule_loot', { p_capsule_id: capsuleId });
+  if (error) {
+    const e = new Error(error.message || 'claim_capsule_loot failed');
+    // Pre-028 hosts fail closed. The removed alternative was a client-side
+    // Math.random() roll, i.e. "open DevTools and force legendary".
+    e.missingRpc = (error.code === '42883' || error.code === '42P01');
+    throw e;
+  }
+  if (!data) return null; // already opened by another tab/device
+
+  // Validate the variant against the catalog before trusting it — a future
+  // server typo like 'gld' would otherwise ride into the item object and
+  // break at the render site instead of here.
+  const variant = (data.variant && VARIANTS && VARIANTS[data.variant]) ? data.variant : null;
+
+  let item = pickItemForRoll(data.category, data.rarity);
+  if (!item) {
+    // CATALOG-LOOKUP fallback, not a roll fallback — the server already
+    // decided the rarity; the client just has no item of that
+    // (category, rarity) pair yet.
+    const fallback = getItemsByRarity(data.rarity);
+    item = fallback.length ? fallback[0] : null;
+  }
+  if (!item) return null;
+  return variant ? { ...item, variant } : item;
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
@@ -278,9 +318,64 @@ function CrateBurst({ item, onDone }) {
   );
 }
 
+// ─── Batch reveal grid ────────────────────────────────────────────────────────
+// Ten results at once. The best pull keeps the full-size treatment (and the
+// CrateBurst still fires over it) so the batch has one payoff moment
+// instead of ten equal ones.
+function BatchRevealGrid({ results, bestId }) {
+  return (
+    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 w-full">
+      {results.map(({ capsuleId, item }, i) => {
+        const tint = rarityTint(item.rarity);
+        const isBest = capsuleId === bestId;
+        return (
+          <motion.div
+            key={capsuleId}
+            className="relative flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
+            style={{
+              borderColor: tint.border,
+              boxShadow: isBest ? tint.glow : undefined,
+            }}
+            initial={{ scale: 0.5, opacity: 0, rotate: -4 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            // Staggered so the grid pops in one card at a time rather than
+            // dumping ten at once — the drip is most of the payoff.
+            transition={{ type: 'spring', stiffness: 300, damping: 20, delay: i * 0.08 }}
+          >
+            {isBest && (
+              <span
+                className="absolute -top-1.5 px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider"
+                style={{ backgroundColor: tint.color, color: '#000' }}
+              >
+                Best
+              </span>
+            )}
+            <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
+            <span className="text-[10px] font-semibold leading-tight line-clamp-2">{item.name}</span>
+            <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: tint.color }}>
+              {tint.label}
+            </span>
+          </motion.div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Component ────────────────────────────────────────────────────────────────
 // Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
-export default function CapsuleOpener({ capsule, onClaim, onClose }) {
+// Ten capsules used to mean ten full round trips through this modal:
+// open bag → tap capsule → 3s spin → claim → close → bag reopens → repeat.
+// `batch` runs one spin and reveals every result at once. It is a UI
+// affordance only: each capsule is still rolled by its own
+// claim_capsule_loot call, server-side, independently.
+const MAX_BATCH = 10;
+
+export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, onClose }) {
+  const batchRows = Array.isArray(batch) ? batch.slice(0, MAX_BATCH) : null;
+  const isBatch = !!batchRows && batchRows.length > 1;
+  // [{ capsuleId, item }] — every successful roll from this open.
+  const [results, setResults] = useState([]);
   const reduce = prefersReducedMotion();
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
@@ -433,103 +528,84 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
     if (openGuardRef.current) return;
     openGuardRef.current = true;
 
-    // Pick the spin persona for THIS open. Stash on both state (drives
-    // the kicker text via React re-render) and the ref (read by the
-    // callback ref's RAF closure, which has no React access). Without
-    // the ref mirror, the reel would always animate with the very-first
-    // variant due to the empty-deps closure on setReelRef.
+    // Pick the spin persona for THIS open. Stash on both state (drives the
+    // kicker text via React re-render) and the ref (read by the callback
+    // ref's RAF closure, which has no React access). Without the ref
+    // mirror the reel would always animate with the very-first variant
+    // due to the empty-deps closure on setReelRef.
     const variant = pickSpinVariant();
     spinVariantRef.current = variant;
     setSpinVariant(variant);
 
-    const capsuleId   = capsule?.id;
-
-    let rolledItem = null;
-    let rolledVariant = null;
-
-    // Server-authoritative roll only. The previous "fall back to a fully
-    // client-side rollCapsule/rollVariant" path is removed — on any host
-    // that hadn't applied migration 028, the client rolled the rarity
-    // tier with Math.random(). A user could open DevTools and force
-    // legendary on every spin. Failing closed (toast + return) means
-    // an outage temporarily breaks capsule opening rather than silently
-    // re-enabling the cheat surface.
-    if (!capsuleId) {
+    const targets = isBatch ? batchRows : (capsule ? [capsule] : []);
+    if (targets.length === 0 || targets.some(c => !c?.id)) {
       toast.error('Capsule missing — refresh and try again.');
       openGuardRef.current = false;
       return;
     }
+
+    let rolled;
     try {
-      const { data, error } = await supabase.rpc('claim_capsule_loot', {
-        p_capsule_id: capsuleId,
-      });
-      if (error) {
-        if (error.code === '42883' || error.code === '42P01') {
-          // Pre-028 host — fail closed (was "fall back to client roll"
-          // which trusted Math.random()).
-          console.warn('[CapsuleOpener] claim_capsule_loot missing — apply migration 028');
-          toast.error('Capsule system update pending. Try again later.');
-        } else {
-          console.error('[CapsuleOpener] RPC error:', error);
-          toast.error('Could not open capsule. Try again.');
-        }
-        openGuardRef.current = false;
-        return;
-      }
-      if (!data) {
-        toast.error('Capsule already opened.');
-        openGuardRef.current = false;
-        return;
-      }
-      // Validate variant against the known catalog before trusting
-      // the server. A future server change emitting a typo like
-      // `'gld'` would otherwise be propagated into the wonItem object
-      // and broken at the rendering site rather than caught here.
-      rolledVariant = (data.variant && VARIANTS && VARIANTS[data.variant])
-        ? data.variant
-        : null;
-      rolledItem    = pickItemForRoll(data.category, data.rarity);
-      // If the catalog has no match for the server-rolled tuple (server
-      // rolled a rarity that no client item supports yet), fall back to
-      // a sticker of the same rarity. This is a CATALOG-LOOKUP fallback,
-      // not a roll fallback — the server already decided the rarity.
-      if (!rolledItem) {
-        const fallback = getItemsByRarity(data.rarity);
-        rolledItem = fallback.length ? fallback[0] : null;
-      }
+      // Each capsule is an independent server-side roll. Parallel is safe:
+      // claim_capsule_loot locks one row and no two targets share a row.
+      rolled = await Promise.all(targets.map(async (c) => ({
+        capsuleId: c.id,
+        item: await rollOneCapsule(c.id),
+      })));
     } catch (err) {
-      console.error('[CapsuleOpener] RPC threw:', err);
-      toast.error('Could not open capsule. Try again.');
+      if (err?.missingRpc) {
+        console.warn('[CapsuleOpener] claim_capsule_loot missing — apply migration 028');
+        toast.error('Capsule system update pending. Try again later.');
+      } else {
+        console.error('[CapsuleOpener] roll failed:', err);
+        toast.error('Could not open capsule. Try again.');
+      }
       openGuardRef.current = false;
       return;
     }
 
-    if (!rolledItem) {
-      toast.error('No loot available — capsule pool empty.');
+    const ok = rolled.filter(r => r.item);
+    if (ok.length === 0) {
+      // Every target came back null — already opened elsewhere, or the
+      // catalog has nothing for the rolled tier.
+      toast.error(targets.length > 1 ? 'Those capsules were already opened.' : 'Capsule already opened.');
       openGuardRef.current = false;
       return;
     }
+    if (ok.length < targets.length) {
+      // Partial: some rows were claimed by another tab/device mid-flight.
+      // Say so rather than silently revealing fewer cards than requested.
+      toast.info(`${targets.length - ok.length} capsule(s) were already opened elsewhere.`);
+    }
 
-    const wonWithVariant = rolledVariant ? { ...rolledItem, variant: rolledVariant } : rolledItem;
-    const cards = buildReel(rolledItem);
-    setWonItem(wonWithVariant);
-    setReel(cards);
+    // The reel lands on the BEST pull — with ten results there has to be
+    // one payoff moment, and it should be the one worth watching.
+    const best = ok.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a));
+
+    setResults(ok);
+    setWonItem(best.item);
+    setReel(buildReel(best.item));
     setPhase('spinning');
-    // Actual CSS animation is kicked off in the useEffect below once the
-    // reel DOM element is mounted. Guard stays set — only the parent
-    // closing the modal will reset it via component unmount.
-  }, [capsule]);
+    // The CSS animation is kicked off by the reel's callback ref once the
+    // element mounts.
+  }, [capsule, isBatch, batchRows]);
 
   // ── Claim ────────────────────────────────────────────────────────────────────
   const handleClaim = useCallback(() => {
     setPhase('claimed');
-    onClaim?.(wonItem);
-  }, [wonItem, onClaim]);
+    if (isBatch) onClaimBatch?.(results);
+    else onClaim?.(wonItem);
+  }, [isBatch, results, wonItem, onClaim, onClaimBatch]);
 
   // One tint object drives the reveal card's border, glow, chip and CTA.
   // Previously this was two parallel lookups (RARITY for colours, the
   // local RARITY_CARD for Tailwind classes) that could disagree.
   const rarityConfig = wonItem ? rarityTint(wonItem.rarity) : null;
+  // Which grid card gets the "Best" crown. Recomputed from results rather
+  // than stored, so it can't drift out of sync with what's rendered.
+  const bestResultId = results.length
+    ? results.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a)).capsuleId
+    : null;
 
   // Scroll lock — capture the ORIGINAL overflow value once at mount
   // and restore it once at unmount. The previous combined effect's
@@ -636,16 +712,25 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
               <div className="text-center">
                 <p className="font-semibold text-lg capitalize">
-                  {capsule?.capsule_type ?? 'Standard'} Capsule
+                  {isBatch
+                    ? `${batchRows.length} × ${batchRows[0]?.capsule_type ?? 'Standard'} Capsules`
+                    : `${capsule?.capsule_type ?? 'Standard'} Capsule`}
                 </p>
-                <p className="text-muted-foreground text-sm mt-1">Crack it open to reveal your prize</p>
+                <p className="text-muted-foreground text-sm mt-1">
+                  {isBatch
+                    ? 'One spin, every result at once'
+                    : 'Crack it open to reveal your prize'}
+                </p>
               </div>
 
               {/* Loot-box transparency — pre-open drop rates per
                   rarity. Collapsed by default so the dramatic moment
                   stays clean; one tap to expand. */}
-              <div className="mb-2 w-72 max-w-full">
-                <CapsuleRarityOdds capsuleType={capsule?.capsule_type || 'standard'} />
+              <div className="mb-2 w-72 max-w-full flex flex-col gap-2">
+                <CapsuleRarityOdds capsuleType={(isBatch ? batchRows[0]?.capsule_type : capsule?.capsule_type) || 'standard'} />
+                {/* Where you actually stand against those odds. Display
+                    only — see src/lib/pity.js. */}
+                <CapsuleStreak />
               </div>
               <button
                 type="button"
@@ -662,7 +747,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 onClick={handleOpen}
                 className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-shadow"
               >
-                Open Capsule
+                {isBatch ? `Open all ${batchRows.length}` : 'Open Capsule'}
               </motion.button>
             </motion.div>
           )}
@@ -711,8 +796,51 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
             </motion.div>
           )}
 
-          {/* ── REVEALING ──────────────────────────────────────────────────── */}
-          {phase === 'revealing' && wonItem && (() => {
+          {/* ── REVEALING (batch) ──────────────────────────────────────────── */}
+          {phase === 'revealing' && wonItem && isBatch && (
+            <motion.div
+              key="revealing-batch"
+              className="flex flex-col items-center py-8 px-5 gap-5 relative"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+            >
+              {/* Rarity wash keyed to the BEST pull. */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  background: `radial-gradient(ellipse 60% 55% at 50% 40%, ${rarityConfig.color}22, transparent 70%)`,
+                }}
+              />
+              <p className="relative z-10 text-muted-foreground text-xs font-medium tracking-widest uppercase">
+                {results.length} opened
+              </p>
+
+              <div className="relative z-10 w-full">
+                <BatchRevealGrid results={results} bestId={bestResultId} />
+              </div>
+
+              <motion.button
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={handleClaim}
+                className="relative z-10 px-8 py-3 rounded-xl font-bold text-base text-white shadow-lg transition-shadow"
+                style={{
+                  background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
+                  boxShadow: `0 4px 24px ${rarityConfig.color}44`,
+                }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                // Held back until the staggered grid has finished landing,
+                // so a fast tap can't skip the reveal it paid for.
+                transition={{ delay: 0.25 + results.length * 0.08 }}
+              >
+                Claim all {results.length}
+              </motion.button>
+            </motion.div>
+          )}
+
+          {/* ── REVEALING (single) ─────────────────────────────────────────── */}
+          {phase === 'revealing' && wonItem && !isBatch && (() => {
             const isThemeDrop = wonItem.type === 'theme';
             const lootTheme   = isThemeDrop ? getLootThemeById(wonItem.id) : null;
             return (
@@ -848,7 +976,34 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
           })()}
 
           {/* ── CLAIMED ────────────────────────────────────────────────────── */}
-          {phase === 'claimed' && wonItem && (
+          {phase === 'claimed' && isBatch && (
+            <motion.div
+              key="claimed-batch"
+              className="flex flex-col items-center py-10 px-6 gap-4 text-center"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
+              <motion.span
+                className="text-5xl"
+                animate={{ rotate: [0, 10, -10, 0], scale: [1, 1.15, 1] }}
+                transition={{ duration: 0.6 }}
+              >
+                🎉
+              </motion.span>
+              <p className="font-bold text-lg">{results.length} items added to your bag!</p>
+              <p className="text-muted-foreground text-sm">
+                Best pull: <span style={{ color: rarityConfig?.color }}>{wonItem?.name}</span>
+              </p>
+              <button
+                onClick={onClose}
+                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
+              >
+                Close
+              </button>
+            </motion.div>
+          )}
+
+          {phase === 'claimed' && !isBatch && wonItem && (
             <motion.div
               key="claimed"
               className="flex flex-col items-center py-10 px-6 gap-4"

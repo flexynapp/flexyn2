@@ -2,6 +2,7 @@
 // Capsule data-access layer — backed by Supabase user_capsules + user_profiles.
 
 import { supabase } from '@/api/supabaseClient';
+import { safeSelect } from '@/api/safeSelect';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal helpers
@@ -160,6 +161,40 @@ export async function openCapsule(capsuleId) {
     .maybeSingle();
   if (error) throw error;
   return data;
+}
+
+/**
+ * Opened capsules with their rolled rarity, newest first — the input to
+ * the pity/streak display on the opener.
+ *
+ * Reads through safeSelect because rolled_rarity / rolled_category /
+ * rolled_variant arrive in migration 028; a pre-028 host would otherwise
+ * 42703 the whole query and blank the opener rather than just hiding the
+ * streak line. Returns [] on any read failure for the same reason — a
+ * decorative stat must never be able to break capsule opening.
+ */
+export async function listOpenHistory(userEmail, limit = 200) {
+  if (!userEmail) return [];
+  try {
+    const { data, error } = await safeSelect({
+      columns: ['rolled_rarity', 'opened_at', 'earned_at', 'capsule_type'],
+      build: (cols) => supabase
+        .from('user_capsules')
+        .select(cols)
+        .eq('user_email', userEmail)
+        .eq('is_opened', true)
+        .order('opened_at', { ascending: false, nullsFirst: false })
+        .limit(limit),
+    });
+    if (error) {
+      console.warn('[capsules] listOpenHistory failed:', error);
+      return [];
+    }
+    return data ?? [];
+  } catch (err) {
+    console.warn('[capsules] listOpenHistory threw:', err);
+    return [];
+  }
 }
 
 /**

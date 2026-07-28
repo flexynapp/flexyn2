@@ -491,11 +491,14 @@ export default function Layout() {
         open={bag.bagOpen}
         onClose={bag.closeBag}
         onOpenCapsule={bag.openCapsule}
+        onOpenCapsuleBatch={bag.openCapsuleBatch}
       />
-      {bag.openingCapsule && (
+      {(bag.openingCapsule || bag.openingBatch) && (
         <CapsuleOpener
           capsule={bag.openingCapsule}
+          batch={bag.openingBatch}
           onClaim={bag.claimCapsule}
+          onClaimBatch={bag.claimCapsuleBatch}
           onClose={bag.closeOpener}
         />
       )}

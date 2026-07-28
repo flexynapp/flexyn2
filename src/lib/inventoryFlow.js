@@ -28,6 +28,9 @@ export function useBagFlow() {
   const queryClient = useQueryClient();
   const [bagOpen, setBagOpen] = useState(false);
   const [openingCapsule, setOpeningCapsule] = useState(null);
+  // Batch open — an array of same-type capsule rows. Mutually exclusive
+  // with openingCapsule; the opener renders whichever is set.
+  const [openingBatch, setOpeningBatch] = useState(null);
 
   // Unopened-capsule count — drives the badge on the Bag menu entry.
   const { data: capsuleCount = 0 } = useQuery({
@@ -69,10 +72,30 @@ export function useBagFlow() {
   // where both surfaces render stacked.
   const openCapsule = useCallback((capsuleRow) => {
     setBagOpen(false);
+    setOpeningBatch(null);
     setOpeningCapsule(capsuleRow);
   }, []);
 
-  const closeOpener = useCallback(() => setOpeningCapsule(null), []);
+  /** Open several capsules of the same type in one spin. */
+  const openCapsuleBatch = useCallback((rows) => {
+    if (!Array.isArray(rows) || rows.length === 0) return;
+    // A one-item "batch" is just a normal open — routing it through the
+    // batch path would show the grid treatment for a single card.
+    if (rows.length === 1) {
+      setBagOpen(false);
+      setOpeningBatch(null);
+      setOpeningCapsule(rows[0]);
+      return;
+    }
+    setBagOpen(false);
+    setOpeningCapsule(null);
+    setOpeningBatch(rows);
+  }, []);
+
+  const closeOpener = useCallback(() => {
+    setOpeningCapsule(null);
+    setOpeningBatch(null);
+  }, []);
 
   const claimCapsule = useCallback(async (wonItem) => {
     const capsuleId = openingCapsule?.id;
@@ -132,12 +155,61 @@ export function useBagFlow() {
       queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+      // Keeps the streak line on the opener honest after this open.
+      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
       toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
     } catch (err) {
       console.error('[inventoryFlow] capsule claim failed (both paths):', err);
       toast.error('Could not save item. Try again.');
     }
   }, [openingCapsule, user, userProfile, queryClient]);
+
+  /**
+   * Finalize every item from a batch open.
+   *
+   * Each result is finalized by its own finalize_capsule_claim call — the
+   * same RPC and the same one-transaction guarantee as a single open, just
+   * N of them. Failures are counted rather than thrown so one bad row
+   * can't strand the other nine: the rolled rarity is already persisted on
+   * each user_capsules row, so a failed finalize loses nothing and stays
+   * retryable.
+   */
+  const claimCapsuleBatch = useCallback(async (results) => {
+    setOpeningBatch(null);
+    setBagOpen(true);
+    if (!Array.isArray(results) || results.length === 0 || !user?.email) return;
+
+    const outcomes = await Promise.all(results.map(async ({ capsuleId, item }) => {
+      try {
+        if (!capsuleId) throw new Error('missing_capsule_id');
+        const { error } = await supabase.rpc('finalize_capsule_claim', {
+          p_capsule_id:  capsuleId,
+          p_item_id:     item.id,
+          p_item_name:   item.name,
+          p_item_emoji:  item.emoji ?? '',
+          p_item_rarity: item.rarity ?? 'common',
+          p_item_type:   item.type   ?? 'sticker',
+          p_variant:     item.variant ?? null,
+        });
+        if (error) throw error;
+        return true;
+      } catch (err) {
+        console.warn('[inventoryFlow] batch finalize failed:', capsuleId, err?.message);
+        return false;
+      }
+    }));
+
+    const saved = outcomes.filter(Boolean).length;
+    const failed = outcomes.length - saved;
+
+    queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
+    queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+    queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+    queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+
+    if (saved > 0) toast.success(`${saved} item${saved === 1 ? '' : 's'} added to your bag!`);
+    if (failed > 0) toast.error(`${failed} item${failed === 1 ? '' : 's'} could not be saved — try opening again.`);
+  }, [user, queryClient]);
 
   // Listen for the global "open bag" event so external surfaces (e.g.
   // the StatsHub modal) can open the bag without holding a ref to the
@@ -153,9 +225,12 @@ export function useBagFlow() {
     openBag,
     closeBag,
     openingCapsule,
+    openingBatch,
     openCapsule,
+    openCapsuleBatch,
     closeOpener,
     claimCapsule,
+    claimCapsuleBatch,
     capsuleCount,
   };
 }

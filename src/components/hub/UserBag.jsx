@@ -486,7 +486,7 @@ function FrameList({ items, userId }) {
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
-export default function UserBag({ open, onClose, onOpenCapsule }) {
+export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBatch }) {
   const { user } = useAuth();
   const { lootThemeId, setLootThemeId } = useTheme();
   const qc = useQueryClient();
@@ -629,6 +629,67 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
       setSelling(false);
     }
   }, [user?.id, user?.email, qc]);
+
+  // ── Sell every duplicate at once ────────────────────────────────────────────
+  // The per-card flow is arm-then-confirm, two taps per copy. A user
+  // sitting on 40 duplicates faced 80 taps to clear them. This sells every
+  // copy BEYOND THE FIRST of each sticker — never the last one, so the
+  // collection itself is never dented by a bulk action.
+  const [bulkArmed, setBulkArmed] = useState(false);
+  const bulkDisarmRef = useRef(null);
+  useEffect(() => () => {
+    if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
+  }, []);
+  // Disarm when the bag closes or the user leaves the Stickers tab —
+  // otherwise a stray return tap lands on a primed destructive action.
+  useEffect(() => {
+    if (!open || activeTab !== 'stickers') setBulkArmed(false);
+  }, [open, activeTab]);
+
+  const duplicateSales = stickerGroups.flatMap(group => {
+    const unlisted = group.filter(i => !i.is_listed);
+    const extras = unlisted.slice(0, Math.max(0, unlisted.length - 1)); // keep one
+    const variantMult = (row) => row.variant ? (VARIANTS[row.variant]?.sellMultiplier ?? 1) : 1;
+    return extras.map(row => ({
+      row,
+      price: Math.floor((SELL_PRICE[row.item_rarity] ?? 2) * variantMult(row)),
+    }));
+  });
+  const duplicateTotal = duplicateSales.reduce((n, d) => n + d.price, 0);
+
+  const handleSellAllDuplicates = useCallback(async () => {
+    if (!user?.id || duplicateSales.length === 0) return;
+    setBulkArmed(false);
+    setSelling(true);
+    let sold = 0;
+    let earned = 0;
+    // Sequential on purpose: sellItem credits coins per call, and firing
+    // 40 concurrent balance writes is exactly the shape that produced the
+    // read-modify-write races these RPCs were introduced to kill.
+    for (const { row, price } of duplicateSales) {
+      try {
+        await inventory.sellItem(row.id, user.id, price);
+        sold += 1;
+        earned += price;
+      } catch (err) {
+        console.warn('[UserBag] bulk sell failed for', row.id, err?.message);
+      }
+    }
+    qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+    qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
+    setSelling(false);
+    if (sold > 0) toast.success(`Sold ${sold} duplicate${sold === 1 ? '' : 's'} · ${COIN} +${earned}`);
+    if (sold < duplicateSales.length) {
+      toast.error(`${duplicateSales.length - sold} could not be sold — try again.`);
+    }
+  }, [user?.id, user?.email, duplicateSales, qc]);
+
+  // ── Capsules grouped by type, for the batch-open bars ───────────────────────
+  const capsulesByType = fCapsules.reduce((acc, row) => {
+    const t = row.capsule_type || 'standard';
+    (acc[t] ||= []).push(row);
+    return acc;
+  }, {});
 
   const TABS = [
     { id: 'capsules', label: 'Capsules', icon: Package,  count: capsuleRows.length },
@@ -784,26 +845,86 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
               fCapsules.length === 0 ? (
                 <EmptyState icon={Package} label={q ? `No capsules match "${query}".` : 'No capsules yet — level up to earn them!'} />
               ) : (
-                <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {fCapsules.map(row => (
-                    <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
-                  ))}
-                </motion.div>
+                <>
+                  {/* Batch open — one bar per type the user holds 2+ of.
+                      Opening ten capsules used to mean ten full trips
+                      through the opener modal. */}
+                  {onOpenCapsuleBatch && Object.entries(capsulesByType)
+                    .filter(([, rows]) => rows.length > 1)
+                    .map(([type, rows]) => {
+                      const meta = CAPSULE_META[type] ?? CAPSULE_META.standard;
+                      const take = Math.min(rows.length, 10);
+                      return (
+                        <button
+                          key={type}
+                          type="button"
+                          onClick={() => onOpenCapsuleBatch(rows.slice(0, take))}
+                          className="w-full mb-3 flex items-center gap-3 px-3 py-2 rounded-xl border border-primary/30 bg-primary/10 hover:bg-primary/15 transition-colors text-start"
+                        >
+                          <span className="text-2xl shrink-0">{meta.emoji}</span>
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-sm font-bold capitalize leading-tight">
+                              Open {take} {type}
+                            </span>
+                            <span className="block text-[11px] text-muted-foreground leading-tight">
+                              One spin, every result at once
+                              {rows.length > take && ` · ${rows.length - take} more after`}
+                            </span>
+                          </span>
+                          <span className="text-xs font-bold text-primary shrink-0">Open all →</span>
+                        </button>
+                      );
+                    })}
+                  <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {fCapsules.map(row => (
+                      <CapsuleCard key={row.id} capsuleRow={row} onOpenCapsule={onOpenCapsule} />
+                    ))}
+                  </motion.div>
+                </>
               )
             ) : activeTab === 'stickers' ? (
               fStickerGroups.length === 0 ? (
                 <EmptyState icon={Sparkles} label={q ? `No stickers match "${query}".` : 'No stickers yet — open a capsule!'} />
               ) : (
-                <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-                  {fStickerGroups.map(group => (
-                    <StickerGroupCard
-                      key={group[0].item_id}
-                      group={group}
-                      onSell={handleSell}
-                      selling={selling}
-                    />
-                  ))}
-                </motion.div>
+                <>
+                  {duplicateSales.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!bulkArmed) {
+                          setBulkArmed(true);
+                          if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
+                          bulkDisarmRef.current = setTimeout(() => setBulkArmed(false), 4000);
+                        } else {
+                          if (bulkDisarmRef.current) clearTimeout(bulkDisarmRef.current);
+                          handleSellAllDuplicates();
+                        }
+                      }}
+                      disabled={selling}
+                      className={`w-full mb-3 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
+                        bulkArmed
+                          ? 'bg-red-500/80 text-white border-red-400'
+                          : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border-amber-400/30 hover:bg-amber-500/25'
+                      }`}
+                    >
+                      {selling
+                        ? 'Selling…'
+                        : bulkArmed
+                          ? `Sell ${duplicateSales.length} duplicates for ${COIN} ${duplicateTotal}?`
+                          : `Sell all duplicates · ${duplicateSales.length} extra · ${COIN} ${duplicateTotal}`}
+                    </button>
+                  )}
+                  <motion.div layout className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+                    {fStickerGroups.map(group => (
+                      <StickerGroupCard
+                        key={group[0].item_id}
+                        group={group}
+                        onSell={handleSell}
+                        selling={selling}
+                      />
+                    ))}
+                  </motion.div>
+                </>
               )
             ) : activeTab === 'titles' ? (
               fTitles.length === 0 ? (
