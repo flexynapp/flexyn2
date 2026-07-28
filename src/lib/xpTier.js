@@ -102,7 +102,21 @@ export function getTier(level, t) {
   return {
     name: t('levelBar.tier.bronze'),
     id: 'bronze',
-    surface: 'radial-gradient(115% 78% at 16% 4%, rgba(255,214,140,0.62), transparent 56%), radial-gradient(95% 72% at 88% 26%, rgba(220,38,38,0.42), transparent 62%), linear-gradient(162deg, #f59e0b 0%, #d1490b 44%, #6b2410 100%)',
+    // Bronze is oxidised on purpose — it should read as the bottom of the
+    // ladder without reading as a punishment. Four moves get there:
+    //
+    //   1. The base is desaturated and browned (#f59e0b -> #d98324,
+    //      #d1490b -> #a4501f). The old one was a molten orange that looked
+    //      hotter and more expensive than Gold two tiers above it.
+    //   2. The bloom is iron-oxide rather than pure red — rust, not fire.
+    //   3. A whisper of verdigris in the upper right. Real bronze oxidises
+    //      green, and that patina is what makes aged metal read as ANCIENT
+    //      rather than as cheap. It's at 0.26 — you shouldn't be able to
+    //      name it, only feel the surface isn't uniform.
+    //   4. The specular highlight stays warm and bright. That's the part
+    //      doing the not-discouraging: tarnished metal still catches light,
+    //      and the top of the banner is where the eye lands first.
+    surface: 'radial-gradient(115% 78% at 16% 4%, rgba(255,209,143,0.60), transparent 56%), radial-gradient(66% 52% at 76% 14%, rgba(120,134,116,0.26), transparent 64%), radial-gradient(95% 72% at 92% 34%, rgba(152,62,32,0.44), transparent 64%), linear-gradient(162deg, #d98324 0%, #a4501f 42%, #4a2015 100%)',
     badge: 'from-orange-500 to-amber-600',
     bar: 'from-primary to-accent',
     bg: 'bg-primary/10 border border-primary/20',
