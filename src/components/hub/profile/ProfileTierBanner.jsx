@@ -72,6 +72,37 @@ const GRAIN = {
   mixBlendMode: 'overlay',
 };
 
+// Corrosion patches for the low tiers.
+//
+// This is a SECOND turbulence layer and it is not the grain. The grain runs at
+// baseFrequency 0.85 — pixel-scale, uniform, it's film stock. This runs at
+// 0.018, which on a 320px tile yields blotches around 50px across: patches you
+// can point at, which is what rust actually looks like.
+//
+// The colour matrix does the work. RGB is pinned to a flat iron-oxide
+// (0.38, 0.14, 0.05) regardless of the noise, and alpha is `1.5 × R − 0.58` —
+// a threshold, so the smooth cloud turbulence produces becomes discrete
+// patches with organic edges rather than a haze. The multiplier sets how hard
+// those edges are: 1.5 gives patches you can point at, where 1.1 read as a
+// smudge. Multiply blends them into the metal as corroded depressions rather
+// than paint sitting on top of it.
+const WEAR_LAYER = {
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.38 0 0 0 0 0.14 0 0 0 0 0.05 1.5 0 0 0 -0.58'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23w)'/%3E%3C/svg%3E\")",
+  backgroundSize: '320px 320px',
+  mixBlendMode: 'multiply',
+};
+
+// A second pass at a different seed and scale, blended the other way — small
+// bright flecks where the tarnish has rubbed back to bare metal. Rust alone
+// reads as dirt; rust plus exposed metal reads as USED.
+const SCUFF_LAYER = {
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045' numOctaves='3' seed='23' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 0.92 0 0 0 0 0.78 1.4 0 0 0 -0.86'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23s)'/%3E%3C/svg%3E\")",
+  backgroundSize: '220px 220px',
+  mixBlendMode: 'soft-light',
+};
+
 // Below this the chip is a scold rather than a brag, so it doesn't render.
 // One day is not a streak; it's a Tuesday.
 const STREAK_CHIP_MIN = 2;
@@ -136,6 +167,9 @@ export default function ProfileTierBanner({
 
   const dots = BANNER_DOTS[tier.particles] ?? BANNER_DOTS.none;
   const dotAnim = DOT_ANIM[tier.particles];
+  // Clamped rather than trusted: `wear` is authored per tier in xpTier.js and
+  // a typo there shouldn't be able to black out a banner.
+  const wear = Math.max(0, Math.min(1, Number(tier.wear) || 0));
 
   return (
     // Full-bleed: Hub.jsx wraps the profile in `px-4 md:px-6 max-w-3xl`,
@@ -173,6 +207,29 @@ export default function ProfileTierBanner({
             }}
           />
         ))}
+
+        {/* Corrosion. Inside the gradient plate rather than over it, so the
+            patches scale and blur with the metal on overscroll — wear is part
+            of the material, not a decal on the glass.
+
+            Only the bottom of the ladder corrodes: bronze at full strength,
+            silver at 0.45, everything from gold up is pristine. That's what
+            says "you're early" without dimming a single colour — the first
+            attempt at this browned the whole gradient and just looked muddy. */}
+        {wear > 0 && (
+          <>
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 pointer-events-none"
+              style={{ ...WEAR_LAYER, opacity: 0.62 * wear }}
+            />
+            <div
+              aria-hidden="true"
+              className="absolute inset-0 pointer-events-none"
+              style={{ ...SCUFF_LAYER, opacity: 0.6 * wear }}
+            />
+          </>
+        )}
 
         {/* Steel wash for admin profiles — the tint that used to live on the
             header card's border now belongs to the cover. */}
