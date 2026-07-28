@@ -46,19 +46,37 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 });
 
-// ResizeObserver is used by several charts/rulers — stub it
-global.ResizeObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// ResizeObserver is used by several charts/rulers — and by Floating UI,
+// which backs every Radix popper (dropdown menus, popovers, tooltips).
+//
+// These are real classes, not `vi.fn().mockImplementation(() => ({...}))`.
+// A mock function invoked with `new` returns the mock's own instance, not
+// the object the implementation returns, so Floating UI's `new
+// ResizeObserver(cb)` blew up with "is not a constructor". Charts got away
+// with it because they only ever checked the global existed.
+class MockObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() { return []; }
+}
+
+global.ResizeObserver = MockObserver;
 
 // IntersectionObserver is used by lazy-load patterns
-global.IntersectionObserver = vi.fn().mockImplementation(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+global.IntersectionObserver = MockObserver;
+
+// Floating UI measures the trigger to place the popper. jsdom returns all
+// zeros from getBoundingClientRect, which is fine — position ends up 0,0 and
+// the menu still renders and is queryable, which is what assertions need.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.setPointerCapture = () => {};
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
 
 // localStorage / sessionStorage — Node 22+ ships an experimental *native*
 // `localStorage` global that is `undefined` unless the process is started with

@@ -11,66 +11,39 @@
 // which exactly one is primary, and a "…" that absorbs everything else. That
 // is what keeps a header calm no matter how many capabilities the app grows —
 // Duel and Gift are good features, but neither is why anyone opens a profile.
-import { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, MessageCircle, MoreHorizontal, Pencil, Palette, QrCode, Coins, Swords, Eye, EyeOff, UserPlus, UserCheck } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
-function SheetItem({ icon: Icon, label, onClick, iconClass = 'text-muted-foreground' }) {
+// A dropdown anchored to the "…" button, not a sheet from the bottom of the
+// screen. A bottom sheet is the right shape for a surface with its own
+// content — the referral sheet earns one — but this is a short list of
+// actions belonging to a specific control, and travelling the full height of
+// the phone to answer a tap in the header reads as heavier than the action
+// is. Radix handles the anchoring, collision flipping, outside-click,
+// Escape, focus return and RTL side-swapping; the app already wraps it at
+// components/ui/dropdown-menu.
+function MenuItem({ icon: Icon, label, onSelect, iconClass = 'text-muted-foreground' }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-start text-sm font-medium hover:bg-secondary active:bg-secondary/70 transition-colors"
+    <DropdownMenuItem
+      // Synchronous on purpose. The obvious defensive move here is to defer
+      // with requestAnimationFrame so Radix finishes returning focus to the
+      // trigger before the modal mounts — that's the standard fix when the
+      // target is a Radix Dialog, which fights for focus. None of these are:
+      // ThemeSelector, GiftCoinsModal and CreateDuelModal are all plain
+      // framer-motion overlays, so there is no race to lose. And rAF is
+      // paused in a hidden or throttled tab, so deferring would mean a
+      // backgrounded tab silently swallowing the tap.
+      onSelect={onSelect}
+      className="gap-2.5 py-2.5 cursor-pointer"
     >
       <Icon className={`w-4 h-4 shrink-0 ${iconClass}`} />
       {label}
-    </button>
-  );
-}
-
-function OverflowSheet({ open, onClose, children, title }) {
-  // Escape closes, and body scroll locks — the trophy/flag pickers in this
-  // feature already establish the bottom-sheet pattern, so this matches them.
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      window.removeEventListener('keydown', onKey);
-      document.body.style.overflow = prev;
-    };
-  }, [open, onClose]);
-
-  return (
-    <AnimatePresence>
-      {open && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-          onClick={onClose}
-        >
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-label={title}
-            className="bg-card border border-border rounded-t-2xl w-full max-w-lg p-2"
-            style={{ paddingBottom: 'max(16px, env(safe-area-inset-bottom))' }}
-          >
-            <div className="w-9 h-1 rounded-full bg-border mx-auto my-2" aria-hidden="true" />
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+    </DropdownMenuItem>
   );
 }
 
@@ -164,70 +137,79 @@ export default function ProfileActions({
           </>
         )}
 
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center"
-          aria-label={menuTitle}
-          aria-haspopup="dialog"
-          aria-expanded={menuOpen}
-        >
-          <MoreHorizontal className="w-4 h-4" />
-        </button>
-      </div>
+        {/* Controlled, so HubProfile's "close the menu when the viewed
+            profile changes" effect still works — navigating person to
+            person shouldn't leave a menu hanging open over someone new.
+            Radix closes it on select/outside/Escape by itself. */}
+        <DropdownMenu open={menuOpen} onOpenChange={(o) => (o ? onOpenMenu() : onCloseMenu())}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              className="h-9 w-9 rounded-full border border-border text-foreground hover:bg-secondary transition-colors flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label={menuTitle}
+            >
+              <MoreHorizontal className="w-4 h-4" />
+            </button>
+          </DropdownMenuTrigger>
 
-      <OverflowSheet open={menuOpen} onClose={onCloseMenu} title={menuTitle}>
-        {isSelf ? (
-          <>
-            <SheetItem
-              icon={Palette}
-              iconClass="text-primary"
-              label={tFallback('hub.profile.themes', 'Themes')}
-              onClick={() => { onCloseMenu(); onOpenThemes(); }}
-            />
-            {hasUsername && (
-              <SheetItem
-                icon={QrCode}
-                label={tFallback('hub.profile.shareProfile', 'Share profile')}
-                onClick={() => { onCloseMenu(); onOpenQr(); }}
-              />
-            )}
-            <SheetItem
-              icon={trophyVisible ? EyeOff : Eye}
-              label={trophyVisible
-                ? tFallback('hub.profile.hideTrophyCase', 'Hide trophy case')
-                : tFallback('hub.profile.showTrophyCase', 'Show trophy case')}
-              onClick={() => { onCloseMenu(); onToggleTrophyVisibility(); }}
-            />
-          </>
-        ) : (
-          <>
-            {canDuelOrGift && (
+          {/* align="end" pins it to the button's trailing edge — logical, so
+              it mirrors correctly in Arabic. collisionPadding keeps it off
+              the screen edge and lets it flip above the button when the
+              profile is scrolled far enough down. */}
+          <DropdownMenuContent align="end" sideOffset={6} collisionPadding={12} className="w-56">
+            {isSelf ? (
               <>
-                <SheetItem
-                  icon={Swords}
+                <MenuItem
+                  icon={Palette}
                   iconClass="text-primary"
-                  label={tFallback('hub.profile.duel', 'Challenge to a duel')}
-                  onClick={() => { onCloseMenu(); onOpenDuel(); }}
+                  label={tFallback('hub.profile.themes', 'Themes')}
+                  onSelect={onOpenThemes}
                 />
-                <SheetItem
-                  icon={Coins}
-                  iconClass="text-yellow-500"
-                  label={tFallback('hub.profile.gift', 'Send a coin gift')}
-                  onClick={() => { onCloseMenu(); onOpenGift(); }}
+                {hasUsername && (
+                  <MenuItem
+                    icon={QrCode}
+                    label={tFallback('hub.profile.shareProfile', 'Share profile')}
+                    onSelect={onOpenQr}
+                  />
+                )}
+                <MenuItem
+                  icon={trophyVisible ? EyeOff : Eye}
+                  label={trophyVisible
+                    ? tFallback('hub.profile.hideTrophyCase', 'Hide trophy case')
+                    : tFallback('hub.profile.showTrophyCase', 'Show trophy case')}
+                  onSelect={onToggleTrophyVisibility}
                 />
               </>
+            ) : (
+              <>
+                {canDuelOrGift && (
+                  <>
+                    <MenuItem
+                      icon={Swords}
+                      iconClass="text-primary"
+                      label={tFallback('hub.profile.duel', 'Challenge to a duel')}
+                      onSelect={onOpenDuel}
+                    />
+                    <MenuItem
+                      icon={Coins}
+                      iconClass="text-yellow-500"
+                      label={tFallback('hub.profile.gift', 'Send a coin gift')}
+                      onSelect={onOpenGift}
+                    />
+                  </>
+                )}
+                {hasUsername && (
+                  <MenuItem
+                    icon={QrCode}
+                    label={tFallback('hub.profile.shareProfile', 'Share profile')}
+                    onSelect={onOpenQr}
+                  />
+                )}
+              </>
             )}
-            {hasUsername && (
-              <SheetItem
-                icon={QrCode}
-                label={tFallback('hub.profile.shareProfile', 'Share profile')}
-                onClick={() => { onCloseMenu(); onOpenQr(); }}
-              />
-            )}
-          </>
-        )}
-      </OverflowSheet>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </>
   );
 }
