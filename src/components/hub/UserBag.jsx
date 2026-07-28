@@ -9,10 +9,10 @@
 // the React import, which blanked the Titles / Frames tabs), and the
 // sell-confirm disarm timer cleanup in StickerGroupCard (needs
 // useEffect too).
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square, Search } from 'lucide-react';
+import { X, Package, Sparkles, Palette, ShoppingBag, Store, Crown, Square, Search, LibraryBig } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
@@ -28,6 +28,10 @@ import StickerDisplay from './StickerDisplay';
 import { reportError } from '@/lib/reportError';
 import CoinShopModal from './CoinShopModal';
 import { useNumberFormatter } from '@/lib/intl';
+
+// Lazy — the Collection pulls in every catalog (themes alone is ~800
+// lines) and only mounts on an explicit tap.
+const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
 
 // Sell price is half the hidden base value, rounded down.
 const SELL_PRICE = Object.fromEntries(
@@ -490,6 +494,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
   const [activeTab, setActiveTab] = useState('capsules');
   const [selling, setSelling] = useState(false);
   const [shopOpen, setShopOpen] = useState(false);
+  const [collectionOpen, setCollectionOpen] = useState(false);
   const [query, setQuery] = useState('');
 
   // Reset to the capsules tab when the bag is closed AND reset the
@@ -671,6 +676,17 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
               <h2 className="font-heading font-bold text-lg">My Bag</h2>
             </div>
             <div className="flex items-center gap-2">
+              {/* Collection — the Bag answers "what do I have"; this is the
+                  other half of the question. Same surface the Marketplace
+                  and the Capsule Opener open. */}
+              <button
+                onClick={() => setCollectionOpen(true)}
+                aria-label="Open Collection"
+                title="Collection — everything in the game"
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors"
+              >
+                <LibraryBig className="w-4.5 h-4.5" aria-hidden="true" />
+              </button>
               <button
                 onClick={() => setShopOpen(true)}
                 aria-label="Open Coin Shop"
@@ -821,6 +837,11 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
         </motion.div>
       </div>
       <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
+      {collectionOpen && (
+        <Suspense fallback={null}>
+          <CollectionModal open={collectionOpen} onClose={() => setCollectionOpen(false)} />
+        </Suspense>
+      )}
     </AnimatePresence>
   );
 }

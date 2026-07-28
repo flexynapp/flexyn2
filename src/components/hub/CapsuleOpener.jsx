@@ -16,7 +16,10 @@ import { triggerHaptic } from '@/lib/haptic';
 import StickerDisplay from './StickerDisplay';
 import CapsuleRarityOdds from './CapsuleRarityOdds';
 
-const LootCatalogModal = lazy(() => import('./LootCatalogModal'));
+// The capsule's "what's in here?" link now opens the same Collection
+// surface as the Marketplace and the Bag, so the odds you just read
+// sit next to the slots you haven't filled.
+const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
 
 // Given a (category, rarity) tuple from the server-side roll, pick a random
 // specific item from the client-side catalog that matches. Items within the
@@ -650,7 +653,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:opacity-80 underline-offset-2 hover:underline transition-opacity"
               >
                 <BookOpen className="w-3 h-3" aria-hidden="true" />
-                Preview catalog
+                Browse collection
               </button>
 
               <motion.button
@@ -879,7 +882,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
       {catalogOpen && (
         <Suspense fallback={null}>
-          <LootCatalogModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
+          <CollectionModal open={catalogOpen} onClose={() => setCatalogOpen(false)} />
         </Suspense>
       )}
 

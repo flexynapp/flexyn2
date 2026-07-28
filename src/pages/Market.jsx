@@ -5,11 +5,11 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Lock, Book } from 'lucide-react';
+import { Sparkles, Lock, LibraryBig } from 'lucide-react';
 import { motion } from 'framer-motion';
 import MarketplaceFeed from '@/components/market/MarketplaceFeed';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import ItemIndexModal from '@/components/market/ItemIndexModal';
+import CollectionModal from '@/components/loot/CollectionModal';
 import DailyFlexynDrop from '@/components/market/DailyFlexynDrop';
 import { useStartConversation } from '@/lib/hubMessaging';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -34,10 +34,10 @@ export default function Market() {
           type="button"
           onClick={() => setIndexOpen(true)}
           className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-xs font-semibold"
-          title="Browse every item in the game"
+          title="Everything in the game, and what you're still missing"
         >
-          <Book className="w-3.5 h-3.5" />
-          Item Index
+          <LibraryBig className="w-3.5 h-3.5" />
+          Collection
         </button>
       </div>
 
@@ -83,7 +83,7 @@ export default function Market() {
         <DailyFlexynDrop />
       </div>
 
-      <ItemIndexModal open={indexOpen} onClose={() => setIndexOpen(false)} />
+      <CollectionModal open={indexOpen} onClose={() => setIndexOpen(false)} />
     </div>
   );
 }
