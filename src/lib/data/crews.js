@@ -26,11 +26,27 @@ export async function createCrew(user, name) {
     .single();
   if (error || !crew) throw error || new Error('Failed to create crew');
 
-  await supabase.from('crew_members').insert({
+  // Migration 252 puts a BEFORE INSERT trigger on crew_members enforcing
+  // one crew per user, and this path inserts the membership directly rather
+  // than through an RPC — so it is the create flow, not just joining, that
+  // the rule has to catch. If the membership is refused the crew row would
+  // be left orphaned with no members, so it's removed again.
+  const { error: memberErr } = await supabase.from('crew_members').insert({
     crew_id: crew.id,
     user_id: user.id,
     is_admin: true,
   });
+
+  if (memberErr) {
+    await supabase.from('crews').delete().eq('id', crew.id);
+    if (/already_in_crew/i.test(memberErr.message || '') || memberErr.code === '23505') {
+      throw Object.assign(
+        new Error('You\'re already in a Crew. Leave it first to start another.'),
+        { code: 'ALREADY_IN_CREW' },
+      );
+    }
+    throw memberErr;
+  }
 
   return crew;
 }
@@ -159,6 +175,12 @@ export async function joinCrew(crewId, userId) {
   //   22023 = crew not found
   //   42501 = unauthenticated, or banned (250)
   //   42883 / 42P01 = RPC not yet deployed → legacy fallback
+  if (/already_in_crew/i.test(error.message || '') || error.code === '23505') {
+    throw Object.assign(
+      new Error('You\'re already in a Crew. Leave it first to join another.'),
+      { code: 'ALREADY_IN_CREW' },
+    );
+  }
   if (/banned_from_crew/i.test(error.message || '')) {
     throw Object.assign(new Error('You can\'t rejoin this Crew.'), { code: 'BANNED' });
   }
@@ -181,6 +203,39 @@ export async function joinCrew(crewId, userId) {
     .insert({ crew_id: crewId, user_id: userId, is_admin: false });
   if (insertErr) throw insertErr;
   return { success: true, already_member: false, crew_id: crewId };
+}
+
+/**
+ * Leave the crew you're in (migration 252).
+ *
+ * Refusals come back as reasons rather than throws, because each one is a
+ * normal situation with a different thing to do about it:
+ *
+ *   promote_first — you're the only leader and there are other members. A
+ *                   crew with nobody who can approve, ban or enter a war is
+ *                   worse than one you're still in.
+ *   active_war    — you're the last member, and leaving would delete the
+ *                   crew. crew_wars cascades on both crew columns, so that
+ *                   would delete the war out from under your opponent.
+ *   not_a_member  — nothing to leave.
+ *
+ * On success, `crew_deleted` is true when you were the last one out.
+ */
+export async function leaveCrew(crewId) {
+  if (!crewId) return { ok: false, reason: 'missing' };
+
+  const { data, error } = await supabase.rpc('leave_crew', { p_crew_id: crewId });
+
+  if (error) {
+    if (error.code === '42883' || error.code === '42P01') {
+      return { ok: false, reason: 'not_deployed' };
+    }
+    console.warn('[crews] leave_crew failed:', error);
+    return { ok: false, reason: 'db_error' };
+  }
+
+  if (data?.ok !== true) return { ok: false, reason: data?.reason ?? 'db_error' };
+  return { ok: true, crewDeleted: data?.crew_deleted === true };
 }
 
 export async function removeMember(crewId, userId) {

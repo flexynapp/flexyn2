@@ -20,6 +20,7 @@
 // useNumberFormatter, and one control is primary.
 
 import React, { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Shield } from 'lucide-react';
@@ -29,6 +30,7 @@ import { useNumberFormatter } from '@/lib/intl';
 import * as crewsData from '@/lib/data/crews';
 import { getDivisionStandings, placingFor, crewLevelProgress } from '@/lib/data/crewSeasons';
 import { getTreasury } from '@/lib/data/crewTreasury';
+import { toast } from '@/lib/toast';
 import ChatViewportFrame from '@/components/ChatViewportFrame';
 import CrewChat from './CrewChat';
 import CrewBattleEntry from './CrewBattleEntry';
@@ -58,6 +60,7 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
   const [tab, setTab] = useState('home');
+  const qc = useQueryClient();
 
   const crewId = crew?.id;
 
@@ -80,6 +83,32 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
     queryFn:  () => getTreasury(crewId),
     enabled:  !!crewId,
     staleTime: 60_000,
+  });
+
+  // Leaving is the only way out now that a user belongs to one crew
+  // (migration 252). Every refusal is a normal situation with its own thing
+  // to do about it, so each gets its own sentence rather than "failed".
+  const leaveMut = useMutation({
+    mutationFn: () => crewsData.leaveCrew(crewId),
+    onSuccess: (res) => {
+      if (!res?.ok) {
+        const msg = res.reason === 'promote_first'
+          ? tFallback('crew.promoteFirst', 'Promote another member to leader first — a crew needs one.')
+          : res.reason === 'active_war'
+            ? tFallback('crew.leaveWar', 'Your crew is in a war. You can leave once it resolves.')
+            : res.reason === 'not_deployed'
+              ? tFallback('crew.leaveSoon', 'Leaving isn\'t available yet.')
+              : tFallback('crew.leaveFailed', 'Could not leave the crew.');
+        toast.error(msg);
+        return;
+      }
+      toast.success(res.crewDeleted
+        ? tFallback('crew.leftAndDeleted', 'You left. The crew was empty, so it\'s gone.')
+        : tFallback('crew.left', 'You left the crew.'));
+      qc.invalidateQueries({ queryKey: ['myCrews'] });
+      onBack?.();
+    },
+    onError: () => toast.error(tFallback('crew.leaveFailed', 'Could not leave the crew.')),
   });
 
   if (!crew) return null;
@@ -242,15 +271,40 @@ export default function CrewPage({ crew, onBack, onViewProfile }) {
               transition={{ duration: 0.12 }}
               className="h-full min-h-0"
             >
-              <CrewMemberDirectory
-                crewId={crewId}
-                members={members}
-                currentUserId={user?.id}
-                isCurrentAdmin={isLeader}
-                maxCapacity={capacity}
-                inline
-                onViewProfile={onViewProfile}
-              />
+              <div className="h-full min-h-0 flex flex-col">
+                <div className="flex-1 min-h-0">
+                  <CrewMemberDirectory
+                    crewId={crewId}
+                    members={members}
+                    currentUserId={user?.id}
+                    isCurrentAdmin={isLeader}
+                    maxCapacity={capacity}
+                    inline
+                    onViewProfile={onViewProfile}
+                  />
+                </div>
+
+                {/* Bottom of the roster, styled quiet: leaving is a real
+                    action but not one to invite by accident. */}
+                <div className="shrink-0 px-4 py-3 border-t border-border">
+                  <button
+                    onClick={() => {
+                      const solo = members.length <= 1;
+                      const warn = solo
+                        ? `Leave ${crew.name}? You're the last member, so the crew will be deleted.`
+                        : `Leave ${crew.name}?`;
+                      if (!window.confirm(warn)) return;
+                      leaveMut.mutate();
+                    }}
+                    disabled={leaveMut.isPending}
+                    className="text-sm font-semibold text-destructive disabled:opacity-50"
+                  >
+                    {leaveMut.isPending
+                      ? tFallback('crew.leaving', 'Leaving…')
+                      : tFallback('crew.leave', 'Leave crew')}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           )}
 

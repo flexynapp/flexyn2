@@ -353,15 +353,22 @@ export default function CrewsSection({ initialCrewId }) {
 
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-heading font-bold text-base">My Crews</h3>
-              <motion.button
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setCreating(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white"
-                style={{ background: 'hsl(var(--primary))' }}
-              >
-                <Plus className="w-3.5 h-3.5" />
-                New
-              </motion.button>
+              {/* One crew per user (migration 252) — createCrew is refused
+                  server-side, so offering the button would only produce a
+                  toast. My Crews only renders when you have one, so this is
+                  effectively always hidden; it stays for the grandfathered
+                  multi-crew accounts that predate the rule. */}
+              {myCrews.length === 0 && (
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => setCreating(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white"
+                  style={{ background: 'hsl(var(--primary))' }}
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  New
+                </motion.button>
+              )}
             </div>
             <div className="space-y-2.5">
               {myCrews.map(crew => (
