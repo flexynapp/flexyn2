@@ -100,7 +100,11 @@ export async function getCrewMembers(crewId) {
   if (!crewId) return [];
   const { data, error } = await supabase
     .from('crew_members')
-    .select('id, user_id, is_admin, joined_at')
+    // `role` joined the select once migration 250's sync trigger made it
+    // reliable — before that it drifted from is_admin depending on which
+    // call site last wrote, so every consumer fell back to the boolean and
+    // moderators rendered as plain members.
+    .select('id, user_id, is_admin, role, joined_at')
     .eq('crew_id', crewId)
     .order('is_admin', { ascending: false })
     .order('joined_at',  { ascending: true });

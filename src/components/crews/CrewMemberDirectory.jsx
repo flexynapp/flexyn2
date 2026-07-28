@@ -162,7 +162,15 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
   );
 }
 
-export default function CrewMemberDirectory({ crewId, members, profilesByUserId, currentUserId, isCurrentAdmin, maxCapacity, onClose, onViewProfile }) {
+export default function CrewMemberDirectory({ crewId, members, profilesByUserId, currentUserId, isCurrentAdmin, maxCapacity, inline, onClose, onViewProfile }) {
+  // `inline` renders the roster as a normal block inside the Crew page's
+  // tab instead of a slide-in overlay. The panel form is kept because
+  // CrewChat still opens it from its own header when it isn't embedded.
+  //
+  // profilesByUserId is optional now: getCrewMembers already enriches each
+  // row with username and avatar_url, so the Crew page passes nothing and
+  // the member row falls back to its own fields.
+  const profiles = profilesByUserId ?? {};
   // Determine current user's role
   const currentMember = members.find(m => m.user_id === currentUserId);
   const currentUserRole = currentMember?.role ?? (currentMember?.is_admin ? 'leader' : 'member');
@@ -175,30 +183,39 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
     return ra - rb;
   });
 
+  const Wrapper = inline ? 'div' : motion.div;
+  const wrapperProps = inline
+    ? { className: 'h-full min-h-0 flex flex-col' }
+    : {
+        initial: { x: '100%' },
+        animate: { x: 0 },
+        exit: { x: '100%' },
+        transition: { type: 'spring', damping: 30, stiffness: 300 },
+        className: 'absolute inset-0 bg-background z-20 flex flex-col',
+      };
+
   return (
-    <motion.div
-      initial={{ x: '100%' }}
-      animate={{ x: 0 }}
-      exit={{ x: '100%' }}
-      transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-      className="absolute inset-0 bg-background z-20 flex flex-col"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
-        <div>
-          <h3 className="font-heading font-bold text-base">Members</h3>
-          {/* Not hardcoded 16: the extra_seat perk (migration 251) raises
-              the cap to as much as 20, and a header still reading /16 with
-              17 members in the list reads as a bug. */}
-          <p className="text-xs text-muted-foreground">{members.length} / {maxCapacity ?? 16}</p>
+    <Wrapper {...wrapperProps}>
+      {/* Header — only in the overlay form. Inline, the Crew page header
+          already names the crew and the tab already says Roster, so this
+          would be a second title for the same thing. */}
+      {!inline && (
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div>
+            <h3 className="font-heading font-bold text-base">Members</h3>
+            {/* Not hardcoded 16: the extra_seat perk (migration 251) raises
+                the cap to as much as 20, and a header still reading /16 with
+                17 members in the list reads as a bug. */}
+            <p className="text-xs text-muted-foreground">{members.length} / {maxCapacity ?? 16}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-muted-foreground"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+      )}
 
       {/* Pending approvals sit above the roster: "who wants in" is the
           only thing on this screen that's waiting on the leader. Self-hides
@@ -217,7 +234,7 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
           <MemberRow
             key={member.id}
             member={member}
-            profile={profilesByUserId[member.user_id]}
+            profile={profiles[member.user_id] ?? member}
             currentUserRole={currentUserRole}
             isSelf={member.user_id === currentUserId}
             crewId={crewId}
@@ -225,6 +242,6 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
           />
         ))}
       </div>
-    </motion.div>
+    </Wrapper>
   );
 }

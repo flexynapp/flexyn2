@@ -265,7 +265,7 @@ function PinnedBanner({ message, isAdmin, crewId, onUnpin }) {
 
 // ── Main chat ─────────────────────────────────────────────────────────────────
 
-export default function CrewChat({ crew, onBack, onViewProfile }) {
+export default function CrewChat({ crew, onBack, onViewProfile, embedded }) {
   const { user } = useAuth();
   const qc = useQueryClient();
   const scrollerRef  = useRef(null);
@@ -596,7 +596,11 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
       {/* Hype-trigger emoji burst overlay */}
       <HypeBurst hype={hype} />
 
-      {/* Header */}
+      {/* Header — suppressed when embedded in the Crew page, which already
+          carries the crew's name, crest and back control. Two headers for
+          one screen was the thing that made chat-as-a-tab read as broken.
+          Stories, stats and the roster moved to the page around it. */}
+      {!embedded && (
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-border shrink-0">
         <button onClick={onBack} className="text-muted-foreground hover:text-foreground shrink-0">
           <ArrowLeft className="w-5 h-5" />
@@ -681,6 +685,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
           <Users className="w-4 h-4" />
         </button>
       </div>
+      )}
 
       {/* Pinned announcement banner */}
       <PinnedBanner
@@ -747,7 +752,9 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             challenge from the inline + button. All members see live
             progress bars. Self-hides when no challenges exist + the
             viewer is not an admin. */}
-        <CrewChallengeCard crewId={crew?.id} isAdmin={!!crew?.is_admin} />
+        {/* Lives on the Crew page's Home tab when embedded — rendering it
+            here too would show the same progress bar twice on one screen. */}
+        {!embedded && <CrewChallengeCard crewId={crew?.id} isAdmin={!!crew?.is_admin} />}
 
         {messages.length === 0 && (
           <EmptyState
