@@ -12,6 +12,7 @@ import * as crewsData from '@/lib/data/crews';
 import { banMember } from '@/lib/data/crewMembership';
 import { useQueryClient } from '@tanstack/react-query';
 import CrewJoinRequests from './CrewJoinRequests';
+import CrewTreasuryPanel from './CrewTreasuryPanel';
 
 const ROLE_LABELS = {
   leader:    { label: 'Leader',    color: 'hsl(var(--primary))',   bg: 'hsl(var(--primary) / 0.12)' },
@@ -161,7 +162,7 @@ function MemberRow({ member, profile, currentUserRole, isSelf, crewId, onViewPro
   );
 }
 
-export default function CrewMemberDirectory({ crewId, members, profilesByUserId, currentUserId, isCurrentAdmin, onClose, onViewProfile }) {
+export default function CrewMemberDirectory({ crewId, members, profilesByUserId, currentUserId, isCurrentAdmin, maxCapacity, onClose, onViewProfile }) {
   // Determine current user's role
   const currentMember = members.find(m => m.user_id === currentUserId);
   const currentUserRole = currentMember?.role ?? (currentMember?.is_admin ? 'leader' : 'member');
@@ -186,7 +187,10 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
       <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
         <div>
           <h3 className="font-heading font-bold text-base">Members</h3>
-          <p className="text-xs text-muted-foreground">{members.length} / 16</p>
+          {/* Not hardcoded 16: the extra_seat perk (migration 251) raises
+              the cap to as much as 20, and a header still reading /16 with
+              17 members in the list reads as a bug. */}
+          <p className="text-xs text-muted-foreground">{members.length} / {maxCapacity ?? 16}</p>
         </div>
         <button
           onClick={onClose}
@@ -200,6 +204,12 @@ export default function CrewMemberDirectory({ crewId, members, profilesByUserId,
           only thing on this screen that's waiting on the leader. Self-hides
           for non-leaders and when the queue is empty. */}
       <CrewJoinRequests crewId={crewId} isLeader={currentUserRole === 'leader'} />
+
+      {/* Treasury sits between "who wants in" and "who's in": both are crew
+          management, and the seat count the perks buy is the number the
+          roster header is showing. Members see the balance; only leaders
+          get a buy control. */}
+      <CrewTreasuryPanel crewId={crewId} isLeader={currentUserRole === 'leader'} />
 
       {/* List */}
       <div className="flex-1 overflow-y-auto px-4 divide-y divide-border/50">

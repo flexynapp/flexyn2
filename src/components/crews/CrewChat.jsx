@@ -893,6 +893,7 @@ export default function CrewChat({ crew, onBack, onViewProfile }) {
             profilesByUserId={profilesByUserId}
             currentUserId={user?.id}
             isCurrentAdmin={isCurrentAdmin}
+            maxCapacity={crew.max_capacity}
             onClose={() => setMemberPanelOpen(false)}
             onViewProfile={(u) => { setMemberPanelOpen(false); onViewProfile?.(u); }}
           />
