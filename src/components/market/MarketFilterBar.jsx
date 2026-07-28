@@ -105,8 +105,25 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
 
   return (
     <div className="sticky top-0 z-30 -mx-4 px-4 py-2 bg-background/95 backdrop-blur-sm border-b border-border">
-      {/* Row 1 — type + sort + reset */}
-      <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+      {/* Row 1 — chips scroll, sort does NOT.
+          The sort <select> used to sit inside this scroll container with
+          `ms-auto`, which aligns to the SCROLL width rather than the visible
+          width: on a 375px viewport it rendered at x=361 in a 343px row,
+          i.e. 102px off-screen and unreachable without discovering a
+          sideways swipe. Sort is a primary control on a mobile-only app, so
+          it lives outside the scroller and is always visible. */}
+      <div className="flex items-center gap-1.5">
+        <div
+          className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide flex-1 min-w-0"
+          style={{
+            scrollbarWidth: 'none',
+            // Fade the scroll edge. Without it the last visible chip is
+            // sliced mid-word against the sort control ("Can affo…"), which
+            // reads as broken rather than as "there's more this way".
+            maskImage: 'linear-gradient(to right, #000 92%, transparent 100%)',
+            WebkitMaskImage: 'linear-gradient(to right, #000 92%, transparent 100%)',
+          }}
+        >
         <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground shrink-0" aria-hidden="true" />
 
         <div className="flex gap-1 shrink-0" role="group" aria-label="Listing type">
@@ -161,18 +178,29 @@ export default function MarketFilterBar({ filters, onChange, resultCount, totalC
           Saved{savedCount > 0 ? ` (${savedCount})` : ''}
         </button>
 
+        </div>
+
         <select
           value={filters.sort}
           onChange={(e) => set({ sort: e.target.value })}
           aria-label="Sort listings"
-          className="shrink-0 ms-auto bg-secondary border border-border rounded-full px-2.5 py-1 text-[11px] font-bold outline-none"
+          className="shrink-0 bg-secondary border border-border rounded-full px-2 py-1 text-[11px] font-bold outline-none max-w-[104px]"
         >
           {SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
       </div>
 
-      {/* Row 2 — rarity chips */}
-      <div className="flex items-center gap-1.5 mt-1.5 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+      {/* Row 2 — rarity chips. Seven tiers don't fit 375px, so the rail
+          scrolls; the mask fades the last chip out instead of slicing it
+          mid-word, which reads as a broken layout rather than a hint. */}
+      <div
+        className="flex items-center gap-1.5 mt-1.5 overflow-x-auto scrollbar-hide"
+        style={{
+          scrollbarWidth: 'none',
+          maskImage: 'linear-gradient(to right, #000 88%, transparent 100%)',
+          WebkitMaskImage: 'linear-gradient(to right, #000 88%, transparent 100%)',
+        }}
+      >
         {rarityKeys.map(r => {
           const tint = rarityTint(r);
           const on = filters.rarities.includes(r);

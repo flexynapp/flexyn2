@@ -224,8 +224,16 @@ export default function ItemDetailSheet({
               )}
             </section>
           ) : (
+            // Copy has to hold when soldCount > 0 but priceStats is null —
+            // seen on device: "1 sold all-time" directly above "no sale
+            // history yet" reads as a contradiction. It isn't: the sold
+            // counter (mig 119) counts every completed listing including
+            // trades, while price history only covers completed SALE
+            // listings that carried a price.
             <p className="text-[11px] text-muted-foreground">
-              No sale history for this item yet — you&apos;re early.
+              {soldCount > 0
+                ? 'No priced sales recorded for this item yet.'
+                : "No sale history for this item yet — you're early."}
             </p>
           )}
 

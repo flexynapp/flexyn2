@@ -787,7 +787,12 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-1 max-w-full">
-                    <Icon className="w-3.5 h-3.5 shrink-0" />
+                    {/* Five tabs across 375px leaves ~67px of usable width per
+                        cell. With the icon inline, every label truncated
+                        ("Caps…", "Stick…", "Them…") — verified on device. The
+                        icon is the first thing to go: it's decorative here,
+                        the word is not. Restored once there's room. */}
+                    <Icon className="w-3.5 h-3.5 shrink-0 hidden min-[420px]:block" />
                     <span className="text-[11px] font-semibold truncate">{tab.label}</span>
                   </div>
                   <span className={`text-[10px] px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>

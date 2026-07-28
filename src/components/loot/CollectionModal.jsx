@@ -53,13 +53,18 @@ function Slot({ item }) {
 
   return (
     <div
-      className="relative rounded-lg border p-2 flex flex-col items-center text-center gap-1 min-h-[86px] justify-center"
+      className="relative rounded-lg border-2 p-2 flex flex-col items-center text-center gap-1 min-h-[86px] justify-center"
       style={{
-        // A locked slot keeps its rarity border, just dimmed — that's what
-        // makes an empty legendary slot read as "worth chasing" rather than
-        // as a broken tile.
-        borderColor: locked ? `${tint.color}40` : tint.color,
-        background: locked ? 'transparent' : tint.wash,
+        // A locked slot keeps its rarity ring — that's what makes an empty
+        // legendary slot read as "worth chasing" rather than as a broken
+        // tile. The first pass used a 25%-alpha border on a transparent
+        // background, and on the light theme that vanished completely:
+        // every locked tile looked identical regardless of tier, so rarity
+        // was communicated only by the section header. Verified on device.
+        // The GREYSCALE EMOJI plus the lock badge carry "locked"; the frame
+        // is free to carry rarity at full strength.
+        borderColor: locked ? `${tint.color}99` : tint.color,
+        background: locked ? `${tint.color}0f` : tint.wash,
       }}
       title={locked ? `${item.name} — not collected yet` : item.name}
     >
@@ -185,7 +190,16 @@ export default function CollectionModal({ open, onClose, initialTab = 'stickers'
           </div>
 
           {/* Tabs + owned-only toggle */}
-          <div className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-secondary/30 overflow-x-auto scrollbar-hide" style={{ scrollbarWidth: 'none' }}>
+          <div
+            className="flex items-center gap-1.5 px-4 py-2 border-b border-border bg-secondary/30 overflow-x-auto scrollbar-hide"
+            style={{
+              scrollbarWidth: 'none',
+              // Four tabs plus the owned-only toggle don't fit 375px; fade
+              // the overflow instead of slicing the last label mid-word.
+              maskImage: 'linear-gradient(to right, #000 90%, transparent 100%)',
+              WebkitMaskImage: 'linear-gradient(to right, #000 90%, transparent 100%)',
+            }}
+          >
             {COLLECTION_TABS.map(t => {
               const c = buildCollection(t.id, ownership);
               return (
