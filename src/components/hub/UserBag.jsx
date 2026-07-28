@@ -705,6 +705,13 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
   if (!open) return null;
 
   return (
+    <>
+    {/* CoinShopModal / CollectionModal sit OUTSIDE this AnimatePresence.
+        AnimatePresence requires every direct child to be keyed; three
+        unkeyed siblings produced a stream of "Encountered two children
+        with the same key" errors in the console (seen on device). They're
+        independent modals that own their own transitions, so they don't
+        belong in the bag's presence group at all. */}
     <AnimatePresence>
       {/* Centered modal (was bottom-sheet w/ drag handle). Screenshot
           feedback flagged that the drag handle at the top suggested the
@@ -962,12 +969,14 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
           </div>
         </motion.div>
       </div>
-      <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
-      {collectionOpen && (
-        <Suspense fallback={null}>
-          <CollectionModal open={collectionOpen} onClose={() => setCollectionOpen(false)} />
-        </Suspense>
-      )}
     </AnimatePresence>
+
+    <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
+    {collectionOpen && (
+      <Suspense fallback={null}>
+        <CollectionModal open={collectionOpen} onClose={() => setCollectionOpen(false)} />
+      </Suspense>
+    )}
+    </>
   );
 }

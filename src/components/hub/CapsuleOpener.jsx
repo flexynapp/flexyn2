@@ -709,6 +709,9 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // Previously this was two parallel lookups (RARITY for colours, the
   // local RARITY_CARD for Tailwind classes) that could disagree.
   const rarityConfig = wonItem ? rarityTint(wonItem.rarity) : null;
+  // Common is the only tier whose colour is too desaturated to work as a
+  // button fill; everything from uncommon up is vivid enough.
+  const isDrabRarity = wonItem?.rarity === 'common';
   // Which grid card gets the "Best" crown. Recomputed from results rather
   // than stored, so it can't drift out of sync with what's rendered.
   const bestResultId = results.length
@@ -1068,9 +1071,21 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                   whileHover={{ scale: 1.04 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={handleClaim}
-                  className="px-8 py-3 rounded-xl font-bold text-base text-white shadow-lg transition-shadow"
+                  className={`px-8 py-3 rounded-xl font-bold text-base shadow-lg transition-shadow ${
+                    isDrabRarity ? 'bg-primary text-primary-foreground' : 'text-white'
+                  }`}
                   style={{
-                    background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
+                    // Common's catalog colour is slate — as a button fill
+                    // that renders a muted grey pill that reads as DISABLED,
+                    // which is a miserable thing to show someone at the
+                    // exact moment they won something. Seen on device.
+                    // Saturated tiers keep their rarity gradient (a gold
+                    // legendary Claim is part of the payoff); the drab end
+                    // of the ladder falls back to the primary action colour
+                    // and carries its rarity in the glow instead.
+                    background: isDrabRarity
+                      ? undefined
+                      : `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
                     boxShadow: `0 4px 24px ${rarityConfig.color}44`,
                   }}
                   initial={{ opacity: 0 }}
