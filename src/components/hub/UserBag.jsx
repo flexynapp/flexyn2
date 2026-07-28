@@ -21,6 +21,7 @@ import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
 import { RARITY, ITEMS, VARIANTS } from '@/lib/lootCatalog';
+import { RarityBadge, RarityFrame, rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import { getLootThemeById } from '@/lib/lootThemes';
 import { getLootFrameById } from '@/lib/lootFrames';
 import StickerDisplay from './StickerDisplay';
@@ -40,40 +41,32 @@ const CAPSULE_META = {
   elite:    ITEMS.find(i => i.id === 'capsule_elite')    ?? { name: 'Elite Capsule',    emoji: '💠', rarity: 'epic'     },
 };
 
-// ─── Rarity badge ─────────────────────────────────────────────────────────────
-function RarityBadge({ rarity }) {
-  const rc = RARITY[rarity] ?? RARITY.common;
-  return (
-    <span
-      className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border"
-      style={{ color: rc.color, borderColor: rc.color, background: `${rc.color}18` }}
-    >
-      {rc.label}
-    </span>
-  );
-}
+// The rarity chip / rarity-tinted card shell now come from the shared
+// loot primitives so the Bag, the Marketplace and the Capsule Opener can't
+// drift apart again.
 
 // ─── Capsule card ─────────────────────────────────────────────────────────────
 function CapsuleCard({ capsuleRow, onOpenCapsule }) {
   const meta = CAPSULE_META[capsuleRow.capsule_type] ?? CAPSULE_META.standard;
-  const rc   = RARITY[meta.rarity] ?? RARITY.common;
   return (
-    <motion.div
+    <RarityFrame
+      rarity={meta.rarity}
+      as={motion.div}
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={['relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center', rc.borderClass].join(' ')}
+      className="flex flex-col items-center p-3 gap-2 text-center"
     >
       <span className="text-5xl leading-none">{meta.emoji}</span>
-      <span className="text-white text-xs font-semibold leading-tight">{meta.name}</span>
+      <span className="text-xs font-semibold leading-tight">{meta.name}</span>
       <RarityBadge rarity={meta.rarity} />
       <button
         onClick={() => onOpenCapsule?.({ ...capsuleRow, ...meta })}
-        className="mt-1 w-full py-1.5 rounded-lg text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:opacity-90 transition-opacity"
+        className="mt-1 w-full py-1.5 rounded-lg text-xs font-bold bg-primary text-primary-foreground hover:opacity-90 transition-opacity"
       >
         Open
       </button>
-    </motion.div>
+    </RarityFrame>
   );
 }
 
@@ -83,7 +76,6 @@ function StickerGroupCard({ group, onSell, selling }) {
   // We use group[0] for display info, count for badge.
   const item   = group[0];
   const count  = group.length;
-  const rc     = RARITY[item.item_rarity] ?? RARITY.common;
   const variantMult = item.variant ? (VARIANTS[item.variant]?.sellMultiplier ?? 1) : 1;
   const price  = Math.floor((SELL_PRICE[item.item_rarity] ?? 2) * variantMult);
 
@@ -118,26 +110,31 @@ function StickerGroupCard({ group, onSell, selling }) {
   }, [armed, unlisted, price, onSell]);
 
   return (
-    <motion.div
+    <RarityFrame
+      rarity={item.item_rarity}
+      as={motion.div}
       layout
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={['relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center', rc.borderClass].join(' ')}
+      className="flex flex-col items-center p-3 gap-2 text-center"
     >
       {/* Duplicate count badge */}
       {count > 1 && (
-        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-purple-600 text-white text-[10px] font-bold flex items-center justify-center">
+        <span className="absolute top-2 end-2 min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
           ×{count}
         </span>
       )}
 
       <StickerDisplay emoji={item.item_emoji} variant={item.variant} size={52} />
       {item.variant && (
-        <span className="text-[10px] font-bold" style={{ color: VARIANTS[item.variant]?.color ?? '#fff' }}>
+        <span
+          className="text-[10px] font-bold"
+          style={{ color: VARIANTS[item.variant]?.color ?? 'hsl(var(--foreground))' }}
+        >
           {VARIANTS[item.variant]?.badge}
         </span>
       )}
-      <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
+      <span className="text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
 
       {/* Sell duplicate button */}
@@ -149,42 +146,41 @@ function StickerGroupCard({ group, onSell, selling }) {
             'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
             armed
               ? 'bg-red-500/80 text-white border border-red-400 scale-105'
-              : 'bg-amber-500/15 text-amber-300 border border-amber-400/30 hover:bg-amber-500/25',
+              : 'bg-amber-500/15 text-amber-600 dark:text-amber-300 border border-amber-400/30 hover:bg-amber-500/25',
           ].join(' ')}
         >
           {armed ? (
             'Confirm sell?'
           ) : (
             <span className="flex items-center justify-center gap-1">
-              Sell extra · 🪙 {price}
+              Sell extra · {COIN} {price}
             </span>
           )}
         </button>
       ) : (
-        <span className="text-gray-500 text-[10px] font-medium mt-1">In Bag</span>
+        <span className="text-muted-foreground text-[10px] font-medium mt-1">In Bag</span>
       )}
-    </motion.div>
+    </RarityFrame>
   );
 }
 
 // ─── Theme card ───────────────────────────────────────────────────────────────
 function ThemeCard({ item, activeLootThemeId, onApply }) {
-  const rc = RARITY[item.item_rarity] ?? RARITY.common;
   const lootTheme = getLootThemeById(item.item_id);
   const isActive  = activeLootThemeId === item.item_id;
 
   return (
-    <motion.div
+    <RarityFrame
+      rarity={item.item_rarity}
+      as={motion.div}
+      active={isActive}
       // NOTE: no `layout` prop — framer-motion's layout animation shifts
       // sibling cards' positions when one becomes active, which lands stray
       // taps on the wrong card. The active border highlight is enough
       // feedback without animating the entire grid.
       initial={{ opacity: 0, scale: 0.9 }}
       animate={{ opacity: 1, scale: 1 }}
-      className={[
-        'relative flex flex-col items-center p-3 rounded-xl border-2 bg-[#0f0f2a] gap-2 text-center',
-        isActive ? 'border-purple-400 shadow-lg shadow-purple-500/20' : rc.borderClass,
-      ].join(' ')}
+      className={`flex flex-col items-center p-3 gap-2 text-center ${isActive ? 'shadow-lg shadow-primary/20' : ''}`}
     >
       {/* Preview swatches */}
       {lootTheme?.preview && (
@@ -196,10 +192,10 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
         </div>
       )}
       <span className="text-4xl leading-none">{item.item_emoji}</span>
-      <span className="text-white text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
+      <span className="text-xs font-semibold leading-tight line-clamp-2">{item.item_name}</span>
       <RarityBadge rarity={item.item_rarity} />
       {lootTheme?.animated && (
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-400/30 uppercase tracking-wider">
+        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 uppercase tracking-wider">
           Animated
         </span>
       )}
@@ -208,13 +204,13 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
         className={[
           'mt-1 w-full py-1.5 rounded-lg text-xs font-bold transition-all duration-200',
           isActive
-            ? 'bg-purple-500/30 text-purple-200 border border-purple-400/50'
-            : 'bg-purple-600/70 text-white hover:bg-purple-500/80',
+            ? 'bg-primary/25 text-primary border border-primary/50'
+            : 'bg-primary text-primary-foreground hover:opacity-90',
         ].join(' ')}
       >
         {isActive ? '✓ Active' : 'Apply'}
       </button>
-    </motion.div>
+    </RarityFrame>
   );
 }
 
@@ -222,8 +218,8 @@ function ThemeCard({ item, activeLootThemeId, onApply }) {
 function EmptyState({ icon: Icon, label }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
-      <Icon className="w-10 h-10 text-gray-600" />
-      <p className="text-gray-500 text-sm">{label}</p>
+      <Icon className="w-10 h-10 text-muted-foreground/50" />
+      <p className="text-muted-foreground text-sm">{label}</p>
     </div>
   );
 }
@@ -335,19 +331,19 @@ function TitleList({ items, userId }) {
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
-        const rarityBadge = (RARITY[item.item_rarity] ?? RARITY.common);
+        const tint = rarityTint(item.item_rarity);
         return (
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
             className={`flex items-center gap-3 p-3 rounded-lg border transition-colors text-start ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
+              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary'
             }`}
           >
             <span className="text-2xl shrink-0">{item.item_emoji || '🏷️'}</span>
             <div className="flex-1 min-w-0">
-              <p className="font-heading font-bold text-sm text-white">{item.item_name}</p>
-              <p className="text-[10px] uppercase tracking-wider" style={{ color: rarityBadge.color }}>{item.item_rarity}</p>
+              <p className="font-heading font-bold text-sm">{item.item_name}</p>
+              <p className="text-[10px] uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             </div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary shrink-0">
               {isEquipped ? 'Equipped' : 'Equip'}
@@ -452,13 +448,13 @@ function FrameList({ items, userId }) {
       {unique.map(item => {
         const isEquipped = equippedId === item.item_id;
         const frameDef = getLootFrameById(item.item_id);
-        const rarityBadge = (RARITY[item.item_rarity] ?? RARITY.common);
+        const tint = rarityTint(item.item_rarity);
         return (
           <button
             key={item.id}
             onClick={() => equip(item.item_id)}
             className={`flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors ${
-              isEquipped ? 'border-primary bg-primary/10' : 'border-white/10 bg-white/5 hover:bg-white/10'
+              isEquipped ? 'border-primary bg-primary/10' : 'border-border bg-secondary/50 hover:bg-secondary'
             }`}
           >
             <div
@@ -473,8 +469,8 @@ function FrameList({ items, userId }) {
                 </span>
               )}
             </div>
-            <p className="font-heading font-bold text-xs text-white text-center leading-tight">{item.item_name}</p>
-            <p className="text-[9px] uppercase tracking-wider" style={{ color: rarityBadge.color }}>{item.item_rarity}</p>
+            <p className="font-heading font-bold text-xs text-center leading-tight">{item.item_name}</p>
+            <p className="text-[9px] uppercase tracking-wider" style={{ color: tint.color }}>{item.item_rarity}</p>
             <span className="text-[10px] font-bold uppercase tracking-wider text-primary">
               {isEquipped ? 'Equipped' : 'Equip'}
             </span>
@@ -662,17 +658,17 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
 
         {/* Centered modal — zoom-in entrance, no drag */}
         <motion.div
-          className="relative z-10 bg-[#0a0a1a] border border-white/10 shadow-2xl w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
+          className="relative z-10 bg-card border border-border shadow-2xl w-full max-w-2xl rounded-2xl max-h-[90vh] flex flex-col overflow-hidden"
           initial={{ scale: 0.92, opacity: 0, y: 12 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.92, opacity: 0, y: 12 }}
           transition={{ type: 'spring', stiffness: 320, damping: 28 }}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-white/10">
+          <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
             <div className="flex items-center gap-3">
-              <ShoppingBag className="w-5 h-5 text-purple-400" />
-              <h2 className="text-white font-bold text-lg">My Bag</h2>
+              <ShoppingBag className="w-5 h-5 text-primary" />
+              <h2 className="font-heading font-bold text-lg">My Bag</h2>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -680,14 +676,14 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                 aria-label="Open Coin Shop"
                 className="flex items-center gap-1.5 bg-amber-500/15 border border-amber-400/30 rounded-full px-3 py-1 hover:bg-amber-500/25 transition-colors"
               >
-                <span className="text-base">🪙</span>
-                <span className="text-amber-300 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
-                <Store className="w-3.5 h-3.5 text-amber-300/80 ms-0.5" />
+                <span className="text-base">{COIN}</span>
+                <span className="text-amber-600 dark:text-amber-300 font-bold text-sm tabular-nums">{fmt(flexCoins)}</span>
+                <Store className="w-3.5 h-3.5 text-amber-600/80 dark:text-amber-300/80 ms-0.5" />
               </button>
               <button
                 onClick={onClose}
                 aria-label="Close bag"
-                className="text-gray-500 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-white/10"
+                className="text-muted-foreground hover:text-foreground transition-colors p-1.5 rounded-lg hover:bg-secondary"
               >
                 <X className="w-5 h-5" aria-hidden="true" />
               </button>
@@ -697,7 +693,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
           {/* Tabs — 5 equal slices, stacked icon-over-label so even narrow
               phones fit all of them without horizontal scroll. The tab row
               uses table-fixed-style equal columns; nothing breaks layout. */}
-          <div className="grid grid-cols-5 border-b border-white/10 w-full">
+          <div className="grid grid-cols-5 border-b border-border w-full">
             {TABS.map(tab => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
@@ -710,19 +706,19 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
                   aria-pressed={isActive}
                   className={[
                     'relative flex flex-col items-center justify-center gap-0.5 py-2 px-1 border-b-2 transition-colors min-w-0 overflow-hidden',
-                    isActive ? 'border-purple-400 text-purple-300' : 'border-transparent text-gray-400 hover:text-gray-200',
+                    isActive ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-1 max-w-full">
                     <Icon className="w-3.5 h-3.5 shrink-0" />
                     <span className="text-[11px] font-semibold truncate">{tab.label}</span>
                   </div>
-                  <span className={`text-[10px] px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-purple-500/30 text-purple-200' : 'bg-gray-700 text-gray-400'}`}>
+                  <span className={`text-[10px] px-1.5 leading-tight rounded-full shrink-0 ${isActive ? 'bg-primary/20 text-primary' : 'bg-secondary text-muted-foreground'}`}>
                     {tab.count}
                   </span>
                   {/* Duplicate indicator — corner badge, doesn't take row space */}
                   {tab.badge && (
-                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
+                    <span className="absolute top-0.5 end-0.5 text-[8px] px-1 leading-tight rounded-full bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-400/30 font-bold whitespace-nowrap">
                       {tab.badge}
                     </span>
                   )}
@@ -740,21 +736,21 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
           {/* Search */}
           <div className="px-5 pt-3">
             <div className="relative">
-              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" aria-hidden="true" />
+              <Search className="absolute start-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
               <input
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search your bag…"
                 aria-label="Search your bag"
-                className="w-full bg-white/5 border border-white/10 rounded-lg ps-9 pe-8 py-2 text-sm text-white placeholder:text-gray-500 focus:outline-none focus:border-purple-400/50"
+                className="w-full bg-secondary/50 border border-border rounded-lg ps-9 pe-8 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:border-primary/50"
               />
               {query && (
                 <button
                   type="button"
                   onClick={() => setQuery('')}
                   aria-label="Clear search"
-                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-gray-500 hover:text-white"
+                  className="absolute end-2 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -766,7 +762,7 @@ export default function UserBag({ open, onClose, onOpenCapsule }) {
           <div ref={scrollRef} onScroll={handleScroll} className="flex-1 overflow-y-auto p-5">
             {isLoading ? (
               <div className="flex items-center justify-center py-16">
-                <div className="w-8 h-8 rounded-full border-2 border-purple-400 border-t-transparent animate-spin" />
+                <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
               </div>
             ) : activeTab === 'capsules' ? (
               fCapsules.length === 0 ? (

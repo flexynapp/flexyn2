@@ -11,7 +11,8 @@
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Percent } from 'lucide-react';
-import { CAPSULE_ODDS, RARITY } from '@/lib/lootCatalog';
+import { CAPSULE_ODDS } from '@/lib/lootCatalog';
+import { RarityDot } from '@/components/loot/RarityVisuals';
 
 export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
   const [open, setOpen] = useState(false);
@@ -19,34 +20,31 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
   const rows = Object.entries(odds).filter(([, p]) => p > 0);
 
   return (
-    <div className="rounded-lg bg-black/30 border border-white/10 overflow-hidden">
+    <div className="rounded-lg bg-secondary/50 border border-border overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-3 py-2 text-start hover:bg-white/5 transition-colors"
+        className="w-full flex items-center justify-between px-3 py-2 text-start hover:bg-secondary transition-colors"
         aria-expanded={open}
       >
-        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-white/80">
+        <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide">
           <Percent className="w-3 h-3" /> Drop rates
         </span>
-        {open ? <ChevronUp className="w-3.5 h-3.5 text-white/60" /> : <ChevronDown className="w-3.5 h-3.5 text-white/60" />}
+        {open
+          ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
+          : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
       </button>
       {open && (
         <ul className="px-3 pb-2 space-y-1">
           {rows.map(([rarity, prob]) => {
-            const meta = RARITY[rarity];
             const pct = (prob * 100).toFixed(prob < 0.01 ? 2 : 1);
             return (
               <li key={rarity} className="flex items-center justify-between text-[11px]">
                 <span className="flex items-center gap-1.5 capitalize">
-                  <span
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: meta?.color || '#888' }}
-                    aria-hidden="true"
-                  />
-                  <span className="text-white/85">{rarity}</span>
+                  <RarityDot rarity={rarity} />
+                  <span>{rarity}</span>
                 </span>
-                <span className="tabular-nums text-white/70">{pct}%</span>
+                <span className="tabular-nums text-muted-foreground">{pct}%</span>
               </li>
             );
           })}

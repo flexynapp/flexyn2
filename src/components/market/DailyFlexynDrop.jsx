@@ -14,18 +14,16 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Sparkles, Loader2, Check } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { BRANDED_ITEMS, getDailyDrop, RARITY } from '@/lib/lootCatalog';
+import { BRANDED_ITEMS, getDailyDrop } from '@/lib/lootCatalog';
+import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import { supabase } from '@/api/supabaseClient';
 import { useAuth } from '@/lib/AuthContext';
 
-const RARITY_TINT = {
-  common:    { bg: 'from-zinc-400/15 to-transparent',    ring: 'ring-zinc-400/40',    text: 'text-zinc-600 dark:text-zinc-300' },
-  uncommon:  { bg: 'from-emerald-400/15 to-transparent', ring: 'ring-emerald-400/45', text: 'text-emerald-600 dark:text-emerald-300' },
-  rare:      { bg: 'from-sky-400/15 to-transparent',     ring: 'ring-sky-400/45',     text: 'text-sky-600 dark:text-sky-300' },
-  epic:      { bg: 'from-violet-400/18 to-transparent',  ring: 'ring-violet-400/50',  text: 'text-violet-600 dark:text-violet-300' },
-  legendary: { bg: 'from-amber-400/22 to-transparent',   ring: 'ring-amber-400/55',   text: 'text-amber-600 dark:text-amber-300' },
-  mythic:    { bg: 'from-rose-400/24 to-transparent',    ring: 'ring-rose-400/55',    text: 'text-rose-600 dark:text-rose-300' },
-};
+// Tints derive from lootCatalog.RARITY via rarityTint. The hand-written
+// map that used to live here covered only six of the seven tiers (no
+// `animated`), so a legendary-tier branded item and an animated one
+// rendered identically — and its zinc/sky/violet palette didn't match the
+// catalog's own slate/blue/purple anyway.
 
 function msUntilLocalMidnight() {
   const now = new Date();
@@ -131,20 +129,27 @@ export default function DailyFlexynDrop() {
 
       <div className="grid grid-cols-3 gap-2">
         {drop.map(item => {
-          const tint = RARITY_TINT[item.rarity] || RARITY_TINT.common;
+          const tint = rarityTint(item.rarity);
           const owned = purchased.has(item.id);
           const busy = purchasing === item.id;
           return (
             <div
               key={item.id}
-              className={`relative rounded-xl bg-card ring-1 ${tint.ring} bg-gradient-to-br ${tint.bg} p-2.5 flex flex-col items-center text-center`}
+              className="relative rounded-xl bg-card ring-1 p-2.5 flex flex-col items-center text-center"
+              style={{
+                backgroundImage: `linear-gradient(to bottom right, ${tint.surface}, transparent)`,
+                '--tw-ring-color': tint.ring,
+              }}
             >
               <span className="text-3xl leading-none mb-1.5" aria-hidden="true">{item.emoji}</span>
               <p className="font-heading font-bold text-[11px] leading-tight line-clamp-2 h-7">
                 {item.name}
               </p>
-              <p className={`text-[9px] font-bold uppercase tracking-wide mt-0.5 ${tint.text}`}>
-                {RARITY[item.rarity]?.label || item.rarity}
+              <p
+                className="text-[9px] font-bold uppercase tracking-wide mt-0.5"
+                style={{ color: tint.color }}
+              >
+                {tint.label}
               </p>
               <button
                 type="button"
@@ -160,7 +165,7 @@ export default function DailyFlexynDrop() {
                   ? <><Check className="w-3 h-3" /> Owned</>
                   : busy
                     ? <><Loader2 className="w-3 h-3 animate-spin" /> ...</>
-                    : <>{item.baseCoins} ⚡</>}
+                    : <>{COIN} {item.baseCoins}</>}
               </button>
             </div>
           );

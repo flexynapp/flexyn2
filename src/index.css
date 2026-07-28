@@ -1867,6 +1867,44 @@ html[data-theme-tier] {
   --secondary-foreground: var(--foreground);
 }
 
+/* ═══════════════════════════════════════════════════════════════════════
+   Loot stage — the capsule-opening "theater"
+
+   Opening a capsule is deliberately a DARK moment: the slot reel, the
+   starfield backdrop and the rarity glows are all tuned to read against
+   a near-black stage, and a bright card in light mode flattens the
+   reveal. So unlike the Marketplace and the Bag (which follow the app
+   theme), this one surface stays dark on purpose.
+
+   It used to get there by scattering literal #0a0a1a / #0f0f2a / text-white
+   / text-gray-400 through CapsuleOpener.jsx — which is exactly why an
+   equipped loot theme never reached it and why the file had its own
+   private rarity palette. Pinning the NEUTRAL tokens for this subtree
+   instead means everything inside can use the same bg-card /
+   text-foreground / border-border vocabulary as the rest of the app.
+
+   --primary is deliberately NOT pinned, so an equipped loot theme still
+   tints the buttons and accents on the stage.
+
+   The values are the previous hardcoded hexes, converted:
+     #0a0a1a → 240 44%  7%   (panel)
+     #0f0f2a → 240 47% 11%   (item cards)
+   ═══════════════════════════════════════════════════════════════════════ */
+.loot-stage {
+  --background: 240 44% 7%;
+  --foreground: 0 0% 100%;
+  --card: 240 47% 11%;
+  --card-foreground: 0 0% 100%;
+  --popover: 240 44% 7%;
+  --popover-foreground: 0 0% 100%;
+  --secondary: 240 30% 18%;
+  --secondary-foreground: 0 0% 100%;
+  --muted: 240 30% 16%;
+  --muted-foreground: 240 12% 68%;
+  --border: 240 25% 22%;
+  color: hsl(var(--foreground));
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════
    Wave-2 loot theme scenes — Zen Garden, Deep Ocean Abyss, Storm Chaser,

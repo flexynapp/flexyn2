@@ -5,7 +5,8 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { ITEMS, RARITY, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { rarityTint } from '@/components/loot/RarityVisuals';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
@@ -70,16 +71,10 @@ function pickSpinVariant() {
   return SPIN_VARIANTS[Math.floor(Math.random() * SPIN_VARIANTS.length)];
 }
 
-// ─── Rarity visual config ─────────────────────────────────────────────────────
-const RARITY_CARD = {
-  common:    { border: 'border-slate-400',  glow: 'shadow-slate-400/60',  ring: '#94a3b8' },
-  uncommon:  { border: 'border-green-400',  glow: 'shadow-green-400/60',  ring: '#4ade80' },
-  rare:      { border: 'border-blue-400',   glow: 'shadow-blue-400/60',   ring: '#60a5fa' },
-  epic:      { border: 'border-purple-400', glow: 'shadow-purple-400/60', ring: '#c084fc' },
-  legendary: { border: 'border-amber-400',  glow: 'shadow-amber-400/60',  ring: '#fbbf24' },
-  mythic:    { border: 'border-rose-400',   glow: 'shadow-rose-400/60',   ring: '#fb7185' },
-  animated:  { border: 'border-pink-400',   glow: 'shadow-pink-400/60',   ring: '#f472b6' },
-};
+// Rarity borders/glows come from the shared `rarityTint`, which derives
+// them from the ONE colour in lootCatalog.RARITY. This file used to keep
+// its own RARITY_CARD map of Tailwind class names — a fourth private copy
+// of the same ladder that had to be edited by hand whenever a tier moved.
 
 // ─── Weighted random item for reel filler ─────────────────────────────────────
 const FILLER_WEIGHTS = { common: 40, uncommon: 30, rare: 15, epic: 10, legendary: 4, animated: 1 };
@@ -127,31 +122,31 @@ function buildReel(winItem) {
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
 function ItemCard({ item, highlight = false }) {
-  const rc = RARITY_CARD[item.rarity] ?? RARITY_CARD.common;
+  const tint = rarityTint(item.rarity);
   const isMystery = item.id === '__mystery__';
   return (
     <div
       className={[
         'flex-none flex flex-col items-center justify-center rounded-xl border-2 select-none',
-        rc.border,
-        highlight ? `shadow-lg ${rc.glow}` : '',
-        isMystery ? 'bg-gray-900 opacity-60' : 'bg-[#0f0f2a]',
+        isMystery ? 'bg-secondary opacity-60' : 'bg-card',
       ].join(' ')}
-      style={{ width: CARD_W, height: 130 }}
+      style={{
+        width: CARD_W,
+        height: 130,
+        borderColor: tint.border,
+        boxShadow: highlight ? tint.glow : undefined,
+      }}
     >
       <span className="text-4xl leading-none mb-2">{item.emoji}</span>
-      <span className={`text-xs font-semibold truncate px-1 ${isMystery ? 'text-gray-500' : 'text-gray-300'}`}>
+      <span className={`text-xs font-semibold truncate px-1 ${isMystery ? 'text-muted-foreground' : 'text-foreground/80'}`}>
         {item.name}
       </span>
       {!isMystery && (
         <span
           className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
-          style={{
-            color: RARITY[item.rarity]?.color ?? '#fff',
-            border: `1px solid ${RARITY[item.rarity]?.color ?? '#fff'}`,
-          }}
+          style={{ color: tint.color, border: `1px solid ${tint.color}` }}
         >
-          {RARITY[item.rarity]?.label ?? item.rarity}
+          {tint.label}
         </span>
       )}
     </div>
@@ -186,7 +181,7 @@ function StarField() {
       {stars.map(s => (
         <motion.div
           key={s.id}
-          className="absolute rounded-full bg-white"
+          className="absolute rounded-full bg-foreground"
           style={{ left: `${s.x}%`, top: `${s.y}%`, width: s.size, height: s.size, opacity: s.opacity }}
           // Honor reduced-motion — skip the infinite opacity tween so
           // a vestibular-sensitive user isn't subjected to 60 pulsing
@@ -204,13 +199,11 @@ function StarField() {
 // theme): scrim → crate shakes → lid pops → ray + particle burst, in the item's
 // rarity colour. The design's own card is omitted — the existing reveal card
 // below sits underneath and is revealed as the scrim fades. Tap to skip.
-const UNLOCK_RARITY_COLORS = {
-  rare:      { col: '#3b82f6', glow: 'rgba(59,130,246,0.55)' },
-  epic:      { col: '#a855f7', glow: 'rgba(168,85,247,0.55)' },
-  legendary: { col: '#eab308', glow: 'rgba(234,179,8,0.55)' },
-  mythic:    { col: '#f43f5e', glow: 'rgba(244,63,94,0.55)' },
-  animated:  { col: '#f472b6', glow: 'rgba(244,114,182,0.55)' },
-};
+// The burst's colour is the item's own rarity colour. This used to be a
+// FIFTH private rarity→colour map, and it disagreed with the catalog on
+// four of its five tiers (rare #3b82f6 vs #60a5fa, epic #a855f7 vs
+// #c084fc, legendary #eab308 vs #fbbf24, mythic #f43f5e vs #fb7185) — so
+// the burst flashed one blue and the card behind it settled on another.
 
 // Rarity ladder — higher tiers get denser bursts + escalating extras
 // (ring shockwave, screen flash, mythic shimmer) per the design brief's
@@ -227,7 +220,8 @@ const BURST_TIERS = {
 function CrateBurst({ item, onDone }) {
   const rarity = item?.rarity || 'rare';
   const tier = BURST_TIERS[rarity] || BURST_TIERS.rare;
-  const { col, glow } = UNLOCK_RARITY_COLORS[rarity] || UNLOCK_RARITY_COLORS.rare;
+  const col  = rarityTint(rarity).color;
+  const glow = `${col}8c`; // ~0.55 alpha, matching the previous rgba() values
 
   useEffect(() => {
     // Tightened to match the retuned CSS (scrim fade now starts at 2.3s).
@@ -529,8 +523,10 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
     onClaim?.(wonItem);
   }, [wonItem, onClaim]);
 
-  const rarityConfig = wonItem ? (RARITY[wonItem.rarity] ?? RARITY.common) : null;
-  const cardStyle    = wonItem ? (RARITY_CARD[wonItem.rarity] ?? RARITY_CARD.common) : null;
+  // One tint object drives the reveal card's border, glow, chip and CTA.
+  // Previously this was two parallel lookups (RARITY for colours, the
+  // local RARITY_CARD for Tailwind classes) that could disagree.
+  const rarityConfig = wonItem ? rarityTint(wonItem.rarity) : null;
 
   // Scroll lock — capture the ORIGINAL overflow value once at mount
   // and restore it once at unmount. The previous combined effect's
@@ -560,7 +556,10 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      // `loot-stage` pins the neutral theme tokens dark for this subtree —
+      // see the block in index.css for why the opener stays a dark theater
+      // while the Marketplace and Bag follow the app theme.
+      className="loot-stage fixed inset-0 z-50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
       aria-labelledby="capsule-opener-title"
@@ -580,7 +579,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
       {/* Panel */}
       <motion.div
-        className="relative z-10 w-full max-w-lg rounded-2xl overflow-hidden bg-[#0a0a1a] border border-white/10 shadow-2xl"
+        className="relative z-10 w-full max-w-lg rounded-2xl overflow-hidden bg-popover border border-border shadow-2xl"
         initial={{ scale: 0.85, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.85, opacity: 0 }}
@@ -597,15 +596,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
 
         {/* Header */}
         <div className="relative flex items-center justify-between px-5 pt-5 pb-3">
-          <h2 id="capsule-opener-title" className="text-lg font-bold text-white tracking-wide flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-purple-400" aria-hidden="true" />
+          <h2 id="capsule-opener-title" className="text-lg font-bold tracking-wide flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-primary" aria-hidden="true" />
             Open Capsule
           </h2>
           {(phase === 'idle' || phase === 'claimed') && (
             <button
               onClick={onClose}
               aria-label="Close capsule dialog"
-              className="text-gray-500 hover:text-white transition-colors p-1 rounded-lg hover:bg-white/10"
+              className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-secondary"
             >
               <X className="w-5 h-5" aria-hidden="true" />
             </button>
@@ -628,15 +627,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 transition={reduce ? undefined : { duration: 2, repeat: Infinity, ease: 'easeInOut' }}
                 className="relative"
               >
-                <div className="absolute inset-0 rounded-full bg-purple-500/20 blur-2xl scale-150" />
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-2xl scale-150" />
                 <span className="relative text-8xl">{capsuleEmoji}</span>
               </motion.div>
 
               <div className="text-center">
-                <p className="text-white font-semibold text-lg capitalize">
+                <p className="font-semibold text-lg capitalize">
                   {capsule?.capsule_type ?? 'Standard'} Capsule
                 </p>
-                <p className="text-gray-400 text-sm mt-1">Crack it open to reveal your prize</p>
+                <p className="text-muted-foreground text-sm mt-1">Crack it open to reveal your prize</p>
               </div>
 
               {/* Loot-box transparency — pre-open drop rates per
@@ -648,7 +647,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               <button
                 type="button"
                 onClick={() => setCatalogOpen(true)}
-                className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-purple-300 hover:text-purple-200 underline-offset-2 hover:underline transition-colors"
+                className="mb-4 inline-flex items-center gap-1.5 text-[11px] font-semibold text-primary hover:opacity-80 underline-offset-2 hover:underline transition-opacity"
               >
                 <BookOpen className="w-3 h-3" aria-hidden="true" />
                 Preview catalog
@@ -658,7 +657,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 whileHover={{ scale: 1.04 }}
                 whileTap={{ scale: 0.97 }}
                 onClick={handleOpen}
-                className="px-8 py-3 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold text-base shadow-lg shadow-purple-500/30 hover:shadow-purple-500/50 transition-shadow"
+                className="px-8 py-3 rounded-xl bg-primary text-primary-foreground font-bold text-base shadow-lg shadow-primary/30 hover:shadow-primary/50 transition-shadow"
               >
                 Open Capsule
               </motion.button>
@@ -673,7 +672,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <p className="text-gray-400 text-sm font-medium tracking-widest uppercase">{spinVariant.kicker}</p>
+              <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">{spinVariant.kicker}</p>
 
               {/* Reel container */}
               <div
@@ -682,16 +681,17 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 style={{ height: 148 }}
               >
                 {/* Center indicator */}
-                <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-purple-400/70 pointer-events-none" />
-                {/* Left fade */}
+                <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-primary/70 pointer-events-none" />
+                {/* Left / right fades — must match the PANEL colour exactly
+                    or the reel appears to slide behind a lighter band.
+                    Reading the token keeps them in lockstep with the stage. */}
                 <div
                   className="absolute inset-y-0 start-0 z-10 w-20 pointer-events-none"
-                  style={{ background: 'linear-gradient(to right, #0a0a1a, transparent)' }}
+                  style={{ background: 'linear-gradient(to right, hsl(var(--popover)), transparent)' }}
                 />
-                {/* Right fade */}
                 <div
                   className="absolute inset-y-0 end-0 z-10 w-20 pointer-events-none"
-                  style={{ background: 'linear-gradient(to left, #0a0a1a, transparent)' }}
+                  style={{ background: 'linear-gradient(to left, hsl(var(--popover)), transparent)' }}
                 />
 
                 {/* Reel track — animated imperatively via callback ref */}
@@ -730,7 +730,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 {isThemeDrop && lootTheme ? (
                   /* ── Theme reveal card ── */
                   <motion.div
-                    className="relative flex flex-col items-center justify-center rounded-2xl border-2 bg-[#0f0f2a] shadow-2xl overflow-hidden"
+                    className="relative flex flex-col items-center justify-center rounded-2xl border-2 bg-card shadow-2xl overflow-hidden"
                     style={{
                       width: 200, height: 220,
                       borderColor: rarityConfig.color,
@@ -757,7 +757,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                           style={{ backgroundColor: hex }} />
                       ))}
                     </div>
-                    <span className="relative z-10 text-white font-bold text-base text-center px-3">{lootTheme.name}</span>
+                    <span className="relative z-10 font-bold text-base text-center px-3">{lootTheme.name}</span>
                     {lootTheme.animated && (
                       <span className="relative z-10 mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider"
                         style={{ background: `${rarityConfig.color}30`, color: rarityConfig.color, border: `1px solid ${rarityConfig.color}60` }}>
@@ -773,11 +773,12 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                 ) : (
                   /* ── Sticker reveal card ── */
                   <motion.div
-                    className={[
-                      'relative flex flex-col items-center justify-center rounded-2xl border-2',
-                      cardStyle.border, cardStyle.glow, 'bg-[#0f0f2a] shadow-2xl',
-                    ].join(' ')}
-                    style={{ width: 180, height: 200 }}
+                    className="relative flex flex-col items-center justify-center rounded-2xl border-2 bg-card shadow-2xl"
+                    style={{
+                      width: 180, height: 200,
+                      borderColor: rarityConfig.color,
+                      boxShadow: rarityConfig.glow,
+                    }}
                     initial={{ scale: 0.4, opacity: 0, rotate: -6 }}
                     animate={{ scale: 1, opacity: 1, rotate: 0 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 18 }}
@@ -793,7 +794,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                     <div className="mb-3 relative z-10">
                       <StickerDisplay emoji={wonItem.emoji} variant={wonItem.variant} size={80} />
                     </div>
-                    <span className="text-white font-bold text-base relative z-10">{wonItem.name}</span>
+                    <span className="font-bold text-base relative z-10">{wonItem.name}</span>
                   </motion.div>
                 )}
 
@@ -821,7 +822,7 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
                       {VARIANTS[wonItem.variant]?.badge ?? wonItem.variant}
                     </span>
                   )}
-                  <p className="text-gray-400 text-sm text-center max-w-xs">{wonItem.description}</p>
+                  <p className="text-muted-foreground text-sm text-center max-w-xs">{wonItem.description}</p>
                 </motion.div>
 
                 <motion.button
@@ -858,15 +859,15 @@ export default function CapsuleOpener({ capsule, onClaim, onClose }) {
               >
                 🎉
               </motion.span>
-              <p className="text-white font-bold text-lg">{wonItem.name} added to your bag!</p>
-              <p className="text-gray-400 text-sm">
+              <p className="font-bold text-lg">{wonItem.name} added to your bag!</p>
+              <p className="text-muted-foreground text-sm">
                 {wonItem.type === 'theme'
                   ? 'Apply it from the Themes tab in your bag.'
                   : 'Check your inventory to see it.'}
               </p>
               <button
                 onClick={onClose}
-                className="mt-2 px-6 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold transition-colors"
+                className="mt-2 px-6 py-2.5 rounded-xl bg-secondary hover:bg-secondary/70 text-secondary-foreground font-semibold transition-colors"
               >
                 Close
               </button>

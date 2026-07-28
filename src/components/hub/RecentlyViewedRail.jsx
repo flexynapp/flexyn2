@@ -67,7 +67,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.85 }}
                 transition={{ duration: 0.18 }}
-                className="relative shrink-0 w-20 rounded-xl border-2 bg-[#0f0f2a] p-2 flex flex-col items-center gap-1 group"
+                className="relative shrink-0 w-20 rounded-xl border-2 bg-card p-2 flex flex-col items-center gap-1 group"
                 style={{ borderColor: `${rc.color}55` }}
               >
                 <button
@@ -81,11 +81,11 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                   aria-label={isGone ? `${entry.item_name} — no longer available` : `View ${entry.item_name}`}
                 >
                   <span className="text-2xl leading-none">{entry.item_emoji || '🎁'}</span>
-                  <span className="text-[10px] text-white font-medium text-center leading-tight line-clamp-2 min-h-[2em]">
+                  <span className="text-[10px] font-medium text-center leading-tight line-clamp-2 min-h-[2em]">
                     {entry.item_name}
                   </span>
                   {entry.asking_price != null && (
-                    <span className="text-[10px] text-amber-300 font-bold">
+                    <span className="text-[10px] text-amber-600 dark:text-amber-300 font-bold">
                       🪙 {fmt(Number(entry.asking_price))}
                     </span>
                   )}
@@ -107,7 +107,7 @@ export default function RecentlyViewedRail({ userEmail, listings = [], onSelect 
                     e.stopPropagation();
                     removeRecentlyViewed(userEmail, entry.id);
                   }}
-                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-gray-900 border border-gray-700 text-gray-400 hover:text-white hover:bg-gray-800 flex items-center justify-center transition-colors"
+                  className="absolute -top-1.5 -end-1.5 w-5 h-5 rounded-full bg-secondary border border-border text-muted-foreground hover:text-foreground hover:bg-secondary/70 flex items-center justify-center transition-colors"
                   aria-label="Remove from recents"
                 >
                   <X className="w-3 h-3" />

@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Lock, Book } from 'lucide-react';
 import { motion } from 'framer-motion';
-import MarketplaceFeed from '@/components/hub/MarketplaceFeed';
+import MarketplaceFeed from '@/components/market/MarketplaceFeed';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import ItemIndexModal from '@/components/market/ItemIndexModal';
 import DailyFlexynDrop from '@/components/market/DailyFlexynDrop';
@@ -22,18 +22,18 @@ export default function Market() {
 
   return (
     <div className="px-4 pt-4 md:px-8 md:pt-8 lg:pb-8 max-w-3xl mx-auto">
-      {/* Header row — Browse every item button (book icon) */}
-      <div className="flex items-center justify-between mb-3">
-        {/* Hidden on mobile — the fixed header already renders "Marketplace"
-            as the child-route title there (see Header.jsx CHILD_ROUTES),
-            so showing it again here double-titled the page. On lg+ the
-            header is hidden (lg:hidden), so this becomes the only title.
-            Matches the hidden-lg:block pattern Coach.jsx / Messages.jsx use. */}
-        <h1 className="font-heading text-2xl md:text-3xl font-bold tracking-tight hidden lg:block">Marketplace</h1>
+      {/* Header row — Browse every item button (book icon).
+          There is deliberately NO <h1> here. On mobile the fixed app header
+          already renders "Marketplace" as the child-route title (see
+          Header.jsx CHILD_ROUTES); on lg+ that header is hidden but
+          MarketplaceHeader renders its own "Marketplace" heading
+          unconditionally — so a page-level h1 meant the word appeared twice
+          on every desktop viewport. MarketplaceHeader owns the title now. */}
+      <div className="flex items-center justify-end mb-3">
         <button
           type="button"
           onClick={() => setIndexOpen(true)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-xs font-semibold ms-auto lg:ms-0"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card hover:bg-secondary transition-colors text-xs font-semibold"
           title="Browse every item in the game"
         >
           <Book className="w-3.5 h-3.5" />

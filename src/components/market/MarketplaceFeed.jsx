@@ -1,0 +1,551 @@
+// src/components/market/MarketplaceFeed.jsx
+//
+// Marketplace orchestrator — data fetching, mutation handlers, and layout.
+// The presentational pieces live alongside this file:
+//   MarketplaceHeader · DailyChestBlock · ListingCard · BundleCard
+//   ListItemDialog · TradeOfferDialog · BuyConfirmDialog
+//
+// This file used to be ~1,500 lines containing all of the above inline.
+
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { ShoppingBag, Heart, Package, Star } from 'lucide-react';
+import { toast } from '@/lib/toast';
+import { useAuth } from '@/lib/AuthContext';
+import { reportError } from '@/lib/reportError';
+import * as marketplace from '@/lib/data/marketplace';
+import * as inventory   from '@/lib/data/inventory';
+import * as itemSoldCounts from '@/lib/data/itemSoldCounts';
+import * as wishlist from '@/lib/data/marketplaceWishlist';
+import { addRecentlyViewed } from '@/lib/recentlyViewedListings';
+import CoinShopModal from '@/components/hub/CoinShopModal';
+import RecentlyViewedRail from '@/components/hub/RecentlyViewedRail';
+import MarketplaceHeader from './MarketplaceHeader';
+import DailyChestBlock from './DailyChestBlock';
+import ListingCard from './ListingCard';
+import BundleCard from './BundleCard';
+import ListItemDialog from './ListItemDialog';
+import TradeOfferDialog from './TradeOfferDialog';
+import BuyConfirmDialog from './BuyConfirmDialog';
+
+export default function MarketplaceFeed() {
+  const { user } = useAuth();
+  const qc       = useQueryClient();
+  const navigate = useNavigate();
+
+  const [showListDialog, setShowListDialog] = useState(false);
+  const [tradeTarget,    setTradeTarget]    = useState(null);
+  const [buyTarget,      setBuyTarget]      = useState(null);
+  const [buyBusy,        setBuyBusy]        = useState(false);
+  const [shopOpen,       setShopOpen]       = useState(false);
+
+  // Sold-fade tracking — listing IDs that just disappeared from the active
+  // feed. We render the SOLD overlay for ~5s before the listing actually
+  // collapses out of the grid. boughtByMe is separate so a self-buy gets
+  // the warmer YOURS! variant.
+  const [recentlySold,  setRecentlySold]  = useState(() => new Set());
+  const [boughtByMeIds, setBoughtByMeIds] = useState(() => new Set());
+  const previousListingsRef = useRef([]);
+
+  const [sortBy,  setSortBy]  = useState('recent'); // 'recent' | 'price'
+  const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
+
+  // Top-level view: 'browse' shows the full marketplace, 'saved' shows only
+  // the viewer's wishlist (heart-saved listings).
+  const [marketView, setMarketView] = useState('browse'); // 'browse' | 'saved'
+
+  // ── Data fetching ──────────────────────────────────────────────────────────
+  const { data: rawListings, isLoading: loadingListings, isError: listingsError, refetch } = useQuery({
+    queryKey: ['marketplaceListings', sortBy, sortDir],
+    queryFn:  () => marketplace.listActive(60, sortBy, sortDir),
+    staleTime: 15_000,
+  });
+  const listings = Array.isArray(rawListings) ? rawListings : [];
+
+  // Sold-counts lookup — one bulk query for every visible listing's item_id.
+  // Re-runs only when the set of visible item_ids changes.
+  const visibleItemIds = useMemo(
+    () => Array.from(new Set(listings.map(l => l.item_id).filter(Boolean))),
+    [listings]
+  );
+  const { data: soldCountMap = new Map() } = useQuery({
+    queryKey: ['itemSoldCounts', visibleItemIds.join(',')],
+    queryFn:  () => itemSoldCounts.countsFor(visibleItemIds),
+    enabled:  visibleItemIds.length > 0,
+    staleTime: 60_000,
+  });
+
+  // Routes to /hub?profile=<user_id> — the canonical profile URL.
+  const handleSellerClick = useCallback((sellerId) => {
+    if (!sellerId) return;
+    navigate(`/hub?profile=${encodeURIComponent(sellerId)}`);
+  }, [navigate]);
+
+  // Wishlist (mig 121). Toggle is optimistic via setQueryData so the heart
+  // fills/unfills instantly.
+  const { data: savedIds = new Set() } = useQuery({
+    queryKey: ['marketplaceWishlist', user?.id],
+    queryFn:  async () => {
+      const rows = await wishlist.listMine(user.id);
+      return new Set(rows.map(r => r.listing_id));
+    },
+    enabled:   !!user?.id,
+    staleTime: 60_000,
+  });
+  const handleToggleSave = useCallback(async (listingId) => {
+    if (!user?.id || !listingId) return;
+    const currentlySaved = savedIds.has(listingId);
+    qc.setQueryData(['marketplaceWishlist', user.id], (prev) => {
+      const next = new Set(prev || []);
+      if (currentlySaved) next.delete(listingId); else next.add(listingId);
+      return next;
+    });
+    try {
+      await wishlist.toggle(user.id, listingId, currentlySaved);
+    } catch {
+      qc.setQueryData(['marketplaceWishlist', user.id], (prev) => {
+        const next = new Set(prev || []);
+        if (currentlySaved) next.add(listingId); else next.delete(listingId);
+        return next;
+      });
+      toast.error('Could not update wishlist — try again.');
+    }
+  }, [user?.id, savedIds, qc]);
+
+  // Bundle deals (mig 134).
+  const { data: activeBundles = [] } = useQuery({
+    queryKey: ['marketplaceBundles'],
+    queryFn: marketplace.listActiveBundles,
+    staleTime: 60_000,
+  });
+
+  // Group listings by bundle_id so BundleCard gets a pre-filtered list.
+  const bundleMap = useMemo(() => {
+    const map = new Map(); // bundleId → [listing, ...]
+    listings.forEach(l => {
+      if (!l.bundle_id) return;
+      if (!map.has(l.bundle_id)) map.set(l.bundle_id, []);
+      map.get(l.bundle_id).push(l);
+    });
+    return map;
+  }, [listings]);
+
+  // IDs already shown inside a bundle card — excluded from the regular grid.
+  const bundledListingIds = useMemo(() => {
+    const ids = new Set();
+    bundleMap.forEach(ls => ls.forEach(l => ids.add(l.id)));
+    return ids;
+  }, [bundleMap]);
+
+  const handleBuyBundle = useCallback(async (bundle) => {
+    if (!user?.id) return;
+    try {
+      const result = await marketplace.purchaseBundle(bundle.id);
+      toast.success(`Bundle purchased! 🪙 ${result.paid_price} spent. Items are yours.`);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['marketplaceBundles'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+    } catch (err) {
+      const msg = err.message?.includes('insufficient_coins')
+        ? 'Not enough coins for this bundle.'
+        : err.message?.includes('bundle_not_available')
+        ? 'This bundle is no longer available.'
+        : 'Could not purchase bundle — try again.';
+      toast.error(msg);
+    }
+  }, [user?.id, user?.email, qc]);
+
+  // Featured listings — derived from the already-fetched active list.
+  const featuredListings = useMemo(
+    () => listings.filter(l =>
+      l.is_featured && l.featured_until && new Date(l.featured_until) > new Date()
+    ),
+    [listings]
+  );
+
+  // Detect listings that disappeared between the previous render and this
+  // one — those are the just-sold (or cancelled) ones. Mark them for a 5s
+  // sold-fade overlay, then clean them up.
+  useEffect(() => {
+    const prevIds = new Set(previousListingsRef.current.map(l => l.id));
+    const currIds = new Set(listings.map(l => l.id));
+    const disappeared = [...prevIds].filter(id => !currIds.has(id));
+    if (disappeared.length === 0) {
+      previousListingsRef.current = listings;
+      return;
+    }
+    setRecentlySold(prev => {
+      const next = new Set(prev);
+      disappeared.forEach(id => next.add(id));
+      return next;
+    });
+    const timer = setTimeout(() => {
+      setRecentlySold(prev => {
+        const next = new Set(prev);
+        disappeared.forEach(id => next.delete(id));
+        return next;
+      });
+      setBoughtByMeIds(prev => {
+        const next = new Set(prev);
+        disappeared.forEach(id => next.delete(id));
+        return next;
+      });
+    }, 5000);
+    previousListingsRef.current = listings;
+    return () => clearTimeout(timer);
+  }, [listings]);
+
+  const { data: rawMyItems } = useQuery({
+    queryKey: ['userInventory', user?.email],
+    queryFn:  () => inventory.listItems(user.email),
+    enabled:  !!user?.email,
+    staleTime: 30_000,
+  });
+  const myItems = Array.isArray(rawMyItems) ? rawMyItems : [];
+  const listableCount = myItems.filter(i => !i.is_listed && i.item_type === 'sticker').length;
+
+  const flexCoins = user?.flex_coins ?? 0;
+
+  // ── Cancel listing ─────────────────────────────────────────────────────────
+  const handleCancel = useCallback(async (listing) => {
+    try {
+      await marketplace.cancelListing(listing.id);
+      await inventory.setListed(listing.inventory_id, false);
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user?.email] });
+      toast.success('Pulled it back.');
+    } catch (err) {
+      reportError(err, {
+        feature: 'marketplace.cancel-listing', level: 'warning',
+        userEmail: user?.email, listingId: listing?.id,
+      });
+      toast.error('Could not cancel — try again.');
+    }
+  }, [qc, user?.email]);
+
+  // ── Buy item ───────────────────────────────────────────────────────────────
+  // Server-atomic via the purchase_listing RPC (mig 025): locks the listing,
+  // validates the buyer can afford it, deducts buyer coins, credits seller,
+  // transfers the inventory row, marks the listing completed — all in one
+  // transaction. Replaces a 5-step client-orchestrated sequence that had a
+  // double-sell race and a free-item cheat path.
+  const handleBuyConfirm = useCallback(async () => {
+    if (!buyTarget || !user) return;
+    setBuyBusy(true);
+    try {
+      await marketplace.purchaseListing(buyTarget.id);
+      // Flag this listing for the warmer YOURS! sold-fade variant BEFORE
+      // the next refetch removes it from the feed.
+      const justBoughtId = buyTarget.id;
+      setBoughtByMeIds(prev => {
+        const next = new Set(prev);
+        next.add(justBoughtId);
+        return next;
+      });
+      await qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      await qc.invalidateQueries({ queryKey: ['userInventory', user.email] });
+      await qc.invalidateQueries({ queryKey: ['userProfile', user.email] });
+      toast.success(`You bought ${buyTarget.item_emoji} ${buyTarget.item_name}!`);
+      setBuyTarget(null);
+    } catch (err) {
+      reportError(err, { feature: 'marketplace.purchase', level: 'warning', userEmail: user?.email });
+      const msg = err?.message || '';
+      if (/insufficient_coins/.test(msg)) {
+        toast.error('Not enough Flex Coins for this purchase.');
+      } else if (/item no longer available/.test(msg)) {
+        toast.error('That item was already sold or is no longer available.');
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      } else if (/listing is /.test(msg)) {
+        toast.error('That listing is no longer active.');
+        qc.invalidateQueries({ queryKey: ['marketplaceListings'] });
+      } else if (/cannot purchase your own listing/.test(msg)) {
+        toast.error("You can't buy your own listing.");
+      } else {
+        toast.error('Purchase failed: ' + (msg || 'unknown error'));
+      }
+    } finally {
+      setBuyBusy(false);
+    }
+  }, [buyTarget, user, qc]);
+
+  // In "saved" view show only wishlisted listings. In "browse" view, exclude
+  // listings already shown inside a bundle card.
+  const visibleListings = useMemo(() => {
+    if (marketView === 'saved') return listings.filter(l => savedIds.has(l.id));
+    return listings.filter(l => !bundledListingIds.has(l.id));
+  }, [listings, savedIds, marketView, bundledListingIds]);
+
+  // Shared props for every ListingCard so the three render sites (featured
+  // rail, main grid, sold-fade) can't drift apart.
+  const cardProps = {
+    currentUser: user,
+    flexCoins,
+    onCancel: handleCancel,
+    onBuy: (l) => { if (user?.email) addRecentlyViewed(user.email, l); setBuyTarget(l); },
+    onOfferTrade: (l) => { if (user?.email) addRecentlyViewed(user.email, l); setTradeTarget(l); },
+    onSellerClick: handleSellerClick,
+    onToggleSave: handleToggleSave,
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Browse / Saved tab strip */}
+      <div className="flex gap-1 p-1 bg-secondary/40 rounded-xl">
+        {[
+          { id: 'browse', label: 'Browse' },
+          { id: 'saved',  label: `Saved${savedIds.size > 0 ? ` (${savedIds.size})` : ''}` },
+        ].map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setMarketView(tab.id)}
+            className={`flex-1 py-1.5 rounded-lg text-sm font-semibold transition-colors ${
+              marketView === tab.id
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <MarketplaceHeader
+        flexCoins={flexCoins}
+        onRefresh={() => refetch()}
+        onList={() => setShowListDialog(true)}
+        onOpenTradeHistory={() => navigate('/market/trades')}
+        listableCount={listableCount}
+        sortBy={sortBy}
+        sortDir={sortDir}
+        onSortByChange={setSortBy}
+        onSortDirToggle={() => {
+          // If the user is on Recent and taps the direction toggle, they
+          // expect SOMETHING to happen. It used to be disabled, so the tap
+          // silently dropped — reported as "the filter button doesn't do
+          // anything." Now: switch to Price and apply the direction.
+          if (sortBy !== 'price') {
+            setSortBy('price');
+            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+          } else {
+            setSortDir(d => d === 'desc' ? 'asc' : 'desc');
+          }
+        }}
+      />
+
+      {user && (
+        <DailyChestBlock
+          user={user}
+          onClaimed={() => qc.invalidateQueries({ queryKey: ['userProfile', user.email] })}
+        />
+      )}
+
+      {/* Buy More Capsules CTA */}
+      <motion.button
+        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.01 }}
+        onClick={() => setShopOpen(true)}
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-primary/30 bg-card"
+        style={{
+          backgroundImage:
+            'linear-gradient(135deg, hsl(var(--primary) / 0.22) 0%, hsl(var(--primary) / 0.06) 100%)',
+        }}
+      >
+        <div className="w-10 h-10 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0">
+          <Package className="w-5 h-5 text-primary" />
+        </div>
+        <div className="flex-1 text-start">
+          <p className="text-sm font-bold leading-tight">Buy More Capsules</p>
+          <p className="text-[11px] text-muted-foreground leading-tight">Standard · Premium · Elite</p>
+        </div>
+      </motion.button>
+
+      {/* Recently viewed rail — the last few listings this user tapped into
+          but didn't buy. Empty history renders nothing. */}
+      {user?.email && (
+        <RecentlyViewedRail
+          userEmail={user.email}
+          listings={listings}
+          onSelect={(listing) => {
+            if (listing.seller_email !== user.email && listing.listing_type === 'sale') {
+              setBuyTarget(listing);
+            } else if (listing.listing_type === 'trade') {
+              setTradeTarget(listing);
+            }
+          }}
+        />
+      )}
+
+      {/* Listings grid */}
+      {loadingListings ? (
+        <div className="flex items-center justify-center py-20">
+          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        </div>
+      ) : listingsError ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
+          <p className="text-muted-foreground font-medium">Could not load listings</p>
+          <button onClick={() => refetch()} className="text-primary text-sm hover:underline">
+            Try again
+          </button>
+        </div>
+      ) : marketView === 'saved' && savedIds.size === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <Heart className="w-12 h-12 text-muted-foreground/50" />
+          <p className="font-heading font-bold">No saved listings yet</p>
+          <p className="text-muted-foreground text-sm max-w-xs">
+            Tap the ♥ on any listing to save it here.
+          </p>
+          <button
+            onClick={() => setMarketView('browse')}
+            className="mt-1 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm"
+          >
+            Browse marketplace →
+          </button>
+        </div>
+      ) : listings.length === 0 && recentlySold.size === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 gap-3 text-center">
+          <ShoppingBag className="w-12 h-12 text-muted-foreground/50" />
+          <p className="font-heading font-bold">Marketplace is quiet</p>
+          <p className="text-muted-foreground text-sm max-w-xs">
+            No one&apos;s listing right now — be the trendsetter.
+          </p>
+          {listableCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setShowListDialog(true)}
+              className="mt-2 px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-md hover:opacity-90 transition-opacity"
+            >
+              List the first item →
+            </button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Featured this week (mig 122) — quiet when empty so the page
+              doesn't grow a permanent header ribbon for nothing. */}
+          {featuredListings.length > 0 && (
+            <div className="mb-5">
+              <div className="flex items-center gap-1.5 mb-2 px-1">
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-current" />
+                <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-500">
+                  Featured this week
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {featuredListings.map(listing => (
+                  <ListingCard
+                    key={`featured-${listing.id}`}
+                    listing={listing}
+                    soldCount={soldCountMap.get(listing.item_id) || 0}
+                    isSaved={savedIds.has(listing.id)}
+                    {...cardProps}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Bundle deal rows (mig 134) — browse view only. Bundled items
+              are excluded from the regular grid below. */}
+          {marketView === 'browse' && activeBundles.some(b => bundleMap.has(b.id)) && (
+            <div className="mb-4">
+              <div className="flex items-center gap-1.5 mb-2 px-1">
+                <Package className="w-3.5 h-3.5 text-amber-500" />
+                <h3 className="text-xs font-extrabold uppercase tracking-[0.18em] text-amber-500">
+                  Bundle deals
+                </h3>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <AnimatePresence>
+                  {activeBundles
+                    .filter(b => bundleMap.has(b.id) && bundleMap.get(b.id).some(l => l.listing_type === 'sale'))
+                    .map(bundle => (
+                      <BundleCard
+                        key={bundle.id}
+                        bundle={bundle}
+                        listings={bundleMap.get(bundle.id) || []}
+                        currentUser={user}
+                        flexCoins={flexCoins}
+                        onBuyBundle={handleBuyBundle}
+                      />
+                    ))
+                  }
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
+
+          <motion.div layout className="grid grid-cols-2 sm:grid-cols-3 gap-3 items-start">
+            <AnimatePresence>
+              {visibleListings.map(listing => (
+                <ListingCard
+                  key={listing.id}
+                  listing={listing}
+                  soldCount={soldCountMap.get(listing.item_id) || 0}
+                  isSaved={savedIds.has(listing.id)}
+                  {...cardProps}
+                />
+              ))}
+              {/* Sold-fade cards — re-render the just-removed listings from
+                  the previous snapshot with the SOLD overlay for ~5s before
+                  they collapse out. previousListingsRef is always one render
+                  behind, so it still holds the pre-sale data. */}
+              {previousListingsRef.current
+                .filter(l => recentlySold.has(l.id) && !listings.find(x => x.id === l.id))
+                .map(listing => (
+                  <ListingCard
+                    key={`sold-${listing.id}`}
+                    listing={listing}
+                    soldCount={soldCountMap.get(listing.item_id) || 0}
+                    isSaved={savedIds.has(listing.id)}
+                    {...cardProps}
+                    recentlySold
+                    boughtByMe={boughtByMeIds.has(listing.id)}
+                    onBuy={() => {}}
+                    onCancel={() => {}}
+                    onOfferTrade={() => {}}
+                  />
+                ))}
+            </AnimatePresence>
+          </motion.div>
+        </>
+      )}
+
+      {/* Dialogs */}
+      <AnimatePresence>
+        {showListDialog && (
+          <ListItemDialog
+            open={showListDialog}
+            onClose={() => setShowListDialog(false)}
+            userItems={myItems}
+            user={user}
+            onSuccess={() => setShowListDialog(false)}
+          />
+        )}
+        {tradeTarget && (
+          <TradeOfferDialog
+            open={!!tradeTarget}
+            listing={tradeTarget}
+            userItems={myItems}
+            user={user}
+            onClose={() => setTradeTarget(null)}
+          />
+        )}
+        {buyTarget && (
+          <BuyConfirmDialog
+            open={!!buyTarget}
+            listing={buyTarget}
+            onClose={() => !buyBusy && setBuyTarget(null)}
+            onConfirm={handleBuyConfirm}
+            busy={buyBusy}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Coin Shop — opened via the Buy More Capsules CTA */}
+      <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
+    </div>
+  );
+}

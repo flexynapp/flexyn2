@@ -13,22 +13,17 @@ import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Book } from 'lucide-react';
-import { ITEMS, RARITY, CAPSULE_ODDS } from '@/lib/lootCatalog';
+import { ITEMS, CAPSULE_ODDS } from '@/lib/lootCatalog';
+import { rarityTint, COIN } from '@/components/loot/RarityVisuals';
 import { useBodyScrollLock } from '@/hooks/useBodyScrollLock';
 
 const RARITY_ORDER = ['animated', 'legendary', 'epic', 'rare', 'uncommon', 'common'];
 
-// Match RARITY tints from the catalog without leaking app theming —
-// we just want a visible "this is rarer than that" gradient ladder.
-const RARITY_STYLE = {
-  common:    { ring: 'ring-zinc-400/30',    bg: 'bg-zinc-400/8',    text: 'text-zinc-500' },
-  uncommon:  { ring: 'ring-emerald-400/35', bg: 'bg-emerald-400/8', text: 'text-emerald-500' },
-  rare:      { ring: 'ring-sky-400/40',     bg: 'bg-sky-400/8',     text: 'text-sky-500' },
-  epic:      { ring: 'ring-violet-400/45',  bg: 'bg-violet-400/8',  text: 'text-violet-500' },
-  legendary: { ring: 'ring-amber-400/55',   bg: 'bg-amber-400/12',  text: 'text-amber-500' },
-  mythic:    { ring: 'ring-rose-400/60',    bg: 'bg-rose-400/12',   text: 'text-rose-500' },
-  animated:  { ring: 'ring-fuchsia-400/60', bg: 'bg-fuchsia-400/12', text: 'text-fuchsia-500' },
-};
+// Tints come from `rarityTint`, which derives everything from the ONE
+// colour in lootCatalog.RARITY. This file used to carry its own
+// rarity→Tailwind map (zinc/emerald/sky/…) that had already drifted from
+// the catalog's own palette (slate/green/blue/…), so "Rare" was sky-blue
+// here and blue-400 one screen over.
 
 export default function ItemIndexModal({ open, onClose }) {
   useBodyScrollLock(open);
@@ -109,13 +104,15 @@ export default function ItemIndexModal({ open, onClose }) {
           {/* Content */}
           <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
             {grouped.map(group => {
-              const style = RARITY_STYLE[group.rarity] || RARITY_STYLE.common;
-              const rarityMeta = RARITY[group.rarity] || {};
+              const tint = rarityTint(group.rarity);
               return (
                 <section key={group.rarity}>
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[10px] font-bold uppercase tracking-[0.18em] ${style.text}`}>
-                      {rarityMeta.label || group.rarity}
+                    <span
+                      className="text-[10px] font-bold uppercase tracking-[0.18em]"
+                      style={{ color: tint.color }}
+                    >
+                      {tint.label}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       · {group.items.length} item{group.items.length === 1 ? '' : 's'}
@@ -125,7 +122,8 @@ export default function ItemIndexModal({ open, onClose }) {
                     {group.items.map(item => (
                       <div
                         key={item.id}
-                        className={`rounded-lg ${style.bg} ring-1 ${style.ring} p-3 flex items-start gap-2.5`}
+                        className="rounded-lg ring-1 p-3 flex items-start gap-2.5"
+                        style={{ background: tint.wash, '--tw-ring-color': tint.ring }}
                       >
                         <div className="text-2xl shrink-0 leading-none mt-0.5" aria-hidden="true">
                           {item.emoji}
@@ -138,8 +136,8 @@ export default function ItemIndexModal({ open, onClose }) {
                             {item.description}
                           </p>
                           {item.baseCoins > 0 && (
-                            <p className={`text-[10px] font-bold mt-1 ${style.text}`}>
-                              {item.baseCoins} ⚡
+                            <p className="text-[10px] font-bold mt-1" style={{ color: tint.color }}>
+                              {COIN} {item.baseCoins}
                             </p>
                           )}
                         </div>
@@ -160,8 +158,19 @@ export default function ItemIndexModal({ open, onClose }) {
                   {Object.entries(CAPSULE_ODDS).map(([type, odds]) => (
                     <div key={type} className="bg-secondary/40 rounded-lg px-3 py-2">
                       <p className="font-bold capitalize">{type} capsule</p>
+                      {/* CAPSULE_ODDS stores PROBABILITIES (0.600), not
+                          percentages. This used to interpolate the raw
+                          fraction straight into a "%" string, so a 60%
+                          common rate was displayed to users as "0.6%" —
+                          and legendary read "0.002%" instead of 0.2%.
+                          CapsuleRarityOdds.jsx has always scaled correctly;
+                          this surface didn't. */}
                       <p className="text-muted-foreground tabular-nums">
-                        {Object.entries(odds).map(([rarity, pct]) => `${rarity} ${pct}%`).join(' · ')}
+                        {Object.entries(odds)
+                          .filter(([, prob]) => prob > 0)
+                          .map(([rarity, prob]) =>
+                            `${rarity} ${(prob * 100).toFixed(prob < 0.01 ? 2 : 1)}%`)
+                          .join(' · ')}
                       </p>
                     </div>
                   ))}
