@@ -1249,11 +1249,16 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
           />
         </div>
 
-        {/* Name + handle — one logical unit, tight vertical rhythm. */}
+        {/* The handle IS the name. It used to render the username twice —
+            "Test2" capitalised on one line and "@test2" muted underneath —
+            which is one identity taking two rows to say the same word. Hub
+            profiles have never shown a full name (see the username-only note
+            further up), so there was no second piece of information for the
+            second line to carry. */}
         <div className="mt-3">
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="font-heading font-bold text-xl leading-tight min-w-0 truncate">
-              {displayUsername ? displayUsername.charAt(0).toUpperCase() + displayUsername.slice(1) : ''}
+              {displayHandle}
               {signatureTrophy && (
                 <span className="ms-1.5 align-middle" title="Signature trophy" aria-label="Signature trophy">{signatureTrophy}</span>
               )}
@@ -1296,7 +1301,6 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
               </button>
             )}
           </div>
-          <p className="text-sm text-muted-foreground font-medium leading-tight mt-0.5">{displayHandle}</p>
         </div>
 
         {/* Pill row — activity, equipped title and mutual status were three
