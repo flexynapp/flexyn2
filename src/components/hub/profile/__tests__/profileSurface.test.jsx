@@ -85,7 +85,7 @@ describe('ProfileMetrics', () => {
 });
 
 describe('ProfileTierBanner', () => {
-  it('exposes the XP numbers that used to be a visible caption', () => {
+  it('states the remaining XP and the level it unlocks', () => {
     render(
       <ProfileTierBanner
         tier={TIER}
@@ -98,12 +98,32 @@ describe('ProfileTierBanner', () => {
         isAdminProfile={false}
       />
     );
-    const bar = screen.getByRole('progressbar');
+    // Exactly one. The XP used to render twice — a hairline along the
+    // banner's bottom edge AND a floating caption — which is two renderings
+    // of one number inviting the reader to check whether they agree.
+    const bars = screen.getAllByRole('progressbar');
+    expect(bars).toHaveLength(1);
+
+    const bar = bars[0];
     expect(bar.getAttribute('aria-valuenow')).toBe('62');
-    expect(bar.getAttribute('aria-label')).toContain('1240');
-    expect(bar.getAttribute('aria-label')).toContain('2000');
+    // The remaining XP (2000 - 1240) and the level it buys, not the raw
+    // position in the level — "760 to go" is the actionable half.
+    expect(bar.getAttribute('aria-label')).toContain('760');
+    expect(bar.getAttribute('aria-label')).toContain('55');
     expect(screen.getByText('Ruby')).toBeTruthy();
     expect(screen.getByText('54')).toBeTruthy();
+  });
+
+  it('renders the primary trophy as a crest, and nothing when there is none', () => {
+    const base = {
+      tier: TIER, level: 54, levelLabel: 'Lv 54', levelWord: 'Lv',
+      xpInLevel: 1240, xpNeeded: 2000, progressPercent: 62,
+    };
+    const { container, rerender } = render(<ProfileTierBanner {...base} />);
+    expect(container.textContent).not.toContain('👑');
+
+    rerender(<ProfileTierBanner {...base} primaryTrophy="👑" />);
+    expect(container.textContent).toContain('👑');
   });
 
   it('labels the level so the numeral is not left to be guessed at', () => {
@@ -232,8 +252,12 @@ describe('ProfileTrophies', () => {
         tFallback={tFallback}
       />
     );
-    fireEvent.click(screen.getByLabelText(/Slot 1/));
+    // Slot 1 is announced as the primary, not by its index — the position
+    // carries meaning now, so the label says what the meaning is.
+    fireEvent.click(screen.getByLabelText(/Primary trophy/));
     expect(onPickSlot).not.toHaveBeenCalled();
+    // And the other four stay indexed.
+    expect(screen.getByLabelText(/Slot 2/)).toBeTruthy();
 
     rerender(
       <ProfileTrophies
@@ -246,7 +270,7 @@ describe('ProfileTrophies', () => {
         tFallback={tFallback}
       />
     );
-    fireEvent.click(screen.getByLabelText(/Slot 1/));
+    fireEvent.click(screen.getByLabelText(/Primary trophy/));
     expect(onPickSlot).toHaveBeenCalledWith(0);
   });
 });

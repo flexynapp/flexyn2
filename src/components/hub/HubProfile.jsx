@@ -4,6 +4,7 @@
 // algorithm and can produce TDZ (Cannot access 'X' before initialization) errors
 // in the Hub bundle. Keep imports-first as an invariant here.
 import { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/lib/toast';
@@ -39,6 +40,8 @@ import ProfileMetrics from './profile/ProfileMetrics';
 import ProfileActions from './profile/ProfileActions';
 import ProfileTabs, { ProfileTabPanel } from './profile/ProfileTabs';
 import ProfileTrophies from './profile/ProfileTrophies';
+import ProfileContestRail from './profile/ProfileContestRail';
+import { useHeroContests } from './profile/useHeroContests';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
 import { RARITY } from '@/lib/lootCatalog';
@@ -61,6 +64,7 @@ const HeavyBirdModal = lazy(() => import('./HeavyBirdModal'));
 // Hidden easter-egg "Sweat Jetpack" — only on the @calason44 profile.
 // Fat sweating dude propelled by his own sweat. Pixelated retro look.
 const SweatJetpackModal = lazy(() => import('./SweatJetpackModal'));
+const LeaderboardsModal = lazy(() => import('@/components/LeaderboardsModal'));
 
 // ─── Steel USA overlay — rendered when any user views @sean's profile ─────────
 // Fixed to viewport, pointer-events-none, z-0 (behind all UI)
@@ -337,7 +341,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   // otherwise navigating person → person would strand you on someone else's
   // Posts tab with no visual explanation of why.
   const [activeTab, setActiveTab] = useState('stats');
+  // Leaderboards open in place from the league pill rather than routing —
+  // LeaderboardsModal is self-contained and the user is mid-profile.
+  const [leaguesOpen, setLeaguesOpen] = useState(false);
   const storyFileRef = useRef(null);
+  const navigate = useNavigate();
 
   // Always start a profile view at the top, regardless of where the user
   // scrolled before navigating in. Using 'auto' (not 'smooth') because the
@@ -762,6 +770,14 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     next[slotIdx] = emoji ? { type: 'emoji', value: emoji } : null;
     try {
       await me.update({ trophy_case: next });
+      // checkUserAuth, not just the query invalidation. On your OWN profile
+      // `trophyCase` is read from useAuth().user, not from the
+      // hubProfileLookup cache (which is null for self) — so invalidating the
+      // query alone left the write persisted server-side and invisible until
+      // a reload. Same pattern handleSetSignature and handleSaveProfile
+      // already use. More noticeable now that slot 1 also drives the banner
+      // crest: you'd pick a trophy and nothing anywhere would change.
+      await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
     } catch {
       toast.error('Could not update trophy case');
@@ -772,6 +788,7 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     const next = !trophyVisible;
     try {
       await me.update({ trophy_case_visible: next });
+      await checkUserAuth?.();
       queryClient.invalidateQueries({ queryKey: ['hubProfileLookup', email] });
     } catch {
       toast.error('Could not update visibility');
@@ -931,6 +948,11 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
   const trainingWeek = useMemo(() => buildTrainingWeek(heroLogs, new Date(), language), [heroLogs, language]);
   const trainingStreak = useMemo(() => currentStreak(heroLogs), [heroLogs]);
 
+  // Live contests — self only; there's no server surface exposing another
+  // user's rival pairing or their crew's war, and adding one is a privacy
+  // decision, not a UI one.
+  const { league: heroLeague, rival: heroRival, war: heroWar } = useHeroContests({ user, isSelf });
+
   const isVerifiedUser = isVerified(displayUsername);
   const isPoopUser = isPoop(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
@@ -1023,6 +1045,30 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         week={trainingWeek}
         streak={trainingStreak}
         tFallback={tFallback}
+        // Slot 1 IS the primary — the trophy case is already an ordered
+        // array, so "most prized" needs no new column, just the convention
+        // that position one means something. ProfileTrophies marks it.
+        primaryTrophy={trophyVisible ? (trophyCase[0]?.value ?? null) : null}
+        contests={(heroLeague || heroRival || heroWar) ? (
+          <ProfileContestRail
+            league={heroLeague}
+            rival={heroRival}
+            war={heroWar}
+            language={language}
+            tFallback={tFallback}
+            onOpenLeague={() => setLeaguesOpen(true)}
+            // The rival card lives on Workout; the crew war lives in the Hub
+            // crews section, which listens for this event (the same hand-off
+            // CrewDMInviteCard uses).
+            onOpenRival={() => navigate('/workout')}
+            onOpenWar={() => {
+              navigate('/hub');
+              if (heroWar?.crewId) {
+                window.dispatchEvent(new CustomEvent('flexyn:open-crew', { detail: { crewId: heroWar.crewId } }));
+              }
+            }}
+          />
+        ) : null}
       />
 
       {/* ── Identity ────────────────────────────────────────────────────
@@ -1919,6 +1965,15 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
       {/* Theme Selector */}
       {isSelf && (
         <ThemeSelector open={themeOpen} onClose={() => setThemeOpen(false)} />
+      )}
+
+      {/* Leaderboards — opened by the hero's league pill. Lazy so the whole
+          leaderboard surface stays out of the profile chunk for the users who
+          never tap it. */}
+      {leaguesOpen && (
+        <Suspense fallback={null}>
+          <LeaderboardsModal open={leaguesOpen} onClose={() => setLeaguesOpen(false)} />
+        </Suspense>
       )}
 
       {/* Profile QR code modal */}

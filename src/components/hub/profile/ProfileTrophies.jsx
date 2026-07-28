@@ -15,7 +15,7 @@
 //     want to complete; "8/24" with fifteen empty frames says something that
 //     "8/24" alone doesn't.
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, Pin } from 'lucide-react';
 import { TROPHIES, TROPHY_TIERS, getTrophy } from '@/lib/trophyDefinitions';
 
 function SectionLabel({ children, aside }) {
@@ -49,10 +49,20 @@ export default function ProfileTrophies({
           <SectionLabel aside={isSelf ? tFallback('hub.profile.tapToSwap', 'Tap to swap') : null}>
             {tFallback('hub.profile.trophyCase', 'Trophy case')}
           </SectionLabel>
+          {/* Slot 1 is the primary. It's marked three ways — an amber ring, a
+              pin badge, and a caption — because a position that carries
+              meaning has to LOOK like it does. Without that it's just the
+              leftmost box, and nobody puts their best trophy there on
+              purpose. Whatever sits here is also struck into the profile
+              banner as a crest, which is the actual reward for choosing. */}
           <div className="flex gap-2">
             {Array(5).fill(null).map((_, i) => {
               const slot = trophyCase[i] ?? null;
               const label = slot ? (trophyLabels[slot.value] || slot.value) : null;
+              const isPrimary = i === 0;
+              const slotName = isPrimary
+                ? tFallback('hub.profile.primarySlot', 'Primary trophy')
+                : `${tFallback('hub.profile.slot', 'Slot')} ${i + 1}`;
               return (
                 <motion.button
                   key={i}
@@ -61,16 +71,26 @@ export default function ProfileTrophies({
                   whileTap={isSelf ? { scale: 0.9 } : undefined}
                   disabled={!isSelf}
                   aria-label={slot
-                    ? `${tFallback('hub.profile.slot', 'Slot')} ${i + 1}: ${label}`
-                    : `${tFallback('hub.profile.emptySlot', 'Empty slot')} ${i + 1}`}
-                  className={`flex-1 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors ${
+                    ? `${slotName}: ${label}`
+                    : `${slotName} — ${tFallback('hub.profile.emptySlot', 'empty')}`}
+                  className={`relative flex-1 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 transition-colors ${
                     slot
-                      ? 'bg-secondary/40'
+                      ? isPrimary ? 'bg-amber-500/15' : 'bg-secondary/40'
                       : isSelf
-                        ? 'border border-dashed border-primary/45 hover:bg-secondary/40'
+                        ? isPrimary
+                          ? 'border border-dashed border-amber-500/60 hover:bg-amber-500/10'
+                          : 'border border-dashed border-primary/45 hover:bg-secondary/40'
                         : 'bg-secondary/20'
-                  } ${isSelf ? 'cursor-pointer' : 'cursor-default'}`}
+                  } ${isPrimary ? 'ring-1 ring-amber-500/45' : ''} ${isSelf ? 'cursor-pointer' : 'cursor-default'}`}
                 >
+                  {/* The identifier. Deliberately tiny — it has to say "this
+                      one is different" without competing with the trophy. */}
+                  {isPrimary && (
+                    <Pin
+                      className="absolute top-1 end-1 w-2.5 h-2.5 text-amber-500"
+                      aria-hidden="true"
+                    />
+                  )}
                   {slot ? (
                     <>
                       <span className="text-2xl leading-none">{slot.value}</span>
@@ -79,7 +99,14 @@ export default function ProfileTrophies({
                       </span>
                     </>
                   ) : isSelf ? (
-                    <Plus className="w-4 h-4 text-primary/50" />
+                    <>
+                      <Plus className={`w-4 h-4 ${isPrimary ? 'text-amber-500/70' : 'text-primary/50'}`} />
+                      {isPrimary && (
+                        <span className="text-[9px] font-bold uppercase tracking-wider text-amber-600/80 dark:text-amber-500/80 leading-none">
+                          {tFallback('hub.profile.primaryShort', 'Primary')}
+                        </span>
+                      )}
+                    </>
                   ) : (
                     <span className="text-muted-foreground/25 text-sm">—</span>
                   )}
@@ -87,6 +114,11 @@ export default function ProfileTrophies({
               );
             })}
           </div>
+          {isSelf && (
+            <p className="text-xs text-muted-foreground mt-2">
+              {tFallback('hub.profile.primaryHint', 'Slot 1 is your primary — it shows on your profile banner.')}
+            </p>
+          )}
         </section>
       )}
 

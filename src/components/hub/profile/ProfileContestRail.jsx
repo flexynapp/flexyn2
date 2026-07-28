@@ -1,0 +1,134 @@
+// src/components/hub/profile/ProfileContestRail.jsx
+//
+// Live contests, as a row of glass pills across the hero's middle band.
+//
+// League placement, gym rival and crew war are three different features, but
+// to the person looking at them they're one thing: what am I currently in,
+// and am I winning it. Rendering them as three differently-shaped widgets
+// would be three answers to one question. One family, one row, one read.
+//
+// Design notes:
+//   • Glass rather than solid, so ten different tier gradients show through
+//     and the rail belongs to whatever surface it lands on. Same treatment as
+//     the streak chip above it — they read as siblings, not neighbours.
+//   • In a two-sided contest the LEADING number is white and full weight; the
+//     trailing one drops to 55%. Who's ahead should be readable without
+//     parsing two numbers and comparing them.
+//   • Ahead gets a faint emerald edge. Behind gets nothing — no red, no
+//     warning colour. A profile is not the place to be told off.
+//   • Each pill is a button. A hero element that shows live state and can't
+//     be acted on is a poster; these go to the thing they describe.
+
+import { Trophy, Swords, Shield } from 'lucide-react';
+import { formatNumber } from '@/lib/intl';
+
+const GLASS = {
+  background: 'rgba(0,0,0,0.26)',
+  backdropFilter: 'blur(8px)',
+  WebkitBackdropFilter: 'blur(8px)',
+};
+
+const compact = (n, language) =>
+  formatNumber(Number(n) || 0, language, { notation: 'compact', maximumFractionDigits: 1 });
+
+function Pill({ icon: Icon, iconClass, children, onClick, ahead, label }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className="shrink-0 inline-flex items-center gap-1.5 h-8 ps-2.5 pe-3 rounded-full text-white transition-transform active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      style={{
+        ...GLASS,
+        border: `1px solid ${ahead ? 'rgba(52,211,153,0.55)' : 'rgba(255,255,255,0.16)'}`,
+        boxShadow: ahead ? '0 0 12px rgba(52,211,153,0.28)' : undefined,
+      }}
+    >
+      <Icon className={`w-3.5 h-3.5 shrink-0 ${iconClass}`} aria-hidden="true" />
+      {children}
+    </button>
+  );
+}
+
+/** Two scores, with the leading one carrying the emphasis. */
+function Versus({ mine, theirs, language }) {
+  const iLead = mine >= theirs;
+  return (
+    <span className="text-xs font-bold tabular-nums leading-none">
+      <span style={{ opacity: iLead ? 1 : 0.55 }}>{compact(mine, language)}</span>
+      <span className="mx-0.5" style={{ opacity: 0.5 }}>–</span>
+      <span style={{ opacity: iLead ? 0.55 : 1 }}>{compact(theirs, language)}</span>
+    </span>
+  );
+}
+
+export default function ProfileContestRail({
+  league,
+  rival,
+  war,
+  onOpenLeague,
+  onOpenRival,
+  onOpenWar,
+  language,
+  tFallback,
+}) {
+  const tf = tFallback || ((_k, fb) => fb);
+  if (!league && !rival && !war) return null;
+
+  return (
+    <div
+      className="absolute inset-x-0 z-10 flex gap-2 overflow-x-auto px-4 scrollbar-hide"
+      style={{
+        top: 58,
+        // The rail can overflow on a narrow phone with all three pills. It
+        // scrolls rather than wrapping — a second row would collide with the
+        // avatar, which starts 44px above the hero's bottom edge.
+        scrollbarWidth: 'none',
+        WebkitOverflowScrolling: 'touch',
+      }}
+    >
+      {league && (
+        <Pill
+          icon={Trophy}
+          iconClass="text-amber-300"
+          onClick={onOpenLeague}
+          label={tf('profile.hero.leagueA11y', 'League placement: {r} of {t}')
+            .replace('{r}', String(league.rank)).replace('{t}', String(league.total))}
+        >
+          <span className="text-xs font-bold tabular-nums leading-none">#{league.rank}</span>
+          {league.tierLabel && (
+            <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
+              {league.tierLabel}
+            </span>
+          )}
+        </Pill>
+      )}
+
+      {rival && (
+        <Pill
+          icon={Swords}
+          iconClass="text-rose-300"
+          onClick={onOpenRival}
+          ahead={rival.mine > rival.theirs}
+          label={tf('profile.hero.rivalA11y', 'Rival: you {a}, them {b}')
+            .replace('{a}', String(Math.round(rival.mine))).replace('{b}', String(Math.round(rival.theirs)))}
+        >
+          <Versus mine={rival.mine} theirs={rival.theirs} language={language} />
+        </Pill>
+      )}
+
+      {war && (
+        <Pill
+          icon={Shield}
+          iconClass="text-sky-300"
+          onClick={onOpenWar}
+          ahead={war.mine > war.theirs}
+          label={tf('profile.hero.warA11y', 'Crew war: your crew {a}, theirs {b}')
+            .replace('{a}', String(Math.round(war.mine))).replace('{b}', String(Math.round(war.theirs)))}
+        >
+          <Versus mine={war.mine} theirs={war.theirs} language={language} />
+        </Pill>
+      )}
+    </div>
+  );
+}

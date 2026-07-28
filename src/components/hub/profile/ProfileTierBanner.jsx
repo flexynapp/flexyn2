@@ -87,6 +87,8 @@ export default function ProfileTierBanner({
   week = [],
   streak = 0,
   tFallback,
+  contests = null,
+  primaryTrophy = null,
 }) {
   // Fall back to English when the caller doesn't pass a translator — the
   // component is rendered in tests and previews without LanguageContext.
@@ -170,6 +172,40 @@ export default function ProfileTierBanner({
           />
         )}
       </motion.div>
+
+      {/* Primary trophy — the crest.
+          Slot 1 of the trophy case, rendered large behind everything. It sits
+          UNDER the grain and vignette rather than on top of them, so it reads
+          as struck into the banner's material rather than as a sticker placed
+          over it — the same reason a watermark on paper looks like part of
+          the page and a decal doesn't.
+
+          Positioned centre-right and cropped by the edge, which is the one
+          region no widget occupies: week strip and streak take the top row,
+          contests the middle, XP and tier the bottom. */}
+      {primaryTrophy && (
+        <div
+          aria-hidden="true"
+          className="absolute pointer-events-none select-none"
+          style={{
+            // Centred just right of middle, NOT pinned to the edge. At the
+            // edge it sat directly behind the tier block and the crown's
+            // points cut through "BRONZE". Here it clears the tier lockup on
+            // the right and the week strip on the left, and where the contest
+            // pills cross it they're glass — so it reads through the blur,
+            // which is what glass is for.
+            left: '52%',
+            top: '50%',
+            transform: 'translate(-50%, -50%) rotate(-8deg)',
+            fontSize: 120,
+            lineHeight: 1,
+            opacity: 0.75,
+            filter: 'drop-shadow(0 6px 18px rgba(0,0,0,0.35))',
+          }}
+        >
+          {primaryTrophy}
+        </div>
+      )}
 
       {/* Grain. An inline feTurbulence over `overlay` — it destroys the
           banding an 8-bit gradient produces across 390px and gives the
@@ -268,21 +304,10 @@ export default function ProfileTierBanner({
         </div>
       )}
 
-      {/* XP target — bottom-left, above the rail it describes. The rail used
-          to fill in silence: a progress bar that never states its goal is
-          decoration wearing a progress bar's clothes. */}
-      {xpToNext != null && (
-        <div
-          // Same inset as the rail below it, for the same reason: the avatar
-          // punches through the bottom-left corner. At `start-4` this sat
-          // directly behind the avatar's face — the identical mistake the XP
-          // rail made before it was inset.
-          className="absolute bottom-3.5 z-10 text-white text-xs font-semibold tabular-nums start-[116px] md:start-[124px]"
-          style={{ textShadow: '0 1px 6px rgba(0,0,0,0.55)' }}
-        >
-          {xpToNextLabel}
-        </div>
-      )}
+      {/* Live contests — the middle band, between the week strip and the
+          avatar's top edge. Absent entirely when there's nothing running,
+          which is why the hero doesn't grow for it. */}
+      {contests}
 
       {/* Tier + level. Bottom-right so it never collides with the avatar,
           which punches through the bottom-left of the same seam.
@@ -310,42 +335,37 @@ export default function ProfileTierBanner({
             {level}
           </span>
         </div>
-      </div>
 
-      {/*
-        XP as the banner's bottom edge. aria-label carries the numbers the old
-        card printed underneath, so nothing is lost to screen readers.
+        {/* XP as a pill under the level, spanning the lockup's own width —
+            from the left edge of the tier name to the right edge of the
+            level numeral, because the block is shrink-to-fit and this is
+            w-full inside it.
 
-        The start inset clears the avatar, which punches through this exact
-        edge on the left. Full-bleed it drew a 3px dark line straight across
-        the avatar's face — its z-10 beat the avatar's z-index:auto, so the
-        track won the paint order.
-
-        Insetting rather than re-stacking is deliberate: if the avatar simply
-        painted on top, the first ~22% of the bar would sit behind it, and a
-        level-1 user — everyone on day one — would see a progress bar that
-        never appears to start. The numbers are the container's padding
-        (16px / 24px at md, cancelled by this banner's -mx-4 md:-mx-6), plus
-        the 88px avatar, plus a 12px gap.
-      */}
-      <div
-        className="absolute end-0 bottom-0 z-10 start-[116px] md:start-[124px]"
-        style={{ height: 3, background: 'rgba(0,0,0,0.28)' }}
-        role="progressbar"
-        aria-valuenow={Math.round(progressPercent)}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label={`${levelLabel} — ${Math.round(xpInLevel)} of ${xpNeeded} XP`}
-      >
+            This replaces both the floating "150 XP to Lv 2" text AND the
+            3px rail along the banner's bottom edge. Those were two renderings
+            of one number in two places, which invites the reader to check
+            whether they agree. Attached to the level it's unambiguous about
+            what is progressing. */}
         <div
-          className="h-full bg-white"
-          style={{
-            width: `${railWidth}%`,
-            boxShadow: '0 0 8px rgba(255,255,255,0.8)',
-            transition: reduceMotion ? undefined : 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-        />
+          className="w-full rounded-full overflow-hidden mt-1.5"
+          style={{ height: 4, background: 'rgba(0,0,0,0.32)', boxShadow: 'inset 0 0 0 1px rgba(255,255,255,0.14)' }}
+          role="progressbar"
+          aria-valuenow={Math.round(progressPercent)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={xpToNext != null ? xpToNextLabel : levelLabel}
+        >
+          <div
+            className="h-full rounded-full bg-white"
+            style={{
+              width: `${railWidth}%`,
+              boxShadow: '0 0 8px rgba(255,255,255,0.75)',
+              transition: reduceMotion ? undefined : 'width 0.7s cubic-bezier(0.22, 1, 0.36, 1)',
+            }}
+          />
+        </div>
       </div>
+
     </div>
   );
 }
