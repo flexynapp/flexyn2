@@ -39,3 +39,6 @@ src/lib/i18n-langs/
 # Claude Code local config and worktrees — never commit these
 .claude/settings.local.json
 .claude/worktrees/
+
+# Supabase CLI local state
+supabase/.temp/
