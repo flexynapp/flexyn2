@@ -61,6 +61,7 @@ export default function ProfileTierBanner({
   tier,
   level,
   levelLabel,
+  levelWord,
   xpInLevel,
   xpNeeded,
   progressPercent,
@@ -140,20 +141,31 @@ export default function ProfileTierBanner({
       />
 
       {/* Tier + level. Bottom-right so it never collides with the avatar,
-          which punches through the bottom-left of the same seam. */}
-      <div className="absolute end-4 bottom-4 z-10 flex items-baseline gap-2 text-white">
-        <span
-          className="font-heading font-bold text-sm uppercase tracking-widest"
-          style={{ textShadow: '0 1px 6px rgba(0,0,0,0.5)' }}
+          which punches through the bottom-left of the same seam.
+
+          Stacked and explicitly labelled. It used to render as "BRONZE 1" on
+          one line, where the numeral had nothing to say what it counted —
+          a bare "1" next to a tier name reads just as easily as a rank, a
+          position, or a badge count. The tier is the eyebrow; the level is
+          the headline, because the level is the thing that moves. */}
+      <div className="absolute end-4 bottom-3.5 z-10 text-white text-end">
+        <div
+          className="font-heading font-bold text-xs uppercase tracking-[0.2em] opacity-90 leading-none"
+          style={{ textShadow: '0 1px 6px rgba(0,0,0,0.55)' }}
         >
           {tier.name}
-        </span>
-        <span
-          className="font-heading font-bold text-3xl leading-none tabular-nums"
-          style={{ textShadow: '0 1px 8px rgba(0,0,0,0.5)' }}
+        </div>
+        <div
+          className="flex items-baseline justify-end gap-1.5 mt-1"
+          style={{ textShadow: '0 1px 8px rgba(0,0,0,0.55)' }}
         >
-          {level}
-        </span>
+          <span className="font-heading font-bold text-xs uppercase tracking-[0.16em] opacity-90">
+            {levelWord}
+          </span>
+          <span className="font-heading font-bold text-3xl leading-none tabular-nums">
+            {level}
+          </span>
+        </div>
       </div>
 
       {/*

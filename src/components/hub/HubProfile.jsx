@@ -988,6 +988,12 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         tier={tier}
         level={level}
         levelLabel={t('levelBar.level').replace('{n}', level)}
+        // The bare word, taken from the same translated template rather than
+        // stripping digits out of the formatted string — locales that write
+        // the number first would lose the wrong part otherwise. Trim only:
+        // several locales abbreviate WITH a period ("Ур. {n}", "Poz. {n}")
+        // and that period is part of the word, not trailing punctuation.
+        levelWord={t('levelBar.level').replace('{n}', '').trim()}
         xpInLevel={xpInLevel}
         xpNeeded={xpNeeded}
         progressPercent={progressPercent}

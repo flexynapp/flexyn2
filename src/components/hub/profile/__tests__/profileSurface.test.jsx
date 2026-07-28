@@ -90,7 +90,8 @@ describe('ProfileTierBanner', () => {
       <ProfileTierBanner
         tier={TIER}
         level={54}
-        levelLabel="Level 54"
+        levelLabel="Lv 54"
+        levelWord="Lv"
         xpInLevel={1240}
         xpNeeded={2000}
         progressPercent={62}
@@ -103,6 +104,23 @@ describe('ProfileTierBanner', () => {
     expect(bar.getAttribute('aria-label')).toContain('2000');
     expect(screen.getByText('Ruby')).toBeTruthy();
     expect(screen.getByText('54')).toBeTruthy();
+  });
+
+  it('labels the level so the numeral is not left to be guessed at', () => {
+    // It rendered "Ruby 54" — a bare numeral beside a tier name reads just
+    // as easily as a rank, a position, or a badge count.
+    render(
+      <ProfileTierBanner
+        tier={TIER}
+        level={54}
+        levelLabel="Lv 54"
+        levelWord="Lv"
+        xpInLevel={1240}
+        xpNeeded={2000}
+        progressPercent={62}
+      />
+    );
+    expect(screen.getByText('Lv')).toBeTruthy();
   });
 });
 
