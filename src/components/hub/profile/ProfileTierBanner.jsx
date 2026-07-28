@@ -19,7 +19,8 @@
 //     latency after the first visit.
 import { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, Flame } from 'lucide-react';
+import { HeroPill } from './ProfileContestRail';
 
 // Ambient dots. Particles.jsx hardcodes `rounded-3xl` on its root, which
 // would clip a rectangular banner's corners — so the dots are inlined here
@@ -70,8 +71,9 @@ const HERO_HEIGHT = 176;
 // side — so the seamless tile is 120% of the rect while CSS repeats at
 // 100%. The two don't line up and you get a hard vertical line at every
 // tile boundary. Pinning the region to the rect makes them the same box.
-// `overlay` lets it darken the lights and lighten the darks rather than
-// greying the whole surface down.
+//
+// `overlay` blending lets it darken the lights and lighten the darks rather
+// than greying the whole surface down.
 const GRAIN = {
   backgroundImage:
     "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n' filterUnits='userSpaceOnUse' x='0' y='0' width='140' height='140'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")",
@@ -120,9 +122,9 @@ const STREAK_CHIP_MIN = 2;
 // that future band has an obvious anchor to attach to — and so nobody
 // "tidies up" the gap without realising it was load-bearing.
 //
-// NOTE for whoever builds that: the streak chip currently occupies the right
-// half of this band. A seasonal title and the streak chip cannot both live
-// here, so one of them moves at that point.
+// The band is clear: the week strip sits above it on the left and the crest
+// below it on the right, so a seasonal title can take the full width without
+// displacing anything.
 const CREST_HEADROOM = 38;
 
 export default function ProfileTierBanner({
@@ -377,31 +379,43 @@ export default function ProfileTierBanner({
         </div>
       )}
 
-      {/* Streak — top-right. Hidden below two days: "🔥 0" reads as a scold,
-          and one day isn't a streak, it's a Tuesday. Derived from the same
-          logs as the strip above, so the two can never contradict. */}
-      {streak >= STREAK_CHIP_MIN && (
+      {/* Status column — contests on top, streak under them, left-aligned
+          below the week strip.
+
+          One positioned column rather than two independently-placed widgets,
+          so the streak sits directly under the league pill whether or not any
+          contests render. Placing it absolutely on its own would mean picking
+          a top offset that's only correct in one of those two cases. */}
+      {(contests || streak >= STREAK_CHIP_MIN) && (
         <div
-          className="absolute end-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full text-white"
-          style={{
-            background: 'rgba(0,0,0,0.26)',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.16)',
-            padding: '5px 11px 5px 8px',
-          }}
+          className="absolute start-4 end-4 z-10 flex flex-col items-start gap-2"
+          style={{ top: 58 }}
         >
-          <span aria-hidden="true">🔥</span>
-          <span className="font-heading font-bold text-base leading-none tabular-nums">{streak}</span>
-          <span className="text-[9.5px] font-extrabold uppercase tracking-wider opacity-90">
-            {streakLabel}
-          </span>
+          {contests}
+
+          {/* Same HeroPill as the contest rail, so the two are identical in
+              size and treatment by construction rather than by copied
+              numbers. No onClick — it renders as a span, because the streak
+              isn't a destination and a dead button is a promise the UI can't
+              keep.
+
+              Hidden below two days: "🔥 0" reads as a scold, and one day
+              isn't a streak, it's a Tuesday. Derived from the same logs as
+              the week strip above it, so the two can never contradict. */}
+          {streak >= STREAK_CHIP_MIN && (
+            <HeroPill
+              icon={Flame}
+              iconClass="text-orange-300"
+              label={`${streak} ${streakLabel}`}
+            >
+              <span className="text-xs font-bold tabular-nums leading-none">{streak}</span>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider" style={{ opacity: 0.75 }}>
+                {streakLabel}
+              </span>
+            </HeroPill>
+          )}
         </div>
       )}
-
-      {/* Live contests — the middle band, between the week strip and the
-          avatar's top edge. Absent entirely when there's nothing running,
-          which is why the hero doesn't grow for it. */}
-      {contests}
 
       {/* Tier + level. Bottom-right so it never collides with the avatar,
           which punches through the bottom-left of the same seam.

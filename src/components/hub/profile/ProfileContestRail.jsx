@@ -31,13 +31,27 @@ const GLASS = {
 const compact = (n, language) =>
   formatNumber(Number(n) || 0, language, { notation: 'compact', maximumFractionDigits: 1 });
 
-function Pill({ icon: Icon, iconClass, children, onClick, ahead, label }) {
+/**
+ * The hero's glass pill.
+ *
+ * Exported because the streak pill in ProfileTierBanner has to be exactly the
+ * same size and treatment as the league pill it sits under. Sharing the
+ * component makes that true by construction — matching it by copying `h-8`
+ * and a padding pair into a second file is how two things drift apart the
+ * first time either is touched.
+ *
+ * Renders a <button> when given onClick, a <span> otherwise: the streak isn't
+ * a destination, and a button that does nothing is a promise the UI can't keep.
+ */
+export function HeroPill({ icon: Icon, iconClass, children, onClick, ahead, label }) {
+  const Tag = onClick ? 'button' : 'span';
   return (
-    <button
-      type="button"
-      onClick={onClick}
+    <Tag
+      {...(onClick ? { type: 'button', onClick } : {})}
       aria-label={label}
-      className="shrink-0 inline-flex items-center gap-1.5 h-8 ps-2.5 pe-3 rounded-full text-white transition-transform active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70"
+      className={`shrink-0 inline-flex items-center gap-1.5 h-8 ps-2.5 pe-3 rounded-full text-white ${
+        onClick ? 'transition-transform active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70' : ''
+      }`}
       style={{
         ...GLASS,
         border: `1px solid ${ahead ? 'rgba(52,211,153,0.55)' : 'rgba(255,255,255,0.16)'}`,
@@ -46,9 +60,11 @@ function Pill({ icon: Icon, iconClass, children, onClick, ahead, label }) {
     >
       <Icon className={`w-3.5 h-3.5 shrink-0 ${iconClass}`} aria-hidden="true" />
       {children}
-    </button>
+    </Tag>
   );
 }
+
+const Pill = HeroPill;
 
 /** Two scores, with the leading one carrying the emphasis. */
 function Versus({ mine, theirs, language }) {
@@ -76,13 +92,15 @@ export default function ProfileContestRail({
   if (!league && !rival && !war) return null;
 
   return (
+    // In normal flow, not absolutely positioned. The banner stacks this and
+    // the streak pill in one column, so the rail no longer owns its own
+    // placement — it just lays its pills out in a row.
     <div
-      className="absolute inset-x-0 z-10 flex gap-2 overflow-x-auto px-4 scrollbar-hide"
+      className="flex gap-2 overflow-x-auto scrollbar-hide"
       style={{
-        top: 58,
-        // The rail can overflow on a narrow phone with all three pills. It
-        // scrolls rather than wrapping — a second row would collide with the
-        // avatar, which starts 44px above the hero's bottom edge.
+        // Can overflow on a narrow phone with all three pills, so it scrolls
+        // rather than wrapping — a wrapped second row would push the streak
+        // pill down into the avatar, which starts 44px above the hero's edge.
         scrollbarWidth: 'none',
         WebkitOverflowScrolling: 'touch',
       }}
