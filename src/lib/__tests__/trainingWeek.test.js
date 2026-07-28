@@ -40,36 +40,77 @@ describe('trainedDayKeys', () => {
 });
 
 describe('buildTrainingWeek', () => {
-  it('returns seven days ending today, oldest first', () => {
+  // NOW is Monday 27 July 2026 — the first day of its own week, which is the
+  // case most likely to be wrong in a Monday-start implementation.
+  it('runs Monday to Sunday of the current week', () => {
     const days = buildTrainingWeek([], NOW, 'en');
     expect(days).toHaveLength(7);
-    expect(days[0].key).toBe('2026-07-21');
-    expect(days[6].key).toBe('2026-07-27');
+    expect(days[0].key).toBe('2026-07-27'); // Mon
+    expect(days[6].key).toBe('2026-08-02'); // Sun
+  });
+
+  it('anchors to Monday from any day in the week', () => {
+    for (const day of [27, 28, 29, 30, 31]) {
+      const days = buildTrainingWeek([], at(2026, 7, day), 'en');
+      expect(days[0].key).toBe('2026-07-27');
+      expect(days[6].key).toBe('2026-08-02');
+    }
+  });
+
+  it('treats Sunday as the LAST day, not the first', () => {
+    // Sunday 2 Aug belongs to the week that began Monday 27 July. A naive
+    // getDay()-based start would throw it forward into the next week.
+    const days = buildTrainingWeek([], at(2026, 8, 2), 'en');
+    expect(days[0].key).toBe('2026-07-27');
+    expect(days[6].key).toBe('2026-08-02');
+    expect(days[6].isToday).toBe(true);
+  });
+
+  it('resets at local Monday midnight', () => {
+    // One minute before: still the old week, Sunday is today.
+    const sundayLate = buildTrainingWeek([], at(2026, 8, 2, 23), 'en');
+    expect(sundayLate[0].key).toBe('2026-07-27');
+    // Just after midnight: a brand-new week starting on the 3rd.
+    const mondayEarly = buildTrainingWeek([], at(2026, 8, 3, 0), 'en');
+    expect(mondayEarly[0].key).toBe('2026-08-03');
+    expect(mondayEarly[0].isToday).toBe(true);
+  });
+
+  it('empties when the week turns over', () => {
+    // Trained Sat + Sun. On Monday the new week is blank — the deliberate
+    // cost of a fixed week over a rolling one.
+    const logs = [log('2026-08-01'), log('2026-08-02')];
+    expect(buildTrainingWeek(logs, at(2026, 8, 2), 'en').filter(d => d.trained)).toHaveLength(2);
+    expect(buildTrainingWeek(logs, at(2026, 8, 3), 'en').filter(d => d.trained)).toHaveLength(0);
   });
 
   it('marks only today as today', () => {
     const days = buildTrainingWeek([], NOW, 'en');
     expect(days.filter((d) => d.isToday)).toHaveLength(1);
-    expect(days[6].isToday).toBe(true);
+    expect(days[0].isToday).toBe(true);
   });
 
-  it('rolls rather than resetting on a calendar boundary', () => {
-    // Trained Fri/Sat/Sun. On Monday a fixed Mon-Sun week would show an empty
-    // strip and imply the user had done nothing, which is a lie.
-    const logs = [log('2026-07-24'), log('2026-07-25'), log('2026-07-26')];
-    const days = buildTrainingWeek(logs, NOW, 'en');
-    expect(days.filter((d) => d.trained)).toHaveLength(3);
+  it('flags days later this week as future, not as missed', () => {
+    // On Monday, Thursday has not been failed. Styling it like a missed day
+    // would tell someone they had already lost a day they haven't reached.
+    const days = buildTrainingWeek([], NOW, 'en');
+    expect(days[0].isFuture).toBe(false);
+    expect(days.filter((d) => d.isFuture)).toHaveLength(6);
+
+    const onSunday = buildTrainingWeek([], at(2026, 8, 2), 'en');
+    expect(onSunday.filter((d) => d.isFuture)).toHaveLength(0);
   });
 
   it('flags the days that were trained', () => {
-    const days = buildTrainingWeek([log('2026-07-27'), log('2026-07-23')], NOW, 'en');
+    const days = buildTrainingWeek([log('2026-07-27'), log('2026-07-30')], NOW, 'en');
     expect(days.find((d) => d.key === '2026-07-27').trained).toBe(true);
-    expect(days.find((d) => d.key === '2026-07-23').trained).toBe(true);
-    expect(days.find((d) => d.key === '2026-07-22').trained).toBe(false);
+    expect(days.find((d) => d.key === '2026-07-30').trained).toBe(true);
+    expect(days.find((d) => d.key === '2026-07-29').trained).toBe(false);
   });
 
-  it('ignores workouts older than the window', () => {
-    expect(buildTrainingWeek([log('2026-06-01')], NOW, 'en').some((d) => d.trained)).toBe(false);
+  it('ignores workouts outside the current week', () => {
+    // Sunday the 26th is the PREVIOUS week under a Monday start.
+    expect(buildTrainingWeek([log('2026-07-26')], NOW, 'en').some((d) => d.trained)).toBe(false);
   });
 
   it('gives every day a weekday initial', () => {
@@ -119,11 +160,12 @@ describe('currentStreak', () => {
     expect(currentStreak(logs, NOW)).toBe(40);
   });
 
-  it('agrees with the week strip on the same data', () => {
-    // The reason both come from one source: they must never contradict.
-    const logs = ['2026-07-27', '2026-07-26', '2026-07-25'].map(log);
-    const days = buildTrainingWeek(logs, NOW, 'en');
-    const trailing = [...days].reverse().findIndex((d) => !d.trained);
-    expect(currentStreak(logs, NOW)).toBe(trailing);
+  it('is NOT bounded by the visible week', () => {
+    // The strip resets on Monday; a streak doesn't. On Monday the 27th a
+    // run through the previous week is still a live streak even though the
+    // strip shows a single square.
+    const logs = ['2026-07-27', '2026-07-26', '2026-07-25', '2026-07-24'].map(log);
+    expect(buildTrainingWeek(logs, NOW, 'en').filter((d) => d.trained)).toHaveLength(1);
+    expect(currentStreak(logs, NOW)).toBe(4);
   });
 });

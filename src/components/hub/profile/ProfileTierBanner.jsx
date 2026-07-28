@@ -19,6 +19,7 @@
 //     latency after the first visit.
 import { useEffect, useState } from 'react';
 import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion';
+import { Check } from 'lucide-react';
 
 // Ambient dots. Particles.jsx hardcodes `rounded-3xl` on its root, which
 // would clip a rectangular banner's corners — so the dots are inlined here
@@ -74,6 +75,16 @@ const GRAIN = {
 // Below this the chip is a scold rather than a brag, so it doesn't render.
 // One day is not a streak; it's a Tuesday.
 const STREAK_CHIP_MIN = 2;
+
+// Clear space above the trophy crest, held for the seasonal reward title that
+// will sit over it once seasonal events ship. Named rather than inlined so
+// that future band has an obvious anchor to attach to — and so nobody
+// "tidies up" the gap without realising it was load-bearing.
+//
+// NOTE for whoever builds that: the streak chip currently occupies the right
+// half of this band. A seasonal title and the streak chip cannot both live
+// here, so one of them moves at that point.
+const CREST_HEADROOM = 38;
 
 export default function ProfileTierBanner({
   tier,
@@ -188,15 +199,22 @@ export default function ProfileTierBanner({
           aria-hidden="true"
           className="absolute pointer-events-none select-none"
           style={{
-            // Centred just right of middle, NOT pinned to the edge. At the
-            // edge it sat directly behind the tier block and the crown's
-            // points cut through "BRONZE". Here it clears the tier lockup on
-            // the right and the week strip on the left, and where the contest
-            // pills cross it they're glass — so it reads through the blur,
-            // which is what glass is for.
-            left: '52%',
-            top: '50%',
-            transform: 'translate(-50%, -50%) rotate(-8deg)',
+            // Top-right corner, slightly cropped by the edge. It deliberately
+            // overlaps the tier/level lockup — the crest renders before the
+            // content and carries no z-index, so "BRONZE / LV 1" (z-10) paints
+            // on top of it. That's the intended reading: the text is struck
+            // over the crest, not pushed aside by it.
+            // Inset to the same 16px gutter as the tier lockup below it, so
+            // the two share a right edge rather than the crest running off
+            // the screen. Cropping a crest at the edge reads as a mistake at
+            // this size, not as a deliberate bleed.
+            right: 24,
+            // CREST_HEADROOM of clear space above, reserved for the seasonal
+            // reward title that will sit over the trophy once seasonal events
+            // exist. Positioning from the top rather than centring means that
+            // band stays a fixed size as the crest changes.
+            top: CREST_HEADROOM,
+            transform: 'rotate(-8deg)',
             fontSize: 120,
             lineHeight: 1,
             opacity: 0.75,
@@ -263,7 +281,7 @@ export default function ProfileTierBanner({
                 {day.label}
               </span>
               <span
-                className="block"
+                className="flex items-center justify-center"
                 style={{
                   width: 19,
                   height: 19,
@@ -271,13 +289,24 @@ export default function ProfileTierBanner({
                   // theme's --radius token, which on a 19px box renders as a
                   // near-circle and loses the day-square read.
                   borderRadius: 6,
-                  background: day.trained ? '#fff' : 'rgba(255,255,255,0.07)',
-                  border: `1.5px solid ${day.trained ? '#fff' : 'rgba(255,255,255,0.38)'}`,
+                  // Emerald fill for a completed day. It has to be a colour
+                  // rather than white because the strip sits on ten different
+                  // tier gradients and white already means "the level bar".
+                  background: day.trained
+                    ? '#10b981'
+                    : day.isFuture ? 'transparent' : 'rgba(255,255,255,0.07)',
+                  border: `1.5px solid ${
+                    day.trained
+                      ? '#10b981'
+                      : day.isFuture ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.38)'
+                  }`,
                   boxShadow: day.isToday
                     ? '0 0 0 2px rgba(0,0,0,0.3), 0 0 0 3.5px rgba(255,255,255,0.9)'
-                    : day.trained ? '0 1px 6px rgba(255,255,255,0.45)' : undefined,
+                    : day.trained ? '0 1px 7px rgba(16,185,129,0.55)' : undefined,
                 }}
-              />
+              >
+                {day.trained && <Check className="w-3 h-3 text-white" strokeWidth={3.5} />}
+              </span>
             </div>
           ))}
         </div>
@@ -320,13 +349,16 @@ export default function ProfileTierBanner({
       <div className="absolute end-4 bottom-3.5 z-10 text-white text-end">
         <div
           className="font-heading font-bold text-xs uppercase tracking-[0.2em] opacity-90 leading-none"
-          style={{ textShadow: '0 1px 6px rgba(0,0,0,0.55)' }}
+          // Doubled shadow: this text now sits ON the crest, which is a
+          // user-chosen emoji and may be near-white (⚪ 🤍 🕊️). A single
+          // soft shadow disappears against those.
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)' }}
         >
           {tier.name}
         </div>
         <div
           className="flex items-baseline justify-end gap-1.5 mt-1"
-          style={{ textShadow: '0 1px 8px rgba(0,0,0,0.55)' }}
+          style={{ textShadow: '0 1px 3px rgba(0,0,0,0.85), 0 2px 10px rgba(0,0,0,0.6)' }}
         >
           <span className="font-heading font-bold text-xs uppercase tracking-[0.16em] opacity-90">
             {levelWord}

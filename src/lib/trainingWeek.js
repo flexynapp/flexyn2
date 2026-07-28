@@ -59,24 +59,34 @@ export function trainedDayKeys(logs) {
 }
 
 /**
- * The seven days ending today, oldest first — a rolling week, not Mon–Sun.
+ * Monday to Sunday of the week `now` falls in, oldest first.
  *
- * A fixed calendar week resets to empty every Monday, so a user who trains
- * Fri/Sat/Sun sees a full strip on Sunday night and a blank one on Monday
- * morning having done nothing wrong. Rolling keeps the last seven days'
- * worth of evidence visible at all times.
+ * A fixed calendar week, not a rolling seven days. That means the strip
+ * empties at Monday 00:00 local and fills again over the week — which is the
+ * point: it answers "how am I doing THIS week", and a week you can complete
+ * is a week you can win. The cost, accepted deliberately, is that Monday
+ * morning shows an empty strip to someone who trained Saturday and Sunday.
+ *
+ * Reset time is local midnight, from the same local-day bucketing everything
+ * else here uses — so it turns over at the user's Monday, not UTC's.
  *
  * @param {Array} logs
  * @param {Date} [now] injectable for tests
  * @param {string} [locale] for the weekday initial
- * @returns {Array<{key:string,label:string,trained:boolean,isToday:boolean}>}
+ * @returns {Array<{key:string,label:string,trained:boolean,isToday:boolean,isFuture:boolean}>}
  */
 export function buildTrainingWeek(logs, now = new Date(), locale = undefined) {
   const trained = trainedDayKeys(logs);
   const todayKey = localDayKey(now);
+
+  // getDay(): 0=Sun … 6=Sat. Days elapsed since Monday, treating Sunday as
+  // the LAST day of the week rather than the first.
+  const sinceMonday = (now.getDay() + 6) % 7;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - sinceMonday);
+
   const days = [];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
     const key = localDayKey(d);
     let label;
     try {
@@ -84,7 +94,16 @@ export function buildTrainingWeek(logs, now = new Date(), locale = undefined) {
     } catch {
       label = new Intl.DateTimeFormat('en', { weekday: 'narrow' }).format(d);
     }
-    days.push({ key, label, trained: trained.has(key), isToday: key === todayKey });
+    days.push({
+      key,
+      label,
+      trained: trained.has(key),
+      isToday: key === todayKey,
+      // Days later this week. They're neither done nor missed, and styling
+      // them like a missed day would tell someone on Monday that they've
+      // already failed Thursday.
+      isFuture: i > sinceMonday,
+    });
   }
   return days;
 }
