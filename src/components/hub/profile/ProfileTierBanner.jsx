@@ -329,7 +329,7 @@ export default function ProfileTierBanner({
           exactly what makes it worth showing. */}
       {week?.length > 0 && (
         <div
-          className="absolute start-4 top-4 z-10 flex gap-1.5"
+          className="absolute start-4 top-3 z-10 flex gap-1.5"
           role="img"
           aria-label={weekLabel}
         >
@@ -388,8 +388,12 @@ export default function ProfileTierBanner({
           a top offset that's only correct in one of those two cases. */}
       {(contests || streak >= STREAK_CHIP_MIN) && (
         <div
-          className="absolute start-4 end-4 z-10 flex flex-col items-start gap-2"
-          style={{ top: 58 }}
+          className="absolute start-4 end-4 z-10 flex flex-col items-start gap-1.5"
+          // 52, not 58. The column sits in the 84px between the week strip
+          // and the avatar's top edge; at 58 with an 8px inner gap the slack
+          // landed 10px above and 2px below, so the streak pill was all but
+          // touching the avatar ring. Now it reads roughly 9 / 6 / 9.
+          style={{ top: 52 }}
         >
           {contests}
 
