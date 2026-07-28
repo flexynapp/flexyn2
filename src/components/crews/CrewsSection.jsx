@@ -6,7 +6,7 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Plus, Users, ChevronRight, Loader2, Swords, Globe2 } from 'lucide-react';
+import { Shield, Plus, ChevronRight, Loader2, Swords, Globe2 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/lib/AuthContext';
 import * as crewsData from '@/lib/data/crews';
@@ -36,6 +36,24 @@ function CrewCard({ crew, onClick, currentUserId }) {
   const myRole = crew.is_admin ? 'leader'
     : (myMember?.role === 'moderator' ? 'moderator' : 'member');
 
+  // Same shape as the Crew page header, one step down the type scale:
+  // crest, name, "who leads it · how full", then one metric row. The list
+  // row and the page it opens should read as the same object.
+  const leader = members.find(
+    m => (m.role ?? (m.is_admin ? 'leader' : 'member')) === 'leader'
+  );
+  const leaderName = leader?.username || null;
+  const capacity   = crew.max_capacity ?? 16;
+
+  // Role used to be two coloured pills. They were the last chips in the
+  // area, and a pill for something the sentence can just say is exactly the
+  // chrome docs/profile-ui-premium-research.md counts against us — so the
+  // viewer's own standing is stated in the line instead.
+  const standing = myRole === 'leader'    ? 'You lead'
+                 : myRole === 'moderator' ? 'You moderate'
+                 : leaderName             ? `Led by ${leaderName}`
+                 : null;
+
   return (
     <motion.button
       whileTap={{ scale: 0.98 }}
@@ -43,47 +61,41 @@ function CrewCard({ crew, onClick, currentUserId }) {
       className="w-full flex items-center gap-3 p-4 rounded-2xl bg-card text-start"
     >
       <div
-        className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0"
-        style={{ background: 'hsl(var(--primary) / 0.12)' }}
+        className="w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 overflow-hidden"
+        style={{ background: 'hsl(var(--primary) / 0.15)' }}
       >
-        <Shield className="w-5 h-5" style={{ color: 'hsl(var(--primary))' }} />
+        {crew.avatar_url
+          ? <img loading="lazy" src={crew.avatar_url} alt="" className="w-full h-full object-cover" draggable={false} />
+          : <Shield className="w-6 h-6" style={{ color: 'hsl(var(--primary))' }} />}
       </div>
 
       <div className="flex-1 min-w-0">
-        <p className="font-heading font-bold text-sm text-foreground truncate">{crew.name}</p>
-        <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-          <Users className="w-3 h-3" />
-          {members.length} / {crew.max_capacity ?? 16} members
-          {crew.is_admin && (
-            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
-              style={{ background: 'hsl(var(--primary) / 0.15)', color: 'hsl(var(--primary))' }}>
-              Leader
-            </span>
-          )}
-          {!crew.is_admin && myRole === 'moderator' && (
-            <span className="ms-1.5 px-1.5 py-0.5 rounded-full text-xs font-bold"
-              style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
-              Mod
-            </span>
-          )}
+        <p className="font-heading font-bold text-base text-foreground truncate leading-tight">
+          {crew.name}
         </p>
-        {/* Crew progression (migration 248), rendered as text rather than
-            stat tiles — the profile research counted 21 bordered containers
-            on HubProfile and named the tile-with-an-icon-above-it pattern as
-            the thing that makes a screen read like settings. Weight and
-            colour carry the hierarchy instead. Absent on a pre-248 host, in
-            which case the line simply doesn't render. */}
+
+        {/* Identity line. No Users icon: the profile research counts a
+            decorative icon beside a count as the tile idiom in miniature. */}
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+          {standing ? <>{standing} · </> : null}
+          {fmt(members.length)} of {fmt(capacity)}
+        </p>
+
+        {/* Crew progression (migration 248) as text, hierarchy from weight
+            and colour. Absent on a pre-248 host, in which case the line
+            simply doesn't render. */}
         {Number.isFinite(Number(crew.crew_level)) && (
           <p className="text-xs text-muted-foreground mt-1">
             <span className="font-bold text-foreground">Lvl {crew.crew_level}</span>
             {Number.isFinite(Number(crew.trophies)) && (
-              <> · <span className="font-bold text-foreground">{fmt(crew.trophies)}</span> trophies</>
+              <> · <span className="font-bold text-foreground tabular-nums">{fmt(crew.trophies)}</span> trophies</>
             )}
             {Number.isFinite(Number(crew.wars_won)) && (
-              <> · <span className="font-bold text-foreground">{crew.wars_won}</span>–<span className="font-bold text-foreground">{crew.wars_lost ?? 0}</span></>
+              <> · <span className="font-bold text-foreground tabular-nums">{crew.wars_won}</span>–<span className="font-bold text-foreground tabular-nums">{crew.wars_lost ?? 0}</span></>
             )}
           </p>
         )}
+
         {levelPct != null && (
           <div className="mt-1.5 h-[3px] rounded-full bg-secondary overflow-hidden">
             <div
