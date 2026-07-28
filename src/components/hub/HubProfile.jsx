@@ -15,6 +15,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
+import { buildTrainingWeek, currentStreak } from '@/lib/trainingWeek';
 import { db } from '@/api/db';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
@@ -909,6 +910,27 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
     enabled: !!trophyKey,
     staleTime: 5 * 60_000,
   });
+  // ── Training week + streak for the hero ────────────────────────────────
+  // Same query key and same fetcher as ProfileLiftStats, so this is a cache
+  // hit rather than a second round-trip — the Stats tab and the banner share
+  // one read of the log list.
+  const { data: heroLogs = [] } = useQuery({
+    queryKey: ['profileLifts', email],
+    queryFn: async () => {
+      if (!email) return [];
+      try {
+        return await db.entities.WorkoutLog.filter({ created_by: email }, '-date', 500);
+      } catch { return []; }
+    },
+    enabled: !!email,
+    staleTime: 5 * 60_000,
+  });
+  // Both derived from the same logs on purpose — a server-side streak counter
+  // and a client-side week strip will eventually disagree across a timezone
+  // boundary, and then the user believes neither.
+  const trainingWeek = useMemo(() => buildTrainingWeek(heroLogs, new Date(), language), [heroLogs, language]);
+  const trainingStreak = useMemo(() => currentStreak(heroLogs), [heroLogs]);
+
   const isVerifiedUser = isVerified(displayUsername);
   const isPoopUser = isPoop(displayUsername);
   const noteLiked    = noteLocalLiked || noteLikedServer;
@@ -998,6 +1020,9 @@ export default function HubProfile({ targetUser = null, onSelectUser = null, onS
         xpNeeded={xpNeeded}
         progressPercent={progressPercent}
         isAdminProfile={isAdminProfile}
+        week={trainingWeek}
+        streak={trainingStreak}
+        tFallback={tFallback}
       />
 
       {/* ── Identity ────────────────────────────────────────────────────

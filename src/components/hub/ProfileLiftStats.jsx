@@ -98,7 +98,12 @@ export default function ProfileLiftStats({ userEmail, longestStreak, isOwn, user
               {longestStreak ?? '—'}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {tFallback('profileLifts.dayStreak', 'day streak')}
+              {/* "longest", not "day streak". The hero now shows the CURRENT
+                  streak, and this is the all-time best — dropping the
+                  qualifier in the de-chrome pass left the two reading as the
+                  same number disagreeing with itself ("0 day streak" under a
+                  "3 days" chip). Different metrics need different words. */}
+              {tFallback('profileLifts.longestStreak', 'longest streak')}
             </p>
           </div>
         </TapToCopy>

@@ -57,6 +57,24 @@ const DOT_ANIM = {
   pulse:   'fx-dot-default 2.4s',
 };
 
+// 148 -> 176 to fit two rows of content without crowding either. Still under
+// the ~150pt cover convention plus one row of chrome.
+const HERO_HEIGHT = 176;
+
+// Fine monochrome noise, inline so there's no request and nothing to 404.
+// `overlay` lets it darken the lights and lighten the darks rather than
+// greying the whole surface down.
+const GRAIN = {
+  backgroundImage:
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")",
+  opacity: 0.17,
+  mixBlendMode: 'overlay',
+};
+
+// Below this the chip is a scold rather than a brag, so it doesn't render.
+// One day is not a streak; it's a Tuesday.
+const STREAK_CHIP_MIN = 2;
+
 export default function ProfileTierBanner({
   tier,
   level,
@@ -66,7 +84,25 @@ export default function ProfileTierBanner({
   xpNeeded,
   progressPercent,
   isAdminProfile = false,
+  week = [],
+  streak = 0,
+  tFallback,
 }) {
+  // Fall back to English when the caller doesn't pass a translator — the
+  // component is rendered in tests and previews without LanguageContext.
+  const tf = tFallback || ((_k, fb) => fb);
+
+  const xpToNext = Number.isFinite(xpNeeded) && Number.isFinite(xpInLevel)
+    ? Math.max(0, Math.round(xpNeeded - xpInLevel))
+    : null;
+  const xpToNextLabel = tf('profile.hero.xpToNext', '{n} XP to {lv} {next}')
+    .replace('{n}', xpToNext != null ? xpToNext.toLocaleString() : '')
+    .replace('{lv}', levelWord || '')
+    .replace('{next}', String((level ?? 0) + 1));
+  const streakLabel = tf('profile.hero.days', 'days');
+  const trainedCount = week.filter((d) => d.trained).length;
+  const weekLabel = tf('profile.hero.weekSummary', 'Trained {n} of the last 7 days')
+    .replace('{n}', String(trainedCount));
   const reduceMotion = useReducedMotion();
   const { scrollY } = useScroll();
 
@@ -93,18 +129,21 @@ export default function ProfileTierBanner({
     // so the banner cancels that padding to reach both screen edges.
     <div
       className="relative overflow-hidden -mx-4 md:-mx-6"
-      style={{ height: 148 }}
+      style={{ height: HERO_HEIGHT }}
     >
       {/* Gradient plate. Scaled from the bottom edge so growth pushes up
           into the status bar rather than down over the avatar. */}
       <motion.div
         aria-hidden="true"
-        className={`absolute inset-0 bg-gradient-to-br ${tier.badge}`}
-        style={
-          reduceMotion
-            ? undefined
-            : { scale, filter, transformOrigin: 'center bottom' }
-        }
+        className="absolute inset-0"
+        style={{
+          // tier.surface is a three-layer mesh: specular highlight, chroma
+          // bloom in a different hue, deep base. The old `bg-gradient-to-br
+          // ${tier.badge}` was two adjacent hues in one direction, which is
+          // a tint ramp — no light source, no chroma travel, visible banding.
+          background: tier.surface,
+          ...(reduceMotion ? {} : { scale, filter, transformOrigin: 'center bottom' }),
+        }}
       >
         {dots.map((dot, i) => (
           <div
@@ -132,13 +171,118 @@ export default function ProfileTierBanner({
         )}
       </motion.div>
 
-      {/* Scrim — earns the white text its contrast without dimming the
-          gradient's top half, which is the part people actually see. */}
+      {/* Grain. An inline feTurbulence over `overlay` — it destroys the
+          banding an 8-bit gradient produces across 390px and gives the
+          surface a tactile quality flat vector colour can't have. One rule,
+          no network request. This is the single largest cheap-to-premium
+          lever on the whole page. */}
+      <div aria-hidden="true" className="absolute inset-0 pointer-events-none" style={GRAIN} />
+
+      {/* Vignette, not a scrim. A flat black ramp over the bottom half
+          turned the richest part of the gradient into mud; corner-weighting
+          keeps the text contrast and keeps the colour. */}
       <div
         aria-hidden="true"
-        className="absolute inset-0"
-        style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%)' }}
+        className="absolute inset-0 pointer-events-none"
+        style={{
+          background:
+            // A touch of darkening along the very top too, so the week strip
+            // and streak chip keep their contrast on Silver, Platinum and
+            // Diamond — the three tiers whose highlight is close to white
+            // exactly where those two widgets sit.
+            'linear-gradient(to bottom, rgba(0,0,0,0.22) 0%, transparent 26%),'
+            + 'radial-gradient(120% 95% at 50% -10%, transparent 40%, rgba(0,0,0,0.30) 100%),'
+            + 'linear-gradient(to bottom, transparent 46%, rgba(0,0,0,0.42) 100%)',
+        }}
       />
+
+      {/* Week strip — top-left, over the one large region nothing else wants.
+          Seven rolling days, filled means trained, today gets a ring.
+
+          This is the answer to "what do lifters actually check", arrived at
+          independently by two OSS fitness apps: workout-cool puts a five-day
+          square strip in its APP HEADER, and workout-tracker ships both a
+          heatmap and a profile calendar. Neither leads with totals, because
+          lifetime numbers only go up and so say nothing about how you're
+          doing now. Consistency is the only stat that can look bad, which is
+          exactly what makes it worth showing. */}
+      {week?.length > 0 && (
+        <div
+          className="absolute start-4 top-4 z-10 flex gap-1.5"
+          role="img"
+          aria-label={weekLabel}
+        >
+          {week.map((day) => (
+            <div key={day.key} className="text-center" aria-hidden="true">
+              <span
+                className="block text-[9px] font-extrabold uppercase tracking-wider mb-1 leading-none"
+                style={{
+                  color: 'rgba(255,255,255,0.82)',
+                  // Silver and Platinum are near-white at the top of the
+                  // gradient, where the vignette barely reaches. Without this
+                  // the labels vanish on two of the ten tiers.
+                  textShadow: '0 1px 4px rgba(0,0,0,0.55)',
+                }}
+              >
+                {day.label}
+              </span>
+              <span
+                className="block"
+                style={{
+                  width: 19,
+                  height: 19,
+                  // Explicit, not `rounded-md` — that resolves through the
+                  // theme's --radius token, which on a 19px box renders as a
+                  // near-circle and loses the day-square read.
+                  borderRadius: 6,
+                  background: day.trained ? '#fff' : 'rgba(255,255,255,0.07)',
+                  border: `1.5px solid ${day.trained ? '#fff' : 'rgba(255,255,255,0.38)'}`,
+                  boxShadow: day.isToday
+                    ? '0 0 0 2px rgba(0,0,0,0.3), 0 0 0 3.5px rgba(255,255,255,0.9)'
+                    : day.trained ? '0 1px 6px rgba(255,255,255,0.45)' : undefined,
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Streak — top-right. Hidden below two days: "🔥 0" reads as a scold,
+          and one day isn't a streak, it's a Tuesday. Derived from the same
+          logs as the strip above, so the two can never contradict. */}
+      {streak >= STREAK_CHIP_MIN && (
+        <div
+          className="absolute end-4 top-4 z-10 inline-flex items-center gap-1.5 rounded-full text-white"
+          style={{
+            background: 'rgba(0,0,0,0.26)',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.16)',
+            padding: '5px 11px 5px 8px',
+          }}
+        >
+          <span aria-hidden="true">🔥</span>
+          <span className="font-heading font-bold text-base leading-none tabular-nums">{streak}</span>
+          <span className="text-[9.5px] font-extrabold uppercase tracking-wider opacity-90">
+            {streakLabel}
+          </span>
+        </div>
+      )}
+
+      {/* XP target — bottom-left, above the rail it describes. The rail used
+          to fill in silence: a progress bar that never states its goal is
+          decoration wearing a progress bar's clothes. */}
+      {xpToNext != null && (
+        <div
+          // Same inset as the rail below it, for the same reason: the avatar
+          // punches through the bottom-left corner. At `start-4` this sat
+          // directly behind the avatar's face — the identical mistake the XP
+          // rail made before it was inset.
+          className="absolute bottom-3.5 z-10 text-white text-xs font-semibold tabular-nums start-[116px] md:start-[124px]"
+          style={{ textShadow: '0 1px 6px rgba(0,0,0,0.55)' }}
+        >
+          {xpToNextLabel}
+        </div>
+      )}
 
       {/* Tier + level. Bottom-right so it never collides with the avatar,
           which punches through the bottom-left of the same seam.
