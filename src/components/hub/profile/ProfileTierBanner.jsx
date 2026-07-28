@@ -63,11 +63,19 @@ const DOT_ANIM = {
 const HERO_HEIGHT = 176;
 
 // Fine monochrome noise, inline so there's no request and nothing to 404.
+//
+// filterUnits='userSpaceOnUse' with an explicit region is NOT optional here.
+// stitchTiles='stitch' makes the noise tileable across the FILTER REGION,
+// and that region defaults to the bounding box plus a 10% margin on every
+// side — so the seamless tile is 120% of the rect while CSS repeats at
+// 100%. The two don't line up and you get a hard vertical line at every
+// tile boundary. Pinning the region to the rect makes them the same box.
 // `overlay` lets it darken the lights and lighten the darks rather than
 // greying the whole surface down.
 const GRAIN = {
   backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")",
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n' filterUnits='userSpaceOnUse' x='0' y='0' width='140' height='140'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E\")",
+  backgroundSize: '140px 140px',
   opacity: 0.17,
   mixBlendMode: 'overlay',
 };
@@ -88,7 +96,7 @@ const GRAIN = {
 // than paint sitting on top of it.
 const WEAR_LAYER = {
   backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='w'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.38 0 0 0 0 0.14 0 0 0 0 0.05 1.5 0 0 0 -0.58'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23w)'/%3E%3C/svg%3E\")",
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='320'%3E%3Cfilter id='w' filterUnits='userSpaceOnUse' x='0' y='0' width='320' height='320'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.018' numOctaves='4' seed='9' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 0.38 0 0 0 0 0.14 0 0 0 0 0.05 1.5 0 0 0 -0.58'/%3E%3C/filter%3E%3Crect width='320' height='320' filter='url(%23w)'/%3E%3C/svg%3E\")",
   backgroundSize: '320px 320px',
   mixBlendMode: 'multiply',
 };
@@ -98,7 +106,7 @@ const WEAR_LAYER = {
 // reads as dirt; rust plus exposed metal reads as USED.
 const SCUFF_LAYER = {
   backgroundImage:
-    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='s'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045' numOctaves='3' seed='23' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 0.92 0 0 0 0 0.78 1.4 0 0 0 -0.86'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23s)'/%3E%3C/svg%3E\")",
+    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='s' filterUnits='userSpaceOnUse' x='0' y='0' width='220' height='220'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.045' numOctaves='3' seed='23' stitchTiles='stitch'/%3E%3CfeColorMatrix type='matrix' values='0 0 0 0 1 0 0 0 0 0.92 0 0 0 0 0.78 1.4 0 0 0 -0.86'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23s)'/%3E%3C/svg%3E\")",
   backgroundSize: '220px 220px',
   mixBlendMode: 'soft-light',
 };
