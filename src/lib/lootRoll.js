@@ -43,3 +43,37 @@ export function resolveRolledItem(category, rarity) {
     ?? pickItemForRoll('sticker', rarity)
     ?? null;
 }
+
+// Every category/rarity combination a roll can land on.
+const CATEGORIES = ['sticker', 'theme', 'title', 'frame'];
+const RARITIES   = ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic', 'animated'];
+
+/**
+ * The candidate menu sent to open_capsule_atomic (migration 255).
+ *
+ * One item per "category:rarity" bucket, chosen BEFORE the roll and
+ * therefore without knowing its outcome. The server rolls, looks up the
+ * bucket it landed on, and inserts the inventory row in the same
+ * transaction that spends the capsule — which is what closes the window
+ * where a capsule was gone but its item didn't exist yet.
+ *
+ * Only id/name/emoji/type travel. The RARITY stored on the inventory row
+ * comes from the server's roll, never from this payload, so a tampered
+ * menu can misname an item but cannot upgrade its tier.
+ */
+export function buildCandidateMenu() {
+  const menu = {};
+  for (const category of CATEGORIES) {
+    for (const rarity of RARITIES) {
+      const item = pickItemForRoll(category, rarity);
+      if (!item) continue;
+      menu[`${category}:${rarity}`] = {
+        id: item.id,
+        name: item.name,
+        emoji: item.emoji ?? '',
+        type: item.type ?? category,
+      };
+    }
+  }
+  return menu;
+}

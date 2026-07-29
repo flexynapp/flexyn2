@@ -7,7 +7,7 @@ import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
-import { pickItemForRoll } from '@/lib/lootRoll';
+import { pickItemForRoll, buildCandidateMenu } from '@/lib/lootRoll';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
@@ -278,32 +278,72 @@ export function buildReel(winItem) {
 // one roll path. Every roll is its own claim_capsule_loot call (migration
 // 028), which locks that capsule row and rolls server-side — batching is
 // purely a UI affordance, it does not touch how loot is decided.
+// Codes that mean "this function isn't deployed here".
+// PGRST202 comes from PostgREST's schema cache before the request ever
+// reaches Postgres; 42883/42P01 come from Postgres itself.
+const MISSING_FN_CODES = new Set(['PGRST202', '42883', '42P01']);
+
 async function rollOneCapsule(capsuleId) {
-  const { data, error } = await supabase.rpc('claim_capsule_loot', { p_capsule_id: capsuleId });
-  if (error) {
-    const e = new Error(error.message || 'claim_capsule_loot failed');
-    // Pre-028 hosts fail closed. The removed alternative was a client-side
-    // Math.random() roll, i.e. "open DevTools and force legendary".
-    e.missingRpc = (error.code === '42883' || error.code === '42P01');
+  // ── Atomic path (migration 255) ──────────────────────────────────────
+  // One call spends the capsule AND grants the item. Nothing is owed
+  // afterwards, so an interrupted reveal can no longer destroy loot.
+  const { data, error } = await supabase.rpc('open_capsule_atomic', {
+    p_capsule_id: capsuleId,
+    p_candidates: buildCandidateMenu(),
+  });
+
+  if (!error) {
+    if (!data) return null;
+    const variant = (data.variant && VARIANTS && VARIANTS[data.variant]) ? data.variant : null;
+    // Rehydrate the full catalog entry (description, theme preview, frame
+    // css) from the id the server granted; fall back to the server's own
+    // fields if the catalog has drifted.
+    const catalogItem = pickItemForRoll(data.category, data.rarity);
+    const base = (catalogItem && catalogItem.id === data.item_id)
+      ? catalogItem
+      : { id: data.item_id, name: data.item_name, emoji: data.item_emoji,
+          rarity: data.rarity, type: data.item_type };
+    const item = { ...base, rarity: data.rarity };
+    return { item: variant ? { ...item, variant } : item, granted: true };
+  }
+
+  // ── Legacy two-step fallback ─────────────────────────────────────────
+  // The frontend auto-deploys from main while the SQL is pasted by hand,
+  // so a new client WILL meet a pre-255 database. Only "the function does
+  // not exist" falls through; anything else is a real error.
+  //
+  // PGRST202 is the important one and it is easy to miss: a missing RPC
+  // never reaches Postgres, so PostgREST answers from its schema cache
+  // with PGRST202 rather than Postgres's 42883. Probing the undeployed
+  // function returned exactly that, so a 42883-only check would have
+  // thrown instead of falling back — breaking capsule opening for every
+  // user in the window between the deploy and the SQL being run.
+  if (!MISSING_FN_CODES.has(error.code)) {
+    const e = new Error(error.message || 'open_capsule_atomic failed');
+    e.missingRpc = false;
     throw e;
   }
-  if (!data) return null; // already opened by another tab/device
 
-  // Validate the variant against the catalog before trusting it — a future
-  // server typo like 'gld' would otherwise ride into the item object and
-  // break at the render site instead of here.
-  const variant = (data.variant && VARIANTS && VARIANTS[data.variant]) ? data.variant : null;
+  const legacy = await supabase.rpc('claim_capsule_loot', { p_capsule_id: capsuleId });
+  if (legacy.error) {
+    const e = new Error(legacy.error.message || 'claim_capsule_loot failed');
+    // Pre-028 hosts fail closed. The removed alternative was a client-side
+    // Math.random() roll, i.e. "open DevTools and force legendary".
+    e.missingRpc = MISSING_FN_CODES.has(legacy.error.code);
+    throw e;
+  }
+  const d = legacy.data;
+  if (!d) return null;
 
-  let item = pickItemForRoll(data.category, data.rarity);
+  const variant = (d.variant && VARIANTS && VARIANTS[d.variant]) ? d.variant : null;
+  let item = pickItemForRoll(d.category, d.rarity);
   if (!item) {
-    // CATALOG-LOOKUP fallback, not a roll fallback — the server already
-    // decided the rarity; the client just has no item of that
-    // (category, rarity) pair yet.
-    const fallback = getItemsByRarity(data.rarity);
+    const fallback = getItemsByRarity(d.rarity);
     item = fallback.length ? fallback[0] : null;
   }
   if (!item) return null;
-  return variant ? { ...item, variant } : item;
+  // granted:false — the caller must still finalize this one on Claim.
+  return { item: variant ? { ...item, variant } : item, granted: false };
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
@@ -663,10 +703,10 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     try {
       // Each capsule is an independent server-side roll. Parallel is safe:
       // claim_capsule_loot locks one row and no two targets share a row.
-      rolled = await Promise.all(targets.map(async (c) => ({
-        capsuleId: c.id,
-        item: await rollOneCapsule(c.id),
-      })));
+      rolled = await Promise.all(targets.map(async (c) => {
+        const res = await rollOneCapsule(c.id);
+        return { capsuleId: c.id, item: res?.item ?? null, granted: !!res?.granted };
+      }));
     } catch (err) {
       if (err?.missingRpc) {
         console.warn('[CapsuleOpener] claim_capsule_loot missing — apply migration 028');
@@ -719,7 +759,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const handleClaim = useCallback(() => {
     setPhase('claimed');
     if (isBatch) onClaimBatch?.(results);
-    else onClaim?.(wonItem);
+    else onClaim?.(wonItem, { granted: !!results[0]?.granted });
   }, [isBatch, results, wonItem, onClaim, onClaimBatch]);
 
   // One tint object drives the reveal card's border, glow, chip and CTA.

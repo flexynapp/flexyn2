@@ -98,48 +98,37 @@ export function useBagFlow() {
     setOpeningBatch(null);
   }, []);
 
-  const claimCapsule = useCallback(async (wonItem) => {
+  const claimCapsule = useCallback(async (wonItem, opts = {}) => {
     const capsuleId = openingCapsule?.id;
     setOpeningCapsule(null);
-    // Re-open the bag so the user lands back on the bag menu (where
-    // they came from) instead of falling through to whatever surface
-    // was rendered behind the opener. Without this, opening a capsule
-    // from the marketplace or any other surface forced the user to
-    // re-navigate back to the bag to open the next one.
+    // Re-open the bag so the user lands back where they came from rather
+    // than falling through to whatever surface was behind the opener.
     setBagOpen(true);
     if (!wonItem || !user?.email) return;
+
+    const refresh = () => {
+      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+    };
+
+    // Migration 255: open_capsule_atomic already inserted the inventory row
+    // in the same transaction that spent the capsule. Nothing is owed, so
+    // Claim is purely "acknowledge and close" — which is the entire point:
+    // there is no longer a window in which abandoning the reveal can
+    // destroy the item.
+    if (opts.granted) {
+      refresh();
+      toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
+      return;
+    }
+
+    // Legacy two-step path — only reachable on a pre-255 database, where
+    // the roll and the grant are still separate calls.
     try {
-      // Atomic verify-capsule + insert-inventory via the
-      // finalize_capsule_claim RPC (migration 070). The previous flow
-      // was Promise.all([inventory.addItem, capsules.openCapsule]) —
-      // two independent writes. If addItem failed AFTER
-      // claim_capsule_loot had already rolled + marked the capsule
-      // opened, the loot was destroyed (capsule opened, no inventory
-      // row). The RPC does both writes in one transaction.
-      //
-      // Fallback path: if the RPC fails for ANY reason, retry the
-      // insert via the legacy inventory.addItem. The capsule has
-      // already been marked is_opened=true by claim_capsule_loot at
-      // this point (which ran before this callback), so the worry
-      // about "loot destroyed if addItem fails" no longer applies —
-      // the rolled rarity/category/variant are persisted on the
-      // user_capsules row and any inventory insert here is purely
-      // additive. This unblocks new users hitting RPC edge cases
-      // (missing user_profiles row on fresh signup, host without
-      // migration 074, column drift, etc.) where the inventory
-      // insert was previously failing and the user saw the bug
-      // screenshot's "Could not save item" toast.
-      // finalize_capsule_claim is the ONLY path that can write inventory:
-      // direct client inserts into user_inventory are locked server-side
-      // (migration 197) to stop item injection (a client could otherwise
-      // grant itself any cosmetic at any rarity with no capsule). The
-      // previous fallback did exactly that direct insert, so it's gone.
-      // This is safe: claim_capsule_loot already persisted the rolled
-      // rarity/category/variant on the user_capsules row before this
-      // callback, so a finalize failure loses nothing — it's retryable,
-      // and we surface the error rather than silently dropping loot.
       if (!capsuleId) throw new Error('missing_capsule_id');
-      const { error: finalizeError } = await supabase.rpc('finalize_capsule_claim', {
+      const { error } = await supabase.rpc('finalize_capsule_claim', {
         p_capsule_id:  capsuleId,
         p_item_id:     wonItem.id,
         p_item_name:   wonItem.name,
@@ -148,22 +137,14 @@ export function useBagFlow() {
         p_item_type:   wonItem.type   ?? 'sticker',
         p_variant:     wonItem.variant ?? null,
       });
-      if (finalizeError) {
-        console.warn('[inventoryFlow] finalize_capsule_claim failed:', finalizeError.code, finalizeError.message);
-        throw finalizeError;
-      }
-
-      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
-      // Keeps the streak line on the opener honest after this open.
-      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+      if (error) throw error;
+      refresh();
       toast.success(`${wonItem.emoji} ${wonItem.name} added to your bag!`);
     } catch (err) {
-      console.error('[inventoryFlow] capsule claim failed (both paths):', err);
+      console.error('[inventoryFlow] legacy capsule claim failed:', err);
       toast.error('Could not save item. Try again.');
     }
-  }, [openingCapsule, user, userProfile, queryClient]);
+  }, [openingCapsule, user, queryClient]);
 
   /**
    * Finalize every item from a batch open.
@@ -180,7 +161,18 @@ export function useBagFlow() {
     setBagOpen(true);
     if (!Array.isArray(results) || results.length === 0 || !user?.email) return;
 
-    const outcomes = await Promise.all(results.map(async ({ capsuleId, item }) => {
+    // Anything opened through open_capsule_atomic (mig 255) is already in
+    // inventory. Only legacy rolls still need finalizing.
+    const pending = results.filter(r => !r.granted);
+    const alreadyGranted = results.length - pending.length;
+
+    let saved = alreadyGranted;
+    let failed = 0;
+
+    // Sequential: each finalize credits inventory, and firing a dozen
+    // concurrent grants is the shape the atomic RPCs were introduced to
+    // kill.
+    for (const { capsuleId, item } of pending) {
       try {
         if (!capsuleId) throw new Error('missing_capsule_id');
         const { error } = await supabase.rpc('finalize_capsule_claim', {
@@ -193,15 +185,12 @@ export function useBagFlow() {
           p_variant:     item.variant ?? null,
         });
         if (error) throw error;
-        return true;
+        saved += 1;
       } catch (err) {
         console.warn('[inventoryFlow] batch finalize failed:', capsuleId, err?.message);
-        return false;
+        failed += 1;
       }
-    }));
-
-    const saved = outcomes.filter(Boolean).length;
-    const failed = outcomes.length - saved;
+    }
 
     queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
     queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
@@ -211,33 +200,6 @@ export function useBagFlow() {
     if (saved > 0) toast.success(`${saved} item${saved === 1 ? '' : 's'} added to your bag!`);
     if (failed > 0) toast.error(`${failed} item${failed === 1 ? '' : 's'} could not be saved — try opening again.`);
   }, [user, queryClient]);
-
-  // ── Recover loot stranded between roll and claim ────────────────────────────
-  // A capsule is spent the moment the reel starts but the item only lands on
-  // Claim, so a reload / crash / unreachable Claim button destroys the
-  // reward. The roll itself is durable, so anything left in that state can
-  // be granted after the fact. See capsuleRecovery.js.
-  //
-  // Once per mount, not per bag-open: this is a repair pass, not something
-  // the user should be able to trigger repeatedly. The ref also stops React
-  // 18 StrictMode's double-effect from sweeping twice.
-  const sweptRef = useRef(false);
-  useEffect(() => {
-    if (sweptRef.current || !user?.email) return;
-    sweptRef.current = true;
-    let cancelled = false;
-    (async () => {
-      const res = await recoverStrandedCapsules(user.email);
-      if (cancelled || res.recovered === 0) return;
-      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
-      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
-      const msg = recoveryMessage(res);
-      if (msg) toast.success(msg);
-    })();
-    return () => { cancelled = true; };
-  }, [user?.email, queryClient]);
 
   // Listen for the global "open bag" event so external surfaces (e.g.
   // the StatsHub modal) can open the bag without holding a ref to the

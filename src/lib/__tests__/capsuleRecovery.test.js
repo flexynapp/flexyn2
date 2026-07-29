@@ -156,3 +156,40 @@ describe('recoveryMessage', () => {
     expect(() => recoveryMessage({ recovered: 1, items: [{}] })).not.toThrow();
   });
 });
+
+describe('buildCandidateMenu — the payload open_capsule_atomic rolls against', () => {
+  it('covers every category the server can roll', async () => {
+    const { buildCandidateMenu } = await import('../lootRoll');
+    const menu = buildCandidateMenu();
+    for (const cat of ['sticker', 'theme', 'title', 'frame']) {
+      expect(Object.keys(menu).some(k => k.startsWith(cat + ':'))).toBe(true);
+    }
+  });
+
+  it('covers every rarity the odds tables can produce', async () => {
+    const { buildCandidateMenu } = await import('../lootRoll');
+    const menu = buildCandidateMenu();
+    // _weighted_pick can return any of these; a missing bucket means the
+    // server falls back to a sticker, and for common..animated it must not
+    // have to.
+    for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'animated']) {
+      expect(menu[`sticker:${r}`], `sticker:${r} missing`).toBeTruthy();
+    }
+  });
+
+  it('sends only id/name/emoji/type — never a rarity the server would trust', async () => {
+    const { buildCandidateMenu } = await import('../lootRoll');
+    for (const entry of Object.values(buildCandidateMenu())) {
+      expect(Object.keys(entry).sort()).toEqual(['emoji', 'id', 'name', 'type']);
+      expect(entry).not.toHaveProperty('rarity');
+    }
+  });
+
+  it('never emits an entry without an id or name', async () => {
+    const { buildCandidateMenu } = await import('../lootRoll');
+    for (const [key, entry] of Object.entries(buildCandidateMenu())) {
+      expect(entry.id, key).toBeTruthy();
+      expect(entry.name, key).toBeTruthy();
+    }
+  });
+});
