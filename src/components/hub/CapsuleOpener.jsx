@@ -34,42 +34,69 @@ const CARD_GAP   = 12;  // px
 // easing curve. Users read that as "it's the same spin every time, just a
 // different item" — which it was. See buildReel.
 
-// ─── Spin variants ────────────────────────────────────────────────────────────
-// Five distinct "personas" the reel can take on. We pick one at random
-// per spin so the open feels different every time — even when the user
-// is opening their twelfth standard capsule. Each variant tunes:
-//   • duration  — how long the slide takes (seconds)
-//   • easing    — the CSS cubic-bezier driving the velocity curve
-//   • kicker    — the small "Rolling…" caption above the reel
-//   • overshoot — when true, the bezier briefly slides past the winning
-//                 card and settles back, creating a "near miss → snap to
-//                 win" feel. Implemented purely via the easing curve
-//                 (back-out style), no multi-stage transition needed.
+// ─── The spin ─────────────────────────────────────────────────────────────────
+// ONE curve, always.
 //
-// The animated reveal phase below the reel intentionally stays the same
-// — that's the moneyshot. Variation lives in the build-up.
-const SPIN_VARIANTS = [
-  // Classic — the original feel. Smooth deceleration. Default.
-  { id: 'classic', duration: 3.2, easing: 'cubic-bezier(0.25, 0.46, 0.45, 0.94)', kicker: 'Rolling…' },
-  // Tease — slow, drawn-out, builds suspense. Almost no acceleration.
-  { id: 'tease',   duration: 4.6, easing: 'cubic-bezier(0.16, 1, 0.3, 1)',        kicker: 'Building up…' },
-  // Snap — fast and decisive. Quick blur, hard stop.
-  { id: 'snap',    duration: 2.4, easing: 'cubic-bezier(0.5, 0, 0.75, 0.2)',      kicker: 'Cracking…' },
-  // Hype — back-out overshoot. Reel briefly blows past the win then
-  // settles back. Creates a "wait, is that it?" double-take.
-  { id: 'hype',    duration: 3.5, easing: 'cubic-bezier(0.34, 1.32, 0.64, 1)',    kicker: 'Spinning…' },
-  // Crawl — long, even, hypnotic. Sometimes the wait is the point.
-  { id: 'crawl',   duration: 4.2, easing: 'cubic-bezier(0.23, 1, 0.32, 1)',       kicker: 'Locking in…' },
-];
+// There used to be five "personas" with different durations AND different
+// easings, on the theory that varying the animation kept repeat opens
+// interesting. It did the opposite: the feel changed spin to spin, and one
+// of them was actively broken. `snap` used cubic-bezier(0.5, 0, 0.75, 0.2)
+// — an ease-IN curve, whose derivative is still high at t=1. The reel was
+// travelling at speed the instant it stopped. That is a cut, not a settle,
+// and it's what "cuts and stops" described.
+//
+// So the character is now fixed and smooth: a strong ease-out whose
+// terminal velocity is effectively zero, meaning every reel glides into
+// its stop. Every reel in a stack shares it, so a four-high stack reads as
+// one coherent motion instead of four different animations racing.
+//
+// Variety comes from WHERE IT LANDS instead — see LANDING_JITTER. The
+// centre line settles on a different part of the winning card each time,
+// which is what a real reel does and what sells the randomness. Changing
+// the destination costs nothing in smoothness; changing the curve cost
+// everything.
+//
+// Curve choice, since it's the whole point: for a cubic-bezier(x1,y1,x2,y2)
+// the start velocity is y1/x1 and the end velocity is (1-y2)/(1-x2). The
+// reel begins at a standstill and must come to rest, so BOTH need to be 0.
+//
+//   snap  (0.5, 0, 0.75, 0.2)  end = 0.8/0.25 = 3.2  → moving fast at the
+//                                                      stop. The "cut".
+//   easeOutQuint (0.22, 1, ...) start = 1/0.22 = 4.5 → snaps into motion.
+//
+// This one is 0 at both ends, with P2 pulled far left so most of the travel
+// happens early and the last stretch is a long, slow glide into the
+// indicator — the anticipation a reel is supposed to have.
+const SPIN_EASING = 'cubic-bezier(0.32, 0, 0.06, 1)';
+const SPIN_DURATION = 3.6;   // seconds, before the per-reel jitter below
 
-function pickSpinVariant() {
-  return SPIN_VARIANTS[Math.floor(Math.random() * SPIN_VARIANTS.length)];
+// Small timing jitter ONLY. Same curve, slightly different lengths, so a
+// stack doesn't land in mechanical unison — a difference in when, never in
+// how.
+const SPIN_DURATION_JITTER = 0.45;
+
+// How far off-centre the indicator may stop within the winning card, as a
+// fraction of card width. Kept under half so the line is unambiguously on
+// the winner and never straddles a neighbour.
+const LANDING_JITTER = 0.32;
+
+const SPIN_KICKERS = ['Rolling…', 'Building up…', 'Cracking…', 'Spinning…', 'Locking in…'];
+
+// Caption only. Text variety is free and cannot affect how the spin feels.
+function pickKicker() {
+  return SPIN_KICKERS[Math.floor(Math.random() * SPIN_KICKERS.length)];
 }
 
-// Rarity borders/glows come from the shared `rarityTint`, which derives
-// them from the ONE colour in lootCatalog.RARITY. This file used to keep
-// its own RARITY_CARD map of Tailwind class names — a fourth private copy
-// of the same ladder that had to be edited by hand whenever a tier moved.
+/** A spin's timing + where in the card it settles. Same curve every time. */
+function makeSpin() {
+  return {
+    duration: SPIN_DURATION + (Math.random() * 2 - 1) * SPIN_DURATION_JITTER,
+    easing: SPIN_EASING,
+    // -1..1 → left edge .. right edge of the allowed band.
+    landing: (Math.random() * 2 - 1) * LANDING_JITTER,
+    kicker: pickKicker(),
+  };
+}
 
 // ─── Rarity ladder ────────────────────────────────────────────────────────────
 // Declared up here because buildReel's near-miss seeding reads it. Keeping
@@ -347,7 +374,7 @@ async function rollOneCapsule(capsuleId) {
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
-function ItemCard({ item, highlight = false, width = CARD_W }) {
+function ItemCard({ item, highlight = false, settled = false, width = CARD_W }) {
   const tint = rarityTint(item.rarity);
   const isMystery = item.id === '__mystery__';
   return (
@@ -355,12 +382,16 @@ function ItemCard({ item, highlight = false, width = CARD_W }) {
       className={[
         'flex-none flex flex-col items-center justify-center rounded-xl border-2 select-none',
         isMystery ? 'bg-secondary opacity-60' : 'bg-card',
+        settled ? 'reel-winner-settled' : '',
       ].join(' ')}
       style={{
         width,
         height: width,
         borderColor: tint.border,
-        boxShadow: highlight ? tint.glow : undefined,
+        // The bloom keyframe drives box-shadow once settled, so don't fight
+        // it with an inline one.
+        boxShadow: settled ? undefined : (highlight ? tint.glow : undefined),
+        '--bloom': `${tint.color}80`,
       }}
     >
       <span className="leading-none mb-1" style={{ fontSize: Math.round(width * 0.3) }}>{item.emoji}</span>
@@ -450,13 +481,19 @@ function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSe
   const containerRef = useRef(null);
   const settledRef   = useRef(false);
   const timerRef     = useRef(null);
+  const [settled, setSettled] = useState(false);
   const stride = cardW + CARD_GAP;
+  const dur = variant.duration * speed;
 
   // Settle exactly once, whichever signal arrives first.
   const settle = useCallback(() => {
     if (settledRef.current) return;
     settledRef.current = true;
     if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    setSettled(true);
+    // A tick per reel, not per wave — in a stack of four this is what makes
+    // each landing feel like its own event.
+    triggerHaptic('primary');
     onSettled?.();
   }, [onSettled]);
 
@@ -468,10 +505,10 @@ function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSe
   // for that instead of one. Fires slightly after the animation should
   // have ended; `settle` dedupes against the real event.
   useEffect(() => {
-    const ms = variant.duration * speed * 1000 + 600;
+    const ms = dur * 1000 + 600;
     timerRef.current = setTimeout(settle, ms);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
-  }, [variant, speed, settle]);
+  }, [dur, settle]);
 
   const setTrackRef = useCallback((el) => {
     if (!el) return;
@@ -488,13 +525,19 @@ function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSe
         const raw = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
         const containerWidth = (raw >= 120 && raw <= 1200) ? raw : 400;
         const centerOffset = Math.floor(containerWidth / 2) - Math.floor(cardW / 2);
-        const winOffset    = winIndex * stride - centerOffset;
+        // Land the indicator somewhere WITHIN the winning card rather than
+        // dead-centre every time. This is where spin-to-spin variety comes
+        // from now that the easing is fixed — a real reel doesn't stop
+        // perfectly centred, and varying the destination can't make the
+        // motion feel worse the way varying the curve did.
+        const jitter    = (variant.landing ?? 0) * cardW;
+        const winOffset = winIndex * stride - centerOffset + jitter;
 
         el.style.transition = 'none';
         el.style.transform  = 'translateX(0px)';
         void el.offsetWidth; // force reflow so there IS a "from" state
 
-        el.style.transition = `transform ${(variant.duration * speed).toFixed(2)}s ${variant.easing}`;
+        el.style.transition = `transform ${dur.toFixed(2)}s ${variant.easing}`;
         el.style.transform  = `translateX(${-winOffset}px)`;
 
         const done = (ev) => {
@@ -511,7 +554,9 @@ function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSe
 
   return (
     <div ref={containerRef} className="w-full relative overflow-hidden" style={{ height: cardW + 18 }}>
-      <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-primary/70 pointer-events-none" />
+      <div
+        className={`absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-primary pointer-events-none ${settled ? 'reel-line-settled' : 'opacity-70'}`}
+      />
       {/* Edge fades must match the PANEL colour exactly or the reel looks
           like it slides behind a lighter band. */}
       <div
@@ -524,14 +569,20 @@ function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSe
       />
       <div
         ref={setTrackRef}
-        className="absolute top-2 flex"
-        style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
+        className={`absolute top-2 flex ${settled ? '' : 'reel-track-spinning'}`}
+        style={{
+          gap: CARD_GAP,
+          paddingLeft: CARD_GAP,
+          willChange: 'transform, filter',
+          '--reel-dur': `${dur.toFixed(2)}s`,
+        }}
       >
         {cards.map((item, idx) => (
           <ItemCard
             key={`${item.id}-${idx}`}
             item={item}
             highlight={idx === winIndex}
+            settled={settled && idx === winIndex}
             width={cardW}
           />
         ))}
@@ -616,7 +667,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const [catalogOpen, setCatalogOpen] = useState(false);
   // Kicker caption for the current wave. Each reel carries its own variant
   // so a stack doesn't move in lockstep; this is just the label.
-  const [spinVariant, setSpinVariant] = useState(SPIN_VARIANTS[0]);
+  const [spinVariant, setSpinVariant] = useState(makeSpin);
 
   const capsuleEmoji = capsule?.capsule_type === 'elite'
     ? '💠' : capsule?.capsule_type === 'premium'
@@ -690,7 +741,7 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     openGuardRef.current = true;
 
     // Drives the kicker caption only; each reel carries its own variant.
-    setSpinVariant(pickSpinVariant());
+    setSpinVariant(makeSpin());
 
     const targets = isBatch ? batchRows : (capsule ? [capsule] : []);
     if (targets.length === 0 || targets.some(c => !c?.id)) {
@@ -742,7 +793,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     // as one block.
     const specs = ok.map(({ capsuleId, item }) => {
       const { cards, winIndex } = buildReel(item);
-      return { capsuleId, item, cards, winIndex, variant: pickSpinVariant() };
+      // Each reel gets its own timing + landing point, same curve.
+      return { capsuleId, item, cards, winIndex, variant: makeSpin() };
     });
 
     setResults(ok);

@@ -2863,6 +2863,52 @@ html[data-theme-tier] {
 }
 
 
+/* ─── Capsule reel motion ──────────────────────────────────────────────
+   The reel travels ~2000px in a few seconds; without blur the cards read
+   as a sequence of discrete jumps rather than motion. Blur is shaped like
+   VELOCITY, not position — the new easing starts and ends at rest, so the
+   curve peaks in the middle and returns to zero, matching how fast the
+   cards are actually moving.
+
+   Kept modest (3px) and on the track only, not per card: this app is
+   mobile-first and a filter on a transforming subtree repaints every
+   frame. Disabled outright under reduced-motion.
+   ──────────────────────────────────────────────────────────────────── */
+@keyframes reel-blur {
+  0%   { filter: blur(0px); }
+  18%  { filter: blur(3px); }
+  62%  { filter: blur(1.6px); }
+  100% { filter: blur(0px); }
+}
+.reel-track-spinning {
+  animation: reel-blur var(--reel-dur, 3.6s) cubic-bezier(0.32, 0, 0.06, 1) forwards;
+}
+
+/* The payoff frame. When a reel stops, the winning card blooms once —
+   the moment the eye is already locked on it. */
+@keyframes reel-settle-bloom {
+  0%   { box-shadow: 0 0 0 0 var(--bloom, rgba(255,255,255,0.6)); }
+  35%  { box-shadow: 0 0 26px 8px var(--bloom, rgba(255,255,255,0.6)); }
+  100% { box-shadow: 0 0 12px 0 var(--bloom, rgba(255,255,255,0.6)); }
+}
+.reel-winner-settled {
+  animation: reel-settle-bloom 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* The indicator answers the settle too, so the eye is told where to look. */
+@keyframes reel-line-pulse {
+  0%   { opacity: 0.7; transform: scaleY(1); }
+  40%  { opacity: 1;   transform: scaleY(1.06); }
+  100% { opacity: 0.85; transform: scaleY(1); }
+}
+.reel-line-settled { animation: reel-line-pulse 520ms ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reel-track-spinning,
+  .reel-winner-settled,
+  .reel-line-settled { animation: none; }
+}
+
 /* Muscle heat-map detail sheet (MuscleGroupHeatmap.jsx) */
 @keyframes bh-rise { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes bh-fade { from { opacity: 0; } to { opacity: 1; } }
