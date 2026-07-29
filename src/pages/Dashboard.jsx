@@ -1278,7 +1278,10 @@ export default function Dashboard() {
       case 'league': return (
         <React.Fragment key="league">
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.10 }} className="h-full">
-            <ErrorBoundary label="LeagueCard"><LeagueCard onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
+            {/* stretch: this card shares a grid row with the Readiness
+                square and has to match its height. StatsHubModal renders
+                the same card without it — see the prop's docs. */}
+            <ErrorBoundary label="LeagueCard"><LeagueCard stretch onClick={() => setLeagueModalOpen(true)} /></ErrorBoundary>
           </motion.div>
         </React.Fragment>
       );

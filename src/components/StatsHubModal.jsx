@@ -273,9 +273,12 @@ export default function StatsHubModal({ open, onClose }) {
                          the bag globally (works from any route)
                   - Coin Shop: in-modal CoinShopModal
                 Leaderboards was the fourth tile here; it's now the primary
-                row at the top of the body. Three tiles left, so the grid
-                goes to three columns rather than leaving an orphan. */}
-            <div className="grid grid-cols-3 gap-2">
+                row at the top of the body. That leaves three tiles. The
+                grid stays at TWO columns — a tile is an icon, a label and a
+                chevron laid out horizontally, and at three columns on a
+                375px screen the label gets ~35px and wraps to one character
+                per line. The odd tile spans both columns instead. */}
+            <div className="grid grid-cols-2 gap-2">
               {/* Replace-not-stack pattern: clicking these closes the Stats
                   Hub first via onClose(), then opens the target so users
                   see only the destination instead of two stacked modals. */}
@@ -293,6 +296,7 @@ export default function StatsHubModal({ open, onClose }) {
                 icon={Coins}
                 label={tFallback('statsHub.shop', 'Coin Shop')}
                 onClick={() => openNested(setShopOpen)}
+                className="col-span-2"
               />
             </div>
           </div>
@@ -307,17 +311,21 @@ export default function StatsHubModal({ open, onClose }) {
   );
 }
 
-function NavTile({ icon: Icon, label, onClick }) {
+function NavTile({ icon: Icon, label, onClick, className = '' }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-start min-w-0"
+      className={`flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-start min-w-0 ${className}`}
     >
       <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
         <Icon className="w-4 h-4 text-primary" />
       </div>
-      <span className="flex-1 min-w-0 text-sm font-medium leading-tight break-words">{label}</span>
-      <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+      {/* No chevron. At half-width it cost 24px including its gap, which
+          was the difference between "Achievements" fitting on one line and
+          breaking mid-word as "Achievem / ents". The bordered card already
+          reads as tappable, and the full-width Leaderboards row above keeps
+          its chevron so the affordance is still established. */}
+      <span className="flex-1 min-w-0 text-sm font-medium leading-tight">{label}</span>
     </button>
   );
 }

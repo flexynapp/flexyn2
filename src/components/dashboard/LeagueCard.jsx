@@ -17,7 +17,18 @@ import * as leagues from '@/lib/data/leagues';
 import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
-export default function LeagueCard({ onClick }) {
+/**
+ * @param {object}   props
+ * @param {Function} props.onClick
+ * @param {boolean}  [props.stretch=false] — fill the parent's height.
+ *   Only correct inside a bounded row. On the Dashboard the card shares a
+ *   grid row with the Readiness square and has to match it, so that caller
+ *   opts in. The card used to hardcode `h-full`, which is fine there but
+ *   catastrophic in StatsHubModal: the modal body is a fixed-height block,
+ *   so `height: 100%` resolved against it and rendered the card as a 704px
+ *   slab of gradient with the content stranded at the bottom.
+ */
+export default function LeagueCard({ onClick, stretch = false }) {
   const { user } = useAuth();
   const { tFallback } = useLanguage();
   const fmt = useNumberFormatter();
@@ -103,13 +114,16 @@ export default function LeagueCard({ onClick }) {
       whileHover={{ y: -2 }}
       whileTap={{ scale: 0.985 }}
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
-      className="block w-full h-full text-start"
+      className={`block w-full text-start ${stretch ? 'h-full' : ''}`}
     >
-      <Card className={`overflow-hidden border-border/60 theme-card-accent h-full flex flex-col ${tier.ringClass || ''}`}>
-        {/* Top stripe — gradient by tier. flex-1 + items-center fills
-            and vertically centers content so the card stretches to
-            match its row neighbor (e.g. Readiness compact square). */}
-        <div className={`relative flex-1 bg-gradient-to-r ${tier.gradient} px-2.5 py-1.5 text-white flex items-center`}>
+      <Card className={`overflow-hidden border-border/60 theme-card-accent flex flex-col ${stretch ? 'h-full' : ''} ${tier.ringClass || ''}`}>
+        {/* Top stripe — gradient by tier. When stretching, flex-1 +
+            items-center absorbs the spare height and vertically centers
+            the content so the card matches its row neighbour (the
+            Readiness compact square). When not stretching it must size to
+            its content instead — otherwise it grows to whatever height the
+            parent happens to have. */}
+        <div className={`relative ${stretch ? 'flex-1' : ''} bg-gradient-to-r ${tier.gradient} px-2.5 py-1.5 text-white flex items-center`}>
           <div className="flex items-center gap-2 w-full">
             <span className="text-base drop-shadow shrink-0" aria-hidden="true">{tier.icon}</span>
             <div className="flex-1 min-w-0">
