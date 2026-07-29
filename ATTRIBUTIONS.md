@@ -19,3 +19,23 @@ Bundled Twemoji artwork is used **only where an emoji is rasterized into an
 image we save and share** (canvas share cards). Drawing an emoji with
 `ctx.fillText()` on an Apple device would bake Apple's proprietary glyphs into
 a PNG we then distribute — that is the case Twemoji replaces.
+
+## Trophy Gamification UI Kit
+
+`src/components/leaderboard/LeaderboardPodium.jsx` is derived from
+`leaderboard-podium.tsx` in **trophyso/ui** — https://github.com/trophyso/ui
+
+- Copyright © Trophy Labs, Inc.
+- Licensed under the **MIT License** — https://opensource.org/licenses/MIT
+
+Ported TypeScript → JSX and adapted: rank colours remapped off their
+`text-rank-1/2/3` design tokens onto our existing gold/slate/orange palette,
+the external `i.pravatar.cc` avatar fallback replaced with locally-rendered
+initials (no third-party request, works offline in the PWA), and sizing tuned
+for a 375px viewport.
+
+MIT permits commercial use and modification provided the copyright notice and
+licence text are retained — the notice lives in the file header alongside this
+entry. The windowing pattern in `LeaderboardsContent.jsx` (`windowRanked`) is
+an independent implementation of the same idea from their
+`leaderboard-rankings.tsx`, not a copy.

@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap,
+  Sparkles, Dumbbell, Footprints, Award, Zap,
   Ellipsis, TrendingUp, TrendingDown,
 } from 'lucide-react';
 import { db } from '@/api/db';
@@ -29,12 +29,30 @@ import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
 import { getPeriodLeaderboard } from '@/lib/data/periodLeaderboard';
 import TapToCopy from '@/components/TapToCopy';
 import AnimatedNumber from '@/components/AnimatedNumber';
+import LeaderboardPodium from '@/components/leaderboard/LeaderboardPodium';
 
+// Four boards on one row at 375px. `shortKey` exists because the full labels
+// ("Volume Lifted", "Distance Logged") are what forced the selector to wrap
+// onto a third row — the segmented control needs ~70px per segment and those
+// need ~110. The long form still shows in the header as the active board's
+// name, so nothing is lost.
+//
+// `hasPeriod` marks the boards with a time-scoped definition. The other two
+// have no per-window aggregate, and the old UI rendered the period pills for
+// them anyway in a disabled state — 4 of 12 board×period combinations were
+// dead controls occupying the top of the screen. Now the control is absent
+// on those boards rather than greyed.
 const BOARDS = [
-  { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        gradient: 'from-amber-400 via-orange-400 to-rose-500' },
-  { id: 'achievements', icon: Award,      labelKey: 'leaderboards.achievements', gradient: 'from-violet-400 via-fuchsia-500 to-pink-500' },
-  { id: 'volume',       icon: Dumbbell,   labelKey: 'leaderboards.volume',       gradient: 'from-emerald-400 via-teal-500 to-cyan-500' },
-  { id: 'distance',     icon: Footprints, labelKey: 'leaderboards.distance',     gradient: 'from-sky-400 via-blue-500 to-indigo-500' },
+  { id: 'level',        icon: Zap,        labelKey: 'leaderboards.level',        shortKey: 'leaderboards.short.level',        shortFallback: 'Level',    accent: 'text-amber-400',   hasPeriod: true  },
+  { id: 'achievements', icon: Award,      labelKey: 'leaderboards.achievements', shortKey: 'leaderboards.short.achievements', shortFallback: 'Awards',   accent: 'text-fuchsia-400', hasPeriod: false },
+  { id: 'volume',       icon: Dumbbell,   labelKey: 'leaderboards.volume',       shortKey: 'leaderboards.short.volume',       shortFallback: 'Volume',   accent: 'text-emerald-400', hasPeriod: true  },
+  { id: 'distance',     icon: Footprints, labelKey: 'leaderboards.distance',     shortKey: 'leaderboards.short.distance',     shortFallback: 'Distance', accent: 'text-sky-400',     hasPeriod: false },
+];
+
+const PERIODS = [
+  { id: 'alltime', key: 'leaderboards.period.alltime', fallback: 'All-time' },
+  { id: 'monthly', key: 'leaderboards.period.monthly', fallback: 'Month' },
+  { id: 'weekly',  key: 'leaderboards.period.weekly',  fallback: 'Week' },
 ];
 
 // UI board id → the `p_board` value the RPC understands.
@@ -45,11 +63,10 @@ const SERVER_BOARD = {
   distance:     'distance',
 };
 
-const PODIUM_STYLE = {
-  0: { ring: 'ring-yellow-400/60',  glow: 'shadow-yellow-400/40',  Icon: Crown,  iconColor: 'text-yellow-400'  },
-  1: { ring: 'ring-slate-300/60',   glow: 'shadow-slate-300/30',   Icon: Trophy, iconColor: 'text-slate-300'   },
-  2: { ring: 'ring-orange-400/60',  glow: 'shadow-orange-400/40',  Icon: Flame,  iconColor: 'text-orange-400'  },
-};
+// PODIUM_STYLE removed — the top three now render in LeaderboardPodium above
+// the list, so the rows no longer carry a ring + glow + medal icon for the
+// same three people. Styling them twice was the reason first place read as
+// "a row with a yellow border" instead of first place.
 
 // formatNum moved inside the component so it can use the active app
 // locale (was rendering with the browser locale, which defeated i18n
@@ -291,17 +308,34 @@ export default function LeaderboardsContent({ active = true }) {
     const key = `${activeBoard}:${period}`;
     const current = Object.fromEntries(ranked.map(r => [r.id, r.rank]));
     const previous = prevRanksRef.current[key];
+    const deltas = {};
     if (previous) {
-      const deltas = {};
       for (const [id, rank] of Object.entries(current)) {
         // Positive = moved up the board (a numerically smaller rank).
         if (previous[id] != null && previous[id] !== rank) deltas[id] = previous[id] - rank;
       }
-      setRankDeltas(deltas);
-    } else {
-      setRankDeltas({});
     }
     prevRanksRef.current[key] = current;
+
+    // Only touch state when the map actually changed.
+    //
+    // `ranked` is a useMemo whose deps include `t` from LanguageContext,
+    // which is not referentially stable — so `ranked` gets a fresh identity
+    // on most renders and this effect re-runs. Unconditionally calling
+    // setRankDeltas({}) then handed React a brand-new object every time,
+    // which re-rendered, which re-ran the effect: "Maximum update depth
+    // exceeded", spamming the console and pinning the main thread whenever
+    // the leaderboard was open. Comparing before setting breaks the cycle
+    // without needing to stabilise `t` across the whole app.
+    setRankDeltas(prev => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(deltas);
+      if (prevKeys.length === nextKeys.length &&
+          nextKeys.every(k => prev[k] === deltas[k])) {
+        return prev;
+      }
+      return deltas;
+    });
   }, [ranked, activeBoard, period]);
 
   // Windowed by default; "show all" opens the full top 100. Reset the
@@ -310,93 +344,102 @@ export default function LeaderboardsContent({ active = true }) {
   const [showAll, setShowAll] = useState(false);
   useEffect(() => { setShowAll(false); }, [activeBoard, period]);
 
+  // The top three render in the podium above, so the list starts at rank 4.
+  // Feeding the full list to windowRanked would show them twice.
+  const podium = ranked.slice(0, 3);
+  const tail = useMemo(() => ranked.slice(3), [ranked]);
+  const myTailIndex = myIndex >= 3 ? myIndex - 3 : -1;
+
   const rows = useMemo(
-    () => (showAll ? ranked.map(row => ({ type: 'row', row })) : windowRanked(ranked, myIndex)),
-    [ranked, myIndex, showAll]
+    () => (showAll ? tail.map(row => ({ type: 'row', row })) : windowRanked(tail, myTailIndex)),
+    [tail, myTailIndex, showAll]
   );
-  const hiddenCount = ranked.length - rows.filter(r => r.type === 'row').length;
+  const hiddenCount = tail.length - rows.filter(r => r.type === 'row').length;
 
   return (
     <>
-      {/* Hero — gradient strip with metric pills */}
-      <div className={`relative overflow-hidden bg-gradient-to-br ${board.gradient} px-5 sm:px-6 pt-6 pb-7 sm:pb-8 text-white rounded-t-2xl`}>
-        <motion.div
-          className="absolute inset-0 opacity-30"
-          style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(255,255,255,0.4) 0%, transparent 60%), radial-gradient(circle at 80% 30%, rgba(255,255,255,0.3) 0%, transparent 50%)' }}
-          animate={{ opacity: [0.2, 0.4, 0.2] }}
-          transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-        />
-        <div className="relative z-10">
-          <h2 className="font-heading text-xl sm:text-2xl md:text-3xl flex items-center gap-2 text-white drop-shadow font-bold">
-            <Sparkles className="w-6 h-6" />
+      {/* Header — title, active board name, and ONE row of controls.
+          Was 213px (30% of the dialog) for a title, a subtitle, a "Top 100"
+          badge, an animated gradient, and seven filter pills stacked three
+          rows deep. The references spend ~60px: title, one line of context,
+          the selector. osu-web puts eight ranking types in header links and
+          its long-tail filter in a dropdown; trophyso/ui's leaderboard-card
+          is a title, a date range and a single select. Neither stacks axes. */}
+      {/* min-w-0 is load-bearing. Radix's DialogContent is a CSS grid, so its
+          single implicit column is sized by the min-content of its widest
+          child. `truncate` sets white-space: nowrap, which makes the title's
+          min-content the full un-wrapped string — that pushed the column to
+          384px inside a 343px dialog and clipped every row on the right.
+          min-content of a grid item is only ignored once its min-width is 0. */}
+      <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-border min-w-0">
+        {/* pe-8 reserves the corner for Radix's own close button, which
+            DialogContent renders absolutely at `end-4 top-4`. Without it the
+            period dropdown sat underneath the X — 16px of overlap, both
+            tappable, and the X winning. */}
+        <div className="flex items-center justify-between gap-3 min-w-0 pe-8">
+          {/* No decorative icon here. At 375px the title and the period
+              control share ~309px of content width; the Sparkles glyph plus
+              its gap cost ~22px, which was the difference between the full
+              title and "Global Lead…". The empty state still uses it. */}
+          <h2 className="font-heading font-bold text-base truncate min-w-0">
             {t('leaderboards.title')}
           </h2>
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            <p className="text-sm text-white/85">{t('leaderboards.subtitle')}</p>
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur-md text-[10px] font-bold tracking-wider text-white">
-              ✨ {t('leaderboards.top100')}
-            </span>
-          </div>
+          {/* Period is the SECONDARY axis, so it's a dropdown, not pills.
+              This is the rule the references agree on: one small set of
+              mutually exclusive options gets a segmented control (the board
+              selector below); a second axis becomes a select. osu-web puts
+              eight ranking types in header links and its country filter in a
+              `select-options` dropdown; trophyso/ui's leaderboard-card is a
+              title plus one <select>. Neither stacks two rows of pills.
+              As three pills this cost ~140px on the title's row and clipped
+              it to "Global Lead…".
+
+              It renders ONLY for boards with a time-scoped definition.
+              Achievements and Distance have no per-window aggregate, so the
+              control is absent rather than greyed — a disabled control still
+              costs the user a read. */}
+          {board.hasPeriod && (
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              aria-label={tFallback('leaderboards.periodLabel', 'Time period')}
+              className="shrink-0 rounded-lg bg-secondary border border-border/60 px-2 py-1 text-[11px] font-bold text-foreground"
+            >
+              {PERIODS.map(p => (
+                <option key={p.id} value={p.id}>{tFallback(p.key, p.fallback)}</option>
+              ))}
+            </select>
+          )}
         </div>
 
-        {/* Period toggle — All-time / This month / This week. Server
-            aggregation via the get_period_leaderboard RPC handles the
-            two scoped windows. Achievements + Distance boards always
-            render all-time because we don't track period aggregates
-            for them; the toggle disables itself for those. */}
-        <div className="relative z-10 mt-3 flex items-center gap-1">
-          {[
-            { id: 'alltime', label: 'All-time' },
-            { id: 'monthly', label: 'This month' },
-            { id: 'weekly',  label: 'This week' },
-          ].map(p => {
-            const disabled = p.id !== 'alltime' &&
-              (activeBoard === 'achievements' || activeBoard === 'distance');
-            return (
-              <button
-                key={p.id}
-                onClick={() => !disabled && setPeriod(p.id)}
-                aria-pressed={period === p.id}
-                disabled={disabled}
-                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  period === p.id
-                    ? 'bg-white text-foreground'
-                    : disabled
-                      ? 'bg-white/10 text-white/40 cursor-not-allowed'
-                      : 'bg-white/15 text-white hover:bg-white/25'
-                }`}
-              >
-                {p.label}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="relative z-10 mt-3 flex flex-wrap gap-1.5 sm:gap-2">
+        {/* Board selector — one row, four segments, short labels. The long
+            names ("Volume Lifted") are what forced a third row; the active
+            board's full name renders as the subtitle below instead. */}
+        <div className="mt-2.5 grid grid-cols-4 gap-1 rounded-xl bg-secondary p-1">
           {BOARDS.map(b => {
             const Icon = b.icon;
             const isActive = b.id === activeBoard;
             return (
-              <motion.button
+              <button
                 key={b.id}
                 onClick={() => setActiveBoard(b.id)}
                 aria-pressed={isActive}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md transition-colors ${
-                  isActive ? 'bg-white text-foreground shadow-lg' : 'bg-white/15 text-white hover:bg-white/25'
+                className={`flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg text-[10px] font-bold transition-colors min-w-0 ${
+                  isActive
+                    ? 'bg-card shadow-sm text-foreground'
+                    : 'text-muted-foreground hover:text-foreground'
                 }`}
-                whileTap={{ scale: 0.94 }}
-                layout
               >
-                <Icon className="w-3.5 h-3.5" aria-hidden="true" />
-                {t(b.labelKey)}
-              </motion.button>
+                <Icon className={`w-3.5 h-3.5 ${isActive ? b.accent : ''}`} aria-hidden="true" />
+                <span className="truncate w-full text-center">{tFallback(b.shortKey, b.shortFallback)}</span>
+              </button>
             );
           })}
         </div>
       </div>
 
-      {/* Body */}
-      <div className="p-4 sm:p-5 md:p-6">
+      {/* Body — min-w-0 for the same grid-column reason as the header above. */}
+      <div className="p-4 sm:p-5 md:p-6 min-w-0">
         {myRow && (
           <motion.div key={`me-${activeBoard}`} layout initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} className="mb-5">
             <Card className="p-4 bg-primary/5 border-2 border-primary/30">
@@ -445,18 +488,28 @@ export default function LeaderboardsContent({ active = true }) {
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
-              key={activeBoard}
+              key={`${activeBoard}:${period}`}
               className="space-y-2"
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.25 }}
             >
-              {/* Windowed list: podium, then a collapsed gap, then the
-                  user's immediate neighbours. Replaces a flat 100-row list
-                  that needed a sticky "Your rank" pill plus row-suppression
-                  logic to stop the user appearing twice — and which never
-                  showed them who they were actually chasing. */}
+              {/* Podium — the top three, with graduated blocks and the
+                  crown/trophy/flame badges. Previously ranks 1-3 were
+                  ordinary rows carrying a coloured ring, which made first
+                  place read as "a row with a yellow border". */}
+              {podium.length > 0 && (
+                <div className="mb-3">
+                  <LeaderboardPodium rankings={podium} currentUserId={user?.id} />
+                </div>
+              )}
+
+              {/* Windowed list from rank 4 down: the next few, a collapsed
+                  gap, then the user's immediate neighbours. Replaces a flat
+                  100-row list that needed a sticky "Your rank" pill plus
+                  row-suppression logic to stop the user appearing twice —
+                  and which never showed who they were actually chasing. */}
               {rows.map((entry, idx) => {
                 if (entry.type === 'ellipsis') {
                   return (
@@ -473,7 +526,6 @@ export default function LeaderboardsContent({ active = true }) {
                 }
 
                 const row = entry.row;
-                const podium = PODIUM_STYLE[row.rank - 1];
                 const isMe = row.id === user?.id;
                 const delta = rankDeltas[row.id];
 
@@ -484,16 +536,14 @@ export default function LeaderboardsContent({ active = true }) {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: Math.min(idx, 10) * 0.04 }}
                   >
+                    {/* No podium ring here any more — ranks 1-3 don't reach
+                        this list, they render in LeaderboardPodium above. */}
                     <Card className={`p-3 border-none shadow-sm transition-all ${
-                      podium ? `ring-2 ${podium.ring} shadow-md ${podium.glow}` : ''
-                    } ${isMe ? 'bg-primary/10 border-2 border-primary/30' : ''}`}>
+                      isMe ? 'bg-primary/10 border-2 border-primary/30' : ''
+                    }`}>
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-lg bg-secondary">
-                          {podium ? (
-                            <podium.Icon className={`w-4 h-4 ${podium.iconColor}`} />
-                          ) : (
-                            <span className="font-heading font-bold text-xs">#{row.rank}</span>
-                          )}
+                          <span className="font-heading font-bold text-xs">#{row.rank}</span>
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="font-heading font-bold text-sm truncate">

@@ -26,6 +26,16 @@ export const leaderboardsI18n = {
     // TODO(i18n): English-only — needs a native pass for the other 14 locales.
     // All are called through tFallback, so other languages render English
     // rather than a raw key until that pass lands.
+    // Short board labels for the segmented selector. Deliberately terse —
+    // four segments share one row at 375px, so these must stay ~8 chars.
+    // The full names (leaderboards.level etc.) still exist for other callers.
+    'leaderboards.short.level':        'Level',
+    'leaderboards.short.achievements': 'Awards',
+    'leaderboards.short.volume':       'Volume',
+    'leaderboards.short.distance':     'Distance',
+    'leaderboards.period.alltime':     'All-time',
+    'leaderboards.period.monthly':     'Month',
+    'leaderboards.period.weekly':      'Week',
     'leaderboards.showHidden': 'Show {n} hidden athletes',
     'leaderboards.collapse': 'Collapse',
     'leaderboards.movedUp': 'Up {n} places',
