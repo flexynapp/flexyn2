@@ -10,13 +10,14 @@
 //   {bag.openingCapsule && <CapsuleOpener capsule={bag.openingCapsule}
 //        onClaim={bag.claimCapsule} onClose={bag.closeOpener} />}
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/lib/toast';
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
 import { useAuth } from '@/lib/AuthContext';
 import * as capsules from '@/lib/data/capsules';
+import { recoverStrandedCapsules, recoveryMessage } from '@/lib/capsuleRecovery';
 
 // Custom event name used by external callers (e.g. StatsHubModal "Bag &
 // Capsules" tile) to ask whatever currently owns the bag flow to open
@@ -210,6 +211,33 @@ export function useBagFlow() {
     if (saved > 0) toast.success(`${saved} item${saved === 1 ? '' : 's'} added to your bag!`);
     if (failed > 0) toast.error(`${failed} item${failed === 1 ? '' : 's'} could not be saved — try opening again.`);
   }, [user, queryClient]);
+
+  // ── Recover loot stranded between roll and claim ────────────────────────────
+  // A capsule is spent the moment the reel starts but the item only lands on
+  // Claim, so a reload / crash / unreachable Claim button destroys the
+  // reward. The roll itself is durable, so anything left in that state can
+  // be granted after the fact. See capsuleRecovery.js.
+  //
+  // Once per mount, not per bag-open: this is a repair pass, not something
+  // the user should be able to trigger repeatedly. The ref also stops React
+  // 18 StrictMode's double-effect from sweeping twice.
+  const sweptRef = useRef(false);
+  useEffect(() => {
+    if (sweptRef.current || !user?.email) return;
+    sweptRef.current = true;
+    let cancelled = false;
+    (async () => {
+      const res = await recoverStrandedCapsules(user.email);
+      if (cancelled || res.recovered === 0) return;
+      queryClient.invalidateQueries({ queryKey: ['userInventory', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
+      queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+      const msg = recoveryMessage(res);
+      if (msg) toast.success(msg);
+    })();
+    return () => { cancelled = true; };
+  }, [user?.email, queryClient]);
 
   // Listen for the global "open bag" event so external surfaces (e.g.
   // the StatsHub modal) can open the bag without holding a ref to the

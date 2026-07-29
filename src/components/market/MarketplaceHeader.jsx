@@ -141,11 +141,14 @@ export default function MarketplaceHeader({
               drives the capsule-open flow (see inventoryFlow.js). */}
           <button
             onClick={requestOpenBag}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-secondary border border-border font-bold text-sm hover:bg-secondary/70 transition-colors shrink-0"
             aria-label="Open My Bag"
           >
-            <Package className="w-4 h-4" />
-            <span>My Bag</span>
+            <Package className="w-4 h-4 shrink-0" />
+            {/* Once the listable count reaches two digits the List Item
+                button grows and squeezes this one until "My Bag" wraps to
+                two lines. Seen at 20 items. */}
+            <span className="whitespace-nowrap">My Bag</span>
           </button>
           <button
             onClick={onList}
@@ -153,7 +156,7 @@ export default function MarketplaceHeader({
             // already listed). Removes the tap-and-discover cycle for users
             // with nothing to sell; doubles as a satisfying tick-up when a
             // capsule opens and inventory grows.
-            className={`px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-lg hover:opacity-90 transition-opacity ${listableCount === 0 ? 'opacity-60' : ''}`}
+            className={`px-4 py-2 rounded-full bg-primary text-primary-foreground font-bold text-sm shadow-lg hover:opacity-90 transition-opacity whitespace-nowrap shrink-0 ${listableCount === 0 ? 'opacity-60' : ''}`}
           >
             List Item
             {listableCount > 0 && (

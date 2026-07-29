@@ -198,6 +198,51 @@ export async function listOpenHistory(userEmail, limit = 200) {
 }
 
 /**
+ * Capsules whose loot was STRANDED: consumed by claim_capsule_loot (so
+ * is_opened is true and the roll is recorded) but never finalized into an
+ * inventory row.
+ *
+ * How a row gets here: the capsule is spent the instant the reel starts,
+ * but the item only exists once finalize_capsule_claim runs on Claim.
+ * Anything interrupting that window — a reload, navigating away, a crash,
+ * a reveal that never completes — destroys the loot. Confirmed on a live
+ * account: 5 of 21 opened capsules, including an epic and two rares.
+ *
+ * `graceMs` excludes capsules opened very recently, because an open that
+ * is happening RIGHT NOW looks identical to a stranded one. Recovering it
+ * would grant a different item than the reel is showing and then make the
+ * user's own Claim fail with 'capsule already claimed'.
+ */
+export async function listStranded(userEmail, graceMs = 120_000) {
+  if (!userEmail) return [];
+  const cutoff = new Date(Date.now() - graceMs).toISOString();
+  try {
+    const { data, error } = await safeSelect({
+      columns: ['id', 'capsule_type', 'rolled_rarity', 'rolled_category', 'rolled_variant', 'opened_at'],
+      build: (cols) => supabase
+        .from('user_capsules')
+        .select(cols)
+        .eq('user_email', userEmail)
+        .eq('is_opened', true)
+        .is('finalized_at', null)
+        .not('rolled_rarity', 'is', null)
+        .lt('opened_at', cutoff)
+        .order('opened_at', { ascending: true }),
+    });
+    if (error) {
+      // Pre-028 / pre-198 hosts lack rolled_* or finalized_at. Nothing to
+      // recover there, and a decorative sweep must never break the bag.
+      console.warn('[capsules] listStranded failed:', error);
+      return [];
+    }
+    return data ?? [];
+  } catch (err) {
+    console.warn('[capsules] listStranded threw:', err);
+    return [];
+  }
+}
+
+/**
  * Total capsule count (opened + unopened) for a user.
  */
 export async function countCapsules(userEmail) {

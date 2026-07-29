@@ -7,6 +7,7 @@ import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
+import { pickItemForRoll } from '@/lib/lootRoll';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
 // LOOT_TITLES is still used by pickItemForRoll for title items.
@@ -21,21 +22,6 @@ import CapsuleStreak from './CapsuleStreak';
 // surface as the Marketplace and the Bag, so the odds you just read
 // sit next to the slots you haven't filled.
 const CollectionModal = lazy(() => import('@/components/loot/CollectionModal'));
-
-// Given a (category, rarity) tuple from the server-side roll, pick a random
-// specific item from the client-side catalog that matches. Items within the
-// same rarity tier are equivalent in value, so this residual client-side
-// choice doesn't enable a meaningful exploit (vs. forcing the rarity tier
-// itself, which IS now server-rolled).
-function pickItemForRoll(category, rarity) {
-  let pool = [];
-  if (category === 'sticker') pool = getItemsByRarity(rarity);
-  else if (category === 'theme') pool = LOOT_THEMES.filter(t => t.rarity === rarity);
-  else if (category === 'title') pool = LOOT_TITLES.filter(t => t.rarity === rarity);
-  else if (category === 'frame') pool = LOOT_FRAMES.filter(f => f.rarity === rarity);
-  if (!pool.length) return null;
-  return pool[Math.floor(Math.random() * pool.length)];
-}
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_W     = 130; // px
