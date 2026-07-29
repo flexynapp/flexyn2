@@ -40,7 +40,8 @@ function pickItemForRoll(category, rarity) {
 // ─── Constants ────────────────────────────────────────────────────────────────
 const CARD_W     = 130; // px
 const CARD_GAP   = 12;  // px
-const CARD_STRIDE = CARD_W + CARD_GAP;
+// Stride is derived per-reel now (CapsuleReel takes a cardW), because a
+// stacked batch renders smaller cards than a single open.
 // The winning slot is NOT a constant. It used to be: every reel was 22
 // cards with the win pinned at index 18, so every spin travelled exactly
 // the same distance and the only thing that changed between opens was the
@@ -320,7 +321,7 @@ async function rollOneCapsule(capsuleId) {
 }
 
 // ─── ItemCard ─────────────────────────────────────────────────────────────────
-function ItemCard({ item, highlight = false }) {
+function ItemCard({ item, highlight = false, width = CARD_W }) {
   const tint = rarityTint(item.rarity);
   const isMystery = item.id === '__mystery__';
   return (
@@ -330,17 +331,20 @@ function ItemCard({ item, highlight = false }) {
         isMystery ? 'bg-secondary opacity-60' : 'bg-card',
       ].join(' ')}
       style={{
-        width: CARD_W,
-        height: 130,
+        width,
+        height: width,
         borderColor: tint.border,
         boxShadow: highlight ? tint.glow : undefined,
       }}
     >
-      <span className="text-4xl leading-none mb-2">{item.emoji}</span>
-      <span className={`text-xs font-semibold truncate px-1 ${isMystery ? 'text-muted-foreground' : 'text-foreground/80'}`}>
+      <span className="leading-none mb-1" style={{ fontSize: Math.round(width * 0.3) }}>{item.emoji}</span>
+      <span
+        className={`font-semibold truncate px-1 ${isMystery ? 'text-muted-foreground' : 'text-foreground/80'}`}
+        style={{ fontSize: Math.max(8, Math.round(width * 0.09)) }}
+      >
         {item.name}
       </span>
-      {!isMystery && (
+      {!isMystery && width >= 100 && (
         <span
           className="mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
           style={{ color: tint.color, border: `1px solid ${tint.color}` }}
@@ -406,6 +410,110 @@ function StarField() {
 // rarity-scaled haptic moved onto the reveal itself (see the effect in the
 // component). Its ~170 lines of .unlock-* CSS are gone from index.css too.
 
+// ─── One spinning reel ────────────────────────────────────────────────────────
+// Self-contained so a batch can run SEVERAL at once, stacked. Previously the
+// spin logic lived inline in the component via a single callback ref and
+// module-level card constants, which meant exactly one reel could ever
+// exist — so "open 6" played one animation and then flipped cards, instead
+// of showing six reels actually spinning.
+//
+// Owns its own container measurement, double-RAF kick-off, CSS transition
+// and transitionend teardown. `onSettled` fires once, when this reel's own
+// transform finishes.
+function CapsuleReel({ cards, winIndex, variant, cardW = CARD_W, speed = 1, onSettled }) {
+  const containerRef = useRef(null);
+  const settledRef   = useRef(false);
+  const timerRef     = useRef(null);
+  const stride = cardW + CARD_GAP;
+
+  // Settle exactly once, whichever signal arrives first.
+  const settle = useCallback(() => {
+    if (settledRef.current) return;
+    settledRef.current = true;
+    if (timerRef.current) { clearTimeout(timerRef.current); timerRef.current = null; }
+    onSettled?.();
+  }, [onSettled]);
+
+  // Safety net. A wave only advances once EVERY reel in it reports back, so
+  // one missed transitionend strands the user on a spinning modal with
+  // their capsules already consumed. transitionend can genuinely go missing
+  // — a backgrounded tab, a display:none ancestor, an interrupted
+  // transition — and with four reels per wave there are now four chances
+  // for that instead of one. Fires slightly after the animation should
+  // have ended; `settle` dedupes against the real event.
+  useEffect(() => {
+    const ms = variant.duration * speed * 1000 + 600;
+    timerRef.current = setTimeout(settle, ms);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [variant, speed, settle]);
+
+  const setTrackRef = useCallback((el) => {
+    if (!el) return;
+    // Double-RAF so the browser paints at translateX(0) first. Without it
+    // the transition has no "from" position and the reel jumps straight to
+    // its final offset without animating.
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => {
+        if (!el.isConnected) return;
+        const ct = containerRef.current;
+        // Guard against a zero/absurd offsetWidth — a corrupt layout pass
+        // on low-end Android has been observed returning 1, which parks
+        // the reel off-screen.
+        const raw = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
+        const containerWidth = (raw >= 120 && raw <= 1200) ? raw : 400;
+        const centerOffset = Math.floor(containerWidth / 2) - Math.floor(cardW / 2);
+        const winOffset    = winIndex * stride - centerOffset;
+
+        el.style.transition = 'none';
+        el.style.transform  = 'translateX(0px)';
+        void el.offsetWidth; // force reflow so there IS a "from" state
+
+        el.style.transition = `transform ${(variant.duration * speed).toFixed(2)}s ${variant.easing}`;
+        el.style.transform  = `translateX(${-winOffset}px)`;
+
+        const done = (ev) => {
+          if (ev.propertyName && ev.propertyName !== 'transform') return;
+          el.removeEventListener('transitionend', done);
+          settle();
+        };
+        el.addEventListener('transitionend', done);
+      });
+      el._raf2 = raf2;
+    });
+    el._raf1 = raf1;
+  }, [cardW, stride, winIndex, variant, speed, settle]);
+
+  return (
+    <div ref={containerRef} className="w-full relative overflow-hidden" style={{ height: cardW + 18 }}>
+      <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-primary/70 pointer-events-none" />
+      {/* Edge fades must match the PANEL colour exactly or the reel looks
+          like it slides behind a lighter band. */}
+      <div
+        className="absolute inset-y-0 start-0 z-10 pointer-events-none"
+        style={{ width: cardW * 0.6, background: 'linear-gradient(to right, hsl(var(--popover)), transparent)' }}
+      />
+      <div
+        className="absolute inset-y-0 end-0 z-10 pointer-events-none"
+        style={{ width: cardW * 0.6, background: 'linear-gradient(to left, hsl(var(--popover)), transparent)' }}
+      />
+      <div
+        ref={setTrackRef}
+        className="absolute top-2 flex"
+        style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
+      >
+        {cards.map((item, idx) => (
+          <ItemCard
+            key={`${item.id}-${idx}`}
+            item={item}
+            highlight={idx === winIndex}
+            width={cardW}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Batch reveal ─────────────────────────────────────────────────────────────
 // Results land in WAVES of up to four rather than all at once.
 //
@@ -427,21 +535,18 @@ export function splitIntoWaves(results, size = BATCH_WAVE_SIZE) {
   return waves;
 }
 
-function BatchCard({ entry, isBest, opened, capsuleEmoji, delay }) {
+function BatchCard({ entry, isBest, delay }) {
   const { item } = entry;
   const tint = rarityTint(item.rarity);
   return (
     <motion.div
       className="relative flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
-      style={{
-        borderColor: opened ? tint.border : 'hsl(var(--border))',
-        boxShadow: opened && isBest ? tint.glow : undefined,
-      }}
+      style={{ borderColor: tint.border, boxShadow: isBest ? tint.glow : undefined }}
       initial={{ scale: 0.6, opacity: 0, y: 8 }}
       animate={{ scale: 1, opacity: 1, y: 0 }}
       transition={{ type: 'spring', stiffness: 320, damping: 22, delay }}
     >
-      {opened && isBest && (
+      {isBest && (
         <span
           className="absolute -top-1.5 px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider"
           style={{ backgroundColor: tint.color, color: '#000' }}
@@ -449,37 +554,15 @@ function BatchCard({ entry, isBest, opened, capsuleEmoji, delay }) {
           Best
         </span>
       )}
-
-      <AnimatePresence mode="wait" initial={false}>
-        {!opened ? (
-          <motion.span
-            key="sealed"
-            className="text-3xl leading-none"
-            initial={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.5, rotate: -12 }}
-            transition={{ duration: 0.18 }}
-          >
-            {capsuleEmoji}
-          </motion.span>
-        ) : (
-          <motion.div
-            key="opened"
-            className="flex flex-col items-center gap-1"
-            initial={{ opacity: 0, scale: 0.5 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: 'spring', stiffness: 340, damping: 18 }}
-          >
-            <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
-            <span className="text-[10px] font-semibold leading-tight line-clamp-2">{item.name}</span>
-            <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: tint.color }}>
-              {tint.label}
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
+      <span className="text-[10px] font-semibold leading-tight line-clamp-2">{item.name}</span>
+      <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: tint.color }}>
+        {tint.label}
+      </span>
     </motion.div>
   );
 }
+
 
 // ─── Component ────────────────────────────────────────────────────────────────
 // Phases: 'idle' → 'spinning' → 'revealing' → 'claimed'
@@ -495,118 +578,19 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const isBatch = !!batchRows && batchRows.length > 1;
   // [{ capsuleId, item }] — every successful roll from this open.
   const [results, setResults] = useState([]);
-  // How many WAVES of results have been dealt so far (see splitIntoWaves).
-  // Cards in dealt-but-not-yet-flipped waves show their sealed capsule.
-  const [wavesDealt, setWavesDealt] = useState(0);
-  const [openedCount, setOpenedCount] = useState(0);
   const reduce = prefersReducedMotion();
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
-  const [reel,    setReel]    = useState([]);
-  // Which slot the reel lands on. Varies per spin now, so it drives both
-  // the scroll offset and the highlight instead of a module constant.
-  const [winIndex, setWinIndex] = useState(0);
+  // One reel spec per capsule opened:
+  //   { capsuleId, item, cards, winIndex, variant }
+  // A single open has exactly one. A batch has N, spun in stacked waves.
+  const [reels, setReels] = useState([]);
+  const [waveIndex, setWaveIndex] = useState(0);
+  const [settledInWave, setSettledInWave] = useState(0);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  // Per-spin animation persona — duration, easing, kicker text.
-  // Picked once when the user hits Open so a single spin doesn't
-  // mid-flight switch curves. Initialized to a placeholder so the
-  // very-first render before handleOpen has a safe default.
+  // Kicker caption for the current wave. Each reel carries its own variant
+  // so a stack doesn't move in lockstep; this is just the label.
   const [spinVariant, setSpinVariant] = useState(SPIN_VARIANTS[0]);
-
-  const reelRef      = useRef(null);
-  const containerRef = useRef(null);
-  // Ref mirror so the callback ref's RAF closure reads the freshest
-  // variant. State alone would be stale by the time the double-RAF
-  // fires — setReelRef has [] deps to keep its identity stable.
-  const spinVariantRef = useRef(SPIN_VARIANTS[0]);
-  // Ref mirror for the same reason as spinVariantRef: setReelRef has empty
-  // deps, so its RAF closure can't read winIndex from state.
-  const winIndexRef = useRef(0);
-
-  // ── Callback ref: fires the instant the reel div enters the DOM ─────────────
-  // useEffect fires too early — with AnimatePresence mode="wait", the spinning
-  // div isn't mounted when the effect runs (idle is still exiting). A callback
-  // ref fires at the exact mount moment, guaranteeing the element is in DOM.
-  const setReelRef = useCallback((el) => {
-    // On unmount the callback ref fires with `null`. Cancel any
-    // pending RAF + the transitionend listener so a queued
-    // `setPhase('revealing')` can't run on a torn-down component.
-    if (!el) {
-      const prev = reelRef.current;
-      if (prev) {
-        if (prev._raf1 != null) { cancelAnimationFrame(prev._raf1); prev._raf1 = null; }
-        if (prev._raf2 != null) { cancelAnimationFrame(prev._raf2); prev._raf2 = null; }
-        if (prev._onTransitionEnd) {
-          prev.removeEventListener('transitionend', prev._onTransitionEnd);
-          prev._onTransitionEnd = null;
-        }
-        if (prev._revealTimeoutId != null) {
-          clearTimeout(prev._revealTimeoutId);
-          prev._revealTimeoutId = null;
-        }
-      }
-      reelRef.current = null;
-      return;
-    }
-    reelRef.current = el;
-
-    // Double-RAF so the browser paints the element at translateX=0 first.
-    // If we skip this, the CSS transition has no "from" position and the reel
-    // jumps straight to the final offset without animating.
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
-        if (!el.isConnected) return; // unmounted between frames
-        const ct = containerRef.current;
-        // Guard against offsetWidth === 0 (container not yet laid out,
-        // or hidden via display:none mid-animation). Without the
-        // fallback the centerOffset goes negative and the reel parks
-        // off-screen. Also clamp against absurdly small or large
-        // widths — a corrupt layout pass under heavy CSS load on
-        // low-end Android has been observed returning offsetWidth=1.
-        // 200..1200 covers every realistic mobile + desktop modal
-        // width; outside that we fall back to the 400 default that
-        // matches the modal's max-w-lg constraint.
-        const rawWidth = (ct && ct.offsetWidth > 0) ? ct.offsetWidth : 400;
-        const containerWidth = (rawWidth >= 200 && rawWidth <= 1200) ? rawWidth : 400;
-        const centerOffset   = Math.floor(containerWidth / 2) - Math.floor(CARD_W / 2);
-        const winOffset      = winIndexRef.current * CARD_STRIDE - centerOffset;
-
-        // 1. Pin to start with no transition, then force a reflow so the
-        //    browser has a concrete "from" state for the transition.
-        el.style.transition = 'none';
-        el.style.transform  = 'translateX(0px)';
-        void el.offsetWidth; // synchronous reflow
-
-        // 2. Kick off the slide animation using the per-spin variant.
-        const v = spinVariantRef.current;
-        el.style.transition = `transform ${v.duration}s ${v.easing}`;
-        el.style.transform  = `translateX(${-winOffset}px)`;
-
-        // 3. Advance to revealing after the transition finishes.
-        // Filter by propertyName so a CSS transition on a sibling
-        // property (opacity, box-shadow on hover) doesn't fire the
-        // listener prematurely and short-circuit the reveal. Store
-        // the listener + timeout on the element so the callback ref's
-        // unmount path (above) can tear them down cleanly.
-        const onTransitionEnd = (ev) => {
-          if (ev.propertyName && ev.propertyName !== 'transform') return;
-          el.removeEventListener('transitionend', onTransitionEnd);
-          el._onTransitionEnd = null;
-          el._revealTimeoutId = setTimeout(() => {
-            el._revealTimeoutId = null;
-            if (!el.isConnected) return; // unmounted during the 200ms delay
-            setPhase('revealing');
-          }, 200);
-        };
-        el._onTransitionEnd = onTransitionEnd;
-        el.addEventListener('transitionend', onTransitionEnd);
-      });
-      // Store raf2 ID on the element so we can cancel it if the element
-      // unmounts during the first RAF (rare but possible).
-      el._raf2 = raf2;
-    });
-    el._raf1 = raf1;
-  }, []); // no deps — callback identity stays stable for the lifetime of the open
 
   const capsuleEmoji = capsule?.capsule_type === 'elite'
     ? '💠' : capsule?.capsule_type === 'premium'
@@ -638,33 +622,29 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     if (pattern) triggerHaptic(pattern);
   }, [phase, wonItem]);
 
-  // Deal the batch out in waves once the reveal begins.
-  //
-  // Each wave is dealt (cards appear sealed), then flipped open a beat
-  // later, then the next wave follows. Timers are collected so closing the
-  // modal mid-sequence can't fire setState on an unmounted component.
-  const waves = useMemo(() => (isBatch ? splitIntoWaves(results) : []), [isBatch, results]);
-  useEffect(() => {
-    if (!isBatch || phase !== 'revealing' || waves.length === 0) return;
-    const timers = [];
-    const DEAL = 620;   // ms a wave sits sealed before it flips
-    const GAP  = 520;   // ms after a wave opens before the next is dealt
-    let t = 0;
-    waves.forEach((wave, i) => {
-      timers.push(setTimeout(() => setWavesDealt(i + 1), t));
-      t += DEAL;
-      timers.push(setTimeout(() => {
-        setOpenedCount(waves.slice(0, i + 1).reduce((n, w) => n + w.length, 0));
-        // One buzz per wave landing — the batch equivalent of the single
-        // reveal's haptic.
-        triggerHaptic('primary');
-      }, t));
-      t += GAP;
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [isBatch, phase, waves]);
+  // Reels are spun in stacked waves of at most WAVE_SIZE. A wave advances
+  // only once EVERY reel in it has settled, so nothing is cut short.
+  const reelWaves = useMemo(() => splitIntoWaves(reels), [reels]);
+  const currentWave = reelWaves[waveIndex] ?? [];
 
-  const allWavesOpened = isBatch && openedCount >= results.length && results.length > 0;
+  const handleReelSettled = useCallback(() => {
+    setSettledInWave(n => n + 1);
+  }, []);
+
+  useEffect(() => {
+    if (phase !== 'spinning' || currentWave.length === 0) return;
+    if (settledInWave < currentWave.length) return;
+    // Whole wave has landed. Beat, then either the next stack or the haul.
+    const t = setTimeout(() => {
+      if (waveIndex + 1 < reelWaves.length) {
+        setWaveIndex(i => i + 1);
+        setSettledInWave(0);
+      } else {
+        setPhase('revealing');
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [phase, settledInWave, currentWave.length, waveIndex, reelWaves.length]);
 
   // ── Trigger spin ────────────────────────────────────────────────────────────
   // Server-authoritative roll (migration 028). The RPC:
@@ -683,14 +663,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     if (openGuardRef.current) return;
     openGuardRef.current = true;
 
-    // Pick the spin persona for THIS open. Stash on both state (drives the
-    // kicker text via React re-render) and the ref (read by the callback
-    // ref's RAF closure, which has no React access). Without the ref
-    // mirror the reel would always animate with the very-first variant
-    // due to the empty-deps closure on setReelRef.
-    const variant = pickSpinVariant();
-    spinVariantRef.current = variant;
-    setSpinVariant(variant);
+    // Drives the kicker caption only; each reel carries its own variant.
+    setSpinVariant(pickSpinVariant());
 
     const targets = isBatch ? batchRows : (capsule ? [capsule] : []);
     if (targets.length === 0 || targets.some(c => !c?.id)) {
@@ -737,15 +711,19 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     // one payoff moment, and it should be the one worth watching.
     const best = ok.reduce((a, b) => (rarityRank(b.item.rarity) > rarityRank(a.item.rarity) ? b : a));
 
-    const { cards, winIndex: landedAt } = buildReel(best.item);
-    winIndexRef.current = landedAt;
+    // A reel PER capsule. Each gets its own shape AND its own spin persona,
+    // so a stack of four lands at four different moments instead of moving
+    // as one block.
+    const specs = ok.map(({ capsuleId, item }) => {
+      const { cards, winIndex } = buildReel(item);
+      return { capsuleId, item, cards, winIndex, variant: pickSpinVariant() };
+    });
 
     setResults(ok);
-    setWavesDealt(0);
-    setOpenedCount(0);
+    setReels(specs);
+    setWaveIndex(0);
+    setSettledInWave(0);
     setWonItem(best.item);
-    setWinIndex(landedAt);
-    setReel(cards);
     setPhase('spinning');
     // The CSS animation is kicked off by the reel's callback ref once the
     // element mounts.
@@ -917,50 +895,41 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
           )}
 
           {/* ── SPINNING ───────────────────────────────────────────────────── */}
-          {phase === 'spinning' && (
+          {phase === 'spinning' && currentWave.length > 0 && (
             <motion.div
-              key="spinning"
-              className="flex flex-col items-center py-10 gap-6"
+              key={`spinning-${waveIndex}`}
+              className="flex flex-col items-center py-8 gap-3"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
             >
-              <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">{spinVariant.kicker}</p>
+              <p className="text-muted-foreground text-sm font-medium tracking-widest uppercase">
+                {reelWaves.length > 1
+                  ? `${spinVariant.kicker} ${waveIndex + 1}/${reelWaves.length}`
+                  : spinVariant.kicker}
+              </p>
 
-              {/* Reel container */}
-              <div
-                ref={containerRef}
-                className="w-full relative overflow-hidden"
-                style={{ height: 148 }}
-              >
-                {/* Center indicator */}
-                <div className="absolute inset-y-0 start-1/2 -translate-x-px z-10 w-0.5 bg-primary/70 pointer-events-none" />
-                {/* Left / right fades — must match the PANEL colour exactly
-                    or the reel appears to slide behind a lighter band.
-                    Reading the token keeps them in lockstep with the stage. */}
-                <div
-                  className="absolute inset-y-0 start-0 z-10 w-20 pointer-events-none"
-                  style={{ background: 'linear-gradient(to right, hsl(var(--popover)), transparent)' }}
-                />
-                <div
-                  className="absolute inset-y-0 end-0 z-10 w-20 pointer-events-none"
-                  style={{ background: 'linear-gradient(to left, hsl(var(--popover)), transparent)' }}
-                />
-
-                {/* Reel track — animated imperatively via callback ref */}
-                <div
-                  ref={setReelRef}
-                  className="absolute top-2 flex"
-                  style={{ gap: CARD_GAP, paddingLeft: CARD_GAP, willChange: 'transform' }}
-                >
-                  {reel.map((item, idx) => (
-                    <ItemCard key={`${item.id}-${idx}`} item={item} highlight={idx === winIndex} />
-                  ))}
-                </div>
+              {/* One reel per capsule, stacked. A batch of six spins four
+                  here, then the remaining two in the next wave. Reels are
+                  scaled down so a full stack of four fits the panel. */}
+              <div className="w-full flex flex-col gap-2">
+                {currentWave.map((spec) => (
+                  <CapsuleReel
+                    key={spec.capsuleId}
+                    cards={spec.cards}
+                    winIndex={spec.winIndex}
+                    variant={spec.variant}
+                    cardW={isBatch ? 74 : CARD_W}
+                    // Batch reels run quicker — four personas at full length
+                    // would leave the slowest holding the wave for 4.6s.
+                    speed={isBatch ? 0.68 : 1}
+                    onSettled={handleReelSettled}
+                  />
+                ))}
               </div>
             </motion.div>
           )}
 
-          {/* ── REVEALING (batch) ──────────────────────────────────────────── */}
+          {/* ── REVEALING (batch) — the haul ───────────────────────────────── */}
           {phase === 'revealing' && wonItem && isBatch && (
             <motion.div
               key="revealing-batch"
@@ -976,35 +945,18 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 }}
               />
               <p className="relative z-10 text-muted-foreground text-xs font-medium tracking-widest uppercase">
-                {allWavesOpened
-                  ? `${results.length} opened`
-                  : `Opening ${Math.min(openedCount + BATCH_WAVE_SIZE, results.length)} of ${results.length}…`}
+                {results.length} opened
               </p>
 
-              {/* One row per wave. Earlier waves stay put so the haul builds
-                  up underneath rather than being replaced. */}
-              <div className="relative z-10 w-full flex flex-col gap-2">
-                {waves.slice(0, wavesDealt).map((wave, wi) => {
-                  const before = waves.slice(0, wi).reduce((n, w) => n + w.length, 0);
-                  return (
-                    <div
-                      key={wi}
-                      className="grid gap-2"
-                      style={{ gridTemplateColumns: `repeat(${Math.min(wave.length, BATCH_WAVE_SIZE)}, minmax(0, 1fr))` }}
-                    >
-                      {wave.map((entry, ci) => (
-                        <BatchCard
-                          key={entry.capsuleId}
-                          entry={entry}
-                          isBest={entry.capsuleId === bestResultId}
-                          opened={before + ci < openedCount}
-                          capsuleEmoji={capsuleEmoji}
-                          delay={ci * 0.06}
-                        />
-                      ))}
-                    </div>
-                  );
-                })}
+              <div className="relative z-10 w-full grid grid-cols-3 sm:grid-cols-5 gap-2">
+                {results.map((entry, i) => (
+                  <BatchCard
+                    key={entry.capsuleId}
+                    entry={entry}
+                    isBest={entry.capsuleId === bestResultId}
+                    delay={i * 0.05}
+                  />
+                ))}
               </div>
 
               <motion.button
@@ -1017,11 +969,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                   boxShadow: `0 4px 24px ${rarityConfig.color}44`,
                 }}
                 initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: allWavesOpened ? 1 : 0, y: allWavesOpened ? 0 : 6 }}
-                // Only actionable once every wave has opened — a fast tap
-                // must not be able to skip the reveal it paid for.
-                style={{ pointerEvents: allWavesOpened ? 'auto' : 'none' }}
-                transition={{ duration: 0.25 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 + results.length * 0.05 }}
               >
                 Claim all {results.length}
               </motion.button>
