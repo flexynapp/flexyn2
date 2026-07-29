@@ -37,6 +37,14 @@ const BOARDS = [
   { id: 'distance',     icon: Footprints, labelKey: 'leaderboards.distance',     gradient: 'from-sky-400 via-blue-500 to-indigo-500' },
 ];
 
+// UI board id → the `p_board` value the RPC understands.
+const SERVER_BOARD = {
+  level:        'xp',
+  volume:       'volume',
+  achievements: 'achievements',
+  distance:     'distance',
+};
+
 const PODIUM_STYLE = {
   0: { ring: 'ring-yellow-400/60',  glow: 'shadow-yellow-400/40',  Icon: Crown,  iconColor: 'text-yellow-400'  },
   1: { ring: 'ring-slate-300/60',   glow: 'shadow-slate-300/30',   Icon: Trophy, iconColor: 'text-slate-300'   },
@@ -130,64 +138,90 @@ export default function LeaderboardsContent({ active = true }) {
     const supportsPeriod = activeBoard === 'volume' || activeBoard === 'level';
     if (!supportsPeriod && period !== 'alltime') setPeriod('alltime');
   }, [activeBoard, period]);
-  const periodScoped = period !== 'alltime' &&
-    (activeBoard === 'volume' || activeBoard === 'level');
 
   useEffect(() => {
     if (active && user?.email) backfillLeaderboardStatsOnce(user.email);
   }, [active, user?.email]);
 
-  const { data: allUsers = [], isLoading: isLoadingRaw } = useQuery({
-    queryKey: ['allUsersLeaderboards'],
-    queryFn: () => db.entities.User.list(),
-    enabled: active,
-  });
-  // Period-scoped feed from the RPC. Only fired when period is
-  // weekly/monthly AND the active board has a period-scoped definition.
-  // Match the cache key to the SERVER board param ('xp' / 'volume'),
-  // not the UI's activeBoard name — the previous shape keyed the
-  // cache by 'level' while sending board:'xp' to the RPC, so a sibling
-  // surface that also reads ['periodLeaderboard', 'xp', period] would
-  // miss this cache and trigger a duplicate fetch.
-  const serverBoard = activeBoard === 'level' ? 'xp' : 'volume';
-  const { data: periodRows = [], isLoading: isLoadingPeriodRaw } = useQuery({
+  // Map the UI's board id onto the RPC's board param. The cache is keyed by
+  // the SERVER name, not the UI name — the previous shape keyed by 'level'
+  // while sending board:'xp', so a sibling surface reading
+  // ['periodLeaderboard', 'xp', period] missed this cache and refetched.
+  const serverBoard = SERVER_BOARD[activeBoard] || 'volume';
+
+  // Every board, every period, now comes from the server (migration 257
+  // widened the RPC past volume/xp/sessions). Ranking used to happen in the
+  // browser for the all-time boards, which meant pulling the entire user
+  // table down to every viewer on every open.
+  const { data: rpcResult, isLoading: isLoadingRpcRaw } = useQuery({
     queryKey: ['periodLeaderboard', serverBoard, period],
-    queryFn:  () => getPeriodLeaderboard({
-      board:  serverBoard,
-      period,
-      limit:  100,
-    }),
-    enabled: active && periodScoped,
+    queryFn:  () => getPeriodLeaderboard({ board: serverBoard, period, limit: 100 }),
+    enabled:  active,
     staleTime: 60_000,
   });
+  const rpcRows = rpcResult?.rows ?? [];
+  // A pre-257 host can't serve the all-time boards. The frontend deploys
+  // ahead of the database (Netlify auto-deploys main; migrations are applied
+  // by hand), so the legacy client-side path stays wired until the migration
+  // lands and only runs when the RPC says it can't help.
+  const needsLegacyFallback = active && rpcResult != null && !rpcResult.supported;
+
+  const { data: allUsers = [], isLoading: isLoadingLegacyRaw } = useQuery({
+    queryKey: ['allUsersLeaderboards'],
+    queryFn: () => db.entities.User.list(),
+    enabled: needsLegacyFallback,
+  });
+
   // 250ms gate so a cached re-open of leaderboards doesn't flash
   // a loading spinner that disappears the same frame.
-  const isLoading = useDelayedLoading(isLoadingRaw || (periodScoped && isLoadingPeriodRaw));
+  const isLoading = useDelayedLoading(
+    isLoadingRpcRaw || (needsLegacyFallback && isLoadingLegacyRaw)
+  );
 
   const board = BOARDS.find(b => b.id === activeBoard);
 
   const ranked = useMemo(() => {
-    // Period-scoped path — server-side aggregation via the RPC.
-    if (periodScoped) {
-      const periodSuffix = period === 'weekly' ? '/wk' : '/mo';
-      const formatValue = activeBoard === 'volume'
-        ? v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`
-        : v => `${formatCompact(v)} XP${periodSuffix}`;
-      return periodRows
+    // Server path — the RPC ranks, so the client only formats.
+    if (!needsLegacyFallback) {
+      const periodSuffix = period === 'weekly' ? '/wk' : period === 'monthly' ? '/mo' : '';
+      let formatValue;
+      switch (activeBoard) {
+        case 'volume':
+          formatValue = v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`;
+          break;
+        case 'distance':
+          formatValue = v => formatDistance(v, distanceUnit, 1);
+          break;
+        case 'achievements':
+          formatValue = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
+          break;
+        case 'level':
+        default:
+          // All-time level board shows the level the XP buys; the scoped
+          // windows show XP earned in that window, which has no level.
+          formatValue = v => period === 'alltime'
+            ? `Lv ${calculateLevelFromXp(v).level} · ${formatCompact(v)} XP`
+            : `${formatCompact(v)} XP${periodSuffix}`;
+          break;
+      }
+      return rpcRows
         .filter(r => Number(r.value) > 0)
         .map((r, idx) => {
           const val = Number(r.value) || 0;
           return {
-            id:     r.user_id,
+            id:        r.user_id,
             full_name: r.full_name || r.username || t('progress.anonymous'),
-            rank:   idx + 1,
-            _val:   val,
-            _display: formatValue(val),
+            // Prefer the server's rank — it accounts for the whole table and
+            // breaks ties deterministically. Pre-257 rows have no `rank`.
+            rank:      Number(r.rank) || idx + 1,
+            _val:      val,
+            _display:  formatValue(val),
           };
         });
     }
 
-    // All-time path — in-memory ranking against denormalized columns.
+    // Legacy path — in-memory ranking against denormalized columns. Only
+    // reached on a host that hasn't had migration 257 applied yet.
     const enriched = allUsers.map(u => {
       const xp = Number(u.total_xp) || 0;
       const lvl = calculateLevelFromXp(xp);
@@ -241,7 +275,7 @@ export default function LeaderboardsContent({ active = true }) {
       .sort((a, b) => (valueOf(b) - valueOf(a)) || String(a.id).localeCompare(String(b.id)))
       .slice(0, 100)
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
-  }, [allUsers, activeBoard, period, periodScoped, periodRows, weightUnit, distanceUnit, t]);
+  }, [allUsers, activeBoard, period, needsLegacyFallback, rpcRows, weightUnit, distanceUnit, t]);
 
   const myIndex = ranked.findIndex(r => r.id === user?.id);
   const myRow = myIndex >= 0 ? ranked[myIndex] : undefined;
