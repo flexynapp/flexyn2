@@ -5,7 +5,7 @@ import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } fro
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Sparkles, BookOpen } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
+import { ITEMS, BRANDED_ITEMS, getItemsByRarity, VARIANTS } from '@/lib/lootCatalog';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 import { LOOT_THEMES, getLootThemeById } from '@/lib/lootThemes';
 import { LOOT_FRAMES } from '@/lib/lootFrames';
@@ -94,7 +94,37 @@ function rarityRank(r) {
   return i < 0 ? 0 : i;
 }
 
-// ─── Weighted random item for reel filler ─────────────────────────────────────
+// ─── Reel filler pool ─────────────────────────────────────────────────────────
+// EVERY droppable cosmetic, grouped by rarity.
+//
+// This used to draw from ITEMS stickers only — 19 entries, of which just
+// FIVE are common. With the cold weight table putting ~52% of cards in the
+// common tier, roughly half of every reel was drawn from a five-item pool,
+// so the same handful of icons streamed past on every single spin and only
+// the prize at the end differed. Reported by the user, and the numbers back
+// it up exactly.
+//
+// It was wrong on a second axis too: capsules can drop titles, frames and
+// themes (see pickItemForRoll), but the reel only ever showed stickers —
+// so the run-up never previewed three of the four things you can actually
+// win. Folding in BRANDED_ITEMS and the title/frame/theme catalogs takes
+// the pool from 19 to ~110 and puts every winnable category on the reel.
+const FILLER_POOL = (() => {
+  const byRarity = {};
+  const seen = new Set();
+  const push = (item) => {
+    if (!item?.id || !item.rarity || seen.has(item.id)) return;
+    seen.add(item.id);
+    (byRarity[item.rarity] ||= []).push(item);
+  };
+  ITEMS.filter(i => i.type === 'sticker').forEach(push);
+  BRANDED_ITEMS.forEach(push);
+  (LOOT_TITLES || []).forEach(push);
+  (LOOT_FRAMES || []).forEach(push);
+  (LOOT_THEMES || []).forEach(push);
+  return byRarity;
+})();
+
 // Two tables instead of one. A "cold" reel is mostly commons and greys past
 // the window; a "hot" reel is stacked with epics and legendaries so the
 // run-up looks like it might be building to something. Each spin picks a
@@ -111,27 +141,48 @@ function fillerWeights(heat) {
   return out;
 }
 
-function weightedRandomItem(weights) {
+/**
+ * Draw one filler card.
+ *
+ * `used` makes the draw WITHOUT REPLACEMENT across the reel: an item that
+ * has already streamed past won't come back. With a 19-item pool that was
+ * impossible; with ~110 it's the single biggest contributor to a reel
+ * feeling fresh. Falls back to the full tier once it's exhausted, so a
+ * sparse rarity can never deadlock the draw.
+ */
+function weightedRandomItem(weights, used) {
   const w = weights || FILLER_COLD;
   const totalWeight = Object.values(w).reduce((a, b) => a + b, 0);
   let roll = Math.random() * totalWeight;
   for (const [rarity, weight] of Object.entries(w)) {
     roll -= weight;
     if (roll <= 0) {
-      const pool = ITEMS.filter(i => i.type === 'sticker' && i.rarity === rarity);
-      if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
+      const pool = FILLER_POOL[rarity];
+      if (!pool || pool.length === 0) break;
+      const fresh = used ? pool.filter(i => !used.has(i.id)) : pool;
+      if (fresh.length) return fresh[Math.floor(Math.random() * fresh.length)];
+      // Tier exhausted (animated has a single entry, legendary only a
+      // handful). Borrow an unused item from ANY tier rather than
+      // repeating one that already streamed past — a visible repeat is
+      // the exact thing this whole pool rework is meant to remove.
+      break;
     }
   }
-  return ITEMS.find(i => i.type === 'sticker' && i.rarity === 'common');
+  const anyUnused = Object.values(FILLER_POOL)
+    .flat()
+    .filter(i => !used || !used.has(i.id));
+  if (anyUnused.length) return anyUnused[Math.floor(Math.random() * anyUnused.length)];
+  const fallback = FILLER_POOL.common || [];
+  return fallback[Math.floor(Math.random() * fallback.length)] || null;
 }
 
 /** A sticker one tier above the win, for seeding a near-miss. */
-function nearMissItem(winRarity) {
+function nearMissItem(winRarity, used) {
   const idx = RARITY_LADDER.indexOf(winRarity);
   for (let step = 1; step <= 2; step++) {
     const target = RARITY_LADDER[idx + step];
     if (!target) break;
-    const pool = ITEMS.filter(i => i.type === 'sticker' && i.rarity === target);
+    const pool = (FILLER_POOL[target] || []).filter(i => !used || !used.has(i.id));
     if (pool.length) return pool[Math.floor(Math.random() * pool.length)];
   }
   return null;
@@ -169,11 +220,18 @@ export function buildReel(winItem) {
   // card slid by twice — naive Math.random() repeats ~5% of the time and
   // the jitter is obvious during a slow 'tease' spin. Bounded retries so a
   // sparse catalog can't deadlock the loop.
+  // Draw without replacement across this reel. Seeded with the PRIZE so no
+  // filler can show the same item you're about to win — seeing your reward
+  // slide past twice reads as a rendering bug and deflates the reveal.
+  const used = new Set([winItem.id]);
   const safeFiller = (prev) => {
     for (let attempt = 0; attempt < 5; attempt++) {
-      const next = weightedRandomItem(weights);
+      const next = weightedRandomItem(weights, used);
       if (!next) return placeholder;
-      if (!prev || next.id !== prev.id) return next;
+      if (!prev || next.id !== prev.id) {
+        used.add(next.id);
+        return next;
+      }
     }
     return placeholder;
   };
@@ -198,8 +256,8 @@ export function buildReel(winItem) {
   //    better. Purely cosmetic — the server already decided the win.
   const wantsNearMiss = Math.random() < 0.35;
   if (wantsNearMiss && lead > 0) {
-    const tease = nearMissItem(winItem.rarity);
-    if (tease) cards[lead - 1] = tease;
+    const tease = nearMissItem(winItem.rarity, used);
+    if (tease) { cards[lead - 1] = tease; used.add(tease.id); }
   }
 
   // 4. The prize, then the run-out.

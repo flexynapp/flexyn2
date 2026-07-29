@@ -91,3 +91,51 @@ describe('buildReel — variation (the actual bug)', () => {
     expect(nearMisses.length).toBeGreaterThan(0);
   });
 });
+
+describe('buildReel — filler pool breadth (user-reported)', () => {
+  // "The same icons spin by until the actual awarded item, which is
+  // different." Cause: fillers were drawn from ITEMS stickers only — 19
+  // entries, 5 of them common — while the cold weight table puts ~52% of
+  // cards in the common tier. Half of every reel came from a five-item
+  // pool. These lock in the wider pool so it can't silently narrow again.
+
+  it('draws from far more than the old 19-item sticker pool', () => {
+    const ids = new Set();
+    for (const { cards, winIndex } of spins(60)) {
+      cards.forEach((c, i) => { if (i !== winIndex && c.id !== '__mystery__') ids.add(c.id); });
+    }
+    expect(ids.size).toBeGreaterThan(60);
+  });
+
+  it('shows titles / frames / themes, not just stickers — all are winnable', () => {
+    const ids = new Set();
+    for (const { cards } of spins(120)) cards.forEach(c => ids.add(c.id));
+    // Catalog id prefixes: t_ titles, f_ frames, flx_ branded.
+    expect([...ids].some(id => id.startsWith('t_'))).toBe(true);
+    expect([...ids].some(id => id.startsWith('f_'))).toBe(true);
+    expect([...ids].some(id => id.startsWith('flx_'))).toBe(true);
+  });
+
+  it('does not repeat an item within a single reel', () => {
+    for (const { cards, winIndex } of spins(120)) {
+      const fillers = cards
+        .filter((c, i) => i !== winIndex && c.id !== '__mystery__' && c.id !== '__filler__')
+        .map(c => c.id);
+      expect(new Set(fillers).size).toBe(fillers.length);
+    }
+  });
+
+  it('two consecutive reels share few icons — the actual complaint', () => {
+    const overlaps = [];
+    for (let n = 0; n < 40; n++) {
+      const a = new Set(buildReel(WIN).cards.map(c => c.id));
+      const b = new Set(buildReel(WIN).cards.map(c => c.id));
+      const shared = [...a].filter(id => b.has(id)).length;
+      overlaps.push(shared / Math.min(a.size, b.size));
+    }
+    const mean = overlaps.reduce((x, y) => x + y, 0) / overlaps.length;
+    // Old behaviour was effectively 1.0 for the common tier. Anything
+    // under half means consecutive spins genuinely look different.
+    expect(mean).toBeLessThan(0.5);
+  });
+});
