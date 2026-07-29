@@ -214,6 +214,35 @@ export default function StatsHubModal({ open, onClose }) {
 
           {/* Body */}
           <div className="p-4 space-y-4">
+            {/* Leaderboards — first, and full width.
+                This modal is the only working way into the global boards:
+                LevelBar's own tooltip carried a Leaderboards CTA but was
+                unreachable dead code (removed), and the Hub /leaderboards
+                tab its header comment advertised was never wired. It used
+                to sit fourth, as one of four equal tiles below streaks,
+                league and quests. "Level 4 compared to whom?" is the
+                question the level badge provokes, and this modal is what
+                the badge opens — so the answer goes at the top. */}
+            <ErrorBoundary label="StatsHub.Leaderboards">
+              <button
+                onClick={() => openNested(setLeaderboardsOpen)}
+                className="w-full flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-fuchsia-500/10 to-cyan-500/10 level-card-aurora hover:from-amber-500/15 hover:via-fuchsia-500/15 hover:to-cyan-500/15 border border-border/60 transition-colors text-start"
+              >
+                <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-400 via-fuchsia-500 to-cyan-500 level-card-aurora flex items-center justify-center shrink-0 shadow-md">
+                  <Trophy className="w-4 h-4 text-white drop-shadow" aria-hidden="true" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-heading font-bold leading-tight">
+                    {tFallback('statsHub.leaderboards', 'Leaderboards')}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                    {tFallback('leaderboards.subtitle', 'See where you stand globally')}
+                  </p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" aria-hidden="true" />
+              </button>
+            </ErrorBoundary>
+
             {/* Streaks */}
             <ErrorBoundary label="StatsHub.Streaks">
               <div className="space-y-2">
@@ -234,7 +263,6 @@ export default function StatsHubModal({ open, onClose }) {
             </ErrorBoundary>
 
             {/* Quick links — destinations handle their own opening:
-                  - Leaderboards: in-modal LeaderboardsModal
                   - Achievements: fires OPEN_ACHIEVEMENTS_EVENT —
                                   ProfileMenu opens AchievementsVault
                                   globally (works from any route).
@@ -243,16 +271,14 @@ export default function StatsHubModal({ open, onClose }) {
                                   surface moved off Progress.
                   - Bag: fires OPEN_BAG_EVENT — Layout's useBagFlow opens
                          the bag globally (works from any route)
-                  - Coin Shop: in-modal CoinShopModal */}
-            <div className="grid grid-cols-2 gap-2">
+                  - Coin Shop: in-modal CoinShopModal
+                Leaderboards was the fourth tile here; it's now the primary
+                row at the top of the body. Three tiles left, so the grid
+                goes to three columns rather than leaving an orphan. */}
+            <div className="grid grid-cols-3 gap-2">
               {/* Replace-not-stack pattern: clicking these closes the Stats
                   Hub first via onClose(), then opens the target so users
                   see only the destination instead of two stacked modals. */}
-              <NavTile
-                icon={Trophy}
-                label={tFallback('statsHub.leaderboards', 'Leaderboards')}
-                onClick={() => openNested(setLeaderboardsOpen)}
-              />
               <NavTile
                 icon={Sparkles}
                 label={tFallback('statsHub.achievements', 'Achievements')}
