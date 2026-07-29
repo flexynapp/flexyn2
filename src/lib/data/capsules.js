@@ -198,6 +198,29 @@ export async function listOpenHistory(userEmail, limit = 200) {
 }
 
 /**
+ * Where the user stands against the pity guarantees (migration 256).
+ *
+ * The THRESHOLDS come from the server too, not just the counters. The
+ * rarity tables already live in two places — lootCatalog.js for the odds
+ * panel and the SQL for the actual roll — and hardcoding "30" and "90" in
+ * the UI as well would make a third copy that silently drifts. The odds
+ * panel exists because loot-box disclosure is legally required in several
+ * markets, so a UI that promises a guarantee the server doesn't honour is
+ * worse than no UI at all.
+ *
+ * Returns null on pre-256 hosts so the panel simply hides.
+ */
+export async function getPity() {
+  try {
+    const { data, error } = await supabase.rpc('get_capsule_pity');
+    if (error) return null;
+    return data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Capsules whose loot was STRANDED: consumed by claim_capsule_loot (so
  * is_opened is true and the roll is recorded) but never finalized into an
  * inventory row.

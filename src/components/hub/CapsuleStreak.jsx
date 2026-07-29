@@ -1,14 +1,21 @@
 // src/components/hub/CapsuleStreak.jsx
 //
-// "47 opens since your last Epic+" — the number every gacha tracker puts
-// front and centre and Flexyn never showed. The odds panel right above
-// this tells you a Standard capsule is 2% Epic-or-better; this tells you
-// where you actually stand against that.
+// Where you stand against the pity guarantees.
 //
-// READ THE WARNING IN src/lib/pity.js BEFORE CHANGING THE COPY. Flexyn has
-// no pity mechanic — rolls are independent, server-side, every time. A
-// streak counter sitting next to drop rates can very easily be read as
-// "I'm due", so the disclaimer below is load-bearing, not decoration.
+// This panel used to be pure trivia — "47 opens since your last Epic+" —
+// with a disclaimer underneath explaining that the number meant nothing
+// because every roll was independent. That disclaimer was load-bearing
+// and slightly grim: it existed to stop a counter next to a drop-rate
+// table reading as "I'm due".
+//
+// Migration 256 made it true. There are now real guarantees, so the
+// counter is a progress bar toward something and the disclaimer is gone.
+//
+// THRESHOLDS ARE NOT HARDCODED HERE. get_capsule_pity() returns both the
+// counters and the rules, so the UI cannot promise a guarantee the server
+// doesn't honour. The rates already live in two places (lootCatalog.js for
+// display, the SQL for the roll); a third copy in the client would drift,
+// and this panel sits directly under a legally-required odds disclosure.
 
 import { useQuery } from '@tanstack/react-query';
 import { History } from 'lucide-react';
@@ -17,56 +24,88 @@ import * as capsules from '@/lib/data/capsules';
 import { computePity } from '@/lib/pity';
 import { rarityTint } from '@/components/loot/RarityVisuals';
 
+function PityBar({ label, value, max, color }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0;
+  const remaining = Math.max(0, max - value);
+  return (
+    <div>
+      <div className="flex items-baseline justify-between gap-2 mb-0.5">
+        <span className="text-[11px] text-muted-foreground">{label}</span>
+        <span className="text-[10px] font-bold tabular-nums" style={{ color }}>
+          {remaining === 0 ? 'next one guaranteed' : `${remaining} to go`}
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-secondary overflow-hidden">
+        <div
+          className="h-full rounded-full transition-[width] duration-500"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function CapsuleStreak() {
   const { user } = useAuth();
 
+  const { data: pity } = useQuery({
+    queryKey: ['capsulePity', user?.email],
+    queryFn:  capsules.getPity,
+    enabled:  !!user?.email,
+    staleTime: 30_000,
+  });
+
+  // History is still the source for "best pull ever" — the server tracks
+  // streaks, not personal bests.
   const { data: history = [] } = useQuery({
     queryKey: ['capsuleOpenHistory', user?.email],
     queryFn:  () => capsules.listOpenHistory(user.email),
     enabled:  !!user?.email,
     staleTime: 60_000,
   });
+  const best = computePity(history);
 
-  const pity = computePity(history);
+  // Pre-256 host, or nothing opened yet — stay out of the way.
+  if (!pity) return null;
+  if (!best.hasHistory && (pity.since_epic ?? 0) === 0) return null;
 
-  // Nothing opened yet — a "0 opens since" line would be noise on the very
-  // first capsule, which is exactly when the screen should stay clean.
-  if (!pity.hasHistory) return null;
-
-  const bestTint = pity.bestRarity ? rarityTint(pity.bestRarity) : null;
+  const epicTint = rarityTint('epic');
+  const legTint  = rarityTint('legendary');
+  const bestTint = best.bestRarity ? rarityTint(best.bestRarity) : null;
 
   return (
-    <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2">
-      <div className="flex items-center gap-1.5 mb-1">
+    <div className="rounded-lg bg-secondary/50 border border-border px-3 py-2 flex flex-col gap-2">
+      <div className="flex items-center gap-1.5">
         <History className="w-3 h-3 text-muted-foreground" aria-hidden="true" />
-        <span className="text-[11px] font-bold uppercase tracking-wide">Your history</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide">Your progress</span>
       </div>
 
-      <div className="flex items-baseline gap-1.5 flex-wrap">
-        {pity.sinceGood === null ? (
-          <span className="text-[11px] text-muted-foreground">
-            <span className="font-bold text-foreground tabular-nums">{pity.opens}</span> opened ·
-            {' '}no Epic or better yet
-          </span>
-        ) : (
-          <span className="text-[11px] text-muted-foreground">
-            <span className="font-bold text-foreground tabular-nums">{pity.sinceGood}</span>
-            {' '}since your last Epic+ · {pity.opens} opened
-          </span>
-        )}
-      </div>
+      <PityBar
+        label={`Epic or better · ${pity.since_epic}/${pity.epic_at}`}
+        value={pity.since_epic}
+        max={pity.epic_at}
+        color={epicTint.color}
+      />
+      <PityBar
+        label={`Legendary or better · ${pity.since_legendary}/${pity.legendary_at}`}
+        value={pity.since_legendary}
+        max={pity.legendary_at}
+        color={legTint.color}
+      />
 
-      {bestTint && (
-        <p className="text-[11px] text-muted-foreground mt-0.5">
-          Best pull:{' '}
-          <span className="font-bold" style={{ color: bestTint.color }}>{bestTint.label}</span>
+      {pity.since_legendary >= (pity.soft_pity_from ?? Infinity) && (
+        <p className="text-[10px] font-semibold" style={{ color: legTint.color }}>
+          Legendary odds are climbing with every open from here.
         </p>
       )}
 
-      {/* Load-bearing. See the header comment. */}
-      <p className="text-[10px] text-muted-foreground/70 mt-1 leading-snug">
-        Every roll is independent — a long streak doesn&apos;t improve your next odds.
-      </p>
+      {bestTint && (
+        <p className="text-[11px] text-muted-foreground">
+          Best pull:{' '}
+          <span className="font-bold" style={{ color: bestTint.color }}>{bestTint.label}</span>
+          {best.opens > 0 && <> · {best.opens} opened</>}
+        </p>
+      )}
     </div>
   );
 }

@@ -111,6 +111,7 @@ export function useBagFlow() {
       queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
       queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
       queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+    queryClient.invalidateQueries({ queryKey: ['capsulePity', user.email] });
     };
 
     // Migration 255: open_capsule_atomic already inserted the inventory row
@@ -196,6 +197,7 @@ export function useBagFlow() {
     queryClient.invalidateQueries({ queryKey: ['userCapsules', user.email] });
     queryClient.invalidateQueries({ queryKey: ['userCapsulesCount', user.email] });
     queryClient.invalidateQueries({ queryKey: ['capsuleOpenHistory', user.email] });
+    queryClient.invalidateQueries({ queryKey: ['capsulePity', user.email] });
 
     if (saved > 0) toast.success(`${saved} item${saved === 1 ? '' : 's'} added to your bag!`);
     if (failed > 0) toast.error(`${failed} item${failed === 1 ? '' : 's'} could not be saved — try opening again.`);

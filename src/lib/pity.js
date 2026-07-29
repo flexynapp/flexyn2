@@ -1,19 +1,21 @@
 // src/lib/pity.js
 //
-// "How long since something good?" — derived from your own open history.
+// Personal-best and open-history stats derived from user_capsules.
 //
-// IMPORTANT, and the UI says this too: this is a MIRROR, not a MECHANIC.
-// Flexyn has no pity system. claim_capsule_loot (migration 028) rolls
-// independently every time, so 60 opens without an Epic does not make the
-// next one likelier. What this fixes is that the odds disclosure tells you
-// a Standard capsule is 0.2% legendary and then nothing ever tells you
-// where you actually stand — the single most-read number on trackers like
-// paimon.moe is exactly this one.
+// HISTORY: this file used to compute the "opens since your last Epic+"
+// streak client-side, and carried a prominent warning that the number was
+// a MIRROR and not a MECHANIC — Flexyn had no pity, rolls were
+// independent, and a streak counter sitting under a drop-rate table could
+// very easily be misread as "I'm due".
 //
-// Presenting a streak counter next to drop rates is a real risk of
-// implying a guarantee, so the copy at the call site is explicit that
-// every roll is independent. Don't soften that wording without also
-// building the server-side pity it would then be describing.
+// Migration 256 made it a mechanic. The server now owns the counters AND
+// the guarantees (30 opens for epic+, 90 for legendary+, soft pity from
+// 61), and CapsuleStreak reads them from get_capsule_pity() rather than
+// deriving them here — the server has to be the authority, because the UI
+// is promising something it must actually honour.
+//
+// What's left here is the part the server does NOT track: personal bests
+// and lifetime open count.
 
 // Anything at or above Epic is what a user is actually chasing — the
 // Standard capsule's combined epic+ odds are 2%, so this is the streak

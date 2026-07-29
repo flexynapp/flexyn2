@@ -6,18 +6,38 @@
 // monetized loot boxes. Even though Flexyn's economy is in-app coins
 // (not real money), surfacing odds builds trust.
 //
-// Reads from src/lib/lootCatalog.js CAPSULE_ODDS — same map the server
-// rolls against. Updates here propagate everywhere automatically.
+// Reads BASE rates from src/lib/lootCatalog.js CAPSULE_ODDS — mirroring
+// the tables the server rolls against.
+//
+// Base rates are no longer the whole story: migration 256 added pity
+// guarantees that override them. A disclosure that states odds while
+// omitting a mechanic which supersedes those odds is incomplete, so the
+// guarantees are listed too. Their thresholds come from the SERVER
+// (get_capsule_pity), never hardcoded here — the rates already live in
+// two places and a third client-side copy would drift from the roll.
 
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, Percent } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { CAPSULE_ODDS } from '@/lib/lootCatalog';
+import * as capsules from '@/lib/data/capsules';
 import { RarityDot } from '@/components/loot/RarityVisuals';
 
 export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
   const [open, setOpen] = useState(false);
   const odds = CAPSULE_ODDS[capsuleType] || CAPSULE_ODDS.standard;
   const rows = Object.entries(odds).filter(([, p]) => p > 0);
+
+  // The rates below are BASE rates. Since migration 256 there are also
+  // guarantees, and a disclosure that states the odds while omitting a
+  // mechanic that overrides them is incomplete — this panel exists because
+  // loot-box odds disclosure is legally required in several markets.
+  // Thresholds come from the server so they cannot drift from the roll.
+  const { data: pity } = useQuery({
+    queryKey: ['capsulePityRules'],
+    queryFn:  capsules.getPity,
+    staleTime: 5 * 60_000,
+  });
 
   return (
     <div className="rounded-lg bg-secondary/50 border border-border overflow-hidden">
@@ -48,6 +68,13 @@ export default function CapsuleRarityOdds({ capsuleType = 'standard' }) {
               </li>
             );
           })}
+          {pity && (
+            <li className="pt-1.5 mt-1 border-t border-border text-[10px] text-muted-foreground leading-snug">
+              Guaranteed <span className="font-semibold">Epic or better</span> every{' '}
+              {pity.epic_at} opens, and <span className="font-semibold">Legendary or better</span>{' '}
+              every {pity.legendary_at}. Legendary odds rise with every open from {pity.soft_pity_from}.
+            </li>
+          )}
         </ul>
       )}
     </div>
