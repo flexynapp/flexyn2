@@ -8,7 +8,6 @@ import {
   calculateTotalVolume,
   MAX_WORKOUT_XP,
   MAX_CARDIO_XP,
-  DAILY_XP_CAP,
   XP_REWARDS,
   MAX_LEVEL,
   TOTAL_XP_FOR_MAX_LEVEL,
@@ -262,7 +261,15 @@ describe('calculateTotalVolume', () => {
 describe('XP constants', () => {
   it('MAX_WORKOUT_XP is 1000', () => expect(MAX_WORKOUT_XP).toBe(1000));
   it('MAX_CARDIO_XP is 600',   () => expect(MAX_CARDIO_XP).toBe(600));
-  it('DAILY_XP_CAP is 2500',  () => expect(DAILY_XP_CAP).toBe(2500));
+
+  // DAILY_XP_CAP is deliberately gone. It claimed 2,500/day, nothing read it,
+  // and the enforced ceiling was 50,000 — see the comment where it used to
+  // live. Daily caps belong to grant_action_xp and increment_user_xp. This
+  // asserts it stays gone, so nobody reintroduces a second source of truth.
+  it('does not export a client-side daily cap', async () => {
+    const mod = await import('../xpSystem');
+    expect(mod.DAILY_XP_CAP).toBeUndefined();
+  });
   it('XP_REWARDS.waterGlass is a small positive number', () => {
     expect(XP_REWARDS.waterGlass).toBeGreaterThan(0);
     expect(XP_REWARDS.waterGlass).toBeLessThan(20);

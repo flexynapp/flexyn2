@@ -235,7 +235,28 @@ export function calculateTotalVolume(exercises) {
   return totalVolume;
 }
 
-// ── Daily XP cap (anti-farming) ───────────────────────────────────────────────
-// Prevents someone from submitting hundreds of micro-workouts to grind XP.
-// The server-side function that calls updateUserXpAndAchievements should respect this.
-export const DAILY_XP_CAP = 2500;
+// ── Daily XP caps live on the SERVER, not here ───────────────────────────────
+//
+// There used to be a `DAILY_XP_CAP = 2500` exported from this file, described
+// as anti-farming. Nothing ever read it — not this module, not the server, not
+// a single call site. Its only reference was a test asserting it equalled
+// 2500. Meanwhile the real enforced ceiling was 50,000/day, twenty times the
+// number this file advertised, so the constant actively misled anyone reading
+// it to understand the economy.
+//
+// Removed rather than corrected: a mirrored constant is how the level curve
+// came to disagree with the database in the first place (see migration 261).
+// The caps have exactly one home, and it is SQL:
+//
+//   grant_action_xp        (migrations 198, 262) — per-action, per-day:
+//     workout_completed 4000 · cardio_completed 2400 · goal_completed 500
+//     regimen_created 200 · comeback_bonus 200 · recipe_created 75
+//     meal_logged 30 · water_logged 24 · anything unclassified 1000
+//
+//   increment_user_xp      (migrations 203, 261) — global 50,000 per rolling
+//     24h, enforced against xp_grant_log, and not callable by `authenticated`.
+//
+// Client-side caps that DO still apply are the per-session ones above:
+// MAX_WORKOUT_XP and MAX_CARDIO_XP bound a single submission before it is
+// sent. They are advisory — the server re-caps regardless — but they keep the
+// number the UI celebrates equal to the number that lands.
