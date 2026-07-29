@@ -27,6 +27,7 @@ import { formatDistance } from '@/lib/distanceUnit';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { backfillLeaderboardStatsOnce } from '@/lib/leaderboardStats';
 import { getPeriodLeaderboard } from '@/lib/data/periodLeaderboard';
+import { useGlobalRank } from '@/hooks/useGlobalRank';
 import TapToCopy from '@/components/TapToCopy';
 import AnimatedNumber from '@/components/AnimatedNumber';
 import LeaderboardPodium from '@/components/leaderboard/LeaderboardPodium';
@@ -197,30 +198,33 @@ export default function LeaderboardsContent({ active = true }) {
 
   const board = BOARDS.find(b => b.id === activeBoard);
 
+  // Hoisted out of the `ranked` memo so the out-of-top-100 row below can
+  // format the caller's own value identically. It reads from a different
+  // source (get_leaderboard_around_me rather than the top-N query), and
+  // formatting it a second way would show the same athlete two different
+  // numbers on the same screen.
+  const formatValue = useMemo(() => {
+    const periodSuffix = period === 'weekly' ? '/wk' : period === 'monthly' ? '/mo' : '';
+    switch (activeBoard) {
+      case 'volume':
+        return v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`;
+      case 'distance':
+        return v => formatDistance(v, distanceUnit, 1);
+      case 'achievements':
+        return v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
+      case 'level':
+      default:
+        // All-time level board shows the level the XP buys; the scoped
+        // windows show XP earned in that window, which has no level.
+        return v => period === 'alltime'
+          ? `Lv ${calculateLevelFromXp(v).level} · ${formatCompact(v)} XP`
+          : `${formatCompact(v)} XP${periodSuffix}`;
+    }
+  }, [activeBoard, period, weightUnit, distanceUnit, t]);
+
   const ranked = useMemo(() => {
     // Server path — the RPC ranks, so the client only formats.
     if (!needsLegacyFallback) {
-      const periodSuffix = period === 'weekly' ? '/wk' : period === 'monthly' ? '/mo' : '';
-      let formatValue;
-      switch (activeBoard) {
-        case 'volume':
-          formatValue = v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`;
-          break;
-        case 'distance':
-          formatValue = v => formatDistance(v, distanceUnit, 1);
-          break;
-        case 'achievements':
-          formatValue = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
-          break;
-        case 'level':
-        default:
-          // All-time level board shows the level the XP buys; the scoped
-          // windows show XP earned in that window, which has no level.
-          formatValue = v => period === 'alltime'
-            ? `Lv ${calculateLevelFromXp(v).level} · ${formatCompact(v)} XP`
-            : `${formatCompact(v)} XP${periodSuffix}`;
-          break;
-      }
       return rpcRows
         .filter(r => Number(r.value) > 0)
         .map((r, idx) => {
@@ -260,24 +264,27 @@ export default function LeaderboardsContent({ active = true }) {
       || (Number(u.total_distance_meters) || 0) > 0
     );
 
-    let valueOf, formatValue;
+    // Named legacyFormat rather than formatValue so it doesn't shadow the
+    // hoisted memo above — this branch needs the whole user row (for `level`)
+    // where the server branch only has a scalar.
+    let valueOf, legacyFormat;
     switch (activeBoard) {
       case 'achievements':
         valueOf = u => u.achievements_unlocked_count;
-        formatValue = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
+        legacyFormat = v => `${formatNum(v)} ${t('leaderboards.unlocked')}`;
         break;
       case 'volume':
         valueOf = u => u.total_volume_lbs;
-        formatValue = v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}`;
+        legacyFormat = v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}`;
         break;
       case 'distance':
         valueOf = u => u.total_distance_meters;
-        formatValue = v => formatDistance(v, distanceUnit, 1);
+        legacyFormat = v => formatDistance(v, distanceUnit, 1);
         break;
       case 'level':
       default:
         valueOf = u => u.total_xp;
-        formatValue = (_v, u) => `Lv ${u.level} · ${formatCompact(u.total_xp)} XP`;
+        legacyFormat = (_v, u) => `Lv ${u.level} · ${formatCompact(u.total_xp)} XP`;
         break;
     }
 
@@ -291,11 +298,26 @@ export default function LeaderboardsContent({ active = true }) {
       // for exactly this reason. `id` is our tie-break of last resort.
       .sort((a, b) => (valueOf(b) - valueOf(a)) || String(a.id).localeCompare(String(b.id)))
       .slice(0, 100)
-      .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
-  }, [allUsers, activeBoard, period, needsLegacyFallback, rpcRows, weightUnit, distanceUnit, t]);
+      .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: legacyFormat(valueOf(u), u) }));
+  }, [allUsers, activeBoard, period, needsLegacyFallback, rpcRows, weightUnit, distanceUnit, t, formatValue]);
 
   const myIndex = ranked.findIndex(r => r.id === user?.id);
   const myRow = myIndex >= 0 ? ranked[myIndex] : undefined;
+
+  // The board only carries the top 100. Anyone below that had no rank on this
+  // screen at all — the surface simply didn't mention them, which is the least
+  // useful thing a leaderboard can do to the majority of its users. This pulls
+  // their true global position from get_leaderboard_around_me (migrations
+  // 257/259), which ranks the whole table.
+  //
+  // Only fetched when they're actually off the board, and only for all-time —
+  // the RPC has no per-window aggregate to rank against, and rejects anything
+  // else. On weekly/monthly the extra row is simply absent.
+  const outOfTop = myIndex < 0;
+  const { rank: globalRank, value: globalValue } = useGlobalRank({
+    board: serverBoard,
+    enabled: active && outOfTop && period === 'alltime',
+  });
 
   // Rank movement since the last time this board was rendered with data.
   // Mirrors the prevRankRef pattern already used by LeagueCard on the
@@ -581,6 +603,19 @@ export default function LeaderboardsContent({ active = true }) {
                 );
               })}
 
+              {/* Explicit way into the full board. The ellipsis in the middle
+                  of the list already expands it, but that's a glyph the user
+                  has to guess at — this names the action and the count. The
+                  dialog scrolls (max-h-[88vh] overflow-y-auto), so all 100
+                  rows are reachable once expanded. */}
+              {!showAll && hiddenCount > 0 && (
+                <button
+                  onClick={() => setShowAll(true)}
+                  className="w-full py-2.5 rounded-xl border border-border/60 text-xs font-bold text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors"
+                >
+                  {tFallback('leaderboards.showAll', 'Show all {n}', { n: ranked.length })}
+                </button>
+              )}
               {showAll && hiddenCount === 0 && ranked.length > PODIUM_SIZE + NEIGHBOUR_RADIUS * 2 + 1 && (
                 <button
                   onClick={() => setShowAll(false)}
@@ -588,6 +623,38 @@ export default function LeaderboardsContent({ active = true }) {
                 >
                   {tFallback('leaderboards.collapse', 'Collapse')}
                 </button>
+              )}
+
+              {/* Off the board entirely — pinned below the top 100 with the
+                  caller's true global rank. Previously these users saw a list
+                  of 100 strangers and no mention of themselves. */}
+              {outOfTop && globalRank != null && (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="sticky bottom-0 pt-2"
+                >
+                  <Card className="p-3 bg-primary/10 border-2 border-primary/30 shadow-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="min-w-9 h-9 px-1.5 flex-shrink-0 flex items-center justify-center rounded-lg bg-primary/20">
+                        <span className="font-heading font-bold text-xs text-primary tabular-nums">
+                          #{formatNum(globalRank)}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-heading font-bold text-sm truncate">{t('progress.you')}</p>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {tFallback('leaderboards.outsideTop', 'Outside the top {n}', { n: ranked.length })}
+                        </p>
+                      </div>
+                      <div className="flex-shrink-0 text-end">
+                        <p className="font-heading font-bold text-sm text-primary">
+                          {globalValue != null ? formatValue(globalValue) : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
               )}
               {ranked.length >= 100 ? (
                 <p className="text-xs text-center text-muted-foreground mt-4">
