@@ -21,9 +21,10 @@ const _state = {
   rpcError: null,
 };
 
-// Mirrors the per-level reward schedule defined inline in migrations
-// 070 + 074. Kept in lockstep manually — the SQL has the canonical
-// version.
+// Mirrors the per-level reward schedule defined inline in migration 263
+// (which superseded 070 + 074). Kept in lockstep manually — the SQL has the
+// canonical version. If you change one, change both; this mirror is the
+// only thing that catches them disagreeing.
 //
 // The SQL loops `FOR v_lvl IN GREATEST(v_prev_through + 1, 2) .. p_new_level`.
 // Level 1 is intentionally skipped: every user starts at current_level=1
@@ -32,18 +33,26 @@ const _state = {
 // user hitting level 2 received 2 standards from this RPC, double the
 // intended single level-up grant.
 //
-// The "+50 coins per level" is paid for every iteration, multiples of
-// 5 add a premium + 100 bonus coins, multiples of 10 add an elite.
+// Migration 263 rebalanced the rates. 070 paid a standard capsule on EVERY
+// level, which was tuned for the old curve where levels were expensive. On
+// the rebalanced curve (migration 261) a single 700 XP workout crosses five
+// levels, so per-level grants turned into a firehose — month one paid ~8,950
+// coins of capsule value into a shop whose priciest item is 1,000.
+//
+// Now: 25 coins every level, a standard every 3rd, a premium + 100 coins
+// every 10th, an elite every 25th.
 function computeOwed(fromLevel, toLevel) {
   let standard = 0, premium = 0, elite = 0, coins = 0;
   for (let l = Math.max(fromLevel + 1, 2); l <= toLevel; l++) {
-    standard += 1;
-    coins += 50;
-    if (l % 5 === 0) {
+    coins += 25;
+    if (l % 3 === 0) {
+      standard += 1;
+    }
+    if (l % 10 === 0) {
       premium += 1;
       coins += 100;
     }
-    if (l % 10 === 0) {
+    if (l % 25 === 0) {
       elite += 1;
     }
   }
@@ -110,34 +119,45 @@ describe('grantForLevelUp — first-time grants', () => {
     expect(got).toBeNull();
   });
 
-  it('grants one standard + 50 coins at level 2 (fresh user — level 1 skipped)', async () => {
+  it('grants coins only at level 2 — capsules start at level 3', async () => {
     // Level 1 grant lives elsewhere (the welcome capsule). The
     // grant_level_up_rewards floor at level 2 prevents this RPC from
     // doubling that grant on the first level-up.
+    // Under migration 263 capsules land every 3rd level, so level 2 is
+    // coins only. The first capsule from this RPC arrives at level 3.
     const got = await grantForLevelUp('uid', 'u@e.com', 2);
     expect(got.already_granted).toBe(false);
-    expect(got.standard).toBe(1);
+    expect(got.standard).toBe(0);
     expect(got.premium).toBe(0);
     expect(got.elite).toBe(0);
-    expect(got.coins).toBe(50);
-    expect(got.new_balance).toBe(50);
+    expect(got.coins).toBe(25);
+    expect(got.new_balance).toBe(25);
   });
 
-  it('grants standards + premium + bonus at level 5 (levels 2..5)', async () => {
+  it('grants one standard by level 5 (levels 2..5)', async () => {
     const got = await grantForLevelUp('uid', 'u@e.com', 5);
     expect(got.already_granted).toBe(false);
-    expect(got.standard).toBe(4);   // levels 2,3,4,5
-    expect(got.premium).toBe(1);    // level 5
+    expect(got.standard).toBe(1);   // level 3 only
+    expect(got.premium).toBe(0);    // premiums are every 10th now
     expect(got.elite).toBe(0);
-    expect(got.coins).toBe(4 * 50 + 100);
+    expect(got.coins).toBe(4 * 25); // levels 2,3,4,5
   });
 
-  it('grants elite at level 10 (covers levels 2..10)', async () => {
+  it('grants the first premium at level 10 (covers levels 2..10)', async () => {
     const got = await grantForLevelUp('uid', 'u@e.com', 10);
-    expect(got.standard).toBe(9);   // levels 2..10
-    expect(got.premium).toBe(2);    // 5, 10
-    expect(got.elite).toBe(1);      // 10
-    expect(got.coins).toBe(9 * 50 + 2 * 100);
+    expect(got.standard).toBe(3);   // levels 3, 6, 9
+    expect(got.premium).toBe(1);    // level 10
+    expect(got.elite).toBe(0);      // elites are every 25th now
+    expect(got.coins).toBe(9 * 25 + 100);
+  });
+
+  it('grants the first elite at level 25', async () => {
+    // Elites moved from every 10th to every 25th, so they land at
+    // 25/50/75/100 — four in a lifetime rather than ten in six months.
+    const got = await grantForLevelUp('uid', 'u@e.com', 25);
+    expect(got.elite).toBe(1);
+    expect(got.premium).toBe(2);    // 10, 20
+    expect(got.standard).toBe(8);   // 3,6,9,12,15,18,21,24
   });
 
   it('grants nothing when invoked at level 1 (welcome capsule covers it)', async () => {
@@ -165,10 +185,10 @@ describe('grantForLevelUp — idempotency', () => {
   it('grants only the delta when level jumps past previously-paid', async () => {
     await grantForLevelUp('uid', 'u@e.com', 4); // pay 1..4
     const got = await grantForLevelUp('uid', 'u@e.com', 6); // pay 5..6
-    expect(got.standard).toBe(2);
-    expect(got.premium).toBe(1); // level 5
+    expect(got.standard).toBe(1); // level 6
+    expect(got.premium).toBe(0);
     expect(got.elite).toBe(0);
-    expect(got.coins).toBe(2 * 50 + 100);
+    expect(got.coins).toBe(2 * 25);
   });
 
   it('handles a multi-tier jump in one earn (rare race compensator)', async () => {
@@ -177,9 +197,9 @@ describe('grantForLevelUp — idempotency', () => {
     // level (except 1) — the bug we closed was the old client only
     // paying one level.
     const got = await grantForLevelUp('uid', 'u@e.com', 11);
-    expect(got.standard).toBe(10);  // levels 2..11
-    expect(got.premium).toBe(2);    // 5, 10
-    expect(got.elite).toBe(1);      // 10
+    expect(got.standard).toBe(3);   // levels 3, 6, 9
+    expect(got.premium).toBe(1);    // level 10
+    expect(got.elite).toBe(0);      // first elite is level 25
   });
 });
 
