@@ -3,6 +3,10 @@ import StoriesRow from '@/components/stories/StoriesRow';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
+import {
+  packLayout, unpackLayout, writeLayoutToLocal, clearLayoutLocal,
+  queueLayoutSync, flushLayoutSync,
+} from '@/lib/dashboardLayout';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { subDays, isAfter, differenceInDays, startOfDay, format } from 'date-fns';
 import { Dumbbell, TrendingUp, Play, ArrowRight, Zap, Activity, Target, Apple, Camera, Scale, TrendingDown, Minus, CheckCircle2, LayoutGrid, GripVertical, CalendarDays, ChevronRight, ChevronDown, ChevronUp, Rows3, Columns2, RotateCcw, Save, Plus, X } from 'lucide-react';
@@ -777,10 +781,15 @@ export default function Dashboard() {
       readiness: 'full',
       league:    'full',
     });
-    try {
-      localStorage.removeItem(`flexyn.dashWidgetOrder.${user?.id || 'anon'}`);
-      localStorage.removeItem(`flexyn.dashSectionLayouts.${user?.id || 'anon'}`);
-    } catch { /* ignore */ }
+    // Reset also unhides everything. Previously it left hidden sections
+    // hidden, so "Reset" restored the order but not the sections the user
+    // had removed — and there was no other way to get them all back at
+    // once. The state change flows into the sync effect below, so the
+    // server copy is reset too rather than resurrecting on the next
+    // device. clearLayoutLocal drops all three local keys, including the
+    // hidden-sections one the old code missed.
+    setHiddenSections(new Set());
+    clearLayoutLocal(user?.id);
   };
 
   // Debounced localStorage write so rapid drags (framer-motion
@@ -930,6 +939,68 @@ export default function Dashboard() {
     queryFn: () => db.auth.me(),
     enabled: !!user?.email,
   });
+
+  // ── Customize-home cross-device sync (migration 260) ───────────────────
+  //
+  // The three edit-mode facets (hidden sections, widget order, per-section
+  // layout) were localStorage-only, so reinstalling the PWA or switching
+  // phone silently wiped the layout. localStorage stays the fast path for
+  // first paint; user_profiles.dashboard_layout is the copy that follows
+  // the user, mirroring how DashboardWidgets already syncs.
+  //
+  // These effects live HERE, below `userProfile`, rather than beside the
+  // state they read at the top of the component. `userProfile` is a const
+  // declared at this line — referencing it from an effect declared earlier
+  // would read it in the temporal dead zone when the deps array is
+  // evaluated, which is the exact production crash CLAUDE.md documents.
+  const layoutHydratedFor = useRef(null);
+
+  useEffect(() => {
+    const uid = user?.id;
+    if (!uid) { layoutHydratedFor.current = null; return; }
+    if (layoutHydratedFor.current === uid) return;
+    // Wait for the profile query to actually resolve. `userProfile`
+    // defaults to {}, so an absent `dashboard_layout` key here means
+    // "still loading" as often as it means "never customized" — settling
+    // early would let the local layout win and immediately overwrite the
+    // server copy with this device's state.
+    if (!userProfile || Object.keys(userProfile).length === 0) return;
+
+    const remote = unpackLayout(userProfile.dashboard_layout);
+    if (remote) {
+      // Server wins on load — that's what makes it cross-device. In-session
+      // edits win afterwards, guarded by layoutHydratedFor.
+      setHiddenSections(new Set(remote.hiddenSections));
+      if (remote.widgetOrder.length > 0) {
+        // Same merge the localStorage path uses: keep the user's ordering
+        // for sections that still exist, append any added since they last
+        // customized, so a new section doesn't discard their layout.
+        const known   = remote.widgetOrder.filter(id => defaultWidgetOrder.includes(id));
+        const missing = defaultWidgetOrder.filter(id => !known.includes(id));
+        setWidgetOrder([...known, ...missing]);
+      }
+      if (Object.keys(remote.sectionLayouts).length > 0) {
+        setSectionLayouts(remote.sectionLayouts);
+      }
+      writeLayoutToLocal(uid, remote);
+    }
+    layoutHydratedFor.current = uid;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, userProfile]);
+
+  // Push local edits up. Gated on hydration so the first render after login
+  // can't overwrite the server copy with this device's stale localStorage
+  // before the profile has been read.
+  useEffect(() => {
+    if (!user?.id || layoutHydratedFor.current !== user.id) return;
+    queueLayoutSync(user.id, packLayout({ hiddenSections, widgetOrder, sectionLayouts }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hiddenSections, widgetOrder, sectionLayouts, user?.id]);
+
+  // Drop any pending debounce on unmount — the timer is module-level, so a
+  // stale one firing after an account switch would write the previous
+  // user's layout under the new session.
+  useEffect(() => () => flushLayoutSync(), []);
 
   const logs = useMemo(() => filterAfterReset(rawLogs, userProfile), [rawLogs, userProfile]);
   const cardioLogs = useMemo(() => filterAfterReset(rawCardioLogs, userProfile), [rawCardioLogs, userProfile]);
