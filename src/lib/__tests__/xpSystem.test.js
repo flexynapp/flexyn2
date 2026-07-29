@@ -10,27 +10,63 @@ import {
   MAX_CARDIO_XP,
   DAILY_XP_CAP,
   XP_REWARDS,
+  MAX_LEVEL,
+  TOTAL_XP_FOR_MAX_LEVEL,
 } from '../xpSystem';
 
 // ─── Level curve ──────────────────────────────────────────────────────────────
 
 describe('getXpForNextLevel', () => {
-  it('returns a positive integer for every level', () => {
-    for (let i = 1; i <= 100; i++) {
+  it('returns a positive integer for every level below the cap', () => {
+    for (let i = 1; i < MAX_LEVEL; i++) {
       expect(getXpForNextLevel(i)).toBeGreaterThan(0);
     }
   });
 
   it('is monotonically non-decreasing as level increases', () => {
-    for (let i = 2; i <= 100; i++) {
+    for (let i = 2; i < MAX_LEVEL; i++) {
       expect(getXpForNextLevel(i)).toBeGreaterThanOrEqual(getXpForNextLevel(i - 1));
     }
   });
 
-  it('level 1 → 2 costs the configured base (150 XP)', () => {
-    // Lowered from 300 in the curve rebalance — keep this test in sync with
-    // LEVEL_CONFIG.baseXpPerLevel in src/lib/xpSystem.js.
-    expect(getXpForNextLevel(1)).toBe(150);
+  it('level 1 → 2 costs the configured base (100 XP)', () => {
+    // Keep in sync with LEVEL_CONFIG.baseXpPerLevel in src/lib/xpSystem.js.
+    expect(getXpForNextLevel(1)).toBe(100);
+  });
+
+  it('returns 0 at the level cap — there is no next level to buy', () => {
+    expect(getXpForNextLevel(MAX_LEVEL)).toBe(0);
+  });
+
+  // Regression: the previous curve computed `base * multiplier^(level-1)`
+  // with a different multiplier per tier band, which re-based every level
+  // below the boundary. Crossing L60→L61 cost 3.2x more in a single level
+  // and L80→L81 cost 4.6x more. The curve must not cliff at a band edge.
+  it('has no cliff at any tier boundary', () => {
+    for (const boundary of [10, 30, 60, 80]) {
+      const before = getXpForNextLevel(boundary);
+      const after = getXpForNextLevel(boundary + 1);
+      expect(after / before).toBeLessThan(1.2);
+    }
+  });
+
+  // Regression: the shipped curve put level 100 at 192,438,890 XP — 659
+  // years at a realistic 800 XP/day, so the top four cosmetic tiers in
+  // xpTier.js were unreachable. Max level must stay inside a few years.
+  it('keeps the level cap reachable within a few years of real training', () => {
+    const daysAt800PerDay = TOTAL_XP_FOR_MAX_LEVEL / 800;
+    expect(daysAt800PerDay).toBeLessThan(365 * 3);
+    expect(daysAt800PerDay).toBeGreaterThan(365); // and not trivially fast
+  });
+
+  // Every tier band in xpTier.js should be somewhere a real person passes
+  // through. Under the old curve, levels 1-60 were 0.1% of the ladder and
+  // 81-100 were 97.2% of it.
+  it('spreads the ladder so no single band dominates it', () => {
+    const share = (from, to) =>
+      (getTotalXpForLevel(to) - getTotalXpForLevel(from)) / TOTAL_XP_FOR_MAX_LEVEL;
+    expect(share(81, 100)).toBeLessThan(0.7);
+    expect(share(31, 61)).toBeGreaterThan(0.05);
   });
 });
 
@@ -53,9 +89,9 @@ describe('calculateLevelFromXp', () => {
     expect(result.xpInLevel).toBe(0);
   });
 
-  it('returns level 1 with correct progress at 75 XP (half of first level)', () => {
-    // Half of the new baseXpPerLevel (150). Update if curve config changes.
-    const result = calculateLevelFromXp(75);
+  it('returns level 1 with correct progress at 50 XP (half of first level)', () => {
+    // Half of baseXpPerLevel (100). Update if curve config changes.
+    const result = calculateLevelFromXp(50);
     expect(result.level).toBe(1);
     expect(result.progressPercent).toBeCloseTo(50, 0);
   });

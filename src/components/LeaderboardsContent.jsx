@@ -6,12 +6,15 @@
 //
 // The component owns its own data fetch, board selection, and rendering.
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap } from 'lucide-react';
+import {
+  Crown, Trophy, Flame, Sparkles, Dumbbell, Footprints, Award, Zap,
+  Ellipsis, TrendingUp, TrendingDown,
+} from 'lucide-react';
 import { db } from '@/api/db';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -44,6 +47,52 @@ const PODIUM_STYLE = {
 // locale (was rendering with the browser locale, which defeated i18n
 // for users whose browser locale didn't match their app language).
 
+// How many rows either side of the user stay visible when the list is
+// windowed. 3 is enough to see who you're chasing and who's chasing you.
+const NEIGHBOUR_RADIUS = 3;
+// Rows always pinned to the top of a windowed list (the podium).
+const PODIUM_SIZE = 3;
+
+/**
+ * Fold a ranked list down to podium + the user's neighbourhood, collapsing
+ * everything else into ellipsis markers.
+ *
+ * A 100-row flat list forced two workarounds: a sticky "Your rank" pill and
+ * logic to suppress the user's real row so they didn't appear twice. Both
+ * told the user their number while hiding the only thing that makes a rank
+ * actionable — who is immediately ahead of them.
+ *
+ * Pattern follows trophyso/ui's leaderboard-rankings (MIT), which marks rows
+ * `displayed: false` and folds each hidden run into one ellipsis.
+ *
+ * @returns {Array<{type:'row',row:object}|{type:'ellipsis',key:string,count:number}>}
+ */
+export function windowRanked(ranked, myIndex) {
+  const visible = new Set();
+  for (let i = 0; i < Math.min(PODIUM_SIZE, ranked.length); i++) visible.add(i);
+  if (myIndex >= 0) {
+    for (let i = myIndex - NEIGHBOUR_RADIUS; i <= myIndex + NEIGHBOUR_RADIUS; i++) {
+      if (i >= 0 && i < ranked.length) visible.add(i);
+    }
+  } else {
+    // Not on the board — show a deeper head so there's something to read.
+    for (let i = 0; i < Math.min(10, ranked.length); i++) visible.add(i);
+  }
+
+  const out = [];
+  let hidden = 0;
+  ranked.forEach((row, i) => {
+    if (!visible.has(i)) { hidden += 1; return; }
+    if (hidden > 0) {
+      out.push({ type: 'ellipsis', key: `gap-${i}`, count: hidden });
+      hidden = 0;
+    }
+    out.push({ type: 'row', row });
+  });
+  if (hidden > 0) out.push({ type: 'ellipsis', key: 'gap-tail', count: hidden });
+  return out;
+}
+
 /**
  * @param {Object} props
  * @param {boolean} [props.active=true] — when false, suppresses the user-list
@@ -53,6 +102,13 @@ export default function LeaderboardsContent({ active = true }) {
   const { t, tFallback } = useLanguage();
   const fmtNum = useNumberFormatter();
   const formatNum = (n) => fmtNum(Math.round(n));
+  // Compact notation for leaderboard values — a row has to fit a rank, an
+  // avatar-sized badge, a name and a value on a phone, and the volume board
+  // renders seven-figure numbers. Intl's `compact` notation is locale-aware
+  // ("1.2M" in en, "120万" in ja), which the hand-rolled k/m suffixes used by
+  // most reference implementations are not.
+  const formatCompact = (n) =>
+    fmtNum(Math.round(n), { notation: 'compact', maximumFractionDigits: 1 });
   const { user } = useAuth();
   const { weightUnit } = useWeightUnit();
   const { distanceUnit } = useDistanceUnit();
@@ -115,8 +171,8 @@ export default function LeaderboardsContent({ active = true }) {
     if (periodScoped) {
       const periodSuffix = period === 'weekly' ? '/wk' : '/mo';
       const formatValue = activeBoard === 'volume'
-        ? v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`
-        : v => `${formatNum(v)} XP${periodSuffix}`;
+        ? v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}${periodSuffix}`
+        : v => `${formatCompact(v)} XP${periodSuffix}`;
       return periodRows
         .filter(r => Number(r.value) > 0)
         .map((r, idx) => {
@@ -161,7 +217,7 @@ export default function LeaderboardsContent({ active = true }) {
         break;
       case 'volume':
         valueOf = u => u.total_volume_lbs;
-        formatValue = v => `${formatNum(fromLbs(v, weightUnit))} ${weightUnit}`;
+        formatValue = v => `${formatCompact(fromLbs(v, weightUnit))} ${weightUnit}`;
         break;
       case 'distance':
         valueOf = u => u.total_distance_meters;
@@ -170,18 +226,61 @@ export default function LeaderboardsContent({ active = true }) {
       case 'level':
       default:
         valueOf = u => u.total_xp;
-        formatValue = (_v, u) => `Lv ${u.level} · ${formatNum(u.total_xp)} XP`;
+        formatValue = (_v, u) => `Lv ${u.level} · ${formatCompact(u.total_xp)} XP`;
         break;
     }
 
     return filteredEnriched
       .filter(u => valueOf(u) > 0)
-      .sort((a, b) => valueOf(b) - valueOf(a))
+      // Deterministic total ordering. Sorting on the value alone leaves tied
+      // users in whatever order Array.prototype.sort happened to produce, so
+      // two athletes on equal XP visibly swap places on a refetch with
+      // nothing having happened. Nakama's leaderboards (Apache-2.0) always
+      // order on a full key — `score DESC, subscore DESC, owner_id DESC` —
+      // for exactly this reason. `id` is our tie-break of last resort.
+      .sort((a, b) => (valueOf(b) - valueOf(a)) || String(a.id).localeCompare(String(b.id)))
       .slice(0, 100)
       .map((u, idx) => ({ ...u, rank: idx + 1, _val: valueOf(u), _display: formatValue(valueOf(u), u) }));
   }, [allUsers, activeBoard, period, periodScoped, periodRows, weightUnit, distanceUnit, t]);
 
-  const myRow = ranked.find(r => r.id === user?.id);
+  const myIndex = ranked.findIndex(r => r.id === user?.id);
+  const myRow = myIndex >= 0 ? ranked[myIndex] : undefined;
+
+  // Rank movement since the last time this board was rendered with data.
+  // Mirrors the prevRankRef pattern already used by LeagueCard on the
+  // Dashboard — movement is the reason anyone reopens a leaderboard, and
+  // the main board showed none of it.
+  const prevRanksRef = useRef({});
+  const [rankDeltas, setRankDeltas] = useState({});
+  useEffect(() => {
+    if (!ranked.length) return;
+    const key = `${activeBoard}:${period}`;
+    const current = Object.fromEntries(ranked.map(r => [r.id, r.rank]));
+    const previous = prevRanksRef.current[key];
+    if (previous) {
+      const deltas = {};
+      for (const [id, rank] of Object.entries(current)) {
+        // Positive = moved up the board (a numerically smaller rank).
+        if (previous[id] != null && previous[id] !== rank) deltas[id] = previous[id] - rank;
+      }
+      setRankDeltas(deltas);
+    } else {
+      setRankDeltas({});
+    }
+    prevRanksRef.current[key] = current;
+  }, [ranked, activeBoard, period]);
+
+  // Windowed by default; "show all" opens the full top 100. Reset the
+  // expansion whenever the board or period changes so a deep list doesn't
+  // carry over into a board the user just switched to.
+  const [showAll, setShowAll] = useState(false);
+  useEffect(() => { setShowAll(false); }, [activeBoard, period]);
+
+  const rows = useMemo(
+    () => (showAll ? ranked.map(row => ({ type: 'row', row })) : windowRanked(ranked, myIndex)),
+    [ranked, myIndex, showAll]
+  );
+  const hiddenCount = ranked.length - rows.filter(r => r.type === 'row').length;
 
   return (
     <>
@@ -273,7 +372,21 @@ export default function LeaderboardsContent({ active = true }) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-heading font-bold text-sm">{t('progress.you')}</p>
-                  <p className="text-xs text-muted-foreground truncate">{myRow.full_name}</p>
+                  {/* The gap to the athlete directly above is the one number
+                      that makes a rank actionable. Showing only "#14" tells
+                      you where you are but not what to do about it. */}
+                  {myIndex > 0 ? (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {tFallback('leaderboards.gapToNext', '{n} behind {name}', {
+                        n: formatCompact(Math.max(0, ranked[myIndex - 1]._val - myRow._val)),
+                        name: ranked[myIndex - 1].full_name,
+                      })}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground truncate">
+                      {tFallback('leaderboards.leading', 'Leading the board')}
+                    </p>
+                  )}
                 </div>
                 <div className="text-end">
                   <TapToCopy value={`Rank #${myRow.rank} · ${myRow._display}`} label="rank">
@@ -305,51 +418,32 @@ export default function LeaderboardsContent({ active = true }) {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.25 }}
             >
-              {/* "Your rank: #N" sticky pill — shown when the user is
-                  on this board but below the top 3 (podium). Gives
-                  them a quick read of where they stand without
-                  scrolling to find their row in a 100-deep list. */}
-              {(() => {
-                const myRowIdx = ranked.findIndex(r => r.id === user?.id);
-                if (myRowIdx < 0) return null;
-                const myRow = ranked[myRowIdx];
-                if (myRowIdx < 3) return null; // already visible on podium
-                return (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="sticky top-0 z-10 -mx-1 mb-1"
-                  >
-                    <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-primary text-primary-foreground shadow-md">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-bold uppercase tracking-[0.18em] opacity-80">
-                          Your rank
-                        </span>
-                        <span className="font-heading font-black text-base tabular-nums">
-                          #{myRow.rank}
-                        </span>
-                      </div>
-                      <span className="font-heading font-bold text-sm tabular-nums">
-                        {myRow._display}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })()}
-              {(() => {
-                // Suppress the user's row from the list when the
-                // sticky "Your rank" pill is rendered above — otherwise
-                // they appear twice (once in the pill, once at their
-                // actual position deep in the list). The user's row
-                // stays visible in podium positions (idx < 3) because
-                // the pill explicitly skips that range.
-                const myIdx = ranked.findIndex(r => r.id === user?.id);
-                const suppressMyRow = myIdx >= 3;
-                return ranked.map((row, idx) => {
-                  if (suppressMyRow && idx === myIdx) return null;
-                  const podium = PODIUM_STYLE[idx];
-                  const isMe = row.id === user?.id;
+              {/* Windowed list: podium, then a collapsed gap, then the
+                  user's immediate neighbours. Replaces a flat 100-row list
+                  that needed a sticky "Your rank" pill plus row-suppression
+                  logic to stop the user appearing twice — and which never
+                  showed them who they were actually chasing. */}
+              {rows.map((entry, idx) => {
+                if (entry.type === 'ellipsis') {
                   return (
+                    <button
+                      key={entry.key}
+                      onClick={() => setShowAll(true)}
+                      className="w-full flex items-center justify-center gap-2 py-2 text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label={tFallback('leaderboards.showHidden', 'Show {n} hidden athletes', { n: entry.count })}
+                    >
+                      <Ellipsis className="w-5 h-5" aria-hidden="true" />
+                      <span className="text-[11px] font-medium tabular-nums">{entry.count}</span>
+                    </button>
+                  );
+                }
+
+                const row = entry.row;
+                const podium = PODIUM_STYLE[row.rank - 1];
+                const isMe = row.id === user?.id;
+                const delta = rankDeltas[row.id];
+
+                return (
                   <motion.div
                     key={row.id}
                     initial={{ opacity: 0, x: -16 }}
@@ -368,8 +462,32 @@ export default function LeaderboardsContent({ active = true }) {
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-heading font-bold text-sm truncate">{row.full_name}</p>
+                          <p className="font-heading font-bold text-sm truncate">
+                            {isMe ? t('progress.you') : row.full_name}
+                          </p>
+                          {isMe && (
+                            <p className="text-[11px] text-muted-foreground truncate">{row.full_name}</p>
+                          )}
                         </div>
+                        {/* Movement since the last refresh. Trend arrows are
+                            what make a board worth reopening. */}
+                        {delta ? (
+                          <span
+                            className={`flex items-center gap-0.5 text-[11px] font-bold tabular-nums ${
+                              delta > 0 ? 'text-emerald-500' : 'text-rose-500'
+                            }`}
+                            aria-label={tFallback(
+                              delta > 0 ? 'leaderboards.movedUp' : 'leaderboards.movedDown',
+                              delta > 0 ? 'Up {n} places' : 'Down {n} places',
+                              { n: Math.abs(delta) }
+                            )}
+                          >
+                            {delta > 0
+                              ? <TrendingUp className="w-3 h-3" aria-hidden="true" />
+                              : <TrendingDown className="w-3 h-3" aria-hidden="true" />}
+                            {Math.abs(delta)}
+                          </span>
+                        ) : null}
                         <div className="flex-shrink-0 text-end">
                           <p className="font-heading font-bold text-sm">{row._display}</p>
                         </div>
@@ -377,18 +495,28 @@ export default function LeaderboardsContent({ active = true }) {
                     </Card>
                   </motion.div>
                 );
-                });
-              })()}
+              })}
+
+              {showAll && hiddenCount === 0 && ranked.length > PODIUM_SIZE + NEIGHBOUR_RADIUS * 2 + 1 && (
+                <button
+                  onClick={() => setShowAll(false)}
+                  className="w-full py-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {tFallback('leaderboards.collapse', 'Collapse')}
+                </button>
+              )}
               {ranked.length >= 100 ? (
                 <p className="text-xs text-center text-muted-foreground mt-4">
                   {t('leaderboards.top100Footer')}
                 </p>
-              ) : ranked.length > 5 && (
+              ) : ranked.length > 5 && hiddenCount === 0 && (
                 <p className="text-xs text-center text-muted-foreground mt-4">
                   {/* tFallback with vars handles both the missing-key case
                       (raw key showing as text) and the substitution-name
                       mismatch (translator picks a different placeholder).
-                      The prior `t().replace('{n}', N)` failed both. */}
+                      The prior `t().replace('{n}', N)` failed both.
+                      Only claim "all shown" when the list isn't windowed —
+                      otherwise it contradicts the ellipsis right above it. */}
                   {tFallback('leaderboards.allShownFooter', 'All {n} athletes shown.', { n: ranked.length })}
                 </p>
               )}

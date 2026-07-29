@@ -13,6 +13,7 @@
 // editing SHOP_CATALOG below.
 
 import { supabase } from '@/api/supabaseClient';
+import { CAPSULE_ODDS } from '@/lib/lootCatalog';
 
 export const SHOP_CATALOG = {
   capsule_standard: {
@@ -21,6 +22,7 @@ export const SHOP_CATALOG = {
     description: 'Common to rare drops. Always something new.',
     icon: '📦',
     price: 100,
+    rarity: 'common',
     grants: { type: 'capsule', capsuleType: 'standard' },
   },
   capsule_premium: {
@@ -29,14 +31,22 @@ export const SHOP_CATALOG = {
     description: 'Better odds at rare and epic drops.',
     icon: '🎁',
     price: 350,
+    rarity: 'rare',
     grants: { type: 'capsule', capsuleType: 'premium' },
   },
   capsule_elite: {
     sku: 'capsule_elite',
-    name: 'Elite Capsule',
-    description: 'Guaranteed epic+, with a real shot at legendary.',
+    // Was "Guaranteed epic+, with a real shot at legendary." That is not what
+    // CAPSULE_ODDS.elite says — it's 30% epic-or-better and 10% plain common.
+    // Overstating loot odds on a paid-currency item is a real compliance
+    // problem, not just sloppy copy: App Store Review Guideline 3.1.1 and
+    // Google Play's real-money-gambling policy both require published,
+    // accurate odds for loot boxes. See getCapsuleOdds() below — the shop
+    // now renders the true numbers rather than a claim.
+    description: 'The best odds we offer. Real shot at legendary.',
     icon: '💎',
     price: 1000,
+    rarity: 'epic',
     grants: { type: 'capsule', capsuleType: 'elite' },
   },
   streak_freeze: {
@@ -45,9 +55,50 @@ export const SHOP_CATALOG = {
     description: 'Insurance against missing a day. Auto-spent if needed.',
     icon: '❄️',
     price: 200,
+    rarity: 'uncommon',
     grants: { type: 'streak_freeze', amount: 1 },
   },
 };
+
+/**
+ * Published drop odds for a capsule SKU, derived from the single source of
+ * truth in lootCatalog. Returns null for non-capsule SKUs.
+ *
+ * Both app stores require loot-box odds to be disclosed before purchase, so
+ * this is surfaced in the shop row rather than buried in a help page.
+ *
+ * @returns {{ epicPlus: number, legendaryPlus: number, table: Record<string, number> } | null}
+ */
+export function getCapsuleOdds(sku) {
+  const item = SHOP_CATALOG[sku];
+  if (item?.grants?.type !== 'capsule') return null;
+  const table = CAPSULE_ODDS[item.grants.capsuleType];
+  if (!table) return null;
+  return {
+    epicPlus: (table.epic || 0) + (table.legendary || 0) + (table.animated || 0),
+    legendaryPlus: (table.legendary || 0) + (table.animated || 0),
+    table,
+  };
+}
+
+/**
+ * The capsule SKU with the lowest coin cost per expected epic-or-better drop.
+ * Computed rather than hardcoded so it stays honest if prices or odds move.
+ *
+ * Every shipping currency store marks its best tier — it's what makes a price
+ * ladder legible. Ours had three capsules at 100/350/1000 with prose
+ * descriptions and no way to tell which was the good deal.
+ */
+export const BEST_VALUE_SKU = (() => {
+  let best = null;
+  for (const item of Object.values(SHOP_CATALOG)) {
+    const odds = getCapsuleOdds(item.sku);
+    if (!odds || odds.epicPlus <= 0) continue;
+    const costPerEpic = item.price / odds.epicPlus;
+    if (!best || costPerEpic < best.costPerEpic) best = { sku: item.sku, costPerEpic };
+  }
+  return best?.sku ?? null;
+})();
 
 /**
  * Buy a single SKU. Returns { success, newBalance, granted, error }.

@@ -9,59 +9,100 @@
 
 const LEVEL_CONFIG = {
   MAX_LEVEL: 100,
-  baseXpPerLevel: 150,      // halved from 300 — original curve put level 100 at
-                            // ~11M total XP (~12 years of play). New target:
-                            // level 50 in ~3 months, level 100 in ~1 year of
-                            // dedicated training. Existing users will see their
-                            // current level either hold or bump up on next save.
-  exponentialGrowth: 1.10,
+  baseXpPerLevel: 100,      // cost of level 1 → 2
 };
 
-// Tiered growth so early levels feel quick, mid-game slows down, late-game is a grind.
-// Multipliers tuned down from the original (1.10/1.13/1.16/1.18/1.22) to make
-// level 100 a realistic year-long goal rather than a decade-long one.
+// Growth rate per level, banded by tier. Two properties matter here and the
+// previous curve had neither:
+//
+//   1. CONTINUITY. The cost of level N+1 is the cost of level N times the
+//      growth rate for that band — it compounds forward. The old version
+//      computed `base * multiplier^(level-1)` with a *different* multiplier
+//      per band, which re-based every level below the boundary and produced
+//      cliffs: L60→L61 jumped 3.2x and L80→L81 jumped 4.6x in a single level.
+//      That is also why the shipped curve put level 100 at 192,438,890 XP —
+//      659 years at a realistic 800 XP/day, and 17x worse than the ~11M curve
+//      it was written to replace.
+//
+//   2. DECELERATION. The rate goes DOWN as you climb, not up. A steep
+//      percentage on a small number feels fast (L1→L2 is 100 XP); a gentle
+//      percentage on a large number stays reachable (L99→L100 is 23,401 XP,
+//      about a month of dedicated training). Accelerating the rate on top of
+//      an already-exponential base is what makes late levels unreachable.
+//
+// Resulting pace at a steady 800 XP/day (one solid workout plus hydration):
+//   L10 ≈ 2 days · L25 ≈ 11 days · L50 ≈ 2.5 months · L100 ≈ 2.2 years.
+// Share of the total ladder per band: 0.3% / 2.1% / 15.0% / 29.0% / 53.6%,
+// so all ten cosmetic tiers in xpTier.js sit somewhere a real person passes
+// through. Largest jump at any band boundary is 1.11x.
+//
+// To retune the pace, change these five numbers — the shape stays valid as
+// long as they are non-increasing.
 function getLevelMultiplier(level) {
-  if (level <= 10)  return 1.05; // very gentle early — first few levels in a session
-  if (level <= 30)  return 1.07;
-  if (level <= 60)  return 1.09;
-  if (level <= 80)  return 1.11;
-  return 1.13;                   // late-game grind, but reachable
+  if (level <= 10)  return 1.110; // fast, tiny numbers — several levels in week one
+  if (level <= 30)  return 1.085;
+  if (level <= 60)  return 1.050;
+  if (level <= 80)  return 1.040;
+  return 1.030;                   // late-game is long, but it ends
+}
+
+// Cumulative XP thresholds, built once at module load.
+//
+// CUMULATIVE[n] = total XP required to reach level n+1.
+// PER_LEVEL[n]  = XP required to go from level n+1 to level n+2.
+//
+// Precomputing also removes the old O(n^2) behaviour, where
+// getTotalXpForLevel(100) re-derived every preceding level from scratch.
+const PER_LEVEL = [];
+const CUMULATIVE = [];
+{
+  let cost = LEVEL_CONFIG.baseXpPerLevel;
+  let total = 0;
+  for (let level = 1; level < LEVEL_CONFIG.MAX_LEVEL; level++) {
+    PER_LEVEL.push(Math.floor(cost));
+    CUMULATIVE.push(total);
+    total += Math.floor(cost);
+    cost *= getLevelMultiplier(level);
+  }
+  CUMULATIVE.push(total); // total to reach MAX_LEVEL
 }
 
 // Total XP needed to reach a given level from 0
 export function getTotalXpForLevel(level) {
   if (level <= 1) return 0;
-  let totalXp = 0;
-  for (let i = 1; i < level; i++) {
-    totalXp += getXpForNextLevel(i);
-  }
-  return totalXp;
+  const clamped = Math.min(level, LEVEL_CONFIG.MAX_LEVEL);
+  return CUMULATIVE[clamped - 1];
 }
 
-// XP needed to go from currentLevel → currentLevel+1
+// XP needed to go from currentLevel → currentLevel+1.
+// Returns 0 at MAX_LEVEL — there is no next level to buy.
 export function getXpForNextLevel(currentLevel) {
-  const multiplier = getLevelMultiplier(currentLevel);
-  return Math.floor(
-    LEVEL_CONFIG.baseXpPerLevel * Math.pow(multiplier, Math.max(0, currentLevel - 1))
-  );
+  if (currentLevel < 1) return PER_LEVEL[0];
+  if (currentLevel >= LEVEL_CONFIG.MAX_LEVEL) return 0;
+  return PER_LEVEL[currentLevel - 1];
 }
 
 // Derive level + progress from cumulative total XP
 export function calculateLevelFromXp(totalXp) {
-  let cumulativeXp = 0;
+  const xp = Math.max(0, Number(totalXp) || 0);
 
   for (let i = 1; i < LEVEL_CONFIG.MAX_LEVEL; i++) {
-    const xpNeeded = getXpForNextLevel(i);
-    if (cumulativeXp + xpNeeded > totalXp) {
-      const currentLevelXp = totalXp - cumulativeXp;
+    const xpNeeded = PER_LEVEL[i - 1];
+    const cumulativeXp = CUMULATIVE[i - 1];
+    if (cumulativeXp + xpNeeded > xp) {
+      const currentLevelXp = xp - cumulativeXp;
       const progressPercent = (currentLevelXp / xpNeeded) * 100;
-      return { level: i, xpInLevel: currentLevelXp, xpNeeded, progressPercent, totalXp };
+      return { level: i, xpInLevel: currentLevelXp, xpNeeded, progressPercent, totalXp: xp };
     }
-    cumulativeXp += xpNeeded;
   }
 
-  return { level: LEVEL_CONFIG.MAX_LEVEL, xpInLevel: 0, xpNeeded: 0, progressPercent: 100, totalXp };
+  return { level: LEVEL_CONFIG.MAX_LEVEL, xpInLevel: 0, xpNeeded: 0, progressPercent: 100, totalXp: xp };
 }
+
+// Total XP to max out. Exported so surfaces that want to show
+// "you are X% of the way to 100" don't re-derive it.
+export const TOTAL_XP_FOR_MAX_LEVEL = CUMULATIVE[LEVEL_CONFIG.MAX_LEVEL - 1];
+export const MAX_LEVEL = LEVEL_CONFIG.MAX_LEVEL;
 
 // ── Flat XP rewards for non-workout actions ───────────────────────────────────
 export const XP_REWARDS = {

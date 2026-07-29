@@ -23,6 +23,15 @@ export const leaderboardsI18n = {
     'leaderboards.top100': 'Top 100',
     'leaderboards.top100Footer': 'Showing the top 100 athletes',
     'leaderboards.allShownFooter': 'Showing all {n} athletes on this board',
+    // TODO(i18n): English-only — needs a native pass for the other 14 locales.
+    // All are called through tFallback, so other languages render English
+    // rather than a raw key until that pass lands.
+    'leaderboards.showHidden': 'Show {n} hidden athletes',
+    'leaderboards.collapse': 'Collapse',
+    'leaderboards.movedUp': 'Up {n} places',
+    'leaderboards.movedDown': 'Down {n} places',
+    'leaderboards.gapToNext': '{n} behind {name}',
+    'leaderboards.leading': 'Leading the board',
     'onboarding.location.title': 'Where are you based?',
     'onboarding.location.subtitle': "We'll show you regional leaderboards for your area.",
     'onboarding.location.country': 'Country',
