@@ -1,20 +1,25 @@
 // src/components/StatsHubModal.jsx
 //
 // "Stats Hub" — single modal that consolidates the gamification surface:
-// level, coins, daily quests, login + workout streaks, weekly league,
-// achievements collection, leaderboards, capsules. Opens by tapping the
-// LevelBar in the header so users can reach it from any page.
+// level, coins, leaderboards, weekly league, daily quests. Opens by
+// tapping the LevelBar in the header so users can reach it from any page.
+//
+// Scope was deliberately narrowed: the streak banners and the
+// Achievements / Bag & Capsules / Coin Shop nav tiles were removed. Those
+// destinations all have their own homes in ProfileMenu, and duplicating
+// them here made the modal a second navigation menu rather than a stats
+// view. The header's coin balance keeps its "Open shop" link, which is
+// the one shop entry point that belongs on a stats surface.
 
 import React, { useEffect, useState } from 'react';
-// useNavigate import removed — all nav tiles now use event-dispatch
-// helpers (requestOpenBag / requestOpenAchievements) or local state
+// useNavigate import removed — the remaining destinations use local state
 // (setLeagueOpen, setLeaderboardsOpen, setShopOpen) rather than route
 // navigation.
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import * as VisuallyHidden from '@radix-ui/react-visually-hidden';
 import {
-  Trophy, Sparkles, Coins, Package, ChevronRight,
+  Trophy, Coins, ChevronRight,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
@@ -24,14 +29,10 @@ import { safeSelect } from '@/api/safeSelect';
 import { calculateLevelFromXp } from '@/lib/xpSystem';
 import LeagueCard from '@/components/dashboard/LeagueCard';
 import DailyQuestsCard from '@/components/dashboard/DailyQuestsCard';
-import LoginStreakBanner from '@/components/dashboard/LoginStreakBanner';
-import WorkoutStreakBanner from '@/components/dashboard/WorkoutStreakBanner';
 import LeagueStandingsModal from '@/components/dashboard/LeagueStandingsModal';
 import LeaderboardsModal from '@/components/LeaderboardsModal';
 import CoinShopModal from '@/components/hub/CoinShopModal';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { requestOpenBag } from '@/lib/inventoryFlow';
-import { requestOpenAchievements } from '@/lib/achievementsFlow';
 import AvatarUploader from '@/components/AvatarUploader';
 import { getLootTitleById } from '@/lib/lootTitles';
 import { getLootFrameById } from '@/lib/lootFrames';
@@ -134,7 +135,7 @@ export default function StatsHubModal({ open, onClose }) {
           <VisuallyHidden.Root>
             <DialogTitle>{tFallback('statsHub.title', 'Your stats')}</DialogTitle>
             <DialogDescription>
-              {tFallback('statsHub.a11yDesc', 'Level, coins, daily quests, league standing, and quick links to leaderboards, achievements, your bag, and the coin shop.')}
+              {tFallback('statsHub.a11yDesc', 'Level, coins, leaderboards, league standing, and daily quests.')}
             </DialogDescription>
           </VisuallyHidden.Root>
 
@@ -243,14 +244,6 @@ export default function StatsHubModal({ open, onClose }) {
               </button>
             </ErrorBoundary>
 
-            {/* Streaks */}
-            <ErrorBoundary label="StatsHub.Streaks">
-              <div className="space-y-2">
-                <LoginStreakBanner />
-                <WorkoutStreakBanner />
-              </div>
-            </ErrorBoundary>
-
             {/* League */}
             <ErrorBoundary label="StatsHub.League">
               <LeagueCard onClick={() => openNested(setLeagueOpen)} />
@@ -261,44 +254,6 @@ export default function StatsHubModal({ open, onClose }) {
             <ErrorBoundary label="StatsHub.Quests">
               <DailyQuestsCard onNavigated={onClose} />
             </ErrorBoundary>
-
-            {/* Quick links — destinations handle their own opening:
-                  - Achievements: fires OPEN_ACHIEVEMENTS_EVENT —
-                                  ProfileMenu opens AchievementsVault
-                                  globally (works from any route).
-                                  Previously navigated to
-                                  /progress?tab=achievements before the
-                                  surface moved off Progress.
-                  - Bag: fires OPEN_BAG_EVENT — Layout's useBagFlow opens
-                         the bag globally (works from any route)
-                  - Coin Shop: in-modal CoinShopModal
-                Leaderboards was the fourth tile here; it's now the primary
-                row at the top of the body. That leaves three tiles. The
-                grid stays at TWO columns — a tile is an icon, a label and a
-                chevron laid out horizontally, and at three columns on a
-                375px screen the label gets ~35px and wraps to one character
-                per line. The odd tile spans both columns instead. */}
-            <div className="grid grid-cols-2 gap-2">
-              {/* Replace-not-stack pattern: clicking these closes the Stats
-                  Hub first via onClose(), then opens the target so users
-                  see only the destination instead of two stacked modals. */}
-              <NavTile
-                icon={Sparkles}
-                label={tFallback('statsHub.achievements', 'Achievements')}
-                onClick={() => { onClose(); requestOpenAchievements(); }}
-              />
-              <NavTile
-                icon={Package}
-                label={tFallback('statsHub.bag', 'Bag & Capsules')}
-                onClick={() => { onClose(); requestOpenBag(); }}
-              />
-              <NavTile
-                icon={Coins}
-                label={tFallback('statsHub.shop', 'Coin Shop')}
-                onClick={() => openNested(setShopOpen)}
-                className="col-span-2"
-              />
-            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -308,24 +263,5 @@ export default function StatsHubModal({ open, onClose }) {
       <LeaderboardsModal open={leaderboardsOpen} onClose={() => setLeaderboardsOpen(false)} />
       <CoinShopModal open={shopOpen} onClose={() => setShopOpen(false)} />
     </>
-  );
-}
-
-function NavTile({ icon: Icon, label, onClick, className = '' }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center gap-2 px-2.5 py-2.5 rounded-xl border border-border bg-card hover:border-primary/50 hover:bg-secondary/50 transition-colors text-start min-w-0 ${className}`}
-    >
-      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-primary" />
-      </div>
-      {/* No chevron. At half-width it cost 24px including its gap, which
-          was the difference between "Achievements" fitting on one line and
-          breaking mid-word as "Achievem / ents". The bordered card already
-          reads as tappable, and the full-width Leaderboards row above keeps
-          its chevron so the affordance is still established. */}
-      <span className="flex-1 min-w-0 text-sm font-medium leading-tight">{label}</span>
-    </button>
   );
 }
