@@ -12,7 +12,7 @@
 // single-sample test cannot show.
 
 import { describe, it, expect } from 'vitest';
-import { buildReel } from '../CapsuleOpener';
+import { buildReel, splitIntoWaves } from '../CapsuleOpener';
 
 const WIN = { id: 'stk_fire', emoji: '🔥', name: 'On Fire', rarity: 'common', type: 'sticker' };
 const spins = (n, item = WIN) => Array.from({ length: n }, () => buildReel(item));
@@ -137,5 +137,35 @@ describe('buildReel — filler pool breadth (user-reported)', () => {
     // Old behaviour was effectively 1.0 for the common tier. Anything
     // under half means consecutive spins genuinely look different.
     expect(mean).toBeLessThan(0.5);
+  });
+});
+
+describe('splitIntoWaves — batch opens in stacks of 4', () => {
+  it('splits 6 into 4 + 2, the reported example', () => {
+    const r = splitIntoWaves(Array.from({ length: 6 }, (_, i) => i));
+    expect(r.map(w => w.length)).toEqual([4, 2]);
+  });
+
+  it('handles exact multiples without a trailing empty wave', () => {
+    expect(splitIntoWaves(Array.from({ length: 8 }, (_, i) => i)).map(w => w.length))
+      .toEqual([4, 4]);
+  });
+
+  it('caps every wave at four', () => {
+    for (let n = 1; n <= 10; n++) {
+      const waves = splitIntoWaves(Array.from({ length: n }, (_, i) => i));
+      expect(Math.max(...waves.map(w => w.length))).toBeLessThanOrEqual(4);
+    }
+  });
+
+  it('never drops or duplicates a result', () => {
+    for (let n = 1; n <= 10; n++) {
+      const input = Array.from({ length: n }, (_, i) => i);
+      expect(splitIntoWaves(input).flat()).toEqual(input);
+    }
+  });
+
+  it('returns no waves for an empty batch', () => {
+    expect(splitIntoWaves([])).toEqual([]);
   });
 });

@@ -398,123 +398,86 @@ function StarField() {
 // theme): scrim → crate shakes → lid pops → ray + particle burst, in the item's
 // rarity colour. The design's own card is omitted — the existing reveal card
 // below sits underneath and is revealed as the scrim fades. Tap to skip.
-// The burst's colour is the item's own rarity colour. This used to be a
-// FIFTH private rarity→colour map, and it disagreed with the catalog on
-// four of its five tiers (rare #3b82f6 vs #60a5fa, epic #a855f7 vs
-// #c084fc, legendary #eab308 vs #fbbf24, mythic #f43f5e vs #fb7185) — so
-// the burst flashed one blue and the card behind it settled on another.
+// The crate-unlock burst that used to play here has been removed. It fired
+// a full-screen scrim + shaking crate + lid-pop + ray/particle explosion on
+// every Rare+ pull, ON TOP OF the reveal card's own spring-in — two
+// competing animations for one event, and the crate re-told a story the
+// card was already telling. The tactile half was worth keeping, so the
+// rarity-scaled haptic moved onto the reveal itself (see the effect in the
+// component). Its ~170 lines of .unlock-* CSS are gone from index.css too.
 
-// Rarity ladder — higher tiers get denser bursts + escalating extras
-// (ring shockwave, screen flash, mythic shimmer) per the design brief's
-// "higher-value achievements feel more impressive" principle. `dist`
-// scales the particle spread so denser tiers also throw wider.
-const BURST_TIERS = {
-  rare:      { particles: 18, rays: 12, spread: 110, haptic: 'primary', ring: false, flash: false },
-  epic:      { particles: 28, rays: 14, spread: 130, haptic: 'success', ring: true,  flash: false },
-  legendary: { particles: 40, rays: 16, spread: 155, haptic: 'success', ring: true,  flash: true  },
-  mythic:    { particles: 54, rays: 18, spread: 185, haptic: 'buzz',    ring: true,  flash: true  },
-  animated:  { particles: 28, rays: 14, spread: 130, haptic: 'success', ring: true,  flash: false },
-};
+// ─── Batch reveal ─────────────────────────────────────────────────────────────
+// Results land in WAVES of up to four rather than all at once.
+//
+// A ten-capsule open used to dump ten cards onto the screen in one
+// staggered burst — the whole batch resolved in under a second and there
+// was nothing to watch. Opening four, then four, then two gives each wave
+// its own beat, and the earlier waves stay on screen so the haul visibly
+// accumulates underneath.
+//
+// Each card starts as the capsule it came from and flips to the item a
+// moment after its wave begins, so a wave reads as "these four just
+// opened" rather than "four cards appeared".
+export const BATCH_WAVE_SIZE = 4;
 
-function CrateBurst({ item, onDone }) {
-  const rarity = item?.rarity || 'rare';
-  const tier = BURST_TIERS[rarity] || BURST_TIERS.rare;
-  const col  = rarityTint(rarity).color;
-  const glow = `${col}8c`; // ~0.55 alpha, matching the previous rgba() values
-
-  useEffect(() => {
-    // Tightened to match the retuned CSS (scrim fade now starts at 2.3s).
-    const done = setTimeout(onDone, 2800);
-    // Rarity-scaled haptic on the lid-pop beat (~1.15s). haptic.js already
-    // no-ops under reduced-motion / the settings toggle / no-vibrate devices.
-    const buzz = setTimeout(() => {
-      triggerHaptic(tier.haptic);
-      // Mythic gets a satisfying second pulse as the burst peaks.
-      if (rarity === 'mythic') setTimeout(() => triggerHaptic('success'), 220);
-    }, 1150);
-    return () => { clearTimeout(done); clearTimeout(buzz); };
-  }, [onDone, tier.haptic, rarity]);
-
-  const rays = useMemo(() => Array.from({ length: tier.rays }, (_, i) => ({
-    a: i * (360 / tier.rays) + (Math.random() * 12 - 6),
-  })), [tier.rays]);
-  const particles = useMemo(() => Array.from({ length: tier.particles }, () => {
-    const angle = Math.random() * Math.PI * 2;
-    const dist = Math.random() * tier.spread + 60;
-    return { px: Math.cos(angle) * dist, py: Math.sin(angle) * dist - 30, size: Math.random() * 5 + 4 };
-  }), [tier.particles, tier.spread]);
-
-  return (
-    <div
-      className={`unlock-overlay tier-${rarity}`}
-      style={{ '--rar': col, '--rar-glow': glow }}
-      onClick={onDone}
-    >
-      <div className="unlock-stage">
-        <div className="unlock-kicker">{item?.type === 'theme' ? 'New theme unlocked' : 'Item unlocked'}</div>
-        {tier.flash && <div className="unlock-flash" />}
-        <div className="unlock-glow" />
-        {tier.ring && <div className="unlock-ring" />}
-        {tier.ring && rarity === 'mythic' && <div className="unlock-ring b" />}
-        {rays.map((r, i) => (
-          <div key={`r${i}`} className="unlock-ray" style={{ '--a': `${r.a}deg` }} />
-        ))}
-        {particles.map((p, i) => (
-          <div key={`p${i}`} className="unlock-particle" style={{
-            width: p.size, height: p.size, '--px': `${p.px}px`, '--py': `${p.py}px`,
-          }} />
-        ))}
-        <div className="unlock-crate">
-          <div className="unlock-crate-box" />
-          <div className="unlock-crate-lid" />
-        </div>
-        <div className="unlock-hint">Tap to skip</div>
-      </div>
-    </div>
-  );
+/** Split results into consecutive waves of at most BATCH_WAVE_SIZE. */
+export function splitIntoWaves(results, size = BATCH_WAVE_SIZE) {
+  const waves = [];
+  for (let i = 0; i < results.length; i += size) waves.push(results.slice(i, i + size));
+  return waves;
 }
 
-// ─── Batch reveal grid ────────────────────────────────────────────────────────
-// Ten results at once. The best pull keeps the full-size treatment (and the
-// CrateBurst still fires over it) so the batch has one payoff moment
-// instead of ten equal ones.
-function BatchRevealGrid({ results, bestId }) {
+function BatchCard({ entry, isBest, opened, capsuleEmoji, delay }) {
+  const { item } = entry;
+  const tint = rarityTint(item.rarity);
   return (
-    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 w-full">
-      {results.map(({ capsuleId, item }, i) => {
-        const tint = rarityTint(item.rarity);
-        const isBest = capsuleId === bestId;
-        return (
-          <motion.div
-            key={capsuleId}
-            className="relative flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
-            style={{
-              borderColor: tint.border,
-              boxShadow: isBest ? tint.glow : undefined,
-            }}
-            initial={{ scale: 0.5, opacity: 0, rotate: -4 }}
-            animate={{ scale: 1, opacity: 1, rotate: 0 }}
-            // Staggered so the grid pops in one card at a time rather than
-            // dumping ten at once — the drip is most of the payoff.
-            transition={{ type: 'spring', stiffness: 300, damping: 20, delay: i * 0.08 }}
+    <motion.div
+      className="relative flex flex-col items-center justify-center rounded-xl border-2 bg-card p-2 gap-1 text-center min-h-[92px]"
+      style={{
+        borderColor: opened ? tint.border : 'hsl(var(--border))',
+        boxShadow: opened && isBest ? tint.glow : undefined,
+      }}
+      initial={{ scale: 0.6, opacity: 0, y: 8 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      transition={{ type: 'spring', stiffness: 320, damping: 22, delay }}
+    >
+      {opened && isBest && (
+        <span
+          className="absolute -top-1.5 px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider"
+          style={{ backgroundColor: tint.color, color: '#000' }}
+        >
+          Best
+        </span>
+      )}
+
+      <AnimatePresence mode="wait" initial={false}>
+        {!opened ? (
+          <motion.span
+            key="sealed"
+            className="text-3xl leading-none"
+            initial={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.5, rotate: -12 }}
+            transition={{ duration: 0.18 }}
           >
-            {isBest && (
-              <span
-                className="absolute -top-1.5 px-1.5 rounded-full text-[8px] font-extrabold uppercase tracking-wider"
-                style={{ backgroundColor: tint.color, color: '#000' }}
-              >
-                Best
-              </span>
-            )}
+            {capsuleEmoji}
+          </motion.span>
+        ) : (
+          <motion.div
+            key="opened"
+            className="flex flex-col items-center gap-1"
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: 'spring', stiffness: 340, damping: 18 }}
+          >
             <StickerDisplay emoji={item.emoji} variant={item.variant} size={30} />
             <span className="text-[10px] font-semibold leading-tight line-clamp-2">{item.name}</span>
             <span className="text-[9px] font-bold uppercase tracking-wide" style={{ color: tint.color }}>
               {tint.label}
             </span>
           </motion.div>
-        );
-      })}
-    </div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 
@@ -532,6 +495,10 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   const isBatch = !!batchRows && batchRows.length > 1;
   // [{ capsuleId, item }] — every successful roll from this open.
   const [results, setResults] = useState([]);
+  // How many WAVES of results have been dealt so far (see splitIntoWaves).
+  // Cards in dealt-but-not-yet-flipped waves show their sealed capsule.
+  const [wavesDealt, setWavesDealt] = useState(0);
+  const [openedCount, setOpenedCount] = useState(0);
   const reduce = prefersReducedMotion();
   const [phase,   setPhase]   = useState('idle');
   const [wonItem, setWonItem] = useState(null);
@@ -540,8 +507,6 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
   // the scroll offset and the highlight instead of a module constant.
   const [winIndex, setWinIndex] = useState(0);
   const [catalogOpen, setCatalogOpen] = useState(false);
-  // Crate-unlock burst flourish — plays over the reveal for any Rare+ item.
-  const [showBurst, setShowBurst] = useState(false);
   // Per-spin animation persona — duration, easing, kicker text.
   // Picked once when the user hits Open so a single spin doesn't
   // mid-flight switch curves. Initialized to a placeholder so the
@@ -662,16 +627,44 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     }
   }, [phase]);
 
-  // Fire the crate-unlock burst once when a Rare+ item enters the reveal.
-  // Skipped under reduced-motion (the static reveal card shows immediately).
+  // Rarity-scaled haptic on reveal. This is what survives of the removed
+  // crate burst: the buzz was the part that added something the card
+  // couldn't, so it fires on the reveal itself now. haptic.js already
+  // no-ops under reduced-motion / the settings toggle / no-vibrate devices.
   useEffect(() => {
-    const RARE_PLUS = new Set(['rare', 'epic', 'legendary', 'mythic', 'animated']);
-    if (phase === 'revealing' && wonItem && RARE_PLUS.has(wonItem.rarity) && !reduce) {
-      setShowBurst(true);
-    } else {
-      setShowBurst(false);
-    }
-  }, [phase, wonItem, reduce]);
+    if (phase !== 'revealing' || !wonItem) return;
+    const pattern = { legendary: 'success', mythic: 'buzz', animated: 'success' }[wonItem.rarity]
+      ?? (rarityRank(wonItem.rarity) >= rarityRank('rare') ? 'primary' : null);
+    if (pattern) triggerHaptic(pattern);
+  }, [phase, wonItem]);
+
+  // Deal the batch out in waves once the reveal begins.
+  //
+  // Each wave is dealt (cards appear sealed), then flipped open a beat
+  // later, then the next wave follows. Timers are collected so closing the
+  // modal mid-sequence can't fire setState on an unmounted component.
+  const waves = useMemo(() => (isBatch ? splitIntoWaves(results) : []), [isBatch, results]);
+  useEffect(() => {
+    if (!isBatch || phase !== 'revealing' || waves.length === 0) return;
+    const timers = [];
+    const DEAL = 620;   // ms a wave sits sealed before it flips
+    const GAP  = 520;   // ms after a wave opens before the next is dealt
+    let t = 0;
+    waves.forEach((wave, i) => {
+      timers.push(setTimeout(() => setWavesDealt(i + 1), t));
+      t += DEAL;
+      timers.push(setTimeout(() => {
+        setOpenedCount(waves.slice(0, i + 1).reduce((n, w) => n + w.length, 0));
+        // One buzz per wave landing — the batch equivalent of the single
+        // reveal's haptic.
+        triggerHaptic('primary');
+      }, t));
+      t += GAP;
+    });
+    return () => timers.forEach(clearTimeout);
+  }, [isBatch, phase, waves]);
+
+  const allWavesOpened = isBatch && openedCount >= results.length && results.length > 0;
 
   // ── Trigger spin ────────────────────────────────────────────────────────────
   // Server-authoritative roll (migration 028). The RPC:
@@ -748,6 +741,8 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
     winIndexRef.current = landedAt;
 
     setResults(ok);
+    setWavesDealt(0);
+    setOpenedCount(0);
     setWonItem(best.item);
     setWinIndex(landedAt);
     setReel(cards);
@@ -981,11 +976,35 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                 }}
               />
               <p className="relative z-10 text-muted-foreground text-xs font-medium tracking-widest uppercase">
-                {results.length} opened
+                {allWavesOpened
+                  ? `${results.length} opened`
+                  : `Opening ${Math.min(openedCount + BATCH_WAVE_SIZE, results.length)} of ${results.length}…`}
               </p>
 
-              <div className="relative z-10 w-full">
-                <BatchRevealGrid results={results} bestId={bestResultId} />
+              {/* One row per wave. Earlier waves stay put so the haul builds
+                  up underneath rather than being replaced. */}
+              <div className="relative z-10 w-full flex flex-col gap-2">
+                {waves.slice(0, wavesDealt).map((wave, wi) => {
+                  const before = waves.slice(0, wi).reduce((n, w) => n + w.length, 0);
+                  return (
+                    <div
+                      key={wi}
+                      className="grid gap-2"
+                      style={{ gridTemplateColumns: `repeat(${Math.min(wave.length, BATCH_WAVE_SIZE)}, minmax(0, 1fr))` }}
+                    >
+                      {wave.map((entry, ci) => (
+                        <BatchCard
+                          key={entry.capsuleId}
+                          entry={entry}
+                          isBest={entry.capsuleId === bestResultId}
+                          opened={before + ci < openedCount}
+                          capsuleEmoji={capsuleEmoji}
+                          delay={ci * 0.06}
+                        />
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
 
               <motion.button
@@ -997,11 +1016,12 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
                   background: `linear-gradient(135deg, ${rarityConfig.color}cc, ${rarityConfig.color}88)`,
                   boxShadow: `0 4px 24px ${rarityConfig.color}44`,
                 }}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                // Held back until the staggered grid has finished landing,
-                // so a fast tap can't skip the reveal it paid for.
-                transition={{ delay: 0.25 + results.length * 0.08 }}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: allWavesOpened ? 1 : 0, y: allWavesOpened ? 0 : 6 }}
+                // Only actionable once every wave has opened — a fast tap
+                // must not be able to skip the reveal it paid for.
+                style={{ pointerEvents: allWavesOpened ? 'auto' : 'none' }}
+                transition={{ duration: 0.25 }}
               >
                 Claim all {results.length}
               </motion.button>
@@ -1222,11 +1242,6 @@ export default function CapsuleOpener({ capsule, batch, onClaim, onClaimBatch, o
         </Suspense>
       )}
 
-      {/* Crate-unlock burst — premium reveal flourish for any Rare+ item.
-          Fixed at z-9999, fades to reveal the card underneath. */}
-      {showBurst && wonItem && (
-        <CrateBurst item={wonItem} onDone={() => setShowBurst(false)} />
-      )}
     </div>
   );
 }
