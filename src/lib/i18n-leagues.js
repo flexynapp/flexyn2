@@ -9,6 +9,11 @@ const enKeys = {
   'league.weekly':           'Weekly League',
   'league.yourRank':         'Your rank',
   'league.daysLeft':         'Days left',
+  // TODO(i18n): English-only — needs a native pass for the other 14 locales.
+  // Both are called through tFallback, so other languages render English
+  // rather than a raw key until that pass lands.
+  'league.globalGap':        'globally · {n} XP behind {name}',
+  'league.globalLeading':    'globally · leading the board',
   'league.thisWeek':         'this week',
   'league.promoteZone':      'Promotion zone',
   'league.demoteZone':       'Demotion zone',

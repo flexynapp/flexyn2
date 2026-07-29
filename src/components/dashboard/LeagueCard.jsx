@@ -8,12 +8,13 @@ import React, { useRef, useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card } from '@/components/ui/card';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Globe } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useNumberFormatter } from '@/lib/intl';
 import * as leagues from '@/lib/data/leagues';
+import { useGlobalRank } from '@/hooks/useGlobalRank';
 import { differenceInCalendarDays, parseISO } from 'date-fns';
 
 export default function LeagueCard({ onClick }) {
@@ -28,6 +29,12 @@ export default function LeagueCard({ onClick }) {
     staleTime: 30_000,
     refetchInterval: 90_000, // gentle poll so the rank refreshes after others log XP
   });
+
+  // Global all-time standing for the footer strip. Same query the level
+  // badge reads, so React Query serves both from one round trip. Declared
+  // up here with the other hooks for the same reason the ones below are —
+  // this component early-returns while loading.
+  const { rank: globalRank, ahead, gap } = useGlobalRank();
 
   // Rank-change animation state — hooks MUST be declared before any
   // early return so the hook order stays stable across renders where
@@ -98,7 +105,7 @@ export default function LeagueCard({ onClick }) {
       transition={{ type: 'spring', stiffness: 380, damping: 22 }}
       className="block w-full h-full text-start"
     >
-      <Card className={`overflow-hidden border-border/60 theme-card-accent h-full flex ${tier.ringClass || ''}`}>
+      <Card className={`overflow-hidden border-border/60 theme-card-accent h-full flex flex-col ${tier.ringClass || ''}`}>
         {/* Top stripe — gradient by tier. flex-1 + items-center fills
             and vertically centers content so the card stretches to
             match its row neighbor (e.g. Readiness compact square). */}
@@ -167,6 +174,31 @@ export default function LeagueCard({ onClick }) {
             <ChevronRight className="w-3 h-3 opacity-70 shrink-0 rtl:scale-x-[-1]" />
           </div>
         </div>
+
+        {/* Global standing.
+            The league is a weekly bracket of up to 30 people; this is the
+            whole app. Putting it here means the global board's payload
+            reaches the home screen without adding another destination —
+            the full leaderboard stays one tap away behind the level badge.
+            Hidden entirely when rank is unknown (loading, no activity yet,
+            hide_from_search set, or a host without the RPC) so the card
+            never shows a placeholder row. */}
+        {globalRank != null && (
+          <div className="shrink-0 px-2.5 py-1 border-t border-border/50 flex items-center gap-1.5 min-w-0">
+            <Globe className="w-2.5 h-2.5 text-muted-foreground shrink-0" aria-hidden="true" />
+            <span className="text-[9px] font-bold tabular-nums shrink-0">
+              #{fmt(globalRank)}
+            </span>
+            <span className="text-[9px] text-muted-foreground truncate">
+              {gap != null && ahead
+                ? tFallback('league.globalGap', 'globally · {n} XP behind {name}', {
+                    n: fmt(gap),
+                    name: ahead.username || ahead.full_name || tFallback('progress.anonymous', 'an athlete'),
+                  })
+                : tFallback('league.globalLeading', 'globally · leading the board')}
+            </span>
+          </div>
+        )}
       </Card>
     </motion.button>
   );

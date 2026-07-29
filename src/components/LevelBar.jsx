@@ -4,6 +4,8 @@ import { calculateLevelFromXp } from '@/lib/xpSystem';
 import { getTier } from '@/lib/xpTier';
 import Particles from '@/components/Particles';
 import { useLanguage } from '@/lib/LanguageContext';
+import { useNumberFormatter } from '@/lib/intl';
+import { useGlobalRank } from '@/hooks/useGlobalRank';
 import StatsHubModal from '@/components/StatsHubModal';
 
 // The compact badge used to render a ~170-line portal tooltip beneath it —
@@ -23,10 +25,17 @@ import StatsHubModal from '@/components/StatsHubModal';
 
 export default function LevelBar({ totalXp = 0, compact = false }) {
   const { t } = useLanguage();
+  const fmt = useNumberFormatter();
   const levelData = calculateLevelFromXp(totalXp);
   const { level, xpInLevel, xpNeeded, progressPercent } = levelData;
   const tier = getTier(level, t);
   const [statsHubOpen, setStatsHubOpen] = useState(false);
+  // Global rank rides along on the badge. "Lv 4" is a fact about you;
+  // "Lv 4 · #12" is a reason to tap. The query is shared with the Dashboard
+  // league card via React Query, so surfacing it twice costs one round trip.
+  // Only fetched for the compact badge — the full-size bar already sits on
+  // pages that show rank in their own right.
+  const { rank } = useGlobalRank({ enabled: compact });
 
   if (compact) {
     return (
@@ -34,7 +43,9 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
       <div className="relative">
         <motion.button
           onClick={() => setStatsHubOpen(true)}
-          aria-label="Open Stats Hub"
+          aria-label={rank != null
+            ? `Open Stats Hub — level ${level}, ranked ${rank} globally`
+            : `Open Stats Hub — level ${level}`}
           className={`relative flex items-center gap-2 px-3 py-2 rounded-xl overflow-hidden ${tier.bg} shadow-md ${tier.glow} cursor-pointer`}
           whileHover={{ scale: 1.06 }}
           whileTap={{ scale: 0.93 }}
@@ -51,6 +62,21 @@ export default function LevelBar({ totalXp = 0, compact = false }) {
           >
             <span className="font-heading font-bold text-xs text-white drop-shadow">{t('levelBar.level').replace('{n}', level)}</span>
           </motion.div>
+
+          {/* Global rank — omitted entirely when unknown (still loading, no
+              activity yet, opted out of discovery, or a host without the
+              RPC) rather than rendering a placeholder. A badge that
+              sometimes says "#—" is worse than one that just says "Lv 4". */}
+          {rank != null && (
+            <motion.span
+              initial={{ opacity: 0, x: -4 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.25 }}
+              className={`relative font-heading font-bold text-xs tabular-nums ${tier.text}`}
+            >
+              #{fmt(rank)}
+            </motion.span>
+          )}
         </motion.button>
 
       </div>
