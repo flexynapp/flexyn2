@@ -6,25 +6,36 @@
 //
 // ── Why this isn't MobileSelect ──────────────────────────────────────
 // MobileSelect renders a flat, unsearchable, ungrouped list of
-// {value,label} with no thumbnails. This picker needs three sections
-// (your gear → catalog → add your own), a search field once the catalog
-// passes a dozen entries, and a slot for photos in Phase 3. It uses the
-// same BottomSheet the rest of the app's mobile surfaces use, so it
-// still feels native.
+// {value,label} with no thumbnails. This picker needs grouped sections,
+// a search field once the list passes ~8 entries, photo thumbnails, and
+// an add-your-own path. It uses the same BottomSheet as the rest of the
+// app's mobile surfaces, so it still feels native.
 //
-// ── Data source, and what's deliberately missing ─────────────────────
-// Options come from the bundled SEED_MODELS catalog plus this user's
-// own pick history (recentImplements). Migration 268's training_spaces
-// / space_equipment tables are NOT wired up here — the migration isn't
-// applied, and the picker must be fully useful without it. Phase 4
-// layers a gym's shared floor ABOVE "your gear"; nothing here has to
-// change for that.
+// ── Where the options come from ──────────────────────────────────────
+// Three sources, in descending order of how likely each is to be the
+// machine actually in front of you:
 //
-// Photos land in Phase 3. The thumbnail slot below renders the
-// implement-type icon today and will take a user photo later — no
-// manufacturer imagery, ever (see docs/gym-equipment-picker-research.md).
+//   1. "Your equipment"  — this user's own pick history (localStorage,
+//                          via recentImplements). What you have chosen
+//                          before is the strongest single signal.
+//   2. "At <your gym>"   — the gym's shared floor (space_equipment,
+//                          fetched lazily when the drawer opens). What
+//                          exists on the floor, including machines you
+//                          have not used yet.
+//   3. "Common models"   — the bundled SEED_MODELS catalog.
+//
+// Plus "add your own", which is first-class rather than a fallback: no
+// catalog will ever cover every gym floor and garage.
+//
+// Sources 2 and 3 are additive — the picker is fully usable offline off
+// the bundled catalog alone, and a failing gym query degrades to an
+// absent section rather than a blocked workout.
+//
+// Photo thumbnails run the fallback chain in lib/equipmentImage.js and
+// always terminate in a drawn silhouette. No manufacturer imagery,
+// ever — see docs/gym-equipment-picker-research.md §3.
 
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronDown, Check, Search, Plus, X, Camera, Loader2 } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { Input } from '@/components/ui/input';
@@ -41,7 +52,8 @@ import { resolveEquipmentImage } from '@/lib/equipmentImage';
 import EquipmentSilhouette from './equipmentSilhouettes';
 import { compressImage } from '@/lib/imageCompress';
 import { db } from '@/api/db';
-import { persistEquipmentPhoto } from '@/lib/data/equipment';
+import { persistEquipmentPhoto, listGymFloor } from '@/lib/data/equipment';
+import { listMyGyms } from '@/lib/data/gymBusinesses';
 
 /** Normalize a catalog seed row into the shape we persist. */
 function fromSeed(seed, implementType) {
@@ -73,23 +85,72 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
     [open, userId, implementType]
   );
 
+  // The gym's floor, fetched lazily when the drawer opens. Kept inside
+  // this component rather than threaded down from Workout.jsx so the
+  // picker stays self-contained — and so a slow or failing gym query
+  // can never delay the workout screen itself. Empty on any failure;
+  // the catalog below still works.
+  const [gymFloor, setGymFloor] = useState([]);
+  const [gymName, setGymName] = useState(null);
+
+  useEffect(() => {
+    if (!open || !userId || !implementType) return;
+    let cancelled = false;
+    (async () => {
+      const gyms = await listMyGyms(userId).catch(() => []);
+      if (cancelled || !gyms?.length) return;
+      const floors = await Promise.all(
+        gyms.map(g => listGymFloor(g.id ?? g.gym_id, g.owner_id))
+      );
+      if (cancelled) return;
+      setGymName(gyms.length === 1 ? (gyms[0].name ?? null) : null);
+      setGymFloor(
+        floors.flat()
+          .filter(r => r.implement_type === implementType)
+          .map(r => ({
+            brand: 'unknown',
+            line: r.label_override || null,
+            model: null,
+            implementType: r.implement_type,
+            label: r.label_override || implementTypeLabel(r.implement_type),
+            photoUrl: r.photo_url || null,
+            verified: r.verified_by_owner || r.fromOwnerSpace,
+          }))
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [open, userId, implementType]);
+
+  // Section order is deliberate: what YOU have picked before beats what
+  // is merely present at your gym, which beats the generic catalog. A
+  // machine you've used three times is a stronger signal than one that
+  // exists somewhere on the floor.
+  const gym = useMemo(() => {
+    const recentKeys = new Set(recent.map(implementKey));
+    return gymFloor.filter(m => !recentKeys.has(implementKey(m)));
+  }, [gymFloor, recent]);
+
   const catalog = useMemo(() => {
     if (!implementType) return [];
-    const recentKeys = new Set(recent.map(implementKey));
+    const seen = new Set([...recent, ...gym].map(implementKey));
     return seedModelsForType(implementType)
       .map(s => fromSeed(s, implementType))
-      // Don't list a machine twice — if it's in "your gear" it's not
+      // Don't list a machine twice — if it's already above, it's not
       // also a fresh catalog suggestion.
-      .filter(m => !recentKeys.has(implementKey(m)));
-  }, [implementType, recent]);
+      .filter(m => !seen.has(implementKey(m)));
+  }, [implementType, recent, gym]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return { recent, catalog };
+    if (!q) return { recent, gym, catalog };
     const match = (m) => (m.label || '').toLowerCase().includes(q)
       || brandLabel(m.brand).toLowerCase().includes(q);
-    return { recent: recent.filter(match), catalog: catalog.filter(match) };
-  }, [query, recent, catalog]);
+    return {
+      recent: recent.filter(match),
+      gym: gym.filter(match),
+      catalog: catalog.filter(match),
+    };
+  }, [query, recent, gym, catalog]);
 
   // Exercises with no nameable implement (pure bodyweight) get no
   // control at all — an empty dropdown is worse than no dropdown.
@@ -278,6 +339,22 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             )}
           </Section>
 
+          <Section
+            title={gymName
+              ? `${tFallback('implement.atGym', 'At')} ${gymName}`
+              : tFallback('implement.atYourGym', 'At your gym')}
+            items={filtered.gym}
+          >
+            {(item) => (
+              <Row
+                key={implementKey(item)}
+                item={item}
+                selected={value && implementKey(value) === implementKey(item)}
+                onSelect={() => commit(item)}
+              />
+            )}
+          </Section>
+
           <Section title={tFallback('implement.catalog', 'Common models')} items={filtered.catalog}>
             {(item) => (
               <Row
@@ -289,7 +366,8 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             )}
           </Section>
 
-          {filtered.recent.length === 0 && filtered.catalog.length === 0 && (
+          {filtered.recent.length === 0 && filtered.gym.length === 0
+            && filtered.catalog.length === 0 && (
             <p className="text-sm text-muted-foreground text-center py-6">
               {query
                 ? tFallback('implement.noMatch', 'No match — add it below.')

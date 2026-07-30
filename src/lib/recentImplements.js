@@ -16,13 +16,14 @@
 //   }
 //
 // ── Why localStorage and not the database ────────────────────────────
-// Migration 268 defines training_spaces / space_equipment, but it is
-// not applied yet and the picker must work without it. This module is
-// the day-one substitute for "machines in my space": it is per-device
-// and never shared, which is exactly right for a personal recall list
-// and exactly wrong for a gym's shared floor. Phase 4 layers the DB
-// list ABOVE these — it does not replace them, because a user's own
-// history stays the better signal for what they personally use.
+// This is a personal recall list: per-device, never shared, which is
+// exactly right for "what do I reach for" and exactly wrong for a gym's
+// shared floor. Those are different questions, so they stayed different
+// stores — the gym floor lives in space_equipment (migration 268).
+//
+// The picker shows this list ABOVE the gym floor. A machine you have
+// picked three times is a stronger signal than one that merely exists
+// somewhere on the floor.
 //
 // Capped per implement type; LRU-evicted. Mirrors
 // src/lib/recentExerciseUsage.js.

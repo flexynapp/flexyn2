@@ -9,14 +9,31 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils';
+import { render, screen, fireEvent, waitFor } from '@/test/utils';
 import ImplementPicker from '../ImplementPicker';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { recordImplementUse } from '@/lib/recentImplements';
 
+// The picker fetches the gym floor when the drawer opens. Mock both data
+// modules so tests are deterministic — the test env's Supabase URL is a
+// stub host, so leaving these real would mean a doomed network round
+// trip on every open.
+vi.mock('@/lib/data/gymBusinesses', () => ({
+  listMyGyms: vi.fn(async () => []),
+}));
+vi.mock('@/lib/data/equipment', () => ({
+  listGymFloor: vi.fn(async () => []),
+  persistEquipmentPhoto: vi.fn(async () => null),
+}));
+
+import { listMyGyms } from '@/lib/data/gymBusinesses';
+import { listGymFloor } from '@/lib/data/equipment';
+
 // jsdom has no matchMedia; BottomSheet reads it for reduced-motion.
 beforeEach(() => {
   localStorage.clear();
+  listMyGyms.mockResolvedValue([]);
+  listGymFloor.mockResolvedValue([]);
   if (!window.matchMedia) {
     window.matchMedia = vi.fn().mockImplementation(q => ({
       matches: false, media: q, onchange: null,
@@ -148,6 +165,76 @@ describe('choosing an implement', () => {
     fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
     fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('the gym floor section', () => {
+  const gym = { id: 'gym-1', name: 'Iron Works', owner_id: 'owner-1' };
+  const floorRow = {
+    id: 'se-1', space_id: 'sp-1', model_id: null,
+    implement_type: 'leg_press', label_override: 'Atlantis Leg Press',
+    photo_url: null, verified_by_owner: true, added_by: 'owner-1',
+    fromOwnerSpace: true,
+  };
+
+  it('shows the gym name when the user belongs to exactly one gym', async () => {
+    listMyGyms.mockResolvedValue([gym]);
+    listGymFloor.mockResolvedValue([floorRow]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText(/At Iron Works/i)).toBeInTheDocument());
+    expect(screen.getByText('Atlantis Leg Press')).toBeInTheDocument();
+  });
+
+  it('falls back to a generic heading with several gyms', async () => {
+    listMyGyms.mockResolvedValue([gym, { id: 'gym-2', name: 'Other', owner_id: 'o2' }]);
+    listGymFloor.mockResolvedValue([floorRow]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText(/at your gym/i)).toBeInTheDocument());
+  });
+
+  it('only shows floor entries matching this exercise', async () => {
+    listMyGyms.mockResolvedValue([gym]);
+    listGymFloor.mockResolvedValue([
+      floorRow,
+      { ...floorRow, id: 'se-2', implement_type: 'lat_pulldown', label_override: 'Cybex Pulldown' },
+    ]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText('Atlantis Leg Press')).toBeInTheDocument());
+    expect(screen.queryByText('Cybex Pulldown')).toBeNull();
+  });
+
+  it('does not duplicate a machine already in your own history', async () => {
+    const mine = {
+      brand: 'unknown', line: 'Atlantis Leg Press', model: null,
+      implementType: 'leg_press', label: 'Atlantis Leg Press',
+    };
+    recordImplementUse('u1', 'leg_press', mine);
+    listMyGyms.mockResolvedValue([gym]);
+    listGymFloor.mockResolvedValue([floorRow]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText(/your equipment/i)).toBeInTheDocument());
+    expect(screen.getAllByText('Atlantis Leg Press')).toHaveLength(1);
+  });
+
+  it('renders no gym section when the user has no gym', async () => {
+    listMyGyms.mockResolvedValue([]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText(/common models/i)).toBeInTheDocument());
+    expect(screen.queryByText(/at your gym/i)).toBeNull();
+  });
+
+  it('survives a failing gym lookup without blocking the catalog', async () => {
+    listMyGyms.mockRejectedValue(new Error('offline'));
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    // The bundled catalog must still be usable — a gym query is never
+    // allowed to block someone mid-workout.
+    await waitFor(() => expect(screen.getByText(/Super Squat Press/i)).toBeInTheDocument());
   });
 });
 

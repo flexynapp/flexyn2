@@ -13,7 +13,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Users, MapPin, Trophy, Calendar, MessageSquare,
-  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2,
+  Loader2, Plus, Crown, Printer, Share2, Pencil, LogOut, Trash2, Dumbbell,
 } from 'lucide-react';
 import { leaveGym } from '@/lib/data/gymBusinesses';
 
@@ -21,6 +21,7 @@ const GymSignageCard = lazy(() => import('@/components/gyms/GymSignageCard'));
 const GymFeedTab            = lazy(() => import('@/components/gyms/GymFeedTab'));
 const MemberDirectoryModal  = lazy(() => import('@/components/gyms/MemberDirectoryModal'));
 const GymAboutCard          = lazy(() => import('@/components/gyms/GymAboutCard'));
+const GymEquipmentTab       = lazy(() => import('@/components/gyms/GymEquipmentTab'));
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -35,6 +36,7 @@ import {
 const TABS = [
   { id: 'feed',       label: 'Feed',        Icon: MessageSquare },
   { id: 'events',     label: 'Events',      Icon: Calendar },
+  { id: 'equipment',  label: 'Equipment',   Icon: Dumbbell },
   { id: 'leaderboard', label: 'Leaderboard', Icon: Trophy },
 ];
 
@@ -303,6 +305,11 @@ export default function GymHub() {
               hardcoded canCreate={true} let every member spin up + delete
               events — confusing at best, abusable at worst. (Audit 12 #7.) */}
           {tab === 'events'      && <EventsTab      gymId={id} canCreate={!!user?.id && gym?.owner_id === user.id} gymOwnerId={gym?.owner_id} />}
+          {tab === 'equipment' && (
+            <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>}>
+              <GymEquipmentTab gymId={id} gymOwnerId={gym?.owner_id} isMember={isMember} />
+            </Suspense>
+          )}
           {tab === 'leaderboard' && <LeaderboardTab gymId={id} meUserId={user?.id} />}
         </>
       )}

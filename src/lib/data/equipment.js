@@ -243,6 +243,152 @@ export async function listSpaceEquipment(spaceId) {
   }
 }
 
+// ── Gym floors (Phase 4) ─────────────────────────────────────────────
+//
+// A gym's floor is the UNION of equipment across every training_space
+// pointing at that gym, not one canonical space.
+//
+// That falls out of the schema rather than being a choice: training_spaces
+// is keyed `UNIQUE (owner_id, gym_id)`, and the RLS INSERT policy requires
+// `owner_id = auth.uid()`, so a member cannot create a space owned by the
+// gym. Each member gets their own space for a gym they belong to, and the
+// read policy lets every member see all of them.
+//
+// It also happens to model the trust levels for free:
+//   • equipment in the GYM OWNER's space  → authoritative
+//   • equipment in a MEMBER's space       → member-submitted
+//   • verified_by_owner = true            → owner blessed a member entry
+//
+// The owner can edit or verify a member's row because the mig 268 UPDATE
+// policy reaches through training_spaces.gym_id to gym_businesses.owner_id.
+
+/** The caller's own space for a gym, created on first contribution. */
+export async function getOrCreateGymSpace(gymId, userId) {
+  if (!gymId || !userId) return null;
+  try {
+    const { data: existing, error: readErr } = await supabase
+      .from('training_spaces')
+      .select('id, name, kind, gym_id')
+      .eq('owner_id', userId)
+      .eq('gym_id', gymId)
+      .limit(1);
+    if (readErr) throw readErr;
+    if (existing?.length) return existing[0];
+
+    const { data: created, error: writeErr } = await supabase
+      .from('training_spaces')
+      .insert({ owner_id: userId, kind: 'gym', gym_id: gymId })
+      .select('id, name, kind, gym_id')
+      .single();
+    if (writeErr) throw writeErr;
+    return created;
+  } catch (err) {
+    reportError(err, { feature: 'equipment.gymSpace' });
+    return null;
+  }
+}
+
+/**
+ * Everything on a gym's floor, across all member spaces.
+ *
+ * Sorted owner-authoritative first, then owner-verified member entries,
+ * then the rest — so the picker leads with what's actually confirmed to
+ * be on the floor.
+ */
+export async function listGymFloor(gymId, gymOwnerId) {
+  if (!gymId) return [];
+  try {
+    const { data: spaces, error: spaceErr } = await supabase
+      .from('training_spaces')
+      .select('id, owner_id')
+      .eq('gym_id', gymId);
+    if (spaceErr) throw spaceErr;
+    if (!spaces?.length) return [];
+
+    const byId = new Map(spaces.map(s => [s.id, s.owner_id]));
+    const { data: rows, error: eqErr } = await supabase
+      .from('space_equipment')
+      .select('id, space_id, model_id, implement_type, label_override, photo_url, verified_by_owner, added_by')
+      .in('space_id', spaces.map(s => s.id));
+    if (eqErr) throw eqErr;
+
+    return (rows || [])
+      .map(r => ({
+        ...r,
+        fromOwnerSpace: !!gymOwnerId && byId.get(r.space_id) === gymOwnerId,
+      }))
+      .sort((a, b) => {
+        const rank = (x) => (x.fromOwnerSpace ? 0 : x.verified_by_owner ? 1 : 2);
+        return rank(a) - rank(b);
+      });
+  } catch (err) {
+    reportError(err, { feature: 'equipment.listGymFloor' });
+    return [];
+  }
+}
+
+/**
+ * Owner blesses (or un-blesses) a member-submitted entry.
+ *
+ * Authorization is NOT checked here — migration 268's UPDATE policy is
+ * the gate, and it reaches through to gym_businesses.owner_id server-side.
+ * A client-side check would be decoration; this returns false when RLS
+ * rejects, which is the honest signal.
+ */
+export async function setEquipmentVerified(equipmentId, verified) {
+  if (!equipmentId) return false;
+  try {
+    const { error } = await supabase
+      .from('space_equipment')
+      .update({ verified_by_owner: !!verified })
+      .eq('id', equipmentId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    reportError(err, { feature: 'equipment.setVerified' });
+    return false;
+  }
+}
+
+/** Remove an entry. RLS allows the adder, space owner, or gym owner. */
+export async function removeSpaceEquipment(equipmentId) {
+  if (!equipmentId) return false;
+  try {
+    const { error } = await supabase
+      .from('space_equipment')
+      .delete()
+      .eq('id', equipmentId);
+    if (error) throw error;
+    return true;
+  } catch (err) {
+    reportError(err, { feature: 'equipment.removeSpaceEquipment' });
+    return false;
+  }
+}
+
+/** Add an implement to a gym's floor, from the gym page or the picker. */
+export async function addToGymFloor({ gymId, userId, implement }) {
+  if (!gymId || !userId || !implement?.implementType) return null;
+  const space = await getOrCreateGymSpace(gymId, userId);
+  if (!space) return null;
+
+  const modelId = await findOrCreateModel({
+    brand: implement.brand,
+    line: implement.line,
+    model: implement.model,
+    implementType: implement.implementType,
+    userId,
+  });
+
+  return ensureSpaceEquipment({
+    spaceId: space.id,
+    modelId,
+    implementType: implement.implementType,
+    label: implement.label,
+    userId,
+  });
+}
+
 /**
  * The whole persist-a-photo flow, so the UI has one call to make.
  * Returns the public URL on success, null on any failure.

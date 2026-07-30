@@ -405,7 +405,67 @@ forcing each. Confirm no bundled asset is manufacturer-sourced.
 
 ---
 
-## Phase 4 — Gym floor catalog + owner curation
+## Phase 4 — Gym floor + owner curation — ✅ COMPLETE (2026-07-30)
+
+Shipped:
+- `GymEquipmentTab.jsx` + a new **Equipment** tab on `GymHub` (lazy-loaded,
+  matching the Feed/Events pattern). Members add; the owner confirms.
+  Grouped by implement type so a 40-machine floor reads as a floor plan.
+- `lib/data/equipment.js` — `getOrCreateGymSpace`, `listGymFloor`,
+  `addToGymFloor`, `setEquipmentVerified`, `removeSpaceEquipment`.
+- `ImplementPicker` now has three ranked sections: **Your equipment** →
+  **At \<gym\>** → **Common models**. The gym floor is fetched lazily on
+  drawer open, inside the picker rather than threaded through `Workout.jsx`,
+  so a slow or failing gym query can never delay the workout screen.
+- 12 new tests (6 gym-floor, plus the data-module mocks that stop the suite
+  attempting real network calls to the stub Supabase host).
+  Full suite 2186 / 159 green, lint 0 errors, build clean.
+
+**A gym's floor is the union of every member's space, not one canonical
+space.** That falls out of the schema rather than being a preference:
+`training_spaces` is `UNIQUE (owner_id, gym_id)` and the INSERT policy
+requires `owner_id = auth.uid()`, so a member cannot create a space the gym
+owns. It also models the trust tiers for free — owner's space is
+authoritative, `verified_by_owner` is a blessed member find, everything else
+is member-submitted.
+
+**Section ordering reversed from what Phase 3's notes assumed.** Those said
+the gym floor would layer *above* personal history. It's the other way
+round: a machine you have picked three times is a stronger signal than one
+that merely exists somewhere on the floor. The stale comment in
+`recentImplements.js` was corrected rather than left to mislead.
+
+### ⚠️ Pre-existing production finding — owner curation is inert today
+
+Running the "verify RLS against real data" checkpoint surfaced a real
+problem that predates this work:
+
+**All 51 gyms in production have `owner_id IS NULL`, and the live column is
+`NULLABLE` even though migration 135 declares it `NOT NULL`.** That is schema
+drift plus data that could not exist under the declared constraint.
+
+Consequences, all pre-existing:
+- `is_gym_member_or_owner` can never pass via its owner branch.
+- The `gym_businesses: owner update` policy never matches, so **no one can
+  edit any gym**.
+- Phase 4's owner controls (Confirm / owner-authoritative badge) render for
+  nobody on any gym currently in the database.
+
+Context: every one of the 51 rows has `verification_id IS NULL`, was created
+2026-05-24/25, and `gym_verification_queue` is empty — so these are all demo
+seed rows (mig 137) and **no gym has ever been through
+`approve_gym_verification`**. That RPC presumably sets `owner_id`, so real
+gyms would likely be fine; it is untested in production.
+
+Phase 4 degrades correctly rather than breaking: `listGymFloor` guards on
+`!!gymOwnerId`, so `fromOwnerSpace` is simply false and entries show as
+member-submitted. Members can still add, photograph, and remove their own.
+
+**Not fixed here** — deliberately. Restoring `NOT NULL` needs owner
+backfill decisions I can't make (who owns a demo gym?), and it is
+production schema surgery well outside this feature.
+
+### Original spec
 
 **Goal:** the dropdown gets good because gyms describe their floor once.
 
