@@ -252,6 +252,90 @@ Not worth patching either: pure write-only columns nothing reads back
 through `me()`, e.g. the `last_active_at` presence heartbeat in `Layout.jsx`
 and `HubProfile.jsx`.
 
+## AI Coach personalization
+
+Everything that shapes a generated session lives in one pure module,
+[trainingModifiers.js](src/lib/aiCoach/trainingModifiers.js). It takes
+context and returns four bounded numbers plus the notes explaining them;
+`generateWorkout` applies them. No I/O, no React — callers fetch the
+context and pass it in.
+
+```
+buildTrainingModifiers({ goal, nutritionGoal, weeklyRateLbs, restrictions,
+                         age, cycleState, feel })
+  → { loadMultiplier, setsDelta, repDelta, restDeltaSec, notes[], applied }
+```
+
+`generateWorkout` takes three separate context inputs — `modifiers`,
+`demographics` ({ gender, age, activityLevel }) and `excludeMuscleGroups`.
+**All three default to inert**, so a caller that passes none gets the exact
+workout the generator produced before any of this existed.
+
+**Rules for anything added here:**
+
+- **Clamp it.** Every output is bounded: load `0.8–1.1`, sets `±1`, reps
+  `-4…+6`, rest `-30…+60s`. Stacked signals must never compound into a
+  prescription nobody asked for. When you add an input, check the clamp
+  still leaves room — a +30s age bonus on a +30s strength goal hit the old
+  45s ceiling and silently collapsed two age bands into one value.
+- **Explain it on the card.** Every adjustment pushes a `notes` string, and
+  `CoachPlanCard` renders them. An automatic change to someone's training
+  that isn't explained reads as a bug — a user who suddenly gets a lighter
+  day must be able to see it was the deficit, the phase, or their check-in.
+- **Verify with real numbers, not just tests.** Twice now, green tests hid
+  a defect that printing the actual output across a range exposed
+  immediately (the rest clamp; the goal-priority ordering).
+- **Context flows IN.** These modules must not import `@/api/db` — see the
+  Profile cache section. `planBuilder`'s test mocks `@/api/db` with only
+  `entities.WorkoutLog`, so a `db.auth.me()` call there breaks it.
+- **Both surfaces or neither.** Quick pick
+  ([WorkoutQuickGenerator.jsx](src/components/coach/WorkoutQuickGenerator.jsx))
+  and the chat path (`CoachChat` → `askCoach(user, msg, ctx)` →
+  `buildCoachPlan`) must get the same context, or the two disagree about
+  the same lift. Both were silently running on `{}` at different points.
+
+**Cycle phase is deliberately weak.** A 2023 Frontiers systematic review
+found no reliable effect of cycle phase on strength performance or on
+adaptation; ACSM's guidance is to adapt to symptoms, not the calendar. So
+phase moves load by **at most 5%**, never blocks a session, and is fully
+overridden the moment the user answers the "how do you feel today?"
+check-in — a reported symptom beats a predicted phase. Do not strengthen
+this without new evidence. The one un-hedged phase note is ovulation
+(ligament laxity → ACL risk), which surfaces as a warm-up cue, not a load
+change. Cycle context is read **only** when `cycle_tracking_enabled` is on.
+
+**Multi-goal profiles blend, they don't collapse.** Onboarding lets people
+tick several goals and a profile carrying all six is normal.
+`normalizeGoals()` returns every match and the rules are **averaged** —
+summing would let strength+endurance cancel by luck and strength+speed
+compound. `normalizeGoal()` (singular) still returns the dominant one for
+callers that want a label. `mobility` contributes a note and no numbers, so
+its note is re-added after the blend or averaging erases its only
+contribution.
+
+**Diet cuts volume, not load.** Intensity is what protects strength in a
+deficit, so `lose` removes a set and leaves the bar heavy; `gain` adds one.
+
+**Fuel notes are allergen-filtered.** `fuelNote()` checks the user's
+`DIETARY_RESTRICTIONS` + `ALLERGENS` (via `loadRestrictions`) and never
+names a food they can't eat. If a stacked combination rules out every named
+option it falls back to unnamed macros rather than guessing. Never add a
+food suggestion anywhere in the Coach without routing it through this.
+
+**Starting weights use demographics.** `_demographicScale()` in
+workoutGenerator scales the bodyweight multipliers by sex (upper and lower
+body separately — the gap is far smaller in the legs), age and activity.
+Unset or `other` sex takes a conservative middle value rather than
+defaulting to male: over-prescribing a first working set is the direction
+that hurts someone. Only applies when there's no history for that lift.
+
+**Injuries must be passed.** `getExcludedMuscleGroups()` in
+[injuries.js](src/lib/data/injuries.js) handles synergists (a serious
+shoulder injury also drops chest and triceps). It and `excludeMuscleGroups`
+both existed for months with zero callers connecting them, so an injured
+user was still handed Overhead Press. Any new surface that generates a
+workout has to resolve active injuries and pass them.
+
 ## Celebration system
 
 There are five "first-X" milestone celebrations + one completion. Each
@@ -404,6 +488,10 @@ violations of this rule.
   Dashboard go in `dashboard/`, hub in `hub/`, etc.
 - New lib helper → `src/lib/<helper>.js`. If it's a celebration, mirror
   one of the existing `*Celebration.js` files.
+- Anything that changes what the AI Coach programs → `src/lib/aiCoach/`,
+  and read the "AI Coach personalization" section above first. New context
+  inputs go through `buildTrainingModifiers` (clamped + explained on the
+  card), not straight into `generateWorkout`.
 
 ## Workflow
 
