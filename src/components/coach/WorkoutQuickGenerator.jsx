@@ -15,6 +15,7 @@ import * as cycleLogs from '@/lib/data/cycleLogs';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { buildTrainingModifiers, FEEL_OPTIONS, profileAge } from '@/lib/aiCoach/trainingModifiers';
 import { loadRestrictions } from '@/lib/nutritionPlans';
+import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
 import {
   generateWorkout,
   FOCUS_OPTIONS,
@@ -60,6 +61,17 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
     ? computeCycleState(cycleRows.map(r => r.start_date), userProfile?.cycle_length_days)
     : null;
 
+  // Active injuries. generateWorkout has always accepted excludeMuscleGroups
+  // and injuries.js has always exported getExcludedMuscleGroups (synergists
+  // and all), but nothing ever connected them — so a user with a logged
+  // shoulder injury was still handed Overhead Press. This is the wire.
+  const { data: activeInjuries = [] } = useQuery({
+    queryKey: ['activeInjuries', user?.id],
+    queryFn:  () => listActiveInjuries(),
+    enabled:  !!user?.id,
+    staleTime: 5 * 60_000,
+  });
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {
@@ -84,6 +96,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
         const workout = await generateWorkout({
           user, focus, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs, seed: Date.now(),
           modifiers,
+          excludeMuscleGroups: getExcludedMuscleGroups(activeInjuries),
           demographics: {
             gender:        userProfile?.gender,
             age:           profileAge(userProfile),

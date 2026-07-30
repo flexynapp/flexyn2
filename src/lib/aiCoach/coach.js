@@ -23,7 +23,7 @@ const LLM_TIMEOUT_MS = 8000;
  * When the user asks for a tailored workout/plan, `plan` carries a saveable
  * payload the chat renders as an interactive card.
  */
-export async function askCoach(user, message) {
+export async function askCoach(user, message, ctx = {}) {
   const intent = detectIntent(message);
 
   // Workout/plan generation short-circuits the advice pipeline: we build a
@@ -31,7 +31,16 @@ export async function askCoach(user, message) {
   // is deterministic; the intro text is friendly on its own.
   if (intent.id === INTENTS.GENERATE_PLAN) {
     try {
-      const { reply, plan } = await buildCoachPlan({ user, message });
+      // ctx carries the caller's already-fetched profile and injury
+      // exclusions, so the chat path personalizes the same way Quick pick
+      // does. Passed in rather than fetched here to keep this module free of
+      // @/api/db's auth side effect (see CLAUDE.md, Profile cache).
+      const { reply, plan } = await buildCoachPlan({
+        user,
+        message,
+        profile: ctx.profile || {},
+        excludeMuscleGroups: ctx.excludeMuscleGroups,
+      });
       return { reply, intent, source: 'plan', plan };
     } catch (err) {
       console.warn('[aiCoach] plan generation failed:', err);

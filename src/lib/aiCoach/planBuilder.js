@@ -398,7 +398,7 @@ function sessionReply({ workout }) {
  *     goal, label,
  *   }
  */
-export async function buildCoachPlan({ user, message, profile = {} } = {}) {
+export async function buildCoachPlan({ user, message, profile = {}, excludeMuscleGroups } = {}) {
   const parsed = parseWorkoutGoal(message);
 
   if (parsed.wantsPlan) {
@@ -453,6 +453,10 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
     skillLevel: profile.skillLevel || 'intermediate',
     bodyweightLbs: Number(profile.weight_lbs) || 165,
     seed: undefined,
+    // Active injuries, if the caller resolved them. generateWorkout has always
+    // taken this and nothing ever supplied it, so an injured user got the
+    // injured group anyway. Passed through from buildCoachPlan's caller.
+    excludeMuscleGroups: excludeMuscleGroups || new Set(),
     // Same demographic sizing the Quick-pick tab uses, so a lift with no
     // history starts at the same weight whichever surface asked for it.
     demographics: {

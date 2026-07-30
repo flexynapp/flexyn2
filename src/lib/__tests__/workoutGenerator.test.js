@@ -6,6 +6,7 @@ import {
   DURATION_OPTIONS,
   SKILL_OPTIONS,
 } from '../aiCoach/workoutGenerator';
+import { getExcludedMuscleGroups } from '../data/injuries';
 
 // Mock the data client to control workout history
 vi.mock('@/api/db', () => ({
@@ -47,6 +48,56 @@ describe('Generator option exports', () => {
   it('exposes 3 skill options', () => {
     expect(SKILL_OPTIONS).toHaveLength(3);
     expect(SKILL_OPTIONS.map(o => o.id)).toEqual(['beginner', 'intermediate', 'advanced']);
+  });
+});
+
+describe('generateWorkout — injury exclusions and demographics', () => {
+  it('never programs a muscle group the user has an active injury in', async () => {
+    const w = await generateWorkout({
+      user: { email: 'a@b.c' },
+      focus: 'full_body',
+      durationMinutes: 60,
+      equipment: 'gym',
+      skillLevel: 'intermediate',
+      bodyweightLbs: 180,
+      excludeMuscleGroups: getExcludedMuscleGroups([
+        { muscle_group: 'shoulders', severity: 'moderate' },
+      ]),
+    });
+    expect(w.exercises.length).toBeGreaterThan(0);
+    expect(w.exercises.some(e => e.group === 'shoulders')).toBe(false);
+  });
+
+  it('also drops synergist groups for a serious injury', async () => {
+    const excluded = getExcludedMuscleGroups([
+      { muscle_group: 'shoulders', severity: 'serious' },
+    ]);
+    const w = await generateWorkout({
+      user: { email: 'a@b.c' },
+      focus: 'full_body',
+      durationMinutes: 60,
+      equipment: 'gym',
+      skillLevel: 'intermediate',
+      bodyweightLbs: 180,
+      excludeMuscleGroups: excluded,
+    });
+    // shoulders + its synergists (chest, triceps) are all off the table.
+    expect(excluded.has('chest')).toBe(true);
+    for (const ex of w.exercises) {
+      expect(['shoulders', 'chest']).not.toContain(ex.group);
+    }
+  });
+
+  it('starts a woman lighter than a man of the same bodyweight', async () => {
+    const base = {
+      user: { email: 'a@b.c' }, focus: 'legs', durationMinutes: 45,
+      equipment: 'gym', skillLevel: 'intermediate', bodyweightLbs: 165,
+    };
+    const male   = await generateWorkout({ ...base, demographics: { gender: 'male',   age: 30 } });
+    const female = await generateWorkout({ ...base, demographics: { gender: 'female', age: 30 } });
+    const top = (w) => Math.max(...w.exercises.flatMap(e => e.sets.map(s => s.weight)));
+    expect(top(female)).toBeLessThan(top(male));
+    expect(top(female)).toBeGreaterThan(0);
   });
 });
 

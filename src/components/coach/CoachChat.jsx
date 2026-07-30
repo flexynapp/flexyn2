@@ -12,6 +12,9 @@ import { isVoiceInputSupported, startVoiceCapture } from '@/lib/voiceInput';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
 import { askCoach, SUGGESTED_PROMPTS } from '@/lib/aiCoach/coach';
+import { useQuery } from '@tanstack/react-query';
+import { db } from '@/api/db';
+import { listActiveInjuries, getExcludedMuscleGroups } from '@/lib/data/injuries';
 import { GENERATE_PROMPTS } from '@/lib/aiCoach/planBuilder';
 import CoachPlanCard from '@/components/coach/CoachPlanCard';
 import { toast } from '@/lib/toast';
@@ -63,6 +66,22 @@ const SPEECH_LANG_BY_APP_LANG = {
 
 export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
   const { user } = useAuth();
+
+  // Personalization inputs for the chat path, so asking Coach in chat and
+  // tapping Quick pick can't disagree about the same lift. Both served from
+  // the shared query keys, so this costs no extra fetch.
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.email],
+    queryFn:  () => db.auth.me(),
+    enabled:  !!user?.email,
+    staleTime: 60_000,
+  });
+  const { data: activeInjuries = [] } = useQuery({
+    queryKey: ['activeInjuries', user?.id],
+    queryFn:  () => listActiveInjuries(),
+    enabled:  !!user?.id,
+    staleTime: 5 * 60_000,
+  });
   const { tFallback, language } = useLanguage();
   const generateMode = mode === 'generate';
   const [messages, setMessages] = useState([]);
@@ -180,7 +199,10 @@ export default function CoachChat({ mode, onSaveRegimen, onStartWorkout }) {
     setThinking(true);
 
     try {
-      const result = await askCoach(user, text);
+      const result = await askCoach(user, text, {
+        profile: userProfile || {},
+        excludeMuscleGroups: getExcludedMuscleGroups(activeInjuries),
+      });
       const reply = {
         role: 'coach',
         text: result.reply,
