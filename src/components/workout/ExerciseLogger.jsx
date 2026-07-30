@@ -20,6 +20,7 @@ import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
+import ImplementPicker from './ImplementPicker';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -219,6 +220,10 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               <p className="text-[11px] text-muted-foreground mt-0.5">
                 {sets.length} set{sets.length === 1 ? '' : 's'}
                 {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
+                {/* Carry the chosen machine into the collapsed view —
+                    a completed exercise silently dropping its label
+                    reads as a bug. */}
+                {exercise.equipment?.label && <> · {exercise.equipment.label}</>}
               </p>
             </div>
             <button
@@ -238,7 +243,18 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     <Card className="p-4 border-none shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h4 className="font-medium text-sm">{exercise.displayName || translateExerciseName(exercise.name, language)}</h4>
+          {/* Title + equipment picker share a row. The picker wraps
+              underneath on narrow screens rather than squeezing the
+              exercise name, which is the more important of the two. */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <h4 className="font-medium text-sm">{exercise.displayName || translateExerciseName(exercise.name, language)}</h4>
+            <ImplementPicker
+              exerciseName={exercise.name || exercise.displayName}
+              value={exercise.equipment}
+              userId={userProfile?.id}
+              onChange={(implement) => onChange({ ...exercise, equipment: implement || undefined })}
+            />
+          </div>
           {muscles.length > 0 && (
             <div className="flex flex-wrap gap-1 mt-1">
               {muscles.map(m => (

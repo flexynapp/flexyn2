@@ -269,7 +269,41 @@ actually return.
 
 ---
 
-## Phase 2 — The dropdown (read path only, no photos)
+## Phase 2 — The dropdown — ✅ COMPLETE (2026-07-30)
+
+Shipped:
+- `src/components/workout/ImplementPicker.jsx` — trigger chip + BottomSheet
+  with search (appears past 8 options), "Your equipment" / "Common models"
+  sections, clear-selection, and add-your-own.
+- `src/lib/recentImplements.js` — per-user, per-type recall in
+  `flexyn.implements.<userId>`, ranked recency-first so switching gyms
+  promotes the new machine over an old high-count one.
+- `ExerciseLogger.jsx` — picker in the active card header (wraps below the
+  title rather than squeezing it), chosen label carried into the collapsed
+  complete summary.
+- `Workout.jsx:507` **and `:1330`** — both repeat paths now carry `equipment`
+  forward. Phase 0 only caught `:507`; `:1330` ("repeat last workout") is the
+  same key-by-key rebuild and would have dropped it too.
+- 33 new tests (14 render + 19 recall). Full suite green: 2165 / 158 files.
+  Production build clean; picker + catalog land in the `Workout` chunk
+  (378 KB), not the startup index chunk.
+
+**Not wired to the database.** Options come from the bundled `SEED_MODELS`
+plus local pick history. Migration 268 is still unapplied, and the picker is
+built to be fully useful without it — Phase 4 layers a gym's shared floor
+*above* "Your equipment" without changing anything here.
+
+Fixed mid-phase: the trigger chip announced "Choose equipment" regardless of
+state, so a screen-reader user couldn't tell what was selected. Its
+`aria-label` now includes the chosen implement.
+
+**Verification gap:** the picker's on-screen layout at 375 px is NOT visually
+confirmed. The dev server runs and the app loads clean (no console errors),
+but an active workout is behind sign-in and I did not authenticate as the
+user. Wrapping behavior in the title row is covered by reasoning and the
+`flex-wrap` fallback, not by a screenshot.
+
+### Original spec
 
 **Goal:** the requested control, working end to end, storing the selection.
 

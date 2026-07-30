@@ -509,6 +509,11 @@ export default function Workout() {
           displayName:    ex.displayName || ex.name,
           muscle_group:   ex.muscle_group  || '',
           muscle_groups:  Array.isArray(ex.muscle_groups) ? [...ex.muscle_groups] : [],
+          // Weight/reps are deliberately blanked above, but the machine
+          // is not: repeating a workout means going back to the same
+          // gym and the same equipment. This map rebuilds the exercise
+          // key-by-key, so anything not listed here is silently dropped.
+          ...(ex.equipment ? { equipment: ex.equipment } : {}),
           sets: (Array.isArray(ex.sets) && ex.sets.length > 0 ? ex.sets : [{}])
             .map(() => ({ weight: null, reps: null })),
         }));
@@ -1328,6 +1333,10 @@ export default function Workout() {
       name: ex.name,
       muscle_group: ex.muscle_group || '',
       muscle_groups: ex.muscle_groups || (ex.muscle_group ? [ex.muscle_group] : []),
+      // Same reasoning as the tagged-set metadata below: repeating a
+      // workout means the same gym and the same machine, so the
+      // equipment choice carries forward too.
+      ...(ex.equipment ? { equipment: ex.equipment } : {}),
       // Preserve the tagged-set metadata from the prior session
       // (warmup, failed, RPE, RIR, feel_emoji, feel_note) rather than
       // flattening to weight+reps only. The user spent effort tagging
