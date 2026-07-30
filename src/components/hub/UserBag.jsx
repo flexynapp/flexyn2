@@ -17,6 +17,7 @@ import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useTheme } from '@/lib/ThemeContext';
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import * as inventory from '@/lib/data/inventory';
 import * as capsules  from '@/lib/data/capsules';
@@ -296,6 +297,7 @@ function TitleList({ items, userId }) {
       .from('user_profiles')
       .update({ equipped_title_id: newId })
       .eq('id', id);
+    if (!error) patchProfile({ equipped_title_id: newId });
     if (error) {
       // Revert intent on failure so the UI doesn't show the wrong
       // equipped state forever while the server still has the old value.
@@ -419,6 +421,7 @@ function FrameList({ items, userId }) {
       .from('user_profiles')
       .update({ equipped_frame_id: newId })
       .eq('id', id);
+    if (!error) patchProfile({ equipped_frame_id: newId });
     if (error) {
       // Revert intent on failure so the UI doesn't drift from the server state.
       intentRef.current = priorIntent;

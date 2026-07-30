@@ -3,6 +3,7 @@
 // 24/25-hour photo stories with likes, view insights, status notes, and privacy.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import { selectProfiles } from './users';
 import { findOrCreateConversation, sendMessage } from './hubMessages';
@@ -379,6 +380,7 @@ export async function updateStoryDmsSettings(userId, storyDmsDisabled) {
     .update({ story_dms_disabled: storyDmsDisabled })
     .eq('id', userId);
   if (error) { console.warn('[stories] settings update failed:', error); return false; }
+  patchProfile({ story_dms_disabled: storyDmsDisabled });
   return true;
 }
 

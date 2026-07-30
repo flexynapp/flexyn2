@@ -2,6 +2,7 @@
 // Prestige System — max-level reset with permanent status symbols.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 import { selectProfiles } from '@/lib/data/users';
 
@@ -75,6 +76,7 @@ export async function dismissPrestigePrompt() {
     .from('user_profiles')
     .update({ prestige_dismissed: true })
     .eq('id', user.id);
+  patchProfile({ prestige_dismissed: true });
 }
 
 /** Restore prestige prompt (called from profile menu "Prestige" button) */
@@ -85,6 +87,7 @@ export async function restorePrestigePrompt() {
     .from('user_profiles')
     .update({ prestige_dismissed: false })
     .eq('id', user.id);
+  patchProfile({ prestige_dismissed: false });
 }
 
 // ── Prestige Action ───────────────────────────────────────────────────────────

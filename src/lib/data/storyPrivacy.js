@@ -2,6 +2,7 @@
 // Story blocks and default privacy settings.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 
 /** Return list of blocked emails for the current user. */
 export async function getStoryBlocks(userId) {
@@ -45,5 +46,8 @@ export async function updateDefaultStoryPrivacy(userId, privacy) {
     .update({ default_story_privacy: privacy })
     .eq('id', userId);
   if (error) { console.warn('[storyPrivacy] update failed:', error); return false; }
+  // db.auth.me() serves a cached profile, so the ['userProfile'] refetch would
+  // hand back the old value and the picker would snap back on remount.
+  patchProfile({ default_story_privacy: privacy });
   return true;
 }

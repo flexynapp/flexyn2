@@ -11,6 +11,7 @@
 // = quiet from 22:00 through 06:59.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 
 
@@ -58,6 +59,7 @@ export async function setMyQuietHours({ start, end }) {
     console.warn('[quietHours] update failed:', error);
     return { ok: false, reason: 'db_error' };
   }
+  patchProfile({ quiet_hours_start: start, quiet_hours_end: end });
   return { ok: true };
 }
 

@@ -7,6 +7,7 @@
 // hasn't been deployed.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 
 const MISSING = (code) => code === '42883' || code === '42P01' || code === '42703' || code === 'PGRST205';
 
@@ -19,6 +20,7 @@ export async function becomeTrainer(bio = null) {
   if (bio != null) patch.trainer_bio = bio;
   const { error } = await supabase.from('user_profiles').update(patch).eq('id', user.id);
   if (error) return { ok: false, error: error.message };
+  patchProfile(patch);
   return { ok: true };
 }
 

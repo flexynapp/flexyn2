@@ -2,6 +2,7 @@
 // Capsule data-access layer — backed by Supabase user_capsules + user_profiles.
 
 import { supabase } from '@/api/supabaseClient';
+import { patchProfile } from '@/api/profileCache';
 import { safeSelect } from '@/api/safeSelect';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -333,6 +334,13 @@ export async function grantForFirstWorkout(userId, userEmail) {
     // (the capsule + coins DID land), but the operator will know
     // a retry may double-grant.
     console.warn('[capsules] first_workout flag write failed:', flagErr);
+  } else {
+    // Keep the cached profile in step so a re-read this session sees the
+    // flag set. NOTE: the flex_coins write above is deliberately NOT
+    // patched — migration 142 rejects direct client writes to it, and
+    // migration 264's ledger trigger can clamp a credit, so any
+    // client-side number would be a guess.
+    patchProfile({ first_workout_capsule_granted: true });
   }
 
   try {

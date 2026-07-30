@@ -8,6 +8,7 @@
 // Nothing outside this file needs to change for the migration.
 // ─────────────────────────────────────────────────────────────────────────────
 import { supabase } from './supabaseClient';
+import { getProfile, setProfile, patchProfile, clearProfile } from './profileCache';
 import { unsubscribePushOnLogout } from '@/lib/pushCleanup';
 import { selectProfiles } from '@/lib/data/users';
 
@@ -270,7 +271,9 @@ const entities = new Proxy(_entityCache, {
 });
 
 /* ── Profile cache — avoids N+1 DB calls across components ─────────────── */
-let _profile = null;
+// State lives in @/api/profileCache so data modules can patch it without
+// importing this file and its onAuthStateChange listener below. See that
+// module's header for what is and isn't safe to patch.
 
 async function _loadProfile() {
   const { data: { user }, error: authErr } = await supabase.auth.getUser();
@@ -282,11 +285,10 @@ async function _loadProfile() {
     .select('*')
     .eq('id', user.id)
     .maybeSingle();
-  _profile = { id: user.id, email: user.email, ...(profile ?? {}) };
-  return _profile;
+  return setProfile({ id: user.id, email: user.email, ...(profile ?? {}) });
 }
 
-function _clearProfile() { _profile = null; }
+function _clearProfile() { clearProfile(); }
 
 // Clear cache on sign-out
 supabase.auth.onAuthStateChange((event) => {
@@ -297,7 +299,8 @@ supabase.auth.onAuthStateChange((event) => {
 const auth = {
   /** Returns the merged auth+profile object; cached per session. */
   async me() {
-    if (_profile) return _profile;
+    const cached = getProfile();
+    if (cached) return cached;
     return _loadProfile();
   },
 
@@ -308,10 +311,7 @@ const auth = {
    *  visible immediately instead of only after a full reload. No-op until
    *  the profile has been loaded once. */
   patchCache(patch) {
-    if (_profile && patch && typeof patch === 'object') {
-      _profile = { ..._profile, ...patch };
-    }
-    return _profile;
+    return patchProfile(patch);
   },
 
   /** Patch the user profile and refresh the cache.
@@ -362,8 +362,7 @@ const auth = {
         .select()
         .single();
       if (!error) {
-        _profile = { id: user.id, email: user.email, ...row };
-        return _profile;
+        return setProfile({ id: user.id, email: user.email, ...row });
       }
 
       // PostgreSQL 42703 undefined_column — strip and retry
@@ -396,8 +395,7 @@ const auth = {
           .select()
           .single();
         if (!err2) {
-          _profile = { id: user.id, email: user.email, ...row2 };
-          return _profile;
+          return setProfile({ id: user.id, email: user.email, ...row2 });
         }
         throw err2;
       }
@@ -417,8 +415,7 @@ const auth = {
       .select()
       .single();
     if (!finalErr) {
-      _profile = { id: user.id, email: user.email, ...finalRow };
-      return _profile;
+      return setProfile({ id: user.id, email: user.email, ...finalRow });
     }
     throw finalErr;
   },
