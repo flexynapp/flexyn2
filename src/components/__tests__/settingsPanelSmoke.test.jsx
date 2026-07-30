@@ -1,5 +1,11 @@
-// TEMP repro harness — renders SettingsPanel with everything stubbed to
-// surface a render-time throw that shows up in the app as a blank Settings menu.
+// Mount smoke test for SettingsPanel.
+//
+// SettingsPanel is the whole body of the Settings view in ProfileMenu, it
+// pulls in ~20 modules, and it is only reachable two taps deep — so a
+// render-time throw here shows up to users as "the settings menu is blank"
+// and nothing else. This test mounts it with every dependency stubbed and
+// asserts it produces output, so that failure mode is caught in CI instead
+// of on a phone.
 
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
