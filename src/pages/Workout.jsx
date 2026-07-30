@@ -959,7 +959,7 @@ export default function Workout() {
           action: {
             label: tFallback('workout.saveTemplate', 'Save as template'),
             onClick: async () => {
-              const { saveTemplate } = await import('@/lib/data/workoutTemplates');
+              const { saveTemplate } = await import('@/lib/data/templates');
               const name = (sessionSnapshot?.regimen_name || '').trim()
                 || tFallback('workout.templateDefaultName', 'My workout');
               const res = await saveTemplate({
