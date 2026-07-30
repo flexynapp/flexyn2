@@ -199,6 +199,59 @@ a different class of bug:
 - New page → wrap in `<ErrorBoundary label="...">`. New region inside an
   existing page → same.
 
+## Profile cache — invalidating `['userProfile']` does NOT refresh it
+
+`db.auth.me()` returns a **module-level cache** (`src/api/profileCache.js`)
+and only re-reads the row when that cache is empty. So this does nothing:
+
+```js
+await supabase.from('user_profiles').update({ some_flag: true }).eq('id', id);
+queryClient.invalidateQueries({ queryKey: ['userProfile', email] }); // ← refetches
+// ...and the refetch calls me(), which hands back the SAME stale object.
+```
+
+The symptom is nasty because the write **succeeds**: with an optimistic
+local state the control flips, then the effect that syncs from `profile`
+reads the old value back, so the toggle reverts on remount while the row
+holds the new value. UI and database disagree and the user can't tell which
+is real. This bit the cycle-tracker X, all four Settings privacy toggles,
+story privacy, quiet hours, prestige, trainer status and the equipped
+title/frame — see commits 88933c0, 208cf82, 7db3f83.
+
+**The rule:**
+
+- `db.auth.updateMe()` refreshes the cache itself → nothing to do.
+- A **raw `supabase.from('user_profiles').update()`** or an **RPC** that
+  changes the row → call `patchProfile({ ...the columns you changed })`
+  from `@/api/profileCache` on success.
+- **Import `@/api/profileCache`, never `@/api/db`, from a data module.**
+  `db.js` registers a `supabase.auth.onAuthStateChange` listener at module
+  scope, so importing it drags that listener in and breaks any test that
+  stubs the supabase client — this is exactly how `gymRival.js` broke
+  `gymRivalOverthrow.test.js`. `profileCache.js` is plain state with no
+  imports and is safe anywhere.
+
+**Do NOT patch these** — migration 142 rejects direct client writes to them
+with `42501`, so a client-computed value would cache something that never
+persisted, which is worse than being stale:
+
+> `flex_coins` · `total_xp` · `current_level` · `prestige_level` ·
+> `league_tier` · `login_streak` · `workout_streak` ·
+> `longest_login_streak` · `longest_workout_streak` ·
+> `milestone_capsules_awarded` · `referral_code` · `referred_by` ·
+> `last_daily_chest_at`
+
+`flex_coins` is doubly unsafe: migration 264's ledger trigger **clamps**
+credits past the rolling ceiling, so even an accepted write may not store
+the number you sent. For all of these, patch only with a value the **server**
+returned (an RPC's payload), never one computed on the client. The existing
+raw writes to those columns are deliberately guarded pre-030 / pre-173
+fallbacks — leave them alone.
+
+Not worth patching either: pure write-only columns nothing reads back
+through `me()`, e.g. the `last_active_at` presence heartbeat in `Layout.jsx`
+and `HubProfile.jsx`.
+
 ## Celebration system
 
 There are five "first-X" milestone celebrations + one completion. Each
@@ -343,7 +396,10 @@ violations of this rule.
   `src/App.jsx`.
 - New data-layer function → `src/lib/data/<table>.js`. Export named
   functions, use `supabase` from `@/api/supabaseClient`, wrap
-  column-named reads in `safeSelect`.
+  column-named reads in `safeSelect`. If it writes `user_profiles`, read
+  the "Profile cache" section above first — you almost certainly need a
+  `patchProfile()` call, and you must import `@/api/profileCache` rather
+  than `@/api/db`.
 - New component → `src/components/<area>/<Name>.jsx`. Components for
   Dashboard go in `dashboard/`, hub in `hub/`, etc.
 - New lib helper → `src/lib/<helper>.js`. If it's a celebration, mirror
