@@ -130,7 +130,9 @@ See: `~/.claude/projects/C--Flexyn/memory/feedback_parallel_sync.md`.
 
 ## Push notifications
 
-The pipeline is built; it just needs secrets to deploy. The full chain:
+**The pipeline IS deployed.** (This section previously said it wasn't —
+that was stale; audited 2026-07-30, see the status block below.) The full
+chain:
 
 | Migration / file | Role |
 |---|---|
@@ -142,20 +144,52 @@ The pipeline is built; it just needs secrets to deploy. The full chain:
 | `038_push_secrets_via_vault.sql` | Stores `app.send_push_secret` in the Vault rather than the postgres role. |
 | `supabase/functions/send-push/index.ts` | Edge Function — VAPID delivery, 410-Gone cleanup, dual auth (Bearer JWT or X-Send-Push-Secret). |
 
-**To actually start delivering pushes** (this is what's still missing):
+**Deployment status — audited 2026-07-30.** Every step of the old
+"still missing" checklist is done except the last, and delivery is
+currently BROKEN on a misconfigured URL:
 
-1. `npx web-push generate-vapid-keys` on a dev machine.
-2. `supabase secrets set VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=…
-   VAPID_SUBJECT="mailto:ops@flexyn.app"
-   SEND_PUSH_TRIGGER_SECRET="$(openssl rand -hex 32)"`.
-3. Add `VITE_VAPID_PUBLIC_KEY=…` to the client build env so
-   `usePushSubscription.js` exposes the opt-in toggle.
-4. `supabase functions deploy send-push`.
-5. In SQL Editor: `ALTER DATABASE postgres SET app.send_push_url =
-   'https://<ref>.functions.supabase.co/send-push'` and
-   `ALTER DATABASE postgres SET app.send_push_secret = '<step-2 value>'`,
-   then `SELECT pg_reload_conf()`.
-6. Verify with a self-targeted test push from the Settings panel.
+| Step | State | Evidence |
+|---|---|---|
+| VAPID keys generated | ✅ | 87-char P-256 public key baked into the production bundle |
+| `VITE_VAPID_PUBLIC_KEY` in client build env | ✅ | listed in the Netlify resolved config; key present in the served JS |
+| `send-push` Edge Function deployed | ✅ | ACTIVE, version 17 |
+| `send_push_url` / `send_push_secret` in Vault | ✅ | both rows exist, created 2026-05-21 |
+| `pg_net`, fanout fn, trigger, `push_subscriptions` | ✅ | all present; 1 real subscription, 2 push-related crons |
+| **Actually delivering** | ❌ | see below |
+
+**The open bug: `send_push_url` looks wrong.** The only HTTP call
+`pg_net` has on record from the fanout returned **404** (2026-07-26).
+Probing the endpoints directly, both correct forms return 401
+(function exists, auth required) and only a wrong slug returns 404:
+
+```
+401  https://<ref>.functions.supabase.co/send-push
+401  https://<ref>.supabase.co/functions/v1/send-push
+404  https://<ref>.functions.supabase.co/send_push     ← underscore, wrong
+```
+
+So the trigger is firing and reaching Supabase, but the path stored in
+the Vault doesn't resolve. Every `net.http_post` caller in the applied
+migrations is push-related, so that 404 can't be attributed to another
+feature. Not confirmed by reading the secret — reading
+`vault.decrypted_secrets` is (correctly) blocked — so verify and fix with:
+
+```sql
+SELECT vault.update_secret(
+  (SELECT id FROM vault.secrets WHERE name = 'send_push_url'),
+  'https://<ref>.functions.supabase.co/send-push'
+);
+```
+
+Then confirm with a self-targeted push from Settings and re-check
+`SELECT status_code, count(*) FROM net._http_response GROUP BY 1` — a 401
+there would instead mean `send_push_secret` doesn't match the function's
+`SEND_PUSH_TRIGGER_SECRET`, which is the other failure mode and is not
+distinguishable from outside.
+
+Note the trigger is a deliberate no-op when the URL/secret are missing, so
+this class of failure is SILENT: in-app notification rows keep landing and
+nothing surfaces an error. `net._http_response` is the only place it shows.
 
 **Patterns for adding new push types:**
 
@@ -581,10 +615,12 @@ violations of this rule.
   intentionally English (buildInfo.js, workoutGenerator.js AI
   prompts, HubProfile.jsx joined-month, WeeklyDebriefCard helper)
   stay as-is.
-- Push pipeline (migrations 033-039 + the `send-push` Edge Function)
-  is built but not deployed. VAPID secrets + `ALTER DATABASE postgres
-  SET app.send_push_url/_secret` haven't been set. See the "Push
-  notifications" section above for the deploy checklist.
+- ~~Push pipeline is built but not deployed.~~ **No longer true** — it
+  IS deployed (VAPID keys, the `send-push` function, and the Vault
+  secrets are all in place). It is however not DELIVERING: the fanout's
+  one recorded HTTP call 404s, pointing at a bad `send_push_url`. This
+  is an open bug, not out of scope — details and the fix are in the
+  "Push notifications" section above.
 - Competitive-feature pushes are wired:
   • Duels — `notify_duel_invite_for` / `_result_for` (mig 065)
   • Bounties — `notify_bounty_claim_for` / `_beaten_for` (mig 069)
