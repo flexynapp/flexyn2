@@ -24,18 +24,24 @@
 // implement-type icon today and will take a user photo later — no
 // manufacturer imagery, ever (see docs/gym-equipment-picker-research.md).
 
-import React, { useMemo, useState } from 'react';
-import { ChevronDown, Check, Search, Plus, X } from 'lucide-react';
+import React, { useMemo, useRef, useState } from 'react';
+import { ChevronDown, Check, Search, Plus, X, Camera, Loader2 } from 'lucide-react';
 import BottomSheet from '@/components/ui/BottomSheet';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/LanguageContext';
 import { triggerHaptic } from '@/lib/haptic';
+import { toast } from '@/lib/toast';
 import {
   implementTypeForExercise, implementTypeLabel, seedModelsForType,
   implementLabel, brandLabel,
 } from '@/lib/equipmentCatalog';
 import { getRecentImplements, recordImplementUse, implementKey } from '@/lib/recentImplements';
+import { resolveEquipmentImage } from '@/lib/equipmentImage';
+import EquipmentSilhouette from './equipmentSilhouettes';
+import { compressImage } from '@/lib/imageCompress';
+import { db } from '@/api/db';
+import { persistEquipmentPhoto } from '@/lib/data/equipment';
 
 /** Normalize a catalog seed row into the shape we persist. */
 function fromSeed(seed, implementType) {
@@ -54,6 +60,8 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
   const [query, setQuery] = useState('');
   const [customBrand, setCustomBrand] = useState('');
   const [showCustom, setShowCustom] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileRef = useRef(null);
 
   const implementType = useMemo(
     () => implementTypeForExercise(exerciseName),
@@ -109,6 +117,51 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
     });
   };
 
+  const pickPhoto = () => fileRef.current?.click();
+
+  /**
+   * Photograph the machine you're standing at.
+   *
+   * The upload is best-effort by design: the URL is attached to the
+   * in-session selection as soon as Storage returns it, and the
+   * training_spaces / space_equipment / equipment_photos rows are
+   * written after. If that persistence fails the user still sees their
+   * photo for this workout — losing a photo is not a reason to
+   * interrupt someone mid-set.
+   */
+  const handlePhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error(tFallback('implement.photoType', 'Pick an image file.'));
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // A 12MP phone photo shouldn't cost 4 MB of mobile data for
+      // something rendered at 56px. Same budget as AvatarUploader.
+      const compressed = await compressImage(file, { maxWidth: 800, maxHeight: 800, quality: 0.85 });
+      const { file_url } = await db.integrations.Core.UploadFile({ file: compressed });
+      if (!file_url) throw new Error('No URL returned');
+
+      const next = { ...value, photoUrl: file_url };
+      onChange?.(next);
+      recordImplementUse(userId, implementType, next);
+      toast.success(tFallback('implement.photoSaved', 'Photo added'));
+
+      // Persist to the shared catalog so this machine has a photo for
+      // everyone next time. Null return = couldn't persist; the photo
+      // still shows for this session.
+      persistEquipmentPhoto({ implement: next, url: file_url, userId });
+    } catch {
+      toast.error(tFallback('implement.photoFailed', "Couldn't upload that photo."));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const typeLabel = implementTypeLabel(implementType);
   const showSearch = (recent.length + catalog.length) > 8;
 
@@ -157,20 +210,61 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             </div>
           )}
 
-          {/* Currently selected — offer a way back out. Users who tapped
-              the wrong machine need an undo that isn't "guess which
-              entry was the old one". */}
+          {/* Currently selected — the photo affordance and the undo.
+              Users who tapped the wrong machine need a way back that
+              isn't "guess which entry was the old one". */}
           {value && (
-            <button
-              type="button"
-              onClick={() => commit(null)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 mb-2 rounded-lg
-                         text-sm text-muted-foreground hover:bg-secondary transition-colors
-                         min-h-[44px] select-none-ui"
-            >
-              <X className="w-4 h-4 shrink-0" aria-hidden="true" />
-              {tFallback('implement.clear', 'Clear selection')}
-            </button>
+            <div className="mb-3 p-3 rounded-xl bg-secondary/40 border border-border">
+              <div className="flex items-center gap-3">
+                <EquipmentThumb implement={value} size={56} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{value.label}</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {value.photoUrl
+                      ? tFallback('implement.yourPhoto', 'Your photo')
+                      : tFallback('implement.noPhoto', 'No photo yet')}
+                  </p>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-2.5">
+                <button
+                  type="button"
+                  onClick={pickPhoto}
+                  disabled={uploading}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5
+                             text-xs font-semibold text-primary rounded-lg py-2.5
+                             min-h-[44px] hover:bg-secondary transition-colors
+                             disabled:opacity-60 select-none-ui"
+                >
+                  {uploading
+                    ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                    : <Camera className="w-4 h-4" aria-hidden="true" />}
+                  {value.photoUrl
+                    ? tFallback('implement.replacePhoto', 'Replace photo')
+                    : tFallback('implement.addPhoto', 'Add a photo')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => commit(null)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3
+                             text-xs font-medium text-muted-foreground rounded-lg
+                             min-h-[44px] hover:bg-secondary transition-colors select-none-ui"
+                >
+                  <X className="w-4 h-4" aria-hidden="true" />
+                  {tFallback('implement.clear', 'Clear')}
+                </button>
+              </div>
+              {/* capture="environment" opens the rear camera straight
+                  away on mobile — the user is standing at the machine. */}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={handlePhoto}
+              />
+            </div>
           )}
 
           <Section title={tFallback('implement.yourGear', 'Your equipment')} items={filtered.recent}>
@@ -242,6 +336,49 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
   );
 }
 
+/**
+ * Thumbnail for an implement, running the image fallback chain:
+ * this space's photo → an approved photo of the same model → an
+ * openly-licensed reference photo → a drawn silhouette. The chain
+ * always terminates, so this never renders an empty box.
+ */
+export function EquipmentThumb({ implement, size = 36 }) {
+  const [broken, setBroken] = useState(false);
+  const resolved = resolveEquipmentImage({
+    spacePhotoUrl: broken ? null : implement?.photoUrl,
+    modelPhotoUrl: broken ? null : implement?.modelPhotoUrl,
+    implementType: implement?.implementType,
+  });
+
+  const box = 'rounded-md bg-secondary/70 shrink-0 flex items-center justify-center overflow-hidden';
+  const style = { width: size, height: size };
+
+  if (resolved.url) {
+    return (
+      <span className={box} style={style}>
+        <img
+          src={resolved.url}
+          alt=""
+          loading="lazy"
+          // A dead Storage URL must degrade to the silhouette rather
+          // than a broken-image glyph.
+          onError={() => setBroken(true)}
+          className="w-full h-full object-cover"
+        />
+      </span>
+    );
+  }
+
+  return (
+    <span className={`${box} text-muted-foreground`} style={style}>
+      <EquipmentSilhouette
+        implementType={implement?.implementType}
+        className="w-3/4 h-3/4"
+      />
+    </span>
+  );
+}
+
 function Section({ title, items, children }) {
   if (!items || items.length === 0) return null;
   return (
@@ -262,16 +399,7 @@ function Row({ item, selected, onSelect }) {
       className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-start
                  hover:bg-secondary transition-colors min-h-[44px] select-none-ui"
     >
-      {/* Thumbnail slot — Phase 3 fills this with a user photo, falling
-          back to a machine-type silhouette. Reserving the space now
-          keeps row height stable when photos start appearing. */}
-      <span
-        className="w-9 h-9 rounded-md bg-secondary/70 shrink-0 flex items-center
-                   justify-center text-[10px] font-bold text-muted-foreground uppercase"
-        aria-hidden="true"
-      >
-        {brandLabel(item.brand).slice(0, 2)}
-      </span>
+      <EquipmentThumb implement={item} size={36} />
       <span className="flex-1 min-w-0">
         <span className="block text-sm font-medium truncate">{item.label}</span>
         {item.count > 1 && (

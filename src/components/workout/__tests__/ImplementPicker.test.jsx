@@ -9,7 +9,7 @@
 
 import React from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, within } from '@/test/utils';
+import { render, screen, fireEvent } from '@/test/utils';
 import ImplementPicker from '../ImplementPicker';
 import { LanguageProvider } from '@/lib/LanguageContext';
 import { recordImplementUse } from '@/lib/recentImplements';
@@ -146,8 +146,68 @@ describe('choosing an implement', () => {
       onChange,
     });
     fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
-    fireEvent.click(screen.getByText(/clear selection/i));
+    fireEvent.click(screen.getByRole('button', { name: /^clear$/i }));
     expect(onChange).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('photos', () => {
+  const selected = {
+    brand: 'cybex', line: 'Eagle', model: null,
+    implementType: 'leg_press', label: 'Cybex Eagle',
+  };
+
+  it('offers to add a photo once something is selected', () => {
+    setup({ exerciseName: 'Leg Press', value: selected });
+    fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
+    expect(screen.getByText(/add a photo/i)).toBeInTheDocument();
+    expect(screen.getByText(/no photo yet/i)).toBeInTheDocument();
+  });
+
+  it('switches to replace once a photo exists', () => {
+    setup({
+      exerciseName: 'Leg Press',
+      value: { ...selected, photoUrl: 'https://example.test/leg-press.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
+    expect(screen.getByText(/replace photo/i)).toBeInTheDocument();
+    expect(screen.getByText(/your photo/i)).toBeInTheDocument();
+  });
+
+  // BottomSheet portals into document.body, so the drawer's contents
+  // are outside RTL's `container` — query the document instead.
+  it('renders the photo when there is one', () => {
+    setup({
+      exerciseName: 'Leg Press',
+      value: { ...selected, photoUrl: 'https://example.test/leg-press.jpg' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
+    expect(
+      document.body.querySelector('img[src="https://example.test/leg-press.jpg"]')
+    ).toBeTruthy();
+  });
+
+  it('falls back to a silhouette with no photo — never an empty box', () => {
+    setup({ exerciseName: 'Leg Press', value: selected });
+    fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
+    // Catalog rows have no photos either, so every thumbnail is an svg.
+    expect(document.body.querySelectorAll('svg').length).toBeGreaterThan(0);
+    expect(document.body.querySelector('img')).toBeNull();
+  });
+
+  it('uses the rear camera on mobile', () => {
+    setup({ exerciseName: 'Leg Press', value: selected });
+    fireEvent.click(screen.getByRole('button', { name: /Cybex Eagle/i }));
+    const input = document.body.querySelector('input[type="file"]');
+    expect(input).toBeTruthy();
+    expect(input.getAttribute('capture')).toBe('environment');
+    expect(input.getAttribute('accept')).toBe('image/*');
+  });
+
+  it('shows no photo controls before anything is selected', () => {
+    setup({ exerciseName: 'Leg Press', value: null });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    expect(screen.queryByText(/add a photo/i)).toBeNull();
   });
 });
 

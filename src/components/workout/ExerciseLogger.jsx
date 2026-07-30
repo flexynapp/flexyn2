@@ -20,7 +20,7 @@ import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
-import ImplementPicker from './ImplementPicker';
+import ImplementPicker, { EquipmentThumb } from './ImplementPicker';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -217,13 +217,21 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               <p className="font-medium text-sm leading-tight truncate">
                 {exercise.displayName || translateExerciseName(exercise.name, language)}
               </p>
-              <p className="text-[11px] text-muted-foreground mt-0.5">
-                {sets.length} set{sets.length === 1 ? '' : 's'}
-                {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
+              <p className="text-[11px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                <span>
+                  {sets.length} set{sets.length === 1 ? '' : 's'}
+                  {totalVolume > 0 && <> · {formatWeight(totalVolume, weightUnit)} vol</>}
+                </span>
                 {/* Carry the chosen machine into the collapsed view —
                     a completed exercise silently dropping its label
                     reads as a bug. */}
-                {exercise.equipment?.label && <> · {exercise.equipment.label}</>}
+                {exercise.equipment?.label && (
+                  <>
+                    <span>·</span>
+                    <EquipmentThumb implement={exercise.equipment} size={14} />
+                    <span className="truncate">{exercise.equipment.label}</span>
+                  </>
+                )}
               </p>
             </div>
             <button

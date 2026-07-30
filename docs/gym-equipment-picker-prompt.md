@@ -328,7 +328,60 @@ Screenshot the header at 375px width to confirm it doesn't wrap badly.
 
 ---
 
-## Phase 3 — Images
+## Phase 3 — Images — ✅ COMPLETE (2026-07-30)
+
+Migration 268 **is now applied** to the live project (`ebvqxuwfiptcmlkhflfj`).
+Verified after apply: 4 tables, RLS enabled on all, 13 policies (2/3/4/4),
+profanity + touch triggers present.
+
+Shipped:
+- `src/lib/equipmentImage.js` — `resolveEquipmentImage()`, the chain
+  `space photo → same-model photo → reference photo → silhouette`. Always
+  terminates; `kind` is part of the contract so the UI can label a tier-2
+  photo and credit a tier-3 one.
+- `src/components/workout/equipmentSilhouettes.jsx` — 12 line-art shapes
+  covering visually distinct families, with every implement type mapped onto
+  one.
+- `src/lib/data/equipment.js` — spaces / models / equipment / photos access.
+  Every function degrades to null rather than throwing: a photo failing must
+  never block someone mid-set.
+- `ImplementPicker` — thumbnails run the chain, plus an add/replace photo
+  block with `capture="environment"` so the rear camera opens at the machine.
+- `ExerciseLogger` — the collapsed summary shows a 14px thumbnail beside the
+  label.
+- 20 new tests. Full suite 2180 / 159 green, lint and build clean.
+
+**Two deliberate departures from the original spec, both stated rather than
+silently absorbed:**
+
+1. **The Wikimedia Commons tier ships empty.** `REFERENCE_IMAGES` is wired
+   and tested but unpopulated. Each Commons file needs its own license page
+   verified (a category listing is not per-file proof), adds an in-app
+   attribution obligation, and hotlinking is fragile offline — and a generic
+   photo of *a* leg press is barely better than the silhouette when tier 1 is
+   a photo of *your* leg press. A verified addition is one line here plus an
+   `ATTRIBUTIONS.md` row. A test asserts any future entry carries full
+   attribution, and the resolver skips incomplete entries rather than
+   rendering them uncredited. Nothing was added to `ATTRIBUTIONS.md` because
+   no third-party imagery ships.
+2. **A thin slice of Phase 4 came forward.** `equipment_photos` FKs to
+   `space_equipment`, so photos need a persisted row to hang off. Phase 3
+   creates one implicit "My gear" home space on first upload. Gym-kind
+   spaces, owner curation, the verified flag and reading a gym's shared floor
+   are still Phase 4 and don't change these functions.
+
+**Bug caught before commit:** `findOrCreateModel` filtered
+`.eq('product_line', '')` while the column stores NULL. Confirmed against the
+live DB that `NULL = ''` is false while the unique index's `COALESCE(col,'')`
+treats them as equal — so every lookup would have missed, fallen through to
+an insert, and 23505'd. Now uses `.is(col, null)` for the empty case.
+
+**Verification gaps:** the picker's on-screen layout is still unconfirmed
+(sign-in gated, unchanged from Phase 2), and the upload → Storage → DB path
+has not been exercised end-to-end against a real session — only its failure
+handling is unit-tested.
+
+### Original spec
 
 **Goal:** the "shows an image of that exact machine" half, with the fallback
 chain that keeps it never-empty.
