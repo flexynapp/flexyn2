@@ -1708,7 +1708,7 @@ export default function Dashboard() {
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           onClick={() => setReadinessInfoOpen(false)}
         >
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+          <div className="absolute inset-0 bg-black/55 backdrop-blur-[2px]" />
           <div
             className="relative z-10 w-full max-w-md rounded-2xl bg-card border border-border shadow-2xl p-6"
             onClick={(e) => e.stopPropagation()}

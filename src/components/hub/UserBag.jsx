@@ -720,9 +720,12 @@ export default function UserBag({ open, onClose, onOpenCapsule, onOpenCapsuleBat
           drag affordance. Also dropped the drag-to-dismiss because
           there's no longer a handle to grip. */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        {/* Backdrop */}
+        {/* Backdrop. Two dials here, and the scrim is the one that reads as
+            "heavy" — 70% black flattened the marketplace behind the bag into
+            a grey slab. Softened to 55% black + 2px blur so the page is still
+            legibly there behind the modal without competing with it. */}
         <motion.div
-          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}

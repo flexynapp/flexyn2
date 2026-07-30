@@ -187,7 +187,7 @@ export default function CoinShopModal({ open, onClose }) {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-5 z-10"
+                className="absolute inset-0 bg-black/55 backdrop-blur-[2px] flex items-center justify-center p-5 z-10"
                 onClick={() => setConfirmSku(null)}
               >
                 <motion.div

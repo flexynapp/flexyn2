@@ -75,7 +75,7 @@ export default function GauntletStatsModal({
         >
           {/* Backdrop */}
           <motion.div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/55 backdrop-blur-[2px]"
             onClick={onClose}
           />
 
