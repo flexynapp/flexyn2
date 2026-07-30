@@ -484,7 +484,54 @@ reinvented.
 
 ---
 
-## Phase 5 — Make it feel automatic
+## Phase 5 — Make it feel automatic — ✅ COMPLETE (2026-07-30)
+
+All four items shipped. Full suite 2217 / 161 green, lint 0 errors, build clean.
+
+**1. Prefill from last use.** `getLastImplementForExercise` reads the machine
+off the workout log rather than localStorage — the log is already in memory
+and follows the user across devices. Fires once per exercise and never
+overwrites an explicit choice, including a deliberate clear.
+
+**2. Check-in scoping.** New `getTodayCheckinGymId()` — mig 149's
+`has_gym_checkin_today` RPC answers only yes/no, and the picker needs the
+identity. If the user checked in somewhere today, the gym section shows that
+floor; otherwise it unions every gym they belong to. A check-in at a gym they
+haven't joined falls back rather than showing nothing.
+
+**3. Machine in the history line.** `getRecentSessionsDetailed` returns
+`[{ sets, equipment, date }]`; `getRecentSessionsForExercise` is now a thin
+wrapper so its long-standing array-of-set-arrays contract is byte-identical.
+The line names the machine **only when it changed** from the session before —
+"185 on the Hammer Strength, 160 on the Cybex" is the insight; repeating the
+same name on every row buries the numbers.
+
+**4. Adjustable-dumbbell increments.** `selectableWeights` /
+`snapToSelectable` in the catalog, wired into `progressiveOverload`'s bump
+and regress branches. A Bowflex 552 steps 2.5 lb to 25 then jumps in 5s, so
+an unsnapped "+5" from 22.5 names 27.5 — a weight the handle cannot be set
+to. Ties round DOWN. The ladder was **verified against Bowflex's own spec**,
+and `ladder` is only present on models where the exact settings were
+confirmed; everything else is a deliberate no-op, because a guessed ladder
+produces confidently wrong advice. A test asserts every shipped ladder is
+sorted, unique, positive, and consistent with its `maxLb`.
+
+### Three bugs caught in-flight
+
+- **Shape change broke two live consumers.** Repointing `recentSessions` at
+  the detailed shape silently broke `ExerciseLogger`'s warm-up seeder
+  (`recentSessions[0].filter` on an object) and the history render. Both
+  fixed; the wrapper exists so nothing else has to care.
+- **`snapToSelectable(null)` returned 5.** `Number(null)` is `0`, which is
+  finite, so the guard let it through and it clamped to the bottom of the
+  stack. Now null-checked before coercion.
+- **A test premise of mine was wrong.** I asserted 50 lb → "hold" on a 552;
+  in fact 55 snaps to 52.5, which is a real bump. The genuine hold case is
+  52.5 (the ceiling). Fixed the test and made the message accurate — it now
+  says "that's the heaviest this gear goes" rather than implying a next notch
+  exists.
+
+### Original spec
 
 **Goal:** the dropdown should mostly already be right.
 

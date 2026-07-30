@@ -9,7 +9,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import SetRow from './SetRow';
-import { getRecentSessionsForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
+import { getRecentSessionsDetailed, getLastImplementForExercise, formatSetsLine } from '@/lib/data/exerciseHistory';
 import { suggestNext as suggestProgression } from '@/lib/progressiveOverload';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getMaxSetsPerExercise } from '@/lib/workoutFatigue';
@@ -43,15 +43,18 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // cached workout-log array — no extra query. Self-collapses to []
   // for first-ever attempts so the hint hides gracefully.
   const recentSessions = useMemo(
-    () => getRecentSessionsForExercise(workoutLogs, exercise.name || exercise.displayName, 3),
+    () => getRecentSessionsDetailed(workoutLogs, exercise.name || exercise.displayName, 3),
     [workoutLogs, exercise.name, exercise.displayName]
   );
   // Auto-progressive-overload hint — looks at the user's last
   // session for THIS exercise and suggests a target. Quiet by
   // design: renders nothing without enough history.
+  // Passing the implement lets the suggester snap to weights this gear
+  // can actually be set to — see snapToSelectable.
   const progressionHint = useMemo(
-    () => suggestProgression(exercise.name || exercise.displayName, workoutLogs),
-    [workoutLogs, exercise.name, exercise.displayName]
+    () => suggestProgression(exercise.name || exercise.displayName, workoutLogs,
+                             { implement: exercise.equipment || null }),
+    [workoutLogs, exercise.name, exercise.displayName, exercise.equipment]
   );
   const { t, language, tFallback } = useLanguage();
   const { weightUnit } = useWeightUnit();
@@ -86,7 +89,7 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
     if (sets.length !== 1) return;
     const s0 = sets[0] || {};
     if (s0.weight != null || s0.reps != null || s0.is_warmup) return;
-    const lastSession = recentSessions[0] || [];
+    const lastSession = recentSessions[0]?.sets || [];
     const working = lastSession.filter(s => !s.is_warmup && ((Number(s.weight) || 0) > 0 || (Number(s.reps) || 0) > 0));
     if (working.length === 0) return;
     const topW = Math.max(...working.map(s => Number(s.weight) || 0));
@@ -101,6 +104,20 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
       onChange({ ...exercise, sets: [{ weight: topW, reps: firstReps, is_warmup: false }] });
     }
   }, [recentSessions, sets, exercise, onChange]);
+
+  // Prefill the machine from the last time this exercise was logged, so
+  // the picker is usually already right and the user only touches it
+  // when they've moved. Fires once, and only when nothing is set — an
+  // explicit choice (including clearing it) is never overwritten.
+  const implementPrefilledRef = useRef(false);
+  useEffect(() => {
+    if (implementPrefilledRef.current) return;
+    if (exercise.equipment) { implementPrefilledRef.current = true; return; }
+    const last = getLastImplementForExercise(workoutLogs, exercise.name || exercise.displayName);
+    if (!last) return;
+    implementPrefilledRef.current = true;
+    onChange({ ...exercise, equipment: last });
+  }, [workoutLogs, exercise, onChange]);
 
   const checkPR = (updatedSets) => {
     let best = 0;
@@ -292,13 +309,23 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
               without flipping between screens. */}
           {recentSessions.length > 0 && (
             <div className="mt-1.5 space-y-0.5">
-              {recentSessions.slice(0, 3).map((sessionSets, idx) => {
-                const line = formatSetsLine(sessionSets);
+              {recentSessions.slice(0, 3).map((session, idx) => {
+                const line = formatSetsLine(session.sets);
                 if (!line) return null;
+                // Name the machine only when it CHANGED from the session
+                // before — "185 on the Hammer Strength, 160 on the Cybex"
+                // is the insight; repeating the same machine on every
+                // line is noise that buries the numbers.
+                const prev = recentSessions[idx + 1]?.equipment?.label || null;
+                const here = session.equipment?.label || null;
+                const showMachine = here && here !== prev;
                 return (
                   <div key={idx} className="flex items-center gap-1 text-[10px] text-muted-foreground">
                     {idx === 0 && <History className="w-3 h-3 shrink-0" aria-hidden="true" />}
                     <span className={idx === 0 ? 'font-semibold' : 'ps-4'}>{line}</span>
+                    {showMachine && (
+                      <span className="truncate opacity-75">· {here}</span>
+                    )}
                   </div>
                 );
               })}

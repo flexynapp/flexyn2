@@ -21,6 +21,8 @@
 // session). The UI shows the suggestion as a quiet hint below the
 // recent-sessions line; the user can ignore it without dismissal.
 
+import { snapToSelectable } from '@/lib/equipmentCatalog';
+
 const UPPER_REGEX = /\b(bench|press|row|curl|fly|raise|pull[- ]?up|chin[- ]?up|push[- ]?up|dip|extension|tricep|bicep|shoulder|lat)\b/i;
 const LOWER_REGEX = /\b(squat|deadlift|hinge|lunge|hip|leg|calf|glute|hamstring|quad|romanian)\b/i;
 
@@ -41,9 +43,14 @@ function workingSetsOnly(sets) {
  * @param {Array} workoutLogs   user's recent workout_logs (newest first)
  * @param {object} [opts]
  * @param {Date}   [opts.now=new Date()]
+ * @param {object} [opts.implement]  the chosen implement, when known.
+ *   Adjustable dumbbells have non-linear stacks — a Bowflex 552 steps
+ *   2.5 lb to 25 and then jumps in 5s — so an unsnapped "+2.5" can name
+ *   a weight the lifter physically cannot select. Omitted / unknown
+ *   implements are a no-op.
  * @returns {null | { kind, weight, reps, message }}
  */
-export function suggestNext(exerciseName, workoutLogs = [], { now = new Date() } = {}) {
+export function suggestNext(exerciseName, workoutLogs = [], { now = new Date(), implement = null } = {}) {
   if (!exerciseName) return null;
   const lc = exerciseName.toLowerCase();
   const sessions = [];
@@ -79,7 +86,9 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date() }
 
   // Branch 1: stale (14+ days) → regress slightly.
   if (ageDays >= 14) {
-    const regressed = Math.max(0, Math.round(topWeight * 0.92 / 2.5) * 2.5);
+    const regressed = snapToSelectable(
+      Math.max(0, Math.round(topWeight * 0.92 / 2.5) * 2.5), implement
+    );
     return {
       kind: 'regress',
       weight: regressed,
@@ -103,11 +112,23 @@ export function suggestNext(exerciseName, workoutLogs = [], { now = new Date() }
   let bump = 5;
   if (region === 'lower') bump = 10;
   else if (region === 'unknown') bump = Math.max(2.5, Math.round((topWeight * 0.05) / 2.5) * 2.5);
-  const nextWeight = topWeight + bump;
+  const nextWeight = snapToSelectable(topWeight + bump, implement);
+  // Snapping can land back on the current weight — most often because
+  // the lifter is already at the top of an adjustable stack. Say "hold"
+  // rather than emitting "+0", which reads as a bug.
+  if (nextWeight <= topWeight) {
+    return {
+      kind: 'hold',
+      weight: topWeight,
+      reps: medianReps || null,
+      message: `Stay at ${topWeight} — that's the heaviest this gear goes. Add reps instead.`,
+    };
+  }
+  const actualBump = Math.round((nextWeight - topWeight) * 10) / 10;
   return {
     kind: 'bump',
     weight: nextWeight,
     reps: medianReps || null,
-    message: `Try ${nextWeight} (+${bump}) — last session looked smooth.`,
+    message: `Try ${nextWeight} (+${actualBump}) — last session looked smooth.`,
   };
 }

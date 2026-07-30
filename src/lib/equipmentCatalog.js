@@ -220,9 +220,16 @@ export const SEED_MODELS = [
   // Adjustable dumbbells. `increments` is the selectable ladder in lb —
   // this is what makes progressiveOverload.js able to suggest a real
   // number instead of "add 2.5lb" on a pair that can't do 2.5lb.
-  { brand: 'bowflex',     line: 'SelectTech',       model: '552',            types: ['dumbbell_adj'], maxLb: 52.5, increments: '2.5 to 25 lb, then 5 lb' },
+  // `ladder` is the machine-readable list of selectable weights in lb.
+  // Only present where the exact settings were VERIFIED against the
+  // manufacturer's own spec — progressiveOverload snaps its suggestion
+  // to it, so a guessed ladder would produce confidently wrong advice.
+  // Absent ladder = no snapping, which is the safe default.
+  { brand: 'bowflex',     line: 'SelectTech',       model: '552',            types: ['dumbbell_adj'], maxLb: 52.5, increments: '2.5 to 25 lb, then 5 lb',
+    ladder: [5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 30, 35, 40, 45, 50, 52.5] },
   { brand: 'bowflex',     line: 'SelectTech',       model: '1090',           types: ['dumbbell_adj'], maxLb: 90,   increments: '5 lb' },
-  { brand: 'bowflex',     line: 'Results Series',   model: '552',            types: ['dumbbell_adj'], maxLb: 52.5, increments: '2.5 to 25 lb, then 5 lb' },
+  { brand: 'bowflex',     line: 'Results Series',   model: '552',            types: ['dumbbell_adj'], maxLb: 52.5, increments: '2.5 to 25 lb, then 5 lb',
+    ladder: [5, 7.5, 10, 12.5, 15, 17.5, 20, 22.5, 25, 30, 35, 40, 45, 50, 52.5] },
   { brand: 'powerblock',  line: 'Elite',            model: 'EXP',            types: ['dumbbell_adj'], maxLb: 50,   increments: '2.5 lb with adder kit, else 5 lb' },
   { brand: 'powerblock',  line: 'Pro',              model: 'Series',         types: ['dumbbell_adj'] },
   { brand: 'rep',         line: 'QuickDraw',        model: null,             types: ['dumbbell_adj'], maxLb: 60,   increments: '5 lb' },
@@ -376,6 +383,58 @@ export function hasImplementPicker(name) {
 export function seedModelsForType(type) {
   if (!type) return [];
   return SEED_MODELS.filter(m => m.types.includes(type));
+}
+
+/**
+ * The weights an implement can actually be set to, or null when we
+ * don't know (which is most of the time, and must stay safe).
+ *
+ * Adjustable dumbbells are the case that matters: a Bowflex 552 goes up
+ * in 2.5 lb steps to 25 lb and then jumps in 5s, so a suggestion of
+ * "27.5" is a number the user physically cannot select. Matching on
+ * brand + line + model rather than the label, because the label is
+ * display text and gets translated.
+ */
+export function selectableWeights({ brand, line, model } = {}) {
+  if (!brand) return null;
+  const seed = SEED_MODELS.find(m =>
+    m.brand === brand
+    && (m.line  || null) === (line  || null)
+    && (m.model || null) === (model || null)
+  );
+  return seed?.ladder || null;
+}
+
+/**
+ * Snap a suggested weight onto the nearest weight the implement can
+ * actually be set to. Ties round DOWN — suggesting a load the lifter
+ * can't quite make is worse than suggesting one they can.
+ *
+ * Returns the input unchanged when the ladder is unknown, so callers
+ * can pass any implement (or none) without branching.
+ */
+export function snapToSelectable(weight, implement) {
+  const ladder = selectableWeights(implement || {});
+  // `weight == null` is checked BEFORE coercion: Number(null) is 0, which
+  // is finite, so a bare Number.isFinite guard would silently turn a null
+  // into the bottom of the stack.
+  if (weight == null) return weight;
+  const w = Number(weight);
+  if (!ladder?.length || !Number.isFinite(w)) return weight;
+
+  // Above the top of the stack there is nothing to snap to — the honest
+  // answer is the max the implement reaches.
+  if (w >= ladder[ladder.length - 1]) return ladder[ladder.length - 1];
+  if (w <= ladder[0]) return ladder[0];
+
+  let best = ladder[0];
+  let bestDist = Infinity;
+  for (const step of ladder) {
+    const dist = Math.abs(step - w);
+    // `<` not `<=` keeps the FIRST (lower) of two equidistant steps.
+    if (dist < bestDist) { bestDist = dist; best = step; }
+  }
+  return best;
 }
 
 /**

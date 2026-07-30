@@ -21,6 +21,9 @@ import { recordImplementUse } from '@/lib/recentImplements';
 vi.mock('@/lib/data/gymBusinesses', () => ({
   listMyGyms: vi.fn(async () => []),
 }));
+vi.mock('@/lib/data/gymCheckins', () => ({
+  getTodayCheckinGymId: vi.fn(async () => null),
+}));
 vi.mock('@/lib/data/equipment', () => ({
   listGymFloor: vi.fn(async () => []),
   persistEquipmentPhoto: vi.fn(async () => null),
@@ -28,12 +31,17 @@ vi.mock('@/lib/data/equipment', () => ({
 
 import { listMyGyms } from '@/lib/data/gymBusinesses';
 import { listGymFloor } from '@/lib/data/equipment';
+import { getTodayCheckinGymId } from '@/lib/data/gymCheckins';
 
 // jsdom has no matchMedia; BottomSheet reads it for reduced-motion.
 beforeEach(() => {
   localStorage.clear();
+  // Call history accumulates across tests in a file otherwise, which
+  // breaks any assertion on how many times the floor was fetched.
+  vi.clearAllMocks();
   listMyGyms.mockResolvedValue([]);
   listGymFloor.mockResolvedValue([]);
+  getTodayCheckinGymId.mockResolvedValue(null);
   if (!window.matchMedia) {
     window.matchMedia = vi.fn().mockImplementation(q => ({
       matches: false, media: q, onchange: null,
@@ -226,6 +234,29 @@ describe('the gym floor section', () => {
     fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
     await waitFor(() => expect(screen.getByText(/common models/i)).toBeInTheDocument());
     expect(screen.queryByText(/at your gym/i)).toBeNull();
+  });
+
+  it('scopes to the gym they checked into today', async () => {
+    const other = { id: 'gym-2', name: 'Other Gym', owner_id: 'o2' };
+    listMyGyms.mockResolvedValue([other, gym]);
+    getTodayCheckinGymId.mockResolvedValue('gym-1');
+    listGymFloor.mockResolvedValue([floorRow]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    // Named heading proves it narrowed to one gym, and it's the right one.
+    await waitFor(() => expect(screen.getByText(/At Iron Works/i)).toBeInTheDocument());
+    expect(listGymFloor).toHaveBeenCalledTimes(1);
+    expect(listGymFloor).toHaveBeenCalledWith('gym-1', 'owner-1');
+  });
+
+  it('falls back to all gyms when the check-in is one they have not joined', async () => {
+    listMyGyms.mockResolvedValue([gym, { id: 'gym-2', name: 'Other', owner_id: 'o2' }]);
+    getTodayCheckinGymId.mockResolvedValue('gym-not-a-member-of');
+    listGymFloor.mockResolvedValue([floorRow]);
+    setup({ exerciseName: 'Leg Press' });
+    fireEvent.click(screen.getByRole('button', { name: /choose equipment/i }));
+    await waitFor(() => expect(screen.getByText(/at your gym/i)).toBeInTheDocument());
+    expect(listGymFloor).toHaveBeenCalledTimes(2);
   });
 
   it('survives a failing gym lookup without blocking the catalog', async () => {

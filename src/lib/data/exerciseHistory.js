@@ -22,6 +22,23 @@
  * Case-insensitive exercise-name match against `name` and `displayName`.
  */
 export function getRecentSessionsForExercise(workoutLogs, exerciseName, sessions = 3) {
+  return getRecentSessionsDetailed(workoutLogs, exerciseName, sessions).map(s => s.sets);
+}
+
+/**
+ * Same scan, but keeps the per-session context the sets-only shape
+ * throws away — specifically which machine it was done on.
+ *
+ * Returns [{ sets, equipment, date }], most recent FIRST. `equipment` is
+ * the object stored on the logged exercise (see ImplementPicker), or
+ * null for sessions logged before the picker existed / with nothing
+ * chosen — so callers must treat it as optional forever, not just
+ * during rollout.
+ *
+ * getRecentSessionsForExercise is a thin wrapper over this so its
+ * long-standing contract (an array of set-arrays) is untouched.
+ */
+export function getRecentSessionsDetailed(workoutLogs, exerciseName, sessions = 3) {
   if (!Array.isArray(workoutLogs) || !exerciseName) return [];
   const target = exerciseName.trim().toLowerCase();
   if (!target) return [];
@@ -41,15 +58,37 @@ export function getRecentSessionsForExercise(workoutLogs, exerciseName, sessions
       if (lower !== target) continue;
       const sets = Array.isArray(ex?.sets) ? ex.sets : [];
       if (sets.length === 0) continue;
-      out.push(sets.map(s => ({
-        weight: s?.weight ?? null,
-        reps:   s?.reps   ?? null,
-      })));
+      out.push({
+        sets: sets.map(s => ({
+          weight: s?.weight ?? null,
+          reps:   s?.reps   ?? null,
+        })),
+        equipment: ex?.equipment || null,
+        date: log?.date || log?.created_at || null,
+      });
       break; // only one entry per log
     }
     if (out.length >= sessions) break;
   }
   return out;
+}
+
+/**
+ * The machine the user was last on for this exercise.
+ *
+ * Used to prefill the picker. Reads from the workout log rather than
+ * localStorage on purpose: the log is already in memory, and it follows
+ * the user across devices — someone who logs on their phone at the gym
+ * and their tablet at home should see the same machine either way.
+ *
+ * Returns null when they've never picked one.
+ */
+export function getLastImplementForExercise(workoutLogs, exerciseName) {
+  const recent = getRecentSessionsDetailed(workoutLogs, exerciseName, 5);
+  for (const session of recent) {
+    if (session.equipment?.label) return session.equipment;
+  }
+  return null;
 }
 
 /**

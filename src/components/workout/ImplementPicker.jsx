@@ -54,6 +54,7 @@ import { compressImage } from '@/lib/imageCompress';
 import { db } from '@/api/db';
 import { persistEquipmentPhoto, listGymFloor } from '@/lib/data/equipment';
 import { listMyGyms } from '@/lib/data/gymBusinesses';
+import { getTodayCheckinGymId } from '@/lib/data/gymCheckins';
 
 /** Normalize a catalog seed row into the shape we persist. */
 function fromSeed(seed, implementType) {
@@ -97,8 +98,22 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
     if (!open || !userId || !implementType) return;
     let cancelled = false;
     (async () => {
-      const gyms = await listMyGyms(userId).catch(() => []);
-      if (cancelled || !gyms?.length) return;
+      const [allGyms, checkedInGymId] = await Promise.all([
+        listMyGyms(userId).catch(() => []),
+        getTodayCheckinGymId().catch(() => null),
+      ]);
+      if (cancelled || !allGyms?.length) return;
+
+      // If they checked in somewhere today, that's where they are —
+      // show that floor rather than the union of every gym they belong
+      // to. Falls back to all gyms when the check-in doesn't match one
+      // we know about (stale membership, or they checked into a gym
+      // they haven't joined).
+      const scoped = checkedInGymId
+        ? allGyms.filter(g => (g.id ?? g.gym_id) === checkedInGymId)
+        : [];
+      const gyms = scoped.length ? scoped : allGyms;
+
       const floors = await Promise.all(
         gyms.map(g => listGymFloor(g.id ?? g.gym_id, g.owner_id))
       );

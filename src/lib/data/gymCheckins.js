@@ -18,6 +18,34 @@ export async function checkInWithCode(code) {
   return data || { ok: false, error: 'UNKNOWN' };
 }
 
+/**
+ * WHICH gym the caller checked into today, or null.
+ *
+ * has_gym_checkin_today (mig 149) answers only yes/no, and the equipment
+ * picker needs the identity: someone who belongs to three gyms should
+ * see the floor of the one they actually walked into. Reads the row
+ * directly rather than adding an RPC — gym_checkins is RLS'd to the
+ * owning user, so there is nothing to gate server-side.
+ *
+ * Never throws; a null just means "don't scope", and the picker falls
+ * back to the union of every gym the user belongs to.
+ */
+export async function getTodayCheckinGymId() {
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const { data, error } = await supabase
+      .from('gym_checkins')
+      .select('gym_id')
+      .eq('checkin_date', today)
+      .order('created_at', { ascending: false })
+      .limit(1);
+    if (error) return null;
+    return data?.[0]?.gym_id ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** True if the caller has checked into any gym today (UTC). Never throws. */
 export async function hasCheckedInToday() {
   try {
