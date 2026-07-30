@@ -8,8 +8,10 @@
 //   Row 1: 7 day cards (Mon → Sun), each with 4 meal slots
 //          (Breakfast / Lunch / Dinner / Snack).
 //   Row 2: "Generate grocery list" CTA → sums ingredients across all
-//          uncompleted plans and renders a downloadable PNG via
-//          Canvas 2D (same pattern as WorkoutShareCard).
+//          uncompleted plans in the visible week and opens a copyable
+//          list sheet. (An earlier draft of this comment promised a
+//          Canvas PNG; text you can paste into a shopping app is more
+//          useful on a phone, and the helper output is the same.)
 //
 // Tap a slot → recipe picker (your saved recipes). Tap an already-
 // filled slot → swap or remove via a small menu. Long-press isn't
@@ -22,6 +24,7 @@ import { createPortal } from 'react-dom';
 import {
   X, ChevronLeft, ChevronRight, ChevronDown, Loader2, Plus,
   CalendarDays, Camera, ChefHat, Pencil, ChevronRight as ChevRight,
+  ShoppingCart, Copy, Check,
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { format, addDays, startOfWeek } from 'date-fns';
@@ -336,6 +339,47 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
     for (const r of recipeList) m.set(r.id, r);
     return m;
   }, [recipeList]);
+
+  // Grocery list. buildGroceryList + the meal_plans schema shipped with
+  // migration 123 and this file's own header has always described the CTA —
+  // it was simply never imported, so the helper sat unreachable. It sums
+  // ingredient grams across every UNCOMPLETED plan in the visible week.
+  const [groceryOpen, setGroceryOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const groceryList = useMemo(
+    () => (groceryOpen ? mealPlans.buildGroceryList(plans, recipesById) : []),
+    [groceryOpen, plans, recipesById],
+  );
+
+  // Uncompleted plans in view — the exact set buildGroceryList walks.
+  const plannedCount = useMemo(
+    () => plans.filter(p => !p.is_completed).length,
+    [plans],
+  );
+
+  const groceryText = useMemo(
+    () => groceryList
+      .map(i => (i.total_grams > 0 ? `${i.name} — ${i.total_grams}g` : i.name))
+      .join('\n'),
+    [groceryList],
+  );
+
+  const handleCopyGrocery = async () => {
+    // Explicit capability check rather than `navigator.clipboard?.writeText()`,
+    // which resolves to undefined on insecure origins and would show a false
+    // "Copied" state.
+    if (!navigator?.clipboard?.writeText) {
+      toast.error('Clipboard not available — select and copy the list manually.');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(groceryText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Could not copy — your browser blocked clipboard access.');
+    }
+  };
 
   // Plans keyed by `${date}-${mealType}` for O(1) cell lookup.
   const planMap = useMemo(() => {
@@ -660,6 +704,24 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
             )}
           </div>
 
+          {/* Grocery list CTA — the "Row 2" this file's header has always
+              described. Counts only uncompleted plans, matching
+              buildGroceryList's own filter, so the button never promises a
+              list bigger than what it will actually produce. */}
+          <div className="shrink-0 px-3 pb-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setGroceryOpen(true)}
+              disabled={plannedCount === 0}
+              className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground font-semibold text-sm py-2.5 transition-opacity active:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {plannedCount === 0
+                ? 'Plan a meal to build a grocery list'
+                : `Generate grocery list · ${plannedCount} meal${plannedCount === 1 ? '' : 's'}`}
+            </button>
+          </div>
+
           {/* Centered scroll indicator — only when the grid overflows.
               Track is centered under the calendar; the thumb inside
               tracks the horizontal scroll position. */}
@@ -679,6 +741,88 @@ export default function WeeklyMealPlannerModal({ open, onClose, userProfile, onS
           </>
           )}
         </motion.div>
+
+        {/* Grocery list sheet. Deliberately a readable, copyable list rather
+            than the Canvas PNG the old header comment imagined — on a phone,
+            text you can paste straight into Notes or a shopping app beats an
+            image you have to read off the screen while holding a basket. */}
+        <AnimatePresence>
+          {groceryOpen && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setGroceryOpen(false)}
+              className="fixed inset-0 z-[10001] bg-black/55 backdrop-blur-[2px] flex items-end sm:items-center justify-center p-0 sm:p-4"
+            >
+              <motion.div
+                initial={{ y: 24 }} animate={{ y: 0 }} exit={{ y: 24 }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl shadow-2xl max-h-[80vh] flex flex-col"
+              >
+                <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <ShoppingCart className="w-4 h-4 text-primary shrink-0" />
+                    <h3 className="font-heading font-bold text-sm truncate">
+                      Grocery list · {groceryList.length} item{groceryList.length === 1 ? '' : 's'}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setGroceryOpen(false)}
+                    aria-label="Close grocery list"
+                    className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-3">
+                  {groceryList.length === 0 ? (
+                    <p className="text-center text-sm text-muted-foreground py-8 px-4">
+                      Nothing to buy yet. The list is built from planned meals that
+                      have ingredients — recipe slots contribute theirs, and manually
+                      entered macros don't.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1">
+                      {groceryList.map(item => (
+                        <li
+                          key={item.name}
+                          className="flex items-start justify-between gap-3 rounded-lg bg-secondary/40 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-sm text-foreground leading-tight">{item.name}</p>
+                            {item.recipes.length > 0 && (
+                              <p className="text-[10px] text-muted-foreground truncate mt-0.5">
+                                {item.recipes.join(' · ')}
+                              </p>
+                            )}
+                          </div>
+                          {item.total_grams > 0 && (
+                            <span className="text-xs font-semibold tabular-nums text-muted-foreground shrink-0">
+                              {item.total_grams}g
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {groceryList.length > 0 && (
+                  <div className="p-3 border-t border-border shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleCopyGrocery}
+                      className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-secondary text-foreground font-semibold text-sm py-2.5 hover:bg-secondary/80 transition-colors"
+                    >
+                      {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      {copied ? 'Copied' : 'Copy list'}
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Hidden file input driving the Photo-AI path. */}
         <input
