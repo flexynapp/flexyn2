@@ -26,12 +26,26 @@ const STREAK_COIN_TABLE = {
   30: 500, 60: 750, 100: 1500,
 };
 
-/** Streak day → base coin reward (linear interpolation between table entries). */
+/**
+ * Streak day → coin reward. Milestone days only.
+ *
+ * This used to fall through to `min(5 + day × 5, 200)` for any day not in the
+ * table, which meant every day past day 39 minted 200 coins in perpetuity —
+ * the single compounding faucet in the economy. Over six months that fallback
+ * alone paid 32,295 coins, more than every other source combined, against a
+ * shop whose most expensive item costs 1,000. See C3/C4 in
+ * docs/coin-economy-audit-2026-07-29.md.
+ *
+ * Milestone-only also makes this consistent with `coinsForWorkoutStreakDay`,
+ * which has always returned 0 off-milestone. Two streak systems paying on two
+ * different models was the asymmetry that hid this.
+ *
+ * The milestones themselves are untouched — day 30 still pays 500, day 100
+ * still pays 1,500. What's gone is the silent daily drip between them.
+ */
 export function coinsForStreakDay(day) {
   if (day <= 0) return 0;
-  if (STREAK_COIN_TABLE[day]) return STREAK_COIN_TABLE[day];
-  // Default curve: 5 + 5×day, capped at 200 for arbitrary days
-  return Math.min(5 + day * 5, 200);
+  return STREAK_COIN_TABLE[day] ?? 0;
 }
 
 /** Check whether a milestone elite capsule should drop on this streak day. */

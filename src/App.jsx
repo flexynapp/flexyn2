@@ -2,7 +2,13 @@ import { getWasFirstLaunchThisSession, isReturningUser } from '@/lib/firstLaunch
 // Consume the first-launch flag once at module load time, before any render.
 getWasFirstLaunchThisSession();
 
-import { Toaster } from "@/components/ui/toaster"
+// NOTE: the shadcn <Toaster /> that used to be mounted here is gone. Every
+// toast in the app goes through `@/lib/toast` → sonner, and nothing ever
+// called shadcn's `useToast()`, so it could never render a toast. What it
+// DID render was two stacked `fixed top-0 w-full z-[100] p-4` divs that
+// covered the top 32px of the screen with pointer-events:auto — sitting on
+// top of the Header and eating taps on the messages / bell / profile
+// buttons. Sonner is the only toaster.
 import { Toaster as SonnerToaster } from "sonner"
 import React, { useEffect, useState, lazy, Suspense } from 'react';
 import { MotionConfig } from 'framer-motion';
@@ -427,7 +433,6 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
-        <Toaster />
         <SonnerToaster position="bottom-center" style={{ bottom: 'calc(4rem + 16px)' }} />
       </QueryClientProvider>
     </RestTimerProvider>

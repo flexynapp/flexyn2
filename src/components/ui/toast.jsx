@@ -3,19 +3,28 @@ import { cva } from "class-variance-authority";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// ToastProvider is a plain wrapper, NOT a positioned layer. It used to
+// carry the same `fixed top-0 z-[100] w-full p-4` classes as the
+// viewport below, so mounting <Toaster /> put TWO full-width fixed
+// layers over the top of the screen. Even with zero toasts each was
+// 32px tall (p-4 top+bottom) with pointer-events:auto, so they sat on
+// top of the global Header and swallowed every tap in the top 32px —
+// exactly where the messages / bell / profile buttons live (y 6-50).
+// Taps only registered on the bottom ~18px of those 44pt targets, which
+// read as "the profile menu doesn't open."
 const ToastProvider = React.forwardRef(({ ...props }, ref) => (
-  <div
-    ref={ref}
-    className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:end-0 sm:top-auto sm:flex-col md:max-w-[420px]"
-    {...props}
-  />
+  <div ref={ref} {...props} />
 ));
 ToastProvider.displayName = "ToastProvider";
 
+// The viewport IS the positioned layer, but it must never intercept
+// pointer events itself — only the toasts inside it should. Individual
+// toasts already opt back in via `pointer-events-auto` in
+// toastVariants, so nothing loses interactivity.
 const ToastViewport = React.forwardRef(({ ...props }, ref) => (
   <div
     ref={ref}
-    className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:end-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+    className="pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:end-0 sm:top-auto sm:flex-col md:max-w-[420px]"
     {...props}
   />
 ));

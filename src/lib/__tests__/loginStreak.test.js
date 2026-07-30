@@ -14,15 +14,23 @@ describe('coinsForStreakDay', () => {
     expect(coinsForStreakDay(100)).toBe(1500);
   });
 
-  it('falls through to a positive linear curve for off-table days', () => {
-    expect(coinsForStreakDay(4)).toBeGreaterThan(0);
-    expect(coinsForStreakDay(10)).toBeGreaterThan(0);
-    expect(coinsForStreakDay(50)).toBeGreaterThan(0);
+  // Was: a linear fallback paying every off-table day. That fallback minted
+  // 200 coins a day in perpetuity past day 39 — 32,295 coins over six months,
+  // more than every other faucet combined. Now milestone-only, matching
+  // coinsForWorkoutStreakDay, which has always behaved this way.
+  it('pays nothing on off-milestone days', () => {
+    expect(coinsForStreakDay(4)).toBe(0);
+    expect(coinsForStreakDay(10)).toBe(0);
+    expect(coinsForStreakDay(50)).toBe(0);
+    expect(coinsForStreakDay(365)).toBe(0);
   });
 
-  it('caps the linear curve so very long streaks do not produce silly numbers', () => {
-    const huge = coinsForStreakDay(9999);
-    expect(huge).toBeLessThanOrEqual(2000);
+  // The compounding-faucet regression guard: no streak day, however long,
+  // may out-pay the day-100 milestone.
+  it('never exceeds the largest milestone, however long the streak', () => {
+    let worst = 0;
+    for (let d = 1; d <= 1000; d++) worst = Math.max(worst, coinsForStreakDay(d));
+    expect(worst).toBe(1500);
   });
 });
 

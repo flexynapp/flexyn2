@@ -3,7 +3,7 @@
 // sub-view (own or someone else's). Marketplace, DMs, AI Coach, and the
 // Bag/Capsule flow were hoisted out to /market, /messages, /coach, and
 // the global ProfileMenu respectively.
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Flame, Users as UsersIcon, User as UserIcon, Plus, ArrowLeft, Search, Shield, Store, Activity } from 'lucide-react';
@@ -148,11 +148,55 @@ export default function Hub() {
     return () => window.removeEventListener('flexyn:open-crew', handler);
   }, []);
 
+  // The sub-header below is `fixed`, so it's out of flow and the page
+  // content has to reserve its height by hand. That used to be a hardcoded
+  // `pt-[120px]`, which was ~7px short of the header's real 127px on the
+  // feed section — enough to slice the top off the first row of content
+  // ("BUILD YOUR FEED" was bisected by the header's bottom border). And the
+  // header isn't even a fixed height: the sub-tabs only render on the feed
+  // section, and the title row swaps a 2xl heading for a small back button
+  // on profile, so no single constant can be right everywhere.
+  //
+  // Measure it instead. The header is `fixed`, so its bottom is already in
+  // viewport coordinates and constant; the wrapper's rect is viewport-
+  // relative too, so we add scrollY to pin it to the document and keep the
+  // result scroll-invariant. The wrapper's own top edge doesn't move when
+  // its padding-top changes, so this settles in one pass.
+  const contentRef   = useRef(null);
+  const subHeaderRef = useRef(null);
+  const [contentPadTop, setContentPadTop] = useState(120);
+  useLayoutEffect(() => {
+    const measure = () => {
+      const header = subHeaderRef.current;
+      const content = contentRef.current;
+      if (!header || !content) return;
+      const GAP = 12; // breathing room so text never kisses the border
+      const contentTopInDoc = content.getBoundingClientRect().top + window.scrollY;
+      const next = Math.round(
+        header.getBoundingClientRect().bottom - contentTopInDoc + GAP
+      );
+      // Guard against a transient 0-height measurement during mount.
+      if (next > 0) setContentPadTop((prev) => (prev === next ? prev : next));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (subHeaderRef.current) ro.observe(subHeaderRef.current);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [section, feedTab]);
+
   return (
     <ErrorBoundary label="Hub">
-    <div className="px-4 md:px-6 pt-[120px] lg:pb-6 max-w-3xl mx-auto">
+    <div
+      ref={contentRef}
+      style={{ paddingTop: contentPadTop }}
+      className="px-4 md:px-6 lg:pb-6 max-w-3xl mx-auto"
+    >
       {/* Fixed Hub sub-header */}
-      <div className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
+      <div ref={subHeaderRef} className="fixed start-0 end-0 z-20 bg-background/95 backdrop-blur-md border-b border-border top-[calc(56px+env(safe-area-inset-top))] lg:top-[env(safe-area-inset-top)] lg:start-64">
         <div className="max-w-3xl mx-auto px-4 md:px-6 pt-3 pb-3">
 
           {/* Title row */}

@@ -138,6 +138,14 @@ export default function ProfileMenu({ compact = false } = {}) {
   const [signOutOpen, setSignOutOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const ref = useRef(null);
+  // The panel itself is the scroll container (max-h + overflow-y-auto).
+  // Swapping main <-> settings keeps whatever scrollTop the previous view
+  // was at, which drops you into the middle of the new one. Reset to the
+  // top on every view change so Settings always opens at its header.
+  const panelRef = useRef(null);
+  useEffect(() => {
+    if (panelRef.current) panelRef.current.scrollTop = 0;
+  }, [view, open]);
 
   useEffect(() => {
     setOpen(false);
@@ -348,6 +356,7 @@ export default function ProfileMenu({ compact = false } = {}) {
       <AnimatePresence>
         {open && (
           <motion.div
+            ref={panelRef}
             initial={{ opacity: 0, scale: 0.92, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.92, y: -10 }}
@@ -355,13 +364,21 @@ export default function ProfileMenu({ compact = false } = {}) {
             className="fixed start-4 end-4 top-[calc(3.5rem+env(safe-area-inset-top)+0.5rem)] max-h-[calc(100vh-4rem-env(safe-area-inset-top))] lg:fixed lg:start-0 lg:right-auto lg:top-[calc(11.5rem+env(safe-area-inset-top))] lg:mt-0 lg:max-h-[calc(100vh-12rem-env(safe-area-inset-top))] lg:w-64 bg-card border border-border rounded-xl shadow-xl z-[100] overflow-hidden overflow-y-auto"
           >
             {user ? (
-              <AnimatePresence mode="wait">
+              // Deliberately NOT an <AnimatePresence mode="wait">. That kept
+              // the outgoing view mounted until its exit animation finished
+              // and only THEN mounted the incoming one, so tapping Settings
+              // left the card completely empty for the whole exit — a spring
+              // with no fixed duration, which stretches out badly on a slow
+              // phone. Users read that empty card as "the settings menu is
+              // blank." Swapping on a keyed enter-only animation means the
+              // new view is on screen the same frame the old one leaves, so
+              // the card is never empty.
+              <>
                 {view === 'main' && (
                   <motion.div
                     key="main"
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 20 }}
                     transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                   >
                     <div className="px-4 py-3 border-b border-border">
@@ -546,7 +563,6 @@ export default function ProfileMenu({ compact = false } = {}) {
                     key="settings"
                     initial={{ opacity: 0, x: 20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
                     transition={{ type: 'spring', stiffness: 450, damping: 35 }}
                   >
                     <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
@@ -561,7 +577,7 @@ export default function ProfileMenu({ compact = false } = {}) {
                     <SettingsPanel />
                   </motion.div>
                 )}
-              </AnimatePresence>
+              </>
             ) : (
               <button
                 onClick={() => db.auth.redirectToLogin()}

@@ -12,10 +12,20 @@
 //   Don't delete the entry — set `enabled: false` instead so existing rows in
 //   user_daily_quests still resolve their label and reward correctly.
 
+// Coin rewards halved (was 15/40/100 = 155/day) — see C3/C4 in
+// docs/coin-economy-audit-2026-07-29.md. Daily quests were 51% of all coin
+// income, ~4,650 of the ~9,100 coins a dedicated user earned in month one,
+// against a shop whose priciest item costs 1,000.
+//
+// MIRROR WARNING: migration 199's user_daily_quests trigger is the
+// AUTHORITATIVE copy of these numbers — it overwrites client-supplied
+// coin_reward on insert precisely so a crafted client can't mint. If you
+// change these, change migration 265's CASE too, or the server will keep
+// paying the old rate and this file will be a lie.
 export const QUEST_DIFFICULTY = {
-  easy:   { coinReward: 15, color: '#22c55e' }, // green
-  medium: { coinReward: 40, color: '#3b82f6' }, // blue
-  hard:   { coinReward: 100, color: '#a855f7' }, // purple
+  easy:   { coinReward: 8,  color: '#22c55e' }, // green
+  medium: { coinReward: 20, color: '#3b82f6' }, // blue
+  hard:   { coinReward: 50, color: '#a855f7' }, // purple
 };
 
 // Action types emitted by user actions. Quests subscribe to these.

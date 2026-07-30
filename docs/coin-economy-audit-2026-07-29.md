@@ -176,18 +176,39 @@ median is not a functioning economy; it's two economies.
 
 ---
 
-## Recommended order
+## Status
 
-1. **C2** — make every faucet write a ledger row. Cheapest way: have each
-   definer faucet call a shared `credit_flex_coins(uid, amount, source)` that
-   logs and then updates, instead of touching the column itself. Fixes C1 in
-   the same stroke, because that helper is where a global cap belongs.
-2. **C1** — put the global daily ceiling in that helper.
-3. **C4 / C3** — retune the dominant faucets. The login-streak cap (200/day
-   forever) and the daily-quest total (155/day) are the two dials that matter;
-   level-ups are noise by comparison.
-4. **C5** — a distribution problem, probably downstream of C3. Worth
-   re-measuring after the faucets are retuned rather than fixed directly.
+| | Finding | State |
+|---|---|---|
+| C1 | Mint ceiling governed 1.3% of minting | ✅ **fixed** — migration 264. Enforced at the column (the chokepoint) rather than by rewriting 22 faucets. Clamp verified firing at 50,000/24h. |
+| C2 | 98.7% of coins had no provenance | ✅ **fixed** — migration 264. `flex_coin_ledger` reconciles exactly to circulation; credits and debits both log with the originating RPC name. |
+| C3 | Income outran the sinks | ✅ **fixed** — migration 265 + client. Month 1 9,730 → 5,400; 6 months 69,875 → 24,575. |
+| C4 | The F5 fix targeted the smallest faucet | ✅ **fixed** — the two that mattered (quests 51%, login streak 27%) are both retuned. No faucet is now above 43%. |
+| C5 | Median 5 vs mean 1,652 | ⬜ open — downstream of C3/C4. Re-measure once real users accumulate under the new rates rather than treating it directly. |
 
-C1 and C2 are architectural and safe to fix without a product decision. C3, C4
-and C5 are generosity calls and are not mine to make.
+### Note on the C3/C4 fix
+
+Quests halved (15/40/100 → 8/20/50) and the login streak made milestone-only.
+The streak's `min(5 + day × 5, 200)` fallback was the only compounding faucet
+in the economy — past day 39 it minted 200 coins a day forever, 32,295 over
+six months, more than every other source combined. Milestone payouts are
+untouched (day 30 still 500, day 100 still 1,500); what's gone is the drip
+between them. That also makes it consistent with `coinsForWorkoutStreakDay`,
+which was always milestone-only — the asymmetry between the two streak systems
+is what hid this.
+
+| Faucet | Before | After | Share after |
+|---|---|---|---|
+| Daily quests | 4,650 | 2,340 | 43.3% |
+| Level-ups | 1,175 | 1,175 | 21.8% |
+| Login streak | 2,475 | 1,085 | 20.1% |
+| League | 800 | 800 | 14.8% |
+| **Month-1 total** | **9,730** | **5,400** | |
+
+An Elite Capsule now costs ~5.5 days of income instead of ~3, so buying one is
+a decision. Not a clawback: quest rows already stamped today keep their old
+`coin_reward` — the trigger only sets it on INSERT.
+
+The generosity dial, if this still reads high, is the quest CASE in migration
+265 and `QUEST_DIFFICULTY` in `questCatalog.js` — change both together, the
+server is authoritative.
