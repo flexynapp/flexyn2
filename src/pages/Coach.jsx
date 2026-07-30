@@ -17,7 +17,7 @@ import WorkoutQuickGenerator from '@/components/coach/WorkoutQuickGenerator';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useLanguage } from '@/lib/LanguageContext';
 import { useAuth } from '@/lib/AuthContext';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { db } from '@/api/db';
 import { setPendingWorkout } from '@/lib/pendingWorkout';
 
@@ -30,6 +30,18 @@ export default function Coach() {
   const generate = !!searchParams.get('generate');
 
   const [tab, setTab] = useState(0); // 0 = chat, 1 = quick pick
+
+  // The quick generator personalizes on the profile — training goal, diet
+  // direction, dietary restrictions and (opt-in) cycle phase. It was mounted
+  // without this prop, so it fell back to `{}` and every one of those inputs
+  // was silently empty. Same query key the rest of the app uses, so this is
+  // served from cache rather than costing an extra fetch.
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.email],
+    queryFn:  () => db.auth.me(),
+    enabled:  !!user?.email,
+    staleTime: 60_000,
+  });
 
   // Arriving from a scrolled-down page (e.g. the Workout "Generate Workout"
   // card lives partway down that page) would otherwise land mid-page, with the
@@ -104,7 +116,7 @@ export default function Coach() {
           >
             {tab === 0 ? chat : (
               <ErrorBoundary label="QuickGenerator">
-                <WorkoutQuickGenerator onSaveRegimen={handleSaveRegimen} onStartWorkout={handleStartWorkout} />
+                <WorkoutQuickGenerator userProfile={userProfile || {}} onSaveRegimen={handleSaveRegimen} onStartWorkout={handleStartWorkout} />
               </ErrorBoundary>
             )}
           </motion.div>

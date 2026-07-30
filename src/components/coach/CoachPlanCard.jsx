@@ -58,6 +58,20 @@ export default function CoachPlanCard({ plan, onSaveRegimen, onStartWorkout }) {
         strengthDefaultOpen={isSession}
       />
 
+      {/* Why this session was adjusted. An automatic change to someone's
+          training — a set removed for a deficit, a lighter bar for a reported
+          rough day — has to be legible, or the app just looks broken. */}
+      {Array.isArray(plan.coachNotes) && plan.coachNotes.length > 0 && (
+        <ul className="mt-2.5 space-y-1.5 rounded-xl border border-border bg-secondary/40 px-3 py-2.5">
+          {plan.coachNotes.map((note, i) => (
+            <li key={i} className="flex gap-2 text-[11px] text-muted-foreground leading-snug">
+              <span aria-hidden="true" className="text-primary shrink-0">•</span>
+              <span>{note}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/* Training-load → nutrition: what this plan costs to fuel. Deep-links to
           the Nutrition Plans section to tune the diet plan around it. */}
       {plan.fuel && plan.fuel.runDays > 0 && (

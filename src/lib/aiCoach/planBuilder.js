@@ -18,6 +18,7 @@
 
 import { buildStarterRegimen } from '@/lib/data/starterRegimen';
 import { generateWorkout } from './workoutGenerator';
+import { buildTrainingModifiers, profileAge } from './trainingModifiers';
 import { runningTargets, fiveKSplits, formatPace, formatClock } from '@/lib/running/paces';
 import { weeklyRunningLoad } from '@/lib/running/fueling';
 
@@ -316,6 +317,8 @@ export function sessionToPlan(workout) {
     workout,
     goal: 'general',
     label: 'train',
+    // Carried through so the card can explain why the session was adjusted.
+    coachNotes: workout.coachNotes || [],
   };
 }
 
@@ -450,6 +453,22 @@ export async function buildCoachPlan({ user, message, profile = {} } = {}) {
     skillLevel: profile.skillLevel || 'intermediate',
     bodyweightLbs: Number(profile.weight_lbs) || 165,
     seed: undefined,
+    // Same demographic sizing the Quick-pick tab uses, so a lift with no
+    // history starts at the same weight whichever surface asked for it.
+    demographics: {
+      gender:        profile.gender,
+      age:           profileAge(profile),
+      activityLevel: profile.activity_level,
+    },
+    // The chat path knows the parsed goal and the profile's diet direction;
+    // it has no cycle context (that is opt-in and lives on the Coach screen),
+    // so no phase is passed and none is assumed.
+    modifiers: buildTrainingModifiers({
+      goal:          parsed.goal,
+      nutritionGoal: profile.nutrition_goal,
+      weeklyRateLbs: profile.weekly_rate_lbs,
+      restrictions:  Array.isArray(profile.dietary_restrictions) ? profile.dietary_restrictions : [],
+    }),
   });
   const plan = {
     kind: 'session',

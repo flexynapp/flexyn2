@@ -30,11 +30,24 @@ export const PHASE = {
   luteal:     { id: 'luteal',     label: 'Luteal',     color: '#7c3aed', emoji: '🌙' },
 };
 
+// Phase hints, deliberately hedged.
+//
+// These used to read as instructions ("Peak strength window — go heavy",
+// "Energy is highest here"). That overstates the evidence: a 2023 systematic
+// review found no reliable effect of cycle phase on strength performance or
+// on training adaptation, and the between-person variation inside a phase is
+// larger than the average difference between phases. ACSM's guidance is to
+// adapt to symptoms, not to the calendar.
+//
+// So they now describe a tendency and defer to how the user actually feels.
+// The ovulation note is the least hedged of the four because connective-
+// tissue laxity around the oestrogen peak has real mechanistic support and a
+// documented association with ACL injury risk.
 const TRAINING_HINT = {
-  menstrual:  'Light cardio + mobility. Listen to your body.',
-  follicular: 'Peak strength window — go heavy on compound lifts.',
-  ovulation:  'Power + sprint work. Energy is highest here.',
-  luteal:     'Higher volume, moderate intensity. Rest is OK.',
+  menstrual:  'Train as normal if you feel good. If cramps or fatigue hit, lighter cardio and mobility still count.',
+  follicular: 'Many people feel strong here — a good week to chase a heavy set, if the warm-up says so.',
+  ovulation:  'Ligaments sit a little laxer around now. Warm up thoroughly and stay strict on knee tracking.',
+  luteal:     'Effort can run higher for the same weight. Judge sessions by effort, and take the longer rest.',
 };
 
 /**

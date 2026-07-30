@@ -6,10 +6,15 @@
 // session. Reuses CoachPlanCard so Save / Start behave exactly like the chat.
 
 import React, { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2, Sparkles, RefreshCw, Dumbbell, Footprints, Flame } from 'lucide-react';
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import { useLanguage } from '@/lib/LanguageContext';
+import * as cycleLogs from '@/lib/data/cycleLogs';
+import { computeCycleState } from '@/lib/cyclePhase';
+import { buildTrainingModifiers, FEEL_OPTIONS, profileAge } from '@/lib/aiCoach/trainingModifiers';
+import { loadRestrictions } from '@/lib/nutritionPlans';
 import {
   generateWorkout,
   FOCUS_OPTIONS,
@@ -37,6 +42,23 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
   const [skill, setSkill] = useState('intermediate');
   const [generating, setGenerating] = useState(false);
   const [plan, setPlan] = useState(null);
+  // Optional daily check-in. Null = not answered, in which case the cycle
+  // phase (if any) supplies a much smaller nudge on its own.
+  const [feel, setFeel] = useState(null);
+
+  // Cycle context is STRICTLY opt-in: the query only runs when the profile
+  // flag is on, so for everyone else no cycle data is read and the generator
+  // receives no phase at all.
+  const cycleEnabled = !!userProfile?.cycle_tracking_enabled;
+  const { data: cycleRows = [] } = useQuery({
+    queryKey: ['cycleLogs', user?.id],
+    queryFn:  () => cycleLogs.listMine(user.id),
+    enabled:  !!user?.id && cycleEnabled,
+    staleTime: 5 * 60_000,
+  });
+  const cycleState = cycleEnabled && cycleRows.length > 0
+    ? computeCycleState(cycleRows.map(r => r.start_date), userProfile?.cycle_length_days)
+    : null;
 
   const handleGenerate = async () => {
     setGenerating(true);
@@ -48,8 +70,25 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
       } else if (type === 'hiit') {
         next = await buildHiitSession({ user, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs });
       } else {
+        const modifiers = buildTrainingModifiers({
+          cycleState,
+          feel,
+          goal:          userProfile?.fitness_goals_arr || userProfile?.fitness_goals,
+          nutritionGoal: userProfile?.nutrition_goal,
+          weeklyRateLbs: userProfile?.weekly_rate_lbs,
+          // Allergies + dietary restrictions, so a fuel suggestion never names
+          // something the user can't eat. loadRestrictions falls back to the
+          // localStorage copy when the profile column isn't populated.
+          restrictions:  loadRestrictions(userProfile),
+        });
         const workout = await generateWorkout({
           user, focus, durationMinutes: duration, equipment, skillLevel: skill, bodyweightLbs, seed: Date.now(),
+          modifiers,
+          demographics: {
+            gender:        userProfile?.gender,
+            age:           profileAge(userProfile),
+            activityLevel: userProfile?.activity_level,
+          },
         });
         next = sessionToPlan(workout);
       }
@@ -133,6 +172,42 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
       )}
 
       <Pillset label={tFallback('generator.skill', 'Experience')} options={SKILL_OPTIONS} value={skill} onChange={setSkill} />
+
+      {/* Daily check-in. Optional and tappable-off. This is the signal the
+          research actually supports — what you report today beats what a
+          predicted cycle phase says about you, so answering it overrides the
+          phase nudge entirely. Shown for everyone, not just cycle trackers. */}
+      {!isCardio && (
+        <div className="mb-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+            {tFallback('generator.feel', 'How do you feel today?')}
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {FEEL_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                aria-pressed={feel === opt.id}
+                title={opt.hint}
+                onClick={() => setFeel(feel === opt.id ? null : opt.id)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
+                  feel === opt.id
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border text-foreground hover:border-primary/50 hover:bg-secondary'
+                }`}
+              >
+                <span aria-hidden="true">{opt.emoji}</span> {opt.label}
+              </button>
+            ))}
+          </div>
+          {cycleState && !feel && (
+            <p className="text-[11px] text-muted-foreground mt-1.5 leading-snug">
+              {cycleState.phaseMeta.emoji} {cycleState.phaseMeta.label} phase · day {cycleState.dayOfCycle}.
+              {' '}{tFallback('generator.feelOverride', 'Answer above and it will use that instead.')}
+            </p>
+          )}
+        </div>
+      )}
 
       <button
         type="button"

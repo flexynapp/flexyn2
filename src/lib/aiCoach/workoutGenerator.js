@@ -10,6 +10,7 @@
 
 import { db } from '@/api/db';
 import { subDays } from 'date-fns';
+import { IDENTITY_MODIFIERS } from './trainingModifiers';
 
 // ── Exercise catalog by muscle group, scored by equipment + experience ────
 
@@ -150,7 +151,59 @@ async function _historyByExercise(userEmail, days = 60) {
 
 // ── Bodyweight default starting weights (lbs) for compound lifts ─────────────
 
-function _defaultStartingWeight(exerciseName, bodyweightLbs, skillLevel) {
+// Muscle groups that are driven by the lower body. The sex difference in
+// strength is much larger in the upper body than the lower, so the two get
+// separate scaling rather than one blanket number.
+const LOWER_BODY_GROUPS = new Set(['legs']);
+
+/**
+ * Scale the bodyweight multipliers below by onboarding demographics.
+ *
+ * The multiplier table was calibrated against male norms and applied to every
+ * user, so a 60-year-old woman and a 25-year-old man of the same bodyweight
+ * were handed the same first-set weight. Sex and age are the two demographic
+ * factors with the largest, best-documented effect on absolute strength, so
+ * they scale it here.
+ *
+ *   Sex   — female upper-body strength sits around 50-60% of male at matched
+ *           bodyweight, and lower-body around 65-75%; the gap is much smaller
+ *           in the legs. 'other' / unset takes a conservative middle value
+ *           rather than defaulting to male, because over-prescribing a first
+ *           working set is the harmful direction.
+ *   Age   — strength holds roughly flat to ~40, then declines gradually, and
+ *           faster past 60.
+ *   Activity — a light nudge from the nutrition onboarding's activity level;
+ *           sedentary users start lower.
+ *
+ * These are STARTING estimates, only used when the user has no history for a
+ * lift. The first logged set replaces them, so the bias is deliberately
+ * toward too light — an easy first set costs one warm-up, a heavy one can
+ * cost an injury.
+ */
+export function _demographicScale({ gender, age, activityLevel } = {}) {
+  const g = String(gender || '').toLowerCase();
+  let upper, lower;
+  if (g === 'male')        { upper = 1.00; lower = 1.00; }
+  else if (g === 'female') { upper = 0.55; lower = 0.72; }
+  else                     { upper = 0.75; lower = 0.85; } // 'other' / unset
+
+  const a = Number(age);
+  let ageFactor = 1;
+  if (Number.isFinite(a)) {
+    if (a > 60)      ageFactor = Math.max(0.60, 0.90 - (a - 60) * 0.01);
+    else if (a > 40) ageFactor = 1 - (a - 40) * 0.005;
+  }
+
+  const ACTIVITY = { sedentary: 0.90, light: 0.95, moderate: 1.00, very: 1.05, extra: 1.10 };
+  const actFactor = ACTIVITY[String(activityLevel || '').toLowerCase()] ?? 1;
+
+  return {
+    upper: upper * ageFactor * actFactor,
+    lower: lower * ageFactor * actFactor,
+  };
+}
+
+function _defaultStartingWeight(exerciseName, bodyweightLbs, skillLevel, group, scale) {
   const bw = bodyweightLbs || 165; // demographic default
   const lvl = SKILL_TO_LEVEL[skillLevel] || 1;
   // Multipliers: rough industry guidance for first-rep weights
@@ -198,7 +251,11 @@ function _defaultStartingWeight(exerciseName, bodyweightLbs, skillLevel) {
   const mult = multipliers[exerciseName]?.[lvl - 1] ?? 0;
   // Round to 5 lb increments (or to nothing if 0)
   if (mult === 0) return 0;
-  return Math.max(5, Math.round(bw * mult / 5) * 5);
+  // Bodyweight movements stay at 0 above; everything else scales by the
+  // demographic factor for that half of the body.
+  const s = scale || { upper: 1, lower: 1 };
+  const factor = LOWER_BODY_GROUPS.has(String(group || '').toLowerCase()) ? s.lower : s.upper;
+  return Math.max(5, Math.round((bw * mult * factor) / 5) * 5);
 }
 
 // ── Main generator ───────────────────────────────────────────────────────────
@@ -270,6 +327,13 @@ export async function generateWorkout({
   skillLevel = 'intermediate',
   bodyweightLbs = 165,
   excludeMuscleGroups = new Set(), // injury exclusions
+  // Onboarding demographics — { gender, age, activityLevel }. Used only to
+  // size the FIRST suggested weight on a lift with no history.
+  demographics = null,
+  // Context nudges from buildTrainingModifiers() — goal, diet, cycle phase,
+  // daily feel check-in. Defaults to identity, so every existing caller that
+  // doesn't pass this gets exactly the workout it got before.
+  modifiers = IDENTITY_MODIFIERS,
 }) {
   const groups = FOCUS_TO_GROUPS[focus] || FOCUS_TO_GROUPS.full_body;
   const equipSet = _equipmentFilter(equipment);
@@ -332,27 +396,44 @@ export async function generateWorkout({
   // Build sets per exercise: 3 sets compound, 3 sets accessory; 8 reps
   // (compound) or 12 reps (accessory). Weight from history if available, else
   // default starting weight by skill level + bodyweight.
+  const mods = { ...IDENTITY_MODIFIERS, ...(modifiers || {}) };
+  const scale = _demographicScale(demographics || {});
+
   const exercises = chosen.map(ex => {
-    const setCount = ex.compound ? 3 : 3;
-    const reps = ex.compound ? 8 : 12;
+    // Volume: the diet / feel nudge adds or removes a working set, floored at
+    // 2 so a "rough day" session is still a real session rather than a token.
+    const setCount = Math.max(2, Math.min(5, 3 + mods.setsDelta));
+    // Reps: goal drives the character (strength lower, cut/endurance higher).
+    const baseReps = ex.compound ? 8 : 12;
+    const reps = Math.max(3, Math.min(20, baseReps + mods.repDelta));
+
     const histTop = history[ex.name.toLowerCase()];
-    let weight = histTop?.weight ?? _defaultStartingWeight(ex.name, bodyweightLbs, skillLevel);
+    let weight = histTop?.weight
+      ?? _defaultStartingWeight(ex.name, bodyweightLbs, skillLevel, ex.group, scale);
     // If history reps were lower than target, scale weight down a bit
     if (histTop && histTop.reps < reps) {
       weight = Math.round((weight * 0.9) / 5) * 5;
+    }
+    // Load nudge last, so it applies to whatever the history logic settled on.
+    // Re-rounded to 5 lb so the suggestion is loadable on a real bar; a
+    // bodyweight movement (weight 0) stays 0 rather than becoming 5.
+    if (weight > 0 && mods.loadMultiplier !== 1) {
+      weight = Math.max(5, Math.round((weight * mods.loadMultiplier) / 5) * 5);
     }
     const sets = Array.from({ length: setCount }, () => ({ weight, reps }));
 
     let note = '';
     if (histTop) note = `Last hit: ${histTop.weight} lb × ${histTop.reps}.`;
-    else if (weight > 0) note = `Starting weight from skill/bodyweight estimate.`;
+    else if (weight > 0) note = `Suggested start from your bodyweight, experience and demographics — adjust on your first set.`;
     else note = 'Bodyweight only.';
+
+    const baseRest = ex.compound ? 120 : 75;
 
     return {
       name:    ex.name,
       group:   ex.group,
       sets,
-      restSec: ex.compound ? 120 : 75,
+      restSec: Math.max(30, Math.min(240, baseRest + mods.restDeltaSec)),
       note,
     };
   });
@@ -362,6 +443,11 @@ export async function generateWorkout({
     focus,
     duration_minutes: durationMinutes,
     exercises,
+    // Why this session looks the way it does. The UI renders these under the
+    // workout so an adjustment is never silent — a user who suddenly gets a
+    // lighter day can see it was the deficit, the phase, or their own check-in.
+    coachNotes: mods.notes || [],
+    modifiersApplied: mods.applied || null,
   };
 }
 
