@@ -48,13 +48,21 @@ import {
   implementLabel, brandLabel,
 } from '@/lib/equipmentCatalog';
 import { getRecentImplements, recordImplementUse, implementKey } from '@/lib/recentImplements';
-import { resolveEquipmentImage } from '@/lib/equipmentImage';
-import EquipmentSilhouette from './equipmentSilhouettes';
+import EquipmentThumb from './EquipmentThumb';
 import { compressImage } from '@/lib/imageCompress';
 import { db } from '@/api/db';
 import { persistEquipmentPhoto, listGymFloor } from '@/lib/data/equipment';
 import { listMyGyms } from '@/lib/data/gymBusinesses';
 import { getTodayCheckinGymId } from '@/lib/data/gymCheckins';
+
+/**
+ * React key for a picker row. Catalog and history entries are identified
+ * by brand+line+model; gym-floor entries carry a DB id because two
+ * unbranded machines of the same type are indistinguishable otherwise.
+ */
+function rowKey(item) {
+  return item?.id || implementKey(item);
+}
 
 /** Normalize a catalog seed row into the shape we persist. */
 function fromSeed(seed, implementType) {
@@ -123,6 +131,11 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
         floors.flat()
           .filter(r => r.implement_type === implementType)
           .map(r => ({
+            // The row's DB id is the only thing that reliably tells two
+            // gym-floor entries apart: a floor with two unbranded leg
+            // presses produces identical brand/line/model on both, so
+            // implementKey collides and React sees duplicate keys.
+            id: r.id,
             brand: 'unknown',
             line: r.label_override || null,
             model: null,
@@ -346,7 +359,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
           <Section title={tFallback('implement.yourGear', 'Your equipment')} items={filtered.recent}>
             {(item) => (
               <Row
-                key={implementKey(item)}
+                key={rowKey(item)}
                 item={item}
                 selected={value && implementKey(value) === implementKey(item)}
                 onSelect={() => commit(item)}
@@ -365,7 +378,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
           >
             {(item) => (
               <Row
-                key={implementKey(item)}
+                key={rowKey(item)}
                 item={item}
                 selected={value && implementKey(value) === implementKey(item)}
                 onSelect={() => commit(item)}
@@ -376,7 +389,7 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
           <Section title={tFallback('implement.catalog', 'Common models')} items={filtered.catalog}>
             {(item) => (
               <Row
-                key={implementKey(item)}
+                key={rowKey(item)}
                 item={item}
                 selected={value && implementKey(value) === implementKey(item)}
                 onSelect={() => commit(item)}
@@ -429,49 +442,6 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
         </div>
       </BottomSheet>
     </>
-  );
-}
-
-/**
- * Thumbnail for an implement, running the image fallback chain:
- * this space's photo → an approved photo of the same model → an
- * openly-licensed reference photo → a drawn silhouette. The chain
- * always terminates, so this never renders an empty box.
- */
-export function EquipmentThumb({ implement, size = 36 }) {
-  const [broken, setBroken] = useState(false);
-  const resolved = resolveEquipmentImage({
-    spacePhotoUrl: broken ? null : implement?.photoUrl,
-    modelPhotoUrl: broken ? null : implement?.modelPhotoUrl,
-    implementType: implement?.implementType,
-  });
-
-  const box = 'rounded-md bg-secondary/70 shrink-0 flex items-center justify-center overflow-hidden';
-  const style = { width: size, height: size };
-
-  if (resolved.url) {
-    return (
-      <span className={box} style={style}>
-        <img
-          src={resolved.url}
-          alt=""
-          loading="lazy"
-          // A dead Storage URL must degrade to the silhouette rather
-          // than a broken-image glyph.
-          onError={() => setBroken(true)}
-          className="w-full h-full object-cover"
-        />
-      </span>
-    );
-  }
-
-  return (
-    <span className={`${box} text-muted-foreground`} style={style}>
-      <EquipmentSilhouette
-        implementType={implement?.implementType}
-        className="w-3/4 h-3/4"
-      />
-    </span>
   );
 }
 

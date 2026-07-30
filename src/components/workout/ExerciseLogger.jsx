@@ -20,7 +20,8 @@ import { useWeightUnit } from '../../lib/WeightUnitContext';
 import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
-import ImplementPicker, { EquipmentThumb } from './ImplementPicker';
+import ImplementPicker from './ImplementPicker';
+import EquipmentThumb from './EquipmentThumb';
 import { IMPLEMENT_TYPE_META } from '@/lib/equipmentCatalog';
 
 // Epley 1RM formula
@@ -94,41 +95,62 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // seed a flagged WARM-UP set at ~50% (so it never reads as a real
   // working set / fake PR); for lighter isolation work, copy the weight
   // straight across. Fires once, only on a pristine single empty set.
-  const prefilledRef = useRef(false);
-  useEffect(() => {
-    if (prefilledRef.current) return;
-    if (sets.length !== 1) return;
-    const s0 = sets[0] || {};
-    if (s0.weight != null || s0.reps != null || s0.is_warmup) return;
-    const lastSession = recentSessions[0]?.sets || [];
-    const working = lastSession.filter(s => !s.is_warmup && ((Number(s.weight) || 0) > 0 || (Number(s.reps) || 0) > 0));
-    if (working.length === 0) return;
-    const topW = Math.max(...working.map(s => Number(s.weight) || 0));
-    if (topW <= 0) return; // bodyweight / unloaded — leave it empty
-    prefilledRef.current = true;
-    const firstReps = Number(working[0]?.reps) || 8;
-    const HEAVY_LBS = 135;
-    if (topW > HEAVY_LBS) {
-      const warm = Math.max(45, Math.round((topW * 0.5) / 5) * 5);
-      onChange({ ...exercise, sets: [{ weight: warm, reps: Math.min(10, firstReps || 10), is_warmup: true }] });
-    } else {
-      onChange({ ...exercise, sets: [{ weight: topW, reps: firstReps, is_warmup: false }] });
-    }
-  }, [recentSessions, sets, exercise, onChange]);
-
-  // Prefill the machine from the last time this exercise was logged, so
+  // ...and the machine from the last time this exercise was logged, so
   // the picker is usually already right and the user only touches it
-  // when they've moved. Fires once, and only when nothing is set — an
-  // explicit choice (including clearing it) is never overwritten.
-  const implementPrefilledRef = useRef(false);
+  // when they've actually moved.
+  //
+  // BOTH SEEDS SHARE ONE EFFECT AND ONE onChange ON PURPOSE. As two
+  // separate effects they fired in the same commit, each spreading the
+  // same stale `exercise`, so whichever ran second silently discarded
+  // the other's write — the machine landed and the warm-up set was
+  // thrown away. onChange takes an object, not an updater function, so
+  // there's no functional-setState escape hatch; merging the writes is
+  // the fix. Anything else seeded here must join this effect, not add
+  // a third one.
+  //
+  // Two independent flags rather than one: the warm-up seed needs a
+  // pristine single set, the machine doesn't, so they can legitimately
+  // become eligible at different times.
+  const seededRef = useRef({ sets: false, implement: false });
   useEffect(() => {
-    if (implementPrefilledRef.current) return;
-    if (exercise.equipment) { implementPrefilledRef.current = true; return; }
-    const last = getLastImplementForExercise(workoutLogs, exercise.name || exercise.displayName);
-    if (!last) return;
-    implementPrefilledRef.current = true;
-    onChange({ ...exercise, equipment: last });
-  }, [workoutLogs, exercise, onChange]);
+    const patch = {};
+
+    if (!seededRef.current.implement) {
+      if (exercise.equipment) {
+        // An explicit choice (including a deliberate clear) is never
+        // overwritten — mark it handled and never look again.
+        seededRef.current.implement = true;
+      } else {
+        const last = getLastImplementForExercise(workoutLogs, exercise.name || exercise.displayName);
+        if (last) {
+          seededRef.current.implement = true;
+          patch.equipment = last;
+        }
+      }
+    }
+
+    if (!seededRef.current.sets && sets.length === 1) {
+      const s0 = sets[0] || {};
+      const pristine = s0.weight == null && s0.reps == null && !s0.is_warmup;
+      if (pristine) {
+        const lastSession = recentSessions[0]?.sets || [];
+        const working = lastSession.filter(s => !s.is_warmup && ((Number(s.weight) || 0) > 0 || (Number(s.reps) || 0) > 0));
+        if (working.length > 0) {
+          const topW = Math.max(...working.map(s => Number(s.weight) || 0));
+          if (topW > 0) { // bodyweight / unloaded — leave it empty
+            seededRef.current.sets = true;
+            const firstReps = Number(working[0]?.reps) || 8;
+            const HEAVY_LBS = 135;
+            patch.sets = topW > HEAVY_LBS
+              ? [{ weight: Math.max(45, Math.round((topW * 0.5) / 5) * 5), reps: Math.min(10, firstReps || 10), is_warmup: true }]
+              : [{ weight: topW, reps: firstReps, is_warmup: false }];
+          }
+        }
+      }
+    }
+
+    if (Object.keys(patch).length > 0) onChange({ ...exercise, ...patch });
+  }, [recentSessions, sets, exercise, onChange, workoutLogs]);
 
   const checkPR = (updatedSets) => {
     let best = 0;

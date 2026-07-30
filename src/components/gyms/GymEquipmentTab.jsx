@@ -36,7 +36,7 @@ import {
 import {
   listGymFloor, addToGymFloor, setEquipmentVerified, removeSpaceEquipment,
 } from '@/lib/data/equipment';
-import { EquipmentThumb } from '@/components/workout/ImplementPicker';
+import EquipmentThumb from '@/components/workout/EquipmentThumb';
 
 // Commercial-floor brands first — someone describing a gym is not
 // picking Bowflex. `scope: 'home'` entries stay available at the bottom

@@ -182,7 +182,7 @@ schema gains `training_spaces` before `space_equipment`.
 Shipped:
 - `src/lib/equipmentCatalog.js` — `BRAND_META` (26 brands, with corporate
   `parent` and `legacy` flags), `IMPLEMENT_TYPE_META` (57 types, each keyed to
-  a `classifyEquipment` kind), `SEED_MODELS` (60 verified products),
+  a `classifyEquipment` kind), `SEED_MODELS` (50 verified products),
   `EXERCISE_IMPLEMENT` override table + `implementTypeForExercise()`.
 - `supabase/migrations/268_training_spaces_equipment.sql` — `training_spaces`,
   `equipment_models`, `space_equipment`, `equipment_photos`, 13 RLS policies,
@@ -546,6 +546,61 @@ sorted, unique, positive, and consistent with its `maxLb`.
   it should not be skipped.
 
 ---
+
+## Post-build audit (2026-07-30)
+
+A pass back over all six phases. Three defects found and fixed, two
+logged and left alone, one claim corrected.
+
+### Fixed
+
+1. **The machine prefill silently ate the warm-up seed.** (Regression I
+   introduced in Phase 5, breaking a pre-existing feature.) The warm-up
+   seeder and the implement prefill were two effects firing in the same
+   commit, each spreading the same stale `exercise` — so the second
+   overwrote the first. The machine landed; the seeded warm-up set
+   vanished. Merged into one effect issuing one `onChange`.
+   *Why the tests missed it:* they asserted on a `vi.fn()` spy, where
+   both calls look correct. Only a **stateful parent** shows that the
+   second write discards the first. The regression guard now uses one.
+2. **`implementKey` collided across gym-floor rows.** Two unbranded leg
+   presses on the same floor produce identical brand/line/model, so they
+   shared a React key and both rendered as selected. Gym rows now key on
+   their DB id.
+3. **The gym page pulled 31 KB of workout-picker chunk** — camera
+   capture, image compression, the Storage upload path — to render a
+   40 px thumbnail, because `EquipmentThumb` lived inside
+   `ImplementPicker`. Extracted to its own module;
+   `GymEquipmentTab`'s chunk graph no longer references the picker.
+
+### Verified clean (checked, not assumed)
+
+- 50 seed models: no duplicate brand/line/model identities (which the DB
+  unique index would have rejected), no React-key collisions within any
+  implement type, no unusable labels.
+- All 38 i18n call-site keys resolve; none dead; `common.cancel` reuses
+  the existing translated key.
+- No RLS policy recursion: `equipment_models` → `space_equipment` →
+  `training_spaces` → `is_gym_member_or_owner` (SECURITY DEFINER,
+  terminates).
+
+### Logged, deliberately not fixed
+
+- **`getOrCreateHomeSpace` can race.** Two concurrent first-photo
+  uploads could create two "My gear" spaces — nothing constrains one
+  home space per user (the unique index is partial, `WHERE gym_id IS NOT
+  NULL`). Harmless today: the reader takes the oldest, so the second is
+  inert. A `UNIQUE (owner_id) WHERE kind = 'home'` index would fix it,
+  but that's a migration and this needs a real concurrent upload to
+  trigger.
+- **`equipment_models`' SELECT policy nests three levels of RLS** per
+  row. Correct, but it will get slow as the catalog grows. Worth a
+  `SECURITY DEFINER` helper (like `is_gym_member_or_owner`) if the
+  catalog reaches thousands of rows. Not a problem at 50.
+
+### Claim corrected
+
+`SEED_MODELS` holds **50** entries, not the 60 previously reported here.
 
 ## Phase 6 — Close it out — ✅ COMPLETE (2026-07-30)
 

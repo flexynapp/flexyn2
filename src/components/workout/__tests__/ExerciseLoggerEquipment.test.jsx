@@ -10,7 +10,7 @@
 // contradiction on screen. Found by actually looking at the rendered
 // component, not by a test.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen } from '@/test/utils';
 import ExerciseLogger from '../ExerciseLogger';
@@ -160,5 +160,47 @@ describe('the machine in the history line', () => {
     // Once in the history block (the oldest line, where it "changed"
     // from nothing) plus once in the picker chip — never on all three.
     expect(screen.getAllByText(/Hammer Strength Row/).length).toBeLessThanOrEqual(2);
+  });
+});
+
+describe('seeding does not clobber itself', () => {
+  // Regression guard. The warm-up seed and the machine prefill were two
+  // separate effects that fired in the same commit, each spreading the
+  // same stale `exercise` — so the second silently discarded the first.
+  // The machine landed; the warm-up set vanished. Needs a STATEFUL
+  // parent to catch: with a vi.fn() onChange both calls look fine, and
+  // only the last one actually reaches the component tree.
+  function Host({ initial, logs }) {
+    const [ex, setEx] = useState(initial);
+    return (
+      <LanguageProvider><WeightUnitProvider><RestTimerProvider>
+        <div data-testid="state">{JSON.stringify({ sets: ex.sets, eq: ex.equipment?.label ?? null })}</div>
+        <ExerciseLogger exercise={ex} onChange={setEx} workoutLogs={logs} userProfile={{ id: 'u1' }} />
+      </RestTimerProvider></WeightUnitProvider></LanguageProvider>
+    );
+  }
+
+  const logs = [{
+    date: '2026-07-20',
+    exercises: [{
+      name: 'Seated Row',
+      equipment: { brand: 'cybex', line: 'Eagle', model: null, implementType: 'seated_row', label: 'Cybex Eagle' },
+      sets: [{ weight: 200, reps: 8 }],
+    }],
+  }];
+
+  it('keeps both the seeded warm-up set and the prefilled machine', () => {
+    render(<Host initial={{ name: 'Seated Row', muscle_groups: ['Back'], sets: [{ weight: null, reps: null }] }} logs={logs} />);
+    const state = JSON.parse(screen.getByTestId('state').textContent);
+    expect(state.eq, 'machine should be prefilled').toBe('Cybex Eagle');
+    expect(state.sets[0].weight, 'warm-up seed should survive').not.toBeNull();
+    expect(state.sets[0].is_warmup, '200lb top set seeds a warm-up').toBe(true);
+  });
+
+  it('still seeds the machine when sets are already filled in', () => {
+    render(<Host initial={{ name: 'Seated Row', muscle_groups: ['Back'], sets: [{ weight: 185, reps: 8 }] }} logs={logs} />);
+    const state = JSON.parse(screen.getByTestId('state').textContent);
+    expect(state.eq).toBe('Cybex Eagle');
+    expect(state.sets[0].weight).toBe(185);
   });
 });
