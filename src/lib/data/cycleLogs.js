@@ -6,7 +6,6 @@
 
 import { supabase } from '@/api/supabaseClient';
 import { safeSelect } from '@/api/safeSelect';
-import { db } from '@/api/db';
 
 
 const TABLE = 'cycle_logs';
@@ -56,15 +55,12 @@ export async function setEnabled(userId, enabled, cycleLengthDays) {
     .from('user_profiles')
     .update(patch)
     .eq('id', userId);
-  // db.auth.me() serves a module-level cache and only re-reads the row when
-  // that cache is empty, so invalidating the ['userProfile'] query alone does
-  // NOT refresh this — react-query refetches and gets handed the same stale
-  // object back. Tapping the X on the cycle card therefore wrote the column
-  // correctly but left the card on screen until a full reload, which reads as
-  // "the button is broken". patchCache is the documented fix for writers that
-  // go through a raw update instead of db.auth.updateMe.
-  if (!error) {
-    try { db.auth.patchCache(patch); } catch { /* non-critical */ }
-  }
-  return { ok: !error };
+  // NOTE: on success the caller must db.auth.patchCache(patch). db.auth.me()
+  // serves a module-level cache and only re-reads the row when that cache is
+  // empty, so invalidating ['userProfile'] refetches and is handed the same
+  // stale object back — which is why tapping the X on the cycle card left the
+  // card on screen until a reload. Patched in CycleTrackerCard rather than
+  // here so this module doesn't import @/api/db, whose module-level
+  // supabase.auth.onAuthStateChange breaks any test that stubs the client.
+  return { ok: !error, patch };
 }

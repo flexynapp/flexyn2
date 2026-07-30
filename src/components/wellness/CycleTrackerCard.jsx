@@ -17,6 +17,7 @@ import { Heart, Plus, Loader2, X, Trash2, ChevronDown, ChevronUp } from 'lucide-
 import { toast } from '@/lib/toast';
 import { useAuth } from '@/lib/AuthContext';
 import * as cycleLogs from '@/lib/data/cycleLogs';
+import { db } from '@/api/db';
 import { computeCycleState } from '@/lib/cyclePhase';
 import { format } from 'date-fns';
 
@@ -111,6 +112,11 @@ export default function CycleTrackerCard({ profile }) {
   const handleDisable = async () => {
     const res = await cycleLogs.setEnabled(user.id, false);
     if (res.ok) {
+      // db.auth.me() serves a module-level cache and only re-reads the row
+      // when that cache is empty, so the invalidation below refetches and is
+      // handed the same stale object back. Without this the card stayed on
+      // screen until a full reload and the X read as broken.
+      db.auth.patchCache(res.patch);
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
       toast.success('Cycle tracking removed. Re-enable it in Settings.');
     } else {

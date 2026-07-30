@@ -348,6 +348,11 @@ export default function SettingsPanel() {
     setGymRivalOptOutLocal(next); // optimistic
     try {
       await setGymRivalOptOut(next);
+      // Same stale-cache problem as togglePrivacy below: the invalidation
+      // refetches through db.auth.me(), which returns its module-level cache
+      // unchanged. Patched here rather than inside gymRival.js so that data
+      // module doesn't have to import @/api/db and its auth side effect.
+      db.auth.patchCache({ nemesis_opt_out: next });
       queryClient.invalidateQueries({ queryKey: ['userProfile', user?.email] });
     } catch {
       setGymRivalOptOutLocal(!next); // revert
@@ -367,6 +372,14 @@ export default function SettingsPanel() {
     try {
       const { error } = await supabase.from('user_profiles').update({ [column]: next }).eq('id', user.id);
       if (error) throw error;
+      // db.auth.me() serves a module-level cache and only re-reads the row
+      // when that cache is empty, so the invalidation below refetches and is
+      // handed the SAME stale object back. Without this patch the flag looked
+      // like it saved — the switch flips optimistically — but the effect that
+      // syncs local state from `profile` then read the old value back, so
+      // closing and reopening Settings reverted the toggle. patchCache is the
+      // contract for writers that use a raw update instead of db.auth.updateMe.
+      db.auth.patchCache({ [column]: next });
       // Invalidate every query whose visibility is gated on this
       // profile flag — without this, other-profile views and the
       // hub feed stay stale until their staleTime expires (up to 5m).

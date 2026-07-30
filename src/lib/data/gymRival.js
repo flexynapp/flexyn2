@@ -423,9 +423,20 @@ export async function performOverthrow(assignmentId) {
 /** Update opt-out preference */
 export async function setGymRivalOptOut(optOut) {
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return;
-  await supabase
+  if (!user) throw new Error('Not authenticated');
+  const { error } = await supabase
     .from('user_profiles')
     .update({ nemesis_opt_out: optOut })
     .eq('id', user.id);
+  // The result used to be discarded entirely. supabase returns { error }
+  // rather than throwing, so a rejected write looked identical to a
+  // successful one and the caller's optimistic toggle stayed flipped on a
+  // failure. SettingsPanel already wraps this in a try/catch that reverts and
+  // toasts, so surfacing the error makes that path actually run.
+  if (error) throw error;
+  // NOTE: the caller is responsible for db.auth.patchCache({ nemesis_opt_out })
+  // so the ['userProfile'] refetch doesn't hand back the stale row. That is
+  // done in SettingsPanel rather than here on purpose — importing @/api/db
+  // into this module drags in its module-level supabase.auth.onAuthStateChange
+  // side effect, which breaks any test that stubs the supabase client.
 }
