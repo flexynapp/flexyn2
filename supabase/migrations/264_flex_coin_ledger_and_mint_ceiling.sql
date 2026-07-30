@@ -137,11 +137,22 @@ BEGIN
   END IF;
 
   -- Best-effort attribution. current_query() is the top-level statement, so
-  -- for a PostgREST RPC call it names the function. Only an identifier is
-  -- kept — never the raw query — so no argument values reach the ledger.
+  -- for a PostgREST RPC call — one statement per request — it names the
+  -- function. Only an identifier is kept, never the raw query, so no
+  -- argument values reach the ledger.
+  --
+  -- The alternation is a NON-capturing group inside one capturing group.
+  -- substring(text from pattern) returns the first capture group when the
+  -- pattern has one, so `(claim|purchase|...)_[a-z_]+` records just the
+  -- verb — 'claim' rather than 'claim_daily_chest'. Verified both forms
+  -- against real query text before settling on this one.
+  --
+  -- Caveat: a multi-statement batch shares one current_query(), so every
+  -- row in that batch is attributed to whichever name appears first. Real
+  -- traffic is one RPC per request, so this only affects manual SQL.
   v_source := substring(
     current_query()
-    from '(claim|purchase|complete|grant|distribute|gift|sweep|perform|resolve|create|increment|sync|reset)_[a-z_]+'
+    from '((?:claim|purchase|complete|grant|distribute|gift|sweep|perform|resolve|create|increment|sync|reset)_[a-z_]+)'
   );
 
   INSERT INTO public.flex_coin_ledger (user_id, delta, balance_after, actor, source, clamped)
