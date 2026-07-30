@@ -236,3 +236,46 @@ describe('adaptPlan — no restriction leaks', () => {
     expect(algae.swappedFrom).toBe('Fish Oil (Omega-3)');
   });
 });
+
+
+// The modal ranks plans by goalFit. These lock in the data that ranking
+// depends on: every template must declare a goalFit, and each of the three
+// nutrition goals must have at least one plan that actually fits it —
+// otherwise the "matches your goal" ordering silently degrades to the old
+// fixed template order for that goal.
+describe('goalFit — plans can be ranked against a nutrition goal', () => {
+  it('every template declares a non-empty goalFit', () => {
+    for (const t of PLAN_TEMPLATES) {
+      expect(Array.isArray(t.goalFit)).toBe(true);
+      expect(t.goalFit.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('only uses the nutrition goals the app actually stores', () => {
+    const valid = new Set(['lose', 'maintain', 'gain']);
+    for (const t of PLAN_TEMPLATES) {
+      for (const g of t.goalFit) expect(valid.has(g)).toBe(true);
+    }
+  });
+
+  it('has at least one fitting plan for every goal', () => {
+    for (const goal of ['lose', 'maintain', 'gain']) {
+      const fitting = PLAN_TEMPLATES.filter(t => t.goalFit.includes(goal));
+      expect(fitting.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('sorting by fit puts a cutter\'s plans first without dropping any', () => {
+    const goal = 'lose';
+    const sorted = [...PLAN_TEMPLATES]
+      .map(t => ({ t, fits: t.goalFit.includes(goal) }))
+      .sort((a, b) => Number(b.fits) - Number(a.fits));
+    expect(sorted).toHaveLength(PLAN_TEMPLATES.length); // adapt, don't hide
+    expect(sorted[0].fits).toBe(true);
+    // no fitting plan may appear after a non-fitting one
+    const firstNonFit = sorted.findIndex(e => !e.fits);
+    if (firstNonFit !== -1) {
+      expect(sorted.slice(firstNonFit).every(e => !e.fits)).toBe(true);
+    }
+  });
+});

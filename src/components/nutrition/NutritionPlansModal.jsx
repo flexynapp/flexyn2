@@ -32,7 +32,7 @@ function MacroPill({ label, value, unit = 'g', color }) {
 }
 
 /* ─── Plan card (list view) ──────────────────────────────────────────────── */
-function PlanCard({ plan, scaled, onSelect, colors }) {
+function PlanCard({ plan, scaled, onSelect, colors, fitsGoal }) {
   const macros = scaled.scaledMacros || scaled.baseMacros;
   const kcal   = scaled.scaledCalories || scaled.baseCalories;
   return (
@@ -64,6 +64,11 @@ function PlanCard({ plan, scaled, onSelect, colors }) {
                 {g}
               </span>
             ))}
+            {fitsGoal && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary/15 text-primary">
+                matches your goal
+              </span>
+            )}
             {plan.swapCount > 0 && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <Sparkles className="w-2.5 h-2.5" />
@@ -324,13 +329,27 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
 
   // Every plan is offered — adapted to the user's restrictions by swapping
   // off-limits ingredients for compliant, nutrient-matched alternatives.
-  const scaledPlans = useMemo(
-    () => PLAN_TEMPLATES.map(p => {
+  //
+  // Ordered by goal fit. Each template already declares a `goalFit` and it was
+  // rendered as a badge but never used to rank anything, so the list came out
+  // in fixed template order: someone cutting was shown "Lean Muscle Builder"
+  // (gain / maintain) first and had to scroll past two bulking plans to reach
+  // "Fat Loss Protocol". Plans that don't fit are still offered — the module's
+  // philosophy is adapt-don't-hide, and a user is allowed to pick whatever
+  // they like — they just stop leading the list. Sort is stable, so the
+  // curated order survives within each group.
+  const nutritionGoal = userProfile?.nutrition_goal || null;
+  const scaledPlans = useMemo(() => {
+    const entries = PLAN_TEMPLATES.map(p => {
       const adapted = adaptPlan(p, restrictions);
-      return { plan: adapted, scaled: scalePlan(adapted, targetCalories) };
-    }),
-    [restrictions, targetCalories]
-  );
+      return {
+        plan: adapted,
+        scaled: scalePlan(adapted, targetCalories),
+        fitsGoal: !!nutritionGoal && (p.goalFit || []).includes(nutritionGoal),
+      };
+    });
+    return [...entries].sort((a, b) => Number(b.fitsGoal) - Number(a.fitsGoal));
+  }, [restrictions, targetCalories, nutritionGoal]);
   const totalSwaps = useMemo(
     () => scaledPlans.reduce((n, e) => n + (e.plan.swapCount || 0), 0),
     [scaledPlans]
@@ -439,12 +458,13 @@ export function NutritionPlansPanel({ userProfile, onStartOnboarding, trainingFu
           )}
 
           <div className="space-y-3">
-            {scaledPlans.map(({ plan, scaled }) => (
+            {scaledPlans.map(({ plan, scaled, fitsGoal }) => (
               <PlanCard
                 key={plan.id}
                 plan={plan}
                 scaled={scaled}
                 colors={PLAN_COLORS[plan.color]}
+                fitsGoal={fitsGoal}
                 onSelect={() => setSelected(plan.id)}
               />
             ))}
