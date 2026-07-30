@@ -1,5 +1,28 @@
 # Third-party attributions
 
+## Equipment imagery — deliberately none
+
+The equipment picker (`src/lib/equipmentCatalog.js`,
+`src/components/workout/ImplementPicker.jsx`) names real manufacturers and
+machine models as **text**, which is nominative use — factually identifying
+the machine in front of the lifter. That needs no licence and no attribution.
+
+**No manufacturer product photography or brand logos ship with this app, and
+none should be added.** Those are copyrighted and trademarked, and Flexyn
+ships to the iOS and Android stores where a takedown or a review rejection is
+a real outcome. Equipment images come from three places instead, in order:
+a photo the user took, an approved photo another user took of the same model,
+and a drawn silhouette in `src/components/workout/equipmentSilhouettes.jsx`.
+
+`REFERENCE_IMAGES` in `src/lib/equipmentImage.js` is a slot for
+openly-licensed generic photos (Wikimedia Commons CC-BY-SA and similar). It
+ships **empty**. If you populate it, each entry needs its own licence page
+verified — a Commons category listing is not per-file proof — and a row added
+below. `resolveEquipmentImage` skips any entry missing author/licence data
+rather than rendering it uncredited, and a test enforces that.
+
+See `docs/gym-equipment-picker-research.md` §3 for the full reasoning.
+
 ## Twemoji
 Emoji artwork rasterized into Flexyn share images comes from **Twemoji**.
 

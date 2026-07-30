@@ -388,6 +388,61 @@ All live in `src/lib/*Celebration.js`. Each is well-tested in
 `src/lib/__tests__/*Celebration.test.js`. **Don't add another celebration
 without giving it a distinct haptic + confetti signature.**
 
+## Equipment picker (migration 268, July 2026)
+
+Lifters can record the SPECIFIC implement they're using — their gym's
+Hammer Strength row rather than "a row", or their own Bowflex 552s.
+Docs: `docs/gym-equipment-picker-research.md` (evidence) and
+`docs/gym-equipment-picker-prompt.md` (phase-by-phase build log).
+
+Conventions a contributor must not undo:
+
+- **Never ship manufacturer product photography or brand logos.** Brand
+  and model names as TEXT are nominative use and fine; their imagery is
+  not ours. Images come from users, falling back to drawn silhouettes.
+  `ATTRIBUTIONS.md` has the full rule and `REFERENCE_IMAGES` in
+  `src/lib/equipmentImage.js` is the (empty, licence-gated) slot for
+  openly-licensed generics.
+- **Controlled vocabularies live in one module and are additive-only.**
+  `src/lib/equipmentCatalog.js` holds `BRAND_META`,
+  `IMPLEMENT_TYPE_META` and `SEED_MODELS`, in the same slug→metadata
+  shape as `src/lib/gymAmenities.js`. Adding entries is always safe;
+  RENAMING a slug is a data migration, because slugs are persisted in
+  `workout_logs.exercises` and `space_equipment`.
+- **`classifyEquipment` (exerciseEquipment.js) is NOT the gate for the
+  picker.** It's a coarse 9-way regex built for a filter pill where a
+  miss is invisible, and it's wrong on ~25 of the exercises that matter
+  most here — every Lat Pulldown variant falls to 'other', Machine and
+  Cable Crunch fall to 'bodyweight', Barbell Hack Squat falls to
+  'machine'. `implementTypeForExercise` overrides by name and falls back
+  to it. Don't "fix" the classifier; its existing consumer and tests
+  depend on current behavior.
+- **Only add a `ladder` to a seed model when the exact settings are
+  verified against the manufacturer's own spec.** `snapToSelectable`
+  uses it to keep progressive-overload suggestions on weights the gear
+  can actually be set to; a guessed ladder produces confidently wrong
+  advice. Absent = no snapping, which is the safe default.
+- **A gym's floor is the union of every member's `training_spaces` row
+  for that gym**, not one canonical space. That's forced by the schema:
+  `UNIQUE (owner_id, gym_id)` plus an INSERT policy requiring
+  `owner_id = auth.uid()` means a member cannot create a space the gym
+  owns. Trust tiers fall out of it — owner's space is authoritative,
+  `verified_by_owner` is a blessed member find, the rest is
+  member-submitted.
+- **`equipment_models` has no client UPDATE or DELETE policy on
+  purpose.** An UPDATE scoped to `submitted_by` would let a user flip
+  their own `approved` flag and publish into the global catalog.
+  Approval is service_role only.
+
+**Known blocker for owner curation:** all 51 gyms in production have
+`owner_id IS NULL`, and the live column is NULLABLE despite mig 135
+declaring it NOT NULL. So `is_gym_member_or_owner` never passes its
+owner branch, nobody can edit any gym, and the picker's owner controls
+render for nobody. Every row has `verification_id IS NULL` and
+`gym_verification_queue` is empty — these are all mig-137 demo seeds and
+no gym has ever been through `approve_gym_verification`. Needs an
+owner-backfill decision; see the Phase 4 section of the prompt doc.
+
 ## i18n discipline
 
 - 15 supported languages: `en es fr de pt it ja ko zh ar hi ru tr pl nl`.

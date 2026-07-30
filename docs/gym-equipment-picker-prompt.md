@@ -547,7 +547,52 @@ sorted, unique, positive, and consistent with its `maxLb`.
 
 ---
 
-## Phase 6 — Close it out
+## Phase 6 — Close it out — ✅ COMPLETE (2026-07-30)
+
+Full suite 2228 / 162 green, lint 0 errors, build clean.
+
+- **i18n**: `src/lib/i18n-equipment.js`, 37 keys, picked up automatically by
+  the splitter (39 part files, en.js 1609 → 1646). **English only, with a
+  `TODO(i18n)` head comment** — per CLAUDE.md we don't ship machine-translated
+  copy, so the other 14 locales fall back to the inline English via
+  `tFallback`. Includes translator notes: brand/model names are proper nouns
+  and must not be translated, and `implement.atGymNamed` carries a `{gym}`
+  placeholder. Verified programmatically that all 38 call-site keys resolve,
+  none are dead, and `common.cancel` correctly reuses the existing
+  already-translated key.
+- **Docs**: `CLAUDE.md` gained an Equipment-picker section (the six
+  conventions a contributor must not undo, plus the `owner_id` blocker);
+  `ATTRIBUTIONS.md` gained a section explaining the deliberate *absence* of
+  equipment imagery, so nobody adds a manufacturer photo later.
+- **Tests**: `ExerciseLoggerEquipment.test.jsx`, 11 tests covering bar-selector
+  gating, prefill, and the change-only history line.
+
+### The visual verification finally happened — and it found three things
+
+Five phases of deferring this ended by mounting `ExerciseLogger` in a
+throwaway Vite harness outside the auth gate (`equipment-preview.html/jsx`,
+deleted after; never referenced by the app or the build). Confirmed working
+at 375 px: long names wrap with the chip dropping below, short names stay
+inline, the history line reads "185×8, 185×8 · Hammer Strength MTS / 160×8 ·
+Cybex Eagle", prefill populates the chip, and the Phase-2 aria-label fix
+renders as "Choose equipment: Hammer Strength MTS".
+
+Three defects no test had caught, because they were all about how it *looks*:
+
+1. **Truncation cut the model name.** "Life Fitness Insignia Series Arc Le…",
+   "Hammer Strength Plate Loaded S…" — losing exactly the part that
+   distinguishes two machines, in a list whose only job is distinguishing
+   machines. Now `line-clamp-2`.
+2. **Silhouettes were illegible.** 1.6 stroke units on a 48 viewBox renders
+   under one device pixel at the 27 px drawn size — a grey smudge, not line
+   art. Now 2.6.
+3. **A leg press offered a barbell.** The `isBarbell` name regex matches
+   "press", so Leg Press showed a bar-weight selector and a barbell plate
+   diagram. Pre-existing and merely odd — but once the user can state "this is
+   a Hammer Strength leg press", it's a contradiction on screen. An explicit
+   non-barbell choice now overrides the guess; no choice = unchanged behavior.
+
+### Original spec
 
 - i18n sweep: every new string through `tFallback`, English inline only.
 - Tests: `gymEquipment.js` vocab consistency, `resolveEquipmentImage` fallback

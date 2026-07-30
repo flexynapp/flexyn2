@@ -21,6 +21,7 @@ import { formatWeight } from '../../lib/weightUnit';
 import { triggerHaptic } from '@/lib/haptic';
 import { BAR_PRESETS, getActiveBarLbs, setActiveBarLbs } from '@/lib/barInventory';
 import ImplementPicker, { EquipmentThumb } from './ImplementPicker';
+import { IMPLEMENT_TYPE_META } from '@/lib/equipmentCatalog';
 
 // Epley 1RM formula
 const epley1RM = (weight, reps) => {
@@ -68,7 +69,17 @@ export default function ExerciseLogger({ exercise, onChange, onViewForm, userPro
   // Barbell movements get a quick bar-weight toggle so the plate math uses
   // the right tare (Olympic 45 / women's 35 / EZ 25 / trap 60 …). Sets the
   // app-wide active bar, which SetRow's plate diagram + the calculator read.
+  // The name regex is broad on purpose (it has to catch "Bench Press",
+  // "Pendlay Row"), but it also matches "Leg Press" and "Chest Press
+  // Machine" — which is why a leg press used to offer a bar-weight
+  // picker and a barbell plate diagram. Now that the user can state
+  // which implement they're on, an explicit non-barbell choice
+  // overrides the guess. No equipment chosen = unchanged behavior.
+  const implementKind = exercise.equipment?.implementType
+    ? IMPLEMENT_TYPE_META[exercise.equipment.implementType]?.kind
+    : null;
   const isBarbell = !isBodyweight
+    && (implementKind == null || implementKind === 'barbell')
     && /barbell|squat|deadlift|bench|press|row|clean|snatch|overhead|ohp/i.test(exercise.name || exercise.displayName || '');
   const [barLbs, setBarLbs] = useState(() => getActiveBarLbs());
   const totalVolume = sets.reduce((sum, s) => sum + (s.weight || 0) * (s.reps || 0), 0);

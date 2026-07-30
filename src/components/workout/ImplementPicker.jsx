@@ -354,9 +354,12 @@ export default function ImplementPicker({ exerciseName, value, onChange, userId 
             )}
           </Section>
 
+          {/* Placeholder rather than "At" + name — concatenating a
+              preposition onto a noun assumes English word order and
+              breaks in most of the other 14 locales. */}
           <Section
             title={gymName
-              ? `${tFallback('implement.atGym', 'At')} ${gymName}`
+              ? tFallback('implement.atGymNamed', 'At {gym}').replace('{gym}', gymName)
               : tFallback('implement.atYourGym', 'At your gym')}
             items={filtered.gym}
           >
@@ -494,7 +497,11 @@ function Row({ item, selected, onSelect }) {
     >
       <EquipmentThumb implement={item} size={36} />
       <span className="flex-1 min-w-0">
-        <span className="block text-sm font-medium truncate">{item.label}</span>
+        {/* Wraps to two lines rather than truncating. Truncation cut the
+            MODEL — "Hammer Strength Plate Loaded S…" — which is exactly
+            the part that tells two machines apart, in a list whose only
+            job is telling machines apart. */}
+        <span className="block text-sm font-medium line-clamp-2 leading-snug">{item.label}</span>
         {item.count > 1 && (
           <span className="block text-[10px] text-muted-foreground">
             used {item.count}×

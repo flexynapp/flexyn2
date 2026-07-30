@@ -23,10 +23,15 @@
 
 import React from 'react';
 
+// strokeWidth is deliberately heavy for a 48-unit viewBox. These render
+// at 27px inside a 36px thumbnail, so a 1.6 stroke lands under 1 device
+// pixel and the shape reads as a grey smudge — checked on screen, not
+// assumed. 2.6 survives the downscale and still looks like line art at
+// the 56px selected-implement size.
 const S = {
   fill: 'none',
   stroke: 'currentColor',
-  strokeWidth: 1.6,
+  strokeWidth: 2.6,
   strokeLinecap: 'round',
   strokeLinejoin: 'round',
   viewBox: '0 0 48 48',
