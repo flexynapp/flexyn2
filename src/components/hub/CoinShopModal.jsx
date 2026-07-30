@@ -42,9 +42,13 @@ const SKU_TO_CAMEL = {
   streak_freeze:    'streakFreeze',
 };
 
-// Admin sandbox: same list as MarketplaceFeed
-const ADMIN_USERNAMES = ['sean', 'seanj', 'kegan', 'admin'];
-
+// There was an "admin sandbox" here — a hardcoded username list that granted
+// free capsules by inserting straight into user_capsules, and showed those
+// accounts a fake 1,000,000 coin balance. Removed in migration 266: the check
+// passed on the EMAIL LOCAL PART too, so anyone signing up as
+// admin@anything.com got it, and the INSERT it relied on is exactly the grant
+// that let any client mint Elite Capsules for free. A client-side privilege
+// test is not a security boundary.
 export default function CoinShopModal({ open, onClose }) {
   const { user } = useAuth();
   const { t, tFallback } = useLanguage();
@@ -60,11 +64,6 @@ export default function CoinShopModal({ open, onClose }) {
   useEffect(() => {
     if (!open) { setBusySku(null); setConfirmSku(null); }
   }, [open]);
-
-  // Admin bypass — skip RPC (which validates real DB balance) and directly grant
-  const emailPrefix = user?.email?.split('@')[0]?.toLowerCase() || ''; // email-local-part-ok: admin-whitelist check, never rendered
-  const isAdmin = ADMIN_USERNAMES.includes(user?.username?.toLowerCase()) ||
-                  ADMIN_USERNAMES.includes(emailPrefix);
 
   // Subscribe to balance so the header updates after each purchase
   const { data: profile } = useQuery({
@@ -89,47 +88,7 @@ export default function CoinShopModal({ open, onClose }) {
     setBusySku(sku);
     try {
       const item = SHOP_CATALOG[sku];
-      let result;
-
-      if (isAdmin) {
-        // Admin sandbox bypass — skip coin validation RPC and directly grant the item.
-        // Admins carry a client-cached 1,000,000 flex coin balance but have low real DB balance.
-        try {
-          if (item.grants.type === 'capsule') {
-            const { error } = await supabase.from('user_capsules').insert({
-              user_id: user.id,
-              user_email: user.email,
-              capsule_type: item.grants.capsuleType,
-            });
-            if (error) throw error;
-            result = { success: true, granted: { type: 'capsule', capsuleType: item.grants.capsuleType } };
-          } else if (item.grants.type === 'streak_freeze') {
-            // NOTE: mig 173 blocks direct streak_freezes_available
-            // writes (42501) — on 173+ hosts this admin sandbox grant
-            // fails gracefully into the catch below. Real freeze grants
-            // need the coin-shop purchase RPC (031) or service role.
-            // Read current count first, then increment
-            const { data: prof } = await supabase
-              .from('user_profiles')
-              .select('streak_freezes_available')
-              .eq('id', user.id)
-              .maybeSingle();
-            const current = prof?.streak_freezes_available ?? 0;
-            const { error } = await supabase
-              .from('user_profiles')
-              .update({ streak_freezes_available: current + item.grants.amount })
-              .eq('id', user.id);
-            if (error) throw error;
-            result = { success: true, granted: { type: 'streak_freeze', amount: item.grants.amount } };
-          } else {
-            result = { success: false, error: 'unknown_grant_type' };
-          }
-        } catch (err) {
-          result = { success: false, error: err?.message || 'admin_grant_failed' };
-        }
-      } else {
-        result = await purchaseItem(user, sku);
-      }
+      const result = await purchaseItem(user, sku);
 
       if (result.success) {
         // Use translated item name in the success toast
@@ -202,7 +161,7 @@ export default function CoinShopModal({ open, onClose }) {
               <ShopRow
                 key={item.sku}
                 item={item}
-                balance={isAdmin ? 1_000_000 : balance}
+                balance={balance}
                 busy={busySku === item.sku}
                 onBuy={() => {
                   if (item.price >= CONFIRM_THRESHOLD) setConfirmSku(item.sku);

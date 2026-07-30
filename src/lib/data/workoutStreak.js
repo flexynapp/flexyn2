@@ -155,17 +155,17 @@ export async function recordWorkoutDay(user) {
   // "Elite capsule earned!" toast and writes a notification row off
   // eliteCapsuleAwarded; claiming success when the insert errored
   // would lie to the user the same way coinsAwarded did.
+  // See the matching comment in loginStreak.js — migration 266 moved this off
+  // a direct user_capsules INSERT, because the grant that made it possible
+  // also let any client mint Elite Capsules for free.
   let capsuleLanded = false;
   if (eliteCapsule) {
-    const { error: capsuleErr } = await supabase.from('user_capsules').insert({
-      user_id:    user.id,
-      user_email: user.email,
-      capsule_type: 'elite',
-    });
+    const { data: grant, error: capsuleErr } =
+      await supabase.rpc('grant_streak_capsule', { p_kind: 'workout' });
     if (capsuleErr) {
       console.warn('[workoutStreak] elite capsule grant failed:', capsuleErr);
     } else {
-      capsuleLanded = true;
+      capsuleLanded = grant?.granted === true;
     }
   }
 

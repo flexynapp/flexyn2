@@ -202,17 +202,23 @@ export async function recordLogin(user) {
   // that has never existed in capsules.js (the actual private helper
   // is `_grantCapsule` and isn't exported); the unused destructure
   // sat as dead code for the entire life of this function.
+  // Migration 266 moved this to grant_streak_capsule. It used to be a direct
+  // INSERT into user_capsules, which required `authenticated` to hold INSERT
+  // on that table — and that grant let any client POST itself unlimited Elite
+  // Capsules (1,000 coins each) straight past the shop. The RPC reads the
+  // streak day off the profile rather than trusting anything sent from here,
+  // and its own high-water mark makes a repeat call a no-op, so the
+  // idempotency this code used to rely on the caller for is now enforced.
   let capsuleLanded = false;
   if (eliteCapsule) {
-    const { error: capsuleErr } = await supabase.from('user_capsules').insert({
-      user_id:    user.id,
-      user_email: user.email,
-      capsule_type: 'elite',
-    });
+    const { data: grant, error: capsuleErr } =
+      await supabase.rpc('grant_streak_capsule', { p_kind: 'login' });
     if (capsuleErr) {
       console.warn('[loginStreak] elite capsule grant failed:', capsuleErr);
     } else {
-      capsuleLanded = true;
+      // The server decides. `granted: false` means it wasn't actually a
+      // milestone, or this one was already paid — either way don't claim it.
+      capsuleLanded = grant?.granted === true;
     }
   }
 
