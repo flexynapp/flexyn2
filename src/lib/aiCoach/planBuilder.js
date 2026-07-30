@@ -471,6 +471,7 @@ export async function buildCoachPlan({ user, message, profile = {}, excludeMuscl
       goal:          parsed.goal,
       nutritionGoal: profile.nutrition_goal,
       weeklyRateLbs: profile.weekly_rate_lbs,
+      age:           profileAge(profile),
       restrictions:  Array.isArray(profile.dietary_restrictions) ? profile.dietary_restrictions : [],
     }),
   });

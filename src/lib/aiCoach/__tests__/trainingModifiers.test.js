@@ -11,6 +11,7 @@ import {
   normalizeDiet,
   fuelNote,
   profileAge,
+  normalizeGoals,
   FEEL,
 } from '../trainingModifiers';
 import { _demographicScale } from '../workoutGenerator';
@@ -223,7 +224,7 @@ describe('buildTrainingModifiers', () => {
     });
     expect(m.loadMultiplier).toBeGreaterThanOrEqual(0.8);
     expect(m.setsDelta).toBeGreaterThanOrEqual(-1);
-    expect(m.restDeltaSec).toBeLessThanOrEqual(45);
+    expect(m.restDeltaSec).toBeLessThanOrEqual(60);
     expect(m.repDelta).toBeLessThanOrEqual(6);
   });
 
@@ -235,5 +236,92 @@ describe('buildTrainingModifiers', () => {
     });
     expect(m.notes.length).toBeGreaterThanOrEqual(3);
     expect(m.notes.every(n => typeof n === 'string' && n.length > 0)).toBe(true);
+  });
+});
+
+
+describe('multi-goal blending', () => {
+  it('returns every goal the profile ticked, not just the first', () => {
+    expect(normalizeGoals(['strength', 'muscle', 'lose'])).toEqual(['strength', 'lose', 'muscle']);
+  });
+
+  it('still answers with a single dominant goal for callers that want one', () => {
+    expect(normalizeGoal(['strength', 'muscle', 'lose'])).toBe('strength');
+  });
+
+  it('recognizes the speed and mobility goals onboarding offers', () => {
+    expect(normalizeGoals(['speed'])).toContain('speed');
+    expect(normalizeGoals(['mobility'])).toContain('mobility');
+  });
+
+  it('lands a strength+endurance blend between the two, not at either extreme', () => {
+    const strength = buildTrainingModifiers({ goal: ['strength'] });
+    const endurance = buildTrainingModifiers({ goal: ['endurance'] });
+    const both = buildTrainingModifiers({ goal: ['strength', 'endurance'] });
+    expect(both.repDelta).toBeGreaterThan(strength.repDelta);
+    expect(both.repDelta).toBeLessThan(endurance.repDelta);
+    expect(both.restDeltaSec).toBeLessThan(strength.restDeltaSec);
+    expect(both.restDeltaSec).toBeGreaterThan(endurance.restDeltaSec);
+  });
+
+  it('names what it is balancing so the blend is not silent', () => {
+    const m = buildTrainingModifiers({ goal: ['strength', 'lose'] });
+    expect(m.notes.join(' ')).toMatch(/balancing/i);
+    expect(m.notes.join(' ')).toMatch(/strength/i);
+    expect(m.notes.join(' ')).toMatch(/fat loss/i);
+  });
+
+  it('keeps mobility advice even though it changes no numbers', () => {
+    const m = buildTrainingModifiers({ goal: ['strength', 'mobility'] });
+    expect(m.notes.join(' ')).toMatch(/mobility/i);
+  });
+
+  it('settles near neutral when every goal is ticked — no stated priority', () => {
+    const m = buildTrainingModifiers({
+      goal: ['strength', 'muscle', 'lose', 'speed', 'endurance', 'mobility'],
+    });
+    expect(Math.abs(m.repDelta)).toBeLessThanOrEqual(1);
+    expect(Math.abs(m.restDeltaSec)).toBeLessThanOrEqual(10);
+    expect(m.applied.goals).toHaveLength(6);
+  });
+});
+
+describe('age-based rest', () => {
+  it('leaves rest alone up to 40', () => {
+    expect(buildTrainingModifiers({ age: 30 }).restDeltaSec).toBe(0);
+    expect(buildTrainingModifiers({ age: 40 }).restDeltaSec).toBe(0);
+  });
+
+  it('lengthens rest in steps as age climbs', () => {
+    const a45 = buildTrainingModifiers({ age: 45 }).restDeltaSec;
+    const a60 = buildTrainingModifiers({ age: 60 }).restDeltaSec;
+    const a70 = buildTrainingModifiers({ age: 70 }).restDeltaSec;
+    expect(a45).toBeGreaterThan(0);
+    expect(a60).toBeGreaterThan(a45);
+    expect(a70).toBeGreaterThan(a60);
+  });
+
+  it('keeps the age steps distinct even stacked on a strength goal', () => {
+    // The clamp used to cap at 45s, which collapsed 60 and 70 to the same
+    // rest once the strength goal had already spent 30 of it.
+    const a60 = buildTrainingModifiers({ goal: ['strength'], age: 60 }).restDeltaSec;
+    const a70 = buildTrainingModifiers({ goal: ['strength'], age: 70 }).restDeltaSec;
+    expect(a70).toBeGreaterThan(a60);
+  });
+
+  it('only ever adds rest, never rushes an older lifter', () => {
+    // Endurance alone shortens rest; at 70 the age bonus must offset it upward.
+    const young = buildTrainingModifiers({ goal: ['endurance'], age: 30 });
+    const older = buildTrainingModifiers({ goal: ['endurance'], age: 70 });
+    expect(older.restDeltaSec).toBeGreaterThan(young.restDeltaSec);
+  });
+
+  it('explains the longer rest', () => {
+    expect(buildTrainingModifiers({ age: 62 }).notes.join(' ')).toMatch(/rest is \d+s longer/i);
+  });
+
+  it('does nothing when age is unknown', () => {
+    expect(buildTrainingModifiers({ age: null }).restDeltaSec).toBe(0);
+    expect(buildTrainingModifiers({}).restDeltaSec).toBe(0);
   });
 });

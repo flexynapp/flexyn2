@@ -136,12 +136,30 @@ const FEEL_RULES = {
 
 // Goal shapes the rep/rest character of the session.
 const GOAL_RULES = {
-  strength: { repDelta: -2, restSec:  30, note: 'Built for strength: lower reps, longer rests.' },
-  muscle:   { repDelta:  0, restSec:   0, note: 'Built for hypertrophy: moderate reps, moderate rests.' },
-  lose:     { repDelta: +2, restSec: -15, note: 'Built for a cut: slightly higher reps, tighter rests to keep the heart rate up.' },
-  endurance:{ repDelta: +4, restSec: -20, note: 'Built for endurance: higher reps, short rests.' },
-  general:  { repDelta:  0, restSec:   0, note: '' },
+  strength: { repDelta: -2, restSec:  30, label: 'strength',  note: 'Built for strength: lower reps, longer rests.' },
+  muscle:   { repDelta:  0, restSec:   0, label: 'muscle',    note: 'Built for hypertrophy: moderate reps, moderate rests.' },
+  lose:     { repDelta: +2, restSec: -15, label: 'fat loss',  note: 'Built for a cut: slightly higher reps, tighter rests to keep the heart rate up.' },
+  endurance:{ repDelta: +4, restSec: -20, label: 'endurance', note: 'Built for endurance: higher reps, short rests.' },
+  // Onboarding offers these two as well. `speed` trains like conditioning in a
+  // lifting session; `mobility` doesn't change loading at all, so it carries a
+  // note and no numbers rather than being silently dropped into `general`.
+  speed:    { repDelta: +3, restSec: -15, label: 'speed',     note: 'Speed work: keep the bar moving fast and the rests short.' },
+  mobility: { repDelta:  0, restSec:   0, label: 'mobility',  note: 'Mobility is one of your goals — give the warm-up its full time and take the end-range positions slowly.' },
+  general:  { repDelta:  0, restSec:   0, label: 'general',   note: '' },
 };
+
+// Rest lengthens with age. Recovery between sets slows as people get older,
+// and prescribing a 30-year-old's rest to a 60-year-old quietly turns a
+// strength session into a conditioning one because the later sets are run
+// under-recovered. This is additive on top of whatever the goal blend asked
+// for, and only ever adds time — it never rushes anyone.
+function ageRestBonus(age) {
+  const a = Number(age);
+  if (!Number.isFinite(a) || a <= 40) return 0;
+  if (a <= 55) return 10;
+  if (a <= 65) return 20;
+  return 30;
+}
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
@@ -171,23 +189,47 @@ export function profileAge(profile = {}) {
  * a CSV fitness_goals string, or a parsed coach goal) into one of the
  * GOAL_RULES keys.
  */
-export function normalizeGoal(raw) {
+// Order matters for the single-goal answer below: `lose` is tested BEFORE
+// `muscle` because "tone up" belongs to the muscle pattern, and the very
+// common combined phrasing "lose weight, tone up" is a cut — matching muscle
+// first classified it as hypertrophy and handed the user an extra set while
+// they were eating in a deficit.
+const GOAL_PATTERNS = [
+  ['strength',  /strength|stronger|power|\bpr\b/],
+  ['lose',      /lose|cut|fat|weight.?loss|lean/],
+  ['muscle',    /muscle|hypertroph|bulk|size|tone/],
+  ['speed',     /\bspeed\b|sprint|faster|explosive/],
+  ['endurance', /endur|cardio|\brun\b|5k|10k|marathon|stamina/],
+  ['mobility',  /mobility|flexib|stretch|range of motion/],
+];
+
+/**
+ * Every goal the input matches, in GOAL_PATTERNS order.
+ *
+ * Onboarding lets people tick several goals, and a profile carrying
+ * "strength, muscle, lose" is normal rather than exotic. Collapsing that to a
+ * single winner by fixed priority meant someone who asked for muscle AND fat
+ * loss was programmed as pure strength and never saw the other two influence
+ * anything — the extra goals were silently discarded.
+ */
+export function normalizeGoals(raw) {
   const list = Array.isArray(raw)
     ? raw
     : typeof raw === 'string'
       ? raw.split(',')
       : [];
-  const joined = list.map(s => String(s).toLowerCase().trim()).join(' ');
-  if (!joined) return 'general';
-  if (/strength|stronger|power|\bpr\b/.test(joined))          return 'strength';
-  // `lose` is tested BEFORE `muscle` on purpose. "tone up" belongs to the
-  // muscle pattern, but the very common combined goal "lose weight, tone up"
-  // is a cut — checking muscle first classified it as hypertrophy and handed
-  // the user an extra set while they were eating in a deficit.
-  if (/lose|cut|fat|weight.?loss|lean/.test(joined))          return 'lose';
-  if (/muscle|hypertroph|bulk|size|tone/.test(joined))        return 'muscle';
-  if (/endur|cardio|run|5k|10k|marathon|stamina/.test(joined))return 'endurance';
-  return 'general';
+  // Match per ENTRY, not against everything joined together. Joining let a
+  // stray word in one goal satisfy the pattern for another.
+  const found = [];
+  for (const [key, re] of GOAL_PATTERNS) {
+    if (list.some(item => re.test(String(item).toLowerCase().trim()))) found.push(key);
+  }
+  return found.length ? found : ['general'];
+}
+
+/** The single dominant goal. Kept for callers that want one label. */
+export function normalizeGoal(raw) {
+  return normalizeGoals(raw)[0];
 }
 
 /** Map the profile's nutrition_goal onto a diet direction. */
@@ -224,6 +266,7 @@ export function buildTrainingModifiers({
   nutritionGoal = null,
   weeklyRateLbs = null,
   restrictions = [],
+  age = null,
 } = {}) {
   const notes = [];
   const applied = { goal: null, diet: null, cycle: null, feel: null };
@@ -233,13 +276,36 @@ export function buildTrainingModifiers({
   let repDelta = 0;
   let restDeltaSec = 0;
 
-  // ── Goal: rep/rest character ──────────────────────────────────────────
-  const goalKey = normalizeGoal(goal);
-  const goalRule = GOAL_RULES[goalKey] || GOAL_RULES.general;
-  repDelta     += goalRule.repDelta;
-  restDeltaSec += goalRule.restSec;
-  applied.goal = goalKey;
-  if (goalRule.note) notes.push(goalRule.note);
+  // ── Goal: rep/rest character, blended across every goal the user picked ──
+  //
+  // Averaged rather than summed. Summing "strength + endurance" would cancel
+  // to roughly nothing by luck and "strength + speed" would compound into
+  // something neither goal asked for; the mean lands the session honestly
+  // between them, which is what someone chasing both actually wants. Someone
+  // who ticks every box averages out near neutral, which is also correct —
+  // they have expressed no priority.
+  const goalKeys = normalizeGoals(goal);
+  const rules = goalKeys.map(k => GOAL_RULES[k] || GOAL_RULES.general);
+  const mean = (arr) => arr.reduce((a, b) => a + b, 0) / (arr.length || 1);
+  repDelta     += Math.round(mean(rules.map(r => r.repDelta)));
+  restDeltaSec += Math.round(mean(rules.map(r => r.restSec)));
+  applied.goal  = goalKeys[0];
+  applied.goals = goalKeys;
+
+  if (goalKeys.length === 1) {
+    if (rules[0].note) notes.push(rules[0].note);
+  } else {
+    // Name what is being balanced, so a blended session doesn't look like the
+    // Coach ignored half the profile.
+    const labels = rules.map(r => r.label);
+    const list = labels.length === 2
+      ? `${labels[0]} and ${labels[1]}`
+      : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+    notes.push(`Balancing ${list} — reps and rests land between what each one would ask for on its own.`);
+    // Mobility changes nothing numerically, so its standalone advice would be
+    // lost in the blend. Keep it.
+    if (goalKeys.includes('mobility')) notes.push(GOAL_RULES.mobility.note);
+  }
 
   // ── Diet: volume ──────────────────────────────────────────────────────
   const dietKey = normalizeDiet(nutritionGoal, weeklyRateLbs);
@@ -281,13 +347,25 @@ export function buildTrainingModifiers({
     if (feelRule.note) notes.push(feelRule.note);
   }
 
+  // ── Age: longer rest ──────────────────────────────────────────────────
+  const ageRest = ageRestBonus(age);
+  if (ageRest > 0) {
+    restDeltaSec += ageRest;
+    applied.ageRestSec = ageRest;
+    notes.push(`Rest is ${ageRest}s longer than the default — recovery between sets slows with age, and rushing it turns a strength session into a conditioning one.`);
+  }
+
   return {
     // Hard ceiling on how far context can move the bar in either direction.
     // Compounding diet + cycle + feel must never produce a wild suggestion.
     loadMultiplier: clamp(Number(loadMultiplier.toFixed(3)), 0.8, 1.1),
     setsDelta:      clamp(setsDelta, -1, 1),
     repDelta:       clamp(repDelta, -4, 6),
-    restDeltaSec:   clamp(restDeltaSec, -30, 45),
+    // Upper bound is 60, not 45: a strength goal (+30) on a 70-year-old (+30)
+    // legitimately wants a full extra minute, and the old 45s ceiling silently
+    // collapsed the 55/65/65+ age steps into one value. generateWorkout caps
+    // the final figure at 240s anyway, so this cannot run away.
+    restDeltaSec:   clamp(restDeltaSec, -30, 60),
     notes,
     applied,
   };

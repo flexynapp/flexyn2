@@ -88,6 +88,7 @@ export default function WorkoutQuickGenerator({ userProfile = {}, onSaveRegimen,
           goal:          userProfile?.fitness_goals_arr || userProfile?.fitness_goals,
           nutritionGoal: userProfile?.nutrition_goal,
           weeklyRateLbs: userProfile?.weekly_rate_lbs,
+          age:           profileAge(userProfile),
           // Allergies + dietary restrictions, so a fuel suggestion never names
           // something the user can't eat. loadRestrictions falls back to the
           // localStorage copy when the profile column isn't populated.
